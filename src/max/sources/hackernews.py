@@ -1,0 +1,83 @@
+"""HackerNews source adapter — top/new stories from HN API."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import httpx
+
+from max.sources.base import SourceAdapter
+from max.types.signal import Signal, SignalSourceType
+
+HN_API = "https://hacker-news.firebaseio.com/v0"
+
+
+class HackerNewsAdapter(SourceAdapter):
+    @property
+    def name(self) -> str:
+        return "hackernews"
+
+    @property
+    def source_type(self) -> str:
+        return SignalSourceType.FORUM.value
+
+    async def fetch(self, *, limit: int = 30) -> list[Signal]:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(f"{HN_API}/topstories.json")
+            resp.raise_for_status()
+            story_ids = resp.json()[:limit]
+
+            signals: list[Signal] = []
+            for story_id in story_ids:
+                item_resp = await client.get(f"{HN_API}/item/{story_id}.json")
+                item = item_resp.json()
+                if not item or item.get("type") != "story":
+                    continue
+
+                title = item.get("title", "")
+                url = item.get("url", f"https://news.ycombinator.com/item?id={story_id}")
+
+                # Compute credibility from score
+                score = item.get("score", 0)
+                credibility = min(score / 500, 1.0)
+
+                signals.append(
+                    Signal(
+                        source_type=SignalSourceType.FORUM,
+                        source_adapter=self.name,
+                        title=title,
+                        content=title,  # HN stories are link-only; title is the signal
+                        url=url,
+                        author=item.get("by"),
+                        published_at=datetime.fromtimestamp(
+                            item.get("time", 0), tz=timezone.utc
+                        ),
+                        tags=_extract_tags(title),
+                        credibility=credibility,
+                        metadata={
+                            "hn_id": story_id,
+                            "score": score,
+                            "descendants": item.get("descendants", 0),
+                        },
+                    )
+                )
+
+            return signals
+
+
+def _extract_tags(title: str) -> list[str]:
+    """Extract rough topic tags from title keywords."""
+    keywords = {
+        "ai": ["ai", "llm", "gpt", "claude", "machine learning", "ml"],
+        "mcp": ["mcp", "model context protocol"],
+        "agent": ["agent", "agentic"],
+        "rust": ["rust"],
+        "python": ["python"],
+        "typescript": ["typescript", "node", "deno", "bun"],
+        "security": ["security", "vulnerability", "cve"],
+        "devtools": ["developer", "devtools", "ide", "editor", "vscode"],
+        "open_source": ["open source", "oss", "github"],
+        "startup": ["startup", "yc", "funding", "raised"],
+    }
+    lower = title.lower()
+    return [tag for tag, terms in keywords.items() if any(t in lower for t in terms)]
