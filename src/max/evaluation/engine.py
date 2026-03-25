@@ -32,7 +32,11 @@ class EvaluationOutput(BaseModel):
     recommendation: str = "maybe"
 
 
-def evaluate(unit: BuildableUnit) -> UtilityEvaluation:
+def evaluate(
+    unit: BuildableUnit,
+    *,
+    weights: dict[str, float] | None = None,
+) -> UtilityEvaluation:
     """Evaluate a single buildable unit across 7 dimensions."""
     unit_json = json.dumps(
         {
@@ -55,6 +59,7 @@ def evaluate(unit: BuildableUnit) -> UtilityEvaluation:
         prompt=build_evaluation_prompt(unit_json),
         output_type=EvaluationOutput,
         temperature=0.3,  # Lower temperature for more consistent scoring
+        stage="evaluation",
     )
 
     def to_score(out: DimensionScoreOutput) -> DimensionScore:
@@ -82,7 +87,8 @@ def evaluate(unit: BuildableUnit) -> UtilityEvaluation:
         "compounding_value": compound.value,
     }
 
-    overall = compute_overall_score(dimension_values)
+    effective_weights = weights or DEFAULT_WEIGHTS
+    overall = compute_overall_score(dimension_values, effective_weights)
 
     valid_recs = {"strong_yes", "yes", "maybe", "no", "strong_no"}
     rec = result.recommendation if result.recommendation in valid_recs else "maybe"
@@ -100,5 +106,5 @@ def evaluate(unit: BuildableUnit) -> UtilityEvaluation:
         strengths=result.strengths,
         weaknesses=result.weaknesses,
         recommendation=rec,
-        weights_used=DEFAULT_WEIGHTS,
+        weights_used=effective_weights,
     )

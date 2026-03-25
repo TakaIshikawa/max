@@ -1,6 +1,9 @@
-"""Static evaluation weights and dimension definitions."""
+"""Evaluation weights — static defaults + dynamic weight profiles."""
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 # Static baseline weights (sum to 1.0)
 DEFAULT_WEIGHTS: dict[str, float] = {
@@ -26,6 +29,52 @@ DIMENSION_DESCRIPTIONS: dict[str, str] = {
     "compounding_value": "Does value grow with usage/network effects? (0=linear, 10=exponential)",
 }
 
+# Named weight profiles for different evaluation strategies
+WEIGHT_PROFILES: dict[str, dict[str, float]] = {
+    "default": DEFAULT_WEIGHTS,
+    "quick_wins": {
+        "pain_severity": 0.15,
+        "addressable_scale": 0.10,
+        "build_effort": 0.30,  # Heavily favor easy-to-build ideas
+        "composability": 0.10,
+        "competitive_density": 0.10,
+        "timing_fit": 0.15,
+        "compounding_value": 0.10,
+    },
+    "moonshots": {
+        "pain_severity": 0.25,
+        "addressable_scale": 0.20,
+        "build_effort": 0.05,  # Don't penalize effort
+        "composability": 0.10,
+        "competitive_density": 0.15,
+        "timing_fit": 0.05,
+        "compounding_value": 0.20,  # Favor compounding value
+    },
+    "ecosystem": {
+        "pain_severity": 0.10,
+        "addressable_scale": 0.15,
+        "build_effort": 0.10,
+        "composability": 0.30,  # Heavily favor composability
+        "competitive_density": 0.10,
+        "timing_fit": 0.10,
+        "compounding_value": 0.15,
+    },
+    "agent_first": {
+        "pain_severity": 0.15,
+        "addressable_scale": 0.20,
+        "build_effort": 0.10,
+        "composability": 0.20,
+        "competitive_density": 0.05,
+        "timing_fit": 0.15,
+        "compounding_value": 0.15,
+    },
+}
+
+
+def get_weights(profile: str = "default") -> dict[str, float]:
+    """Get weights by profile name. Falls back to default if unknown."""
+    return WEIGHT_PROFILES.get(profile, DEFAULT_WEIGHTS)
+
 
 def compute_overall_score(
     dimension_values: dict[str, float],
@@ -35,3 +84,65 @@ def compute_overall_score(
     w = weights or DEFAULT_WEIGHTS
     score = sum(dimension_values.get(dim, 0) * weight for dim, weight in w.items())
     return round(score * 10, 2)  # Scale 0-10 weighted average to 0-100
+
+
+def adapt_weights(
+    outcomes: list[dict],
+    base_weights: dict[str, float] | None = None,
+    learning_rate: float = 0.05,
+) -> dict[str, float]:
+    """Adapt weights based on historical outcomes.
+
+    Each outcome dict should contain:
+        - dimension_values: dict[str, float] — scores per dimension
+        - success: bool — whether the idea was ultimately approved/published
+
+    Dimensions that correlate with success get higher weights.
+    """
+    base = dict(base_weights or DEFAULT_WEIGHTS)
+
+    if not outcomes:
+        return base
+
+    # Compute per-dimension success correlation
+    adjustments: dict[str, float] = {dim: 0.0 for dim in base}
+    success_count = sum(1 for o in outcomes if o.get("success"))
+    failure_count = len(outcomes) - success_count
+
+    if success_count == 0 or failure_count == 0:
+        return base
+
+    for dim in base:
+        success_avg = sum(
+            o["dimension_values"].get(dim, 0)
+            for o in outcomes
+            if o.get("success")
+        ) / success_count
+
+        failure_avg = sum(
+            o["dimension_values"].get(dim, 0)
+            for o in outcomes
+            if not o.get("success")
+        ) / failure_count
+
+        # Positive delta = dimension predicts success
+        adjustments[dim] = (success_avg - failure_avg) * learning_rate
+
+    # Apply adjustments and renormalize
+    for dim in base:
+        base[dim] = max(0.01, base[dim] + adjustments[dim])
+
+    total = sum(base.values())
+    return {dim: round(w / total, 4) for dim, w in base.items()}
+
+
+def save_weights(weights: dict[str, float], path: Path) -> None:
+    """Persist a weight profile to a JSON file."""
+    with open(path, "w") as f:
+        json.dump(weights, f, indent=2)
+
+
+def load_weights(path: Path) -> dict[str, float]:
+    """Load a weight profile from a JSON file."""
+    with open(path) as f:
+        return json.load(f)

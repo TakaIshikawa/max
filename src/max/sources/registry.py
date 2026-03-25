@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from max.sources.base import SourceAdapter
+from max.sources.github import GitHubAdapter
 from max.sources.hackernews import HackerNewsAdapter
 from max.sources.npm_registry import NpmRegistryAdapter
+from max.sources.reddit import RedditAdapter
 
 _ADAPTERS: dict[str, type[SourceAdapter]] = {
     "hackernews": HackerNewsAdapter,
     "npm_registry": NpmRegistryAdapter,
+    "reddit": RedditAdapter,
+    "github": GitHubAdapter,
 }
 
 

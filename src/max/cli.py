@@ -18,7 +18,9 @@ def main() -> None:
 @click.option("--output", "-o", type=click.Path(), default=".tact", help="Output directory for tact specs")
 @click.option("--signal-limit", type=int, default=30, help="Max signals per adapter")
 @click.option("--min-score", type=float, default=50.0, help="Minimum score to generate spec")
-def run(output: str, signal_limit: int, min_score: float) -> None:
+@click.option("--profile", type=str, default="default", help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
+@click.option("--mode", type=click.Choice(["direct", "refinement", "cross_domain", "all"]), default="direct", help="Ideation mode")
+def run(output: str, signal_limit: int, min_score: float, profile: str, mode: str) -> None:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → publish."""
     from max.pipeline.runner import run_pipeline
 
@@ -27,19 +29,26 @@ def run(output: str, signal_limit: int, min_score: float) -> None:
     click.echo(f"  Output:       {output_dir.resolve()}")
     click.echo(f"  Signal limit: {signal_limit}")
     click.echo(f"  Min score:    {min_score}")
+    click.echo(f"  Profile:      {profile}")
+    click.echo(f"  Mode:         {mode}")
     click.echo()
 
     result = run_pipeline(
         output_dir=output_dir,
         signal_limit=signal_limit,
         min_score=min_score,
+        weight_profile=profile,
+        ideation_mode=mode,
     )
 
     click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new)")
-    click.echo(f"Insights generated: {result.insights_generated}")
+    click.echo(f"Insights generated: {result.insights_generated} (avg confidence: {result.avg_insight_confidence:.2f})")
     click.echo(f"Ideas generated:    {result.ideas_generated}")
-    click.echo(f"Ideas evaluated:    {result.ideas_evaluated}")
+    click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
     click.echo(f"Specs generated:    {result.specs_generated}")
+    if result.token_usage:
+        total = result.token_usage.get("total", 0)
+        click.echo(f"Token usage:        {total:,} (in: {result.token_usage.get('total_input', 0):,}, out: {result.token_usage.get('total_output', 0):,})")
     click.echo()
 
     if result.top_ideas:
@@ -160,5 +169,86 @@ def publish(unit_id: str, output: str, dry_run: bool) -> None:
             write_tact_spec(spec, output_dir)
             click.echo(f"Written to: {output_dir.resolve()}")
             store.update_buildable_unit_status(unit_id, "published")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.argument("unit_id")
+@click.argument("outcome", type=click.Choice(["approved", "rejected", "published", "abandoned"]))
+@click.option("--reason", "-r", type=str, default="", help="Reason for the feedback")
+def feedback(unit_id: str, outcome: str, reason: str) -> None:
+    """Record feedback on a buildable unit (approved/rejected/published/abandoned)."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(unit_id)
+        if not unit:
+            click.echo(f"Not found: {unit_id}")
+            return
+
+        store.insert_feedback(unit_id, outcome, reason)
+        store.update_buildable_unit_status(unit_id, outcome)
+        click.echo(f"Recorded: {unit.title} → {outcome}")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.option("--base-profile", type=str, default="default", help="Base weight profile to adapt from")
+@click.option("--save", type=click.Path(), default=None, help="Save adapted weights to file")
+def adapt_weights(base_profile: str, save: str | None) -> None:
+    """Adapt evaluation weights based on feedback history."""
+    from max.evaluation.weights import adapt_weights as do_adapt, get_weights, save_weights
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        outcomes = store.get_feedback_outcomes()
+        if not outcomes:
+            click.echo("No feedback recorded yet. Use 'max feedback <id> approved/rejected' first.")
+            return
+
+        base = get_weights(base_profile)
+        adapted = do_adapt(outcomes, base)
+
+        click.echo(f"Adapted weights from {len(outcomes)} feedback records:")
+        click.echo(f"  Base profile: {base_profile}")
+        click.echo()
+        for dim, weight in adapted.items():
+            base_w = base.get(dim, 0)
+            delta = weight - base_w
+            marker = "+" if delta > 0 else ""
+            click.echo(f"  {dim:22s}  {weight:.4f}  ({marker}{delta:.4f})")
+
+        if save:
+            save_weights(adapted, Path(save))
+            click.echo(f"\nSaved to: {save}")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.argument("unit_id")
+@click.option("--tact-url", type=str, default="http://localhost:4800/api/v1", help="Tact daemon URL")
+def push(unit_id: str, tact_url: str) -> None:
+    """Push a spec to the tact daemon via REST API."""
+    from max.publisher.tact_api import push_to_tact_sync
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        spec = store.get_tact_spec(unit_id)
+        if not spec:
+            click.echo(f"No spec for {unit_id}. Run 'max publish {unit_id}' first.")
+            return
+
+        click.echo(f"Pushing {spec.product.name} to {tact_url}...")
+        results = push_to_tact_sync(spec, tact_url=tact_url)
+
+        for endpoint, success in results.items():
+            status = "ok" if success else "FAILED"
+            click.echo(f"  {endpoint}: {status}")
     finally:
         store.close()

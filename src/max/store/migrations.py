@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS tact_specs (
     created_at TEXT NOT NULL,
     FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
 );
+
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buildable_unit_id TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    dimension_values TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS embeddings (
+    id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    embedding TEXT NOT NULL,
+    PRIMARY KEY (id, entity_type)
+);
 """
 
 

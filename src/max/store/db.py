@@ -234,6 +234,57 @@ class Store:
             return None
         return TactSpec.model_validate_json(row["spec_json"])
 
+    # ── Feedback ─────────────────────────────────────────────────────
+
+    def insert_feedback(
+        self,
+        unit_id: str,
+        outcome: str,
+        reason: str = "",
+    ) -> None:
+        """Record feedback on a buildable unit.
+
+        outcome: approved | rejected | published | abandoned
+        """
+        # Get dimension values from evaluation if available
+        evaluation = self.get_evaluation(unit_id)
+        dimension_values = {}
+        if evaluation:
+            dimension_values = {
+                "pain_severity": evaluation.pain_severity.value,
+                "addressable_scale": evaluation.addressable_scale.value,
+                "build_effort": evaluation.build_effort.value,
+                "composability": evaluation.composability.value,
+                "competitive_density": evaluation.competitive_density.value,
+                "timing_fit": evaluation.timing_fit.value,
+                "compounding_value": evaluation.compounding_value.value,
+            }
+
+        self.conn.execute(
+            """INSERT INTO feedback
+               (buildable_unit_id, outcome, reason, dimension_values, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (unit_id, outcome, reason, json.dumps(dimension_values), _now_iso()),
+        )
+        self.conn.commit()
+
+    def get_feedback_outcomes(self) -> list[dict]:
+        """Get all feedback records formatted for weight adaptation."""
+        rows = self.conn.execute(
+            "SELECT buildable_unit_id, outcome, dimension_values FROM feedback"
+        ).fetchall()
+
+        outcomes = []
+        for row in rows:
+            dim_vals = json.loads(row["dimension_values"])
+            success = row["outcome"] in ("approved", "published")
+            outcomes.append({
+                "buildable_unit_id": row["buildable_unit_id"],
+                "dimension_values": dim_vals,
+                "success": success,
+            })
+        return outcomes
+
 
 # ── Row conversion helpers ───────────────────────────────────────────
 

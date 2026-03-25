@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from max.evaluation.engine import evaluate
-from max.ideation.engine import ideate
+from max.evaluation.weights import get_weights
+from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
+from max.llm.client import token_tracker
 from max.publisher.file_writer import write_tact_spec
 from max.sources.registry import get_all_adapters
 from max.spec.generator import generate_spec
@@ -30,14 +32,23 @@ class PipelineResult:
     specs_generated: int = 0
     top_ideas: list[dict] = field(default_factory=list)
 
+    # Quality metrics
+    avg_insight_confidence: float = 0.0
+    avg_idea_score: float = 0.0
+    token_usage: dict[str, int] = field(default_factory=dict)
+
 
 def run_pipeline(
     *,
     output_dir: Path | None = None,
     signal_limit: int = 30,
     min_score: float = 50.0,
+    weight_profile: str = "default",
+    ideation_mode: str = "direct",
 ) -> PipelineResult:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish."""
+    token_tracker.reset()
+    weights = get_weights(weight_profile)
     store = Store()
     result = PipelineResult()
 
@@ -57,22 +68,38 @@ def run_pipeline(
         for ins in insights:
             store.insert_insight(ins)
         result.insights_generated = len(insights)
+        if insights:
+            result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
 
-        # 3. Ideate
+        # 3. Ideate (supports multiple modes)
         recent_insights = store.get_insights(limit=20)
-        units = ideate(recent_insights)
+        units: list[BuildableUnit] = []
+
+        if ideation_mode in ("direct", "all"):
+            units.extend(ideate(recent_insights))
+
+        if ideation_mode in ("refinement", "all"):
+            existing = store.get_buildable_units(status="evaluated", limit=10)
+            if existing:
+                units.extend(ideate_refinement(existing, recent_insights))
+
+        if ideation_mode in ("cross_domain", "all"):
+            units.extend(ideate_cross_domain(recent_insights))
+
         for unit in units:
             store.insert_buildable_unit(unit)
         result.ideas_generated = len(units)
 
-        # 4. Evaluate
+        # 4. Evaluate (using selected weight profile)
         evaluated: list[tuple[BuildableUnit, UtilityEvaluation]] = []
         for unit in units:
-            evaluation = evaluate(unit)
+            evaluation = evaluate(unit, weights=weights)
             store.insert_evaluation(evaluation)
             store.update_buildable_unit_status(unit.id, "evaluated")
             evaluated.append((unit, evaluation))
         result.ideas_evaluated = len(evaluated)
+        if evaluated:
+            result.avg_idea_score = sum(e.overall_score for _, e in evaluated) / len(evaluated)
 
         # 5. Generate specs for ideas above threshold
         specs_written = 0
@@ -104,6 +131,9 @@ def run_pipeline(
                 evaluated, key=lambda x: x[1].overall_score, reverse=True
             )[:5]
         ]
+
+        # Token usage
+        result.token_usage = token_tracker.summary()
 
     finally:
         store.close()

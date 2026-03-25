@@ -102,6 +102,7 @@ def generate_spec(unit: BuildableUnit, evaluation: UtilityEvaluation) -> TactSpe
         prompt=build_spec_prompt(unit_json, eval_json),
         output_type=SpecOutput,
         temperature=0.4,
+        stage="spec_generation",
     )
 
     product = TactProduct(

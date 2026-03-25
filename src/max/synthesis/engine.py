@@ -56,6 +56,7 @@ def synthesize(signals: list[Signal]) -> list[Insight]:
         system=SYSTEM,
         prompt=build_synthesis_prompt(signals_json),
         output_type=SynthesisOutput,
+        stage="synthesis",
     )
 
     insights: list[Insight] = []

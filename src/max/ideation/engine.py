@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
+from itertools import combinations
 
 from pydantic import BaseModel, Field
 
 from max.llm.client import structured_call
-from max.ideation.prompts import SYSTEM, build_ideation_prompt
+from max.ideation.prompts import (
+    SYSTEM,
+    build_cross_domain_prompt,
+    build_ideation_prompt,
+    build_refinement_prompt,
+)
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.insight import Insight
 
@@ -34,12 +40,8 @@ class IdeationOutput(BaseModel):
     ideas: list[BuildableUnitOutput]
 
 
-def ideate(insights: list[Insight]) -> list[BuildableUnit]:
-    """Generate buildable unit ideas from insights."""
-    if not insights:
-        return []
-
-    insights_json = json.dumps(
+def _insights_to_json(insights: list[Insight]) -> str:
+    return json.dumps(
         [
             {
                 "id": i.id,
@@ -56,21 +58,43 @@ def ideate(insights: list[Insight]) -> list[BuildableUnit]:
         indent=2,
     )
 
-    result = structured_call(
-        system=SYSTEM,
-        prompt=build_ideation_prompt(insights_json),
-        output_type=IdeationOutput,
+
+def _units_to_json(units: list[BuildableUnit]) -> str:
+    return json.dumps(
+        [
+            {
+                "id": u.id,
+                "title": u.title,
+                "one_liner": u.one_liner,
+                "category": u.category.value,
+                "problem": u.problem,
+                "solution": u.solution,
+                "target_users": u.target_users,
+                "value_proposition": u.value_proposition,
+                "tech_approach": u.tech_approach,
+                "composability_notes": u.composability_notes,
+            }
+            for u in units
+        ],
+        indent=2,
     )
 
+
+def _parse_output(
+    result: IdeationOutput,
+    insights: list[Insight],
+    mode: IdeationMode,
+) -> list[BuildableUnit]:
+    """Convert LLM output to BuildableUnit list with evidence tracing."""
+    insight_map = {i.id: i for i in insights}
     units: list[BuildableUnit] = []
+
     for out in result.ideas:
         try:
             category = BuildableCategory(out.category)
         except ValueError:
             category = BuildableCategory.APPLICATION
 
-        # Collect signal IDs transitively from inspiring insights
-        insight_map = {i.id: i for i in insights}
         evidence_signals: list[str] = []
         for ins_id in out.inspiring_insights:
             if ins_id in insight_map:
@@ -81,7 +105,7 @@ def ideate(insights: list[Insight]) -> list[BuildableUnit]:
                 title=out.title,
                 one_liner=out.one_liner,
                 category=category,
-                ideation_mode=IdeationMode.DIRECT,
+                ideation_mode=mode,
                 problem=out.problem,
                 solution=out.solution,
                 target_users=out.target_users
@@ -97,3 +121,74 @@ def ideate(insights: list[Insight]) -> list[BuildableUnit]:
         )
 
     return units
+
+
+def ideate(insights: list[Insight]) -> list[BuildableUnit]:
+    """Generate buildable unit ideas from insights (direct mode)."""
+    if not insights:
+        return []
+
+    result = structured_call(
+        system=SYSTEM,
+        prompt=build_ideation_prompt(_insights_to_json(insights)),
+        output_type=IdeationOutput,
+        stage="ideation",
+    )
+
+    return _parse_output(result, insights, IdeationMode.DIRECT)
+
+
+def ideate_refinement(
+    existing_units: list[BuildableUnit],
+    new_insights: list[Insight],
+) -> list[BuildableUnit]:
+    """Refine existing ideas based on new insights."""
+    if not existing_units or not new_insights:
+        return []
+
+    result = structured_call(
+        system=SYSTEM,
+        prompt=build_refinement_prompt(
+            _units_to_json(existing_units),
+            _insights_to_json(new_insights),
+        ),
+        output_type=IdeationOutput,
+        stage="ideation_refinement",
+    )
+
+    return _parse_output(result, new_insights, IdeationMode.REFINEMENT)
+
+
+def ideate_cross_domain(insights: list[Insight]) -> list[BuildableUnit]:
+    """Generate ideas by combining insights from different domains."""
+    if not insights:
+        return []
+
+    # Group insights by domain
+    domain_groups: dict[str, list[Insight]] = {}
+    for ins in insights:
+        for domain in ins.domains:
+            domain_groups.setdefault(domain, []).append(ins)
+
+    domains = list(domain_groups.keys())
+    if len(domains) < 2:
+        return []
+
+    all_units: list[BuildableUnit] = []
+
+    # Take up to 3 domain pairs to avoid too many LLM calls
+    for domain_a, domain_b in list(combinations(domains, 2))[:3]:
+        result = structured_call(
+            system=SYSTEM,
+            prompt=build_cross_domain_prompt(
+                _insights_to_json(domain_groups[domain_a]),
+                _insights_to_json(domain_groups[domain_b]),
+            ),
+            output_type=IdeationOutput,
+            stage="ideation_cross_domain",
+        )
+
+        all_insights = domain_groups[domain_a] + domain_groups[domain_b]
+        all_units.extend(_parse_output(result, all_insights, IdeationMode.CROSS_DOMAIN))
+
+    return all_units
