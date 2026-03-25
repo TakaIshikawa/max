@@ -1,0 +1,23 @@
+title: Integrate policy engine into proxy pipeline to enforce allow/deny decisions
+approval: draft
+phase: planned
+priority: critical
+description: Wire the policy engine into the proxy's tool call interception path so
+  that every tool call is evaluated before forwarding. Denied calls must return a
+  well-formed MCP error response to the agent. Calls with 'audit' action are forwarded
+  but flagged in context for the audit logger.
+acceptanceCriteria:
+- A tool call matching a deny rule returns an MCP error response with code -32600
+  and a message indicating the policy rule that triggered the denial
+- A tool call matching an allow rule is forwarded to the downstream server and the
+  response is returned to the agent
+- A tool call matching an audit rule is forwarded but the audit log entry is marked
+  with an 'audit_flagged' field set to true
+- When no policy file is provided, the proxy refuses to start and prints an error
+  directing the user to create a policy file
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP stdio proxy that transparently forwards tool calls
+- Implement policy evaluation engine with first-match-wins semantics
+source: discovered

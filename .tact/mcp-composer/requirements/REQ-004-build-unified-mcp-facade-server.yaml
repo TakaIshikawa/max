@@ -1,0 +1,24 @@
+title: Build unified MCP facade server
+approval: draft
+phase: planned
+priority: critical
+description: Create a facade MCP server that sits in front of all composed servers
+  and presents a single unified interface to the upstream agent. The facade aggregates
+  tool and resource listings from all backing servers and routes requests to the correct
+  server.
+acceptanceCriteria:
+- The facade exposes a single stdio MCP server that agents connect to as if it were
+  one server
+- Tool listings from all backing servers are merged into a single `tools/list` response
+  with server-prefixed names (e.g., `sentry.get_issues`, `filesystem.read_file`)
+- Tool call requests are routed to the correct backing server based on the server
+  prefix
+- If a backing server is unavailable, the facade returns an MCP error response rather
+  than crashing
+- The facade passes through all MCP protocol messages without modifying their content
+  beyond routing
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server process manager
+source: discovered

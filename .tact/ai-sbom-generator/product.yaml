@@ -1,0 +1,58 @@
+name: ai-sbom-generator
+version: 0.1.0
+vision: A CLI tool that scans any project and produces a comprehensive, standards-compliant
+  Software Bill of Materials covering AI-specific supply chain components — MCP servers,
+  LLM provider dependencies, AI packages, and credential exposure paths — giving security
+  teams automated visibility into their AI agent infrastructure.
+goals:
+- id: G-1
+  description: Detect and inventory all AI-specific supply chain components (MCP servers,
+    LLM provider references, AI packages) from project configuration files and manifests.
+  successCriteria: Running `ai-sbom scan .` on a project with known MCP configs, LLM
+    provider references, and AI packages produces an SBOM that identifies ≥95% of
+    those components with correct metadata (name, version, publisher where available).
+- id: G-2
+  description: Output machine-readable SBOMs in CycloneDX 1.6 JSON format with AI-specific
+    extension fields, plus a human-readable Markdown risk summary.
+  successCriteria: Generated CycloneDX JSON validates against the official CycloneDX
+    1.6 schema. AI extension fields (mcp-server capabilities, llm-provider data categories)
+    are present and parseable. Markdown summary is generated alongside JSON for every
+    scan.
+- id: G-3
+  description: Flag known-vulnerable AI packages by cross-referencing detected dependencies
+    against the OSV vulnerability database.
+  successCriteria: When a project contains a dependency with a known OSV advisory,
+    the SBOM includes the vulnerability ID, severity, and affected version range.
+    Zero known advisories are missed for packages in the scan scope.
+- id: G-4
+  description: Integrate into CI/CD pipelines with policy-based exit codes and SARIF
+    output for GitHub Advanced Security.
+  successCriteria: CLI returns exit code 0 for clean scans, exit code 1 when policy
+    violations are detected. SARIF output is valid and renders correctly when uploaded
+    to GitHub Code Scanning. A minimal GitHub Actions workflow example is provided.
+constraints:
+- 'MVP scope: static analysis only — no runtime instrumentation or dynamic tracing'
+- MVP language support limited to TypeScript/JavaScript and Python projects (package.json,
+  requirements.txt, pyproject.toml)
+- Data flow mapping in MVP is limited to lightweight heuristic pattern matching (grep-level
+  + simple AST) — not full taint analysis
+- No custom vulnerability advisory database in MVP; rely solely on OSV API for known
+  vulnerabilities
+- 'MCP config detection limited to known formats: Claude Desktop config (claude_desktop_config.json),
+  .mcp.json, and mcp.json'
+- Must work fully offline except for optional OSV vulnerability lookups
+- Single-binary-style distribution via npx / npm global install
+- No GUI — CLI-only interface with JSON, SARIF, and Markdown output formats
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - Commander.js (CLI framework)
+  - ts-morph (TypeScript/JavaScript AST parsing)
+  - Ajv (JSON schema validation)
+  - glob (file discovery)
+  infrastructure:
+  - Node.js 20+ runtime
+  - OSV.dev REST API (vulnerability data)
+  - CycloneDX 1.6 JSON schema
+  - SARIF 2.1.0 schema

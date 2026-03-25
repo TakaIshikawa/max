@@ -1,0 +1,23 @@
+title: Build CLI interface for proxy startup and audit log querying
+approval: draft
+phase: planned
+priority: high
+description: Implement a CLI using Commander.js that provides commands to start the
+  proxy with a policy file and downstream server, and to query/export audit logs.
+  The CLI is the primary user interface for MVP.
+acceptanceCriteria:
+- '`mcp-guard start --policy <path> --server <command>` starts the proxy with the
+  specified policy and downstream server'
+- '`mcp-guard logs --since <ISO-8601> --tool <name> --status <allow|deny|audit>` queries
+  the audit database with filters and outputs JSON-lines to stdout'
+- '`mcp-guard validate --policy <path>` validates a policy file against the schema
+  and reports errors without starting the proxy'
+- All commands provide --help output with usage examples
+- 'Exit codes follow convention: 0 for success, 1 for user error (bad policy, missing
+  args), 2 for runtime error'
+decomposition:
+  assignments: []
+dependencies:
+- Implement structured audit logging to SQLite
+- Define and validate YAML policy schema
+source: discovered

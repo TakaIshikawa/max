@@ -1,0 +1,23 @@
+title: Implement MCP server configuration scanner
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a scanner that parses MCP configuration files and extracts all
+  configured MCP servers with their metadata: server name, command/transport, arguments,
+  environment variables passed, and declared capabilities. This is the core differentiating
+  scanner for the tool.'
+acceptanceCriteria:
+- Parses Claude Desktop config format and extracts all mcpServers entries with name,
+  command, args, and env keys
+- Parses .mcp.json format with server definitions including transport type (stdio,
+  sse, streamable-http)
+- Flags MCP servers that receive environment variables containing 'KEY', 'SECRET',
+  'TOKEN', or 'PASSWORD' as credential-exposed
+- Each detected MCP server is represented as an SBOMComponent with type 'mcp-server'
+  and all extracted metadata
+- Handles malformed config files gracefully with warnings rather than crashes
+decomposition:
+  assignments: []
+dependencies:
+- Build project discovery module to locate relevant files
+source: discovered

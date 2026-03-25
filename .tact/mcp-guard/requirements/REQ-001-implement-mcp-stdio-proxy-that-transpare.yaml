@@ -1,0 +1,23 @@
+title: Implement MCP stdio proxy that transparently forwards tool calls
+approval: draft
+phase: planned
+priority: critical
+description: Build the core proxy that speaks MCP over stdio transport upstream (to
+  agents) and downstream (to real MCP servers). The proxy must faithfully forward
+  tool list discovery, tool call requests, and responses without modification. This
+  is the foundational data plane on which all other features are built.
+acceptanceCriteria:
+- Proxy starts via CLI command specifying a downstream MCP server command (e.g., `mcp-guard
+  --server 'npx @modelcontextprotocol/server-filesystem /tmp'`)
+- Agent connecting to the proxy can call `tools/list` and receive the exact tool list
+  from the downstream server
+- Agent can invoke any tool through the proxy and receive the identical response the
+  downstream server produces
+- Proxy adds less than 50ms latency per tool call in local stdio mode measured by
+  automated benchmark test
+- Proxy gracefully handles downstream server crashes by returning an MCP error to
+  the agent and logging the event
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

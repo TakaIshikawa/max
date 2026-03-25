@@ -1,0 +1,27 @@
+title: Create the base app shell templates
+approval: draft
+phase: planned
+priority: high
+description: 'Build the Handlebars templates for the generated application''s base
+  shell, independent of any domain. This includes: Next.js App Router layout and root
+  page, tRPC server setup with example router, Prisma schema base with User and Tenant
+  models (multi-tenancy), authentication stubs (NextAuth.js config), Stripe billing
+  stubs (subscription checkout and webhook handler), environment variable template
+  (.env.example), Docker Compose for local PostgreSQL, and base package.json with
+  all required dependencies.'
+acceptanceCriteria:
+- The generated project runs `npm install` without errors and all declared dependencies
+  resolve.
+- Running `npm run dev` starts the Next.js dev server and renders the root page without
+  errors.
+- The generated Prisma schema includes User, Tenant, and TenantMembership models with
+  correct relations.
+- The generated .env.example lists all required environment variables with descriptive
+  comments.
+- Running `docker compose up -d` starts a PostgreSQL instance and `npx prisma db push`
+  applies the schema successfully.
+decomposition:
+  assignments: []
+dependencies:
+- Build the generation pipeline orchestrator
+source: discovered

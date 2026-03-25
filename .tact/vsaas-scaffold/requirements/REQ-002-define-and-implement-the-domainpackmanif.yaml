@@ -1,0 +1,26 @@
+title: Define and implement the DomainPackManifest Zod schema
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the Zod schema that defines the contract for all domain packs.
+  The manifest must declare: pack metadata (name, version, description, author), MCP
+  server configurations (array of server definitions with name, purpose, config template
+  path), scraper definitions (array with name, target description, template path),
+  workflow definitions (array with name, description, prompt template path, input/output
+  schemas), database entities (array of entity names with field definitions for Prisma
+  schema generation), and interactive questions (array of prompt definitions).'
+acceptanceCriteria:
+- A valid pest-control manifest.json parses successfully against the schema and returns
+  a typed object.
+- A manifest missing required fields (e.g., no name) throws a ZodError with a human-readable
+  message identifying the missing field.
+- A manifest with extra unknown fields is accepted (schema uses passthrough for forward
+  compatibility).
+- The schema is exported from src/schemas/index.ts and can be imported by both CLI
+  core and pack authors.
+- TypeScript types are inferred from the Zod schema (no separate type definitions
+  needed).
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,94 @@
+patterns:
+- name: Modular Monolith
+  description: Single deployable Node.js process with clearly separated internal modules
+    (crawler, scorer, search, api, mcp-server, cli) communicating through typed interfaces.
+    Each module has its own directory, types, and tests. This avoids microservice
+    overhead while maintaining clean boundaries for future extraction.
+  scope:
+  - packages/core
+  - packages/cli
+- name: Pipeline-based Ingestion
+  description: 'The crawler follows a staged pipeline: Discover → Fetch → Extract
+    → Score → Index. Each stage is a pure function that transforms data, making the
+    pipeline testable and resumable. Failed stages can be retried independently.'
+  scope:
+  - packages/core/crawler
+  - packages/core/scorer
+- name: Repository Pattern for Data Access
+  description: All database access goes through repository classes that encapsulate
+    queries and return typed domain objects. No raw SQL outside repository files.
+    This isolates the database schema from business logic.
+  scope:
+  - packages/core/repositories
+- name: Adapter Pattern for External APIs
+  description: npm registry and GitHub API access is wrapped in adapter classes with
+    defined interfaces, enabling easy mocking in tests and future addition of new
+    sources (PyPI, manual submissions).
+  scope:
+  - packages/core/adapters
+- name: Command Pattern for CLI
+  description: Each CLI command is a self-contained module that validates input, calls
+    the core API client, and formats output. CLI is a thin client over the REST API
+    — it never accesses the database directly.
+  scope:
+  - packages/cli
+invariants:
+- Every MCP server entry must have a unique canonical identifier derived from its
+  source (e.g., npm:<package-name> or github:<owner>/<repo>)
+- 'Trust scores must always be reproducible: given the same input signals, the scoring
+  algorithm must produce the same score'
+- The REST API must never expose internal database IDs — all external references use
+  canonical identifiers
+- All crawler operations must be idempotent — re-crawling the same source must not
+  create duplicate entries
+- The MCP server interface must return the same data as the equivalent REST API endpoint
+  — no divergence between interfaces
+- Database migrations must be forward-only and never drop columns that contain user-facing
+  data without a deprecation cycle
+- All external API calls (npm, GitHub) must go through rate-limited adapter classes
+  — no direct fetch calls
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., trust-scorer.ts, npm-adapter.ts)'
+- 'Export pattern: each module has an index.ts barrel file; internal files are not
+  imported across module boundaries'
+- 'Type naming: PascalCase for types/interfaces, prefixed with domain (e.g., McpServer,
+  TrustScore, CrawlResult)'
+- 'Function naming: camelCase, verb-first (e.g., fetchPackageMetadata, calculateTrustScore,
+  searchServers)'
+- 'Error handling: custom error classes extending a base AppError with error codes;
+  never throw raw strings'
+- 'Environment config: all external configuration via environment variables, validated
+  at startup with zod schemas'
+- 'Testing: co-located test files using *.test.ts suffix; unit tests for pure logic,
+  integration tests for database/API interactions'
+- 'Logging: structured JSON logging via pino; every log line includes a correlation
+  ID for request tracing'
+- 'SQL: all queries via Drizzle ORM; raw SQL only in migration files'
+- 'API responses: consistent envelope format { data, meta, errors } for all REST endpoints'
+decisions:
+- id: D-1
+  title: Hono over Fastify for HTTP API
+  decision: Use Hono as the HTTP framework for the REST API server.
+  rationale: Hono is lightweight, has excellent TypeScript support, runs on multiple
+    runtimes (Node.js, Bun, edge), and has a smaller API surface that reduces decision
+    fatigue. For a read-heavy registry API, Hono's performance characteristics are
+    more than sufficient. Fastify's plugin ecosystem is unnecessary for MVP scope.
+- id: D-2
+  title: Monorepo with two packages (core + cli)
+  decision: Structure the project as a monorepo with packages/core (API server, crawler,
+    scorer, MCP server) and packages/cli (CLI tool). Use npm workspaces for dependency
+    management.
+  rationale: The CLI must be independently installable via npm but shares types and
+    API contracts with the core. A monorepo keeps them in sync while allowing independent
+    publishing. Two packages is the minimum viable split — core runs as a server,
+    CLI runs as a client.
+- id: D-3
+  title: PostgreSQL with pg_trgm for search over dedicated search engine
+  decision: Use PostgreSQL's built-in full-text search with pg_trgm trigram indexes
+    for fuzzy matching instead of Elasticsearch or Meilisearch.
+  rationale: For MVP scale (hundreds to low thousands of servers), PostgreSQL FTS
+    is more than adequate and eliminates an entire infrastructure dependency. pg_trgm
+    provides fuzzy matching for typo tolerance. If search quality becomes a bottleneck
+    at scale, a dedicated search engine can be added behind the existing repository
+    interface without changing the API layer.
+contracts: []

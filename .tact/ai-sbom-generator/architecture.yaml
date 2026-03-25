@@ -1,0 +1,89 @@
+patterns:
+- name: Scanner Plugin Architecture
+  description: Each detection concern (MCP servers, LLM providers, AI packages, credential
+    patterns) is implemented as an independent scanner module conforming to a common
+    Scanner interface. Scanners receive a project context (file tree, parsed manifests)
+    and return typed findings. This allows scanners to run independently and be tested
+    in isolation.
+  scope:
+  - src/scanners/
+- name: Pipeline Composition
+  description: 'The scan workflow is a linear pipeline: Discovery (find relevant files)
+    → Scanning (run all scanners) → Enrichment (OSV lookup) → Assembly (build CycloneDX
+    SBOM) → Formatting (output JSON/SARIF/Markdown). Each stage has a defined input/output
+    contract.'
+  scope:
+  - src/pipeline/
+- name: Curated Registry Pattern
+  description: Known AI packages, MCP servers, and LLM provider API patterns are maintained
+    as declarative JSON/TypeScript data files (registries). Scanners reference these
+    registries for classification. Registries are versioned and can be updated independently
+    of scanner logic.
+  scope:
+  - src/registries/
+- name: Result Normalization
+  description: All scanner findings are normalized into a common internal representation
+    (SBOMComponent with type discriminator) before being assembled into the final
+    CycloneDX document. This decouples detection logic from output formatting.
+  scope:
+  - src/types/
+  - src/assembler/
+invariants:
+- Every generated CycloneDX JSON document MUST validate against the official CycloneDX
+  1.6 JSON schema — no invalid output is ever written to disk
+- Scanner modules MUST be stateless and side-effect-free — they receive a read-only
+  project context and return findings without modifying the filesystem
+- The CLI MUST return exit code 0 only when no policy violations are found; any violation
+  triggers exit code 1
+- Vulnerability lookups to OSV API MUST be optional and gracefully degrade — the tool
+  must produce a valid SBOM even when offline
+- No secrets, API keys, or sensitive credential values are ever included in SBOM output
+  — only metadata about where credentials are referenced
+conventions:
+- 'File naming: kebab-case for all files (e.g., mcp-scanner.ts, llm-provider-registry.ts)'
+- 'Directory structure: src/cli/ (entry point, argument parsing), src/scanners/ (scanner
+  modules), src/registries/ (curated data), src/pipeline/ (orchestration), src/assembler/
+  (SBOM construction), src/formatters/ (output formatting), src/types/ (shared type
+  definitions)'
+- All public functions and types have JSDoc comments with @param and @returns
+- Scanner modules export a single default class implementing the Scanner interface
+- Registry data files are TypeScript const arrays with 'as const' assertions for type
+  safety
+- Tests mirror source structure under tests/ directory (e.g., tests/scanners/mcp-scanner.test.ts)
+- 'Error handling: use typed Result<T, E> pattern — no thrown exceptions in scanner
+  logic; CLI layer handles user-facing error display'
+- All async operations use async/await — no raw Promise chains or callbacks
+decisions:
+- id: D-1
+  title: CycloneDX 1.6 as primary SBOM format over SPDX
+  decision: Use CycloneDX 1.6 JSON as the sole SBOM output format for MVP, with AI-specific
+    data encoded in the CycloneDX extension points (properties, evidence, and services
+    sections).
+  rationale: CycloneDX 1.6 has first-class support for services (ideal for modeling
+    MCP servers and LLM providers), machine learning model components, and a flexible
+    properties system for custom AI metadata. SPDX is more document-oriented and lacks
+    native service modeling. CycloneDX also has better tooling ecosystem for programmatic
+    generation. SPDX support can be added post-MVP as a formatter.
+- id: D-2
+  title: Heuristic pattern matching over full taint analysis for data flow detection
+  decision: MVP data flow detection uses AST-level pattern matching (detecting known
+    LLM SDK call patterns, environment variable references, API key variable names)
+    rather than attempting interprocedural taint analysis.
+  rationale: Full taint analysis is a research-grade problem that would dominate MVP
+    development time and produce unreliable results with high false-positive rates.
+    Heuristic detection of known patterns (e.g., openai.chat.completions.create(),
+    process.env.OPENAI_API_KEY) covers the 80% case reliably. The scanner plugin architecture
+    allows upgrading individual scanners to deeper analysis post-MVP without changing
+    the pipeline.
+- id: D-3
+  title: ts-morph for TypeScript/JavaScript AST analysis, regex-based for Python
+  decision: Use ts-morph for precise AST analysis of TypeScript and JavaScript files.
+    Use regex-based pattern matching for Python files in MVP rather than integrating
+    tree-sitter.
+  rationale: ts-morph provides type-aware AST traversal natively in the TypeScript
+    toolchain with zero additional binary dependencies. Adding tree-sitter introduces
+    native compilation requirements that complicate installation (especially via npx).
+    Regex-based Python scanning covers import detection and common API call patterns
+    adequately for MVP. tree-sitter can be added in a future version for deeper Python
+    analysis.
+contracts: []

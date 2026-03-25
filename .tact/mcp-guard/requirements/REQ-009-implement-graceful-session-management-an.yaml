@@ -1,0 +1,21 @@
+title: Implement graceful session management and shutdown
+approval: draft
+phase: planned
+priority: medium
+description: 'Handle session lifecycle properly: track active sessions, support clean
+  shutdown on SIGINT/SIGTERM (flush audit logs, close downstream connections), and
+  handle downstream server disconnections gracefully.'
+acceptanceCriteria:
+- 'SIGINT and SIGTERM trigger graceful shutdown: pending audit log writes are flushed,
+  downstream connections are closed, and the process exits with code 0'
+- If a downstream server disconnects unexpectedly, the proxy sends an MCP error to
+  the agent and logs the disconnection event
+- Active session count is tracked and logged at info level on startup and shutdown
+- Shutdown completes within 5 seconds; after timeout, the process force-exits with
+  code 1
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP stdio proxy that transparently forwards tool calls
+- Implement structured audit logging to SQLite
+source: discovered

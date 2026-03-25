@@ -1,0 +1,25 @@
+title: Implement CLI `up` command
+approval: draft
+phase: planned
+priority: critical
+description: Create the `mcp-compose up` command that reads a workflow YAML, validates
+  it, launches all declared MCP servers, initializes the context bus, starts the unified
+  facade, and keeps running until interrupted.
+acceptanceCriteria:
+- Running `mcp-compose up` in a directory with `mcp-compose.yaml` starts all declared
+  servers and the facade
+- The command validates the workflow file before launching any processes — exits with
+  code 1 and a descriptive error if invalid
+- Server startup progress is displayed with status indicators (starting, ready, failed)
+  for each server
+- The process stays running in the foreground and logs server events until SIGINT/SIGTERM
+  triggers graceful shutdown
+- The `--file` flag allows specifying an alternate workflow file path
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+- Implement MCP server process manager
+- Implement in-memory context bus
+- Build unified MCP facade server
+source: discovered

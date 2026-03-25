@@ -1,0 +1,24 @@
+title: Implement interactive prompt flow for project customization
+approval: draft
+phase: planned
+priority: high
+description: Build the interactive CLI flow that collects user inputs when --domain
+  is specified without all required configuration. The flow must present the domain
+  pack's custom questions using inquirer-style prompts, validate answers, and merge
+  them into the generation context. It should also handle the case where no --domain
+  flag is given by presenting a domain selection prompt first.
+acceptanceCriteria:
+- When no --domain flag is provided, the user is shown a selectable list of all available
+  domain packs with descriptions.
+- After domain selection, all questions defined in the pack's manifest are presented
+  in order with appropriate input types (text, select, multi-select, confirm).
+- User answers are validated per-question (e.g., zip code format, non-empty business
+  name) with inline error messages.
+- Answers are merged into a typed GenerationContext object that is passed to the pipeline
+  orchestrator.
+- The --yes flag skips all prompts and uses default values for every question.
+decomposition:
+  assignments: []
+dependencies:
+- Implement domain pack loader and resolver
+source: discovered

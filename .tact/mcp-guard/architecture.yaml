@@ -1,0 +1,100 @@
+patterns:
+- name: Transparent Intercepting Proxy
+  description: MCP Guard acts as an MCP server to upstream agents and an MCP client
+    to downstream servers. It intercepts every JSON-RPC message, runs it through the
+    policy engine and anomaly detector, then forwards or rejects. The proxy is invisible
+    to both sides when no policy violation occurs.
+  scope:
+  - src/proxy/
+  - src/transport/
+- name: Pipeline Middleware Chain
+  description: 'Each intercepted tool call passes through an ordered middleware pipeline:
+    authentication/identification → policy evaluation → anomaly detection → forwarding
+    → response capture → audit logging. Each middleware is a pure function that receives
+    context and returns a pass/block/flag decision, enabling independent testing and
+    extension.'
+  scope:
+  - src/middleware/
+  - src/pipeline/
+- name: Declarative Policy Engine
+  description: Policies are defined in YAML files validated against a JSON Schema.
+    The engine compiles rules into an ordered evaluation chain (first-match-wins with
+    a configurable default). Rules support glob and regex matchers on tool names,
+    argument keys/values, and resource paths. The engine is stateless per-evaluation.
+  scope:
+  - src/policy/
+- name: Sliding-Window Statistics
+  description: Anomaly detection maintains per-session and per-agent sliding windows
+    of call counts, payload sizes, and distinct resource accesses. Windows are fixed-duration
+    (configurable) and stored in-memory. Threshold breaches emit events consumed by
+    the audit logger and session controller.
+  scope:
+  - src/anomaly/
+- name: Append-Only Structured Audit Log
+  description: Every tool call interaction is recorded as an immutable row in a SQLite
+    database with JSON-serialized payloads. A JSON-lines export mode supports SIEM
+    ingestion. The audit module exposes a query interface for the CLI.
+  scope:
+  - src/audit/
+invariants:
+- Every tool call that passes through the proxy MUST produce an audit log entry, regardless
+  of whether it was allowed, denied, or flagged — no silent pass-through is permitted
+- Policy evaluation MUST complete before any tool call is forwarded to a downstream
+  server — never forward first and check later
+- Denied tool calls MUST return a well-formed MCP error response to the agent — never
+  drop the request silently or hang
+- Audit log entries MUST be append-only — no mutation or deletion of existing records
+  through any application code path
+- The proxy MUST NOT modify tool call request or response payloads — it is read-only
+  on the data plane; it may only allow, deny, or flag
+- Policy files MUST be validated against the JSON Schema at load time — malformed
+  policies MUST cause a startup failure with a descriptive error, never silent fallback
+  to permissive mode
+conventions:
+- Use kebab-case for file and directory names (e.g., policy-engine.ts, anomaly-detector.ts)
+- Use PascalCase for types, interfaces, and classes; camelCase for functions, variables,
+  and methods
+- Every exported function and class must have JSDoc documentation with @param and
+  @returns tags
+- All async operations use async/await — no raw Promise chains or callbacks
+- Error handling uses typed custom error classes extending a base McpGuardError class,
+  never thrown strings
+- Configuration types are defined with Zod schemas that serve as both runtime validators
+  and TypeScript type sources
+- Tests are co-located in __tests__ directories adjacent to source files, named <module>.test.ts
+- All policy-related types and schemas live in src/policy/schema.ts as the single
+  source of truth
+- Use barrel exports (index.ts) at each module boundary for clean public APIs
+- 'Log levels follow standard severity: error, warn, info, debug — default to info
+  in production'
+decisions:
+- id: D-1
+  title: First-match-wins policy evaluation with explicit default
+  decision: The policy engine evaluates rules in declared order and returns the first
+    matching rule's action (allow/deny/audit). If no rule matches, a required 'defaultAction'
+    field in the policy file determines the outcome. There is no implicit default.
+  rationale: First-match-wins is the most intuitive model for security practitioners
+    (mirrors iptables, AWS security groups). Requiring an explicit default prevents
+    accidental permissive configurations and makes policy intent unambiguous. This
+    is simpler to implement and reason about than weighted/priority-based systems.
+- id: D-2
+  title: SQLite for audit storage with JSON-lines export
+  decision: Audit logs are persisted to a local SQLite database using better-sqlite3
+    (synchronous API). A CLI command exports logs as JSON-lines for SIEM ingestion.
+    No direct cloud storage integration in MVP.
+  rationale: SQLite provides ACID guarantees, zero-config setup, and excellent query
+    performance for local use. The synchronous better-sqlite3 API avoids async complexity
+    in the hot path. JSON-lines export is the universal SIEM interchange format. This
+    keeps MVP scope tight while providing a clear extension point for cloud storage
+    later.
+- id: D-3
+  title: In-process middleware pipeline over separate sidecar processes
+  decision: Policy evaluation, anomaly detection, and audit logging run as in-process
+    middleware functions within a single Node.js process, not as separate microservices
+    or sidecar containers.
+  rationale: For MVP, a single-process architecture minimizes latency (no IPC overhead),
+    simplifies deployment (one binary/npx command), and reduces operational complexity.
+    The middleware pipeline pattern still allows clean separation of concerns and
+    independent testing. Extraction to separate processes can be done later if scale
+    demands it.
+contracts: []

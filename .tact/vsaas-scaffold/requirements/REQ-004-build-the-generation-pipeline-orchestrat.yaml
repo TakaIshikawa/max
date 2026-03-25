@@ -1,0 +1,27 @@
+title: Build the generation pipeline orchestrator
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the core pipeline that takes a resolved domain pack and user
+  answers, then orchestrates Plop.js to generate the complete project. The pipeline
+  runs stages in order: (1) create project directory, (2) generate base app shell
+  (Next.js + tRPC + Prisma boilerplate), (3) generate MCP configuration files from
+  pack templates, (4) generate scraper templates, (5) generate workflow files, (6)
+  generate Prisma schema from entity definitions, (7) generate UI stubs, (8) write
+  package.json with correct dependencies, (9) run post-generation hooks.'
+acceptanceCriteria:
+- Given the pest-control pack and a set of user answers, the pipeline produces a complete
+  directory tree matching the convention-over-configuration structure.
+- Each pipeline stage can be run independently for testing (stages are composable
+  functions, not a monolithic script).
+- If any stage fails, the pipeline aborts, cleans up partially generated files, and
+  reports which stage failed.
+- The pipeline refuses to generate into a non-empty directory and exits with a clear
+  error message.
+- All generated files contain no unresolved Handlebars placeholders (verified by a
+  post-generation scan).
+decomposition:
+  assignments: []
+dependencies:
+- Implement domain pack loader and resolver
+source: discovered

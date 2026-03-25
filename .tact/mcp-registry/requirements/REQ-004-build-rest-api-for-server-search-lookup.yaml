@@ -1,0 +1,25 @@
+title: Build REST API for server search, lookup, and scoring
+approval: draft
+phase: planned
+priority: critical
+description: Implement the Hono-based REST API with endpoints for searching servers,
+  retrieving server details by canonical ID, and fetching trust scores. All responses
+  follow the { data, meta, errors } envelope format. Include OpenAPI documentation
+  generation.
+acceptanceCriteria:
+- GET /api/v1/servers/search?q=<query>&capability=<cap>&transport=<transport>&page=<n>&limit=<n>
+  returns paginated search results with metadata
+- GET /api/v1/servers/:canonicalId returns full server details including capabilities,
+  publisher info, and latest trust score
+- GET /api/v1/servers/:canonicalId/score returns the detailed trust score breakdown
+  with sub-scores and signal values
+- All endpoints return consistent error responses with appropriate HTTP status codes
+  (400, 404, 500)
+- API response times are under 200ms for search queries against a dataset of 500 servers
+  (measured via integration test)
+decomposition:
+  assignments: []
+dependencies:
+- Implement database schema and repository layer for MCP server entries
+- Implement trust scoring algorithm
+source: discovered

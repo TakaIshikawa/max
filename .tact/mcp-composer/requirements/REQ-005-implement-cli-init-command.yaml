@@ -1,0 +1,20 @@
+title: Implement CLI `init` command
+approval: draft
+phase: planned
+priority: high
+description: Create the `mcp-compose init` command that scaffolds a new workflow YAML
+  file with interactive prompts or sensible defaults. This is the entry point for
+  new users.
+acceptanceCriteria:
+- Running `mcp-compose init` creates a `mcp-compose.yaml` file in the current directory
+- The generated YAML includes commented examples of server declarations and context
+  variable bindings
+- Running `mcp-compose init` when a file already exists prompts for confirmation before
+  overwriting
+- The `--name` flag sets the workflow name; the `--template` flag selects from built-in
+  starter templates (empty, debug, code-review)
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+source: discovered

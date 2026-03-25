@@ -1,0 +1,23 @@
+title: Implement AI package dependency scanner
+approval: draft
+phase: planned
+priority: critical
+description: Create a scanner that analyzes package manifests (package.json, requirements.txt,
+  pyproject.toml) and identifies AI-related dependencies by cross-referencing against
+  a curated registry of known AI packages (LLM SDKs, agent frameworks, MCP libraries,
+  embedding tools, vector databases).
+acceptanceCriteria:
+- Detects known AI packages from package.json dependencies and devDependencies (e.g.,
+  openai, @anthropic-ai/sdk, langchain, @modelcontextprotocol/sdk)
+- Detects known AI packages from requirements.txt and pyproject.toml (e.g., openai,
+  anthropic, langchain, llama-index, transformers)
+- Curated registry contains at least 50 known AI-related packages across npm and PyPI
+- Each detected package includes name, version (or version constraint), ecosystem
+  (npm/pypi), and category (llm-sdk, agent-framework, mcp, vector-db, ml-toolkit)
+- Non-AI dependencies are still recorded in the SBOM as standard components but not
+  flagged for AI-specific analysis
+decomposition:
+  assignments: []
+dependencies:
+- Build project discovery module to locate relevant files
+source: discovered

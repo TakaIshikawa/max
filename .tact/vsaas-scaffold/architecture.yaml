@@ -1,0 +1,96 @@
+patterns:
+- name: Template Pack Architecture
+  description: 'Each domain is encapsulated as a self-contained pack conforming to
+    a DomainPackManifest schema. A pack contains: a manifest.json (metadata, prompts,
+    dependencies), Handlebars template files organized by concern (mcp/, scrapers/,
+    workflows/, schema/, ui/), and a questions.js module exporting interactive prompts.
+    The CLI core is domain-agnostic; all domain knowledge lives in packs.'
+  scope:
+  - src/packs/
+  - src/engine/
+- name: Pipeline Generator
+  description: 'Scaffold generation follows a sequential pipeline: (1) resolve pack,
+    (2) collect user answers via interactive prompts, (3) merge answers into a generation
+    context object, (4) run Plop generators per concern (schema, MCP, scrapers, workflows,
+    app shell), (5) run post-generation hooks (install deps, init git, run prisma
+    generate). Each pipeline stage is independently testable.'
+  scope:
+  - src/engine/pipeline.ts
+- name: Convention-over-Configuration for Generated Projects
+  description: 'Generated projects follow a rigid, opinionated directory structure:
+    /app (Next.js pages), /server (tRPC routers), /prisma (schema + migrations), /mcp
+    (MCP server configs), /scrapers (Apify actor definitions), /workflows (LLM prompt
+    chain YAML files), /lib (shared utilities). This convention is enforced by the
+    template structure, not runtime code.'
+  scope:
+  - templates/
+  - src/packs/
+- name: Schema-Validated Configuration
+  description: All domain pack manifests, MCP configuration files, and workflow definitions
+    are validated against Zod schemas at pack-load time. Invalid packs fail fast with
+    actionable error messages before any file generation occurs.
+  scope:
+  - src/schemas/
+  - src/engine/loader.ts
+invariants:
+- The CLI core must never contain domain-specific logic — all vertical knowledge is
+  encapsulated in domain packs.
+- Every generated project must build and start successfully with zero manual edits
+  after scaffold generation (given prerequisites are installed).
+- Domain pack manifests must be validated against the DomainPackManifest Zod schema
+  before any file generation begins; invalid packs must produce a clear error and
+  generate zero files.
+- Generated files must never contain unresolved Handlebars placeholders — all template
+  variables must be resolved or have defaults.
+- 'The CLI must be idempotent-safe: running init into a non-empty directory must abort
+  with a warning rather than overwriting existing files.'
+- All generated MCP configuration files must conform to the MCP specification format
+  and be parseable by MCP-compatible tools.
+conventions:
+- 'File naming: kebab-case for all source files (e.g., domain-pack-loader.ts, mcp-config.ts).'
+- 'Export style: named exports only, no default exports — improves refactoring and
+  tree-shaking.'
+- Template files use .hbs extension and live under templates/<concern>/ directories
+  within each pack.
+- 'CLI commands follow the pattern: vsaas <verb> [--flags] (e.g., vsaas init, vsaas
+  validate, vsaas list).'
+- Domain pack npm packages are named @vsaas-pack/<domain> by convention (e.g., @vsaas-pack/pest-control).
+- Zod schemas are co-located in src/schemas/ and exported from a barrel index for
+  shared use.
+- Tests use Vitest, co-located as <module>.test.ts next to source files.
+- Generated project code uses the same conventions (kebab-case files, named exports)
+  for consistency.
+- All user-facing CLI output uses chalk for coloring and ora for spinners — no raw
+  console.log in command handlers.
+decisions:
+- id: D-1
+  title: Commander.js over oclif for CLI framework
+  decision: Use Commander.js as the CLI framework instead of oclif.
+  rationale: oclif is powerful but heavyweight — it introduces its own plugin system,
+    project structure opinions, and build tooling that adds complexity disproportionate
+    to MVP needs. Commander.js is lightweight, well-documented, and gives us full
+    control over the command structure. The MVP has only 3-4 commands (init, validate,
+    list, help), which don't justify oclif's plugin architecture. If the CLI grows
+    significantly post-MVP, migration to oclif is straightforward.
+- id: D-2
+  title: Plop.js as template engine with Handlebars
+  decision: Use Plop.js with Handlebars templates for all file generation rather than
+    a custom template engine or EJS.
+  rationale: Plop.js provides a battle-tested generator framework with built-in support
+    for file creation, modification, and custom actions — exactly the primitives needed
+    for scaffold generation. Handlebars' logic-less templates prevent domain packs
+    from embedding complex logic in templates, enforcing the separation between pack
+    configuration and generation engine. Plop's action pipeline maps cleanly to our
+    generation pipeline pattern.
+- id: D-3
+  title: Domain packs as npm packages with Zod-validated manifests
+  decision: Domain packs are distributed as npm packages containing a manifest.json
+    validated by a Zod schema, template files, and an optional questions module —
+    rather than using a custom registry or Git-based distribution.
+  rationale: npm is the most familiar distribution channel for the target audience
+    (TypeScript developers). Using Zod for manifest validation gives us runtime type
+    safety with excellent error messages. This approach avoids building custom registry
+    infrastructure for MVP while still enabling the community contribution flywheel.
+    The DomainPackManifest schema becomes the stable contract between CLI core and
+    pack authors.
+contracts: []

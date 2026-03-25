@@ -1,0 +1,23 @@
+title: Implement database schema and repository layer for MCP server entries
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement the PostgreSQL schema for storing MCP server metadata
+  including canonical ID, name, description, version, publisher info, capabilities,
+  transport types, and raw metadata JSON. Implement the repository layer with CRUD
+  operations and full-text search using pg_trgm. Include Drizzle ORM schema definitions
+  and migration files.
+acceptanceCriteria:
+- 'Schema includes tables: mcp_servers, server_capabilities, trust_scores, crawl_runs
+  with appropriate indexes'
+- pg_trgm extension is enabled and GIN indexes are created on name, description, and
+  capabilities fields
+- 'Repository supports: insert/upsert server, get by canonical ID, search by text
+  query with pagination, filter by capability/transport'
+- Full-text search returns relevant results for partial matches and common typos (e.g.,
+  'sntry' matches 'sentry')
+- All repository methods are covered by integration tests running against a test database
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

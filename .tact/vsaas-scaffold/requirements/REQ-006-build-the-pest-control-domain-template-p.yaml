@@ -1,0 +1,25 @@
+title: Build the pest-control domain template pack
+approval: draft
+phase: planned
+priority: high
+description: Create the first built-in domain pack for pest control operations. This
+  pack must demonstrate the full capability of the scaffold system and serve as the
+  reference implementation for future pack authors. It should include domain-specific
+  MCP server configurations, scraper templates, AI workflow prompt chains, database
+  entities, and interactive customization questions.
+acceptanceCriteria:
+- 'The pack includes MCP config templates for at least: scheduling/calendar integration,
+  route optimization, and invoice/billing generation.'
+- 'The pack includes scraper template stubs for at least: state pest control licensing
+  database and supplier/chemical catalog.'
+- 'The pack includes AI workflow YAML files for at least: inspection report generation,
+  customer follow-up email drafting, and regulatory compliance checklist generation.'
+- 'The pack''s Prisma entities include at least: Customer, Property, ServiceVisit,
+  InspectionReport, TreatmentPlan, and Invoice.'
+- 'The pack''s interactive questions collect: business name, service area (zip codes),
+  license number, preferred scheduling system, and billing frequency.'
+decomposition:
+  assignments: []
+dependencies:
+- Define and implement the DomainPackManifest Zod schema
+source: discovered

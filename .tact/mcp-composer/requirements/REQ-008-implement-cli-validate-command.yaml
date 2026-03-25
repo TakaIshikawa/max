@@ -1,0 +1,22 @@
+title: Implement CLI `validate` command
+approval: draft
+phase: planned
+priority: high
+description: Create the `mcp-compose validate` command that checks a workflow YAML
+  for schema errors, missing server commands, unresolvable context dependencies, and
+  circular references without launching any processes.
+acceptanceCriteria:
+- Running `mcp-compose validate` checks the workflow YAML against the JSON Schema
+  and reports all violations
+- The command checks that all server commands exist on the system PATH or are valid
+  npm package references
+- 'Context variable dependencies are checked: every consumed variable must have exactly
+  one declared producer'
+- The command exits with code 0 and a success message if valid, or code 1 with a structured
+  error report if invalid
+- The `--file` flag allows specifying an alternate workflow file path
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+source: discovered

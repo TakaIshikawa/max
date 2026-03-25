@@ -1,0 +1,25 @@
+title: Implement post-generation hooks and project finalization
+approval: draft
+phase: planned
+priority: medium
+description: 'Build the final pipeline stage that runs after all files are generated:
+  install npm dependencies, initialize a git repository with an initial commit, run
+  prisma generate to create the Prisma client, and print a summary of what was generated
+  with next-steps instructions. Each hook should be skippable via CLI flags.'
+acceptanceCriteria:
+- After generation, `npm install` is automatically run in the generated project directory
+  (skippable with --skip-install).
+- A git repository is initialized with a .gitignore and an initial commit (skippable
+  with --skip-git).
+- 'A formatted summary is printed listing: number of files generated, MCP servers
+  configured, scrapers included, workflows included, and database entities created.'
+- 'Next-steps instructions are printed including: how to start the dev server, how
+  to configure environment variables, and how to run database migrations.'
+- If any post-generation hook fails, the generated files are preserved and the error
+  is reported without aborting remaining hooks.
+decomposition:
+  assignments: []
+dependencies:
+- Build the generation pipeline orchestrator
+- Create the base app shell templates
+source: discovered

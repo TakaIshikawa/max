@@ -1,0 +1,24 @@
+title: Add capability extraction from package metadata and README
+approval: draft
+phase: planned
+priority: medium
+description: Enhance the crawler to extract structured capability declarations from
+  MCP server packages. Parse MCP tool definitions from package.json fields, TypeScript
+  source analysis (if available), and README content using regex-based heuristics.
+  Store extracted capabilities as structured data to enable capability-based search
+  filtering.
+acceptanceCriteria:
+- Capabilities are extracted from package.json 'mcp' or 'mcpTools' fields if present
+- README content is parsed for tool/capability documentation using pattern matching
+  (e.g., '## Tools' sections, tool name lists)
+- Extracted capabilities are stored in the server_capabilities table with name, description,
+  and input/output schema if available
+- Search API supports filtering by capability name (e.g., ?capability=file-read)
+- 'Extraction is best-effort: servers with no detectable capabilities are still indexed
+  with an empty capabilities list'
+decomposition:
+  assignments: []
+dependencies:
+- Build npm registry crawler to discover and index MCP servers
+- Implement database schema and repository layer for MCP server entries
+source: discovered

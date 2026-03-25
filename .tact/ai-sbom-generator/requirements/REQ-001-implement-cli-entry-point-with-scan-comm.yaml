@@ -1,0 +1,19 @@
+title: Implement CLI entry point with scan command and output options
+approval: draft
+phase: planned
+priority: critical
+description: Create the CLI application using Commander.js that accepts a project
+  directory path, output format flags (--format json|sarif|markdown), output file
+  path (--output), and policy flags (--fail-on-vuln, --fail-on-unverified-mcp). The
+  CLI orchestrates the scan pipeline and writes results to stdout or a file.
+acceptanceCriteria:
+- Running `ai-sbom scan .` with no flags produces CycloneDX JSON to stdout
+- Running `ai-sbom scan ./project --format markdown --output report.md` writes a Markdown
+  summary to report.md
+- Running `ai-sbom scan . --format sarif` produces valid SARIF 2.1.0 output
+- The --help flag displays usage information for all commands and options
+- Invalid directory path produces a clear error message and exit code 2
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

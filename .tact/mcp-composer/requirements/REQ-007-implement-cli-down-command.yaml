@@ -1,0 +1,21 @@
+title: Implement CLI `down` command
+approval: draft
+phase: planned
+priority: high
+description: Create the `mcp-compose down` command that stops all running MCP servers
+  from a previously started workflow. Uses a PID file or lock file to identify running
+  processes.
+acceptanceCriteria:
+- Running `mcp-compose down` terminates all server processes started by a previous
+  `up` command
+- A `.mcp-compose.lock` file is written by `up` containing PIDs and is cleaned up
+  by `down`
+- If no servers are running, the command exits with a message indicating nothing to
+  stop
+- The command waits for graceful shutdown and reports the status of each server (stopped,
+  force-killed, already-exited)
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI `up` command
+source: discovered

@@ -1,0 +1,96 @@
+patterns:
+- name: Process Manager Pattern
+  description: A central orchestrator manages the lifecycle (spawn, health-check,
+    shutdown) of all MCP server child processes. Each server is wrapped in a ServerProcess
+    abstraction that normalizes start/stop/restart semantics regardless of the underlying
+    server implementation.
+  scope:
+  - src/process/
+  - src/orchestrator/
+- name: Publish-Subscribe Context Bus
+  description: An in-memory EventEmitter-based pub/sub system where servers publish
+    named context variables and other servers subscribe to them. The bus decouples
+    servers from each other — publishers don't know who consumes their context, and
+    subscribers don't know who produces it. Context variables are typed and validated
+    against declarations in the workflow YAML.
+  scope:
+  - src/context/
+- name: Facade Pattern (Unified MCP Interface)
+  description: A facade MCP server sits in front of all composed servers and presents
+    a single unified tool/resource namespace to the upstream agent. It routes incoming
+    MCP requests to the appropriate backing server based on capability declarations
+    in the workflow.
+  scope:
+  - src/facade/
+- name: Schema-Driven Configuration
+  description: The workflow YAML format is defined by a JSON Schema. All configuration
+    is validated at parse time before any processes are launched. This enables the
+    `validate` command and provides clear error messages for malformed workflows.
+  scope:
+  - src/schema/
+  - src/config/
+- name: Command Pattern (CLI)
+  description: Each CLI command (init, up, down, validate, test) is an independent
+    command module with its own argument parsing, validation, and execution logic.
+    Commands share services (config loader, process manager, context bus) via dependency
+    injection.
+  scope:
+  - src/cli/commands/
+invariants:
+- Every MCP server child process must be tracked and gracefully terminated on `down`,
+  SIGINT, or SIGTERM — no orphaned processes under any circumstance
+- Workflow YAML must pass JSON Schema validation before any server processes are spawned
+- The context bus must never block server startup — context subscriptions that are
+  not yet fulfilled must not prevent a server from launching
+- The unified MCP facade must faithfully proxy all MCP protocol messages without modification
+  — it routes but does not transform
+- Server process failures must be isolated — one server crashing must not bring down
+  other servers in the workflow
+- 'All CLI commands must exit with appropriate exit codes: 0 for success, 1 for user
+  errors, 2 for system errors'
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., `context-bus.ts`,
+  `process-manager.ts`)'
+- 'Export style: named exports only, no default exports'
+- 'Error handling: custom error classes extending a base `ComposerError` class with
+  error codes and user-friendly messages'
+- 'Logging: structured logging via a `Logger` abstraction with levels (debug, info,
+  warn, error) — no raw console.log'
+- 'Configuration types: all YAML-parsed config objects have corresponding Zod schemas
+  and inferred TypeScript types'
+- 'Testing: each module has a co-located `.test.ts` file; integration tests live in
+  `tests/integration/`'
+- 'CLI output: use chalk for colored output; all user-facing messages go through a
+  `ui` module for consistent formatting'
+- 'Async patterns: all async operations use async/await — no raw Promise chains or
+  callbacks'
+- 'Dependencies: prefer small, focused packages; avoid large framework dependencies
+  beyond Commander.js'
+decisions:
+- id: D-1
+  title: Commander.js over oclif for CLI framework
+  decision: Use Commander.js as the CLI framework instead of oclif.
+  rationale: Commander.js is lightweight, has zero opinions about project structure,
+    and is sufficient for the 5-6 commands in MVP scope. oclif is powerful but brings
+    significant boilerplate, plugin infrastructure, and conventions that are overkill
+    for an MVP. Commander.js also has a smaller dependency footprint, which matters
+    for a tool that developers install globally.
+- id: D-2
+  title: In-memory EventEmitter context bus with no persistence
+  decision: Implement the context bus as a typed wrapper around Node.js EventEmitter
+    with no persistence layer or distributed backend.
+  rationale: The MVP targets single-machine workflows where all servers run as local
+    child processes. An in-memory bus is simple, fast (<1ms latency), and avoids the
+    operational complexity of Redis. The context bus interface is designed as an abstraction
+    so a Redis or other distributed backend can be swapped in later without changing
+    server integration code.
+- id: D-3
+  title: Unified facade as a stdio MCP server
+  decision: The unified MCP facade presents itself as a single MCP server using the
+    stdio transport, multiplexing requests to backing servers.
+  rationale: stdio is the most universally supported MCP transport — every MCP client
+    (Claude Desktop, Cursor, custom agents) supports it. By presenting as a single
+    stdio MCP server, mcp-composer is a drop-in replacement for any single MCP server
+    in existing configurations. This maximizes compatibility without requiring agents
+    to understand multi-server concepts.
+contracts: []

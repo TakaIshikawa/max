@@ -1,0 +1,21 @@
+title: Create built-in workflow templates
+approval: draft
+phase: planned
+priority: medium
+description: Ship 2-3 built-in workflow templates that demonstrate common multi-server
+  patterns and serve as starting points for new users. Templates are used by the `init
+  --template` flag.
+acceptanceCriteria:
+- A 'debug' template composes a Sentry-like error server with a filesystem server,
+  sharing error context
+- A 'code-review' template composes a Git server with a filesystem server and a documentation
+  server
+- Each template includes inline YAML comments explaining every field and its purpose
+- Templates are bundled in the package under `templates/` and are selectable via `mcp-compose
+  init --template <name>`
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+- Implement CLI `init` command
+source: discovered

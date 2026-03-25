@@ -1,0 +1,22 @@
+title: Implement in-memory context bus
+approval: draft
+phase: planned
+priority: critical
+description: Build the context bus that enables MCP servers within a workflow to share
+  named, typed context variables via a pub/sub mechanism. The bus is configured from
+  context variable declarations in the workflow YAML.
+acceptanceCriteria:
+- A `ContextBus` class supports `publish(name, value)` and `subscribe(name, callback)`
+  operations
+- Context variables are validated against the types declared in the workflow YAML
+  (string, number, boolean, json)
+- Publishing a variable notifies all current subscribers synchronously within the
+  same event loop tick
+- Subscribing to a variable that was already published immediately delivers the last
+  known value
+- The bus can be reset/cleared between workflow runs without leaking listeners
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+source: discovered

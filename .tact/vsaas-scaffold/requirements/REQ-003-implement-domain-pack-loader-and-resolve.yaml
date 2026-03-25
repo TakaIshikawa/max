@@ -1,0 +1,23 @@
+title: Implement domain pack loader and resolver
+approval: draft
+phase: planned
+priority: critical
+description: 'Build the module that discovers and loads domain packs from two sources:
+  (1) built-in packs bundled with the CLI in a packs/ directory, and (2) npm packages
+  matching the @vsaas-pack/* naming convention installed in the current project or
+  globally. The loader must validate each pack''s manifest against the Zod schema
+  before returning it.'
+acceptanceCriteria:
+- The loader discovers the built-in pest-control pack from the CLI's bundled packs/
+  directory.
+- The loader discovers an npm-installed pack (e.g., @vsaas-pack/test-domain) from
+  node_modules and loads its manifest.
+- If a pack's manifest fails validation, the loader throws a descriptive error and
+  does not include it in the available packs list.
+- The resolver accepts either a short name ('pest-control') or scoped package name
+  ('@vsaas-pack/pest-control') and returns the correct pack.
+decomposition:
+  assignments: []
+dependencies:
+- Define and implement the DomainPackManifest Zod schema
+source: discovered

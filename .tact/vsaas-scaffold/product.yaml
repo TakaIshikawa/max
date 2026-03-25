@@ -1,0 +1,61 @@
+name: vsaas-scaffold
+version: 0.1.0
+vision: A CLI tool that scaffolds AI-native vertical SaaS applications pre-wired with
+  domain-relevant MCP server configurations, data scraper templates, and LLM workflow
+  chains — collapsing the time from domain expertise to working product from months
+  to days.
+goals:
+- id: G-1
+  description: Enable a developer to generate a fully runnable vertical SaaS project
+    skeleton from a single CLI command with a chosen domain template.
+  successCriteria: Running `vsaas init --domain <name>` produces a project directory
+    that passes linting, builds without errors, and starts a dev server within 60
+    seconds on a clean machine with Node 20+.
+- id: G-2
+  description: Ship at least one high-quality built-in domain template pack (pest-control)
+    that demonstrates the full scaffold capability including MCP configs, scraper
+    stubs, and AI workflow templates.
+  successCriteria: The pest-control domain pack generates a project containing at
+    least 3 MCP server configurations, 2 scraper template definitions, 3 AI prompt
+    workflow files, and a working database schema — all customized to the pest control
+    vertical.
+- id: G-3
+  description: Provide an interactive CLI mode that asks domain-specific questions
+    to customize the generated scaffold beyond the default template.
+  successCriteria: Interactive mode collects at least 5 customization inputs (business
+    name, billing model, key entities, integrations, compliance needs) and the generated
+    output reflects all provided answers in config files, schema, and prompt templates.
+- id: G-4
+  description: Establish a domain pack specification and loading mechanism that allows
+    third-party packs to be installed from npm and used identically to built-in packs.
+  successCriteria: A domain pack published as an npm package with the correct schema
+    can be installed and used via `vsaas init --domain @scope/pack-name` with zero
+    changes to the CLI core.
+constraints:
+- MVP ships with exactly one built-in domain pack (pest-control); additional domains
+  are post-MVP.
+- Generated apps target Next.js 14+ App Router with tRPC and Prisma — no alternative
+  generated stacks in MVP.
+- No AI-assisted interview mode in MVP — only static interactive prompts. LLM-powered
+  template generation is post-MVP.
+- Domain packs are local or npm-installable only — no custom registry server in MVP.
+- The CLI itself is a Node.js tool distributed via npm; no binary compilation in MVP.
+- MCP integration is configuration-file generation only — the CLI does not start or
+  manage MCP servers at runtime.
+- Generated app shell includes auth stubs and Stripe stubs but does not guarantee
+  production-ready auth or payment flows.
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - Commander.js (CLI framework)
+  - Plop.js with Handlebars (template engine)
+  - Next.js (generated app)
+  - tRPC (generated app API layer)
+  - Prisma (generated app ORM)
+  - Zod (schema validation for domain packs)
+  infrastructure:
+  - Node.js 20+
+  - npm registry (domain pack distribution)
+  - PostgreSQL (generated app database)
+  - Stripe SDK (generated app billing)

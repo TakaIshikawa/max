@@ -1,0 +1,27 @@
+title: Implement trust scoring algorithm
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a deterministic trust scoring system that computes a composite
+  score (0-100) for each indexed MCP server. The score is composed of weighted signals
+  across four categories: Publisher Verification (npm org membership, GitHub org,
+  verified email), Dependency Health (known vulnerabilities via OSV API, dependency
+  count, suspicious packages), Maintenance (last publish date, commit frequency, open
+  issue ratio), and Community (npm weekly downloads, GitHub stars). Each category
+  produces a sub-score; the composite is a weighted average.'
+acceptanceCriteria:
+- Trust score is a number 0-100 with sub-scores for each of the 4 categories (publisher,
+  dependencies, maintenance, community)
+- 'Scoring function is pure: given identical input signals, it always produces the
+  same output score'
+- Scores are persisted in the trust_scores table with a timestamp and the raw signal
+  values used to compute them
+- Servers with known vulnerabilities in direct dependencies receive a dependency health
+  sub-score below 30
+- 'Unit tests cover edge cases: brand-new package with no data, popular well-maintained
+  package, package with critical vulnerabilities'
+decomposition:
+  assignments: []
+dependencies:
+- Implement database schema and repository layer for MCP server entries
+source: discovered

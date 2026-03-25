@@ -1,0 +1,24 @@
+title: Build CLI tool with search, inspect, and score commands
+approval: draft
+phase: planned
+priority: high
+description: 'Implement the mcp-registry CLI using Commander.js as a thin client over
+  the REST API. The CLI supports three commands: search (full-text search with filters),
+  inspect (detailed view of a specific server), and score (trust score breakdown).
+  Output supports both human-readable table format and JSON for piping into other
+  tools.'
+acceptanceCriteria:
+- mcp-registry search <query> [--capability <cap>] [--transport <transport>] [--min-score
+  <n>] [--json] returns formatted search results
+- mcp-registry inspect <canonicalId> [--json] displays full server metadata including
+  capabilities and publisher info
+- mcp-registry score <canonicalId> [--json] displays trust score breakdown with sub-scores
+  and key signals
+- All commands support --api-url flag to configure the registry endpoint (defaults
+  to http://localhost:3000)
+- CLI displays helpful error messages when the API is unreachable or returns errors
+decomposition:
+  assignments: []
+dependencies:
+- Build REST API for server search, lookup, and scoring
+source: discovered

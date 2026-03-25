@@ -1,0 +1,23 @@
+title: Define workflow YAML schema with JSON Schema validation
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement the workflow YAML format that declares MCP servers,
+  their configurations, context variable bindings, and permissions. Create a JSON
+  Schema that validates workflow files. This is the foundational data model that all
+  other features depend on.
+acceptanceCriteria:
+- A JSON Schema file exists at `src/schema/workflow.schema.json` that defines the
+  complete workflow format
+- 'The schema supports: servers (name, command, args, env), context variables (name,
+  type, producer, consumers), and metadata (name, description, version)'
+- A Zod schema mirrors the JSON Schema and produces TypeScript types used throughout
+  the codebase
+- A `loadWorkflow(filePath)` function parses YAML, validates against the schema, and
+  returns a typed WorkflowConfig or throws a descriptive error
+- Invalid YAML files produce error messages that identify the exact field and constraint
+  violated
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

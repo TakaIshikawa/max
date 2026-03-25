@@ -1,0 +1,20 @@
+title: Support agent identity extraction from MCP session metadata
+approval: draft
+phase: planned
+priority: medium
+description: Extract agent identity information from MCP session initialization metadata
+  (client info) so that policy rules can match on agent identity. If no identity is
+  available, assign a default 'anonymous' identity and log a warning.
+acceptanceCriteria:
+- Agent identity is extracted from the MCP initialize request's clientInfo field if
+  present
+- Policy rules with an 'agent' matcher field are only evaluated for matching agent
+  identities
+- When no clientInfo is provided, the agent is assigned identity 'anonymous' and a
+  warning is logged
+- Audit log entries include the resolved agent identity in the agent_id field
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP stdio proxy that transparently forwards tool calls
+source: discovered

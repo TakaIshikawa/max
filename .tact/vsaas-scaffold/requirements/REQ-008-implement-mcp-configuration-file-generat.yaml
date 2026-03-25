@@ -1,0 +1,23 @@
+title: Implement MCP configuration file generator
+approval: draft
+phase: planned
+priority: medium
+description: Build the pipeline stage that generates MCP server configuration files
+  from domain pack templates. Each generated config file must be a valid MCP configuration
+  that can be consumed by MCP-compatible tools. The generator must resolve domain-specific
+  variables (e.g., API endpoints, service names) from the generation context into
+  the config templates.
+acceptanceCriteria:
+- Each MCP config template in the domain pack produces a valid JSON configuration
+  file in the generated project's /mcp directory.
+- Generated MCP configs include server name, description, connection details, and
+  any domain-specific parameters from user answers.
+- A top-level mcp-composer.json file is generated that references all individual MCP
+  server configs for multi-server orchestration.
+- Generated configs contain no placeholder values — all variables are resolved from
+  the generation context or have sensible defaults.
+decomposition:
+  assignments: []
+dependencies:
+- Build the generation pipeline orchestrator
+source: discovered

@@ -1,0 +1,62 @@
+name: mcp-registry
+version: 0.1.0
+vision: The authoritative discovery and trust layer for the MCP ecosystem — a searchable
+  registry that lets developers and AI agents find, evaluate, and select MCP servers
+  with confidence through verified metadata, composite trust scores, and compatibility
+  intelligence.
+goals:
+- id: G-1
+  description: Enable fast, accurate discovery of MCP servers through full-text search
+    with rich metadata filtering across capabilities, transports, and categories.
+  successCriteria: A user can search by natural-language query or structured filters
+    and receive ranked results with relevant metadata in under 500ms for a corpus
+    of 500+ indexed servers.
+- id: G-2
+  description: Provide a composite trust score for every indexed MCP server based
+    on publisher verification, dependency health, maintenance signals, and community
+    usage.
+  successCriteria: Every indexed server displays a trust score (0-100) with a breakdown
+    across at least 4 signal categories, and scores update within 24 hours of upstream
+    changes.
+- id: G-3
+  description: Expose the registry itself as an MCP server so AI agents can programmatically
+    discover and select tools at runtime.
+  successCriteria: An MCP-compatible agent can connect to the registry MCP server
+    and invoke search, lookup, and score tools, receiving structured JSON responses
+    conforming to MCP protocol.
+- id: G-4
+  description: Provide a CLI tool that integrates into developer workflows and CI/CD
+    pipelines for server discovery and trust verification.
+  successCriteria: The CLI supports search, inspect, and score commands, returns structured
+    output (JSON and human-readable), and can be installed as a global npm package.
+constraints:
+- 'MVP scope: no web UI — expose REST API, CLI, and MCP server interface only; web
+  search UI is post-MVP'
+- MVP crawler targets npm registry only — GitHub-only and manual submissions are post-MVP
+- Trust scoring uses deterministic heuristics only — no LLM-assisted classification
+  in MVP
+- No user accounts or authentication in MVP — the registry is read-only and public
+- All data must be re-derivable from upstream sources — the registry is a cache/index,
+  not a source of truth
+- Must run locally via Docker Compose with no external service dependencies beyond
+  npm/GitHub APIs
+- 'Rate-limit compliance: respect npm registry and GitHub API rate limits with exponential
+  backoff'
+- Database schema must support future addition of compatibility matrix data without
+  migration-breaking changes
+techStack:
+  languages:
+  - TypeScript 5.x
+  - SQL (PostgreSQL)
+  frameworks:
+  - Hono (HTTP API server)
+  - Commander.js (CLI)
+  - '@modelcontextprotocol/sdk (MCP server interface)'
+  - Drizzle ORM (database access)
+  - Vitest (testing)
+  infrastructure:
+  - Node.js 20+
+  - PostgreSQL 16 with pg_trgm extension
+  - Docker / Docker Compose (local development)
+  - npm registry API
+  - GitHub REST API

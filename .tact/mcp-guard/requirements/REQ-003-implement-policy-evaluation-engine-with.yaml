@@ -1,0 +1,23 @@
+title: Implement policy evaluation engine with first-match-wins semantics
+approval: draft
+phase: planned
+priority: critical
+description: Build the policy engine that evaluates each incoming tool call against
+  the loaded policy rules in declared order, returning the first matching rule's action.
+  The engine must support glob matching on tool names and argument values, regex matching
+  on string arguments, and fall through to the configured default action when no rule
+  matches.
+acceptanceCriteria:
+- Engine evaluates rules in declared order and returns the action of the first matching
+  rule
+- Glob matching works on tool names (e.g., `filesystem.*` matches `filesystem.read`
+  and `filesystem.write`)
+- Regex matching works on string argument values (e.g., path argument matching `^/project/.*`)
+- When no rule matches, the engine returns the policy's defaultAction
+- At least 20 unit tests cover combinations of matching/non-matching rules, multiple
+  rule types, and default fallback
+decomposition:
+  assignments: []
+dependencies:
+- Define and validate YAML policy schema
+source: discovered

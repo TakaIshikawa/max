@@ -1,0 +1,59 @@
+name: mcp-guard
+version: 0.1.0
+vision: A lightweight, transparent security proxy that sits between AI agents and
+  MCP servers, enforcing declarative permission policies, detecting anomalous tool-call
+  patterns, and producing compliance-ready audit logs — enabling enterprises to adopt
+  agentic AI workflows with fine-grained runtime governance and zero modifications
+  to existing infrastructure.
+goals:
+- id: G-1
+  description: Transparently proxy all MCP traffic between agents and downstream servers,
+    faithfully forwarding tool calls and responses without altering semantics when
+    no policy violation occurs.
+  successCriteria: An agent connected through MCP Guard can invoke every tool on a
+    downstream MCP server with identical request/response payloads and latency overhead
+    under 50ms per call in local stdio transport mode.
+- id: G-2
+  description: Enforce declarative, human-readable permission policies that control
+    which tools, arguments, and resource patterns each agent is allowed to access.
+  successCriteria: A YAML policy file can express allow/deny rules with glob and regex
+    matching on tool names, argument values, and resource paths; the policy engine
+    correctly evaluates and enforces at least 20 distinct rule combinations verified
+    by automated tests.
+- id: G-3
+  description: Detect anomalous tool-call patterns at runtime using configurable statistical
+    thresholds and automatically block or flag suspicious sessions.
+  successCriteria: Sliding-window anomaly detection fires alerts and optionally halts
+    sessions when call frequency, payload size, or distinct-resource-access counts
+    exceed configured thresholds, validated by at least 5 anomaly scenario tests.
+- id: G-4
+  description: Produce a structured, append-only audit log of every agent-tool interaction
+    suitable for SIEM ingestion and compliance review.
+  successCriteria: Every proxied tool call generates a JSON-lines audit record containing
+    timestamp, agent identity, tool name, full request/response payloads, policy evaluation
+    result, and anomaly flags; logs are queryable via a CLI command.
+constraints:
+- MVP supports MCP stdio transport only; SSE transport is deferred to post-MVP
+- No admin dashboard in MVP — all configuration via YAML files and CLI
+- No ML-based anomaly detection — only configurable statistical thresholds (sliding
+  windows, counters)
+- Audit logs stored in local SQLite only — S3/cloud export is post-MVP
+- Single-tenant, single-process deployment — no multi-node clustering
+- Policy hot-reload is not required for MVP; restart-to-apply is acceptable
+- Must not require any modifications to upstream agents or downstream MCP servers
+- Package must be installable and runnable via npx with zero global dependencies
+techStack:
+  languages:
+  - TypeScript 5.x
+  frameworks:
+  - Node.js 20+ runtime
+  - '@modelcontextprotocol/sdk (MCP SDK for TypeScript)'
+  - Zod (runtime schema validation)
+  - js-yaml (YAML policy parsing)
+  - better-sqlite3 (local audit storage)
+  - Commander.js (CLI interface)
+  - Vitest (testing)
+  infrastructure:
+  - SQLite for local audit log persistence
+  - stdio and SSE MCP transports
+  - JSON Schema for policy file validation

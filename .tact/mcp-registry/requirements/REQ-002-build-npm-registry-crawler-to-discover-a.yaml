@@ -1,0 +1,26 @@
+title: Build npm registry crawler to discover and index MCP servers
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement a crawler that queries the npm registry API to discover packages
+  that are MCP servers. Use heuristics: keyword ''mcp-server'' or ''modelcontextprotocol''
+  in package.json keywords, ''@modelcontextprotocol/sdk'' in dependencies, or ''mcp''
+  in package name. Extract metadata including description, version, author, repository
+  URL, dependencies, and download counts. Run as a background worker with configurable
+  crawl intervals.'
+acceptanceCriteria:
+- Crawler discovers MCP server packages from npm registry using at least 3 heuristic
+  signals
+- Extracted metadata is normalized into the canonical McpServer schema and upserted
+  into the database
+- 'Crawler is idempotent: running twice produces no duplicate entries and updates
+  existing records'
+- Rate limiting respects npm registry guidelines (no more than 100 requests/minute)
+  with exponential backoff on 429 responses
+- Crawl runs are logged in a crawl_runs table with start time, end time, servers discovered,
+  and errors encountered
+decomposition:
+  assignments: []
+dependencies:
+- Implement database schema and repository layer for MCP server entries
+source: discovered

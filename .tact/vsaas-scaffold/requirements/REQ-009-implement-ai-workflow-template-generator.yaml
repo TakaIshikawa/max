@@ -1,0 +1,23 @@
+title: Implement AI workflow template generator
+approval: draft
+phase: planned
+priority: medium
+description: 'Build the pipeline stage that generates AI workflow files (LLM prompt
+  chains) from domain pack templates. Each workflow is defined as a YAML file specifying:
+  a chain of prompts, input variables, output format, and which MCP servers the workflow
+  depends on. The generator resolves domain-specific terminology and business context
+  from user answers into the prompt templates.'
+acceptanceCriteria:
+- Each workflow template in the domain pack produces a valid YAML file in the generated
+  project's /workflows directory.
+- 'Generated workflow files include: workflow name, description, step definitions
+  with prompt text, input/output variable declarations, and MCP server dependencies.'
+- Domain-specific terms from user answers (e.g., business name, service types) are
+  correctly interpolated into prompt templates.
+- A workflow index file (workflows/index.ts) is generated that exports typed references
+  to all workflow definitions for use in application code.
+decomposition:
+  assignments: []
+dependencies:
+- Build the generation pipeline orchestrator
+source: discovered

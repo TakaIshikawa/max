@@ -1,0 +1,20 @@
+title: Package for npx execution with zero-config bootstrapping
+approval: draft
+phase: planned
+priority: medium
+description: Configure the package so it can be run via `npx mcp-guard` with no global
+  installation. Include a `mcp-guard init` command that generates a starter policy
+  file with sensible defaults and inline documentation comments.
+acceptanceCriteria:
+- Package.json bin field maps 'mcp-guard' to the compiled CLI entry point
+- '`npx mcp-guard init` generates a starter policy.yaml in the current directory with
+  commented examples for common rule patterns'
+- The generated starter policy has defaultAction set to 'deny' with an explicit allow
+  rule for tools/list to ensure safe defaults
+- 'README.md includes a quickstart section showing the full flow: init → edit policy
+  → start proxy → query logs'
+decomposition:
+  assignments: []
+dependencies:
+- Build CLI interface for proxy startup and audit log querying
+source: discovered

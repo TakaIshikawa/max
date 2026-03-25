@@ -1,0 +1,22 @@
+title: Define and validate YAML policy schema
+approval: draft
+phase: planned
+priority: critical
+description: Design the YAML policy file format and implement loading, JSON Schema
+  validation, and parsing into internal policy rule structures. The schema must support
+  agent identity matching, tool name matching (glob), argument value matching (glob
+  and regex), and allow/deny/audit actions with a required default action.
+acceptanceCriteria:
+- A JSON Schema file defines the complete policy format and is published alongside
+  the package
+- Policy files are validated at startup; invalid files cause a non-zero exit with
+  human-readable error messages listing all violations
+- 'Schema supports: rule name, agent identity matcher, tool name glob, argument key-value
+  matchers (glob and regex), action (allow/deny/audit), and a top-level defaultAction
+  field'
+- 'At least 3 example policy files are included covering common scenarios: read-only
+  filesystem, URL-restricted browser, and full-deny-with-exceptions'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

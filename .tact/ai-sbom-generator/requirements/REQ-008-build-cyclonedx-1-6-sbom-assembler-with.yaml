@@ -1,0 +1,24 @@
+title: Build CycloneDX 1.6 SBOM assembler with AI extensions
+approval: draft
+phase: planned
+priority: critical
+description: Create an assembler that takes all scanner findings (normalized SBOMComponents)
+  and constructs a valid CycloneDX 1.6 JSON document. AI-specific metadata is encoded
+  using CycloneDX properties, services, and evidence sections.
+acceptanceCriteria:
+- Generated JSON validates against the official CycloneDX 1.6 JSON schema
+- MCP servers are represented as CycloneDX services with properties for transport,
+  capabilities, and credential exposure
+- LLM providers are represented as CycloneDX external services with endpoint and data-category
+  properties
+- AI packages are represented as CycloneDX components with purl identifiers and AI-category
+  properties
+- SBOM includes metadata section with tool name/version, timestamp, and target project
+  information
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server configuration scanner
+- Implement AI package dependency scanner
+- Implement LLM provider detection scanner
+source: discovered

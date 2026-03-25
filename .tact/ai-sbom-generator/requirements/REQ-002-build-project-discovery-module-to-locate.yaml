@@ -1,0 +1,21 @@
+title: Build project discovery module to locate relevant files
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a discovery module that walks the project directory and identifies
+  all files relevant to AI supply chain analysis: package manifests (package.json,
+  requirements.txt, pyproject.toml), MCP configuration files, source files (.ts, .js,
+  .py), and environment/config files (.env, docker-compose.yml). Returns a structured
+  ProjectContext object.'
+acceptanceCriteria:
+- Discovers package.json, package-lock.json, requirements.txt, and pyproject.toml
+  at any depth (respecting .gitignore)
+- 'Discovers MCP config files: claude_desktop_config.json, .mcp.json, mcp.json at
+  any depth'
+- Discovers .env and .env.* files for credential reference scanning
+- Ignores node_modules/, .git/, __pycache__/, and other standard exclusion directories
+- Returns a ProjectContext with categorized file paths and parsed manifest contents
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,25 @@
+title: Implement GitHub metadata enrichment adapter
+approval: draft
+phase: planned
+priority: medium
+description: 'For MCP servers that have a linked GitHub repository (extracted from
+  npm metadata), fetch additional signals: stars, forks, open issues, last commit
+  date, contributor count, and license. This data feeds into the trust scoring algorithm''s
+  maintenance and community sub-scores. Implement as an adapter behind a defined interface
+  for testability.'
+acceptanceCriteria:
+- Adapter extracts GitHub owner/repo from npm package repository field and fetches
+  repo metadata via GitHub REST API
+- 'Fetched signals include: stars, forks, open_issues_count, last_commit_date, contributor_count,
+  license'
+- GitHub API rate limiting is handled with token-based authentication (optional GITHUB_TOKEN
+  env var) and exponential backoff
+- Adapter gracefully handles missing/private repos by returning null signals without
+  failing the pipeline
+- Unit tests verify correct parsing of GitHub URLs and integration tests verify API
+  interaction with mocked responses
+decomposition:
+  assignments: []
+dependencies:
+- Build npm registry crawler to discover and index MCP servers
+source: discovered

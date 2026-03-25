@@ -1,0 +1,23 @@
+title: Implement CLI `test` command with mock fixtures
+approval: draft
+phase: planned
+priority: medium
+description: Create the `mcp-compose test` command that runs a workflow against recorded
+  MCP session fixtures instead of live servers. This enables CI/CD validation of workflows
+  without requiring actual MCP server infrastructure.
+acceptanceCriteria:
+- Running `mcp-compose test` executes the workflow using mock MCP responses from fixture
+  files in a `fixtures/` directory
+- Fixture files are JSON recordings of MCP request/response pairs, keyed by tool name
+  and arguments
+- The test runner validates that all expected tool calls in the workflow are covered
+  by fixtures
+- Test results report pass/fail per server interaction with diffs for unexpected responses
+- The `--record` flag runs against live servers and saves responses as fixture files
+  for future test runs
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI `up` command
+- Build unified MCP facade server
+source: discovered

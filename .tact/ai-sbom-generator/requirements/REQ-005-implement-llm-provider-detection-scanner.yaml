@@ -1,0 +1,24 @@
+title: Implement LLM provider detection scanner
+approval: draft
+phase: planned
+priority: high
+description: Create a scanner that uses AST analysis (ts-morph for TS/JS) and regex
+  pattern matching (for Python) to detect LLM provider API calls in source code, identifying
+  which providers are used and what data categories are sent to them (prompts, user
+  data, system instructions, files).
+acceptanceCriteria:
+- Detects OpenAI, Anthropic, Google AI, Azure OpenAI, AWS Bedrock, Cohere, and Mistral
+  API usage patterns in TypeScript/JavaScript via AST analysis
+- Detects the same providers in Python files via regex pattern matching on import
+  statements and API call patterns
+- Identifies the provider name, SDK used, and API methods called (e.g., chat completions,
+  embeddings, fine-tuning)
+- Flags instances where user-supplied variables or request data appear to flow into
+  LLM API calls as 'user-data-exposed'
+- Each provider is represented as a CycloneDX service component with provider name,
+  endpoint pattern, and data categories
+decomposition:
+  assignments: []
+dependencies:
+- Build project discovery module to locate relevant files
+source: discovered

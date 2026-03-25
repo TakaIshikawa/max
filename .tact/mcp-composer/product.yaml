@@ -1,0 +1,61 @@
+name: mcp-composer
+version: 0.1.0
+vision: A CLI and library that lets developers define, test, and run multi-MCP-server
+  workflows — composing servers like Sentry + filesystem + Notion into coherent agent
+  task pipelines with dependency management and shared context, reducing hours of
+  manual configuration to a single command.
+goals:
+- id: G-1
+  description: Enable developers to declaratively define multi-MCP-server workflows
+    in a single YAML file with dependency resolution, context sharing, and permission
+    declarations.
+  successCriteria: A developer can author a workflow YAML that references 3+ MCP servers
+    with shared context variables, and the CLI validates it against the JSON Schema
+    without errors.
+- id: G-2
+  description: Provide a CLI that launches, orchestrates, and tears down all MCP servers
+    defined in a workflow with a single command.
+  successCriteria: Running `mcp-compose up <workflow>` starts all declared MCP servers
+    as child processes, and `mcp-compose down` gracefully shuts them all down with
+    zero orphaned processes.
+- id: G-3
+  description: Implement a context bus that allows MCP servers within a workflow to
+    share named context variables at runtime.
+  successCriteria: A context variable published by one server (e.g., an error ID from
+    Sentry) is receivable by another server (e.g., filesystem search scope) within
+    100ms in the in-memory bus.
+- id: G-4
+  description: Support dry-run validation and testing of workflows before live execution.
+  successCriteria: Running `mcp-compose validate <workflow>` reports all missing servers,
+    schema errors, and unresolvable context dependencies with actionable error messages.
+    Running `mcp-compose test <workflow>` executes against recorded mock fixtures
+    and reports pass/fail per server interaction.
+constraints:
+- 'MVP scope: no Redis-backed distributed context bus — in-memory EventEmitter only'
+- 'MVP scope: no community template registry or `share` command — focus on local workflow
+  authoring and execution'
+- 'MVP scope: no MCP Registry integration for automatic server discovery — servers
+  must be referenced by local path or npm package name'
+- All MCP servers are launched as child processes on the same machine — no remote
+  server orchestration
+- Workflow YAML schema must be fully defined with a JSON Schema before any CLI commands
+  are implemented
+- Must work with any MCP-compliant server without requiring server-side modifications
+- Context bus is opt-in per server — servers that don't subscribe to context variables
+  must still function normally
+- CLI must run on macOS, Linux, and Windows (Node.js cross-platform compatibility)
+- No persistent state between workflow runs — each `up` starts fresh
+techStack:
+  languages:
+  - TypeScript 5.x
+  frameworks:
+  - Commander.js (CLI framework)
+  - execa (child process orchestration)
+  - js-yaml (YAML parsing)
+  - ajv (JSON Schema validation)
+  - Vitest (testing framework)
+  - zod (runtime type validation)
+  infrastructure:
+  - Node.js 20+ runtime
+  - npm (package distribution and MCP server resolution)
+  - In-memory EventEmitter (context bus)

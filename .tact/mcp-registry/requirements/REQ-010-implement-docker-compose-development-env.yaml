@@ -1,0 +1,22 @@
+title: Implement Docker Compose development environment
+approval: draft
+phase: planned
+priority: high
+description: 'Create a Docker Compose configuration that spins up the complete development
+  environment: PostgreSQL with pg_trgm extension, the core API server with hot reload,
+  and an optional seed script that populates the database with sample MCP server data
+  for development and testing.'
+acceptanceCriteria:
+- docker compose up starts PostgreSQL and the API server with a single command
+- PostgreSQL is configured with pg_trgm extension enabled and migrations run automatically
+  on startup
+- A seed script (npm run seed) populates the database with at least 20 realistic MCP
+  server entries for development
+- Environment variables are configured via .env.example with sensible defaults for
+  local development
+- docker compose down -v cleanly removes all containers and volumes
+decomposition:
+  assignments: []
+dependencies:
+- Implement database schema and repository layer for MCP server entries
+source: discovered

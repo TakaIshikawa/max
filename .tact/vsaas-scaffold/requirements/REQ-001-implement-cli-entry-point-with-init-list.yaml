@@ -1,0 +1,22 @@
+title: Implement CLI entry point with init, list, and validate commands
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the main CLI binary using Commander.js with three subcommands:
+  `init` (scaffold a new project), `list` (show available domain packs), and `validate`
+  (check a domain pack for correctness). The CLI must handle global flags (--verbose,
+  --no-color, --version) and provide helpful error messages for invalid inputs.'
+acceptanceCriteria:
+- Running `vsaas --version` prints the current package version from package.json.
+- Running `vsaas init --domain pest-control --name my-app` triggers the generation
+  pipeline (can be a stub that logs the resolved options).
+- Running `vsaas init` without --domain enters interactive mode and prompts the user
+  to select a domain.
+- Running `vsaas list` prints all available domain packs (built-in and installed npm
+  packs) in a formatted table.
+- Running `vsaas validate <path>` validates a domain pack directory against the DomainPackManifest
+  schema and reports errors.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

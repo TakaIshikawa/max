@@ -1,0 +1,22 @@
+title: Expose registry as an MCP server interface
+approval: draft
+phase: planned
+priority: high
+description: 'Implement an MCP server using @modelcontextprotocol/sdk that exposes
+  the registry''s core functionality as MCP tools. This enables AI agents to programmatically
+  discover and evaluate MCP servers. The MCP server should expose tools: search_servers,
+  get_server_details, and get_trust_score with properly typed input/output schemas.'
+acceptanceCriteria:
+- 'MCP server exposes 3 tools: search_servers (accepts query string, optional filters),
+  get_server_details (accepts canonical ID), get_trust_score (accepts canonical ID)'
+- Each tool has a complete JSON Schema for its input parameters and returns structured
+  JSON matching the REST API response format
+- MCP server can be connected to via stdio transport for local agent integration
+- Tool responses are identical in data content to the equivalent REST API responses
+- Integration test demonstrates an MCP client successfully calling all 3 tools and
+  receiving valid responses
+decomposition:
+  assignments: []
+dependencies:
+- Build REST API for server search, lookup, and scoring
+source: discovered

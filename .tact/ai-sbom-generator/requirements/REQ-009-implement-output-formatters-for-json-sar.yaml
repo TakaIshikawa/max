@@ -1,0 +1,21 @@
+title: Implement output formatters for JSON, SARIF, and Markdown
+approval: draft
+phase: planned
+priority: high
+description: 'Create formatter modules that transform the assembled SBOM into the
+  three supported output formats: raw CycloneDX JSON, SARIF 2.1.0 for GitHub Advanced
+  Security integration, and a human-readable Markdown risk summary.'
+acceptanceCriteria:
+- JSON formatter outputs the CycloneDX document with pretty-printing (default) or
+  compact (--compact flag) formatting
+- SARIF formatter maps SBOM findings (vulnerabilities, credential exposures, unverified
+  MCP servers) to SARIF results with file locations
+- SARIF output validates against the SARIF 2.1.0 schema
+- 'Markdown formatter produces a summary with sections: AI Supply Chain Overview,
+  MCP Servers, LLM Providers, Vulnerable Packages, Credential Exposure, and Risk Score'
+- All formatters handle empty scan results gracefully (no components found)
+decomposition:
+  assignments: []
+dependencies:
+- Build CycloneDX 1.6 SBOM assembler with AI extensions
+source: discovered

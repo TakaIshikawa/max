@@ -1,0 +1,24 @@
+title: Implement CI/CD policy engine with configurable rules
+approval: draft
+phase: planned
+priority: medium
+description: Create a policy evaluation module that checks the assembled SBOM against
+  configurable policy rules and determines pass/fail status for CI/CD integration.
+  Supports a .ai-sbom-policy.yml configuration file for custom rules.
+acceptanceCriteria:
+- 'Default policy fails on: any critical/high severity vulnerability in AI packages,
+  any hardcoded API key detected'
+- 'Policy file (.ai-sbom-policy.yml) supports rules: max-vulnerability-severity, allow/deny
+  MCP server lists, required-credential-handling (env-only vs vault)'
+- CLI --fail-on-vuln flag fails the scan (exit code 1) when any vulnerability is found
+  regardless of severity
+- CLI --fail-on-unverified-mcp flag fails when MCP servers not in an allow-list are
+  detected
+- Policy evaluation results are included in all output formats (JSON properties, SARIF
+  results, Markdown section)
+decomposition:
+  assignments: []
+dependencies:
+- Build CycloneDX 1.6 SBOM assembler with AI extensions
+- Implement OSV vulnerability enrichment module
+source: discovered

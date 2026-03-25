@@ -1,0 +1,23 @@
+title: Implement structured audit logging to SQLite
+approval: draft
+phase: planned
+priority: high
+description: Build the audit logging module that records every tool call interaction
+  (allowed, denied, or flagged) as an immutable row in a SQLite database. Each record
+  must include timestamp, session ID, agent identity, tool name, full request payload,
+  full response payload (or denial reason), policy evaluation result, and anomaly
+  flags.
+acceptanceCriteria:
+- Every proxied tool call produces exactly one audit log row in the SQLite database
+- 'Audit rows contain: ISO-8601 timestamp, session_id, agent_id, tool_name, request_payload
+  (JSON), response_payload (JSON), policy_result (allow/deny/audit), matched_rule_name,
+  anomaly_flags (JSON array)'
+- Denied tool calls are logged with the denial reason in the response_payload field
+- SQLite database is created automatically at a configurable path on first run
+- Audit table has no UPDATE or DELETE operations in any code path — verified by code
+  review and a test that confirms the module exposes only insert and query functions
+decomposition:
+  assignments: []
+dependencies:
+- Integrate policy engine into proxy pipeline to enforce allow/deny decisions
+source: discovered

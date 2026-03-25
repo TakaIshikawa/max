@@ -1,0 +1,25 @@
+title: Implement sliding-window anomaly detection on tool call patterns
+approval: draft
+phase: planned
+priority: high
+description: Build the anomaly detection module that maintains per-session sliding
+  windows tracking call frequency, cumulative payload size, and distinct resource
+  access count. When any metric exceeds a configurable threshold within the window,
+  the module emits an anomaly event that flags the audit log entry and optionally
+  halts the session.
+acceptanceCriteria:
+- 'Anomaly thresholds are configurable in the policy YAML file under an ''anomaly''
+  section with fields: window_seconds, max_calls, max_payload_bytes, max_distinct_resources'
+- When call frequency exceeds max_calls within window_seconds, an anomaly event is
+  emitted with type 'high_frequency'
+- When cumulative payload size exceeds max_payload_bytes within the window, an anomaly
+  event is emitted with type 'large_payload'
+- When an anomaly event has action 'block', the current and subsequent tool calls
+  in the session are denied until the window resets
+- 'At least 5 test scenarios validate: normal traffic below thresholds, frequency
+  spike, payload spike, resource count spike, and session blocking behavior'
+decomposition:
+  assignments: []
+dependencies:
+- Integrate policy engine into proxy pipeline to enforce allow/deny decisions
+source: discovered

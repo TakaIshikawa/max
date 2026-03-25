@@ -1,0 +1,23 @@
+title: Implement MCP server process manager
+approval: draft
+phase: planned
+priority: critical
+description: Build the process manager that spawns, monitors, and terminates MCP server
+  child processes using execa. Each server declared in the workflow is launched as
+  a child process with the specified command, arguments, and environment variables.
+acceptanceCriteria:
+- A `ProcessManager` class can spawn MCP server processes from a WorkflowConfig and
+  track their PIDs
+- Each server process is launched with the command, args, and env specified in the
+  workflow YAML
+- Calling `shutdown()` sends SIGTERM to all managed processes and waits up to 5 seconds
+  before SIGKILL
+- SIGINT and SIGTERM on the parent process trigger graceful shutdown of all child
+  processes with zero orphans
+- A server process crash emits an event with the server name, exit code, and stderr
+  output
+decomposition:
+  assignments: []
+dependencies:
+- Define workflow YAML schema with JSON Schema validation
+source: discovered
