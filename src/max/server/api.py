@@ -1,0 +1,365 @@
+"""REST API routes for the max idea service."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+
+from max.server.dependencies import get_store
+from max.server.schemas import (
+    FeedbackCreate,
+    IdeaCreate,
+    IdeaDetailResponse,
+    IdeaSummaryResponse,
+    InsightCreate,
+    InsightResponse,
+    PipelineResultResponse,
+    PipelineRunRequest,
+    SignalCreate,
+    SignalResponse,
+    SimilarityRequest,
+    SimilarityResult,
+    StatsResponse,
+)
+from max.store.db import Store
+
+router = APIRouter()
+
+
+# ── Helpers ─────────────────────────────────────────────────────────
+
+
+def _signal_to_response(sig) -> SignalResponse:
+    return SignalResponse(
+        id=sig.id,
+        source_type=sig.source_type.value if hasattr(sig.source_type, "value") else sig.source_type,
+        source_adapter=sig.source_adapter,
+        title=sig.title,
+        content=sig.content,
+        url=sig.url,
+        author=sig.author,
+        published_at=sig.published_at.isoformat() if sig.published_at else None,
+        fetched_at=sig.fetched_at.isoformat() if hasattr(sig.fetched_at, "isoformat") else sig.fetched_at,
+        tags=sig.tags,
+        credibility=sig.credibility,
+        metadata=sig.metadata,
+    )
+
+
+def _insight_to_response(ins) -> InsightResponse:
+    return InsightResponse(
+        id=ins.id,
+        category=ins.category.value if hasattr(ins.category, "value") else ins.category,
+        title=ins.title,
+        summary=ins.summary,
+        evidence=ins.evidence,
+        confidence=ins.confidence,
+        domains=ins.domains,
+        implications=ins.implications,
+        time_horizon=ins.time_horizon,
+        created_at=ins.created_at.isoformat() if hasattr(ins.created_at, "isoformat") else ins.created_at,
+    )
+
+
+def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
+    return IdeaSummaryResponse(
+        id=unit.id,
+        title=unit.title,
+        one_liner=unit.one_liner,
+        category=unit.category.value if hasattr(unit.category, "value") else unit.category,
+        status=unit.status,
+        target_users=unit.target_users,
+        score=evaluation.overall_score if evaluation else None,
+        recommendation=evaluation.recommendation if evaluation else None,
+    )
+
+
+def _evaluation_to_response(ev):
+    from max.server.schemas import DimensionScoreResponse, EvaluationResponse
+
+    def dim(d):
+        return DimensionScoreResponse(value=d.value, confidence=d.confidence, reasoning=d.reasoning)
+
+    return EvaluationResponse(
+        buildable_unit_id=ev.buildable_unit_id,
+        pain_severity=dim(ev.pain_severity),
+        addressable_scale=dim(ev.addressable_scale),
+        build_effort=dim(ev.build_effort),
+        composability=dim(ev.composability),
+        competitive_density=dim(ev.competitive_density),
+        timing_fit=dim(ev.timing_fit),
+        compounding_value=dim(ev.compounding_value),
+        overall_score=ev.overall_score,
+        rank=ev.rank,
+        strengths=ev.strengths,
+        weaknesses=ev.weaknesses,
+        recommendation=ev.recommendation,
+        weights_used=ev.weights_used,
+    )
+
+
+def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
+    return IdeaDetailResponse(
+        id=unit.id,
+        title=unit.title,
+        one_liner=unit.one_liner,
+        category=unit.category.value if hasattr(unit.category, "value") else unit.category,
+        ideation_mode=unit.ideation_mode.value if hasattr(unit.ideation_mode, "value") else unit.ideation_mode,
+        problem=unit.problem,
+        solution=unit.solution,
+        target_users=unit.target_users,
+        value_proposition=unit.value_proposition,
+        inspiring_insights=unit.inspiring_insights,
+        evidence_signals=unit.evidence_signals,
+        tech_approach=unit.tech_approach,
+        suggested_stack=unit.suggested_stack,
+        composability_notes=unit.composability_notes,
+        status=unit.status,
+        created_at=unit.created_at.isoformat() if hasattr(unit.created_at, "isoformat") else unit.created_at,
+        updated_at=unit.updated_at.isoformat() if hasattr(unit.updated_at, "isoformat") else unit.updated_at,
+        evaluation=_evaluation_to_response(evaluation) if evaluation else None,
+    )
+
+
+# ── Signals ─────────────────────────────────────────────────────────
+
+
+@router.get("/signals", response_model=list[SignalResponse])
+def list_signals(
+    limit: int = 50,
+    source_type: str | None = None,
+    store: Store = Depends(get_store),
+):
+    signals = store.get_signals(limit=limit, source_type=source_type)
+    return [_signal_to_response(s) for s in signals]
+
+
+@router.post("/signals", response_model=SignalResponse, status_code=201)
+def create_signal(body: SignalCreate, store: Store = Depends(get_store)):
+    from max.types.signal import Signal
+
+    signal = Signal(
+        source_type=body.source_type,
+        source_adapter=body.source_adapter,
+        title=body.title,
+        content=body.content,
+        url=body.url,
+        author=body.author,
+        tags=body.tags,
+        credibility=body.credibility,
+        metadata=body.metadata,
+    )
+    signal = store.insert_signal(signal)
+    return _signal_to_response(signal)
+
+
+# ── Insights ────────────────────────────────────────────────────────
+
+
+@router.get("/insights", response_model=list[InsightResponse])
+def list_insights(limit: int = 50, store: Store = Depends(get_store)):
+    insights = store.get_insights(limit=limit)
+    return [_insight_to_response(i) for i in insights]
+
+
+@router.post("/insights", response_model=InsightResponse, status_code=201)
+def create_insight(body: InsightCreate, store: Store = Depends(get_store)):
+    from max.types.insight import Insight
+
+    insight = Insight(
+        category=body.category,
+        title=body.title,
+        summary=body.summary,
+        evidence=body.evidence,
+        confidence=body.confidence,
+        domains=body.domains,
+        implications=body.implications,
+        time_horizon=body.time_horizon,
+    )
+    insight = store.insert_insight(insight)
+    return _insight_to_response(insight)
+
+
+# ── Ideas ───────────────────────────────────────────────────────────
+
+
+@router.get("/ideas", response_model=list[IdeaSummaryResponse])
+def list_ideas(
+    limit: int = 20,
+    status: str | None = None,
+    category: str | None = None,
+    min_score: float | None = None,
+    store: Store = Depends(get_store),
+):
+    units = store.get_buildable_units(limit=limit, status=status)
+
+    results: list[IdeaSummaryResponse] = []
+    for unit in units:
+        if category and (unit.category.value if hasattr(unit.category, "value") else unit.category) != category:
+            continue
+        evaluation = store.get_evaluation(unit.id)
+        if min_score is not None and (evaluation is None or evaluation.overall_score < min_score):
+            continue
+        results.append(_unit_summary(unit, evaluation))
+
+    return results
+
+
+@router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)
+def get_idea(idea_id: str, store: Store = Depends(get_store)):
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    return _unit_detail(unit, evaluation)
+
+
+@router.get("/ideas/{idea_id}/spec")
+def get_idea_spec(idea_id: str, store: Store = Depends(get_store)):
+    spec = store.get_tact_spec(idea_id)
+    if not spec:
+        raise HTTPException(status_code=404, detail=f"No spec for idea: {idea_id}")
+    return spec.model_dump(by_alias=True)
+
+
+def _evaluate_idea_background(idea_id: str) -> None:
+    """Run evaluation in background (blocking LLM call)."""
+    from max.evaluation.engine import evaluate
+
+    store = Store(wal_mode=True)
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            return
+        evaluation = evaluate(unit)
+        store.insert_evaluation(evaluation)
+        store.update_buildable_unit_status(idea_id, "evaluated")
+    finally:
+        store.close()
+
+
+@router.post("/ideas", response_model=IdeaDetailResponse, status_code=201)
+def create_idea(
+    body: IdeaCreate,
+    background_tasks: BackgroundTasks,
+    store: Store = Depends(get_store),
+):
+    from max.types.buildable_unit import BuildableUnit
+
+    unit = BuildableUnit(
+        title=body.title,
+        one_liner=body.one_liner,
+        category=body.category,
+        problem=body.problem,
+        solution=body.solution,
+        target_users=body.target_users,
+        value_proposition=body.value_proposition,
+        tech_approach=body.tech_approach,
+        suggested_stack=body.suggested_stack,
+        composability_notes=body.composability_notes,
+    )
+    unit = store.insert_buildable_unit(unit)
+
+    background_tasks.add_task(_evaluate_idea_background, unit.id)
+
+    return _unit_detail(unit)
+
+
+# ── Feedback ────────────────────────────────────────────────────────
+
+
+@router.post("/ideas/{idea_id}/feedback", status_code=201)
+def create_feedback(
+    idea_id: str,
+    body: FeedbackCreate,
+    store: Store = Depends(get_store),
+):
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    store.insert_feedback(idea_id, body.outcome, body.reason)
+    store.update_buildable_unit_status(idea_id, body.outcome)
+    return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
+
+
+# ── Pipeline ────────────────────────────────────────────────────────
+
+
+@router.post("/pipeline/run", response_model=PipelineResultResponse)
+async def run_pipeline_endpoint(body: PipelineRunRequest):
+    from max.pipeline.runner import run_pipeline
+
+    output_dir = Path(body.output_dir) if body.output_dir else None
+    result = await asyncio.to_thread(
+        run_pipeline,
+        output_dir=output_dir,
+        signal_limit=body.signal_limit,
+        min_score=body.min_score,
+        weight_profile=body.weight_profile,
+        ideation_mode=body.ideation_mode,
+    )
+    return PipelineResultResponse(
+        signals_fetched=result.signals_fetched,
+        signals_new=result.signals_new,
+        insights_generated=result.insights_generated,
+        ideas_generated=result.ideas_generated,
+        ideas_evaluated=result.ideas_evaluated,
+        specs_generated=result.specs_generated,
+        avg_insight_confidence=result.avg_insight_confidence,
+        avg_idea_score=result.avg_idea_score,
+        token_usage=result.token_usage,
+        top_ideas=result.top_ideas,
+    )
+
+
+# ── Stats ───────────────────────────────────────────────────────────
+
+
+@router.get("/stats", response_model=StatsResponse)
+def get_stats(store: Store = Depends(get_store)):
+    signals_count = store.count_signals()
+
+    insights = store.get_insights(limit=10000)
+    insights_count = len(insights)
+
+    all_units = store.get_buildable_units(limit=10000)
+    ideas_count = len(all_units)
+    evaluated_count = sum(1 for u in all_units if u.status in ("evaluated", "approved", "published"))
+    published_count = sum(1 for u in all_units if u.status == "published")
+
+    scores = []
+    for unit in all_units:
+        ev = store.get_evaluation(unit.id)
+        if ev:
+            scores.append(ev.overall_score)
+
+    avg_score = sum(scores) / len(scores) if scores else None
+
+    return StatsResponse(
+        signals_count=signals_count,
+        insights_count=insights_count,
+        ideas_count=ideas_count,
+        evaluated_count=evaluated_count,
+        published_count=published_count,
+        avg_score=avg_score,
+    )
+
+
+# ── Similarity ──────────────────────────────────────────────────────
+
+
+@router.post("/similar", response_model=list[SimilarityResult])
+def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)):
+    from max.embeddings.engine import SemanticIndex
+
+    index = SemanticIndex(store)
+    results = index.find_similar(
+        body.text,
+        body.entity_type,
+        threshold=body.threshold,
+        limit=body.limit,
+    )
+    return [SimilarityResult(entity_id=eid, score=score) for eid, score in results]

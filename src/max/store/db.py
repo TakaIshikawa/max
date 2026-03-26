@@ -27,9 +27,11 @@ def _gen_id(prefix: str) -> str:
 class Store:
     """Single-connection SQLite store for max entities."""
 
-    def __init__(self, db_path: str = DB_PATH):
+    def __init__(self, db_path: str = DB_PATH, *, wal_mode: bool = False):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
+        if wal_mode:
+            self.conn.execute("PRAGMA journal_mode=WAL")
         ensure_schema(self.conn)
 
     def close(self) -> None:

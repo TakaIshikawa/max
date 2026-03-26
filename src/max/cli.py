@@ -252,3 +252,30 @@ def push(unit_id: str, tact_url: str) -> None:
             click.echo(f"  {endpoint}: {status}")
     finally:
         store.close()
+
+
+@main.command()
+@click.option("--host", type=str, default=None, help="Bind host (default: MAX_HOST or 0.0.0.0)")
+@click.option("--port", type=int, default=None, help="Bind port (default: MAX_PORT or 8000)")
+@click.option("--reload", is_flag=True, help="Enable auto-reload for development")
+def serve(host: str | None, port: int | None, reload: bool) -> None:
+    """Start the REST API + MCP server."""
+    import uvicorn
+
+    from max.config import MAX_HOST, MAX_PORT
+
+    bind_host = host or MAX_HOST
+    bind_port = port or MAX_PORT
+
+    click.echo(f"Starting max server on {bind_host}:{bind_port}")
+    click.echo(f"  REST API: http://{bind_host}:{bind_port}/api/v1")
+    click.echo(f"  MCP:      http://{bind_host}:{bind_port}/mcp")
+    click.echo()
+
+    uvicorn.run(
+        "max.server.app:create_app",
+        host=bind_host,
+        port=bind_port,
+        reload=reload,
+        factory=True,
+    )
