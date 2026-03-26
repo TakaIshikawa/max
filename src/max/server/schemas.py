@@ -175,3 +175,36 @@ class StatsResponse(BaseModel):
     evaluated_count: int
     published_count: int
     avg_score: float | None = None
+
+
+class PipelineResultSummary(BaseModel):
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    specs_generated: int
+    avg_insight_confidence: float
+    avg_idea_score: float
+
+
+class ScheduleStatusResponse(BaseModel):
+    enabled: bool
+    interval_seconds: int
+    running: bool
+    last_run_at: str | None = None
+    next_run_at: str | None = None
+    run_count: int
+    last_error: str | None = None
+    last_result: PipelineResultSummary | None = None
+    pipeline_config: dict
+
+
+class ScheduleUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    interval_seconds: int | None = None
+    signal_limit: int | None = None
+    min_score: float | None = None
+    weight_profile: str | None = None
+    ideation_mode: str | None = None
+    trigger_now: bool = False

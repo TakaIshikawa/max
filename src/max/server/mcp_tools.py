@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
 
 from max.store.db import Store
+
+if TYPE_CHECKING:
+    from max.server.scheduler import Scheduler
 
 # Module-level store factory — overridable for testing
 def _default_store_factory() -> Store:
@@ -16,11 +21,20 @@ def _default_store_factory() -> Store:
 
 _store_factory: Callable[[], Store] = _default_store_factory
 
+# Module-level scheduler reference (set during lifespan)
+_scheduler: Scheduler | None = None
+
 
 def set_store_factory(factory: Callable[[], Store]) -> None:
     """Override the store factory (used in tests)."""
     global _store_factory
     _store_factory = factory
+
+
+def set_scheduler_ref(scheduler: Scheduler | None) -> None:
+    """Set the scheduler reference for MCP tools."""
+    global _scheduler
+    _scheduler = scheduler
 
 
 def _get_store() -> Store:
@@ -271,6 +285,39 @@ def get_stats() -> dict:
         store.close()
 
 
+# ── Schedule tools ──────────────────────────────────────────────────
+
+
+def get_schedule() -> dict:
+    """Get the current pipeline schedule status.
+
+    Returns whether the scheduler is enabled, the interval, last run time,
+    next run time, and last run results.
+    """
+    if _scheduler is None:
+        return {"error": "Scheduler not available"}
+    return _scheduler.status()
+
+
+def set_schedule(
+    enabled: bool | None = None,
+    interval_seconds: int | None = None,
+    trigger_now: bool = False,
+) -> dict:
+    """Update the pipeline schedule or trigger an immediate run.
+
+    Set enabled=false to pause, enabled=true to resume.
+    Set interval_seconds to change how often the pipeline runs.
+    Set trigger_now=true to run the pipeline immediately.
+    """
+    if _scheduler is None:
+        return {"error": "Scheduler not available"}
+    _scheduler.update(enabled=enabled, interval_seconds=interval_seconds)
+    if trigger_now:
+        asyncio.ensure_future(_scheduler.run_once())
+    return _scheduler.status()
+
+
 # ── Resource functions ──────────────────────────────────────────────
 
 
@@ -351,6 +398,8 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(evaluate_idea)
     mcp.tool(find_similar)
     mcp.tool(get_stats)
+    mcp.tool(get_schedule)
+    mcp.tool(set_schedule)
 
     # Register resources
     mcp.resource("ideas://list")(ideas_list)

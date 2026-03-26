@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from max.server.dependencies import get_store
 from max.server.schemas import (
@@ -17,6 +17,8 @@ from max.server.schemas import (
     InsightResponse,
     PipelineResultResponse,
     PipelineRunRequest,
+    ScheduleStatusResponse,
+    ScheduleUpdateRequest,
     SignalCreate,
     SignalResponse,
     SimilarityRequest,
@@ -363,3 +365,28 @@ def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)):
         limit=body.limit,
     )
     return [SimilarityResult(entity_id=eid, score=score) for eid, score in results]
+
+
+# ── Schedule ────────────────────────────────────────────────────────
+
+
+@router.get("/schedule", response_model=ScheduleStatusResponse)
+def get_schedule(request: Request):
+    scheduler = request.app.state.scheduler
+    return scheduler.status()
+
+
+@router.post("/schedule", response_model=ScheduleStatusResponse)
+async def update_schedule(body: ScheduleUpdateRequest, request: Request):
+    scheduler = request.app.state.scheduler
+    scheduler.update(
+        enabled=body.enabled,
+        interval_seconds=body.interval_seconds,
+        signal_limit=body.signal_limit,
+        min_score=body.min_score,
+        weight_profile=body.weight_profile,
+        ideation_mode=body.ideation_mode,
+    )
+    if body.trigger_now:
+        asyncio.ensure_future(scheduler.run_once())
+    return scheduler.status()

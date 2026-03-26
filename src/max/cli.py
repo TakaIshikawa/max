@@ -258,18 +258,30 @@ def push(unit_id: str, tact_url: str) -> None:
 @click.option("--host", type=str, default=None, help="Bind host (default: MAX_HOST or 0.0.0.0)")
 @click.option("--port", type=int, default=None, help="Bind port (default: MAX_PORT or 8000)")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
-def serve(host: str | None, port: int | None, reload: bool) -> None:
-    """Start the REST API + MCP server."""
+@click.option("--schedule-interval", type=int, default=None, help="Pipeline schedule interval in seconds (default: 21600 = 6h)")
+@click.option("--no-schedule", is_flag=True, help="Disable scheduled pipeline runs")
+def serve(host: str | None, port: int | None, reload: bool, schedule_interval: int | None, no_schedule: bool) -> None:
+    """Start the REST API + MCP server with scheduled pipeline runs."""
+    import os
+
     import uvicorn
+
+    # Set env vars BEFORE importing config (app factory reads them fresh)
+    if schedule_interval is not None:
+        os.environ["MAX_SCHEDULE_INTERVAL"] = str(schedule_interval)
+    if no_schedule:
+        os.environ["MAX_SCHEDULE_ENABLED"] = "false"
 
     from max.config import MAX_HOST, MAX_PORT
 
     bind_host = host or MAX_HOST
     bind_port = port or MAX_PORT
 
+    schedule_label = "disabled" if no_schedule else f"every {schedule_interval or int(os.getenv('MAX_SCHEDULE_INTERVAL', '21600'))}s"
     click.echo(f"Starting max server on {bind_host}:{bind_port}")
-    click.echo(f"  REST API: http://{bind_host}:{bind_port}/api/v1")
-    click.echo(f"  MCP:      http://{bind_host}:{bind_port}/mcp")
+    click.echo(f"  REST API:  http://{bind_host}:{bind_port}/api/v1")
+    click.echo(f"  MCP:       http://{bind_host}:{bind_port}/mcp")
+    click.echo(f"  Scheduler: {schedule_label}")
     click.echo()
 
     uvicorn.run(

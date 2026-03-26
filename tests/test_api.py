@@ -303,3 +303,58 @@ def test_similar_empty(client):
     )
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ── Schedule endpoints ──────────────────────────────────────────────
+
+
+@pytest.fixture
+def schedule_client(db_path):
+    """TestClient with scheduler attached to app.state."""
+    from max.server.dependencies import get_store
+    from max.server.scheduler import Scheduler
+
+    app = create_app()
+
+    def override_get_store():
+        store = Store(db_path=db_path, wal_mode=True)
+        try:
+            yield store
+        finally:
+            store.close()
+
+    app.dependency_overrides[get_store] = override_get_store
+    app.state.scheduler = Scheduler(
+        interval_seconds=21600,
+        enabled=True,
+        pipeline_kwargs={"signal_limit": 30, "min_score": 50.0},
+    )
+    return TestClient(app)
+
+
+def test_get_schedule(schedule_client):
+    resp = schedule_client.get("/api/v1/schedule")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["enabled"] is True
+    assert data["interval_seconds"] == 21600
+    assert data["running"] is False
+    assert data["run_count"] == 0
+
+
+def test_update_schedule_disable(schedule_client):
+    resp = schedule_client.post(
+        "/api/v1/schedule",
+        json={"enabled": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["enabled"] is False
+
+
+def test_update_schedule_interval(schedule_client):
+    resp = schedule_client.post(
+        "/api/v1/schedule",
+        json={"interval_seconds": 3600},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["interval_seconds"] == 3600
