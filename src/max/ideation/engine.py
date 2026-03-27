@@ -123,14 +123,31 @@ def _parse_output(
     return units
 
 
-def ideate(insights: list[Insight]) -> list[BuildableUnit]:
+def _format_existing_ideas(units: list[BuildableUnit]) -> str | None:
+    """Compact '- Title: one_liner' list for prompt injection."""
+    if not units:
+        return None
+    lines = [f"- {u.title}: {u.one_liner}" for u in units]
+    return "\n".join(lines)
+
+
+def ideate(
+    insights: list[Insight],
+    *,
+    existing_ideas: list[BuildableUnit] | None = None,
+) -> list[BuildableUnit]:
     """Generate buildable unit ideas from insights (direct mode)."""
     if not insights:
         return []
 
+    existing_text = _format_existing_ideas(existing_ideas) if existing_ideas else None
+
     result = structured_call(
         system=SYSTEM,
-        prompt=build_ideation_prompt(_insights_to_json(insights)),
+        prompt=build_ideation_prompt(
+            _insights_to_json(insights),
+            existing_ideas_text=existing_text,
+        ),
         output_type=IdeationOutput,
         stage="ideation",
     )
@@ -159,7 +176,11 @@ def ideate_refinement(
     return _parse_output(result, new_insights, IdeationMode.REFINEMENT)
 
 
-def ideate_cross_domain(insights: list[Insight]) -> list[BuildableUnit]:
+def ideate_cross_domain(
+    insights: list[Insight],
+    *,
+    existing_ideas: list[BuildableUnit] | None = None,
+) -> list[BuildableUnit]:
     """Generate ideas by combining insights from different domains."""
     if not insights:
         return []
@@ -174,6 +195,7 @@ def ideate_cross_domain(insights: list[Insight]) -> list[BuildableUnit]:
     if len(domains) < 2:
         return []
 
+    existing_text = _format_existing_ideas(existing_ideas) if existing_ideas else None
     all_units: list[BuildableUnit] = []
 
     # Take up to 3 domain pairs to avoid too many LLM calls
@@ -183,6 +205,7 @@ def ideate_cross_domain(insights: list[Insight]) -> list[BuildableUnit]:
             prompt=build_cross_domain_prompt(
                 _insights_to_json(domain_groups[domain_a]),
                 _insights_to_json(domain_groups[domain_b]),
+                existing_ideas_text=existing_text,
             ),
             output_type=IdeationOutput,
             stage="ideation_cross_domain",

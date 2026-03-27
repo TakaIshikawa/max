@@ -36,6 +36,7 @@ def evaluate(
     unit: BuildableUnit,
     *,
     weights: dict[str, float] | None = None,
+    evidence: str | None = None,
 ) -> UtilityEvaluation:
     """Evaluate a single buildable unit across 7 dimensions."""
     unit_json = json.dumps(
@@ -56,7 +57,7 @@ def evaluate(
 
     result = structured_call(
         system=SYSTEM,
-        prompt=build_evaluation_prompt(unit_json),
+        prompt=build_evaluation_prompt(unit_json, evidence_json=evidence),
         output_type=EvaluationOutput,
         temperature=0.3,  # Lower temperature for more consistent scoring
         stage="evaluation",

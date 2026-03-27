@@ -23,10 +23,22 @@ Target users: humans | agents | both
 """
 
 
-def build_ideation_prompt(insights_json: str) -> str:
+def build_ideation_prompt(
+    insights_json: str,
+    *,
+    existing_ideas_text: str | None = None,
+) -> str:
+    existing_block = ""
+    if existing_ideas_text:
+        existing_block = f"""
+EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
+{existing_ideas_text}
+
+"""
+
     return f"""\
 Generate buildable project ideas based on these insights from the developer/AI ecosystem.
-
+{existing_block}
 INSIGHTS:
 {insights_json}
 
@@ -75,11 +87,21 @@ improve or redirect them — don't refine for the sake of refining.\
 def build_cross_domain_prompt(
     domain_a_insights_json: str,
     domain_b_insights_json: str,
+    *,
+    existing_ideas_text: str | None = None,
 ) -> str:
+    existing_block = ""
+    if existing_ideas_text:
+        existing_block = f"""
+EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
+{existing_ideas_text}
+
+"""
+
     return f"""\
 Generate novel project ideas by combining insights from TWO DIFFERENT domains. \
 The best ideas come from applying solutions from one domain to problems in another.
-
+{existing_block}
 DOMAIN A INSIGHTS:
 {domain_a_insights_json}
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
-from max.evaluation.weights import get_weights
+from max.evaluation.weights import get_adapted_weights
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.llm.client import token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
@@ -20,6 +22,8 @@ from max.synthesis.engine import synthesize
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
 from max.types.signal import Signal
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -38,6 +42,7 @@ class PipelineResult:
     top_ideas: list[dict] = field(default_factory=list)
 
     # Quality metrics
+    weights_adapted: bool = False
     avg_insight_confidence: float = 0.0
     avg_idea_score: float = 0.0
     token_usage: dict[str, int] = field(default_factory=dict)
@@ -53,10 +58,18 @@ def run_pipeline(
 ) -> PipelineResult:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish."""
     token_tracker.reset()
-    weights = get_weights(weight_profile)
     store = Store()
     semantic_index = SemanticIndex(store)
     result = PipelineResult()
+
+    # Adapt weights from feedback history
+    feedback_outcomes = store.get_feedback_outcomes()
+    weights, was_adapted = get_adapted_weights(weight_profile, feedback_outcomes)
+    result.weights_adapted = was_adapted
+    if was_adapted:
+        logger.info("Using feedback-adapted weights (%d outcomes)", len(feedback_outcomes))
+    else:
+        logger.info("Using static weight profile '%s'", weight_profile)
 
     try:
         # 1. Fetch signals
@@ -89,12 +102,13 @@ def run_pipeline(
         if insights:
             result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
 
-        # 3. Ideate (supports multiple modes)
+        # 3. Ideate (supports multiple modes, with memory of existing ideas)
         recent_insights = store.get_insights(limit=20)
+        recent_ideas = store.get_buildable_units(limit=30)
         units: list[BuildableUnit] = []
 
         if ideation_mode in ("direct", "all"):
-            units.extend(ideate(recent_insights))
+            units.extend(ideate(recent_insights, existing_ideas=recent_ideas or None))
 
         if ideation_mode in ("refinement", "all"):
             existing = store.get_buildable_units(status="evaluated", limit=10)
@@ -102,7 +116,7 @@ def run_pipeline(
                 units.extend(ideate_refinement(existing, recent_insights))
 
         if ideation_mode in ("cross_domain", "all"):
-            units.extend(ideate_cross_domain(recent_insights))
+            units.extend(ideate_cross_domain(recent_insights, existing_ideas=recent_ideas or None))
 
         dedup = dedup_buildable_units(units, semantic_index)
         units = dedup.kept
@@ -111,10 +125,11 @@ def run_pipeline(
             store.insert_buildable_unit(unit)
         result.ideas_generated = len(units)
 
-        # 4. Evaluate (using selected weight profile)
+        # 4. Evaluate (using selected weight profile, with evidence grounding)
         evaluated: list[tuple[BuildableUnit, UtilityEvaluation]] = []
         for unit in units:
-            evaluation = evaluate(unit, weights=weights)
+            evidence = _resolve_evidence_chain(unit, store)
+            evaluation = evaluate(unit, weights=weights, evidence=evidence)
             store.insert_evaluation(evaluation)
             store.update_buildable_unit_status(unit.id, "evaluated")
             evaluated.append((unit, evaluation))
@@ -160,6 +175,56 @@ def run_pipeline(
         store.close()
 
     return result
+
+
+def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
+    """Resolve unit -> insights -> signals and format as JSON for the evaluator."""
+    insights_data = []
+    signal_ids_seen: set[str] = set()
+    signals_data = []
+
+    # Resolve inspiring insights
+    for ins_id in unit.inspiring_insights:
+        insight = store.get_insight(ins_id)
+        if insight:
+            insights_data.append({
+                "id": insight.id,
+                "title": insight.title,
+                "summary": insight.summary,
+                "confidence": insight.confidence,
+            })
+            # Collect signals referenced by this insight
+            for sig_id in insight.evidence:
+                if sig_id not in signal_ids_seen:
+                    signal = store.get_signal(sig_id)
+                    if signal:
+                        signal_ids_seen.add(sig_id)
+                        signals_data.append({
+                            "id": signal.id,
+                            "title": signal.title,
+                            "content": signal.content[:500],
+                            "source": signal.source_adapter,
+                            "url": signal.url,
+                        })
+
+    # Also resolve direct evidence signals on the unit
+    for sig_id in unit.evidence_signals:
+        if sig_id not in signal_ids_seen:
+            signal = store.get_signal(sig_id)
+            if signal:
+                signal_ids_seen.add(sig_id)
+                signals_data.append({
+                    "id": signal.id,
+                    "title": signal.title,
+                    "content": signal.content[:500],
+                    "source": signal.source_adapter,
+                    "url": signal.url,
+                })
+
+    if not insights_data and not signals_data:
+        return None
+
+    return json.dumps({"insights": insights_data, "signals": signals_data}, indent=2)
 
 
 def _fetch_all_signals(*, signal_limit: int = 30) -> list[Signal]:

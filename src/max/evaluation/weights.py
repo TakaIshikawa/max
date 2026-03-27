@@ -136,6 +136,37 @@ def adapt_weights(
     return {dim: round(w / total, 4) for dim, w in base.items()}
 
 
+def get_adapted_weights(
+    profile: str,
+    feedback_outcomes: list[dict],
+    *,
+    learning_rate: float = 0.05,
+) -> tuple[dict[str, float], bool]:
+    """Try feedback-adapted weights, fall back to static profile.
+
+    Returns (weights, was_adapted). Falls back when there's no feedback,
+    or feedback lacks diversity (all success or all failure).
+    """
+    base = get_weights(profile)
+
+    if not feedback_outcomes:
+        return base, False
+
+    # Filter to outcomes that have dimension values
+    valid = [o for o in feedback_outcomes if o.get("dimension_values")]
+    if not valid:
+        return base, False
+
+    success_count = sum(1 for o in valid if o.get("success"))
+    failure_count = len(valid) - success_count
+
+    if success_count == 0 or failure_count == 0:
+        return base, False
+
+    adapted = adapt_weights(valid, base, learning_rate=learning_rate)
+    return adapted, True
+
+
 def save_weights(weights: dict[str, float], path: Path) -> None:
     """Persist a weight profile to a JSON file."""
     with open(path, "w") as f:

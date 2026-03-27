@@ -102,6 +102,13 @@ class Store:
         )
         self.conn.commit()
 
+    def get_signal(self, signal_id: str) -> Signal | None:
+        """Get a single signal by ID."""
+        row = self.conn.execute(
+            "SELECT * FROM signals WHERE id = ?", (signal_id,)
+        ).fetchone()
+        return _row_to_signal(row) if row else None
+
     # ── Insights ─────────────────────────────────────────────────────
 
     def insert_insight(self, insight: Insight) -> Insight:
@@ -133,6 +140,13 @@ class Store:
             "SELECT * FROM insights ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
         return [_row_to_insight(row) for row in rows]
+
+    def get_insight(self, insight_id: str) -> Insight | None:
+        """Get a single insight by ID."""
+        row = self.conn.execute(
+            "SELECT * FROM insights WHERE id = ?", (insight_id,)
+        ).fetchone()
+        return _row_to_insight(row) if row else None
 
     # ── BuildableUnits ───────────────────────────────────────────────
 

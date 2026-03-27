@@ -96,3 +96,30 @@ def test_insert_and_get_tact_spec(store: Store, sample_unit: BuildableUnit, samp
         "Validates tool listing",
         "Validates tool execution",
     ]
+
+
+# ── By-ID lookups ─────────────────────────────────────────────────
+
+
+def test_get_signal_by_id(store: Store, sample_signal: Signal) -> None:
+    store.insert_signal(sample_signal)
+    sig = store.get_signal("sig-test001")
+    assert sig is not None
+    assert sig.title == sample_signal.title
+    assert sig.url == sample_signal.url
+
+
+def test_get_signal_not_found(store: Store) -> None:
+    assert store.get_signal("sig-nonexistent") is None
+
+
+def test_get_insight_by_id(store: Store, sample_insight: Insight) -> None:
+    store.insert_insight(sample_insight)
+    ins = store.get_insight("ins-test001")
+    assert ins is not None
+    assert ins.title == sample_insight.title
+    assert ins.confidence == sample_insight.confidence
+
+
+def test_get_insight_not_found(store: Store) -> None:
+    assert store.get_insight("ins-nonexistent") is None
