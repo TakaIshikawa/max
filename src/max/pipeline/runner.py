@@ -6,10 +6,12 @@ import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
 from max.evaluation.weights import get_weights
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.llm.client import token_tracker
+from max.pipeline.dedup import dedup_buildable_units, dedup_insights
 from max.publisher.file_writer import write_tact_spec
 from max.sources.registry import get_all_adapters
 from max.spec.generator import generate_spec
@@ -26,8 +28,11 @@ class PipelineResult:
 
     signals_fetched: int = 0
     signals_new: int = 0
+    signals_skipped: int = 0
     insights_generated: int = 0
+    insights_duplicates_skipped: int = 0
     ideas_generated: int = 0
+    ideas_duplicates_skipped: int = 0
     ideas_evaluated: int = 0
     specs_generated: int = 0
     top_ideas: list[dict] = field(default_factory=list)
@@ -50,6 +55,7 @@ def run_pipeline(
     token_tracker.reset()
     weights = get_weights(weight_profile)
     store = Store()
+    semantic_index = SemanticIndex(store)
     result = PipelineResult()
 
     try:
@@ -62,11 +68,23 @@ def run_pipeline(
             store.insert_signal(sig)
         result.signals_new = store.count_signals() - pre_count
 
-        # 2. Synthesize insights
-        recent_signals = store.get_signals(limit=signal_limit)
-        insights = synthesize(recent_signals)
-        for ins in insights:
-            store.insert_insight(ins)
+        # 2. Synthesize insights (incremental — only new signals)
+        new_signals = store.get_unsynthesized_signals(limit=signal_limit)
+        result.signals_skipped = result.signals_fetched - len(new_signals)
+        if new_signals:
+            prior_insights = store.get_insights(limit=20)
+            insights = synthesize(
+                new_signals,
+                prior_insights=prior_insights if prior_insights else None,
+            )
+            store.mark_signals_synthesized([s.id for s in new_signals])
+            dedup = dedup_insights(insights, semantic_index)
+            insights = dedup.kept
+            result.insights_duplicates_skipped = dedup.duplicates
+            for ins in insights:
+                store.insert_insight(ins)
+        else:
+            insights = []
         result.insights_generated = len(insights)
         if insights:
             result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
@@ -86,6 +104,9 @@ def run_pipeline(
         if ideation_mode in ("cross_domain", "all"):
             units.extend(ideate_cross_domain(recent_insights))
 
+        dedup = dedup_buildable_units(units, semantic_index)
+        units = dedup.kept
+        result.ideas_duplicates_skipped = dedup.duplicates
         for unit in units:
             store.insert_buildable_unit(unit)
         result.ideas_generated = len(units)

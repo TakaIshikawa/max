@@ -7,7 +7,7 @@ import json
 from pydantic import BaseModel, Field
 
 from max.llm.client import structured_call
-from max.synthesis.prompts import SYSTEM, build_synthesis_prompt
+from max.synthesis.prompts import SYSTEM, build_incremental_synthesis_prompt, build_synthesis_prompt
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal
 
@@ -31,8 +31,16 @@ class SynthesisOutput(BaseModel):
     insights: list[InsightOutput]
 
 
-def synthesize(signals: list[Signal]) -> list[Insight]:
-    """Synthesize a batch of signals into insights."""
+def synthesize(
+    signals: list[Signal],
+    *,
+    prior_insights: list[Insight] | None = None,
+) -> list[Insight]:
+    """Synthesize a batch of signals into insights.
+
+    When prior_insights is provided, uses an incremental prompt that instructs
+    the LLM to generate only new insights that complement the existing ones.
+    """
     if not signals:
         return []
 
@@ -52,9 +60,27 @@ def synthesize(signals: list[Signal]) -> list[Insight]:
         indent=2,
     )
 
+    if prior_insights:
+        prior_json = json.dumps(
+            [
+                {
+                    "title": ins.title,
+                    "summary": ins.summary,
+                    "category": ins.category.value,
+                    "domains": ins.domains,
+                    "time_horizon": ins.time_horizon,
+                }
+                for ins in prior_insights
+            ],
+            indent=2,
+        )
+        prompt = build_incremental_synthesis_prompt(signals_json, prior_json)
+    else:
+        prompt = build_synthesis_prompt(signals_json)
+
     result = structured_call(
         system=SYSTEM,
-        prompt=build_synthesis_prompt(signals_json),
+        prompt=prompt,
         output_type=SynthesisOutput,
         stage="synthesis",
     )

@@ -41,9 +41,9 @@ def run(output: str, signal_limit: int, min_score: float, profile: str, mode: st
         ideation_mode=mode,
     )
 
-    click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new)")
-    click.echo(f"Insights generated: {result.insights_generated} (avg confidence: {result.avg_insight_confidence:.2f})")
-    click.echo(f"Ideas generated:    {result.ideas_generated}")
+    click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new, {result.signals_skipped} already synthesized)")
+    click.echo(f"Insights generated: {result.insights_generated} ({result.insights_duplicates_skipped} duplicates skipped, avg confidence: {result.avg_insight_confidence:.2f})")
+    click.echo(f"Ideas generated:    {result.ideas_generated} ({result.ideas_duplicates_skipped} duplicates skipped)")
     click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
     click.echo(f"Specs generated:    {result.specs_generated}")
     if result.token_usage:

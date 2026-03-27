@@ -25,6 +25,12 @@ dev = [
 [project.scripts]
 max = "max.cli:main"
 
+[project.entry-points."max.adapters"]
+hackernews = "max.sources.hackernews:HackerNewsAdapter"
+npm_registry = "max.sources.npm_registry:NpmRegistryAdapter"
+reddit = "max.sources.reddit:RedditAdapter"
+github = "max.sources.github:GitHubAdapter"
+
 [build-system]
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"

@@ -83,6 +83,25 @@ class Store:
     def count_signals(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
 
+    def get_unsynthesized_signals(self, *, limit: int = 100) -> list[Signal]:
+        """Get signals that have not yet been synthesized."""
+        rows = self.conn.execute(
+            "SELECT * FROM signals WHERE synthesized_at IS NULL ORDER BY fetched_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [_row_to_signal(row) for row in rows]
+
+    def mark_signals_synthesized(self, signal_ids: list[str]) -> None:
+        """Mark signals as synthesized with current timestamp."""
+        if not signal_ids:
+            return
+        now = _now_iso()
+        self.conn.executemany(
+            "UPDATE signals SET synthesized_at = ? WHERE id = ?",
+            [(now, sid) for sid in signal_ids],
+        )
+        self.conn.commit()
+
     # ── Insights ─────────────────────────────────────────────────────
 
     def insert_insight(self, insight: Insight) -> Insight:
