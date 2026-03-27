@@ -1,0 +1,22 @@
+title: Implement MCP proxy core that bridges clients to upstream servers
+approval: draft
+phase: planned
+priority: critical
+description: Build the core proxy that exposes an MCP server interface to clients
+  (via stdio and SSE transports) and connects as an MCP client to one or more upstream
+  MCP servers. The proxy must aggregate tool listings from all upstream servers, route
+  tool calls to the correct upstream server, and return responses to the client. This
+  is the foundational data path that all other features build on.
+acceptanceCriteria:
+- Proxy starts and connects to at least one upstream MCP server defined in config
+- Client connecting to the proxy receives a merged list of all tools from all upstream
+  servers
+- Tool calls from the client are routed to the correct upstream server based on tool
+  name and the response is returned unmodified
+- Proxy supports both stdio and SSE transports for client connections
+- If an upstream server is unreachable at startup, proxy logs a warning and continues
+  with available servers
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

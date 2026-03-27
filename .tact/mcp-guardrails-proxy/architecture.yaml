@@ -1,0 +1,95 @@
+patterns:
+- name: Transparent Proxy / Man-in-the-Middle
+  description: The proxy presents itself as an MCP server to clients and as an MCP
+    client to upstream servers. It aggregates tool listings from all upstream servers,
+    intercepts every tool call, evaluates policies, and forwards approved calls. Clients
+    and servers are unaware of the proxy's existence.
+  scope:
+  - src/proxy/
+  - src/transport/
+- name: Policy Engine Pipeline
+  description: Each incoming tool call passes through an ordered pipeline of policy
+    evaluators (permission check → rate limit check → spending limit check). Each
+    evaluator returns allow/deny with a reason. The pipeline short-circuits on the
+    first deny. Policies are loaded from YAML at startup and can be reloaded via admin
+    API.
+  scope:
+  - src/policies/
+- name: Append-Only Audit Log
+  description: 'Every tool call (whether allowed or denied) is written to an append-only
+    SQLite table. The table uses INSERT-only operations — no UPDATE or DELETE statements
+    are ever issued against audit tables. The log captures the full lifecycle of each
+    call: request, policy verdict, response, and timing.'
+  scope:
+  - src/audit/
+- name: Configuration-as-Code
+  description: All proxy behavior is driven by a single YAML configuration file that
+    defines upstream servers, policy rules, rate limits, and spending caps. The config
+    is validated against a Zod schema at startup. This enables version control, code
+    review, and GitOps workflows for policy management.
+  scope:
+  - src/config/
+- name: Layered Module Architecture
+  description: 'The codebase is organized into clearly separated layers: transport
+    (stdio/SSE handling), proxy (MCP message routing), policies (rule evaluation),
+    audit (logging), config (schema and loading), and admin (HTTP API). Each layer
+    depends only on layers below it and communicates via typed interfaces.'
+  scope:
+  - src/
+invariants:
+- Every tool call MUST be evaluated against the full policy pipeline before being
+  forwarded to an upstream server — no bypass path may exist
+- Every tool call (allowed or denied) MUST be written to the audit log before the
+  response is returned to the client — audit writes are synchronous and mandatory
+- The audit log table MUST never have UPDATE or DELETE operations executed against
+  it — it is append-only by design
+- Policy evaluation MUST be deterministic — given the same policy config and current
+  state (counters, timestamps), the same input always produces the same verdict
+- The proxy MUST never modify tool call parameters or response payloads — it is a
+  pass-through for data, only a gatekeeper for access
+- Rate limit and spending counters MUST be accurate even under concurrent requests
+  — counters use atomic SQLite transactions
+- If an upstream MCP server is unreachable, the proxy MUST return a well-formed MCP
+  error to the client — it must never crash or hang
+conventions:
+- 'Use kebab-case for file names: policy-engine.ts, audit-logger.ts'
+- Use PascalCase for types/interfaces, camelCase for functions/variables
+- All public functions must have JSDoc comments with @param and @returns
+- All configuration schemas defined with Zod and exported from src/config/schema.ts
+- Error types extend a base ProxyError class with a machine-readable error code
+- Use barrel exports (index.ts) at each module boundary
+- 'Tests colocated with source files: foo.ts → foo.test.ts'
+- Use async/await over raw Promises — no .then() chains
+- 'Log levels: debug, info, warn, error — structured JSON to stderr'
+- All MCP JSON-RPC message types defined in src/types/mcp.ts
+decisions:
+- id: D-1
+  title: Use @modelcontextprotocol/sdk for MCP client and server implementation
+  decision: Build on the official MCP TypeScript SDK rather than implementing the
+    JSON-RPC protocol from scratch
+  rationale: 'The SDK handles transport negotiation, message framing, capability advertisement,
+    and protocol versioning. Reimplementing this is error-prone and would consume
+    most of the MVP budget. The SDK is maintained by Anthropic and is the de facto
+    standard for MCP implementations. Risk: tight coupling to SDK API surface, but
+    this is acceptable given the project is inherently coupled to the MCP protocol.'
+- id: D-2
+  title: Use SQLite for both audit logs and rate limit / spending counters
+  decision: Store audit logs and policy state (rate limit counters, spending accumulators)
+    in a single SQLite database with separate tables
+  rationale: SQLite provides ACID transactions for counter accuracy, append-only semantics
+    for audit integrity, and zero-ops deployment (single file). It avoids introducing
+    Redis or another dependency for counters. For MVP traffic volumes (single-process,
+    <100 calls/sec), SQLite write performance is more than sufficient. The audit table
+    and counter tables are logically separate and can be migrated to different backends
+    later if needed.
+- id: D-3
+  title: Policy config is YAML with Zod validation, not a DSL or Rego
+  decision: Define policies as structured YAML documents validated by Zod schemas
+    rather than using a policy language like OPA/Rego or building a custom DSL
+  rationale: YAML is familiar to DevOps teams and requires no new tooling. Zod validation
+    at load time catches misconfigurations early with clear error messages. A full
+    policy language adds significant complexity (parser, evaluator, debugging tools)
+    that is not justified for MVP-scope policies (allow/deny lists, numeric thresholds).
+    The policy schema is designed to be extensible — new rule types can be added as
+    new Zod union members without breaking existing configs.
+contracts: []

@@ -1,0 +1,25 @@
+title: Implement telemetry event emission
+approval: draft
+phase: planned
+priority: medium
+description: Add structured telemetry that emits events for every validation, repair,
+  and retry action. Events are emitted via configurable callbacks and/or Python's
+  logging module. This enables users to track per-model, per-tool success rates and
+  understand how the harness is improving their reliability.
+acceptanceCriteria:
+- 'Every validation attempt emits a TelemetryEvent with fields: timestamp, model_id,
+  tool_name, is_valid, errors (if any), duration_ms'
+- 'Every repair action emits a TelemetryEvent with fields: timestamp, model_id, tool_name,
+  stage_name, repair_description, success (bool)'
+- 'Every retry attempt emits a TelemetryEvent with fields: timestamp, model_id, tool_name,
+  retry_number, max_retries, outcome'
+- Users can register custom callback functions via harness.on_event(callback_fn) that
+  receive TelemetryEvent objects
+- Telemetry can be disabled entirely via HarnessConfig(telemetry_enabled=False) with
+  zero performance overhead when disabled
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON schema validation for tool call arguments
+- Build the auto-repair pipeline with ordered transformation stages
+source: discovered

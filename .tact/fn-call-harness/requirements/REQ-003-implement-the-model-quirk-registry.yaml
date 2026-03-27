@@ -1,0 +1,25 @@
+title: Implement the model quirk registry
+approval: draft
+phase: planned
+priority: high
+description: Create a JSON-based registry that maps model identifier patterns to known
+  function calling bugs and their corresponding repair functions. The registry is
+  loaded from a bundled JSON file and can be extended by users. During the repair
+  pipeline, applicable quirk fixes are applied based on the model identifier of the
+  LLM that produced the output.
+acceptanceCriteria:
+- Registry loads from a bundled JSON file at package initialization without errors
+- Given a model identifier 'qwen-2.5-72b', the registry matches entries with pattern
+  'qwen-*' and returns applicable quirk fixes
+- 'Each quirk entry includes: model_pattern (glob string), bug_description (human-readable),
+  fix_function_name (references a Python function), and severity level'
+- Users can register additional quirk entries programmatically via harness.register_quirk(pattern,
+  fix_fn, description)
+- 'The MVP registry ships with at least 5 entries covering: Qwen double-stringify,
+  common missing-bracket truncation, and at least one other model family''s known
+  issue'
+decomposition:
+  assignments: []
+dependencies:
+- Build the auto-repair pipeline with ordered transformation stages
+source: discovered

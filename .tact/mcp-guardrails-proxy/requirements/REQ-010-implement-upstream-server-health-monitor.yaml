@@ -1,0 +1,22 @@
+title: Implement upstream server health monitoring and error handling
+approval: draft
+phase: planned
+priority: medium
+description: Add health monitoring for upstream MCP servers with graceful degradation
+  when servers become unavailable. The proxy should detect disconnections, attempt
+  reconnection, and return clear errors to clients when an upstream server is down
+  rather than hanging or crashing.
+acceptanceCriteria:
+- Proxy detects when an upstream server disconnects and marks it as unavailable within
+  5 seconds
+- Tool calls to an unavailable upstream server return a JSON-RPC error with code -32603
+  and a message identifying the unavailable server
+- 'Proxy attempts to reconnect to unavailable servers on a configurable interval (default:
+  30 seconds)'
+- When an upstream server reconnects, its tools are re-advertised to connected clients
+- Health status of all upstream servers is exposed via the GET /api/health admin endpoint
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP proxy core that bridges clients to upstream servers
+source: discovered

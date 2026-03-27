@@ -1,0 +1,25 @@
+title: Implement CLI entry point and Docker packaging
+approval: draft
+phase: planned
+priority: medium
+description: Create the CLI entry point that starts the proxy with sensible defaults
+  and the Docker container for deployment. The CLI should support common options (config
+  path, log level, admin port) and provide helpful error messages. This is the user-facing
+  surface that determines first-impression experience.
+acceptanceCriteria:
+- Running 'npx mcp-guardrails-proxy --config ./policy.yaml' starts the proxy and connects
+  to configured upstream servers
+- 'CLI supports flags: --config (path), --log-level (debug|info|warn|error), --admin-port
+  (number), --transport (stdio|sse)'
+- Dockerfile produces a minimal image (<200MB) that runs the proxy with config mounted
+  as a volume
+- Running without a config file starts with default all-allow policies and prints
+  a warning with a link to documentation
+- 'CLI prints a startup banner showing: version, number of upstream servers connected,
+  number of policy rules loaded, admin API URL'
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP proxy core that bridges clients to upstream servers
+- Implement YAML configuration loading and validation
+source: discovered

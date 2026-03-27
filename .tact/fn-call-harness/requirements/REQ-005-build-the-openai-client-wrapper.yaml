@@ -1,0 +1,26 @@
+title: Build the OpenAI client wrapper
+approval: draft
+phase: planned
+priority: critical
+description: Create a wrapper around the openai.OpenAI client that transparently intercepts
+  chat.completions.create calls containing tools, validates tool call arguments in
+  the response, runs the repair pipeline, and triggers retries as needed. All other
+  client methods pass through unchanged.
+acceptanceCriteria:
+- Wrapping is done via `client = FnCallHarness(openai.OpenAI())` and the wrapped client
+  can be used identically to the original for all non-tool-call operations
+- When chat.completions.create is called with a tools parameter, tool_calls in the
+  response have their arguments validated against the corresponding tool's schema
+- If validation fails, the repair pipeline runs automatically and the response is
+  returned with repaired arguments
+- If repair fails, retry logic triggers automatically (up to max_retries) and the
+  final successful response is returned
+- The wrapper preserves the original response object structure (ChatCompletion) —
+  only the arguments field of tool calls is modified
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON schema validation for tool call arguments
+- Build the auto-repair pipeline with ordered transformation stages
+- Implement configurable retry with prompt augmentation
+source: discovered

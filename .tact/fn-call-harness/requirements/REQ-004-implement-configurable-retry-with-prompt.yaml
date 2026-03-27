@@ -1,0 +1,25 @@
+title: Implement configurable retry with prompt augmentation
+approval: draft
+phase: planned
+priority: critical
+description: Build the retry mechanism that re-invokes the LLM with augmented context
+  when the repair pipeline fails to produce valid output. The retry injects the validation
+  error details into the conversation as a system/user message, giving the model a
+  chance to self-correct. Retry count, delay strategy, and prompt template are configurable.
+acceptanceCriteria:
+- When repair fails, the retry mechanism re-calls the LLM with the original messages
+  plus an appended message containing the specific validation errors
+- Retry respects a configurable max_retries parameter (default 3) and raises a HarnessExhaustedError
+  after all retries fail
+- Each retry attempt runs the full repair pipeline on the new response before deciding
+  whether to retry again
+- The retry prompt template is configurable via a string template that receives {errors}
+  and {schema} variables
+- Retry mechanism works with both streaming and non-streaming LLM calls (for MVP,
+  non-streaming is sufficient; streaming can raise NotImplementedError)
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON schema validation for tool call arguments
+- Build the auto-repair pipeline with ordered transformation stages
+source: discovered

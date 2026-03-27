@@ -1,0 +1,24 @@
+title: Implement admin HTTP API for log queries and policy management
+approval: draft
+phase: planned
+priority: medium
+description: Expose a lightweight Express HTTP API on a configurable port for querying
+  audit logs and managing policies at runtime. This enables operators to inspect agent
+  behavior and update policies without restarting the proxy.
+acceptanceCriteria:
+- GET /api/logs returns paginated audit log entries with query parameters for filtering
+  by time range, tool name, server name, and verdict
+- 'GET /api/stats returns summary statistics: total calls, calls by verdict, calls
+  by tool, spending totals per window'
+- POST /api/policies/reload triggers a re-read and re-validation of the YAML policy
+  config file without restarting the proxy
+- GET /api/health returns proxy status including upstream server connectivity and
+  current rate limit / spending counter values
+- Admin API binds to 127.0.0.1 by default and the port is configurable via config
+  or environment variable
+decomposition:
+  assignments: []
+dependencies:
+- Implement append-only audit logging
+- Implement YAML configuration loading and validation
+source: discovered

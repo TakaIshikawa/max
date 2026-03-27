@@ -1,0 +1,97 @@
+patterns:
+- name: Middleware Wrapper
+  description: The library wraps existing LLM client objects (e.g., openai.OpenAI)
+    with a thin proxy that intercepts tool-call responses, runs them through the validation/repair
+    pipeline, and optionally triggers retries before returning results to the caller.
+    The wrapped client maintains the same interface as the original.
+  scope:
+  - client wrappers
+  - retry logic
+  - public API
+- name: Pipeline / Chain of Responsibility
+  description: The auto-repair system is implemented as an ordered pipeline of independent
+    repair stages (JSON extraction, de-stringification, type coercion, default injection,
+    quirk patches). Each stage receives the current arguments and schema, attempts
+    its transformation, and passes the result to the next stage. Stages are composable
+    and individually testable.
+  scope:
+  - repair pipeline
+  - model quirk registry
+- name: Registry Pattern
+  description: Model-specific quirks and their fixes are stored in a declarative JSON
+    registry keyed by model identifier patterns (supporting glob/prefix matching).
+    The registry is loaded at initialization and consulted during the repair pipeline
+    to apply model-specific transformations.
+  scope:
+  - model quirk registry
+  - repair pipeline
+- name: Observer / Event Emitter
+  description: Telemetry is implemented via a callback/event system. The library defines
+    a TelemetryEvent dataclass and accepts optional callback functions (or uses Python
+    logging) to emit events at each stage of validation, repair, and retry. This keeps
+    telemetry decoupled from core logic.
+  scope:
+  - telemetry
+  - client wrappers
+invariants:
+- The library must NEVER modify or mutate the original LLM response object — all repairs
+  produce new copies
+- Validation must ALWAYS be performed against the declared JSON schema before returning
+  tool call arguments to the caller — no bypass path exists
+- The repair pipeline must NEVER make LLM API calls — only the retry mechanism may
+  trigger new LLM requests
+- Retry count must NEVER exceed the configured maximum — the library must raise/return
+  a structured error after exhausting retries
+- Every validation failure, repair action, and retry attempt must ALWAYS emit a telemetry
+  event (via callback or logging) — silent failures are forbidden
+- The wrapped client must ALWAYS preserve the original client's interface and return
+  type signatures — callers must not need to change their code beyond the initial
+  wrapping
+conventions:
+- Use snake_case for all Python module names, function names, and variables
+- Use PascalCase for all class names
+- All public API functions and classes must have Google-style docstrings with Args,
+  Returns, and Raises sections
+- All configuration is done via Pydantic models with sensible defaults — no raw dicts
+  in public API
+- 'Module structure: fn_call_harness/ with submodules for validation/, repair/, retry/,
+  telemetry/, wrappers/, and registry/'
+- 'All repair stages implement a common RepairStage protocol: def attempt(self, args:
+  dict, schema: dict) -> RepairResult'
+- 'Test files mirror source structure: tests/test_validation.py, tests/test_repair.py,
+  etc.'
+- Recorded LLM response fixtures live in tests/fixtures/ as JSON files with descriptive
+  names (e.g., double_stringify_qwen.json)
+- Use typing.Protocol for extensibility points (repair stages, telemetry handlers)
+  rather than abstract base classes
+- Version follows semver; MVP is 0.1.0
+decisions:
+- id: D-1
+  title: Python-only MVP, defer TypeScript
+  decision: Ship the MVP as a Python-only library. TypeScript implementation is deferred
+    to a future release.
+  rationale: The dual-language requirement was identified as a key weakness — it doubles
+    maintenance burden. Python is the dominant language for LLM/agent development
+    (LangChain, CrewAI, most MCP servers). Shipping Python first maximizes impact
+    with minimal scope. The architecture (pipeline pattern, JSON registry) is designed
+    to be portable to TypeScript later.
+- id: D-2
+  title: Deterministic repair pipeline before retry
+  decision: Always run the full deterministic repair pipeline on a failed tool call
+    BEFORE attempting a retry (which costs an API call). Retries are only triggered
+    if repair fails to produce valid output.
+  rationale: Many failure modes (double-stringify, JSON-in-markdown, type coercion)
+    can be fixed deterministically without an API round-trip. This saves latency and
+    API costs. The repair pipeline is fast (<1ms) and side-effect-free, so there is
+    no downside to always running it first. Retries with prompt augmentation are the
+    expensive fallback.
+- id: D-3
+  title: Wrap client objects rather than individual calls
+  decision: The primary API wraps an entire LLM client object (e.g., `harness = FnCallHarness(openai.OpenAI())`)
+    rather than requiring per-call decoration.
+  rationale: Wrapping the client provides the lowest-friction integration path — developers
+    change one line at initialization rather than modifying every call site. This
+    matches the 'drop-in middleware' value proposition and is how libraries like Instructor
+    integrate. The wrapper proxies all methods unchanged except chat.completions.create
+    (with tools), which gets the validation/repair/retry behavior.
+contracts: []

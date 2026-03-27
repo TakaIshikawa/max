@@ -1,0 +1,22 @@
+title: Implement YAML configuration loading and validation
+approval: draft
+phase: planned
+priority: critical
+description: Create the configuration system that loads a YAML file defining upstream
+  MCP servers, policy rules, rate limits, and spending caps. The config must be validated
+  against a Zod schema at startup with clear error messages for invalid configurations.
+  This is a prerequisite for all policy enforcement features.
+acceptanceCriteria:
+- Config is loaded from a file path specified via CLI argument or MCP_GUARDRAILS_CONFIG
+  environment variable
+- 'Zod schema validates all required fields: upstream servers (name, command/url,
+  transport type), policy rules, rate limits, spending limits'
+- Invalid config produces a human-readable error message identifying the exact field
+  and constraint that failed
+- A default config is generated if no config file exists, with all-allow policies
+  and no limits
+- Config schema is exported as a TypeScript type for use throughout the codebase
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

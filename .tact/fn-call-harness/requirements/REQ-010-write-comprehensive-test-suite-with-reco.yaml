@@ -1,0 +1,27 @@
+title: Write comprehensive test suite with recorded LLM fixtures
+approval: draft
+phase: planned
+priority: high
+description: Build a test suite using pytest with recorded (not live) LLM response
+  fixtures that cover all major failure modes and repair scenarios. Tests must be
+  fast, deterministic, and runnable without API keys. Fixture files represent real
+  failure modes observed in production.
+acceptanceCriteria:
+- 'Test suite includes ≥20 fixture files in tests/fixtures/ covering: valid responses,
+  double-stringified args, markdown-wrapped JSON, type mismatches, missing required
+  fields, truncated JSON, and model-specific quirks'
+- All repair stages have individual unit tests verifying they fix their target failure
+  mode and pass through already-valid input unchanged
+- Integration tests verify the full pipeline (validate → repair → retry) using mocked
+  LLM clients that return fixture responses
+- All tests run without network access or API keys (LLM calls are mocked/recorded)
+- Test suite runs in under 10 seconds and achieves ≥90% code coverage on the core
+  validation, repair, and retry modules
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON schema validation for tool call arguments
+- Build the auto-repair pipeline with ordered transformation stages
+- Implement configurable retry with prompt augmentation
+- Build the OpenAI client wrapper
+source: discovered

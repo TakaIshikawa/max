@@ -1,0 +1,23 @@
+title: Implement permission-based policy enforcement (allow/deny lists)
+approval: draft
+phase: planned
+priority: critical
+description: Build the permission policy evaluator that checks each incoming tool
+  call against allow/deny lists defined in the policy config. Policies can be defined
+  globally or per-upstream-server. Deny takes precedence over allow. This is the most
+  fundamental governance control.
+acceptanceCriteria:
+- A tool call matching a deny rule is rejected with a JSON-RPC error containing the
+  policy rule name and reason
+- A tool call not matching any allow rule (when allow list is non-empty) is rejected
+  as unauthorized
+- Deny rules take precedence over allow rules when both match
+- Policies can use glob patterns for tool names (e.g., 'filesystem_*' matches all
+  filesystem tools)
+- Policy evaluation result (allow/deny + rule matched) is included in the audit log
+  entry
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML configuration loading and validation
+source: discovered

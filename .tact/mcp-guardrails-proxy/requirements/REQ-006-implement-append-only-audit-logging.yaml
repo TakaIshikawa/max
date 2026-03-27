@@ -1,0 +1,23 @@
+title: Implement append-only audit logging
+approval: draft
+phase: planned
+priority: critical
+description: Build the audit logging system that records every tool call to an append-only
+  SQLite table. Each entry captures the full request/response lifecycle including
+  timing, policy verdict, and metadata. This provides the compliance audit trail that
+  enterprises require.
+acceptanceCriteria:
+- 'Every tool call (allowed or denied) creates an audit log entry with: timestamp,
+  request_id, tool_name, server_name, request_params (JSON), policy_verdict (allow/deny),
+  policy_rule_matched, response_payload (JSON), latency_ms'
+- The audit table schema enforces append-only semantics — no UPDATE or DELETE triggers
+  exist and the application never issues such statements
+- Audit writes are synchronous — the response is not returned to the client until
+  the audit entry is committed
+- Audit log entries are queryable by time range, tool name, server name, and verdict
+  via programmatic API
+- The SQLite database file location is configurable via the YAML config
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

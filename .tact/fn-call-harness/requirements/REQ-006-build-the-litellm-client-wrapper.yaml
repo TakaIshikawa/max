@@ -1,0 +1,22 @@
+title: Build the LiteLLM client wrapper
+approval: draft
+phase: planned
+priority: high
+description: Create a wrapper/adapter for LiteLLM's completion function that provides
+  the same validation, repair, and retry behavior as the OpenAI wrapper. Since LiteLLM
+  uses a functional API (litellm.completion) rather than a client object, this wrapper
+  may use a different integration pattern (decorator or context manager).
+acceptanceCriteria:
+- LiteLLM integration is available via `harness_completion = FnCallHarness.wrap_litellm()`
+  returning a drop-in replacement for litellm.completion
+- Tool call arguments in LiteLLM responses are validated and repaired identically
+  to the OpenAI wrapper
+- Model identifier is extracted from the LiteLLM call's model parameter and used for
+  quirk registry lookups
+- The wrapper handles LiteLLM's model-prefixed naming convention (e.g., 'ollama/qwen2.5'
+  maps to quirk patterns for 'qwen*')
+decomposition:
+  assignments: []
+dependencies:
+- Build the OpenAI client wrapper
+source: discovered

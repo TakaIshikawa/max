@@ -1,0 +1,60 @@
+name: mcp-guardrails-proxy
+version: 0.1.0
+vision: A lightweight, transparent proxy server that sits between AI agents and MCP
+  servers, enforcing declarative permission policies, spending limits, rate limits,
+  and immutable audit logging on every tool call — giving enterprises a single governance
+  control plane for autonomous AI agents without modifying agents or servers.
+goals:
+- id: G-1
+  description: Transparently proxy MCP tool calls between any MCP client and any upstream
+    MCP server without the client or server needing modification
+  successCriteria: An MCP client can connect to the proxy via stdio or SSE, discover
+    tools from upstream servers, and invoke them with identical behavior to a direct
+    connection — verified by passing the MCP protocol conformance test suite
+- id: G-2
+  description: Enforce declarative YAML-based policies (allow/deny lists, rate limits,
+    spending caps) on every tool invocation before forwarding to upstream servers
+  successCriteria: A policy file can block specific tools, enforce per-tool rate limits
+    (e.g., 10 calls/minute), and cap cumulative spending (e.g., $50/day) — with all
+    violations rejected with descriptive error messages and 100% of policy evaluations
+    completing in under 5ms
+- id: G-3
+  description: Maintain an immutable, queryable audit log of every tool call including
+    full request/response payloads
+  successCriteria: Every proxied tool call is logged to an append-only SQLite database
+    with timestamp, tool name, server ID, request params, response payload, policy
+    verdict, and latency — queryable via the admin API with filtering by time range,
+    tool name, and verdict
+- id: G-4
+  description: Ship as a zero-config-to-start npm package and Docker container that
+    can be adopted in under 5 minutes
+  successCriteria: A user can install via npm or docker pull, point at an upstream
+    MCP server config, and have the proxy running with default policies in under 5
+    minutes — verified by a documented quickstart that requires no more than 3 commands
+constraints:
+- MVP supports stdio and SSE MCP transports only — no custom transports
+- Policy engine evaluates synchronously in the hot path — no async policy lookups
+  in MVP
+- Audit log uses local SQLite only — no remote log shipping in MVP
+- Spending tracking relies on user-defined cost annotations per tool in policy config
+  — no automatic cost inference from upstream APIs
+- Anomaly detection is out of scope for MVP — focus on deterministic policy enforcement
+- PII/credential redaction is out of scope for MVP — logged as a future enhancement
+- Admin API is HTTP-only, no authentication in MVP (intended for localhost use)
+- Single-process architecture — no clustering or horizontal scaling in MVP
+- Maximum of 20 upstream MCP servers per proxy instance in MVP
+techStack:
+  languages:
+  - TypeScript 5.x
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - better-sqlite3
+  - express (admin API)
+  - zod (validation)
+  - yaml (config parsing)
+  - vitest (testing)
+  infrastructure:
+  - Node.js 20+
+  - SQLite 3
+  - Docker
+  - npm

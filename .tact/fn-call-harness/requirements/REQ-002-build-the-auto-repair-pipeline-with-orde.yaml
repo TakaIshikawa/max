@@ -1,0 +1,27 @@
+title: Build the auto-repair pipeline with ordered transformation stages
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the deterministic repair pipeline that applies ordered transformations
+  to malformed tool call arguments. Each stage attempts one class of repair. The pipeline
+  runs all stages in sequence and re-validates after each successful transformation.
+  Stages include: JSON extraction from markdown code blocks, de-stringification (unwrapping
+  double-encoded JSON strings), type coercion (string ''42'' → int 42, string ''true''
+  → bool True), and default value injection for missing required fields that have
+  defaults in the schema.'
+acceptanceCriteria:
+- Given arguments wrapped in markdown code fences (```json ... ```), the pipeline
+  extracts the JSON content and produces valid arguments
+- Given double-stringified arguments (a JSON string containing an escaped JSON string),
+  the pipeline de-stringifies to produce the correct dict
+- Given a string value '42' where the schema expects an integer, the pipeline coerces
+  it to int 42; similarly 'true'/'false' to bool, and '3.14' to float
+- Given missing required fields that have 'default' values declared in the schema,
+  the pipeline injects those defaults
+- 'The pipeline returns a RepairResult containing: repaired_args (dict), repairs_applied
+  (list of stage names and descriptions), is_valid_after_repair (bool)'
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON schema validation for tool call arguments
+source: discovered

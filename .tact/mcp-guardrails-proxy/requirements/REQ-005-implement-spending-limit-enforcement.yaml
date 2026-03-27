@@ -1,0 +1,25 @@
+title: Implement spending limit enforcement
+approval: draft
+phase: planned
+priority: high
+description: Build the spending limit evaluator that tracks cumulative cost of tool
+  calls and enforces configurable caps (e.g., $50/day). Costs are defined per-tool
+  in the policy config as fixed amounts per invocation. Spending windows reset on
+  a configurable schedule (hourly, daily, monthly).
+acceptanceCriteria:
+- 'Each tool can have a cost-per-call defined in the policy config (e.g., ''web_search:
+  0.01'')'
+- Spending limits can be set per-tool, per-server, or globally with a time window
+  (hour, day, month)
+- A tool call that would exceed the spending limit is rejected with a JSON-RPC error
+  showing current spend, limit, and window reset time
+- Spending counters persist across restarts via SQLite and reset correctly at window
+  boundaries
+- A tool call with no cost annotation in config is treated as zero-cost and never
+  triggers spending limits
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML configuration loading and validation
+- Implement permission-based policy enforcement (allow/deny lists)
+source: discovered

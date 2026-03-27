@@ -1,0 +1,23 @@
+title: Implement JSON schema validation for tool call arguments
+approval: draft
+phase: planned
+priority: critical
+description: Build the core validation engine that takes a tool call's arguments (as
+  a dict or JSON string) and validates them against the tool's declared JSON schema.
+  This is the foundation that all repair and retry logic depends on. Must return structured
+  validation results including specific error paths and messages.
+acceptanceCriteria:
+- Given valid arguments matching a schema, validation returns a success result with
+  the parsed arguments dict
+- Given arguments with a missing required field, validation returns a failure result
+  identifying the missing field path and expected type
+- Given arguments with a type mismatch (e.g., string where integer expected), validation
+  returns a failure result identifying the field path, actual type, and expected type
+- Given a raw JSON string (as returned by many LLM APIs), the validator parses it
+  before schema validation and returns a clear error if JSON parsing fails
+- 'Validation result object includes: is_valid (bool), parsed_args (dict | None),
+  errors (list of structured error objects with path, message, error_type)'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

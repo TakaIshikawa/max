@@ -1,0 +1,23 @@
+title: Implement policy evaluation pipeline with ordered rule execution
+approval: draft
+phase: planned
+priority: high
+description: Build the policy engine that chains individual evaluators (permission
+  → rate limit → spending limit) into an ordered pipeline. The pipeline short-circuits
+  on the first deny, collects metadata from all evaluators, and provides a unified
+  verdict to the proxy core and audit logger.
+acceptanceCriteria:
+- 'Policy evaluators execute in a fixed order: permission check, then rate limit check,
+  then spending limit check'
+- Pipeline short-circuits on the first deny — subsequent evaluators are not executed
+- 'Pipeline returns a structured verdict object containing: allowed (boolean), evaluator_name,
+  rule_matched, denial_reason (if denied), and execution_time_ms'
+- New evaluators can be added to the pipeline by implementing a PolicyEvaluator interface
+  and registering in the pipeline config
+- Pipeline handles evaluator errors gracefully — a failing evaluator results in a
+  deny verdict with an error reason, never an unhandled exception
+decomposition:
+  assignments: []
+dependencies:
+- Implement permission-based policy enforcement (allow/deny lists)
+source: discovered

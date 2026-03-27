@@ -1,0 +1,22 @@
+title: Define structured error types and recovery results
+approval: draft
+phase: planned
+priority: high
+description: Create a comprehensive error type hierarchy and result types that make
+  it easy for callers to understand what happened and programmatically handle failures.
+  This includes validation errors, repair results, retry exhaustion errors, and the
+  overall harness result that wraps the LLM response with metadata about what the
+  harness did.
+acceptanceCriteria:
+- 'HarnessResult wraps the LLM response and includes: original_response, repaired
+  (bool), repairs_applied (list), retries_used (int), validation_errors (list if final
+  failure)'
+- HarnessExhaustedError is raised (or returned, configurable) when all retries are
+  exhausted, containing the last validation errors and all attempted repairs
+- 'ValidationError objects include: field_path (str, e.g., ''args.location.lat''),
+  expected_type (str), actual_value (Any), message (str)'
+- All error types are serializable to dict/JSON for logging and telemetry purposes
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

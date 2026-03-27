@@ -1,0 +1,24 @@
+title: Implement rate limiting per tool and per server
+approval: draft
+phase: planned
+priority: high
+description: Build the rate limit evaluator that enforces maximum call frequency per
+  tool, per upstream server, or globally. Rate limits use a sliding window algorithm.
+  Counters are stored in SQLite for durability across restarts. This prevents runaway
+  agents from overwhelming upstream services.
+acceptanceCriteria:
+- 'Rate limits can be defined per-tool (e.g., ''search: 10/minute''), per-server (e.g.,
+  ''github-server: 100/hour''), or globally'
+- A tool call exceeding the rate limit is rejected with a JSON-RPC error including
+  the limit, current count, and window reset time
+- Rate limit counters persist across proxy restarts via SQLite storage
+- Sliding window algorithm correctly expires old entries — a burst of 10 calls at
+  t=0 allows new calls starting at t=60s for a 10/minute limit
+- Multiple rate limit rules can apply to the same tool call — the most restrictive
+  limit wins
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML configuration loading and validation
+- Implement permission-based policy enforcement (allow/deny lists)
+source: discovered

@@ -1,0 +1,63 @@
+name: fn-call-harness
+version: 0.1.0
+vision: A model-agnostic function calling reliability library that wraps LLM tool-call
+  outputs with validation, auto-repair, retry logic, and structured error recovery
+  — turning unreliable function calling into near-100% schema-conformant tool invocations
+  with a single drop-in middleware layer.
+goals:
+- id: G-1
+  description: Provide a drop-in Python middleware that validates and repairs LLM
+    function call outputs against declared JSON schemas, requiring no changes to existing
+    LLM client code beyond wrapping the client.
+  successCriteria: A developer can wrap an existing OpenAI or LiteLLM client in ≤5
+    lines of code and have all tool call arguments automatically validated and repaired
+    before being returned.
+- id: G-2
+  description: Dramatically improve first-try function calling success rates for models
+    with known reliability issues through an auto-repair pipeline and retry mechanism.
+  successCriteria: On a test suite of 20+ recorded LLM responses covering common failure
+    modes (double-stringify, malformed JSON, type errors, missing fields), the repair
+    pipeline achieves ≥95% successful recovery without requiring a retry round-trip.
+- id: G-3
+  description: Establish a model quirk registry that documents and automatically patches
+    known model-specific function calling bugs.
+  successCriteria: Registry ships with ≥5 documented quirk entries covering at least
+    3 distinct model families, each with a corresponding auto-fix that is applied
+    transparently during validation.
+- id: G-4
+  description: Provide observability into function calling reliability through optional
+    structured telemetry.
+  successCriteria: Library emits structured log events (or callback invocations) for
+    every validation attempt, including model identifier, tool name, pass/fail status,
+    repair actions applied, and retry count — sufficient to compute per-model per-tool
+    success rates.
+constraints:
+- MVP is Python-only; TypeScript implementation is deferred to post-MVP to avoid doubling
+  maintenance burden
+- MVP supports OpenAI and LiteLLM client wrappers only; Anthropic native client wrapper
+  is deferred
+- No external service dependencies — library must work fully offline with zero network
+  calls beyond the LLM calls themselves
+- No persistent storage — telemetry is emitted via callbacks/logging, not stored by
+  the library
+- Must work with Python 3.10+ and have minimal dependencies (jsonschema, pydantic,
+  and optionally openai/litellm)
+- Auto-repair pipeline must be deterministic and side-effect-free — given the same
+  malformed input, it always produces the same output
+- Retry logic must have a configurable maximum (default 3) to prevent infinite loops
+  and runaway API costs
+- Library must never silently swallow errors — all repair actions and failures must
+  be surfaced via telemetry/logging
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - jsonschema (validation)
+  - openai SDK (client wrapper)
+  - litellm (client wrapper)
+  - pytest (testing)
+  - pydantic (configuration models)
+  infrastructure:
+  - PyPI (packaging)
+  - GitHub Actions (CI)
+  - JSON fixture files (recorded LLM responses for testing)

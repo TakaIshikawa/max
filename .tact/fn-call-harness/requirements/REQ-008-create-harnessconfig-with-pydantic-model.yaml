@@ -1,0 +1,21 @@
+title: Create HarnessConfig with Pydantic models
+approval: draft
+phase: planned
+priority: high
+description: Define the configuration surface for the library using Pydantic models.
+  All behavior (max retries, enabled repair stages, telemetry settings, retry prompt
+  template, custom quirk entries) is controlled via a single HarnessConfig object
+  passed at initialization. Sensible defaults must make zero-config usage work well.
+acceptanceCriteria:
+- 'HarnessConfig is a Pydantic BaseModel with typed fields for: max_retries (int,
+  default 3), repair_stages (list of stage names, default all), telemetry_enabled
+  (bool, default True), retry_prompt_template (str, default provided), quirk_registry_path
+  (Optional[str], default bundled)'
+- FnCallHarness accepts an optional HarnessConfig; omitting it uses all defaults
+- Invalid configuration values raise clear ValidationError with field-level messages
+  at initialization time, not at call time
+- Configuration is immutable after initialization — no runtime mutation of settings
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered
