@@ -82,11 +82,15 @@ def test_fallback_to_builtins():
     with patch("max.sources.registry.importlib.metadata.entry_points", return_value=[]):
         adapters = _discover_adapters()
 
-    # Should have the 4 built-in adapters
+    # Should have the 8 built-in adapters
     assert "hackernews" in adapters
     assert "reddit" in adapters
     assert "github" in adapters
     assert "npm_registry" in adapters
+    assert "pypi_registry" in adapters
+    assert "github_issues" in adapters
+    assert "security_advisories" in adapters
+    assert "product_hunt" in adapters
 
 
 def test_entry_point_load_failure_skipped():
