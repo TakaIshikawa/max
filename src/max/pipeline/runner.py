@@ -8,6 +8,9 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from max.analysis.gap_detector import detect_gaps, format_gaps_for_ideation
+from max.analysis.roles import annotate_signals
+from max.analysis.triangulation import format_cluster_context, triangulate
 from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
 from max.evaluation.weights import get_adapted_weights
@@ -47,6 +50,12 @@ class PipelineResult:
     avg_idea_score: float = 0.0
     token_usage: dict[str, int] = field(default_factory=dict)
 
+    # Meta-intelligence metrics
+    clusters_found: int = 0
+    multi_source_clusters: int = 0
+    gaps_detected: int = 0
+    fetch_allocation: dict[str, int] = field(default_factory=dict)
+
 
 def run_pipeline(
     *,
@@ -73,8 +82,11 @@ def run_pipeline(
 
     try:
         # 1. Fetch signals
-        signals = _fetch_all_signals(signal_limit=signal_limit)
+        signals = _fetch_all_signals(signal_limit=signal_limit, store=store)
         result.signals_fetched = len(signals)
+
+        # 1.1 Annotate signal roles (problem / solution / market)
+        annotate_signals(signals)
 
         pre_count = store.count_signals()
         for sig in signals:
@@ -85,10 +97,19 @@ def run_pipeline(
         new_signals = store.get_unsynthesized_signals(limit=signal_limit)
         result.signals_skipped = result.signals_fetched - len(new_signals)
         if new_signals:
+            # 2.1 Triangulate signals for cross-source corroboration
+            clusters = triangulate(new_signals)
+            result.clusters_found = len(clusters)
+            result.multi_source_clusters = sum(
+                1 for c in clusters if len(c.distinct_sources) > 1
+            )
+            cluster_ctx = format_cluster_context(clusters)
+
             prior_insights = store.get_insights(limit=20)
             insights = synthesize(
                 new_signals,
                 prior_insights=prior_insights if prior_insights else None,
+                cluster_context=cluster_ctx,
             )
             store.mark_signals_synthesized([s.id for s in new_signals])
             dedup = dedup_insights(insights, semantic_index)
@@ -102,13 +123,22 @@ def run_pipeline(
         if insights:
             result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
 
-        # 3. Ideate (supports multiple modes, with memory of existing ideas)
+        # 3. Detect gaps (validated unmet needs)
+        gaps = detect_gaps(store)
+        result.gaps_detected = len(gaps)
+        gaps_ctx = format_gaps_for_ideation(gaps)
+
+        # 4. Ideate (supports multiple modes, with memory of existing ideas)
         recent_insights = store.get_insights(limit=20)
         recent_ideas = store.get_buildable_units(limit=30)
         units: list[BuildableUnit] = []
 
         if ideation_mode in ("direct", "all"):
-            units.extend(ideate(recent_insights, existing_ideas=recent_ideas or None))
+            units.extend(ideate(
+                recent_insights,
+                existing_ideas=recent_ideas or None,
+                gaps_context=gaps_ctx,
+            ))
 
         if ideation_mode in ("refinement", "all"):
             existing = store.get_buildable_units(status="evaluated", limit=10)
@@ -116,7 +146,11 @@ def run_pipeline(
                 units.extend(ideate_refinement(existing, recent_insights))
 
         if ideation_mode in ("cross_domain", "all"):
-            units.extend(ideate_cross_domain(recent_insights, existing_ideas=recent_ideas or None))
+            units.extend(ideate_cross_domain(
+                recent_insights,
+                existing_ideas=recent_ideas or None,
+                gaps_context=gaps_ctx,
+            ))
 
         dedup = dedup_buildable_units(units, semantic_index)
         units = dedup.kept
@@ -204,6 +238,7 @@ def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
                             "title": signal.title,
                             "content": signal.content[:500],
                             "source": signal.source_adapter,
+                            "signal_role": signal.signal_role,
                             "url": signal.url,
                         })
 
@@ -227,16 +262,24 @@ def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
     return json.dumps({"insights": insights_data, "signals": signals_data}, indent=2)
 
 
-def _fetch_all_signals(*, signal_limit: int = 30) -> list[Signal]:
-    """Fetch signals from all registered adapters."""
+def _fetch_all_signals(*, signal_limit: int = 30, store: Store | None = None) -> list[Signal]:
+    """Fetch signals from all registered adapters with optional adaptive allocation."""
     adapters = get_all_adapters()
     all_signals: list[Signal] = []
 
-    per_adapter = max(signal_limit // len(adapters), 5) if adapters else signal_limit
+    if store:
+        from max.pipeline.fetch_strategy import compute_fetch_allocation
+
+        adapter_names = [a.name for a in adapters]
+        allocation = compute_fetch_allocation(signal_limit, adapter_names, store)
+    else:
+        per_adapter = max(signal_limit // len(adapters), 5) if adapters else signal_limit
+        allocation = {a.name: per_adapter for a in adapters}
 
     for adapter in adapters:
+        limit = allocation.get(adapter.name, 5)
         try:
-            signals = asyncio.run(adapter.fetch(limit=per_adapter))
+            signals = asyncio.run(adapter.fetch(limit=limit))
             all_signals.extend(signals)
         except Exception as e:
             print(f"  Warning: {adapter.name} fetch failed: {e}")

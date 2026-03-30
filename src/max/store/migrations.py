@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS signals (
     tags TEXT NOT NULL DEFAULT '[]',
     credibility REAL NOT NULL DEFAULT 0.5,
     metadata TEXT NOT NULL DEFAULT '{}',
-    synthesized_at TEXT DEFAULT NULL
+    synthesized_at TEXT DEFAULT NULL,
+    signal_role TEXT NOT NULL DEFAULT ''
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_signals_url ON signals(url);
@@ -114,6 +115,14 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
+    """Add signal_role column to signals table."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(signals)").fetchall()}
+    if "signal_role" not in columns:
+        conn.execute("ALTER TABLE signals ADD COLUMN signal_role TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -128,6 +137,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 2:
         _migrate_v1_to_v2(conn)
+
+    if current < 3:
+        _migrate_v2_to_v3(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

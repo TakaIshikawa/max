@@ -39,6 +39,8 @@ SUPPORTING EVIDENCE (signals and insights that inspired this idea):
 When scoring, fact-check the idea's claims against this evidence:
 - Does the evidence support the stated problem severity?
 - Is the claimed addressable scale substantiated?
+- If the idea addresses a validated gap (strong problem evidence from multiple sources, \
+weak or no existing solutions), increase pain_severity confidence.
 - Score LOWER confidence when evidence is thin or tangential.
 - Score HIGHER confidence when evidence directly validates a dimension.
 """

@@ -46,8 +46,9 @@ class Store:
             self.conn.execute(
                 """INSERT INTO signals
                    (id, source_type, source_adapter, title, content, url,
-                    author, published_at, fetched_at, tags, credibility, metadata)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    author, published_at, fetched_at, tags, credibility, metadata,
+                    signal_role)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     signal.id,
                     signal.source_type.value,
@@ -61,6 +62,7 @@ class Store:
                     json.dumps(signal.tags),
                     signal.credibility,
                     json.dumps(signal.metadata),
+                    signal.metadata.get("signal_role", ""),
                 ),
             )
             self.conn.commit()
@@ -108,6 +110,72 @@ class Store:
             "SELECT * FROM signals WHERE id = ?", (signal_id,)
         ).fetchone()
         return _row_to_signal(row) if row else None
+
+    def get_signals_by_role(self, role: str, *, limit: int = 100) -> list[Signal]:
+        """Get signals filtered by signal_role."""
+        rows = self.conn.execute(
+            "SELECT * FROM signals WHERE signal_role = ? ORDER BY fetched_at DESC LIMIT ?",
+            (role, limit),
+        ).fetchall()
+        return [_row_to_signal(row) for row in rows]
+
+    def get_adapter_quality_stats(self) -> dict[str, dict]:
+        """Get per-adapter signal utilization stats.
+
+        Returns dict[adapter_name, {total_signals, insight_hit_rate, idea_hit_rate}].
+        """
+        rows = self.conn.execute(
+            "SELECT source_adapter, COUNT(*) as cnt FROM signals GROUP BY source_adapter"
+        ).fetchall()
+        stats: dict[str, dict] = {}
+        for row in rows:
+            stats[row["source_adapter"]] = {
+                "total_signals": row["cnt"],
+                "insight_hit_rate": 0.0,
+                "idea_hit_rate": 0.0,
+            }
+
+        # Collect signal IDs referenced in insights
+        insight_rows = self.conn.execute("SELECT evidence FROM insights").fetchall()
+        insight_signal_ids: set[str] = set()
+        for row in insight_rows:
+            ids = json.loads(row["evidence"])
+            insight_signal_ids.update(ids)
+
+        # Collect signal IDs referenced in buildable units
+        unit_rows = self.conn.execute(
+            "SELECT evidence_signals FROM buildable_units"
+        ).fetchall()
+        idea_signal_ids: set[str] = set()
+        for row in unit_rows:
+            ids = json.loads(row["evidence_signals"])
+            idea_signal_ids.update(ids)
+
+        # Map signal IDs back to adapters
+        all_ids = insight_signal_ids | idea_signal_ids
+        if all_ids:
+            placeholders = ",".join("?" for _ in all_ids)
+            id_rows = self.conn.execute(
+                f"SELECT id, source_adapter FROM signals WHERE id IN ({placeholders})",
+                list(all_ids),
+            ).fetchall()
+
+            adapter_insight_hits: dict[str, int] = {}
+            adapter_idea_hits: dict[str, int] = {}
+            for row in id_rows:
+                adapter = row["source_adapter"]
+                if row["id"] in insight_signal_ids:
+                    adapter_insight_hits[adapter] = adapter_insight_hits.get(adapter, 0) + 1
+                if row["id"] in idea_signal_ids:
+                    adapter_idea_hits[adapter] = adapter_idea_hits.get(adapter, 0) + 1
+
+            for adapter, s in stats.items():
+                total = s["total_signals"]
+                if total > 0:
+                    s["insight_hit_rate"] = adapter_insight_hits.get(adapter, 0) / total
+                    s["idea_hit_rate"] = adapter_idea_hits.get(adapter, 0) / total
+
+        return stats
 
     # ── Insights ─────────────────────────────────────────────────────
 
@@ -325,6 +393,10 @@ class Store:
 
 
 def _row_to_signal(row: sqlite3.Row) -> Signal:
+    metadata = json.loads(row["metadata"])
+    signal_role = row["signal_role"] if "signal_role" in row.keys() else ""
+    if signal_role:
+        metadata["signal_role"] = signal_role
     return Signal(
         id=row["id"],
         source_type=row["source_type"],
@@ -337,7 +409,7 @@ def _row_to_signal(row: sqlite3.Row) -> Signal:
         fetched_at=row["fetched_at"],
         tags=json.loads(row["tags"]),
         credibility=row["credibility"],
-        metadata=json.loads(row["metadata"]),
+        metadata=metadata,
     )
 
 

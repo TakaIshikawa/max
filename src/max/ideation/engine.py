@@ -135,6 +135,7 @@ def ideate(
     insights: list[Insight],
     *,
     existing_ideas: list[BuildableUnit] | None = None,
+    gaps_context: str | None = None,
 ) -> list[BuildableUnit]:
     """Generate buildable unit ideas from insights (direct mode)."""
     if not insights:
@@ -147,6 +148,7 @@ def ideate(
         prompt=build_ideation_prompt(
             _insights_to_json(insights),
             existing_ideas_text=existing_text,
+            gaps_text=gaps_context,
         ),
         output_type=IdeationOutput,
         stage="ideation",
@@ -180,6 +182,7 @@ def ideate_cross_domain(
     insights: list[Insight],
     *,
     existing_ideas: list[BuildableUnit] | None = None,
+    gaps_context: str | None = None,
 ) -> list[BuildableUnit]:
     """Generate ideas by combining insights from different domains."""
     if not insights:
@@ -206,6 +209,7 @@ def ideate_cross_domain(
                 _insights_to_json(domain_groups[domain_a]),
                 _insights_to_json(domain_groups[domain_b]),
                 existing_ideas_text=existing_text,
+                gaps_text=gaps_context,
             ),
             output_type=IdeationOutput,
             stage="ideation_cross_domain",

@@ -35,11 +35,13 @@ def synthesize(
     signals: list[Signal],
     *,
     prior_insights: list[Insight] | None = None,
+    cluster_context: str | None = None,
 ) -> list[Insight]:
     """Synthesize a batch of signals into insights.
 
     When prior_insights is provided, uses an incremental prompt that instructs
     the LLM to generate only new insights that complement the existing ones.
+    When cluster_context is provided, includes cross-source corroboration info.
     """
     if not signals:
         return []
@@ -49,6 +51,7 @@ def synthesize(
             {
                 "id": s.id,
                 "source_type": s.source_type.value,
+                "signal_role": s.signal_role,
                 "title": s.title,
                 "content": s.content[:500],
                 "tags": s.tags,
@@ -74,9 +77,11 @@ def synthesize(
             ],
             indent=2,
         )
-        prompt = build_incremental_synthesis_prompt(signals_json, prior_json)
+        prompt = build_incremental_synthesis_prompt(
+            signals_json, prior_json, cluster_context=cluster_context,
+        )
     else:
-        prompt = build_synthesis_prompt(signals_json)
+        prompt = build_synthesis_prompt(signals_json, cluster_context=cluster_context)
 
     result = structured_call(
         system=SYSTEM,

@@ -27,6 +27,7 @@ def build_ideation_prompt(
     insights_json: str,
     *,
     existing_ideas_text: str | None = None,
+    gaps_text: str | None = None,
 ) -> str:
     existing_block = ""
     if existing_ideas_text:
@@ -36,9 +37,16 @@ EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
 
 """
 
+    gaps_block = ""
+    if gaps_text:
+        gaps_block = f"""
+{gaps_text}
+
+"""
+
     return f"""\
 Generate buildable project ideas based on these insights from the developer/AI ecosystem.
-{existing_block}
+{existing_block}{gaps_block}
 INSIGHTS:
 {insights_json}
 
@@ -89,6 +97,7 @@ def build_cross_domain_prompt(
     domain_b_insights_json: str,
     *,
     existing_ideas_text: str | None = None,
+    gaps_text: str | None = None,
 ) -> str:
     existing_block = ""
     if existing_ideas_text:
@@ -98,10 +107,17 @@ EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
 
 """
 
+    gaps_block = ""
+    if gaps_text:
+        gaps_block = f"""
+{gaps_text}
+
+"""
+
     return f"""\
 Generate novel project ideas by combining insights from TWO DIFFERENT domains. \
 The best ideas come from applying solutions from one domain to problems in another.
-{existing_block}
+{existing_block}{gaps_block}
 DOMAIN A INSIGHTS:
 {domain_a_insights_json}
 

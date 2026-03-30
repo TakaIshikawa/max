@@ -32,3 +32,8 @@ class Signal(BaseModel):
     tags: list[str] = Field(default_factory=list)
     credibility: float = 0.5
     metadata: dict = Field(default_factory=dict)
+
+    @property
+    def signal_role(self) -> str:
+        """Signal role: problem, solution, or market. Set via metadata."""
+        return self.metadata.get("signal_role", "")
