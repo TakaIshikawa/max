@@ -1,0 +1,57 @@
+name: mcp-changelog-watcher
+version: 0.1.0
+vision: An MCP server that monitors the MCP servers your agents depend on, detects
+  schema changes between versions, assesses breaking change risk, and generates migration
+  guidance — serving as dependabot for the MCP ecosystem.
+goals:
+- id: G-1
+  description: Enable developers and agents to declare MCP server dependencies in
+    a manifest and snapshot their tool/resource schemas at any point in time.
+  successCriteria: A user can create a manifest file listing 3+ MCP server dependencies
+    with connection details, and the system successfully connects to each server,
+    retrieves its schema via tools/list, and stores the snapshot in SQLite with a
+    version tag.
+- id: G-2
+  description: Detect and classify schema differences between two snapshots of the
+    same MCP server, distinguishing breaking changes from safe additions.
+  successCriteria: Given two schema snapshots with known differences (renamed tool,
+    changed parameter type, added optional parameter, removed tool), the diff engine
+    correctly classifies each change with ≥95% accuracy across a test suite of 20+
+    diff scenarios.
+- id: G-3
+  description: Expose MCP tools that allow agents to programmatically check dependency
+    health and retrieve migration guidance before making tool calls.
+  successCriteria: An MCP client can call check_dependencies, diff_server_version,
+    get_breaking_changes, and generate_migration_guide tools, receiving structured
+    JSON responses within 5 seconds for a manifest with up to 10 dependencies.
+- id: G-4
+  description: Alert humans to breaking changes via configurable webhook notifications.
+  successCriteria: When a breaking change is detected during a scheduled or manual
+    check, a webhook POST is sent to a configured URL within 30 seconds containing
+    the server name, change summary, and severity classification.
+constraints:
+- MVP supports stdio and SSE MCP transports only for connecting to dependency servers
+- Schema snapshots are stored locally in SQLite — no cloud storage or remote database
+- Version detection in MVP is manual or manifest-driven — no automatic npm/registry
+  polling for new versions
+- Background polling in MVP uses a simple node-cron interval, not a persistent daemon
+  or OS service
+- Manifest format is JSON only for MVP (no YAML)
+- MVP focuses on tool schema diffing only — resource and prompt schema diffing are
+  deferred
+- Webhook notifications support a single URL per manifest entry — no fan-out or retry
+  logic in MVP
+- No authentication or authorization layer on the MCP server itself in MVP
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - better-sqlite3
+  - ajv
+  - node-cron
+  - json-diff
+  infrastructure:
+  - Node.js 20+
+  - SQLite (local file)
+  - Local MCP server process (stdio or SSE transport)

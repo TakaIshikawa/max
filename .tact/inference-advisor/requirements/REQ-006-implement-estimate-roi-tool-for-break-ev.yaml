@@ -1,0 +1,25 @@
+title: Implement estimate_roi tool for break-even analysis
+approval: draft
+phase: planned
+priority: high
+description: 'Given current monthly cloud spend (or a WorkloadProfile with estimated
+  cost) and a specific hardware option, calculate the ROI timeline: upfront cost,
+  monthly savings, break-even month, and projected savings over 12/24/36 months. Account
+  for electricity costs and potential productivity loss during migration.'
+acceptanceCriteria:
+- Given current_monthly_spend of $1500 and a Mac Studio M4 Ultra ($4999), returns
+  break-even month and cumulative savings at 12/24/36 months
+- 'ROI calculation includes: upfront_cost, monthly_cloud_cost, monthly_local_cost
+  (electricity + amortized maintenance), monthly_savings, break_even_month, savings_12m,
+  savings_24m, savings_36m'
+- Includes a migration_cost_estimate field accounting for estimated setup time (in
+  hours) at a configurable hourly rate (default $100/hr)
+- Returns negative ROI clearly when local hardware is more expensive than cloud for
+  the given workload
+- All monetary outputs are formatted to 2 decimal places in USD
+decomposition:
+  assignments: []
+dependencies:
+- Initialize SQLite database with seed data on first run
+- Implement compare_providers tool for multi-provider cost modeling
+source: discovered

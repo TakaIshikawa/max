@@ -1,0 +1,18 @@
+title: Initialize MCP server with stdio transport and tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Set up the MCP server using @modelcontextprotocol/sdk with stdio transport.
+  Register all 5 core tools (analyze_workload, compare_providers, recommend_hardware,
+  estimate_roi, get_quantization_options) with their names, descriptions, and input
+  schemas. The server must start cleanly and respond to MCP list_tools requests.
+acceptanceCriteria:
+- Server starts via `node dist/index.js` without errors and connects over stdio
+- MCP list_tools request returns all 5 tools with correct names, descriptions, and
+  JSON Schema input definitions
+- Server gracefully handles malformed MCP requests with proper error responses
+- Server shuts down cleanly on SIGINT/SIGTERM without orphaned processes
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

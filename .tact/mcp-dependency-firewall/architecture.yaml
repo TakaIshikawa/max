@@ -1,0 +1,94 @@
+patterns:
+- name: MCP Meta-Server
+  description: The firewall itself is an MCP server that exposes security scanning
+    capabilities as MCP tools and security reports as MCP resources. This dogfooding
+    pattern ensures native composability with the ecosystem it protects.
+  scope:
+  - src/server.ts
+  - src/tools/
+  - src/resources/
+- name: Scanner Pipeline
+  description: 'Dependency analysis follows a pipeline pattern: Discovery (parse lockfile)
+    → Resolution (build dependency tree) → Audit (check against vulnerability DBs)
+    → Policy (apply allowlist/blocklist) → Report (generate structured output). Each
+    stage is a pure function that transforms the previous stage''s output.'
+  scope:
+  - src/scanner/
+- name: Registry Pattern for MCP Servers
+  description: MCP servers to monitor are registered in a local configuration file.
+    The registry tracks server name, directory path, and last scan state. All operations
+    reference servers by their registered name.
+  scope:
+  - src/registry/
+  - src/config/
+- name: Event-Driven Filesystem Monitoring
+  description: Chokidar watches registered server directories for lockfile/node_modules
+    changes and emits events that trigger the scanner pipeline. Debouncing prevents
+    redundant scans during npm install cascades.
+  scope:
+  - src/watcher/
+- name: Local Cache with TTL
+  description: Vulnerability data from OSV.dev and npm audit is cached in SQLite with
+    configurable TTL to reduce API calls and enable offline operation. Cache is keyed
+    by package name + version.
+  scope:
+  - src/cache/
+invariants:
+- Every scan result must include a timestamp, the source lockfile hash, and the vulnerability
+  database version used — results must be reproducible
+- Blocklisted package versions must always produce a CRITICAL severity finding regardless
+  of what external databases report
+- No scan operation may modify any file in the monitored MCP server directories —
+  the firewall is strictly read-only
+- All MCP tool responses must conform to the MCP protocol specification and return
+  valid JSON with consistent schema
+- Vulnerability data from external APIs must never be trusted without schema validation
+  — malformed API responses must be rejected gracefully
+- The allowlist/blocklist configuration must be version-controlled (JSON file) and
+  never modified programmatically at runtime
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., dependency-scanner.ts,
+  vulnerability-cache.ts)'
+- 'Export pattern: named exports only, no default exports'
+- 'Error handling: all external API calls wrapped in Result<T, Error> pattern using
+  a lightweight discriminated union — no thrown exceptions in business logic'
+- 'Types: all data structures defined as Zod schemas with inferred TypeScript types
+  — schemas are the source of truth'
+- 'MCP tools: each tool defined in its own file under src/tools/ exporting a tool
+  definition object with name, description, inputSchema, and handler'
+- 'MCP resources: each resource defined in its own file under src/resources/ exporting
+  a resource definition object'
+- 'Logging: structured JSON logging via a thin wrapper, with levels: debug, info,
+  warn, error'
+- 'Tests: colocated test files using *.test.ts suffix, using vitest'
+- 'Configuration: all config loaded from a single mcp-firewall.config.json file validated
+  against a Zod schema at startup'
+decisions:
+- id: D-1
+  title: Advisory-only enforcement model for MVP
+  decision: The firewall reports and flags vulnerabilities but does not block MCP
+    server startup or intercept tool calls. Enforcement is advisory.
+  rationale: Inline blocking (wrapper pattern, proxy interception) introduces significant
+    complexity and fragility across diverse deployment patterns. An advisory model
+    delivers 80% of the value — agents and humans get actionable security data — without
+    the engineering risk. Blocking can be layered on in a future version once the
+    scanning pipeline is proven reliable.
+- id: D-2
+  title: SQLite for local persistence over in-memory-only
+  decision: Use better-sqlite3 for caching vulnerability data, scan history, and the
+    allowlist/blocklist index. The database file lives alongside the config.
+  rationale: In-memory caching loses all state on restart, forcing full re-scans and
+    re-fetches. SQLite provides durable caching with zero infrastructure overhead,
+    enables offline operation for previously-scanned packages, and supports querying
+    scan history for trend analysis. better-sqlite3 is synchronous and fast, avoiding
+    async complexity.
+- id: D-3
+  title: OSV.dev as primary vulnerability database over npm audit alone
+  decision: Use the OSV.dev API as the primary vulnerability data source, with npm
+    audit as a supplementary/fallback source.
+  rationale: OSV.dev aggregates multiple databases (GitHub Advisory Database, NVD,
+    etc.) into a single normalized API with a well-documented schema. npm audit is
+    npm-specific and its API is less stable for programmatic use. OSV.dev also covers
+    transitive dependency vulnerabilities more comprehensively. Using both sources
+    with deduplication provides the best coverage.
+contracts: []

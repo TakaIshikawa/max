@@ -1,0 +1,56 @@
+name: mcp-dependency-firewall
+version: 0.1.0
+vision: A real-time supply chain security scanner that monitors, validates, and blocks
+  compromised dependencies across MCP server execution environments — exposing findings
+  as MCP tools so agents can self-check their own tool environment before executing
+  sensitive operations.
+goals:
+- id: G-1
+  description: Detect known vulnerable or compromised packages in MCP server dependency
+    trees before they can be exploited at runtime
+  successCriteria: The system identifies 100% of packages flagged by OSV.dev and npm
+    audit for any registered MCP server's dependency tree, with results available
+    within 30 seconds of a scan request
+- id: G-2
+  description: Provide agents with queryable MCP tools to assess the security posture
+    of their own execution environment
+  successCriteria: Agents can call check_dependency_security and get_vulnerability_report
+    tools and receive structured JSON responses with severity-ranked findings, with
+    p95 response time under 5 seconds
+- id: G-3
+  description: Enforce an allowlist/blocklist mechanism that quarantines unverified
+    package versions by default
+  successCriteria: Newly published package versions detected in a dependency tree
+    are flagged as 'unverified' until explicitly allowed or verified against provenance
+    records; blocklisted versions produce critical-severity alerts
+- id: G-4
+  description: Monitor registered MCP server dependency trees for changes in real-time
+    via filesystem watching
+  successCriteria: Changes to package-lock.json or node_modules in any registered
+    MCP server directory trigger a re-scan within 10 seconds, and delta results are
+    persisted and available via MCP resources
+constraints:
+- MVP targets npm/Node.js ecosystems only — no pip, cargo, or other package managers
+- No network interception or proxy-based blocking in MVP — security enforcement is
+  advisory (report and flag), not inline blocking
+- Must function fully offline for cached/previously-scanned dependencies; online APIs
+  (OSV.dev, npm) are used opportunistically
+- No custom MCP transport — uses stdio transport only for MVP
+- Wrapper/startup-hook pattern is out of scope for MVP — focus on on-demand and filesystem-watch-triggered
+  scanning
+- Must not require root/admin privileges to operate
+- All scan results must be deterministic given the same lockfile and vulnerability
+  database state
+techStack:
+  languages:
+  - TypeScript 5.x
+  - Node.js 20+
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - chokidar (filesystem watching)
+  - zod (schema validation)
+  infrastructure:
+  - Local process or Docker sidecar
+  - SQLite via better-sqlite3 (local persistence)
+  - OSV.dev REST API
+  - npm registry API

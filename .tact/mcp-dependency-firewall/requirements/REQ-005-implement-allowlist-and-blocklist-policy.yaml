@@ -1,0 +1,25 @@
+title: Implement allowlist and blocklist policy engine
+approval: draft
+phase: planned
+priority: high
+description: Build a policy engine that evaluates scanned packages against a user-defined
+  allowlist and blocklist stored in the config file. Blocklisted versions always produce
+  CRITICAL findings. Packages not on the allowlist that were published within a configurable
+  recency window (default 7 days) are flagged as 'unverified'.
+acceptanceCriteria:
+- Blocklisted entries (package@version) produce a CRITICAL severity finding with reason
+  'blocklisted' regardless of OSV.dev results
+- Allowlisted entries (package@version) suppress findings below a configurable severity
+  threshold
+- Packages with publish dates within the recency window (checked via npm registry
+  API) and not on the allowlist are flagged as 'unverified' with MEDIUM severity
+- Policy configuration is loaded from mcp-firewall.config.json and validated against
+  a Zod schema at startup
+- 'Policy evaluation is a pure function: given (scan_results, policy_config) it returns
+  deterministic augmented results'
+decomposition:
+  assignments: []
+dependencies:
+- Implement lockfile parser for package-lock.json
+- Implement OSV.dev vulnerability lookup service
+source: discovered

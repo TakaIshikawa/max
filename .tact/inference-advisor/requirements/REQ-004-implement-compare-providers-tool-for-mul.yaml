@@ -1,0 +1,26 @@
+title: Implement compare_providers tool for multi-provider cost modeling
+approval: draft
+phase: planned
+priority: critical
+description: Given a WorkloadProfile (either from analyze_workload output or manually
+  specified), calculate estimated monthly costs across all cloud providers and local
+  hardware options in the database. For cloud providers, apply per-model token pricing.
+  For local hardware, calculate amortized hardware cost over 24 months plus electricity.
+  Return a ranked comparison table.
+acceptanceCriteria:
+- Given a WorkloadProfile, returns cost estimates for all providers/hardware in the
+  database, sorted by monthly cost ascending
+- Cloud provider estimates correctly apply input vs output token pricing per model,
+  mapping to equivalent models across providers
+- 'Local hardware estimates include: amortized hardware cost (over 24 months), estimated
+  electricity cost, and effective per-token cost'
+- 'Each estimate includes: provider/hardware name, monthly_cost_usd, cost_per_1k_tokens,
+  notes (e.g., ''Requires quantized model''), and pricing_data_date'
+- Returns partial results with warnings if the workload uses models not available
+  on some providers
+decomposition:
+  assignments: []
+dependencies:
+- Initialize SQLite database with seed data on first run
+- Initialize MCP server with stdio transport and tool registration
+source: discovered

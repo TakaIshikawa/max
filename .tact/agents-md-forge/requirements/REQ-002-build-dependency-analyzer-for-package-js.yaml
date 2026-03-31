@@ -1,0 +1,22 @@
+title: Build dependency analyzer for package.json and pyproject.toml
+approval: draft
+phase: planned
+priority: critical
+description: 'Create an analyzer that reads package.json (npm/yarn/pnpm) and pyproject.toml
+  (pip/poetry) to extract: project name, version, runtime, dependency list (production
+  and dev), detected frameworks (React, Express, FastAPI, etc.), test runner, linter,
+  formatter, and build tool. This provides the foundational metadata for AGENTS.md
+  generation.'
+acceptanceCriteria:
+- Correctly parses package.json and extracts name, scripts, dependencies, and devDependencies
+- Correctly parses pyproject.toml and extracts project metadata, dependencies, and
+  tool configurations
+- Identifies test framework (vitest, jest, mocha, pytest) from dependencies and scripts/config
+- Identifies linter/formatter (eslint, prettier, ruff, black) from dependencies and
+  config files
+- Returns a typed DependencyContext object; returns a partial result (not an error)
+  if a manifest file is missing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

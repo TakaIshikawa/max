@@ -1,0 +1,97 @@
+patterns:
+- name: MCP Tool Handler Pattern
+  description: Each MCP tool is implemented as an independent handler function that
+    receives validated input (via Zod schema), performs computation against the local
+    SQLite database and in-memory models, and returns a structured JSON result. Tools
+    are registered declaratively at server startup.
+  scope:
+  - src/tools/
+  - src/server.ts
+- name: Repository Pattern for Data Access
+  description: All access to pricing data, hardware benchmarks, and quantization lookup
+    tables goes through repository modules that abstract SQLite queries. This isolates
+    the data layer so static seed data can later be replaced with live-fetched data
+    without changing tool logic.
+  scope:
+  - src/repositories/
+- name: Domain Model / Value Object Pattern
+  description: Core domain concepts (WorkloadProfile, CostEstimate, HardwareOption,
+    QuantizationOption, Recommendation) are defined as TypeScript interfaces/types
+    with Zod schemas for validation. All tool inputs and outputs conform to these
+    schemas.
+  scope:
+  - src/models/
+  - src/schemas/
+- name: Seed Data Migration Pattern
+  description: The SQLite database is initialized on first run via a migration script
+    that creates tables and seeds them from bundled JSON/CSV files containing pricing,
+    benchmarks, and quantization data. A version field tracks the seed data version
+    for future updates.
+  scope:
+  - src/db/
+  - data/
+invariants:
+- All MCP tool inputs MUST be validated against their Zod schema before processing;
+  invalid input returns a structured error, never a crash
+- All cost estimates MUST include the pricing data timestamp and a disclaimer that
+  they are estimates, not guarantees
+- The SQLite database MUST be treated as read-only during tool execution; writes only
+  occur during initialization/seeding
+- WorkloadProfile objects MUST always contain non-negative token counts and valid
+  latency percentiles (p50 <= p95 <= p99)
+- Tool responses MUST conform to the MCP protocol content format (text or structured
+  JSON in content array) — never raw strings
+- Hardware recommendations MUST never recommend options that exceed the user-specified
+  budget constraint
+- All monetary values MUST be represented in USD cents internally to avoid floating-point
+  precision issues, and formatted to 2 decimal places in output
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., workload-profile.ts,
+  compare-providers.ts)'
+- 'Type naming: PascalCase for interfaces and types, camelCase for variables and functions'
+- Each MCP tool gets its own file under src/tools/ named {tool-name}.ts with a default
+  export of the handler function
+- Zod schemas are co-located with their corresponding model types in src/schemas/{model-name}.schema.ts
+- Repository files are named {entity}-repository.ts and export a class with static
+  methods
+- All async functions use async/await, never raw Promise chains
+- 'Error handling: tool handlers catch all errors and return MCP-compliant error responses
+  with isError: true'
+- Database queries use parameterized statements exclusively — no string interpolation
+  in SQL
+- Seed data files live under data/ as JSON files with a corresponding TypeScript type
+  definition
+- Use const assertions and enums for fixed sets (provider names, hardware types, quantization
+  methods)
+decisions:
+- id: D-1
+  title: Static bundled pricing and benchmark data instead of live API scraping
+  decision: Bundle pricing, hardware benchmarks, and quantization performance data
+    as static JSON seed files loaded into SQLite at initialization. No live scraping
+    or external API calls in MVP.
+  rationale: The evaluation correctly identified ongoing maintenance burden as a key
+    weakness. For MVP, static data eliminates external dependencies, avoids rate limiting
+    and API key management, and keeps the server fully offline-capable. The seed data
+    schema is designed so live refresh can be layered in post-MVP without changing
+    tool logic. Data files include a 'last_updated' timestamp so users know the freshness.
+- id: D-2
+  title: Log-file parsing for workload profiling instead of live proxy instrumentation
+  decision: The analyze_workload tool accepts file paths to API call logs in supported
+    formats (OpenAI API log JSON, generic CSV with defined columns, LiteLLM spend
+    logs) and parses them into a WorkloadProfile. No live proxy or request interception
+    in MVP.
+  rationale: A live proxy adds enormous complexity (TLS interception, async request
+    tracking, performance overhead) and is a separate project in itself. Log parsing
+    covers the primary use case — retrospective analysis of existing spend — and is
+    deterministic and testable. Supporting 2-3 common log formats covers most users.
+- id: D-3
+  title: SQLite as the single data store with in-process access
+  decision: 'Use better-sqlite3 (synchronous API) for all data storage: seed pricing
+    data, hardware benchmarks, quantization lookup tables, and cached workload profiles.
+    No external database or file-based caching.'
+  rationale: SQLite with better-sqlite3 provides synchronous reads (ideal for MCP
+    tool handlers that need fast responses), zero configuration, single-file portability,
+    and rich querying for cost comparisons across providers. The synchronous API avoids
+    callback complexity in tool handlers. The entire database is small enough (<10MB)
+    to be fast without indexing optimization.
+contracts: []

@@ -1,0 +1,19 @@
+title: Build directory structure analyzer
+approval: draft
+phase: planned
+priority: critical
+description: 'Create an analyzer that walks the repository file tree (respecting .gitignore)
+  to determine: top-level directory layout, source code locations, test locations,
+  config file locations, and overall project organization pattern (monorepo, single-package,
+  etc.). Uses glob patterns and heuristics, not AST parsing.'
+acceptanceCriteria:
+- Produces a tree of top-level directories with purpose annotations (src=source, test=tests,
+  docs=documentation, etc.)
+- Respects .gitignore and skips node_modules, __pycache__, .git, dist, build directories
+- Detects monorepo patterns (packages/, apps/, or workspace config in package.json)
+- Identifies primary language(s) by file extension distribution
+- Returns a typed StructureContext object with directory map and detected patterns
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

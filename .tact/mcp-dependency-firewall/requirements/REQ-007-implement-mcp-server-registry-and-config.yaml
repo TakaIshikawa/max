@@ -1,0 +1,21 @@
+title: Implement MCP server registry and configuration
+approval: draft
+phase: planned
+priority: high
+description: Build the registry that tracks which MCP servers are being monitored.
+  Servers are registered by name and directory path in the config file. The registry
+  validates that directories exist and contain a package-lock.json. Provides CRUD-like
+  operations for the tool layer.
+acceptanceCriteria:
+- Loads registered servers from mcp-firewall.config.json with name and directory path
+- Validates at startup that each registered directory exists and contains a package-lock.json,
+  logging warnings for invalid entries
+- Exposes functions to list all registered servers and get details for a specific
+  server by name
+- Returns a typed error when operations reference a non-existent server name
+- Supports at least 20 registered servers without performance degradation
+decomposition:
+  assignments: []
+dependencies:
+- Implement lockfile parser for package-lock.json
+source: discovered

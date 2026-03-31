@@ -1,0 +1,20 @@
+title: Build documentation and existing context file analyzer
+approval: draft
+phase: planned
+priority: high
+description: 'Create an analyzer that reads README.md, CONTRIBUTING.md, CLAUDE.md,
+  .cursorrules, and any existing AGENTS.md to extract: project description, contribution
+  guidelines, existing agent instructions, and architectural notes. Uses gray-matter
+  for frontmatter parsing and extracts markdown sections by heading.'
+acceptanceCriteria:
+- Parses README.md and extracts project description (first paragraph or section),
+  and section headings
+- Reads CONTRIBUTING.md and extracts PR process, code style, and review guidelines
+  if present
+- 'Detects and reads vendor-specific files: CLAUDE.md, .cursorrules, .github/copilot-instructions.md'
+- Returns a typed DocsContext with extracted content keyed by source file and section
+- Handles missing files gracefully — each file is optional
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

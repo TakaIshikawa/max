@@ -1,0 +1,24 @@
+title: Implement filesystem watcher for lockfile changes
+approval: draft
+phase: planned
+priority: medium
+description: Use chokidar to watch the package-lock.json files of all registered MCP
+  servers. When a change is detected, trigger an automatic re-scan via the scanner
+  pipeline and update the cached report. Debounce rapid changes (e.g., during npm
+  install) to avoid redundant scans.
+acceptanceCriteria:
+- Watches package-lock.json for all registered servers and triggers a re-scan within
+  10 seconds of a detected change
+- Debounces changes with a 5-second window — multiple changes within the window result
+  in a single scan
+- Updates the cached scan report and the security://report/latest resource after each
+  triggered scan
+- Logs each detected change and triggered scan as structured JSON events
+- Gracefully handles watched files being deleted (logs warning, stops watching that
+  path, does not crash)
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server registry and configuration
+- Implement scanner pipeline orchestrator
+source: discovered

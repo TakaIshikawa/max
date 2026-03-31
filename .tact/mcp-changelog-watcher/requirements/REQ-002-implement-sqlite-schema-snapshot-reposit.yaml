@@ -1,0 +1,23 @@
+title: Implement SQLite schema snapshot repository
+approval: draft
+phase: planned
+priority: critical
+description: Create a SchemaRepository class backed by better-sqlite3 that stores
+  and retrieves MCP server schema snapshots. Each snapshot contains the server name,
+  version tag, timestamp, and the full tools/list response as a JSON blob. The repository
+  supports saving new snapshots, retrieving by server+version, listing all versions
+  for a server, and getting the latest snapshot.
+acceptanceCriteria:
+- saveSnapshot stores a snapshot and getSnapshot(serverName, version) retrieves the
+  identical data
+- listVersions(serverName) returns all stored version tags in chronological order
+- getLatestSnapshot(serverName) returns the most recently stored snapshot for that
+  server
+- Attempting to save a duplicate (same server + version) throws a descriptive error
+  rather than silently overwriting
+- Database is auto-created with correct schema on first access, and existing databases
+  are opened without migration errors
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

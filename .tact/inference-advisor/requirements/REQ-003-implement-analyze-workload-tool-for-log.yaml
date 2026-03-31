@@ -1,0 +1,25 @@
+title: Implement analyze_workload tool for log file parsing
+approval: draft
+phase: planned
+priority: critical
+description: 'Parse LLM API call logs from a file path and produce a structured WorkloadProfile.
+  Support at least two formats: OpenAI-style JSON logs (array of request/response
+  objects) and a generic CSV format with columns (timestamp, model, input_tokens,
+  output_tokens, latency_ms, status). Extract: total/daily token volumes, model usage
+  distribution, latency percentiles (p50/p95/p99), peak hours, and estimated current
+  monthly cost.'
+acceptanceCriteria:
+- Given a valid OpenAI JSON log file, returns a WorkloadProfile with accurate token
+  totals, model breakdown, and latency percentiles
+- Given a valid CSV log file with the defined columns, returns an equivalent WorkloadProfile
+- 'WorkloadProfile includes: total_input_tokens, total_output_tokens, daily_average_tokens,
+  model_distribution (map of model->percentage), latency_p50/p95/p99, peak_hours (array),
+  estimated_monthly_cost_usd, date_range, total_requests'
+- Returns a clear error message if the file path is invalid, file is empty, or format
+  is unrecognized
+- Handles log files with up to 100K entries without timeout (under 5 seconds)
+decomposition:
+  assignments: []
+dependencies:
+- Initialize MCP server with stdio transport and tool registration
+source: discovered

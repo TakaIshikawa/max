@@ -1,0 +1,23 @@
+title: Define and validate all domain models with Zod schemas
+approval: draft
+phase: planned
+priority: critical
+description: 'Define TypeScript interfaces and corresponding Zod schemas for all core
+  domain types: WorkloadProfile, ProviderCostEstimate, HardwareOption, HardwareRecommendation,
+  ROIEstimate, QuantizationOption, and all MCP tool input/output shapes. These schemas
+  are used for both input validation in tool handlers and for generating MCP tool
+  input JSON Schemas.'
+acceptanceCriteria:
+- All 5 MCP tool input schemas are defined in Zod and correctly generate JSON Schema
+  for MCP registration
+- 'WorkloadProfile schema validates: non-negative token counts, valid percentiles
+  (p50 <= p95 <= p99), model_distribution percentages summing to ~100%'
+- All output types have corresponding Zod schemas used to validate tool responses
+  in tests
+- Invalid inputs to any tool return a structured error listing specific validation
+  failures
+- Types are exported from a central src/schemas/index.ts barrel file
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

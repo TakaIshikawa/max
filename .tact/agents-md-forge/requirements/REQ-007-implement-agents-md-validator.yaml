@@ -1,0 +1,22 @@
+title: Implement AGENTS.md validator
+approval: draft
+phase: planned
+priority: high
+description: Create a validator that parses an existing AGENTS.md, extracts testable
+  assertions (e.g., 'uses TypeScript', 'tests are in __tests__/', 'run npm test'),
+  and checks each against the actual codebase state. Produces a structured validation
+  report with pass/fail/warning per assertion.
+acceptanceCriteria:
+- 'Parses AGENTS.md and extracts at least: mentioned languages, frameworks, directories,
+  and commands'
+- Checks that mentioned directories actually exist in the repository
+- Checks that mentioned dependencies are present in the manifest file
+- Checks that mentioned commands exist in package.json scripts or CI config
+- Returns a ValidationReport with per-assertion status (pass/fail/warning), evidence,
+  and suggested fix text
+decomposition:
+  assignments: []
+dependencies:
+- Build dependency analyzer for package.json and pyproject.toml
+- Build directory structure analyzer
+source: discovered

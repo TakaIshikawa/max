@@ -1,0 +1,23 @@
+title: Implement manifest file parser and validator
+approval: draft
+phase: planned
+priority: critical
+description: Parse and validate a mcp-dependencies.json manifest file that declares
+  MCP server dependencies. The manifest specifies server names, pinned versions, transport
+  type (stdio or SSE), and connection details (command+args for stdio, URL for SSE).
+  Validation uses an AJV-compiled JSON Schema to ensure all required fields are present
+  and correctly typed before any operations proceed.
+acceptanceCriteria:
+- A valid manifest with 3 server entries (mix of stdio and SSE) is parsed into typed
+  TypeScript objects without errors
+- An invalid manifest missing required fields (e.g., no transport type) produces a
+  descriptive McpWatcherError with the specific validation failure
+- An invalid manifest with wrong types (e.g., version as number instead of string)
+  is rejected with a clear error message
+- The JSON Schema for the manifest is exported and can be used externally for editor
+  autocompletion
+- An empty dependencies array is accepted as valid (no servers to monitor)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement MCP resource for structured project context
+approval: draft
+phase: planned
+priority: high
+description: Expose a project-context:// MCP resource that serves the parsed, structured
+  ProjectContext as JSON. This allows any connected AI agent to programmatically query
+  project metadata, conventions, and workflows without parsing AGENTS.md text. The
+  resource reads from an existing AGENTS.md if present, falling back to live analysis.
+acceptanceCriteria:
+- 'MCP resource at project-context:// returns a JSON object with typed fields: name,
+  language, framework, dependencies, structure, workflows, conventions'
+- If AGENTS.md exists, the resource parses it and returns structured data extracted
+  from the markdown
+- If no AGENTS.md exists, the resource runs analyzers on-demand and returns the raw
+  ProjectContext
+- Response includes a 'freshness' field indicating when the context was last generated/validated
+- Response is valid JSON and conforms to a documented JSON schema
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with tool and resource registration
+- Implement AGENTS.md template-based generator
+source: discovered

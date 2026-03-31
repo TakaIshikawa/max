@@ -1,0 +1,28 @@
+title: Add sample log files and end-to-end integration tests
+approval: draft
+phase: planned
+priority: medium
+description: 'Create sample API log files (both OpenAI JSON and CSV formats) representing
+  realistic workload patterns, and write end-to-end integration tests that exercise
+  the full pipeline: parse logs → build profile → compare providers → recommend hardware
+  → estimate ROI. Ensures all tools work together correctly.'
+acceptanceCriteria:
+- 'test/fixtures/ contains at least 2 sample log files: one OpenAI JSON format (~1000
+  entries) and one CSV format (~1000 entries) with realistic token counts and latency
+  distributions'
+- Integration test runs analyze_workload on sample logs, pipes the WorkloadProfile
+  to compare_providers, then to recommend_hardware with a $5000 budget, and finally
+  to estimate_roi — all without errors
+- Integration test validates that the final recommendation's monthly_cost is less
+  than the workload's estimated current cloud cost (i.e., the tool actually finds
+  savings for the test workload)
+- All tool responses pass Zod schema validation in tests
+- Tests run in under 10 seconds total
+decomposition:
+  assignments: []
+dependencies:
+- Implement analyze_workload tool for log file parsing
+- Implement compare_providers tool for multi-provider cost modeling
+- Implement recommend_hardware tool with budget-constrained suggestions
+- Implement estimate_roi tool for break-even analysis
+source: discovered

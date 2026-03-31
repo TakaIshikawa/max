@@ -1,0 +1,24 @@
+title: Implement get_quantization_options tool for model-hardware compatibility
+approval: draft
+phase: planned
+priority: high
+description: Given a model name and optional hardware target, return available quantization
+  options with their impact on quality and performance. Reference the bundled quantization
+  lookup table containing model-quantization-hardware performance triples (quality
+  score, tokens/sec, VRAM required).
+acceptanceCriteria:
+- Given model 'llama-3.1-70b' and hardware 'mac-studio-m4-ultra', returns available
+  quantization levels (Q4_K_M, Q5_K_M, Q6_K, Q8_0, FP16) with quality_score, tokens_per_second,
+  and vram_required_gb for each
+- Quality scores are normalized 0-100 relative to the FP16 baseline for that model
+- Results are sorted by quality_score descending by default
+- Returns a clear message when the model or hardware is not found in the database,
+  suggesting similar entries
+- Includes a 'recommended' flag on the quantization level that offers the best quality/performance
+  trade-off for the given hardware
+decomposition:
+  assignments: []
+dependencies:
+- Initialize SQLite database with seed data on first run
+- Initialize MCP server with stdio transport and tool registration
+source: discovered

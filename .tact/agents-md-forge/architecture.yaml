@@ -1,0 +1,93 @@
+patterns:
+- name: MCP Server with Tool + Resource Pattern
+  description: The server exposes discrete MCP tools (generate, validate, migrate)
+    for action-oriented operations and MCP resources (project-context) for read-oriented
+    data access. Tools perform side effects (file generation), resources serve structured
+    data. This separation follows MCP protocol semantics and allows agents to choose
+    the right interaction mode.
+  scope:
+  - src/server/
+  - src/tools/
+  - src/resources/
+- name: Analyzer Pipeline
+  description: Codebase analysis is decomposed into independent, composable analyzers
+    (dependency analyzer, structure analyzer, CI analyzer, docs analyzer). Each analyzer
+    implements a common interface, receives a repo path, and returns a typed partial
+    context object. A coordinator merges all partial results into a unified ProjectContext.
+    New analyzers can be added without modifying existing ones.
+  scope:
+  - src/analyzers/
+- name: Template-Based Generation with Optional LLM Enhancement
+  description: 'AGENTS.md generation uses a two-phase approach: (1) a deterministic
+    template engine produces a structured draft from analyzed data, ensuring all factual
+    claims are grounded; (2) an optional LLM pass rewrites the draft for readability
+    and adds contextual guidance. The template-only output must be a valid, useful
+    AGENTS.md on its own.'
+  scope:
+  - src/generator/
+- name: Validation as Assertion Checking
+  description: Validation works by extracting testable assertions from an AGENTS.md
+    file (e.g., 'uses Jest for testing', 'source code is in src/') and checking each
+    assertion against the actual codebase state. Each assertion check returns a pass/fail/warning
+    result with evidence. This makes validation results granular, explainable, and
+    actionable.
+  scope:
+  - src/validator/
+invariants:
+- Every factual claim in a generated AGENTS.md must be directly traceable to parsed
+  codebase data — never hallucinated or assumed
+- The MCP server must function fully without an LLM configured — LLM is an enhancement,
+  not a dependency
+- All file writes (AGENTS.md generation, migration output) require explicit user confirmation
+  or a --force flag — never overwrite silently
+- Analyzer failures are isolated — if one analyzer throws, others still run and partial
+  results are used for generation
+- The MCP server must start and respond to tool calls within 5 seconds on a typical
+  repository (< 10k files)
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., dependency-analyzer.ts,
+  ci-analyzer.ts)'
+- 'Analyzer interface: every analyzer exports a class implementing `Analyzer<T>` with
+  an `analyze(repoPath: string): Promise<T>` method'
+- 'Error handling: use typed Result<T, E> pattern (neverthrow or custom) — no thrown
+  exceptions in analyzer/generator code paths'
+- 'Configuration: all user-configurable options (LLM endpoint, model, output path)
+  live in a single AgentsForgeConfig type loaded from .agents-forge.json or CLI flags'
+- 'Logging: use structured logging (pino) with levels — debug for analysis details,
+  info for tool invocations, warn for validation issues, error for failures'
+- 'Tests: colocate test files as *.test.ts next to source files; use vitest as the
+  test runner'
+- 'MCP tool naming: snake_case matching the MCP convention (generate_agents_md, validate_agents_md,
+  migrate_to_agents_md, get_project_context)'
+- 'TypeScript: strict mode enabled, no `any` types except in tree-sitter bindings
+  where unavoidable'
+decisions:
+- id: D-1
+  title: Use stdio transport for MCP server
+  decision: The MCP server communicates via stdio (stdin/stdout) rather than HTTP/SSE.
+  rationale: Stdio is the standard transport for local MCP servers used by Claude
+    Code, Cursor, and other desktop AI tools. It requires no port management, no auth,
+    and works out of the box with MCP client configurations. HTTP transport can be
+    added later if needed for the web UI, but MVP uses a separate lightweight HTTP
+    server for the UI that communicates with the core library directly, not through
+    MCP.
+- id: D-2
+  title: Separate core library from MCP server layer
+  decision: All analysis, generation, validation, and migration logic lives in a core
+    library (src/core/) that is independent of MCP. The MCP server (src/server/) is
+    a thin adapter that maps MCP tool calls to core library functions.
+  rationale: This enables the core logic to be used by the web UI, CLI, and tests
+    without going through MCP protocol overhead. It also makes the codebase testable
+    — core functions can be unit tested with fixture repos without spinning up an
+    MCP server. The MCP layer only handles protocol serialization and tool registration.
+- id: D-3
+  title: Template-first generation with optional LLM enhancement
+  decision: AGENTS.md generation defaults to a deterministic template-based approach.
+    LLM is only used when explicitly configured and only for prose enhancement — never
+    for factual content generation.
+  rationale: This ensures the tool is useful without any LLM setup (critical for adoption
+    and for CI/CD use cases). It also guarantees accuracy — every statement in the
+    generated file is backed by parsed data. LLM enhancement improves readability
+    but the template output alone must be production-quality. This sidesteps the 'hallucinated
+    project context' failure mode that would undermine trust in the tool.
+contracts: []

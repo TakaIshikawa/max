@@ -1,0 +1,23 @@
+title: Implement webhook notification for breaking changes
+approval: draft
+phase: planned
+priority: medium
+description: When check_dependencies detects breaking changes, send a POST request
+  to webhook URLs configured in the manifest. The webhook payload includes the server
+  name, list of breaking changes with descriptions, severity summary, and a timestamp.
+  Webhook URLs are optional per-dependency in the manifest. Failed webhook deliveries
+  are logged but do not block the check_dependencies response.
+acceptanceCriteria:
+- A breaking change detection triggers an HTTP POST to the configured webhook URL
+  with a JSON payload containing server name and change summary
+- If no webhook URL is configured for a dependency, no HTTP request is made and no
+  error occurs
+- A failed webhook delivery (network error or non-2xx response) is logged as a warning
+  but check_dependencies still returns its normal response
+- The webhook payload includes a timestamp, server_name, breaking_change_count, and
+  an array of change descriptions
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with check_dependencies tool
+source: discovered

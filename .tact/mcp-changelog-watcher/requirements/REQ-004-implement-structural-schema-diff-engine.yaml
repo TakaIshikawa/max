@@ -1,0 +1,25 @@
+title: Implement structural schema diff engine
+approval: draft
+phase: planned
+priority: critical
+description: 'Build a diff engine that takes two schema snapshots for the same server
+  and produces a structured list of changes. The engine detects: tools added, tools
+  removed, tool description changes, parameter added (required vs optional), parameter
+  removed, parameter type changed, parameter description changed, and required/optional
+  status changed. Each change is represented as a typed DiffEntry object.'
+acceptanceCriteria:
+- Diffing two identical snapshots produces an empty change list
+- A snapshot with a removed tool produces a DiffEntry with type 'tool_removed' and
+  the tool name
+- A snapshot where a tool parameter changed from 'string' to 'number' produces a DiffEntry
+  with type 'parameter_type_changed' including old and new types
+- A snapshot where an optional parameter became required produces a DiffEntry with
+  type 'required_status_changed'
+- A snapshot with a newly added tool produces a DiffEntry with type 'tool_added'
+- Diffing snapshots with multiple simultaneous changes (added tool + removed parameter
+  + type change) produces all expected DiffEntry items
+decomposition:
+  assignments: []
+dependencies:
+- Implement SQLite schema snapshot repository
+source: discovered

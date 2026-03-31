@@ -1,0 +1,22 @@
+title: Implement migration guide generator
+approval: draft
+phase: planned
+priority: high
+description: 'Generate a structured migration guide from a list of ClassifiedDiff
+  entries for a given server. The guide includes: a summary of total changes by severity,
+  a list of required actions for breaking changes (what to change in agent code),
+  optional actions for deprecations, and an informational section for additions. Output
+  is a structured MigrationGuide TypeScript object that can be serialized to JSON.'
+acceptanceCriteria:
+- A migration guide for 2 breaking + 1 addition changes includes a summary showing
+  counts by severity
+- 'Each breaking change entry includes an actionable description (e.g., ''Update calls
+  to tool X: parameter Y type changed from string to number'')'
+- A migration guide with zero breaking changes has an empty required_actions array
+  and a summary indicating no breaking changes
+- The MigrationGuide object serializes to valid JSON matching a documented schema
+decomposition:
+  assignments: []
+dependencies:
+- Implement breaking change classifier
+source: discovered

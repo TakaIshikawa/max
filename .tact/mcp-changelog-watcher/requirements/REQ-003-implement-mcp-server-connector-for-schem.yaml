@@ -1,0 +1,22 @@
+title: Implement MCP server connector for schema introspection
+approval: draft
+phase: planned
+priority: critical
+description: Create a ServerConnector abstraction with StdioConnector and SSEConnector
+  implementations that connect to a dependency MCP server, call tools/list to retrieve
+  its current tool schemas, and return the result as a structured TypeScript object.
+  Connections are established on-demand and cleanly closed after introspection.
+acceptanceCriteria:
+- StdioConnector successfully connects to a local MCP server process via stdio, retrieves
+  tools/list, and returns parsed tool schemas
+- SSEConnector successfully connects to an MCP server via SSE URL, retrieves tools/list,
+  and returns parsed tool schemas
+- Connection errors (server not found, timeout after 10 seconds, protocol errors)
+  produce descriptive McpWatcherError instances with the server name and transport
+  type
+- Connections are cleanly closed after schema retrieval — no lingering child processes
+  or open HTTP connections
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

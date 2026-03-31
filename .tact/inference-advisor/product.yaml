@@ -1,0 +1,66 @@
+name: inference-advisor
+version: 0.1.0
+vision: An MCP server that analyzes real AI workload patterns from API call logs and
+  delivers data-driven recommendations on optimal inference strategy — cloud API,
+  local hardware, or hybrid — with specific provider suggestions, hardware specs,
+  ROI timelines, and migration steps.
+goals:
+- id: G-1
+  description: Enable developers to build a detailed workload profile from their existing
+    LLM API call logs, capturing token volumes, latency distributions, model usage,
+    and temporal patterns.
+  successCriteria: 'A user can point the tool at an API log file (or structured JSON
+    export) and receive a complete workload profile object containing: total tokens
+    (input/output), p50/p95/p99 latency, model breakdown by usage percentage, and
+    peak/off-peak hourly distribution.'
+- id: G-2
+  description: Provide accurate, up-to-date cost comparisons across major cloud providers
+    and local hardware options for a given workload profile.
+  successCriteria: The compare_providers tool returns monthly cost estimates for at
+    least 4 cloud providers (OpenAI, Anthropic, Azure PAYGO, Google) and 3 local hardware
+    options (Mac Studio M4 Ultra, consumer NVIDIA GPU, DGX Spark) with per-token cost
+    breakdowns, and estimates are within 10% of manually calculated costs using published
+    pricing.
+- id: G-3
+  description: Deliver actionable, concrete recommendations with ROI analysis so users
+    can make informed infrastructure decisions.
+  successCriteria: 'The recommend tool outputs a ranked list of options with: specific
+    hardware/provider config, estimated monthly cost, ROI break-even timeline (for
+    hardware purchases), and a step-by-step migration checklist. Users report the
+    recommendation is actionable without additional research.'
+- id: G-4
+  description: Expose all analysis capabilities as MCP tools so AI agents can make
+    cost-aware model routing decisions in real time.
+  successCriteria: All 5 core tools (analyze_workload, compare_providers, recommend_hardware,
+    estimate_roi, get_quantization_options) are registered and callable via the MCP
+    protocol, return well-structured JSON, and respond within 2 seconds for cached
+    pricing data.
+constraints:
+- 'MVP scope: no live proxy instrumentation — workload profiling is log-file-based
+  only (parse existing logs/exports)'
+- No web dashboard in MVP — all output is via MCP tool responses (structured JSON);
+  dashboard is post-MVP
+- Pricing data is seeded from a bundled static dataset with a defined schema; live
+  scraping/API refresh is post-MVP
+- Hardware benchmark data is curated and bundled as a static dataset; no live benchmark
+  execution
+- Quantization recommendations reference a bundled lookup table of model-quantization-hardware
+  performance triples, not live evaluation
+- Must work as a local stdio-based MCP server — no cloud deployment or authentication
+  required
+- No real money transactions or binding financial advice — all outputs are estimates
+  clearly labeled as such
+- Target a single-developer workload scale (up to ~10M tokens/month); enterprise multi-team
+  aggregation is post-MVP
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - better-sqlite3
+  - zod
+  - node-fetch
+  infrastructure:
+  - Node.js 20+
+  - SQLite (embedded)
+  - Local MCP server (stdio transport)

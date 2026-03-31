@@ -1,0 +1,24 @@
+title: Implement breaking change classifier
+approval: draft
+phase: planned
+priority: high
+description: 'Classify each DiffEntry from the diff engine into a severity level:
+  breaking (will cause agent failures), deprecation (may cause future failures), addition
+  (safe new capability), or patch (non-functional change like description updates).
+  Uses a pipeline of DiffClassifier strategy implementations, one per change type.
+  The classifier produces a ClassifiedDiff containing the original DiffEntry plus
+  its severity and a human-readable explanation.'
+acceptanceCriteria:
+- tool_removed is classified as 'breaking' with explanation mentioning the tool name
+- parameter_type_changed (narrowing, e.g., string|number to number) is classified
+  as 'breaking'
+- required_status_changed (optional to required) is classified as 'breaking'
+- tool_added is classified as 'addition'
+- tool_description_changed is classified as 'patch'
+- A batch of mixed DiffEntries produces correctly classified results for each entry
+  independently
+decomposition:
+  assignments: []
+dependencies:
+- Implement structural schema diff engine
+source: discovered

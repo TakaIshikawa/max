@@ -1,0 +1,19 @@
+title: Build CI/CD and workflow analyzer
+approval: draft
+phase: planned
+priority: high
+description: 'Create an analyzer that reads CI configuration files (GitHub Actions
+  workflows, .gitlab-ci.yml) and extracts: build commands, test commands, deployment
+  steps, required environment variables, and branch conventions. Also reads Makefile/justfile/taskfile
+  if present for local development workflows.'
+acceptanceCriteria:
+- Parses .github/workflows/*.yml and extracts job names, trigger events, and run commands
+- 'Extracts key commands: how to build, test, lint, and deploy the project'
+- Reads Makefile/justfile targets as local development workflow commands
+- Returns a typed WorkflowContext with categorized commands (build, test, lint, deploy,
+  dev)
+- Gracefully returns empty context if no CI config files are found
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

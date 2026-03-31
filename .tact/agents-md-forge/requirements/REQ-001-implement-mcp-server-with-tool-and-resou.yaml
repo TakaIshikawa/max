@@ -1,0 +1,22 @@
+title: Implement MCP server with tool and resource registration
+approval: draft
+phase: planned
+priority: critical
+description: Create the MCP server entry point that registers four tools (generate_agents_md,
+  validate_agents_md, migrate_to_agents_md, get_project_context) and one resource
+  (project-context://). The server communicates via stdio transport and returns properly
+  typed MCP responses. This is the foundational infrastructure that all other features
+  plug into.
+acceptanceCriteria:
+- Server starts via `node dist/server.js` and accepts MCP protocol messages on stdin/stdout
+- All four tools are discoverable via the MCP tools/list method with correct input
+  schemas
+- The project-context resource is discoverable via MCP resources/list
+- Server responds with appropriate MCP error codes for invalid tool names or malformed
+  inputs
+- Server can be added to Claude Code MCP config and shows tools in the agent's tool
+  list
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

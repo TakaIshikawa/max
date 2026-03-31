@@ -1,0 +1,28 @@
+title: Implement MCP server with check_dependencies tool
+approval: draft
+phase: planned
+priority: critical
+description: Set up the MCP server using @modelcontextprotocol/sdk that exposes the
+  check_dependencies tool. This tool reads the manifest, connects to each declared
+  dependency server, snapshots its current schema, compares against the last stored
+  snapshot (if any), and returns a structured status report listing each dependency
+  with its current version, whether changes were detected, and the highest severity
+  level of any changes.
+acceptanceCriteria:
+- The MCP server starts and responds to tools/list with check_dependencies in the
+  tool list
+- Calling check_dependencies with a manifest containing 2 servers returns a status
+  object with entries for both servers
+- If no previous snapshot exists for a server, the tool stores the initial snapshot
+  and reports status as 'initial_snapshot'
+- If the current schema matches the stored snapshot, the tool reports status as 'no_changes'
+- If schema changes are detected, the tool reports the change count and highest severity
+  level
+decomposition:
+  assignments: []
+dependencies:
+- Implement manifest file parser and validator
+- Implement SQLite schema snapshot repository
+- Implement MCP server connector for schema introspection
+- Implement breaking change classifier
+source: discovered

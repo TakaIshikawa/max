@@ -1,0 +1,92 @@
+patterns:
+- name: MCP Server Tool Pattern
+  description: The application is itself an MCP server exposing tools (check_dependencies,
+    diff_server_version, get_breaking_changes, generate_migration_guide) that agents
+    invoke via the standard MCP protocol. Each tool is a discrete handler registered
+    with the MCP SDK.
+  scope:
+  - src/server.ts
+  - src/tools/
+- name: Repository Pattern for Schema Storage
+  description: All SQLite interactions are encapsulated behind a SchemaRepository
+    class that provides methods like saveSnapshot, getSnapshot, listVersions, and
+    getLatestSnapshot. No raw SQL appears outside the repository layer.
+  scope:
+  - src/db/
+- name: Strategy Pattern for Diff Classification
+  description: Schema diff detection uses a pipeline of classifiers (ToolRemovedClassifier,
+    ParameterTypeChangedClassifier, RequiredFieldAddedClassifier, etc.) each implementing
+    a common DiffClassifier interface. New classification rules can be added without
+    modifying existing ones.
+  scope:
+  - src/diff/
+- name: Adapter Pattern for MCP Transport
+  description: Connecting to dependency MCP servers is abstracted behind a ServerConnector
+    interface with StdioConnector and SSEConnector implementations, allowing transport-agnostic
+    schema introspection.
+  scope:
+  - src/connectors/
+- name: Manifest-Driven Configuration
+  description: All dependency declarations and watcher configuration are read from
+    a single mcp-dependencies.json manifest file. The manifest is the single source
+    of truth for what servers to monitor, their connection details, and pinned versions.
+  scope:
+  - src/manifest/
+  - mcp-dependencies.json
+invariants:
+- Schema snapshots are immutable once stored — they are never updated, only new snapshots
+  are appended with new version tags
+- Every diff operation must compare two explicitly identified snapshots by server
+  name and version — no implicit 'latest' comparisons without resolution
+- Breaking change classification must never silently swallow errors — if a schema
+  cannot be parsed or compared, the result must include an explicit error entry
+- The manifest file must be validated against a JSON schema before any operations
+  proceed — invalid manifests must produce clear error messages
+- Tool responses must always return well-structured JSON matching documented response
+  schemas — no unstructured strings or partial results
+- SQLite database migrations are forward-only and versioned — no destructive schema
+  changes
+conventions:
+- 'File naming: kebab-case for all files (e.g., schema-repository.ts, diff-classifier.ts)'
+- 'Export pattern: named exports only, no default exports'
+- 'Error handling: custom error classes extending a base McpWatcherError, with error
+  codes for programmatic handling'
+- 'Database: all SQL queries use parameterized statements, never string interpolation'
+- 'Types: all MCP tool inputs and outputs have corresponding TypeScript interfaces
+  in src/types/'
+- 'Tool naming: snake_case for MCP tool names to match MCP ecosystem conventions'
+- 'Logging: structured JSON logging via a simple logger utility, with levels: debug,
+  info, warn, error'
+- 'Tests: co-located test files using *.test.ts suffix, one test file per module'
+decisions:
+- id: D-1
+  title: SQLite for local schema snapshot storage
+  decision: Use better-sqlite3 as the local persistence layer for all schema snapshots,
+    diff results, and manifest state.
+  rationale: SQLite is zero-configuration, requires no external services, and supports
+    the single-user local daemon deployment model. better-sqlite3 provides synchronous
+    APIs that simplify the snapshot-then-diff workflow. The data volume (schema snapshots
+    are small JSON documents) will never stress SQLite's limits. This avoids requiring
+    users to set up Postgres or any external database for an MVP.
+- id: D-2
+  title: Structural JSON diff over textual diff
+  decision: Implement a custom structural diff engine that traverses JSON Schema trees
+    and compares semantically (type compatibility, required field changes, enum value
+    changes) rather than using generic text or JSON patch diffing.
+  rationale: 'Textual diffs produce noisy, unhelpful output for JSON schemas — reordered
+    keys, whitespace changes, and structural reorganizations create false positives.
+    Semantic diffing is the core value proposition: detecting that a parameter changed
+    from string to number, or that an optional field became required, requires understanding
+    JSON Schema semantics. Libraries like json-diff provide a starting point but the
+    classification layer must be custom.'
+- id: D-3
+  title: Manifest-driven dependency declaration over auto-discovery
+  decision: Require users to explicitly declare MCP server dependencies in a mcp-dependencies.json
+    manifest file rather than attempting to auto-discover connected servers.
+  rationale: Auto-discovery is fragile and transport-dependent. The MCP protocol has
+    no standardized registry or version advertisement mechanism. A manifest file gives
+    users explicit control over what is monitored, mirrors established patterns (package.json,
+    requirements.txt), and avoids the hard unsolved problem of version detection identified
+    in the evaluation. This keeps the MVP focused on the diff and classification engine
+    where the real value lies.
+contracts: []

@@ -1,0 +1,23 @@
+title: Implement vendor file migration tool
+approval: draft
+phase: planned
+priority: medium
+description: 'Create a migration tool that reads CLAUDE.md and .cursorrules files,
+  parses their content into categorized instructions, and outputs a properly structured
+  AGENTS.md that preserves all actionable guidance. Handles the different formats:
+  CLAUDE.md is free-form markdown, .cursorrules is typically a list of rules.'
+acceptanceCriteria:
+- Reads CLAUDE.md and categorizes instructions into AGENTS.md sections (conventions,
+  workflow, constraints, etc.)
+- Reads .cursorrules and converts rule entries into appropriate AGENTS.md sections
+- Merges instructions from multiple vendor files into a single coherent AGENTS.md
+  without duplication
+- Preserves all original instructions — nothing is silently dropped during migration
+- Outputs a migration summary showing what was moved where and flags any instructions
+  that couldn't be auto-categorized
+decomposition:
+  assignments: []
+dependencies:
+- Build documentation and existing context file analyzer
+- Implement AGENTS.md template-based generator
+source: discovered

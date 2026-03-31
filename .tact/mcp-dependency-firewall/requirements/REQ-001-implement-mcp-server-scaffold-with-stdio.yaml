@@ -1,0 +1,18 @@
+title: Implement MCP server scaffold with stdio transport
+approval: draft
+phase: planned
+priority: critical
+description: Create the foundational MCP server using @modelcontextprotocol/sdk that
+  communicates over stdio transport. This is the skeleton that all tools and resources
+  will be registered on. It must handle MCP protocol lifecycle (initialize, list tools,
+  list resources, call tool, read resource) correctly.
+acceptanceCriteria:
+- Server starts and completes MCP handshake over stdio with a compliant MCP client
+- Server responds to tools/list with an empty tool list and resources/list with an
+  empty resource list without errors
+- Server shuts down gracefully on SIGINT/SIGTERM without corrupting any state
+- Server logs startup, connection, and shutdown events as structured JSON to stderr
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

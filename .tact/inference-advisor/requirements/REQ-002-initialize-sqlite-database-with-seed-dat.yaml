@@ -1,0 +1,22 @@
+title: Initialize SQLite database with seed data on first run
+approval: draft
+phase: planned
+priority: critical
+description: On first startup, create the SQLite database file, run schema migrations
+  to create tables (providers, hardware_options, pricing_tiers, quantization_triples,
+  benchmarks), and seed them from bundled JSON files under data/. Include a metadata
+  table tracking seed data version and timestamp. Skip seeding if database already
+  exists and version matches.
+acceptanceCriteria:
+- First run creates inference-advisor.db with all required tables and populates them
+  from data/*.json files
+- Database contains pricing data for at least 4 cloud providers (OpenAI, Anthropic,
+  Azure PAYGO, Google) with per-model token pricing
+- Database contains hardware specs and benchmark data for at least 5 hardware options
+  (Mac Studio M3 Ultra, Mac Studio M4 Ultra, RTX 4090, RTX 3090, DGX Spark)
+- Subsequent runs skip seeding if db version matches; re-seed if version is outdated
+- Metadata table records seed_version and seeded_at timestamp
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

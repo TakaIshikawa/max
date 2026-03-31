@@ -1,0 +1,20 @@
+title: Implement lockfile parser for package-lock.json
+approval: draft
+phase: planned
+priority: critical
+description: Build a parser that reads a package-lock.json (v2/v3 format) and extracts
+  a complete dependency tree including package name, resolved version, integrity hash,
+  and dependency relationships (direct vs transitive). This is the foundational input
+  for all scanning operations.
+acceptanceCriteria:
+- Parses package-lock.json v2 and v3 formats and returns a structured dependency tree
+  with all packages, versions, and integrity hashes
+- Correctly distinguishes direct dependencies from transitive dependencies
+- Returns a typed error (not an exception) for malformed, missing, or unsupported
+  lockfile formats
+- Produces identical output for identical lockfile input (deterministic)
+- Handles lockfiles with 500+ packages within 2 seconds on standard hardware
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,26 @@
+title: Expose check_dependency_security MCP tool
+approval: draft
+phase: planned
+priority: critical
+description: Register an MCP tool called check_dependency_security that accepts a
+  server_name parameter, triggers a scan of that server's dependency tree, and returns
+  a structured security assessment. This is the primary interface for agents to query
+  their environment's security posture.
+acceptanceCriteria:
+- Tool is listed in tools/list response with name 'check_dependency_security', a clear
+  description, and a JSON Schema input requiring 'server_name' (string)
+- 'Calling the tool with a valid server_name returns a JSON object with: overall_status
+  (clean|warnings|critical), finding_count by severity, and a list of findings each
+  with package, version, severity, vulnerability IDs, and description'
+- Calling the tool with an unregistered server_name returns an MCP error response
+  with a helpful message
+- Tool response conforms to MCP protocol content format (text content type with JSON
+  string)
+- Tool completes within 15 seconds for a typical dependency tree
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server scaffold with stdio transport
+- Implement scanner pipeline orchestrator
+- Implement MCP server registry and configuration
+source: discovered

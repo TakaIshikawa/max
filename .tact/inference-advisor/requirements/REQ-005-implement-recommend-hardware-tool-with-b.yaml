@@ -1,0 +1,27 @@
+title: Implement recommend_hardware tool with budget-constrained suggestions
+approval: draft
+phase: planned
+priority: high
+description: 'Given a WorkloadProfile and an optional budget constraint (USD), recommend
+  specific hardware configurations for local inference. Factor in: required VRAM for
+  the models used (at various quantization levels), throughput requirements based
+  on workload latency needs, and total cost of ownership. Return ranked recommendations
+  with justification.'
+acceptanceCriteria:
+- Given a WorkloadProfile and budget of $5000, returns only hardware options costing
+  <= $5000
+- 'Each recommendation includes: hardware_name, price_usd, estimated_monthly_throughput_tokens,
+  models_supported (with quantization level), estimated_tokens_per_second, and suitability_score
+  (0-100)'
+- Recommendations flag when a hardware option cannot meet the workload's p95 latency
+  requirement
+- If no hardware fits the budget or workload requirements, returns an explicit 'no
+  suitable hardware' result with explanation
+- Recommendations include a 'why' field explaining the ranking rationale for each
+  option
+decomposition:
+  assignments: []
+dependencies:
+- Initialize SQLite database with seed data on first run
+- Implement compare_providers tool for multi-provider cost modeling
+source: discovered

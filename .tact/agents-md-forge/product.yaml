@@ -1,0 +1,56 @@
+name: agents-md-forge
+version: 0.1.0
+vision: An MCP server that automatically generates, validates, and maintains vendor-neutral
+  AGENTS.md files for any codebase — making every repository instantly understandable
+  by every AI coding agent through a single, programmatically queryable source of
+  truth.
+goals:
+- id: G-1
+  description: Enable automated generation of comprehensive AGENTS.md files from codebase
+    analysis, grounded in actual project structure, dependencies, and conventions.
+  successCriteria: Given a repository with at least a package.json/pyproject.toml
+    and source files, the generate tool produces a valid AGENTS.md that accurately
+    reflects the project's language, dependency manager, test framework, and directory
+    structure with zero manual input.
+- id: G-2
+  description: Provide validation that detects drift between AGENTS.md assertions
+    and actual codebase state, flagging stale or contradictory instructions.
+  successCriteria: The validate tool identifies at least 3 categories of drift (missing
+    dependencies, changed directory structure, outdated build commands) and produces
+    a structured report with specific line references and suggested fixes.
+- id: G-3
+  description: Support migration from vendor-specific agent configuration files (CLAUDE.md,
+    .cursorrules) into the AGENTS.md standard format.
+  successCriteria: The migrate tool successfully converts CLAUDE.md and .cursorrules
+    files into a well-structured AGENTS.md, preserving all actionable instructions
+    while reorganizing them into AGENTS.md sections.
+- id: G-4
+  description: Expose parsed, structured project context as an MCP resource so any
+    connected AI agent can query it programmatically without re-reading raw files.
+  successCriteria: An MCP client can connect to the server, call get_project_context,
+    and receive a structured JSON object containing project metadata, conventions,
+    architecture notes, and workflow instructions extracted from AGENTS.md.
+constraints:
+- MVP targets TypeScript/JavaScript and Python codebases only — other languages are
+  out of scope for initial analysis
+- LLM integration is optional — the tool must produce useful output from static analysis
+  alone, with LLM enhancing natural language quality when available
+- No cloud deployment — the MCP server runs locally via stdio transport only
+- Web UI in MVP is a local-only dev server for reviewing and editing generated AGENTS.md
+  — no auth, no persistence beyond the filesystem
+- Tree-sitter parsing is limited to top-level structure discovery (exports, classes,
+  function signatures) — no deep semantic analysis
+- 'The AGENTS.md format follows the emerging community convention (sections: Project
+  Overview, Architecture, Conventions, Workflows, Constraints) but must gracefully
+  handle non-standard formats during validation'
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - tree-sitter
+  - React
+  infrastructure:
+  - Node.js 20+
+  - Local MCP server (stdio transport)
+  - 'Optional: any OpenAI-compatible LLM API or Ollama for generation'

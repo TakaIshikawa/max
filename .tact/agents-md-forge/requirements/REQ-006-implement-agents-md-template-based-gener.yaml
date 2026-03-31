@@ -1,0 +1,27 @@
+title: Implement AGENTS.md template-based generator
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the generator that takes a unified ProjectContext (merged from
+  all analyzers) and produces a well-structured AGENTS.md file using deterministic
+  templates. The output follows the emerging AGENTS.md convention with sections: Project
+  Overview, Tech Stack, Architecture, Development Workflow, Conventions, and Constraints.
+  Every line must be traceable to analyzer data.'
+acceptanceCriteria:
+- Produces a valid Markdown file with clear section headings matching the AGENTS.md
+  convention
+- Project Overview section includes name, description, primary language, and framework
+- Tech Stack section lists runtime, key dependencies, test runner, linter, and formatter
+- Development Workflow section includes build, test, lint, and dev commands extracted
+  from CI/scripts
+- Architecture section describes directory structure and detected patterns (monorepo,
+  etc.)
+- Output is deterministic — same input always produces identical output
+decomposition:
+  assignments: []
+dependencies:
+- Build dependency analyzer for package.json and pyproject.toml
+- Build directory structure analyzer
+- Build CI/CD and workflow analyzer
+- Build documentation and existing context file analyzer
+source: discovered

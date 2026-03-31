@@ -1,0 +1,24 @@
+title: Implement diff_server_version and get_breaking_changes tools
+approval: draft
+phase: planned
+priority: high
+description: 'Add two more tools to the MCP server: diff_server_version(server_name,
+  old_version, new_version) returns the full classified diff between two stored snapshots,
+  and get_breaking_changes(server_name?) returns only breaking changes across all
+  or a specific dependency. Both tools read from stored snapshots and return structured
+  JSON.'
+acceptanceCriteria:
+- diff_server_version returns classified diff entries for two valid stored snapshot
+  versions
+- diff_server_version with a non-existent version returns a clear error message indicating
+  which version was not found
+- get_breaking_changes with no arguments returns breaking changes across all servers
+  in the manifest
+- get_breaking_changes with a specific server_name returns only that server's breaking
+  changes
+- Both tools appear in the tools/list response with correct input schemas
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with check_dependencies tool
+source: discovered

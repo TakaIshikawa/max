@@ -1,0 +1,24 @@
+title: Implement generate_migration_guide tool
+approval: draft
+phase: planned
+priority: high
+description: Add the generate_migration_guide(server_name, from_version?, to_version?)
+  tool to the MCP server. It retrieves or computes the diff between the specified
+  versions (defaulting to the two most recent snapshots), generates a migration guide,
+  and returns it as structured JSON. This is the primary tool agents and developers
+  use to understand what changed and what to do about it.
+acceptanceCriteria:
+- Calling with server_name and explicit from/to versions returns a complete MigrationGuide
+  JSON object
+- Calling with only server_name defaults to comparing the two most recent snapshots
+  for that server
+- If fewer than 2 snapshots exist for the server, returns a clear error indicating
+  insufficient version history
+- The returned migration guide includes summary, required_actions, and informational
+  sections as documented
+decomposition:
+  assignments: []
+dependencies:
+- Implement migration guide generator
+- Implement MCP server with check_dependencies tool
+source: discovered

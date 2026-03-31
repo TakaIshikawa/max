@@ -1,0 +1,21 @@
+title: Build companion web UI for reviewing and editing generated AGENTS.md
+approval: draft
+phase: planned
+priority: medium
+description: Create a minimal local web UI (React) that displays a generated or existing
+  AGENTS.md with section-by-section editing, a diff view showing changes from the
+  current file, and a validation status panel. The UI communicates with the core library
+  directly (not through MCP) via a lightweight local HTTP API.
+acceptanceCriteria:
+- UI launches via `agents-forge ui` command and opens in the default browser on localhost
+- Displays the current AGENTS.md rendered as formatted sections with inline edit capability
+- Shows validation results alongside each section (pass/fail/warning indicators)
+- Provides a diff view comparing the current AGENTS.md with a freshly generated version
+- Save button writes changes back to the AGENTS.md file on disk with confirmation
+  prompt
+decomposition:
+  assignments: []
+dependencies:
+- Implement AGENTS.md template-based generator
+- Implement AGENTS.md validator
+source: discovered

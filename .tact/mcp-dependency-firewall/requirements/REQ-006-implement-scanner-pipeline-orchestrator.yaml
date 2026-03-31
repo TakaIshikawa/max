@@ -1,0 +1,27 @@
+title: Implement scanner pipeline orchestrator
+approval: draft
+phase: planned
+priority: high
+description: Build the orchestrator that composes the lockfile parser, OSV.dev lookup,
+  cache, and policy engine into a single scan operation. Given a registered server
+  name, it resolves the directory, parses the lockfile, checks the cache, queries
+  external APIs for cache misses, applies policy, and produces a structured scan report.
+acceptanceCriteria:
+- 'Given a registered server name, produces a complete scan report with: timestamp,
+  server name, lockfile hash, total packages scanned, findings grouped by severity,
+  and per-package details'
+- Uses cached vulnerability data for cache hits and only queries OSV.dev for cache
+  misses
+- Stores new vulnerability data in the cache after successful API lookups
+- 'Completes a full scan of a 200-package dependency tree in under 15 seconds (with
+  warm cache: under 2 seconds)'
+- Returns a typed error with context if any stage fails (e.g., lockfile not found,
+  API unavailable) without crashing
+decomposition:
+  assignments: []
+dependencies:
+- Implement lockfile parser for package-lock.json
+- Implement OSV.dev vulnerability lookup service
+- Implement vulnerability cache with TTL in SQLite
+- Implement allowlist and blocklist policy engine
+source: discovered

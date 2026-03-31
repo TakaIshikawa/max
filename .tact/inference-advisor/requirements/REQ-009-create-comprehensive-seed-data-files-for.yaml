@@ -1,0 +1,24 @@
+title: Create comprehensive seed data files for pricing, hardware, and quantization
+approval: draft
+phase: planned
+priority: critical
+description: Author the bundled JSON data files that seed the SQLite database. These
+  are the knowledge base of the entire system. Include current (as of mid-2025) pricing
+  for major providers, hardware specs and benchmarks for target hardware, and quantization
+  performance data for popular models.
+acceptanceCriteria:
+- data/providers.json contains pricing for OpenAI (GPT-4o, GPT-4o-mini, o3-mini),
+  Anthropic (Claude 3.5 Sonnet, Claude 3.5 Haiku), Azure PAYGO (same models), and
+  Google (Gemini 2.0 Flash, Gemini 2.5 Pro) with input/output token prices
+- 'data/hardware.json contains specs for at least 5 hardware options including: name,
+  price_usd, vram_gb, memory_bandwidth_gbps, tdp_watts, and supported_frameworks'
+- data/quantization.json contains at least 20 model-quantization-hardware performance
+  triples covering Llama 3.1 (8B, 70B), Qwen 2.5 (7B, 72B), and Mistral (7B) across
+  Q4_K_M, Q6_K, and Q8_0 on Mac Studio and RTX 4090
+- All data files include a 'version' and 'last_updated' field at the root level
+- Data files pass validation against their corresponding Zod schemas
+decomposition:
+  assignments: []
+dependencies:
+- Define and validate all domain models with Zod schemas
+source: discovered
