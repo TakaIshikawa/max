@@ -34,6 +34,7 @@ def compute_fetch_allocation(
         return {name: per for name in adapter_names}
 
     stats = store.get_adapter_quality_stats()
+    approval_stats = store.get_adapter_approval_stats()
 
     quality: dict[str, float] = {}
     for name in adapter_names:
@@ -43,7 +44,17 @@ def compute_fetch_allocation(
         else:
             insight_rate = adapter_stats["insight_hit_rate"]
             idea_rate = adapter_stats["idea_hit_rate"]
-            quality[name] = insight_weight * insight_rate + idea_weight * idea_rate
+            # Blend with approval rate when sufficient feedback exists
+            adapter_approval = approval_stats.get(name)
+            if adapter_approval and adapter_approval["total_feedbacked"] >= 3:
+                approval_rate = adapter_approval["approval_rate"]
+                quality[name] = (
+                    0.3 * insight_rate + 0.3 * idea_rate + 0.4 * approval_rate
+                )
+            else:
+                quality[name] = (
+                    insight_weight * insight_rate + idea_weight * idea_rate
+                )
 
     max_q = max(quality.values()) if quality else 1.0
     if max_q == 0:

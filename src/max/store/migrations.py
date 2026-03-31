@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -95,7 +95,26 @@ CREATE TABLE IF NOT EXISTS feedback (
     reason TEXT NOT NULL DEFAULT '',
     dimension_values TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
+    pipeline_run_id TEXT DEFAULT NULL,
     FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id TEXT PRIMARY KEY,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    config TEXT NOT NULL DEFAULT '{}',
+    signals_fetched INTEGER NOT NULL DEFAULT 0,
+    signals_new INTEGER NOT NULL DEFAULT 0,
+    insights_generated INTEGER NOT NULL DEFAULT 0,
+    ideas_generated INTEGER NOT NULL DEFAULT 0,
+    ideas_evaluated INTEGER NOT NULL DEFAULT 0,
+    specs_generated INTEGER NOT NULL DEFAULT 0,
+    clusters_found INTEGER NOT NULL DEFAULT 0,
+    gaps_detected INTEGER NOT NULL DEFAULT 0,
+    avg_idea_score REAL NOT NULL DEFAULT 0.0,
+    fetch_allocation TEXT NOT NULL DEFAULT '{}',
+    token_usage TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS embeddings (
@@ -123,6 +142,35 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
+    """Add pipeline_runs table and pipeline_run_id to feedback."""
+    # Create pipeline_runs table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_runs (
+            id TEXT PRIMARY KEY,
+            started_at TEXT NOT NULL,
+            completed_at TEXT,
+            config TEXT NOT NULL DEFAULT '{}',
+            signals_fetched INTEGER NOT NULL DEFAULT 0,
+            signals_new INTEGER NOT NULL DEFAULT 0,
+            insights_generated INTEGER NOT NULL DEFAULT 0,
+            ideas_generated INTEGER NOT NULL DEFAULT 0,
+            ideas_evaluated INTEGER NOT NULL DEFAULT 0,
+            specs_generated INTEGER NOT NULL DEFAULT 0,
+            clusters_found INTEGER NOT NULL DEFAULT 0,
+            gaps_detected INTEGER NOT NULL DEFAULT 0,
+            avg_idea_score REAL NOT NULL DEFAULT 0.0,
+            fetch_allocation TEXT NOT NULL DEFAULT '{}',
+            token_usage TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+    # Add pipeline_run_id to feedback
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(feedback)").fetchall()}
+    if "pipeline_run_id" not in columns:
+        conn.execute("ALTER TABLE feedback ADD COLUMN pipeline_run_id TEXT DEFAULT NULL")
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -140,6 +188,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 3:
         _migrate_v2_to_v3(conn)
+
+    if current < 4:
+        _migrate_v3_to_v4(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

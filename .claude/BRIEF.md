@@ -9,15 +9,16 @@ Generalized idea generation engine — transforms ecosystem signals into tact-co
 - Meta-intelligence layer: signal role annotation (problem/solution/market), cross-source triangulation, adaptive fetch allocation, gap detection (validated unmet needs)
 - Incremental synthesis with semantic deduplication (trigram-hash fallback embeddings)
 - Evidence-grounded evaluation with full signal-to-insight-to-idea traceability
-- Feedback loop: closed-loop weight adaptation from approval/rejection outcomes
+- Feedback loop: closed-loop weight adaptation from approval/rejection outcomes, attribution tracking (feedback → idea → signals → adapters), feedback-aware fetch allocation, retrospective prompt learning
+- Pipeline run persistence: pipeline_runs table tracks all metrics per run
 - Ideation memory: existing ideas injected into prompts to avoid regeneration
 - REST API (FastAPI) + MCP server (fastmcp) + scheduler with configurable intervals
 - CLI with evaluation profiles, ideation modes, and feedback commands
-- SQLite store with schema migrations (v1 → v2 → v3)
-- 218 tests, all passing
+- SQLite store with schema migrations (v1 → v2 → v3 → v4)
+- 315 tests, all passing
 
 ## Latest
-Added meta-intelligence e2e test covering signal roles, triangulation, gap detection, and prompt threading. Fixed test determinism by designing signals with shared content for hash-based trigram embedding clustering.
+Added 3-layer feedback loop: (1) attribution tracking with pipeline run persistence (schema v4), (2) feedback-aware fetch allocation that blends utilization with approval rates, (3) retrospective analysis extracting learned patterns (successful categories, adapters, target users) injected into ideation prompts.
 
 ## Next
 TBD

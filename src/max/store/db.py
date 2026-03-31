@@ -388,6 +388,161 @@ class Store:
             })
         return outcomes
 
+    # ── Pipeline Runs ─────────────────────────────────────────────────
+
+    def insert_pipeline_run(self, run_id: str, config: dict) -> None:
+        """Record a new pipeline run."""
+        self.conn.execute(
+            "INSERT INTO pipeline_runs (id, started_at, config) VALUES (?, ?, ?)",
+            (run_id, _now_iso(), json.dumps(config)),
+        )
+        self.conn.commit()
+
+    def update_pipeline_run(self, run_id: str, **metrics: object) -> None:
+        """Update a pipeline run with completion metrics."""
+        self.conn.execute(
+            """UPDATE pipeline_runs SET
+               completed_at = ?,
+               signals_fetched = ?, signals_new = ?,
+               insights_generated = ?, ideas_generated = ?,
+               ideas_evaluated = ?, specs_generated = ?,
+               clusters_found = ?, gaps_detected = ?,
+               avg_idea_score = ?,
+               fetch_allocation = ?, token_usage = ?
+               WHERE id = ?""",
+            (
+                _now_iso(),
+                metrics.get("signals_fetched", 0),
+                metrics.get("signals_new", 0),
+                metrics.get("insights_generated", 0),
+                metrics.get("ideas_generated", 0),
+                metrics.get("ideas_evaluated", 0),
+                metrics.get("specs_generated", 0),
+                metrics.get("clusters_found", 0),
+                metrics.get("gaps_detected", 0),
+                metrics.get("avg_idea_score", 0.0),
+                json.dumps(metrics.get("fetch_allocation", {})),
+                json.dumps(metrics.get("token_usage", {})),
+                run_id,
+            ),
+        )
+        self.conn.commit()
+
+    def get_pipeline_runs(self, *, limit: int = 20) -> list[dict]:
+        """Get recent pipeline runs."""
+        rows = self.conn.execute(
+            "SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "started_at": row["started_at"],
+                "completed_at": row["completed_at"],
+                "config": json.loads(row["config"]),
+                "signals_fetched": row["signals_fetched"],
+                "signals_new": row["signals_new"],
+                "insights_generated": row["insights_generated"],
+                "ideas_generated": row["ideas_generated"],
+                "ideas_evaluated": row["ideas_evaluated"],
+                "specs_generated": row["specs_generated"],
+                "clusters_found": row["clusters_found"],
+                "gaps_detected": row["gaps_detected"],
+                "avg_idea_score": row["avg_idea_score"],
+                "fetch_allocation": json.loads(row["fetch_allocation"]),
+                "token_usage": json.loads(row["token_usage"]),
+            }
+            for row in rows
+        ]
+
+    # ── Attribution ───────────────────────────────────────────────────
+
+    def get_feedback_with_attribution(self, *, limit: int = 100) -> list[dict]:
+        """Get feedback records enriched with source attribution.
+
+        Traces: feedback → buildable_unit → evidence_signals → signals.source_adapter.
+        """
+        rows = self.conn.execute(
+            """SELECT f.buildable_unit_id, f.outcome, f.reason,
+                      bu.evidence_signals, bu.category, bu.target_users
+               FROM feedback f
+               JOIN buildable_units bu ON f.buildable_unit_id = bu.id
+               ORDER BY f.created_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+
+        if not rows:
+            return []
+
+        # Collect all signal IDs across all feedback records
+        all_signal_ids: set[str] = set()
+        for row in rows:
+            sig_ids = json.loads(row["evidence_signals"])
+            all_signal_ids.update(sig_ids)
+
+        # Batch-query signal → adapter mapping
+        sig_to_adapter: dict[str, str] = {}
+        if all_signal_ids:
+            placeholders = ",".join("?" for _ in all_signal_ids)
+            sig_rows = self.conn.execute(
+                f"SELECT id, source_adapter FROM signals WHERE id IN ({placeholders})",
+                list(all_signal_ids),
+            ).fetchall()
+            for sr in sig_rows:
+                sig_to_adapter[sr["id"]] = sr["source_adapter"]
+
+        results = []
+        for row in rows:
+            sig_ids = json.loads(row["evidence_signals"])
+            adapters = list({sig_to_adapter[sid] for sid in sig_ids if sid in sig_to_adapter})
+            evaluation = self.get_evaluation(row["buildable_unit_id"])
+            results.append({
+                "unit_id": row["buildable_unit_id"],
+                "outcome": row["outcome"],
+                "reason": row["reason"],
+                "evidence_signal_ids": sig_ids,
+                "source_adapters": adapters,
+                "category": row["category"],
+                "target_users": row["target_users"],
+                "eval_score": evaluation.overall_score if evaluation else 0.0,
+            })
+        return results
+
+    def get_adapter_approval_stats(self) -> dict[str, dict]:
+        """Get per-adapter approval stats from feedback attribution.
+
+        Returns dict[adapter_name, {total_feedbacked, approved, rejected, approval_rate}].
+        """
+        attributed = self.get_feedback_with_attribution(limit=500)
+        if not attributed:
+            return {}
+
+        adapter_stats: dict[str, dict] = {}
+        for record in attributed:
+            is_approved = record["outcome"] in ("approved", "published")
+            is_rejected = record["outcome"] in ("rejected", "abandoned")
+            if not is_approved and not is_rejected:
+                continue
+            for adapter in record["source_adapters"]:
+                if adapter not in adapter_stats:
+                    adapter_stats[adapter] = {
+                        "total_feedbacked": 0,
+                        "approved": 0,
+                        "rejected": 0,
+                        "approval_rate": 0.0,
+                    }
+                adapter_stats[adapter]["total_feedbacked"] += 1
+                if is_approved:
+                    adapter_stats[adapter]["approved"] += 1
+                else:
+                    adapter_stats[adapter]["rejected"] += 1
+
+        for stats in adapter_stats.values():
+            total = stats["total_feedbacked"]
+            stats["approval_rate"] = stats["approved"] / total if total > 0 else 0.0
+
+        return adapter_stats
+
 
 # ── Row conversion helpers ───────────────────────────────────────────
 

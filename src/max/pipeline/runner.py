@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from max.analysis.gap_detector import detect_gaps, format_gaps_for_ideation
+from max.analysis.retrospective import analyze_retrospective, format_retrospective_for_ideation
 from max.analysis.roles import annotate_signals
 from max.analysis.triangulation import format_cluster_context, triangulate
 from max.embeddings.engine import SemanticIndex
@@ -56,6 +58,10 @@ class PipelineResult:
     gaps_detected: int = 0
     fetch_allocation: dict[str, int] = field(default_factory=dict)
 
+    # Feedback loop metrics
+    run_id: str = ""
+    learned_from_feedback: bool = False
+
 
 def run_pipeline(
     *,
@@ -70,6 +76,17 @@ def run_pipeline(
     store = Store()
     semantic_index = SemanticIndex(store)
     result = PipelineResult()
+
+    # Record pipeline run
+    run_id = f"run-{uuid.uuid4().hex[:12]}"
+    result.run_id = run_id
+    config = {
+        "signal_limit": signal_limit,
+        "min_score": min_score,
+        "weight_profile": weight_profile,
+        "ideation_mode": ideation_mode,
+    }
+    store.insert_pipeline_run(run_id, config)
 
     # Adapt weights from feedback history
     feedback_outcomes = store.get_feedback_outcomes()
@@ -128,6 +145,17 @@ def run_pipeline(
         result.gaps_detected = len(gaps)
         gaps_ctx = format_gaps_for_ideation(gaps)
 
+        # 3.5 Retrospective analysis (learned patterns from feedback history)
+        retrospective = analyze_retrospective(store)
+        learned_ctx = format_retrospective_for_ideation(retrospective) if retrospective else None
+        result.learned_from_feedback = retrospective is not None
+        if retrospective:
+            logger.info(
+                "Retrospective: %d patterns, %d successful categories",
+                retrospective.pattern_count,
+                len(retrospective.successful_categories),
+            )
+
         # 4. Ideate (supports multiple modes, with memory of existing ideas)
         recent_insights = store.get_insights(limit=20)
         recent_ideas = store.get_buildable_units(limit=30)
@@ -138,6 +166,7 @@ def run_pipeline(
                 recent_insights,
                 existing_ideas=recent_ideas or None,
                 gaps_context=gaps_ctx,
+                learned_context=learned_ctx,
             ))
 
         if ideation_mode in ("refinement", "all"):
@@ -150,6 +179,7 @@ def run_pipeline(
                 recent_insights,
                 existing_ideas=recent_ideas or None,
                 gaps_context=gaps_ctx,
+                learned_context=learned_ctx,
             ))
 
         dedup = dedup_buildable_units(units, semantic_index)
@@ -206,6 +236,20 @@ def run_pipeline(
         result.token_usage = token_tracker.summary()
 
     finally:
+        store.update_pipeline_run(
+            run_id,
+            signals_fetched=result.signals_fetched,
+            signals_new=result.signals_new,
+            insights_generated=result.insights_generated,
+            ideas_generated=result.ideas_generated,
+            ideas_evaluated=result.ideas_evaluated,
+            specs_generated=result.specs_generated,
+            clusters_found=result.clusters_found,
+            gaps_detected=result.gaps_detected,
+            avg_idea_score=result.avg_idea_score,
+            fetch_allocation=result.fetch_allocation,
+            token_usage=result.token_usage,
+        )
         store.close()
 
     return result
