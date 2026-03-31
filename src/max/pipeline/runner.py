@@ -99,8 +99,9 @@ def run_pipeline(
 
     try:
         # 1. Fetch signals
-        signals = _fetch_all_signals(signal_limit=signal_limit, store=store)
+        signals, fetch_alloc = _fetch_all_signals(signal_limit=signal_limit, store=store)
         result.signals_fetched = len(signals)
+        result.fetch_allocation = fetch_alloc
 
         # 1.1 Annotate signal roles (problem / solution / market)
         annotate_signals(signals)
@@ -306,8 +307,13 @@ def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
     return json.dumps({"insights": insights_data, "signals": signals_data}, indent=2)
 
 
-def _fetch_all_signals(*, signal_limit: int = 30, store: Store | None = None) -> list[Signal]:
-    """Fetch signals from all registered adapters with optional adaptive allocation."""
+def _fetch_all_signals(
+    *, signal_limit: int = 30, store: Store | None = None,
+) -> tuple[list[Signal], dict[str, int]]:
+    """Fetch signals from all registered adapters with optional adaptive allocation.
+
+    Returns (signals, allocation_used).
+    """
     adapters = get_all_adapters()
     all_signals: list[Signal] = []
 
@@ -328,4 +334,4 @@ def _fetch_all_signals(*, signal_limit: int = 30, store: Store | None = None) ->
         except Exception as e:
             print(f"  Warning: {adapter.name} fetch failed: {e}")
 
-    return all_signals
+    return all_signals, allocation

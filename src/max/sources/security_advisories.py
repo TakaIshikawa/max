@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
 ECOSYSTEMS = ["pip", "npm", "go"]
+SEVERITIES = ["critical", "high"]
 
 
 class SecurityAdvisoriesAdapter(SourceAdapter):
@@ -29,7 +30,7 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_ids: set[str] = set()
-        per_ecosystem = max(limit // len(ECOSYSTEMS), 5)
+        per_query = max(limit // (len(ECOSYSTEMS) * len(SEVERITIES)), 3)
 
         headers = {"Accept": "application/vnd.github+json"}
         token = os.environ.get("GITHUB_TOKEN")
@@ -38,29 +39,31 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
 
         async with httpx.AsyncClient(timeout=30, headers=headers) as client:
             for ecosystem in ECOSYSTEMS:
-                if len(signals) >= limit:
-                    break
+                for severity in SEVERITIES:
+                    if len(signals) >= limit:
+                        break
 
-                try:
-                    resp = await client.get(
-                        f"{GITHUB_API}/advisories",
-                        params={
-                            "ecosystem": ecosystem,
-                            "severity": "high,critical",
-                            "sort": "updated",
-                            "direction": "desc",
-                            "per_page": per_ecosystem,
-                        },
-                    )
-                    resp.raise_for_status()
-                    advisories = resp.json()
-                except Exception:
-                    logger.warning(
-                        "Failed to fetch advisories for ecosystem: %s",
-                        ecosystem,
-                        exc_info=True,
-                    )
-                    continue
+                    try:
+                        resp = await client.get(
+                            f"{GITHUB_API}/advisories",
+                            params={
+                                "ecosystem": ecosystem,
+                                "severity": severity,
+                                "sort": "updated",
+                                "direction": "desc",
+                                "per_page": per_query,
+                            },
+                        )
+                        resp.raise_for_status()
+                        advisories = resp.json()
+                    except Exception:
+                        logger.warning(
+                            "Failed to fetch advisories for %s/%s",
+                            ecosystem,
+                            severity,
+                            exc_info=True,
+                        )
+                        continue
 
                 for adv in advisories:
                     ghsa_id = adv.get("ghsa_id", "")

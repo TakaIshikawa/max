@@ -111,6 +111,14 @@ class Store:
         ).fetchone()
         return _row_to_signal(row) if row else None
 
+    def update_signal_role(self, signal_id: str, role: str) -> None:
+        """Update the signal_role for a signal."""
+        self.conn.execute(
+            "UPDATE signals SET signal_role = ? WHERE id = ?",
+            (role, signal_id),
+        )
+        self.conn.commit()
+
     def get_signals_by_role(self, role: str, *, limit: int = 100) -> list[Signal]:
         """Get signals filtered by signal_role."""
         rows = self.conn.execute(

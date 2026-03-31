@@ -230,6 +230,38 @@ def adapt_weights(base_profile: str, save: str | None) -> None:
 
 
 @main.command()
+def backfill_roles() -> None:
+    """Backfill signal_role on signals that have no role classification."""
+    from max.analysis.roles import classify_signal_role
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        signals = store.get_signals(limit=1000)
+        unclassified = [s for s in signals if not s.metadata.get("signal_role")]
+        if not unclassified:
+            click.echo("All signals already have roles.")
+            return
+
+        click.echo(f"Backfilling {len(unclassified)} unclassified signals...")
+        for sig in unclassified:
+            role = classify_signal_role(sig)
+            sig.metadata["signal_role"] = role
+            store.update_signal_role(sig.id, role)
+
+        # Summary
+        roles: dict[str, int] = {}
+        for sig in unclassified:
+            r = sig.metadata["signal_role"]
+            roles[r] = roles.get(r, 0) + 1
+        for role, count in sorted(roles.items(), key=lambda x: -x[1]):
+            click.echo(f"  {role:10s} {count}")
+        click.echo("Done.")
+    finally:
+        store.close()
+
+
+@main.command()
 @click.argument("unit_id")
 @click.option("--tact-url", type=str, default="http://localhost:4800/api/v1", help="Tact daemon URL")
 def push(unit_id: str, tact_url: str) -> None:
