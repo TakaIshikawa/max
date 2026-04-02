@@ -30,6 +30,9 @@ MAX_SCHEDULE_MIN_SCORE: float = float(os.getenv("MAX_SCHEDULE_MIN_SCORE", "50.0"
 MAX_SCHEDULE_PROFILE: str = os.getenv("MAX_SCHEDULE_PROFILE", "default")
 MAX_SCHEDULE_MODE: str = os.getenv("MAX_SCHEDULE_MODE", "direct")
 
+# Pipeline profile
+MAX_PROFILE: str = os.getenv("MAX_PROFILE", "")  # pipeline profile name (e.g. "devtools", "healthcare")
+
 # Adapters
 MAX_ADAPTERS: str = os.getenv("MAX_ADAPTERS", "all")  # comma-separated or "all"
 MAX_ADAPTERS_EXCLUDE: str = os.getenv("MAX_ADAPTERS_EXCLUDE", "")  # comma-separated

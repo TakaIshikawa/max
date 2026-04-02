@@ -70,7 +70,7 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
         id=unit.id,
         title=unit.title,
         one_liner=unit.one_liner,
-        category=unit.category.value if hasattr(unit.category, "value") else unit.category,
+        category=unit.category,
         status=unit.status,
         target_users=unit.target_users,
         score=evaluation.overall_score if evaluation else None,
@@ -107,7 +107,7 @@ def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
         id=unit.id,
         title=unit.title,
         one_liner=unit.one_liner,
-        category=unit.category.value if hasattr(unit.category, "value") else unit.category,
+        category=unit.category,
         ideation_mode=unit.ideation_mode.value if hasattr(unit.ideation_mode, "value") else unit.ideation_mode,
         problem=unit.problem,
         solution=unit.solution,
@@ -199,7 +199,7 @@ def list_ideas(
 
     results: list[IdeaSummaryResponse] = []
     for unit in units:
-        if category and (unit.category.value if hasattr(unit.category, "value") else unit.category) != category:
+        if category and (unit.category) != category:
             continue
         evaluation = store.get_evaluation(unit.id)
         if min_score is not None and (evaluation is None or evaluation.overall_score < min_score):

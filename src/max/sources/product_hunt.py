@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 PH_GRAPHQL = "https://api.producthunt.com/v2/api/graphql"
 
-TOPICS = ["developer-tools", "artificial-intelligence"]
+_DEFAULT_TOPICS = ["developer-tools", "artificial-intelligence"]
 
 GRAPHQL_QUERY = """
 query($topic: String!, $first: Int!) {
@@ -58,6 +58,10 @@ class ProductHuntAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.TRENDING.value
 
+    @property
+    def topics(self) -> list[str]:
+        return self._config.get("topics", _DEFAULT_TOPICS)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         token = os.environ.get("PRODUCT_HUNT_TOKEN")
         if not token:
@@ -66,7 +70,8 @@ class ProductHuntAdapter(SourceAdapter):
 
         signals: list[Signal] = []
         seen_ids: set[str] = set()
-        per_topic = max(limit // len(TOPICS), 5)
+        topics = self.topics
+        per_topic = max(limit // len(topics), 5)
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -74,7 +79,7 @@ class ProductHuntAdapter(SourceAdapter):
         }
 
         async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-            for topic_slug in TOPICS:
+            for topic_slug in topics:
                 if len(signals) >= limit:
                     break
 

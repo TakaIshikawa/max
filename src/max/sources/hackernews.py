@@ -21,11 +21,20 @@ class HackerNewsAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.FORUM.value
 
+    @property
+    def filter_keywords(self) -> list[str]:
+        """Optional post-fetch keyword filter. Empty means no filtering."""
+        return self._config.get("filter_keywords", [])
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
+        # Fetch extra stories when filtering to compensate for filtered-out results
+        keywords = self.filter_keywords
+        fetch_count = limit * 3 if keywords else limit
+
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(f"{HN_API}/topstories.json")
             resp.raise_for_status()
-            story_ids = resp.json()[:limit]
+            story_ids = resp.json()[:fetch_count]
 
             signals: list[Signal] = []
             for story_id in story_ids:
@@ -40,6 +49,12 @@ class HackerNewsAdapter(SourceAdapter):
                 # Compute credibility from score
                 score = item.get("score", 0)
                 credibility = min(score / 500, 1.0)
+
+                # Apply keyword filter if configured
+                if keywords:
+                    lower_title = title.lower()
+                    if not any(kw.lower() in lower_title for kw in keywords):
+                        continue
 
                 signals.append(
                     Signal(
@@ -62,7 +77,10 @@ class HackerNewsAdapter(SourceAdapter):
                     )
                 )
 
-            return signals
+                if len(signals) >= limit:
+                    break
+
+            return signals[:limit]
 
 
 def _extract_tags(title: str) -> list[str]:

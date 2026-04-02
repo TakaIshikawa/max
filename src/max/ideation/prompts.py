@@ -1,6 +1,13 @@
 """Prompts for the ideation engine (insights → buildable units)."""
 
-SYSTEM = """\
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext
+
+_DEFAULT_SYSTEM = """\
 You are a product ideation engine for the developer tools and AI agent ecosystem. \
 Your job is to generate concrete, buildable project ideas from synthesized insights.
 
@@ -22,6 +29,34 @@ Categories:
 Target users: humans | agents | both
 """
 
+# Keep SYSTEM as module-level constant for backward compat
+SYSTEM = _DEFAULT_SYSTEM
+
+
+def get_system_prompt(domain: DomainContext | None = None) -> str:
+    """Get the ideation system prompt, optionally parameterized by domain."""
+    if domain is None:
+        return _DEFAULT_SYSTEM
+    categories_text = "\n".join(f"- {cat}" for cat in domain.categories)
+    target_text = " | ".join(domain.target_user_types)
+    extra = f"\n\n{domain.extra_instructions}" if domain.extra_instructions else ""
+    return f"""\
+You are a product ideation engine for {domain.description}. \
+Your job is to generate concrete, buildable project ideas from synthesized insights.
+
+Every idea must:
+- Solve a real problem backed by evidence
+- Serve {target_text}
+- Be buildable as a focused project (not a platform or framework)
+- Have a clear value proposition
+
+Categories:
+{categories_text}
+
+Target users: {target_text}\
+{extra}
+"""
+
 
 def build_ideation_prompt(
     insights_json: str,
@@ -29,6 +64,7 @@ def build_ideation_prompt(
     existing_ideas_text: str | None = None,
     gaps_text: str | None = None,
     learned_context: str | None = None,
+    domain: DomainContext | None = None,
 ) -> str:
     learned_block = ""
     if learned_context:
@@ -52,8 +88,11 @@ EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
 
 """
 
+    domain_label = f"the {domain.name} domain" if domain else "the developer/AI ecosystem"
+    target_label = " | ".join(domain.target_user_types) if domain else "humans, agents, or both"
+
     return f"""\
-Generate buildable project ideas based on these insights from the developer/AI ecosystem.
+Generate buildable project ideas based on these insights from {domain_label}.
 {learned_block}{existing_block}{gaps_block}
 INSIGHTS:
 {insights_json}
@@ -61,15 +100,15 @@ INSIGHTS:
 For each idea:
 1. Link it to specific insight IDs that inspired it
 2. Clearly state the problem and proposed solution
-3. Identify target users (humans, agents, or both)
+3. Identify target users ({target_label})
 4. Articulate the value proposition
 5. Sketch the technical approach
 6. Note composability — how it could integrate with other tools/systems
 
 Generate 3-5 distinct ideas. Favor ideas that:
 - Address pain points with high severity
-- Serve dual audiences (humans AND agents)
-- Have high composability with existing ecosystems (MCP, tact, etc.)
+- Serve the broadest relevant audience
+- Have high composability with existing ecosystems
 - Can be built and shipped as focused, well-scoped projects\
 """
 
@@ -107,6 +146,7 @@ def build_cross_domain_prompt(
     existing_ideas_text: str | None = None,
     gaps_text: str | None = None,
     learned_context: str | None = None,
+    domain: DomainContext | None = None,
 ) -> str:
     learned_block = ""
     if learned_context:

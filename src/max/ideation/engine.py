@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import json
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from max.llm.client import structured_call
 from max.ideation.prompts import (
-    SYSTEM,
     build_cross_domain_prompt,
     build_ideation_prompt,
     build_refinement_prompt,
+    get_system_prompt,
 )
-from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
+from max.types.buildable_unit import BuildableUnit, IdeationMode
 from max.types.insight import Insight
+
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext
 
 
 class BuildableUnitOutput(BaseModel):
@@ -66,7 +70,7 @@ def _units_to_json(units: list[BuildableUnit]) -> str:
                 "id": u.id,
                 "title": u.title,
                 "one_liner": u.one_liner,
-                "category": u.category.value,
+                "category": u.category,
                 "problem": u.problem,
                 "solution": u.solution,
                 "target_users": u.target_users,
@@ -90,10 +94,8 @@ def _parse_output(
     units: list[BuildableUnit] = []
 
     for out in result.ideas:
-        try:
-            category = BuildableCategory(out.category)
-        except ValueError:
-            category = BuildableCategory.APPLICATION
+        # Accept any category string — profiles define valid categories per domain
+        category = out.category or "application"
 
         evidence_signals: list[str] = []
         for ins_id in out.inspiring_insights:
@@ -137,6 +139,7 @@ def ideate(
     existing_ideas: list[BuildableUnit] | None = None,
     gaps_context: str | None = None,
     learned_context: str | None = None,
+    domain: DomainContext | None = None,
 ) -> list[BuildableUnit]:
     """Generate buildable unit ideas from insights (direct mode)."""
     if not insights:
@@ -145,12 +148,13 @@ def ideate(
     existing_text = _format_existing_ideas(existing_ideas) if existing_ideas else None
 
     result = structured_call(
-        system=SYSTEM,
+        system=get_system_prompt(domain),
         prompt=build_ideation_prompt(
             _insights_to_json(insights),
             existing_ideas_text=existing_text,
             gaps_text=gaps_context,
             learned_context=learned_context,
+            domain=domain,
         ),
         output_type=IdeationOutput,
         stage="ideation",
@@ -162,13 +166,15 @@ def ideate(
 def ideate_refinement(
     existing_units: list[BuildableUnit],
     new_insights: list[Insight],
+    *,
+    domain: DomainContext | None = None,
 ) -> list[BuildableUnit]:
     """Refine existing ideas based on new insights."""
     if not existing_units or not new_insights:
         return []
 
     result = structured_call(
-        system=SYSTEM,
+        system=get_system_prompt(domain),
         prompt=build_refinement_prompt(
             _units_to_json(existing_units),
             _insights_to_json(new_insights),
@@ -186,40 +192,42 @@ def ideate_cross_domain(
     existing_ideas: list[BuildableUnit] | None = None,
     gaps_context: str | None = None,
     learned_context: str | None = None,
+    domain: DomainContext | None = None,
 ) -> list[BuildableUnit]:
     """Generate ideas by combining insights from different domains."""
     if not insights:
         return []
 
-    # Group insights by domain
-    domain_groups: dict[str, list[Insight]] = {}
+    # Group insights by insight domain (not pipeline domain)
+    insight_domain_groups: dict[str, list[Insight]] = {}
     for ins in insights:
-        for domain in ins.domains:
-            domain_groups.setdefault(domain, []).append(ins)
+        for d in ins.domains:
+            insight_domain_groups.setdefault(d, []).append(ins)
 
-    domains = list(domain_groups.keys())
-    if len(domains) < 2:
+    insight_domains = list(insight_domain_groups.keys())
+    if len(insight_domains) < 2:
         return []
 
     existing_text = _format_existing_ideas(existing_ideas) if existing_ideas else None
     all_units: list[BuildableUnit] = []
 
     # Take up to 3 domain pairs to avoid too many LLM calls
-    for domain_a, domain_b in list(combinations(domains, 2))[:3]:
+    for domain_a, domain_b in list(combinations(insight_domains, 2))[:3]:
         result = structured_call(
-            system=SYSTEM,
+            system=get_system_prompt(domain),
             prompt=build_cross_domain_prompt(
-                _insights_to_json(domain_groups[domain_a]),
-                _insights_to_json(domain_groups[domain_b]),
+                _insights_to_json(insight_domain_groups[domain_a]),
+                _insights_to_json(insight_domain_groups[domain_b]),
                 existing_ideas_text=existing_text,
                 gaps_text=gaps_context,
                 learned_context=learned_context,
+                domain=domain,
             ),
             output_type=IdeationOutput,
             stage="ideation_cross_domain",
         )
 
-        all_insights = domain_groups[domain_a] + domain_groups[domain_b]
+        all_insights = insight_domain_groups[domain_a] + insight_domain_groups[domain_b]
         all_units.extend(_parse_output(result, all_insights, IdeationMode.CROSS_DOMAIN))
 
     return all_units

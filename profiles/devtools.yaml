@@ -1,0 +1,109 @@
+name: devtools
+
+domain:
+  name: developer-tools
+  description: >-
+    developer tools and AI agent ecosystem.
+    Focus on tools for software engineers, AI agents, and the infrastructure connecting them
+  categories:
+    - mcp_server
+    - cli_tool
+    - library
+    - integration
+    - automation
+    - application
+    - feature
+  target_user_types:
+    - humans
+    - agents
+    - both
+
+sources:
+  - adapter: hackernews
+    enabled: true
+
+  - adapter: reddit
+    params:
+      subreddits:
+        - programming
+        - MachineLearning
+        - LocalLLaMA
+        - ChatGPT
+        - artificial
+        - devops
+        - ExperiencedDevs
+
+  - adapter: github
+    params:
+      topics:
+        - mcp
+        - ai-agent
+        - llm
+        - developer-tools
+        - cli
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"ai agent" label:enhancement is:open sort:reactions-+1-desc'
+        - '"llm" label:bug is:open sort:reactions-+1-desc'
+        - '"mcp server" is:issue is:open sort:comments-desc'
+        - '"ai agent" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - mcp server
+        - ai agent
+        - llm tool
+        - claude
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - ai
+        - llm
+        - agent
+        - mcp
+        - langchain
+        - openai
+        - anthropic
+        - transformer
+        - embedding
+        - rag
+        - vector
+        - gpt
+        - claude
+        - huggingface
+        - diffusion
+        - neural
+        - deep-learning
+        - machine-learning
+        - chatbot
+        - prompt
+        - tokenizer
+        - inference
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+        - npm
+        - go
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - developer-tools
+        - artificial-intelligence
+
+evaluation:
+  weight_profile: default
+  min_score: 50.0
+
+output_dir: .tact
+signal_limit: 30
+ideation_mode: direct

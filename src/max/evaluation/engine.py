@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from max.evaluation.prompts import SYSTEM, build_evaluation_prompt
+from max.evaluation.prompts import build_evaluation_prompt, get_system_prompt
 from max.evaluation.weights import DEFAULT_WEIGHTS, compute_overall_score
 from max.llm.client import structured_call
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import DimensionScore, UtilityEvaluation
+
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext
 
 
 class DimensionScoreOutput(BaseModel):
@@ -37,6 +41,7 @@ def evaluate(
     *,
     weights: dict[str, float] | None = None,
     evidence: str | None = None,
+    domain: DomainContext | None = None,
 ) -> UtilityEvaluation:
     """Evaluate a single buildable unit across 7 dimensions."""
     unit_json = json.dumps(
@@ -44,7 +49,7 @@ def evaluate(
             "id": unit.id,
             "title": unit.title,
             "one_liner": unit.one_liner,
-            "category": unit.category.value,
+            "category": unit.category,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,
@@ -56,7 +61,7 @@ def evaluate(
     )
 
     result = structured_call(
-        system=SYSTEM,
+        system=get_system_prompt(domain),
         prompt=build_evaluation_prompt(unit_json, evidence_json=evidence),
         output_type=EvaluationOutput,
         temperature=0.3,  # Lower temperature for more consistent scoring

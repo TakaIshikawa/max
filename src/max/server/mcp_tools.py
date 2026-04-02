@@ -62,7 +62,7 @@ def search_ideas(
         units = store.get_buildable_units(limit=limit * 3)
         results = []
         for unit in units:
-            if category and unit.category.value != category:
+            if category and unit.category != category:
                 continue
             if query and query.lower() not in (unit.title + " " + unit.one_liner).lower():
                 continue
@@ -73,7 +73,7 @@ def search_ideas(
                 "id": unit.id,
                 "title": unit.title,
                 "one_liner": unit.one_liner,
-                "category": unit.category.value,
+                "category": unit.category,
                 "status": unit.status,
                 "target_users": unit.target_users,
                 "score": evaluation.overall_score if evaluation else None,
@@ -101,7 +101,7 @@ def get_idea(id: str) -> dict:
             "id": unit.id,
             "title": unit.title,
             "one_liner": unit.one_liner,
-            "category": unit.category.value,
+            "category": unit.category,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,
@@ -333,7 +333,7 @@ def ideas_list() -> str:
                 "id": unit.id,
                 "title": unit.title,
                 "one_liner": unit.one_liner,
-                "category": unit.category.value,
+                "category": unit.category,
                 "status": unit.status,
                 "score": ev.overall_score if ev else None,
                 "recommendation": ev.recommendation if ev else None,
@@ -355,7 +355,7 @@ def idea_detail(idea_id: str) -> str:
             "id": unit.id,
             "title": unit.title,
             "one_liner": unit.one_liner,
-            "category": unit.category.value,
+            "category": unit.category,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,

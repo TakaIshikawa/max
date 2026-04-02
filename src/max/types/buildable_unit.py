@@ -28,7 +28,7 @@ class BuildableUnit(BaseModel):
     id: str = Field(default="")
     title: str
     one_liner: str
-    category: BuildableCategory
+    category: str  # Profile-defined categories (see BuildableCategory for well-known values)
     ideation_mode: IdeationMode = IdeationMode.DIRECT
 
     # Problem / Solution

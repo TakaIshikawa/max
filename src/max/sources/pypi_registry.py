@@ -18,7 +18,7 @@ RSS_PACKAGES = "https://pypi.org/rss/packages.xml"
 PYPI_JSON = "https://pypi.org/pypi/{name}/json"
 PYPISTATS_API = "https://pypistats.org/api/packages/{name}/recent"
 
-AI_KEYWORDS = {
+_DEFAULT_KEYWORDS = {
     "ai", "llm", "agent", "mcp", "langchain", "openai", "anthropic",
     "transformer", "embedding", "rag", "vector", "gpt", "claude",
     "huggingface", "diffusion", "neural", "deep-learning", "machine-learning",
@@ -34,6 +34,13 @@ class PyPIRegistryAdapter(SourceAdapter):
     @property
     def source_type(self) -> str:
         return SignalSourceType.REGISTRY.value
+
+    @property
+    def keywords(self) -> set[str]:
+        configured = self._config.get("keywords")
+        if configured is not None:
+            return set(configured)
+        return _DEFAULT_KEYWORDS
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
@@ -57,7 +64,7 @@ class PyPIRegistryAdapter(SourceAdapter):
                     normalized = pkg_name.lower().split("/")[0].strip()
                     if normalized in seen_names:
                         continue
-                    if not _matches_ai_keywords(normalized):
+                    if not _matches_keywords(normalized, self.keywords):
                         continue
                     seen_names.add(normalized)
 
@@ -127,11 +134,11 @@ def _parse_rss(xml_text: str) -> list[tuple[str, str, datetime | None]]:
     return results
 
 
-def _matches_ai_keywords(pkg_name: str) -> bool:
-    """Check if package name contains any AI-related keyword."""
+def _matches_keywords(pkg_name: str, keywords: set[str]) -> bool:
+    """Check if package name contains any of the configured keywords."""
     lower = pkg_name.lower().replace("-", " ").replace("_", " ")
     parts = set(lower.split())
-    return bool(parts & AI_KEYWORDS) or any(kw in lower for kw in AI_KEYWORDS)
+    return bool(parts & keywords) or any(kw in lower for kw in keywords)
 
 
 async def _fetch_package_info(client: httpx.AsyncClient, name: str) -> dict | None:
@@ -188,12 +195,12 @@ def _build_tags(info: dict, pkg_name: str) -> list[str]:
     keywords_str = info.get("keywords", "")
     if keywords_str:
         for kw in keywords_str.replace(",", " ").split():
-            if kw.lower().strip() in AI_KEYWORDS:
+            if kw.lower().strip() in _DEFAULT_KEYWORDS:
                 tags.add(kw.lower().strip())
 
     # Scan package name
     name_lower = pkg_name.lower().replace("-", " ").replace("_", " ")
-    for kw in AI_KEYWORDS:
+    for kw in _DEFAULT_KEYWORDS:
         if kw in name_lower:
             tags.add(kw)
 

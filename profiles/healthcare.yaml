@@ -1,0 +1,110 @@
+name: healthcare
+
+domain:
+  name: healthcare
+  description: >-
+    Healthcare technology and digital health.
+    Focus on clinical workflows, patient experience, care delivery optimization,
+    regulatory compliance, and health informatics
+  categories:
+    - clinical_tool
+    - patient_portal
+    - ehr_integration
+    - compliance_automation
+    - diagnostic_aid
+    - workflow_automation
+    - data_pipeline
+    - application
+    - library
+  target_user_types:
+    - clinicians
+    - patients
+    - administrators
+    - both
+  extra_instructions: >-
+    HIPAA compliance is a hard constraint for all ideas involving patient data.
+    Prioritize ideas that reduce clinician burnout or improve patient outcomes.
+    Consider regulatory pathways (FDA, CE marking) for clinical decision support tools.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - healthIT
+        - medicine
+        - nursing
+        - digitalhealth
+        - HealthInsurance
+        - ehealthme
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - health
+        - medical
+        - clinical
+        - patient
+        - hospital
+        - fhir
+        - ehr
+        - telemedicine
+        - pharma
+
+  - adapter: github
+    params:
+      topics:
+        - healthcare
+        - ehr
+        - fhir
+        - medical-ai
+        - clinical
+        - hl7
+        - dicom
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"fhir" label:enhancement is:open sort:reactions-+1-desc'
+        - '"ehr" OR "electronic health" is:issue is:open sort:comments-desc'
+        - '"clinical" "workflow" is:issue is:open sort:reactions-+1-desc'
+        - '"patient" "portal" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - fhir
+        - hl7
+        - medical
+        - clinical
+        - healthcare
+        - ehr
+        - dicom
+        - radiology
+        - pathology
+        - pharmacy
+        - nursing
+        - telemedicine
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+        - npm
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - health-fitness
+        - artificial-intelligence
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .tact
+signal_limit: 25
+ideation_mode: direct

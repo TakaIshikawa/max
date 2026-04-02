@@ -15,30 +15,57 @@ def main() -> None:
 
 
 @main.command()
-@click.option("--output", "-o", type=click.Path(), default=".tact", help="Output directory for tact specs")
-@click.option("--signal-limit", type=int, default=30, help="Max signals per adapter")
-@click.option("--min-score", type=float, default=50.0, help="Minimum score to generate spec")
-@click.option("--profile", type=str, default="default", help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
-@click.option("--mode", type=click.Choice(["direct", "refinement", "cross_domain", "all"]), default="direct", help="Ideation mode")
-def run(output: str, signal_limit: int, min_score: float, profile: str, mode: str) -> None:
+@click.option("--profile", "-p", type=str, default=None, help="Pipeline profile name (e.g. 'devtools', 'healthcare')")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Output directory for tact specs")
+@click.option("--signal-limit", type=int, default=None, help="Max signals per adapter")
+@click.option("--min-score", type=float, default=None, help="Minimum score to generate spec")
+@click.option("--weight-profile", type=str, default=None, help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
+@click.option("--mode", type=click.Choice(["direct", "refinement", "cross_domain", "all"]), default=None, help="Ideation mode")
+def run(
+    profile: str | None,
+    output: str | None,
+    signal_limit: int | None,
+    min_score: float | None,
+    weight_profile: str | None,
+    mode: str | None,
+) -> None:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → publish."""
+    from max.config import MAX_PROFILE
     from max.pipeline.runner import run_pipeline
+    from max.profiles.loader import get_default_profile, load_profile
 
-    output_dir = Path(output)
+    # Resolve profile: CLI flag > env var > default
+    profile_name = profile or MAX_PROFILE or None
+    if profile_name:
+        p = load_profile(profile_name)
+    else:
+        p = get_default_profile()
+
+    # CLI flags override profile values
+    if signal_limit is not None:
+        p.signal_limit = signal_limit
+    if min_score is not None:
+        p.evaluation.min_score = min_score
+    if weight_profile is not None:
+        p.evaluation.weight_profile = weight_profile
+    if mode is not None:
+        p.ideation_mode = mode
+
+    output_dir = Path(output) if output else Path(p.output_dir)
+
     click.echo("Running max pipeline...")
+    click.echo(f"  Profile:      {p.name}")
+    click.echo(f"  Domain:       {p.domain.name}")
     click.echo(f"  Output:       {output_dir.resolve()}")
-    click.echo(f"  Signal limit: {signal_limit}")
-    click.echo(f"  Min score:    {min_score}")
-    click.echo(f"  Profile:      {profile}")
-    click.echo(f"  Mode:         {mode}")
+    click.echo(f"  Signal limit: {p.signal_limit}")
+    click.echo(f"  Min score:    {p.evaluation.min_score}")
+    click.echo(f"  Weights:      {p.evaluation.weight_profile}")
+    click.echo(f"  Mode:         {p.ideation_mode}")
     click.echo()
 
     result = run_pipeline(
+        profile=p,
         output_dir=output_dir,
-        signal_limit=signal_limit,
-        min_score=min_score,
-        weight_profile=profile,
-        ideation_mode=mode,
     )
 
     click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new, {result.signals_skipped} already synthesized)")
@@ -54,8 +81,32 @@ def run(output: str, signal_limit: int, min_score: float, profile: str, mode: st
     if result.top_ideas:
         click.echo("Top ideas:")
         for idea in result.top_ideas:
-            marker = "✓" if idea["score"] >= min_score else " "
+            marker = "✓" if idea["score"] >= p.evaluation.min_score else " "
             click.echo(f"  [{marker}] {idea['score']:5.1f}  {idea['title']}  ({idea['recommendation']})")
+
+
+@main.command()
+def profiles() -> None:
+    """List available pipeline profiles."""
+    from max.profiles.loader import list_profiles, load_profile
+
+    names = list_profiles()
+    if not names:
+        click.echo("No profiles found in profiles/ directory.")
+        return
+
+    click.echo("Available pipeline profiles:")
+    click.echo()
+    for name in sorted(names):
+        try:
+            p = load_profile(name)
+            sources_count = len([s for s in p.sources if s.enabled])
+            click.echo(f"  {name:20s}  {p.domain.name:20s}  {p.domain.description[:50]}")
+            click.echo(f"  {'':20s}  sources: {sources_count}  categories: {len(p.domain.categories)}")
+        except Exception as e:
+            click.echo(f"  {name:20s}  (error: {e})")
+    click.echo()
+    click.echo("Usage: max run --profile <name>")
 
 
 @main.command()
@@ -96,7 +147,7 @@ def inspect(unit_id: str) -> None:
 
         click.echo(f"Title:       {unit.title}")
         click.echo(f"One-liner:   {unit.one_liner}")
-        click.echo(f"Category:    {unit.category.value}")
+        click.echo(f"Category:    {unit.category}")
         click.echo(f"Status:      {unit.status}")
         click.echo(f"Target:      {unit.target_users}")
         click.echo()

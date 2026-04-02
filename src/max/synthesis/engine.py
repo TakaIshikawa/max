@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from max.llm.client import structured_call
-from max.synthesis.prompts import SYSTEM, build_incremental_synthesis_prompt, build_synthesis_prompt
+from max.synthesis.prompts import (
+    build_incremental_synthesis_prompt,
+    build_synthesis_prompt,
+    get_system_prompt,
+)
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal
+
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext
 
 
 class InsightOutput(BaseModel):
@@ -36,6 +44,7 @@ def synthesize(
     *,
     prior_insights: list[Insight] | None = None,
     cluster_context: str | None = None,
+    domain: DomainContext | None = None,
 ) -> list[Insight]:
     """Synthesize a batch of signals into insights.
 
@@ -78,13 +87,13 @@ def synthesize(
             indent=2,
         )
         prompt = build_incremental_synthesis_prompt(
-            signals_json, prior_json, cluster_context=cluster_context,
+            signals_json, prior_json, cluster_context=cluster_context, domain=domain,
         )
     else:
-        prompt = build_synthesis_prompt(signals_json, cluster_context=cluster_context)
+        prompt = build_synthesis_prompt(signals_json, cluster_context=cluster_context, domain=domain)
 
     result = structured_call(
-        system=SYSTEM,
+        system=get_system_prompt(domain),
         prompt=prompt,
         output_type=SynthesisOutput,
         stage="synthesis",

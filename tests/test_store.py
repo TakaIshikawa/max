@@ -52,7 +52,7 @@ def test_insert_and_get_buildable_unit(store: Store, sample_unit: BuildableUnit)
     unit = store.get_buildable_unit("bu-test001")
     assert unit is not None
     assert unit.title == "MCP Test Framework"
-    assert unit.category.value == "cli_tool"
+    assert unit.category == "cli_tool"
     assert unit.inspiring_insights == ["ins-test001"]
 
 

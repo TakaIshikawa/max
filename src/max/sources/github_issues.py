@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
 
-SEARCH_QUERIES = [
+_DEFAULT_QUERIES = [
     '"ai agent" label:enhancement is:open sort:reactions-+1-desc',
     '"llm" label:bug is:open sort:reactions-+1-desc',
     '"mcp server" is:issue is:open sort:comments-desc',
@@ -33,10 +33,15 @@ class GitHubIssuesAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.FORUM.value
 
+    @property
+    def queries(self) -> list[str]:
+        return self._config.get("queries", _DEFAULT_QUERIES)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_urls: set[str] = set()
-        per_query = max(limit // len(SEARCH_QUERIES), 5)
+        queries = self.queries
+        per_query = max(limit // len(queries), 5)
 
         headers = {"Accept": "application/vnd.github+json"}
         token = os.environ.get("GITHUB_TOKEN")
@@ -44,7 +49,7 @@ class GitHubIssuesAdapter(SourceAdapter):
             headers["Authorization"] = f"Bearer {token}"
 
         async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-            for i, query in enumerate(SEARCH_QUERIES):
+            for i, query in enumerate(queries):
                 if len(signals) >= limit:
                     break
 

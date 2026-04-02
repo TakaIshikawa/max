@@ -13,7 +13,8 @@ from max.sources.npm_registry import NpmRegistryAdapter
 from max.sources.product_hunt import ProductHuntAdapter, _extract_posts
 from max.sources.pypi_registry import (
     PyPIRegistryAdapter,
-    _matches_ai_keywords,
+    _DEFAULT_KEYWORDS,
+    _matches_keywords,
     _parse_rss,
 )
 from max.sources.registry import get_adapter, get_all_adapters, list_adapters
@@ -307,15 +308,15 @@ def test_parse_rss_handles_invalid_xml() -> None:
     assert _parse_rss("not xml at all") == []
 
 
-def test_matches_ai_keywords_positive() -> None:
-    assert _matches_ai_keywords("langchain-agent")
-    assert _matches_ai_keywords("openai-helpers")
-    assert _matches_ai_keywords("mcp-server-utils")
+def test_matches_keywords_positive() -> None:
+    assert _matches_keywords("langchain-agent", _DEFAULT_KEYWORDS)
+    assert _matches_keywords("openai-helpers", _DEFAULT_KEYWORDS)
+    assert _matches_keywords("mcp-server-utils", _DEFAULT_KEYWORDS)
 
 
-def test_matches_ai_keywords_negative() -> None:
-    assert not _matches_ai_keywords("flask-utils")
-    assert not _matches_ai_keywords("django-rest")
+def test_matches_keywords_negative() -> None:
+    assert not _matches_keywords("flask-utils", _DEFAULT_KEYWORDS)
+    assert not _matches_keywords("django-rest", _DEFAULT_KEYWORDS)
 
 
 @pytest.mark.asyncio

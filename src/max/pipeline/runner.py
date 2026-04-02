@@ -8,6 +8,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from max.analysis.gap_detector import detect_gaps, format_gaps_for_ideation
 from max.analysis.retrospective import analyze_retrospective, format_retrospective_for_ideation
@@ -27,6 +28,9 @@ from max.synthesis.engine import synthesize
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
 from max.types.signal import Signal
+
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext, PipelineProfile
 
 logger = logging.getLogger(__name__)
 
@@ -62,20 +66,42 @@ class PipelineResult:
     run_id: str = ""
     learned_from_feedback: bool = False
 
+    # Profile info
+    profile_name: str = ""
+
 
 def run_pipeline(
     *,
+    profile: PipelineProfile | None = None,
     output_dir: Path | None = None,
     signal_limit: int = 30,
     min_score: float = 50.0,
     weight_profile: str = "default",
     ideation_mode: str = "direct",
 ) -> PipelineResult:
-    """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish."""
+    """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish.
+
+    When *profile* is provided, pipeline parameters are extracted from it.
+    Explicit keyword arguments override profile values when both are given.
+    """
+    # Extract params from profile (explicit kwargs take precedence)
+    domain: DomainContext | None = None
+    source_configs = None
+    if profile is not None:
+        domain = profile.domain
+        source_configs = profile.sources or None
+        output_dir = output_dir or Path(profile.output_dir)
+        signal_limit = profile.signal_limit
+        min_score = profile.evaluation.min_score
+        weight_profile = profile.evaluation.weight_profile
+        ideation_mode = profile.ideation_mode
+
     token_tracker.reset()
     store = Store()
     semantic_index = SemanticIndex(store)
     result = PipelineResult()
+    if profile is not None:
+        result.profile_name = profile.name
 
     # Record pipeline run
     run_id = f"run-{uuid.uuid4().hex[:12]}"
@@ -85,6 +111,7 @@ def run_pipeline(
         "min_score": min_score,
         "weight_profile": weight_profile,
         "ideation_mode": ideation_mode,
+        "profile": profile.name if profile else None,
     }
     store.insert_pipeline_run(run_id, config)
 
@@ -99,7 +126,9 @@ def run_pipeline(
 
     try:
         # 1. Fetch signals
-        signals, fetch_alloc = _fetch_all_signals(signal_limit=signal_limit, store=store)
+        signals, fetch_alloc = _fetch_all_signals(
+            signal_limit=signal_limit, store=store, source_configs=source_configs,
+        )
         result.signals_fetched = len(signals)
         result.fetch_allocation = fetch_alloc
 
@@ -128,6 +157,7 @@ def run_pipeline(
                 new_signals,
                 prior_insights=prior_insights if prior_insights else None,
                 cluster_context=cluster_ctx,
+                domain=domain,
             )
             store.mark_signals_synthesized([s.id for s in new_signals])
             dedup = dedup_insights(insights, semantic_index)
@@ -168,12 +198,13 @@ def run_pipeline(
                 existing_ideas=recent_ideas or None,
                 gaps_context=gaps_ctx,
                 learned_context=learned_ctx,
+                domain=domain,
             ))
 
         if ideation_mode in ("refinement", "all"):
             existing = store.get_buildable_units(status="evaluated", limit=10)
             if existing:
-                units.extend(ideate_refinement(existing, recent_insights))
+                units.extend(ideate_refinement(existing, recent_insights, domain=domain))
 
         if ideation_mode in ("cross_domain", "all"):
             units.extend(ideate_cross_domain(
@@ -181,6 +212,7 @@ def run_pipeline(
                 existing_ideas=recent_ideas or None,
                 gaps_context=gaps_ctx,
                 learned_context=learned_ctx,
+                domain=domain,
             ))
 
         dedup = dedup_buildable_units(units, semantic_index)
@@ -194,7 +226,7 @@ def run_pipeline(
         evaluated: list[tuple[BuildableUnit, UtilityEvaluation]] = []
         for unit in units:
             evidence = _resolve_evidence_chain(unit, store)
-            evaluation = evaluate(unit, weights=weights, evidence=evidence)
+            evaluation = evaluate(unit, weights=weights, evidence=evidence, domain=domain)
             store.insert_evaluation(evaluation)
             store.update_buildable_unit_status(unit.id, "evaluated")
             evaluated.append((unit, evaluation))
@@ -308,13 +340,19 @@ def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
 
 
 def _fetch_all_signals(
-    *, signal_limit: int = 30, store: Store | None = None,
+    *,
+    signal_limit: int = 30,
+    store: Store | None = None,
+    source_configs: list | None = None,
 ) -> tuple[list[Signal], dict[str, int]]:
     """Fetch signals from all registered adapters with optional adaptive allocation.
 
+    When *source_configs* is provided, only the configured (and enabled) adapters
+    are instantiated with their per-adapter params.
+
     Returns (signals, allocation_used).
     """
-    adapters = get_all_adapters()
+    adapters = get_all_adapters(source_configs)
     all_signals: list[Signal] = []
 
     if store:

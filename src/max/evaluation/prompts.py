@@ -1,9 +1,41 @@
 """Prompts for the evaluation engine."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from max.evaluation.weights import DIMENSION_DESCRIPTIONS
 
-SYSTEM = """\
+if TYPE_CHECKING:
+    from max.profiles.schema import DomainContext
+
+_DEFAULT_SYSTEM = """\
 You are a utility evaluation engine for developer tool and AI infrastructure ideas. \
+Your job is to rigorously score ideas across 7 dimensions.
+
+Be calibrated: a score of 5 is average, 7+ is notably good, 3- is notably poor. \
+Don't cluster scores around 6-7 — use the full range.
+
+For INVERTED dimensions (build_effort, competitive_density), a HIGH score means \
+FAVORABLE conditions (easy to build, few competitors).
+
+Provide specific reasoning for each dimension — cite evidence, not platitudes.
+
+When supporting evidence is provided, fact-check the idea's claims against it. \
+Score with HIGHER confidence when evidence directly validates a dimension, and \
+LOWER confidence when evidence is thin or tangential.
+"""
+
+# Keep SYSTEM as module-level constant for backward compat
+SYSTEM = _DEFAULT_SYSTEM
+
+
+def get_system_prompt(domain: DomainContext | None = None) -> str:
+    """Get the evaluation system prompt, optionally parameterized by domain."""
+    if domain is None:
+        return _DEFAULT_SYSTEM
+    return f"""\
+You are a utility evaluation engine for {domain.description} ideas. \
 Your job is to rigorously score ideas across 7 dimensions.
 
 Be calibrated: a score of 5 is average, 7+ is notably good, 3- is notably poor. \

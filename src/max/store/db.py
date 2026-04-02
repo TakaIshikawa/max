@@ -240,7 +240,7 @@ class Store:
                 unit.id,
                 unit.title,
                 unit.one_liner,
-                unit.category.value,
+                unit.category,
                 unit.ideation_mode.value,
                 unit.problem,
                 unit.solution,

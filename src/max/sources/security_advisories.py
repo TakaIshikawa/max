@@ -14,8 +14,8 @@ from max.types.signal import Signal, SignalSourceType
 logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
-ECOSYSTEMS = ["pip", "npm", "go"]
-SEVERITIES = ["critical", "high"]
+_DEFAULT_ECOSYSTEMS = ["pip", "npm", "go"]
+_DEFAULT_SEVERITIES = ["critical", "high"]
 
 
 class SecurityAdvisoriesAdapter(SourceAdapter):
@@ -27,10 +27,20 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.SECURITY.value
 
+    @property
+    def ecosystems(self) -> list[str]:
+        return self._config.get("ecosystems", _DEFAULT_ECOSYSTEMS)
+
+    @property
+    def severities(self) -> list[str]:
+        return self._config.get("severities", _DEFAULT_SEVERITIES)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_ids: set[str] = set()
-        per_query = max(limit // (len(ECOSYSTEMS) * len(SEVERITIES)), 3)
+        ecosystems = self.ecosystems
+        severities = self.severities
+        per_query = max(limit // (len(ecosystems) * len(severities)), 3)
 
         headers = {"Accept": "application/vnd.github+json"}
         token = os.environ.get("GITHUB_TOKEN")
@@ -38,8 +48,8 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
             headers["Authorization"] = f"Bearer {token}"
 
         async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-            for ecosystem in ECOSYSTEMS:
-                for severity in SEVERITIES:
+            for ecosystem in ecosystems:
+                for severity in severities:
                     if len(signals) >= limit:
                         break
 

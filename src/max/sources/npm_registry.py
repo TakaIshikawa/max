@@ -12,6 +12,9 @@ from max.types.signal import Signal, SignalSourceType
 NPM_SEARCH = "https://registry.npmjs.org/-/v1/search"
 
 
+_DEFAULT_QUERIES = ["mcp server", "ai agent", "llm tool", "claude"]
+
+
 class NpmRegistryAdapter(SourceAdapter):
     @property
     def name(self) -> str:
@@ -21,9 +24,13 @@ class NpmRegistryAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.REGISTRY.value
 
+    @property
+    def queries(self) -> list[str]:
+        return self._config.get("queries", _DEFAULT_QUERIES)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
-        queries = ["mcp server", "ai agent", "llm tool", "claude"]
+        queries = self.queries
 
         async with httpx.AsyncClient(timeout=30) as client:
             for query in queries:

@@ -12,8 +12,7 @@ from max.types.signal import Signal, SignalSourceType
 
 GITHUB_API = "https://api.github.com"
 
-# Topics to search for trending repos
-TOPICS = ["mcp", "ai-agent", "llm", "developer-tools", "cli"]
+_DEFAULT_TOPICS = ["mcp", "ai-agent", "llm", "developer-tools", "cli"]
 
 
 class GitHubAdapter(SourceAdapter):
@@ -25,9 +24,14 @@ class GitHubAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.TRENDING.value
 
+    @property
+    def topics(self) -> list[str]:
+        return self._config.get("topics", _DEFAULT_TOPICS)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
-        per_topic = max(limit // len(TOPICS), 3)
+        topics = self.topics
+        per_topic = max(limit // len(topics), 3)
 
         headers = {"Accept": "application/vnd.github+json"}
         token = os.environ.get("GITHUB_TOKEN")
@@ -38,7 +42,7 @@ class GitHubAdapter(SourceAdapter):
         since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
 
         async with httpx.AsyncClient(timeout=30, headers=headers) as client:
-            for topic in TOPICS:
+            for topic in topics:
                 if len(signals) >= limit:
                     break
                 try:

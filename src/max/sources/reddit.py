@@ -9,7 +9,7 @@ import httpx
 from max.sources.base import SourceAdapter
 from max.types.signal import Signal, SignalSourceType
 
-SUBREDDITS = [
+_DEFAULT_SUBREDDITS = [
     "programming",
     "MachineLearning",
     "LocalLLaMA",
@@ -31,16 +31,21 @@ class RedditAdapter(SourceAdapter):
     def source_type(self) -> str:
         return SignalSourceType.FORUM.value
 
+    @property
+    def subreddits(self) -> list[str]:
+        return self._config.get("subreddits", _DEFAULT_SUBREDDITS)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
-        per_sub = max(limit // len(SUBREDDITS), 3)
+        subreddits = self.subreddits
+        per_sub = max(limit // len(subreddits), 3)
 
         async with httpx.AsyncClient(
             timeout=30,
             headers={"User-Agent": USER_AGENT},
             follow_redirects=True,
         ) as client:
-            for subreddit in SUBREDDITS:
+            for subreddit in subreddits:
                 if len(signals) >= limit:
                     break
                 try:

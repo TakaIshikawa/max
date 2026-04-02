@@ -102,9 +102,38 @@ def list_adapters() -> list[str]:
     return list(_get_registry())
 
 
-def get_all_adapters() -> list[SourceAdapter]:
-    """Instantiate and return all available adapters."""
-    return [cls() for cls in _get_registry().values()]
+def get_all_adapters(
+    source_configs: list | None = None,
+) -> list[SourceAdapter]:
+    """Instantiate and return adapters.
+
+    When *source_configs* is ``None``, returns all discovered adapters with
+    default configuration (backward compatible).
+
+    When a list of ``SourceConfig`` objects (or dicts with ``adapter``,
+    ``enabled``, ``params`` keys) is provided, instantiates only the listed
+    adapters with their per-profile configuration.
+    """
+    registry = _get_registry()
+
+    if source_configs is None:
+        return [cls() for cls in registry.values()]
+
+    adapters: list[SourceAdapter] = []
+    for sc in source_configs:
+        # Accept both SourceConfig objects and plain dicts
+        adapter_name = sc.adapter if hasattr(sc, "adapter") else sc.get("adapter", "")
+        enabled = sc.enabled if hasattr(sc, "enabled") else sc.get("enabled", True)
+        params = sc.params if hasattr(sc, "params") else sc.get("params", {})
+
+        if not enabled:
+            continue
+        cls = registry.get(adapter_name)
+        if cls is None:
+            logger.warning("Profile references unknown adapter: %s", adapter_name)
+            continue
+        adapters.append(cls(config=params))
+    return adapters
 
 
 def reload_registry() -> None:

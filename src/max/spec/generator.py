@@ -75,7 +75,7 @@ def generate_spec(unit: BuildableUnit, evaluation: UtilityEvaluation) -> TactSpe
             "id": unit.id,
             "title": unit.title,
             "one_liner": unit.one_liner,
-            "category": unit.category.value,
+            "category": unit.category,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,

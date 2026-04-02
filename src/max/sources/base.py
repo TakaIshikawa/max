@@ -10,6 +10,9 @@ from max.types.signal import Signal
 class SourceAdapter(ABC):
     """Common interface for all signal sources."""
 
+    def __init__(self, config: dict | None = None) -> None:
+        self._config = config or {}
+
     @property
     @abstractmethod
     def name(self) -> str:
