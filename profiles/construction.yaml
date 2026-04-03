@@ -1,0 +1,113 @@
+name: construction
+
+domain:
+  name: construction
+  description: >-
+    Construction technology and field service operations.
+    Focus on project documentation, scheduling, safety monitoring,
+    subcontractor coordination, and digitizing paper-based workflows
+  categories:
+    - documentation_tool
+    - scheduling_automation
+    - safety_monitor
+    - coordination_platform
+    - estimation_tool
+    - mobile_tool
+    - workflow_automation
+    - application
+    - integration
+  target_user_types:
+    - general_contractors
+    - project_managers
+    - field_workers
+    - subcontractors
+    - both
+  extra_instructions: >-
+    Highest primitive-tooling-vs-clear-pain ratio of any domain. 730K+ US
+    construction companies operating on paper, photos on personal phones,
+    Excel scheduling, and manual routing. Daily reports are handwritten.
+    Subcontractor payment tracking (53K+ GCs) uses spreadsheets with 30-90
+    day payment delays. Digital tools can improve productivity by 15% and
+    reduce project costs by 6%. Solutions MUST be mobile-first and work in
+    low-connectivity field environments. Prioritize tools that replace paper,
+    not tools that add complexity. Construction firms are price-sensitive —
+    freemium or low-cost entry points work best.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - Construction
+        - Contractors
+        - projectmanagement
+        - OSHA
+        - HomeImprovement
+        - civilengineering
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - construction
+        - contractor
+        - building
+        - jobsite
+        - field service
+        - scheduling
+        - blueprint
+
+  - adapter: github
+    params:
+      topics:
+        - construction
+        - project-management
+        - scheduling
+        - bim
+        - field-service
+        - fleet-management
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"construction" OR "contractor" is:issue is:open sort:reactions-+1-desc'
+        - '"scheduling" "project" label:enhancement is:open sort:reactions-+1-desc'
+        - '"field service" OR "jobsite" is:issue is:open sort:comments-desc'
+        - '"bim" OR "building information" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - construction
+        - bim
+        - ifc
+        - scheduling
+        - gantt
+        - project-management
+        - estimation
+        - blueprint
+        - cad
+        - geospatial
+        - field-service
+        - inspection
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - construction management
+        - project scheduling
+        - field service
+        - gantt chart
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - productivity
+        - task-management
+
+evaluation:
+  weight_profile: default
+  min_score: 40.0
+
+output_dir: .tact
+signal_limit: 20
+ideation_mode: direct

@@ -1,0 +1,119 @@
+name: education
+
+domain:
+  name: education
+  description: >-
+    Education technology and corporate training.
+    Focus on adaptive learning, skill assessment, compliance training automation,
+    credentialing, LMS interoperability, and knowledge management
+  categories:
+    - learning_platform
+    - assessment_tool
+    - credential_manager
+    - training_automation
+    - knowledge_base
+    - lms_integration
+    - workflow_automation
+    - application
+    - library
+  target_user_types:
+    - training_managers
+    - educators
+    - learners
+    - hr_professionals
+    - both
+  extra_instructions: >-
+    Corporate LMS is a known pain point — companies track training in spreadsheets
+    and compliance training deadlines get missed. Every company with 50+ employees
+    needs this. LTI (Learning Tools Interoperability) and Open Badges are the key
+    standards for integration. Adaptive learning (AI-powered skill gap detection
+    and personalized paths) is emerging but immature. Prioritize corporate and
+    professional training over K-12 — shorter sales cycles and clearer ROI.
+    Consider cross-vertical compliance training needs (healthcare CME, legal CLE,
+    financial regulatory training).
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - edtech
+        - Teachers
+        - education
+        - elearning
+        - learnprogramming
+        - instructionaldesign
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - education
+        - learning
+        - training
+        - course
+        - tutor
+        - lms
+        - credential
+        - assessment
+
+  - adapter: github
+    params:
+      topics:
+        - education
+        - edtech
+        - lms
+        - learning-management-system
+        - e-learning
+        - open-educational-resources
+        - lti
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"lti" OR "learning tools" label:enhancement is:open sort:reactions-+1-desc'
+        - '"assessment" OR "grading" is:issue is:open sort:comments-desc'
+        - '"course" OR "curriculum" label:feature-request is:open sort:reactions-+1-desc'
+        - '"credential" OR "badge" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - lti
+        - scorm
+        - moodle
+        - canvas
+        - education
+        - assessment
+        - quiz
+        - flashcard
+        - tutoring
+        - grading
+        - learning
+        - course
+        - curriculum
+        - badge
+        - credential
+        - spaced-repetition
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - learning management
+        - lti integration
+        - quiz assessment
+        - education platform
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - education
+        - artificial-intelligence
+        - productivity
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .tact
+signal_limit: 25
+ideation_mode: direct

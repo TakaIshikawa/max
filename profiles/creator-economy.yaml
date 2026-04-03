@@ -1,0 +1,119 @@
+name: creator-economy
+
+domain:
+  name: creator-economy
+  description: >-
+    Creator economy tools and media technology.
+    Focus on content repurposing, multi-platform distribution, audience analytics,
+    monetization, and workflow automation for independent creators
+  categories:
+    - content_repurposer
+    - analytics_dashboard
+    - monetization_tool
+    - scheduling_automation
+    - audience_tool
+    - community_platform
+    - workflow_automation
+    - application
+    - library
+  target_user_types:
+    - content_creators
+    - podcasters
+    - youtubers
+    - newsletter_writers
+    - streamers
+    - both
+  extra_instructions: >-
+    Creator economy valued at $178-214B in 2025-2026 with 22-23% CAGR.
+    Content repurposing is the #1 pain point — converting a 60-minute podcast
+    into multi-platform assets takes 4-6 hours manually. Creators prefer
+    subscription and SaaS pricing ($50-200/mo sweet spot). 68.8% cite brand
+    deals as main revenue but are diversifying into subscriptions, owned brands,
+    and digital products. Platform dependency is the biggest risk — tools should
+    be platform-agnostic where possible. Prioritize time-saving automation over
+    new creative capabilities.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - NewTubers
+        - podcasting
+        - youtubers
+        - ContentCreators
+        - Twitch
+        - newsletters
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - creator
+        - podcast
+        - youtube
+        - newsletter
+        - substack
+        - streaming
+        - content
+        - monetiz
+
+  - adapter: github
+    params:
+      topics:
+        - youtube-api
+        - content-creation
+        - video-editing
+        - podcast
+        - streaming
+        - social-media
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"content" "repurpose" OR "repurposing" is:issue is:open sort:reactions-+1-desc'
+        - '"youtube" OR "podcast" label:enhancement is:open sort:reactions-+1-desc'
+        - '"newsletter" OR "substack" is:issue is:open sort:comments-desc'
+        - '"creator" "tool" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - youtube
+        - twitch
+        - tiktok
+        - whisper
+        - ffmpeg
+        - transcription
+        - subtitle
+        - thumbnail
+        - podcast
+        - rss
+        - newsletter
+        - social-media
+        - analytics
+        - seo
+        - content
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - youtube api
+        - podcast rss
+        - social media automation
+        - content scheduling
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - social-media-tools
+        - video
+        - writing-tools
+        - productivity
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .tact
+signal_limit: 25
+ideation_mode: direct

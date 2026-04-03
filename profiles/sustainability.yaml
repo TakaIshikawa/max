@@ -1,0 +1,117 @@
+name: sustainability
+
+domain:
+  name: sustainability
+  description: >-
+    Sustainability technology, ESG compliance, and climate impact tools.
+    Focus on carbon accounting, supply chain transparency, sustainability
+    reporting automation, energy analytics, and environmental monitoring
+  categories:
+    - reporting_automation
+    - carbon_tracker
+    - supply_chain_tool
+    - energy_analytics
+    - compliance_monitor
+    - data_pipeline
+    - workflow_automation
+    - application
+    - library
+  target_user_types:
+    - sustainability_officers
+    - supply_chain_managers
+    - compliance_teams
+    - small_business_owners
+    - both
+  extra_instructions: >-
+    EU CSRD/CS3D amendments landed summer 2025 — mandatory sustainability
+    reporting for companies operating in EU markets. 82% of banks lack quality
+    data for ESG integration. Climate tech adaptation growing 64% ($5.5B in 2025).
+    Most ESG tools are enterprise-grade (ServiceNow, Persefoni) with nothing
+    for mid-market. Prioritize tools that collect, calculate, and report rather
+    than just dashboards. Supply chain carbon tracking is nascent — a major gap.
+    OpenSustain.tech directory catalogs 2,400+ open-source sustainability projects.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - climatetech
+        - sustainability
+        - energy
+        - solar
+        - electricvehicles
+        - renewable
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - climate
+        - sustainability
+        - carbon
+        - emissions
+        - renewable
+        - solar
+        - energy
+        - esg
+
+  - adapter: github
+    params:
+      topics:
+        - climate-change
+        - sustainability
+        - energy
+        - carbon
+        - renewable-energy
+        - solar
+        - environmental
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"carbon" OR "emissions" label:enhancement is:open sort:reactions-+1-desc'
+        - '"sustainability" OR "esg" is:issue is:open sort:comments-desc'
+        - '"energy" "optimization" is:issue is:open sort:reactions-+1-desc'
+        - '"climate" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - carbon
+        - emissions
+        - climate
+        - sustainability
+        - esg
+        - energy
+        - solar
+        - wind
+        - pypsa
+        - power-system
+        - environmental
+        - footprint
+        - offset
+        - renewable
+        - green
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+        - npm
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - sustainability
+        - artificial-intelligence
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .tact
+signal_limit: 20
+ideation_mode: direct

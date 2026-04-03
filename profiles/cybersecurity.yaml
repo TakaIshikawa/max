@@ -1,0 +1,133 @@
+name: cybersecurity
+
+domain:
+  name: cybersecurity
+  description: >-
+    Cybersecurity tools, threat detection, and security operations.
+    Focus on detection engineering, vulnerability management, compliance automation,
+    security workflow orchestration, and SMB-accessible security tooling
+  categories:
+    - detection_tool
+    - vulnerability_scanner
+    - compliance_automation
+    - siem_component
+    - threat_intelligence
+    - security_workflow
+    - incident_response
+    - application
+    - library
+  target_user_types:
+    - security_engineers
+    - soc_analysts
+    - devops_engineers
+    - smb_administrators
+    - both
+  extra_instructions: >-
+    66% of MCP servers have security findings. 96% of developers do not trust
+    AI-generated code. Detection engineering is fragmented across YARA, Sigma,
+    and vendor-specific formats. Prioritize tools that serve SMBs and small
+    security teams — enterprise SIEM/SOAR tools exist but nothing serves the
+    1-5 person security team. Open-source-first distribution works well here.
+    Consider MITRE ATT&CK alignment for detection tools.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - netsec
+        - cybersecurity
+        - AskNetsec
+        - blueteamsec
+        - ReverseEngineering
+        - SecurityCareerAdvice
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - security
+        - vulnerability
+        - exploit
+        - breach
+        - malware
+        - ransomware
+        - zero-day
+        - cve
+        - siem
+        - detection
+
+  - adapter: github
+    params:
+      topics:
+        - security-tools
+        - cybersecurity-tools
+        - penetration-testing
+        - vulnerability-scanner
+        - siem
+        - threat-intelligence
+        - detection
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"detection rule" OR "sigma rule" label:enhancement is:open sort:reactions-+1-desc'
+        - '"vulnerability" "scanner" is:issue is:open sort:comments-desc'
+        - '"siem" OR "security" label:feature-request is:open sort:reactions-+1-desc'
+        - '"threat intelligence" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - wazuh
+        - sigma
+        - yara
+        - nmap
+        - scapy
+        - impacket
+        - nuclei
+        - osint
+        - siem
+        - detection
+        - threat
+        - vulnerability
+        - exploit
+        - forensics
+        - malware
+        - firewall
+        - zeek
+        - snort
+        - security
+        - pentest
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - security scanner
+        - vulnerability detection
+        - compliance checker
+        - threat intelligence
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+        - npm
+        - go
+        - rubygems
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - cybersecurity
+        - developer-tools
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .tact
+signal_limit: 30
+ideation_mode: direct

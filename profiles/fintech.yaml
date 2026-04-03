@@ -1,0 +1,132 @@
+name: fintech
+
+domain:
+  name: fintech
+  description: >-
+    Financial technology, regulatory compliance, and insurance technology.
+    Focus on fraud detection, risk management, compliance automation,
+    ESG reporting, embedded finance, and SMB financial tools
+  categories:
+    - compliance_automation
+    - risk_tool
+    - fraud_detection
+    - reporting_pipeline
+    - trading_tool
+    - payment_integration
+    - data_pipeline
+    - workflow_automation
+    - application
+    - library
+  target_user_types:
+    - compliance_officers
+    - financial_analysts
+    - small_business_owners
+    - developers
+    - both
+  extra_instructions: >-
+    DORA (Digital Operational Resilience Act) is fully enforceable since Jan 2025.
+    EU AI Act high-risk rules apply to credit scoring and employment decisions.
+    CSRD/CS3D sustainability reporting mandates landed summer 2025. 82% of banks
+    lack quality data for ESG integration. Overlapping regulatory deadlines are
+    creating urgent tooling needs. Prioritize tools that serve mid-market firms
+    and SMBs, not enterprise incumbents. Open Banking (FDX, PSD2) standards
+    create integration opportunities.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - fintech
+        - algotrading
+        - quant
+        - personalfinance
+        - CryptoCurrency
+        - RegTech
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - fintech
+        - banking
+        - payments
+        - trading
+        - compliance
+        - fraud
+        - defi
+        - open banking
+        - regtech
+
+  - adapter: github
+    params:
+      topics:
+        - fintech
+        - quantitative-finance
+        - algorithmic-trading
+        - open-banking
+        - blockchain
+        - payments
+        - fraud-detection
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"open banking" OR "plaid" label:enhancement is:open sort:reactions-+1-desc'
+        - '"compliance" OR "regulatory" is:issue is:open sort:comments-desc'
+        - '"trading" OR "portfolio" label:feature-request is:open sort:reactions-+1-desc'
+        - '"fraud" OR "risk" is:issue is:open sort:reactions-+1-desc'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - quantlib
+        - zipline
+        - backtrader
+        - pyportfolioopt
+        - finrl
+        - qlib
+        - alphalens
+        - pyfolio
+        - ta-lib
+        - ccxt
+        - plaid
+        - stripe
+        - banking
+        - ledger
+        - invoice
+        - compliance
+        - kyc
+        - aml
+        - risk
+        - fraud
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - open banking
+        - payment processing
+        - fintech compliance
+        - trading bot
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+        - npm
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - fintech
+        - artificial-intelligence
+
+evaluation:
+  weight_profile: default
+  min_score: 50.0
+
+output_dir: .tact
+signal_limit: 30
+ideation_mode: direct
