@@ -1,0 +1,82 @@
+patterns:
+- name: Local-First Processing
+  description: All PHI processing, embedding generation, and context compression occurs
+    within the provider's infrastructure boundary. External API calls only occur after
+    context optimization and optional de-identification.
+  scope:
+  - FHIR data retrieval
+  - embedding generation
+  - vector storage
+  - context compression
+- name: Hybrid Retrieval Pipeline
+  description: Combines BM25 keyword search (for exact medical term matching like
+    ICD-10 codes, medication names) with semantic vector search (for clinical concept
+    similarity) using reciprocal rank fusion to merge results.
+  scope:
+  - context retrieval
+  - relevance scoring
+  - chunk ranking
+- name: Clinical-Document-Aware Chunking
+  description: Respects medical document structure (SOAP notes, problem lists, medication
+    lists, lab results) when segmenting patient data, ensuring chunks maintain clinical
+    coherence rather than arbitrary token boundaries.
+  scope:
+  - document parsing
+  - chunk creation
+  - embedding preparation
+- name: Audit-First Architecture
+  description: Every context compression operation generates a FHIR AuditEvent record
+    before external transmission, creating immutable compliance trail of what PHI
+    was sent where and when.
+  scope:
+  - API calls
+  - context transmission
+  - compliance logging
+invariants:
+- PHI must never be transmitted to external APIs without explicit audit log creation
+- All patient data retrieval must use authenticated FHIR API calls with valid OAuth2
+  tokens
+- Vector embeddings and compressed context must be stored with patient identifiers
+  encrypted at rest
+- Context compression must preserve all active problem list items and current medications
+  regardless of token budget
+- Audit logs must be append-only and include cryptographic signatures to prevent tampering
+- All clinical document chunks must retain source FHIR resource references for traceability
+conventions:
+- Use FHIR resource naming conventions (Patient, Condition, MedicationStatement, DocumentReference)
+- 'Follow clinical coding standards: ICD-10 for diagnoses, RxNorm for medications,
+  LOINC for labs'
+- Prefix all clinical processing functions with 'clinical_' (e.g., clinical_chunk_note,
+  clinical_rank_relevance)
+- Store all timestamps in ISO 8601 format with timezone information
+- Use Pydantic models for all FHIR resource representations with strict validation
+- 'Name vector collections by resource type: ''patient_notes'', ''problem_lists'',
+  ''medications'''
+- 'Log levels: DEBUG for retrieval details, INFO for compression metrics, WARNING
+  for compliance issues, ERROR for FHIR API failures'
+decisions:
+- id: D-1
+  title: Use Qdrant over Chroma for vector storage
+  decision: Implement Qdrant as the vector database
+  rationale: Qdrant provides better performance for filtered searches (essential for
+    patient-specific queries), supports payload-based filtering natively (needed for
+    temporal relevance and problem list prioritization), and offers more robust persistence
+    guarantees critical for healthcare data. Chroma's simplicity is less important
+    than reliability in clinical context.
+- id: D-2
+  title: Pre-trained BioBERT over custom clinical embeddings
+  decision: Use pre-trained BioBERT model without fine-tuning for MVP
+  rationale: Fine-tuning clinical embeddings requires large labeled datasets of clinical
+    notes and significant compute resources, creating multi-week delays. Pre-trained
+    BioBERT already captures medical terminology and clinical concepts adequately
+    for initial validation. Custom fine-tuning can be deferred to post-MVP based on
+    real-world performance data.
+- id: D-3
+  title: SQLite for audit logs instead of FHIR server
+  decision: Store FHIR AuditEvent records in local SQLite database
+  rationale: Running a full FHIR server (HAPI FHIR) for audit logs adds significant
+    deployment complexity and resource overhead. SQLite provides ACID guarantees,
+    append-only table support, and sufficient query performance for compliance reporting.
+    Audit events can be exported to FHIR format for external systems without requiring
+    a live FHIR server.
+contracts: []

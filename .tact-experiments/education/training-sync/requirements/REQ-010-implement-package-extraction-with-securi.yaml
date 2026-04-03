@@ -1,0 +1,23 @@
+title: Implement package extraction with security safeguards
+approval: draft
+phase: planned
+priority: high
+description: Safely extract ZIP packages to temporary directories with protections
+  against zip bombs, path traversal attacks, and excessive file counts. Training packages
+  come from various sources and may be malicious or malformed, so extraction must
+  be hardened.
+acceptanceCriteria:
+- Rejects ZIP files larger than 500MB before extraction with clear error message
+- Detects and blocks path traversal attempts (../ in ZIP entry paths) with error code
+  SCORM-004
+- Limits extraction to 10,000 files maximum to prevent zip bomb attacks
+- Extracts to unique temporary directory (e.g., /tmp/trainingsync-<uuid>/) that is
+  cleaned up after validation
+- Sets reasonable timeout (60 seconds) for extraction process to prevent hanging on
+  malformed ZIPs
+- Validates ZIP file integrity (CRC checks) before extraction and reports corruption
+  as error code SCORM-005
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement newsletter summary draft generation
+approval: draft
+phase: planned
+priority: medium
+description: Using the full transcript, generate a newsletter-style summary of the
+  episode including key takeaways, notable quotes, and a structured summary. This
+  gives creators a ready-to-send newsletter draft for their email list.
+acceptanceCriteria:
+- 'The job sends the full transcript to the LLM with a prompt requesting: a 2-3 sentence
+  episode summary, 3-5 key takeaways as bullet points, 2-3 notable direct quotes with
+  timestamps, and a call-to-action paragraph'
+- The output is stored as an Asset record with type 'newsletter_draft' containing
+  the generated markdown text
+- The newsletter draft is between 300 and 800 words
+- The draft references only content actually present in the transcript — no fabricated
+  quotes or topics
+- The asset has status 'pending_review' and the full text is editable in the review
+  UI
+decomposition:
+  assignments: []
+dependencies:
+- Implement transcription pipeline step with provider abstraction
+source: discovered

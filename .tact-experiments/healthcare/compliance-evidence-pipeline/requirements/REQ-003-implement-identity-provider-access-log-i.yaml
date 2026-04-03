@@ -1,0 +1,18 @@
+title: Implement identity provider access log ingestion connector
+approval: draft
+phase: planned
+priority: high
+description: Create a connector that ingests JSON exports from Okta or Azure AD (login
+  events, MFA status, access grants/revocations) and normalizes into security events.
+  Maps to HIPAA Access Control (§164.312.a) and Authentication (§164.312.d).
+acceptanceCriteria:
+- Connector parses Okta event log JSON format with event type, user, timestamp, MFA
+  status, outcome
+- Login events mapped to HIPAA §164.312.d (Person/Entity Authentication)
+- Access grant/revocation events mapped to HIPAA §164.312.a.1 (Unique User Identification)
+- MFA failures flagged as compliance gaps in authentication controls
+- Connector processes 5,000 identity events in <1 minute
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,27 @@
+title: Implement incremental plan operation
+approval: draft
+phase: planned
+priority: critical
+description: 'Orchestrate an incremental plan that: (1) parses current HCL config
+  and state, (2) queries the staleness store to identify changed/stale resources,
+  (3) computes the transitive closure of dependents for stale resources in the DAG,
+  (4) runs terraform plan with -target flags for only the stale resources and their
+  dependents, (5) updates the staleness store on success. Falls back to full plan
+  if the target set exceeds a configurable threshold (default: 50% of resources).'
+acceptanceCriteria:
+- Given 500 resources where 5 have config changes, only those 5 plus their graph dependents
+  are targeted in the terraform plan invocation
+- The -target flags passed to terraform are syntactically correct resource addresses
+- If the stale resource set exceeds 50% of total resources, a full plan is executed
+  instead with a warning message
+- If the staleness database does not exist (first run), a full plan is executed and
+  the database is populated
+- The plan output includes a summary line showing 'X of Y resources targeted (Z stale,
+  W dependents)'
+decomposition:
+  assignments: []
+dependencies:
+- Parse Terraform state and HCL configuration into dependency graph
+- Implement resource staleness tracking with SQLite store
+- Implement CLI skeleton with terraform passthrough
+source: discovered

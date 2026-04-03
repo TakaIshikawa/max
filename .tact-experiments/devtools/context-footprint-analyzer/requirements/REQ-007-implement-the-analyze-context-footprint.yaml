@@ -1,0 +1,26 @@
+title: Implement the analyze_context_footprint MCP tool
+approval: draft
+phase: planned
+priority: high
+description: Expose an MCP tool that performs a full codebase scan, indexes all supported
+  source files, computes metrics, and returns a summary with ranked hotspots. This
+  is the primary entry point for codebase-wide analysis.
+acceptanceCriteria:
+- 'Tool accepts input: {directory: string (optional, defaults to configured root),
+  file_patterns: string[] (optional, defaults to [''**/*.py'', ''**/*.ts''])} and
+  returns a JSON summary.'
+- 'Summary includes: total_files_analyzed, total_token_count, average_module_score,
+  top_hotspots (list of top 10 modules by composite score, each with full score breakdown).'
+- 'Summary includes a ''codebase_health'' section with: circular_dependency_count,
+  average_fan_out_depth, files_exceeding_threshold (modules with composite score above
+  70).'
+- Analysis results are persisted to the SQLite index so subsequent calls can use incremental
+  updates.
+- Progress is reported via MCP logging notifications during long-running scans.
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with stdio transport
+- Build dependency graph from parsed modules
+- Implement SQLite index for codebase analysis results
+source: discovered

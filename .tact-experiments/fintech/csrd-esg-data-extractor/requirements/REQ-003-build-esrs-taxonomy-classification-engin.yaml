@@ -1,0 +1,27 @@
+title: Build ESRS taxonomy classification engine with local LLM
+approval: draft
+phase: planned
+priority: critical
+description: Implement a classification service that sends each unclassified transaction
+  to a local Ollama-hosted LLM with an ESRS taxonomy system prompt, parses the structured
+  response, and stores the classification result with confidence score and rationale.
+  The system prompt must include the ESRS topic hierarchy (E1-E5, S1-S4, G1-G2) with
+  descriptions and few-shot classification examples.
+acceptanceCriteria:
+- Classification service calls Ollama API with a structured prompt containing the
+  transaction description, amount, counterparty, and the ESRS taxonomy reference
+- 'Each classification result includes: esrs_topic_code (e.g., ''E1''), esrs_subtopic
+  (e.g., ''E1-6 GHG Emissions''), confidence_score (float 0.0-1.0), rationale (string
+  explaining the classification reasoning), and scope_category (for environmental
+  topics: Scope 1, 2, or 3)'
+- Transactions with confidence_score below configurable threshold (default 0.7) are
+  automatically flagged with review_status='pending_review'
+- Classification is idempotent — re-running on already-classified transactions does
+  not create duplicate records
+- Batch classification endpoint POST /api/v1/classifications/batch processes up to
+  100 transactions and returns results with timing metrics
+decomposition:
+  assignments: []
+dependencies:
+- Implement transaction data ingestion from file uploads
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement list_exceptions and exception matching
+approval: draft
+phase: planned
+priority: medium
+description: 'Build the exception system: a JSON configuration file defines approved
+  policy exceptions (rule_id, resource pattern glob, approved_by, expires_at, justification).
+  The list_exceptions MCP tool returns current exceptions. The check_plan pipeline
+  matches violations against active exceptions to downgrade them to warnings.'
+acceptanceCriteria:
+- 'Exceptions are defined in a JSON file (dora-exceptions.json) with schema: [{rule_id,
+  resource_pattern (glob), approved_by, approved_at, expires_at, justification}]'
+- list_exceptions tool returns all exceptions, with a flag indicating whether each
+  is active or expired
+- During check_plan evaluation, a violation matching an active (non-expired) exception
+  by rule_id and resource_pattern is downgraded to a warning
+- Expired exceptions are surfaced in list_exceptions output but do not affect policy
+  evaluation
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server scaffold with tool registration
+source: discovered

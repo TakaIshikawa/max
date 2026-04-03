@@ -1,0 +1,22 @@
+title: Implement FHIR data caching with session-based expiration
+approval: draft
+phase: planned
+priority: medium
+description: Cache patient FHIR data in Redis for duration of clinician session to
+  avoid redundant API calls when viewing multiple trials for same patient. Ensure
+  cache is cleared when session ends and never persists PHI beyond session.
+acceptanceCriteria:
+- FHIR resources cached in Redis with key pattern 'session:{session_id}:patient:{patient_id}:resource:{resource_type}'
+- Cache TTL set to 30 minutes (typical clinician session duration)
+- Subsequent match requests for same patient within session retrieve data from cache
+  instead of FHIR API
+- Cache entries include timestamp; data older than 30 minutes is refetched even if
+  session active
+- Session termination (logout or timeout) triggers immediate cache deletion for that
+  session
+- Cache hit/miss metrics logged for performance monitoring
+decomposition:
+  assignments: []
+dependencies:
+- Retrieve patient clinical data via FHIR R4 API
+source: discovered

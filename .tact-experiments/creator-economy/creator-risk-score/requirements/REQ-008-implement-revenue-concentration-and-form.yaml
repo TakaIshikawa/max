@@ -1,0 +1,22 @@
+title: Implement revenue concentration and format risk sub-scores
+approval: draft
+phase: planned
+priority: medium
+description: 'Build two additional sub-score calculators: (1) revenue concentration
+  — HHI applied to revenue sources across platforms and income types; (2) format risk
+  — a heuristic score based on how much content is locked in platform-specific formats
+  (Shorts, Reels, Stories) vs. portable formats (long-form video, blog posts, podcasts).'
+acceptanceCriteria:
+- Revenue concentration uses HHI on revenue amounts per source, normalized to 0-100.
+- 'Format risk score is computed from a declared content format mix (e.g., {shorts:
+  60%, longform: 30%, podcast: 10%}) using predefined portability weights.'
+- Platform-specific formats (Shorts, Reels, Stories) have low portability weights
+  (0.2); portable formats (long-form video, podcast, newsletter) have high weights
+  (0.8-1.0).
+- Both sub-scores handle missing data by returning null with explanation rather than
+  defaulting to zero.
+- Revenue sub-score treats self-reported revenue data identically to API-sourced data.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

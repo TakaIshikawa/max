@@ -1,0 +1,23 @@
+title: Implement decision audit log with PostgreSQL persistence
+approval: draft
+phase: planned
+priority: critical
+description: Create the PostgreSQL schema and repository layer for persisting every
+  credit scoring decision with its full explanation payload, counterfactuals, metadata,
+  and timestamps. The audit log is append-only and supports time-range and demographic
+  queries.
+acceptanceCriteria:
+- 'Database schema includes decisions table with columns: id (UUID), model_id, model_version,
+  input_features (JSONB), score, shap_values (JSONB), counterfactuals (JSONB), demographic_metadata
+  (JSONB), created_at (timestamptz), review_status'
+- Repository provides save_decision() that persists atomically and returns the record
+  ID — no partial writes
+- Repository provides query_decisions() supporting filters by date range, model_id,
+  score range, and review_status with pagination
+- No update or delete methods exist on the audit repository — append-only invariant
+  enforced at code level
+- Alembic migration creates the initial schema and is runnable via CLI command
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement per-platform caption and metadata generation
+approval: draft
+phase: planned
+priority: high
+description: For each clip and for the full episode, generate platform-optimized captions,
+  titles, descriptions, and hashtags using the LLM. Each platform has different character
+  limits, tone expectations, and hashtag conventions that the generation must respect.
+acceptanceCriteria:
+- 'The job generates captions for at least 3 platform targets: TikTok (150 chars max,
+  casual tone, 3-5 hashtags), YouTube Shorts (100 char title + 500 char description),
+  and Twitter/X (280 chars including hashtags)'
+- Each generated caption set is stored as a CaptionSet record linked to the corresponding
+  Asset with platform, title, description, and hashtags fields
+- Captions reference the clip's content accurately — no hallucinated claims or topics
+  not present in the transcript segment
+- The LLM prompt includes the transcript segment and clip context to ensure relevance
+- Caption records have status 'pending_review' and are editable by the creator in
+  the review UI
+decomposition:
+  assignments: []
+dependencies:
+- Implement clip extraction and format adaptation with ffmpeg
+source: discovered

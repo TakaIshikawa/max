@@ -1,0 +1,24 @@
+title: Implement YAML-based safety policy DSL and evaluator
+approval: draft
+phase: planned
+priority: high
+description: Define a YAML schema for safety policies that maps (resource_type, environment_tag,
+  operation) tuples to allow/deny decisions with optional approval requirements. Implement
+  a policy loader and evaluator that checks planned changes against loaded policies
+  and produces structured allow/deny results with human-readable explanations.
+acceptanceCriteria:
+- 'A policy file with `deny: {resource: ''aws_rds_instance'', environment: ''production'',
+  operations: [''destroy'']}` blocks destruction of any aws_rds_instance tagged as
+  production'
+- 'A policy file with `warn: {resource: ''aws_s3_bucket'', environment: ''*'', operations:
+  [''destroy'']}` emits a warning but does not block'
+- Policy evaluation produces a structured result listing each evaluated rule, the
+  matched resources, and the decision (allow/deny/warn)
+- Invalid policy YAML produces a clear validation error at load time with line number
+  and field name
+- Policies can match on resource type glob patterns (e.g., 'aws_db_*') and tag value
+  patterns
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

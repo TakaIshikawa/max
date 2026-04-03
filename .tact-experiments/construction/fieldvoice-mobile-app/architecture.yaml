@@ -1,0 +1,82 @@
+patterns:
+- name: Offline-First Architecture
+  description: All data writes go to local SQLite database first. Background sync
+    service monitors connectivity and pushes queued reports to Procore API. Read operations
+    always use local cache with optional refresh.
+  scope:
+  - data layer
+  - sync service
+  - API client
+- name: Command Pattern for Sync Queue
+  description: Each report submission creates a sync command object stored in queue
+    table. Sync service processes commands idempotently with retry logic and conflict
+    resolution.
+  scope:
+  - sync service
+  - database layer
+- name: Repository Pattern
+  description: Abstract data access through repository interfaces (ReportRepository,
+    VoiceNoteRepository, PhotoRepository) to isolate SQLite implementation and enable
+    testing.
+  scope:
+  - data access layer
+- name: Pipeline Pattern for Voice Processing
+  description: 'Voice note processing flows through stages: audio recording → transcription
+    (Whisper) → entity extraction (NLP rules) → report field mapping. Each stage is
+    independently testable.'
+  scope:
+  - voice processing module
+invariants:
+- Voice recordings and photos must never be lost - persist to local storage immediately
+  upon capture
+- Reports must never sync to Procore until explicitly approved by user
+- Transcription and extraction must happen entirely on-device - no audio/text sent
+  to external services
+- Sync operations must be idempotent - retrying a failed sync never creates duplicate
+  reports in Procore
+- User must be able to edit any auto-generated report field before submission
+- App must clearly indicate sync status (pending/syncing/synced/failed) for every
+  report
+- Local data must persist across app restarts and device reboots
+conventions:
+- Use TypeScript strict mode for all application code
+- Prefix database table names with 'fv_' (fv_reports, fv_voice_notes, fv_photos)
+- Use ISO 8601 format for all timestamps stored in database
+- Name React components with PascalCase, hooks with 'use' prefix
+- Store all user-facing strings in i18n files even for English-only MVP
+- Use async/await for asynchronous operations, avoid raw promises
+- Prefix sync queue command types with 'SYNC_' (SYNC_CREATE_REPORT, SYNC_UPDATE_REPORT)
+- Use meters for distance, Celsius for temperature in data layer; convert to user
+  preference in UI
+- Log all sync failures with structured error context for debugging
+decisions:
+- id: D-1
+  title: Use rule-based NLP extraction instead of local LLM for MVP
+  decision: Implement entity extraction using regex patterns and keyword matching
+    rather than deploying Llama 3.2 1B on-device
+  rationale: Rule-based extraction reduces technical complexity, eliminates model
+    quantization/deployment challenges, and provides predictable performance across
+    device tiers. Construction daily reports have consistent structure (crew count,
+    weather, materials, equipment) that can be extracted with 80-85% accuracy using
+    patterns. This allows faster MVP validation before investing in LLM fine-tuning.
+- id: D-2
+  title: Use React Native with Expo for cross-platform development
+  decision: Build with React Native and Expo managed workflow, ejecting only if native
+    module integration requires it
+  rationale: React Native provides mature ecosystem for offline-first apps with libraries
+    like WatermelonDB and react-native-whisper. Expo accelerates development with
+    built-in camera, file system, and background task APIs. TypeScript support is
+    excellent. Single codebase targets iOS and Android, critical for reaching diverse
+    field supervisor device preferences.
+- id: D-3
+  title: Implement optimistic UI with background sync queue
+  decision: Mark reports as 'synced' in UI immediately after user approval, queue
+    actual Procore API call in background, show discrete notification only on sync
+    failure
+  rationale: 'Field supervisors need immediate confirmation their work is ''done''
+    without waiting for network connectivity. Optimistic UI provides instant feedback
+    while background sync handles unreliable connectivity. Sync failures are rare
+    enough (target 99% success) that discrete notifications won''t disrupt workflow.
+    This pattern matches user mental model: ''I finished the report'' vs ''I''m waiting
+    for upload''.'
+contracts: []

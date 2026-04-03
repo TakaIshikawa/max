@@ -1,0 +1,27 @@
+title: Build USEEIO spend-based estimation parser plugin
+approval: draft
+phase: planned
+priority: high
+description: Implement a parser that applies US EPA's USEEIO (Environmentally-Extended
+  Input-Output) model emission factors to procurement spend data, enabling spend-based
+  Scope 3 estimation as a fallback methodology. This is the most commonly used Scope
+  3 estimation approach and serves as the baseline that activity-based parsers improve
+  upon.
+acceptanceCriteria:
+- 'Parser accepts a CSV input of procurement line items with columns: supplier_name,
+  category_code (NAICS or custom), spend_amount_usd, spend_currency, period_start,
+  period_end'
+- Parser maps spend categories to USEEIO emission factors (kg CO2e per USD) using
+  a bundled lookup table derived from publicly available USEEIO v2.0 data
+- Each spend line produces an EmissionRecord with data_quality_score = 5 (spend-based
+  generic) or 4 (spend-based specific) depending on category mapping specificity
+- Parser correctly maps procurement categories to Scope 3 categories (e.g., raw materials
+  spend -> Category 1, logistics spend -> Category 4)
+- Uncertainty percentage is populated based on USEEIO model uncertainty ranges (typically
+  40-60%) and included in the EmissionRecord
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+- Implement pluggy-based plugin manager for parser registration and discovery
+source: discovered

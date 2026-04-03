@@ -1,0 +1,107 @@
+patterns:
+- name: DAG-based Job Pipeline
+  description: The content processing pipeline is modeled as a Directed Acyclic Graph
+    where each node is a discrete processing step (transcription, clip identification,
+    clip extraction, caption generation, thumbnail generation, newsletter draft).
+    BullMQ manages job scheduling with explicit dependency declarations. Each step
+    reads from and writes to a shared pipeline context stored in PostgreSQL, with
+    media artifacts in S3. Steps are idempotent — re-running a step with the same
+    inputs produces the same outputs.
+  scope:
+  - src/pipeline/
+  - src/jobs/
+  - src/lib/dag/
+- name: Provider Abstraction Layer
+  description: External services (transcription, LLM, storage) are accessed through
+    TypeScript interfaces with concrete implementations per provider. A factory function
+    reads environment config to instantiate the correct provider. This enables swapping
+    Whisper.cpp for Deepgram or OpenAI for Ollama without changing pipeline logic.
+  scope:
+  - src/providers/
+- name: Review-and-Approve Gate
+  description: The pipeline produces a complete asset package but halts at a review
+    gate. All generated assets are persisted with a 'pending_review' status. The creator
+    reviews each asset in the dashboard and explicitly approves or rejects it. Approved
+    assets transition to 'approved' and become downloadable. This implements the verification
+    loop pattern — AI proposes, human verifies.
+  scope:
+  - src/app/review/
+  - src/lib/assets/
+- name: Event-Driven Progress Tracking
+  description: Each pipeline step emits status events (queued, running, progress,
+    completed, failed) that are persisted to PostgreSQL and pushed to the frontend
+    via Server-Sent Events (SSE). The UI subscribes to the SSE endpoint for real-time
+    pipeline progress without polling.
+  scope:
+  - src/lib/events/
+  - src/app/api/pipelines/[id]/events/
+invariants:
+- No generated asset is ever published or made externally available without explicit
+  creator approval — the review gate is mandatory and cannot be bypassed.
+- Every pipeline step is idempotent — re-executing a step with identical inputs must
+  produce identical outputs and must not create duplicate artifacts.
+- Pipeline step failures must never crash the overall pipeline — failed steps are
+  marked as failed, and independent downstream branches continue executing.
+- All uploaded and generated media files are stored in S3-compatible storage, never
+  on the local filesystem beyond temporary processing buffers that are cleaned up
+  after use.
+- Provider interfaces must never leak implementation details — pipeline logic must
+  not contain Whisper-specific, Deepgram-specific, OpenAI-specific, or Ollama-specific
+  code.
+- Every database mutation related to pipeline state must be wrapped in a transaction
+  to prevent partial state updates.
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., clip-extractor.ts,
+  transcription-provider.ts).'
+- 'Exports: named exports only, no default exports.'
+- 'Provider interfaces: prefixed with ''I'' (e.g., ITranscriptionProvider, ILlmProvider)
+  and defined in src/providers/types.ts.'
+- 'Job handlers: one file per pipeline step in src/jobs/, named {step-name}.job.ts,
+  each exporting a single handler function.'
+- 'API routes: Next.js App Router conventions — src/app/api/{resource}/route.ts for
+  collections, src/app/api/{resource}/[id]/route.ts for items.'
+- 'Database: Prisma schema in prisma/schema.prisma. All models use UUID primary keys.
+  Timestamps (createdAt, updatedAt) on every model.'
+- 'Environment variables: prefixed by category — TRANSCRIPTION_PROVIDER, LLM_PROVIDER,
+  S3_BUCKET, etc. Validated at startup with zod.'
+- 'Error handling: all async functions use try/catch with typed error classes defined
+  in src/lib/errors.ts. No unhandled promise rejections.'
+- 'Components: React Server Components by default. Client Components only when interactivity
+  is required, marked with ''use client'' directive.'
+decisions:
+- id: D-1
+  title: BullMQ DAG for pipeline orchestration instead of a workflow engine
+  decision: Use BullMQ's built-in flow (parent-child job) capabilities on Redis to
+    model the pipeline DAG, rather than adopting a dedicated workflow engine like
+    Temporal or Inngest.
+  rationale: BullMQ provides native DAG support via flows, where child jobs must complete
+    before parent jobs run. This is sufficient for the MVP pipeline complexity (6-8
+    steps with simple dependencies). It avoids introducing a heavy workflow engine
+    dependency, keeps the infrastructure footprint minimal (Redis is already needed
+    for job queuing), and the team can migrate to a more sophisticated orchestrator
+    later if pipeline complexity grows. The tradeoff is less built-in observability
+    and retry sophistication, which is acceptable for MVP.
+- id: D-2
+  title: Server-Sent Events for real-time progress instead of WebSockets
+  decision: Use SSE via a Next.js API route to stream pipeline progress updates to
+    the frontend, rather than WebSocket connections.
+  rationale: SSE is unidirectional (server to client), which matches the use case
+    perfectly — the client only needs to receive progress updates, not send messages.
+    SSE works over standard HTTP, requires no additional infrastructure (no WebSocket
+    server), is natively supported by all modern browsers via EventSource, and is
+    simpler to implement in Next.js. The tradeoff is no bidirectional communication,
+    but the review/approve actions use standard REST endpoints, so bidirectionality
+    is not needed.
+- id: D-3
+  title: Asset package model with per-asset status instead of pipeline-level approval
+  decision: Model the pipeline output as an AssetPackage containing individual Asset
+    records, each with its own status (pending_review, approved, rejected, edited).
+    Creators approve or reject assets individually rather than approving the entire
+    package at once.
+  rationale: Creators need granular control — they may love 2 out of 3 clips but want
+    to reject the third. Per-asset status enables this without requiring the creator
+    to re-run the entire pipeline. It also enables partial downloads (export only
+    approved assets) and provides fine-grained data for future quality improvement
+    (which types of assets get rejected most often). The tradeoff is slightly more
+    complex UI and data model, but the UX benefit is significant.
+contracts: []

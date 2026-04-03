@@ -1,0 +1,23 @@
+title: Create control mapping configuration for SOC2 CC1.4 and ISO 27001 A.7.2.2
+approval: draft
+phase: planned
+priority: high
+description: Build database schema and seed data for mapping training courses to compliance
+  controls. Include versioning to support historical evidence generation. For MVP,
+  focus on security awareness training controls only.
+acceptanceCriteria:
+- 'Database table control_mappings includes: id, course_identifier, control_framework
+  (SOC2/ISO27001), control_id, control_description, required_frequency_days, effective_from,
+  effective_to'
+- Seed data includes mappings for 'Annual Security Awareness Training' → SOC2 CC1.4
+  (365 day frequency) and ISO 27001 A.7.2.2 (365 day frequency)
+- API endpoint GET /api/v1/control-mappings returns active mappings with filtering
+  by framework
+- Queries for evidence generation use effective_from/effective_to to select correct
+  mappings for historical date ranges
+- Control mappings include human-readable descriptions suitable for inclusion in audit
+  reports
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

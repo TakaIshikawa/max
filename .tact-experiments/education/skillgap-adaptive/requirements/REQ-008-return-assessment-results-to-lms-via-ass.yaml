@@ -1,0 +1,18 @@
+title: Return Assessment Results to LMS via Assignment and Grade Services
+approval: draft
+phase: planned
+priority: medium
+description: Post assessment completion status and skill proficiency scores back to
+  the originating LMS using LTI Assignment and Grade Services (AGS). Enables gradebook
+  integration and completion tracking.
+acceptanceCriteria:
+- Detect AGS endpoint from LTI launch claims (lineitem URL)
+- Post score as percentage (theta normalized to 0-100 scale) to lineitem
+- Include activityProgress=Completed and gradingProgress=FullyGraded in score payload
+- Retry failed score posts up to 3 times with exponential backoff
+- Log AGS errors without blocking assessment completion for learner
+decomposition:
+  assignments: []
+dependencies:
+- Create Adaptive Assessment Engine with IRT-Based Question Selection
+source: discovered

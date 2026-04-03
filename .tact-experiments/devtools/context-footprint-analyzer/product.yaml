@@ -1,0 +1,59 @@
+name: context-footprint-analyzer
+version: 0.1.0
+vision: An MCP server that quantifies how AI-agent-friendly a codebase is by scoring
+  modules on token cost, semantic density, and dependency complexity — then recommends
+  targeted refactoring actions to reduce context window pressure and improve AI coding
+  agent effectiveness.
+goals:
+- id: G-1
+  description: Provide per-module context footprint scoring that quantifies the token
+    cost of bringing a module and its transitive dependencies into an AI agent's context
+    window.
+  successCriteria: Any Python or TypeScript module in a target codebase can be scored
+    within 5 seconds, returning token count, dependency fan-out cost, and a composite
+    context footprint score on a 0-100 scale.
+- id: G-2
+  description: Identify context-expensive hotspots in a codebase — deeply coupled
+    modules, circular dependencies, oversized files — and surface them as ranked problem
+    areas.
+  successCriteria: Full codebase analysis produces a ranked list of the top-N most
+    context-expensive modules with explanations of why each is expensive, completing
+    within 60 seconds for codebases under 500 files.
+- id: G-3
+  description: Generate actionable refactoring recommendations that, if applied, would
+    reduce the context footprint of identified hotspots.
+  successCriteria: Each hotspot receives at least one specific refactoring recommendation
+    (e.g., 'extract interface', 'split module at function X', 'break circular dependency
+    between A and B') with an estimated context cost reduction.
+- id: G-4
+  description: Expose all analysis capabilities as MCP tools so AI coding agents can
+    self-assess context constraints before attempting tasks.
+  successCriteria: An MCP-compatible client (e.g., Claude Code) can discover and invoke
+    all three core tools (analyze_context_footprint, score_module, recommend_refactoring)
+    and receive well-structured JSON responses.
+constraints:
+- MVP supports Python and TypeScript codebases only; other languages are out of scope.
+- Analysis is read-only — the tool never modifies source files, only recommends changes.
+- All data is stored locally in SQLite; no network calls except MCP protocol communication.
+- Must run as a local stdio-based MCP server; no HTTP server or cloud deployment for
+  MVP.
+- 'Codebase size limit for MVP: up to 500 source files; larger codebases may be supported
+  later.'
+- Token counting uses tiktoken cl100k_base encoding as the default model; configurable
+  model encoding is out of scope for MVP.
+- Refactoring recommendations are textual suggestions only — no automated code modification
+  or PR generation.
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - mcp-sdk (Model Context Protocol Python SDK)
+  - tree-sitter (multi-language AST parsing)
+  - tree-sitter-python
+  - tree-sitter-typescript
+  - networkx (dependency graph analysis)
+  - tiktoken (OpenAI-compatible token counting)
+  - click (CLI entry point)
+  infrastructure:
+  - SQLite (local codebase index and cached analysis results)
+  - Local MCP server via stdio transport

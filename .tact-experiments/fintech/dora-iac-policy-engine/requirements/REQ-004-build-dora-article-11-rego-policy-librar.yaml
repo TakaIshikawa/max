@@ -1,0 +1,27 @@
+title: Build DORA Article 11 Rego policy library
+approval: draft
+phase: planned
+priority: critical
+description: Write a set of OPA/Rego policies implementing DORA-relevant infrastructure
+  controls. Each policy targets a specific control, references the relevant DORA article,
+  and produces structured violation output with remediation guidance. Policies operate
+  on the CanonicalChange input schema.
+acceptanceCriteria:
+- 'Policy: block deletion of production resources tagged as critical (DORA Art. 11
+  — business continuity)'
+- 'Policy: require backup configuration (e.g., aws_db_instance must have backup_retention_period
+  > 0) for database resources in production (DORA Art. 11)'
+- 'Policy: require multi-AZ or multi-region configuration for production databases
+  and load balancers (DORA Art. 11 — disaster recovery)'
+- 'Policy: require mandatory tags (environment, owner, criticality, data-classification)
+  on all resources (DORA Art. 8 — ICT asset management)'
+- 'Policy: block replacement (delete+create) of stateful production resources (RDS,
+  S3, DynamoDB) without an approved exception (DORA Art. 11)'
+- Each policy has a corresponding _test.rego file with at least 3 test cases (pass,
+  fail, edge case)
+- 'All policies produce output conforming to a shared schema: {rule_id, dora_article,
+  severity, message, remediation}'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

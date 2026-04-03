@@ -1,0 +1,23 @@
+title: Implement configuration management and deployment
+approval: draft
+phase: planned
+priority: medium
+description: Create configuration system for FHIR server endpoints, OAuth credentials,
+  embedding model settings, and vector database connection. Package application as
+  Docker container for on-premises deployment.
+acceptanceCriteria:
+- Configuration via environment variables and/or config.yaml file
+- 'Required config: FHIR_BASE_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, QDRANT_HOST,
+  QDRANT_PORT'
+- 'Optional config: EMBEDDING_MODEL_NAME, MAX_CHUNK_SIZE, BM25_K1, BM25_B, LOG_LEVEL'
+- Dockerfile builds container with all dependencies (BioBERT model, Python packages)
+- Docker Compose setup includes Qdrant container and application container with volume
+  mounts for persistent data
+- Startup validation checks FHIR server connectivity and Qdrant availability before
+  accepting requests
+- README with deployment instructions and configuration examples
+decomposition:
+  assignments: []
+dependencies:
+- Build FastAPI service with compression endpoints
+source: discovered

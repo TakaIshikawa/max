@@ -1,0 +1,22 @@
+title: Implement resource staleness tracking with SQLite store
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a SQLite-backed repository that tracks per-resource metadata:
+  resource address, configuration content hash (SHA-256 of the HCL block), last refresh
+  timestamp, and last known state hash. Provide methods to query stale resources (config
+  hash mismatch or staleness threshold exceeded) and update metadata after successful
+  refresh.'
+acceptanceCriteria:
+- On first run with no existing database, the store is auto-created with the correct
+  schema
+- A resource whose HCL config hash differs from the stored hash is reported as stale
+- A resource whose last refresh timestamp exceeds the configurable threshold (default
+  24h) is reported as stale
+- A resource with matching config hash and recent refresh is reported as fresh
+- After a successful plan/refresh, the store is updated with new timestamps and hashes
+  atomically
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

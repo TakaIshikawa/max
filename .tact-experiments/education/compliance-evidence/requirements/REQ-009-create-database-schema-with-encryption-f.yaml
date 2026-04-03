@@ -1,0 +1,21 @@
+title: Create database schema with encryption for PII
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement PostgreSQL database schema for storing employee
+  data, training completions, control mappings, and cryptographic timestamps. Implement
+  encryption at rest for personally identifiable information (email, names).
+acceptanceCriteria:
+- 'Database includes tables: employees, training_completions, control_mappings, timestamp_proofs
+  with appropriate foreign key relationships'
+- Employee email and full_name fields use PostgreSQL pgcrypto extension for encryption
+  with key from environment variable
+- All timestamp fields use TIMESTAMPTZ type for timezone-aware storage
+- 'Indexes created on: employees(email_encrypted), training_completions(employee_id,
+  course_id, completion_date), control_mappings(control_framework, effective_from,
+  effective_to)'
+- Alembic migration scripts create schema from scratch and include rollback capability
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

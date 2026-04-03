@@ -1,0 +1,73 @@
+patterns:
+- name: Event-Driven Architecture
+  description: Payment status changes in Procore trigger events that flow through
+    webhook pipeline to backend, which updates state and pushes notifications to mobile
+    clients. Ensures real-time updates without polling overhead.
+  scope:
+  - GC integration service
+  - backend API
+  - notification system
+- name: API Gateway Pattern
+  description: Backend API serves as central gateway between GC integration services,
+    mobile clients, and external integrations (Procore). Handles authentication, rate
+    limiting, and request routing.
+  scope:
+  - backend API
+- name: Repository Pattern
+  description: Data access layer abstracts database operations for payment events,
+    GC-subcontractor relationships, and user accounts. Enables testing and future
+    database migrations.
+  scope:
+  - backend API
+invariants:
+- 'Payment status transitions must follow strict state machine: Submitted → Approved
+  → Payment Initiated → Paid (no backward transitions or skipped states)'
+- Every payment event must be immutable and timestamped (append-only event log)
+- Subcontractors can only view payment data for GC relationships they are explicitly
+  linked to (strict data isolation)
+- All Procore API credentials must be encrypted at rest and never logged or exposed
+  in API responses
+- Expected payment dates must never be displayed as guarantees (always shown as estimates
+  with disclaimer)
+- Mobile app must function in offline mode for viewing historical data (no network
+  required for read-only access to cached data)
+conventions:
+- Use kebab-case for API endpoints (/api/payment-events, /api/gc-relationships)
+- Use camelCase for JSON API request/response fields
+- Use snake_case for database table and column names
+- Prefix environment variables with SUBPAY_ (SUBPAY_PROCORE_API_KEY, SUBPAY_DB_URL)
+- All timestamps stored and transmitted in ISO 8601 UTC format
+- API versioning via URL path (/api/v1/...)
+- 'HTTP status codes: 200 (success), 201 (created), 400 (validation error), 401 (unauthorized),
+  404 (not found), 500 (server error)'
+- 'Git branch naming: feature/*, bugfix/*, hotfix/*'
+- All async operations use async/await (no raw promises or callbacks)
+decisions:
+- id: D-1
+  title: Use polling-based Procore integration instead of webhooks
+  decision: GC integration service polls Procore API every 10-15 minutes for pay application
+    status changes, rather than relying on Procore webhooks
+  rationale: 'Procore webhook infrastructure is documented as ''embryonic and fragmented''
+    in the evaluation. Polling provides more reliable, predictable behavior for MVP
+    and simplifies GC deployment (no inbound webhook endpoint configuration). Trade-off:
+    10-15 minute latency is acceptable for payment status updates (not time-critical).
+    Can migrate to webhooks post-MVP if Procore support improves.'
+- id: D-2
+  title: Separate GC integration service from main backend API
+  decision: Deploy GC integration as standalone service (Docker container or Lambda)
+    that communicates with backend API via internal webhooks, rather than building
+    Procore polling into main API
+  rationale: Enables GCs to deploy integration in their own infrastructure (cloud
+    account, on-premise Docker host) without exposing main backend internals. Simplifies
+    scaling (each GC runs own integration instance). Isolates Procore API rate limiting
+    and failures from main platform. Supports future multi-platform strategy (separate
+    integration services for PlanGrid, Buildertrend, etc.).
+- id: D-3
+  title: Use React Native over Flutter for mobile app
+  decision: Build mobile app with React Native and TypeScript
+  rationale: 'Larger developer ecosystem and hiring pool for React Native vs Flutter.
+    Enables code sharing between mobile app and potential future web dashboard (React
+    components). TypeScript provides type safety without learning Dart. Firebase Cloud
+    Messaging has mature React Native support. Trade-off: slightly larger app bundle
+    size vs Flutter, but acceptable for MVP.'
+contracts: []

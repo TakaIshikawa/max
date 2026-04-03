@@ -1,0 +1,25 @@
+title: Implement rule-based recommendation engine and get-recommendations tool
+approval: draft
+phase: planned
+priority: high
+description: Build a rule engine that evaluates the computed risk profile against
+  a playbook of diversification rules and generates prioritized, actionable recommendations.
+  Expose as the get-recommendations MCP tool.
+acceptanceCriteria:
+- 'Rule playbook contains at least 10 rules covering: audience diversification, newsletter/email
+  list building, content format diversification, revenue stream diversification, and
+  platform-specific actions.'
+- 'Each rule has a condition (e.g., ''concentration.youtube > 60'') and produces a
+  recommendation with: action description, expected impact, effort level (low/medium/high),
+  and the risk factor it mitigates.'
+- 'Recommendations are sorted by priority: highest-impact actions addressing the worst
+  sub-scores appear first.'
+- Tool accepts an optional filter parameter to get recommendations for a specific
+  risk category only.
+- At least 3 recommendations are returned for any risk profile where composite score
+  > 25; returns an encouraging message with maintenance tips when score <= 25.
+decomposition:
+  assignments: []
+dependencies:
+- Implement composite risk score aggregation and get-risk-score tool
+source: discovered

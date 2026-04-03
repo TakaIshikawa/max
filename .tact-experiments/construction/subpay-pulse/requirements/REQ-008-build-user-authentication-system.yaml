@@ -1,0 +1,22 @@
+title: Build user authentication system
+approval: draft
+phase: planned
+priority: high
+description: Implement email/password authentication for mobile app users (subcontractors)
+  and GC integration services. Secures access to payment data.
+acceptanceCriteria:
+- 'Backend API provides POST /api/v1/auth/register endpoint for user registration
+  (email, password, user_type: subcontractor|gc_admin)'
+- Backend API provides POST /api/v1/auth/login endpoint that returns JWT access token
+  (24-hour expiry)
+- Backend hashes passwords with bcrypt before storing in users table
+- Mobile app stores JWT token securely (iOS Keychain, Android Keystore) and includes
+  in Authorization header for all API requests
+- Backend API validates JWT on all protected endpoints and returns 401 Unauthorized
+  if invalid/expired
+- GC integration service authenticates with API key (stored in environment variable)
+  for webhook requests
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

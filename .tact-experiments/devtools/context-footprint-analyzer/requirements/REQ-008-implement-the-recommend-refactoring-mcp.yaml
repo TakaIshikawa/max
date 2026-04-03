@@ -1,0 +1,27 @@
+title: Implement the recommend_refactoring MCP tool
+approval: draft
+phase: planned
+priority: high
+description: Expose an MCP tool that takes a module path (or uses codebase-wide hotspots)
+  and generates specific, actionable refactoring recommendations to reduce context
+  footprint, ranked by estimated impact.
+acceptanceCriteria:
+- 'Tool accepts input: {module_path: string (optional — if omitted, recommends for
+  top 5 hotspots)} and returns a list of recommendations.'
+- 'Each recommendation includes: target_module, action (one of ''split_module'', ''extract_interface'',
+  ''break_circular_dependency'', ''reduce_fan_out'', ''extract_constants''), description
+  (human-readable explanation), estimated_token_reduction (integer), estimated_score_improvement
+  (float, 0-100 scale delta), priority (''high'', ''medium'', ''low'').'
+- For modules exceeding 500 tokens with low semantic density, a 'split_module' recommendation
+  is generated identifying natural split points based on symbol clustering in the
+  AST.
+- For circular dependencies, a 'break_circular_dependency' recommendation identifies
+  the lowest-cost edge to remove and suggests extracting shared types into a separate
+  module.
+- Recommendations are sorted by estimated_score_improvement descending.
+decomposition:
+  assignments: []
+dependencies:
+- Implement the score_module MCP tool
+- Implement the analyze_context_footprint MCP tool
+source: discovered

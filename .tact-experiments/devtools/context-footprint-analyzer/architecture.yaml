@@ -1,0 +1,94 @@
+patterns:
+- name: MCP Tool Server
+  description: The application is structured as an MCP server exposing discrete tools
+    via the Model Context Protocol. Each tool maps to a well-defined analysis capability
+    with typed input/output schemas. The server runs over stdio transport and is stateless
+    between tool invocations (reads from SQLite index).
+  scope:
+  - server entry point
+  - tool registration
+  - request/response handling
+- name: Pipeline Architecture
+  description: 'Each analysis operation follows a pipeline: parse source → extract
+    symbols/dependencies → build/update graph → compute metrics → generate output.
+    Pipeline stages are independent functions that can be composed and tested in isolation.'
+  scope:
+  - AST parsing
+  - dependency extraction
+  - metric computation
+  - recommendation generation
+- name: Repository Pattern for Index
+  description: All SQLite interactions are encapsulated behind a repository layer
+    that provides typed query/insert methods. Analysis logic never writes raw SQL;
+    it interacts with the repository abstraction.
+  scope:
+  - SQLite storage
+  - codebase index
+  - cached results
+- name: Graph-Centric Domain Model
+  description: The codebase is modeled as a directed graph (networkx DiGraph) where
+    nodes are modules/files and edges are dependencies annotated with coupling metadata.
+    All metrics (fan-out cost, circular dependency detection, cluster analysis) are
+    computed as graph algorithms over this model.
+  scope:
+  - dependency analysis
+  - hotspot detection
+  - metric computation
+invariants:
+- The analyzer must never modify, write to, or delete any source file in the target
+  codebase.
+- All tool responses must be valid JSON conforming to documented output schemas.
+- Token counts must be deterministic — the same source file must always produce the
+  same token count given the same encoding.
+- 'The dependency graph must be acyclic-aware: circular dependencies are detected
+  and reported, never causing infinite traversal.'
+- SQLite index operations must be atomic — a crashed analysis must not leave the index
+  in a corrupted state.
+- Every module score must include the methodology breakdown (raw token count, dependency
+  fan-out cost, boundary complexity) so scores are explainable, never opaque.
+conventions:
+- Python code follows PEP 8 with type hints on all public function signatures.
+- Module names use snake_case; classes use PascalCase; constants use UPPER_SNAKE_CASE.
+- All MCP tool functions are defined in src/context_footprint_analyzer/tools/ with
+  one file per tool.
+- Data classes (dataclasses or Pydantic models) are used for all structured inputs/outputs
+  — no raw dicts crossing module boundaries.
+- Tests use pytest and are organized to mirror the src/ directory structure under
+  tests/.
+- Error handling uses custom exception classes defined in src/context_footprint_analyzer/errors.py;
+  tools return structured error responses, never unhandled tracebacks.
+- Configuration (target directory, SQLite path, file patterns) is passed via environment
+  variables or MCP tool arguments, never hardcoded.
+- Dependency graph edges are always annotated with a 'type' field (import, re-export,
+  type-reference) for traceability.
+decisions:
+- id: D-1
+  title: Use tree-sitter for AST parsing instead of language-native parsers
+  decision: Use tree-sitter with language-specific grammars (tree-sitter-python, tree-sitter-typescript)
+    for all source code parsing.
+  rationale: Tree-sitter provides a uniform API across languages, enabling the same
+    dependency extraction pipeline to work for Python and TypeScript with only grammar-specific
+    query differences. This avoids maintaining separate parser integrations (e.g.,
+    ast module for Python, TypeScript compiler API) and makes adding future language
+    support straightforward. Tree-sitter also handles malformed/partial files gracefully,
+    which is important for analyzing real-world codebases.
+- id: D-2
+  title: Store analysis results in local SQLite rather than in-memory only
+  decision: Persist the codebase index, dependency graph edges, and computed metrics
+    in a local SQLite database.
+  rationale: MCP tool invocations are stateless request/response cycles. Without persistence,
+    every tool call would require a full re-parse of the codebase. SQLite provides
+    fast repeated queries, incremental updates (only re-analyze changed files), and
+    zero deployment overhead. The database file lives alongside the project and can
+    be gitignored.
+- id: D-3
+  title: Composite scoring formula with transparent breakdown
+  decision: 'The context footprint score is a weighted composite of three sub-metrics:
+    raw token count (40%), dependency fan-out cost (35%), and boundary complexity
+    (25%). All sub-metrics and weights are included in every score response.'
+  rationale: A single opaque score would be unactionable. By exposing the breakdown,
+    developers and AI agents can understand why a module is expensive and which dimension
+    to optimize. The weights are initial defaults based on the intuition that raw
+    size and transitive dependencies are the primary context cost drivers; they can
+    be tuned in future versions based on empirical data.
+contracts: []

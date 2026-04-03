@@ -1,0 +1,24 @@
+title: Create trial data refresh pipeline with error handling
+approval: draft
+phase: planned
+priority: high
+description: Automated daily job to fetch updated trial data from ClinicalTrials.gov,
+  identify new/modified trials, re-parse eligibility criteria, and update database.
+  Handle API rate limits, parsing failures, and data validation errors.
+acceptanceCriteria:
+- Scheduled job runs daily at 2 AM UTC to fetch trial updates from ClinicalTrials.gov
+  API
+- Job identifies trials modified since last run using lastUpdatePostDate parameter
+- New trials are parsed and inserted; modified trials are re-parsed and updated in
+  database
+- API rate limit errors trigger exponential backoff retry (max 3 attempts)
+- Parsing failures logged with trial NCT ID and error details; job continues processing
+  remaining trials
+- Job completion summary emailed to admin with counts (new trials, updated trials,
+  parsing errors)
+- Job execution time and trial counts logged to monitoring system
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and parse oncology trial data from ClinicalTrials.gov
+source: discovered

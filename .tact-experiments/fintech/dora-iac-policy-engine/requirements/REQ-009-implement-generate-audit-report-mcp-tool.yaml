@@ -1,0 +1,21 @@
+title: Implement generate_audit_report MCP tool
+approval: draft
+phase: planned
+priority: medium
+description: Build the generate_audit_report tool that produces a DORA Article 11
+  compliance evidence package from the audit log. The report is a structured Markdown
+  document covering a specified time period, suitable for presentation to auditors.
+acceptanceCriteria:
+- 'Tool accepts: start_date, end_date, and optional filters (environment, dora_article)'
+- 'Report output is a Markdown string containing: executive summary, evaluation statistics,
+  per-article compliance breakdown, list of all violations with remediation status,
+  exception usage summary, and audit log integrity verification result'
+- 'Report includes a hash-chain integrity verification statement (chain verified:
+  yes/no, entries covered: N)'
+- Report generation completes in under 5 seconds for 1000 audit log entries
+decomposition:
+  assignments: []
+dependencies:
+- Implement append-only hash-chained audit log
+- Implement MCP server scaffold with tool registration
+source: discovered

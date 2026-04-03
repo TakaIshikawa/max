@@ -1,0 +1,20 @@
+title: Implement audit logging for all patient data access
+approval: draft
+phase: planned
+priority: critical
+description: Log all access to patient data (FHIR API calls, match requests, dashboard
+  views) with timestamp, user ID, patient ID, and action type. Store logs securely
+  for HIPAA compliance and security auditing.
+acceptanceCriteria:
+- Every FHIR API call logged with timestamp, requesting user ID, patient ID, resource
+  types accessed
+- Match engine invocations logged with patient ID, number of trials evaluated, and
+  match count
+- Dashboard patient selections logged with clinician user ID and patient ID
+- Logs stored in dedicated audit table with write-only access (no updates/deletes)
+- Audit logs retained for minimum 6 years per HIPAA requirements
+- Log entries include session ID for tracing multi-step workflows
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,24 @@
+title: Implement push notification system for status changes
+approval: draft
+phase: planned
+priority: high
+description: Send real-time push notifications to subcontractor mobile apps when payment
+  status changes. This eliminates need for subcontractors to constantly check the
+  app.
+acceptanceCriteria:
+- Backend integrates with Firebase Cloud Messaging (FCM) for iOS and Android push
+  notifications
+- Mobile app registers device token with backend on first launch and stores in user_devices
+  table
+- 'Backend sends push notification when payment event is created, with message: ''Payment
+  status updated: [Project Name] - [New Status]'''
+- Notification deep-links to specific pay application detail screen when tapped
+- User can disable notifications in app settings (preference stored in backend)
+- Backend handles FCM errors (invalid tokens, expired tokens) and removes invalid
+  device tokens from database
+decomposition:
+  assignments: []
+dependencies:
+- Create backend API for payment event ingestion
+- Build mobile app payment status dashboard
+source: discovered

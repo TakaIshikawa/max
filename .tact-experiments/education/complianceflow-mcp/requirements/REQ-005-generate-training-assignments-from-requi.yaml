@@ -1,0 +1,20 @@
+title: Generate training assignments from requirement matches
+approval: draft
+phase: planned
+priority: critical
+description: Implement assignment creation logic that takes matched requirements and
+  employee context, calculates deadlines, and creates assignment records. Handles
+  both new hire onboarding and periodic renewals.
+acceptanceCriteria:
+- Assignment creation stores employee_id, requirement_id, assigned_date, deadline_date,
+  status (pending/completed/overdue), content_url in assignments table
+- For new hires, deadline calculated as hire_date + requirement.frequency_days
+- For role changes, deadline calculated as role_change_date + requirement.frequency_days
+- Assignments are not duplicated—if employee already has pending assignment for same
+  requirement, no new assignment created
+- Assignment creation emits assignment_created event consumed by notification system
+decomposition:
+  assignments: []
+dependencies:
+- Build regulatory requirement matching engine
+source: discovered

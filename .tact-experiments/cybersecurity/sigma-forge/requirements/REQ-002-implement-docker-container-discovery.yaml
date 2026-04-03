@@ -1,0 +1,24 @@
+title: Implement Docker container discovery
+approval: draft
+phase: planned
+priority: critical
+description: The discover_infrastructure tool queries the Docker Engine API to enumerate
+  all running containers, extracting image name, exposed ports, environment variables
+  (filtered for non-secret keys), labels, and container status. Results are persisted
+  as an inventory snapshot in SQLite.
+acceptanceCriteria:
+- Discovers all running Docker containers and extracts image name, tag, exposed ports,
+  labels, and status
+- Persists the inventory snapshot to SQLite with a timestamp, replacing any previous
+  snapshot
+- Returns a structured inventory response listing all discovered containers with their
+  attributes
+- Handles Docker API connection failures with a clear error message indicating Docker
+  is not available
+- Identifies service type from image name patterns (e.g., 'redis:7-alpine' is identified
+  as 'redis')
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with tool registration
+source: discovered

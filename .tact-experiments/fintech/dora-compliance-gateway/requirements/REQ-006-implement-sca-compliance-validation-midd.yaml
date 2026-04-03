@@ -1,0 +1,25 @@
+title: Implement SCA compliance validation middleware
+approval: draft
+phase: planned
+priority: high
+description: Build a request validation middleware that checks for the presence and
+  structural validity of Strong Customer Authentication evidence on payment initiation
+  and other PSD2-regulated endpoints. In MVP, this validates the format of WebAuthn
+  assertion objects rather than performing full cryptographic verification.
+acceptanceCriteria:
+- Payment initiation endpoints (as defined in config) are rejected with an SCARequiredError
+  if no SCA evidence header/field is present.
+- 'SCA evidence is validated for structural correctness: must contain authenticatorData,
+  clientDataJSON, and signature fields in base64url encoding.'
+- Non-payment endpoints marked as SCA-exempt in configuration are forwarded without
+  SCA checks.
+- The SCA validation result (present/absent/invalid) is recorded in the audit log
+  entry for the request.
+- 'A bypass mode for testing is configurable in YAML (sca.enforcement: strict | warn
+  | disabled) where ''warn'' logs but does not block.'
+decomposition:
+  assignments: []
+dependencies:
+- Implement declarative YAML configuration loader with JSON Schema validation
+- Implement append-only hash-chained audit log store
+source: discovered

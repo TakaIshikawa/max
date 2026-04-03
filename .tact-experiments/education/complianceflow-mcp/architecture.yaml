@@ -1,0 +1,86 @@
+patterns:
+- name: MCP Server Architecture
+  description: Implements Model Context Protocol server specification to expose compliance
+    training context and operations as tools/resources accessible to AI agents
+  scope:
+  - API layer
+  - Tool definitions
+  - Resource schemas
+- name: Event-Driven Integration
+  description: HRIS webhooks trigger training assignment workflows asynchronously
+    via Celery task queue, decoupling external system events from core business logic
+  scope:
+  - HRIS connectors
+  - Webhook handlers
+  - Task queue
+- name: Regulatory Calendar as Data
+  description: Training requirements stored as declarative rules in PostgreSQL (role
+    + jurisdiction + training type + frequency) rather than hardcoded logic, enabling
+    non-developer updates
+  scope:
+  - Database schema
+  - Requirement matching engine
+- name: Adapter Pattern for Integrations
+  description: Abstract interfaces for HRIS providers and communication channels allow
+    swapping implementations without changing core assignment logic
+  scope:
+  - HRIS connectors
+  - Communication delivery
+  - Future LTI integration
+invariants:
+- Audit log entries are append-only and immutable—no updates or deletes ever permitted
+  on completion records
+- Every training assignment must have exactly one regulatory requirement as its source
+  of truth
+- Training completion records must include cryptographic timestamp (RFC 3161 or equivalent)
+  before being marked as audit-ready
+- HRIS webhook events must be idempotent—duplicate events for the same role change
+  must not create duplicate training assignments
+- Employee PII (name, email, role) must never appear in MCP server logs or error messages
+- All regulatory deadline calculations must use UTC timestamps internally and convert
+  to employee timezone only for display
+conventions:
+- All API endpoints follow REST conventions with noun-based resource paths (/employees,
+  /assignments, /completions)
+- Database tables use snake_case naming; Python classes use PascalCase; functions
+  use snake_case
+- MCP tools named with verb-noun pattern (get_training_status, assign_training, query_deadlines)
+- Celery tasks prefixed by domain (hris.sync_employees, training.check_deadlines,
+  notifications.send_reminder)
+- All datetime fields stored as UTC in PostgreSQL with explicit timezone awareness
+  in Python (using zoneinfo)
+- Environment variables prefixed by component (HRIS_BAMBOOHR_API_KEY, SLACK_BOT_TOKEN,
+  DB_CONNECTION_STRING)
+- Test fixtures use factory pattern (EmployeeFactory, AssignmentFactory) with Faker
+  for realistic data
+decisions:
+- id: D-1
+  title: Use PostgreSQL append-only table for audit log instead of blockchain
+  decision: Implement audit trail using PostgreSQL with append-only constraints, triggers
+    preventing updates/deletes, and cryptographic timestamps from external TSA
+  rationale: Blockchain/distributed ledger adds significant operational complexity
+    (node management, consensus) without providing value for single-organization audit
+    trails. PostgreSQL with proper constraints and external timestamping provides
+    legally defensible immutability while keeping infrastructure simple. External
+    timestamp authority (FreeTSA.org or commercial provider) provides third-party
+    verification without blockchain overhead.
+- id: D-2
+  title: Limit MVP to BambooHR and Slack integrations only
+  decision: Build complete integration for BambooHR (HRIS) and Slack (delivery channel)
+    rather than partial support for multiple providers
+  rationale: Deep integration with one provider validates the adapter pattern and
+    webhook-driven architecture better than shallow multi-provider support. BambooHR
+    chosen for excellent API documentation and webhook support; Slack chosen for superior
+    interactive message capabilities (buttons, modals) vs Teams. Pattern proven with
+    one provider makes adding Gusto/Workday/Teams straightforward post-MVP.
+- id: D-3
+  title: Store regulatory calendar as database records, not code
+  decision: Model training requirements as data in PostgreSQL (requirement_rules table
+    with role, jurisdiction, training_type, frequency_days columns) with admin UI
+    for updates
+  rationale: 'Hardcoding regulatory rules in Python makes updates require code deployment
+    and developer involvement. Database storage allows compliance experts to update
+    requirements (e.g., California CME deadline changes from 24 to 36 months) without
+    engineering. Supports future customer-specific requirement customization. Trade-off:
+    slightly more complex querying logic vs massive reduction in operational friction.'
+contracts: []

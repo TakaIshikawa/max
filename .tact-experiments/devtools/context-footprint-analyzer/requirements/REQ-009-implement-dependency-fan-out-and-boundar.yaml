@@ -1,0 +1,26 @@
+title: Implement dependency fan-out and boundary complexity metrics
+approval: draft
+phase: planned
+priority: high
+description: Build the graph algorithm modules that compute dependency fan-out cost
+  (transitive token cost) and boundary complexity (cross-module reference density)
+  from the dependency graph. These are two of the three core sub-metrics in the composite
+  score.
+acceptanceCriteria:
+- Fan-out cost for a module is computed as the sum of token counts of all modules
+  reachable via transitive dependency traversal, with cycle-aware traversal that counts
+  each module at most once.
+- Boundary complexity for a module is computed as the count of unique symbols imported
+  from other modules plus the count of unique symbols exported to other modules (based
+  on graph edge annotations).
+- Both metrics are computable for a single module in O(V+E) time where V and E are
+  the graph size.
+- Metrics are cached in the SQLite index and invalidated when any module in the transitive
+  dependency chain is re-analyzed.
+- A utility function computes the 'dependency depth' (longest path from a module to
+  a leaf node) as supplementary metadata.
+decomposition:
+  assignments: []
+dependencies:
+- Build dependency graph from parsed modules
+source: discovered

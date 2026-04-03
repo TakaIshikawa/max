@@ -1,0 +1,19 @@
+title: Generate PDF evidence packages with cryptographic timestamps
+approval: draft
+phase: planned
+priority: critical
+description: Create evidence package generator that produces PDF reports summarizing
+  compliance posture for each HIPAA technical safeguard standard. Include event summaries,
+  compliance gaps, and embedded RFC 3161 timestamps proving evidence collection time.
+acceptanceCriteria:
+- PDF generator creates separate reports for each of 5 technical safeguard standards
+- 'Each report includes: date range, event count, compliance status, list of gaps/failures,
+  cryptographic timestamp'
+- RFC 3161 timestamp embedded in PDF metadata and verifiable via external TSA
+- Reports generated for custom date ranges (e.g., last 30 days, last quarter)
+- PDF includes SHA-256 hash of underlying evidence data for integrity verification
+decomposition:
+  assignments: []
+dependencies:
+- Build HIPAA Technical Safeguards mapping engine
+source: discovered

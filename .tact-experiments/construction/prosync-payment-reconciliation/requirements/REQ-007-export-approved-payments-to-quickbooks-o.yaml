@@ -1,0 +1,19 @@
+title: Export approved payments to QuickBooks Online via API
+approval: draft
+phase: planned
+priority: high
+description: For payments approved in dashboard, push bill data to QuickBooks Online
+  via OAuth-authenticated API. Handle authentication, rate limiting, and error responses.
+  Update payment status on successful export.
+acceptanceCriteria:
+- Authenticate with QuickBooks Online using OAuth 2.0 with stored refresh token
+- POST bill JSON to QBO API endpoint /v3/company/{companyId}/bill
+- Handle QBO API errors (validation, duplicate, rate limit) with clear error messages
+- Retry failed exports up to 3 times with exponential backoff
+- On success, store QBO bill ID and update payment status to 'exported'
+- On failure, update status to 'export_failed' with error details for manual resolution
+decomposition:
+  assignments: []
+dependencies:
+- Display pending payments in web dashboard for review
+source: discovered

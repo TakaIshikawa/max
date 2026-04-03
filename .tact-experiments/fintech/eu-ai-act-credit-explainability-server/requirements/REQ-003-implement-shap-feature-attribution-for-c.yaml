@@ -1,0 +1,22 @@
+title: Implement SHAP feature attribution for credit decisions
+approval: draft
+phase: planned
+priority: critical
+description: Integrate SHAP KernelExplainer to compute feature attribution values
+  for each credit scoring decision. The explainer uses the model adapter's predict
+  function as the black-box model and a configurable background dataset for computing
+  Shapley values. Returns ranked feature contributions with direction and magnitude.
+acceptanceCriteria:
+- Given a feature vector and model adapter, produces SHAP values for all input features
+  within 5 seconds for models with up to 50 features
+- 'SHAP values satisfy the conservation property: sum of SHAP values equals model
+  output minus base value (within 0.01 tolerance)'
+- Output includes features ranked by absolute SHAP value with human-readable labels,
+  contribution direction (positive/negative), and magnitude
+- Background dataset is loaded from a configurable CSV file path and sampled to a
+  configurable size (default 100 rows) for KernelExplainer
+decomposition:
+  assignments: []
+dependencies:
+- Implement model adapter for REST API credit scoring endpoints
+source: discovered

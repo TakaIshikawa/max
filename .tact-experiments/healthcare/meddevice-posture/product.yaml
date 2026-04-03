@@ -1,0 +1,55 @@
+name: meddevice-posture
+version: 0.1.0
+vision: An open-source security posture dashboard that provides hospital IT security
+  teams with unified visibility into connected medical device vulnerabilities, secrets
+  exposure, and network anomalies through MITRE ATT&CK-aligned detection rules.
+goals:
+- id: G-1
+  description: Aggregate security telemetry from medical device vulnerability scans,
+    network traffic, and secrets audits into a unified dashboard
+  successCriteria: Dashboard displays inventory of at least 3 device types with vulnerability
+    counts, network activity summaries, and secrets exposure alerts refreshed within
+    5 minutes of scan completion
+- id: G-2
+  description: Detect medical device-specific attack patterns using MITRE ATT&CK for
+    ICS framework
+  successCriteria: System generates alerts for at least 5 healthcare-specific attack
+    patterns (unauthorized firmware access, device impersonation, protocol anomalies)
+    with MITRE ATT&CK technique mappings
+- id: G-3
+  description: Generate compliance-ready reports for HIPAA Security Rule technical
+    safeguards
+  successCriteria: Export functionality produces PDF/CSV reports containing device
+    inventory, vulnerability remediation status, and detection coverage suitable for
+    HIPAA audit evidence
+- id: G-4
+  description: Enable integration with existing hospital security infrastructure
+  successCriteria: Support syslog export for SIEM integration and webhook notifications
+    for ticketing systems, with configuration documented and tested against at least
+    one common platform
+constraints:
+- MVP focuses on Linux-based medical devices only (no Windows embedded systems)
+- Network monitoring limited to passive analysis (no active scanning that could disrupt
+  devices)
+- 'Initial support for 3 medical device protocols: DICOM (imaging), HL7 v2 (messaging),
+  HTTPS (general management)'
+- Self-hosted deployment only (no cloud SaaS to avoid PHI/HIPAA complexity)
+- No direct device agent installation (monitoring via network traffic and external
+  scans only)
+- Compliance reporting templates for HIPAA only (FDA guidance as reference, not formal
+  validation)
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - React
+  - MCP SDK
+  - Sigma
+  - Zeek/Suricata
+  infrastructure:
+  - Docker
+  - PostgreSQL
+  - Redis
+  - Trivy

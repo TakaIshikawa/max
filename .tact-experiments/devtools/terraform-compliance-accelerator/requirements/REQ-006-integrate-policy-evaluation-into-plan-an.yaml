@@ -1,0 +1,23 @@
+title: Integrate policy evaluation into plan and apply workflows
+approval: draft
+phase: planned
+priority: high
+description: Wire the policy evaluator into the plan and apply command pipelines so
+  that after terraform produces a plan, the planned changes are evaluated against
+  loaded policies. Deny decisions block apply with a non-zero exit code. Warn decisions
+  are displayed but do not block. Policy results are included in the audit log.
+acceptanceCriteria:
+- Running `tfca plan` with a policy file that denies a planned change exits with code
+  2 and displays the denial reason
+- Running `tfca apply` with a denied plan is blocked before any terraform apply invocation
+- Warnings are displayed in both human and JSON output modes
+- Policy evaluation results are included in the audit log entry for the operation
+- Running with --skip-policies flag bypasses policy evaluation with an audit log entry
+  recording the bypass
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based safety policy DSL and evaluator
+- Implement incremental plan operation
+- Implement append-only audit log with hash chaining
+source: discovered

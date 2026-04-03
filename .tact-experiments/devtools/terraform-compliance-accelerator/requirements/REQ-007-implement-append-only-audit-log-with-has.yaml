@@ -1,0 +1,23 @@
+title: Implement append-only audit log with hash chaining
+approval: draft
+phase: planned
+priority: high
+description: 'Create an audit logging subsystem that writes structured JSON entries
+  to an append-only log file. Each entry contains: timestamp (RFC3339), operator identity
+  (from git config or TFCA_OPERATOR env var), operation type, resource change summary,
+  policy evaluation results, and a SHA-256 hash of the previous entry forming a tamper-evident
+  chain. Provide a verify subcommand that validates chain integrity.'
+acceptanceCriteria:
+- Every plan and apply operation appends exactly one JSON entry to the audit log file
+- Each entry contains a prev_hash field matching the SHA-256 hash of the preceding
+  entry's JSON bytes
+- The first entry in a new log has prev_hash set to a well-known genesis value (64
+  zero bytes hex-encoded)
+- Running `tfca audit verify` on an unmodified log exits with code 0 and reports 'chain
+  intact, N entries verified'
+- Running `tfca audit verify` on a log with a tampered entry exits with code 1 and
+  reports the index of the first broken link
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

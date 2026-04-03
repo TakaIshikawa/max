@@ -1,0 +1,19 @@
+title: Enable photo capture with automatic metadata tagging
+approval: draft
+phase: planned
+priority: high
+description: Allow users to capture photos throughout the day that are automatically
+  tagged with timestamp and GPS coordinates, then associated with the daily report.
+  Photos provide visual documentation to complement voice notes.
+acceptanceCriteria:
+- User can capture photos via in-app camera with single tap
+- Photos are stored in local file system with EXIF data preserved (timestamp, GPS
+  if location permission granted)
+- Each photo is automatically associated with the current day's report
+- User can view thumbnail gallery of all photos for current report (max 20 photos)
+- Photos persist locally and are included in sync payload when report is submitted
+- App handles location permission denial gracefully (photos saved without GPS tags)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

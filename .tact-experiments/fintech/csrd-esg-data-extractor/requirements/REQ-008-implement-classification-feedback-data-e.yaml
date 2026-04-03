@@ -1,0 +1,23 @@
+title: Implement classification feedback data export
+approval: draft
+phase: planned
+priority: medium
+description: Build an export mechanism that packages human-reviewed and overridden
+  classifications into a structured dataset suitable for future model fine-tuning.
+  This closes the feedback loop by converting compliance officer corrections into
+  training data.
+acceptanceCriteria:
+- 'GET /api/v1/export/feedback returns a JSONL file containing all transactions that
+  have been human-reviewed or overridden, with fields: transaction_description, counterparty,
+  amount, original_classification, final_classification, confidence_score, human_override
+  (boolean), justification'
+- 'Export includes metadata header with: export_timestamp, total_records, override_rate,
+  taxonomy_version'
+- Export endpoint supports date range filtering via query parameters
+- 'Exported data is anonymized: transaction IDs are replaced with sequential integers,
+  and specific monetary amounts are bucketed into ranges'
+decomposition:
+  assignments: []
+dependencies:
+- Implement transaction review and override interface API
+source: discovered

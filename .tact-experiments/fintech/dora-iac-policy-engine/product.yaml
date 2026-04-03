@@ -1,0 +1,57 @@
+name: dora-iac-policy-engine
+version: 0.1.0
+vision: An MCP server that enforces DORA Article 11 operational resilience requirements
+  as policy-as-code rules across Infrastructure-as-Code tools — preventing destructive
+  production changes, enforcing ICT risk management controls, and generating auditor-ready
+  compliance evidence automatically for financial institutions.
+goals:
+- id: G-1
+  description: Evaluate Terraform plan JSON against DORA-specific OPA/Rego policies
+    and block non-compliant infrastructure changes before they reach production
+  successCriteria: A Terraform JSON plan containing a production resource deletion
+    is correctly identified and blocked with remediation guidance in under 2 seconds,
+    with zero false negatives on the core policy set
+- id: G-2
+  description: Provide a pre-built DORA Article 11 policy library in Rego that covers
+    production resource protection, backup requirements, and disaster recovery configuration
+  successCriteria: At least 8 pre-built Rego policies ship covering production destroy
+    prevention, backup configuration enforcement, multi-region DR requirements, and
+    mandatory tagging — each with unit tests and documentation
+- id: G-3
+  description: Generate append-only, integrity-verified audit logs of all policy evaluations
+    suitable for DORA compliance evidence
+  successCriteria: Every policy evaluation produces a hash-chained audit log entry
+    in SQLite; the audit trail can be independently verified for integrity; an audit
+    report can be generated covering a specified time range
+- id: G-4
+  description: Expose all capabilities as MCP tools so AI agents and compliance officers
+    can query infrastructure resilience posture conversationally
+  successCriteria: Four MCP tools (check_plan, get_compliance_status, list_exceptions,
+    generate_audit_report) are callable via the MCP protocol and return structured,
+    actionable responses
+constraints:
+- 'MVP scope: Terraform JSON plan parsing only — Pulumi and CloudFormation parsers
+  are deferred to post-MVP'
+- OPA policies are evaluated by shelling out to the OPA CLI binary (opa eval) rather
+  than embedding a Wasm runtime, to reduce build complexity
+- SQLite is the only persistence layer — no external database dependencies
+- No UI — all interaction is via MCP tools or CLI
+- Report generation produces JSON and Markdown only — PDF/HTML templates are post-MVP
+- Policy exception workflow is simplified to a local JSON file of approved exceptions
+  — no multi-party approval flow in MVP
+- The server runs as a local stdio MCP server — no HTTP transport in MVP
+- DORA policy library covers Articles 5-11 at a practical infrastructure level; it
+  is not a legal compliance certification
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - OPA/Rego (via opa wasm or CLI)
+  - Zod (schema validation)
+  - better-sqlite3
+  - vitest
+  infrastructure:
+  - Node.js 20+
+  - SQLite
+  - OPA CLI (for policy evaluation and testing)

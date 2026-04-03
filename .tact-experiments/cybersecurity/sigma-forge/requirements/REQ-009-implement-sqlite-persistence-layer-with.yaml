@@ -1,0 +1,19 @@
+title: Implement SQLite persistence layer with repository classes
+approval: draft
+phase: planned
+priority: critical
+description: Create the SQLite database schema and async repository classes for inventory
+  snapshots, ATT&CK mappings, generated rule metadata, and coverage state. All data
+  access flows through these repositories.
+acceptanceCriteria:
+- 'Database schema includes tables for: inventory_snapshots, containers, container_cves,
+  technique_mappings, generated_rules, coverage_reports'
+- Schema is auto-created on first server startup via migration script
+- Repository classes provide async CRUD operations for each table with Pydantic model
+  serialization/deserialization
+- Previous inventory snapshots are retained (not deleted) to allow historical comparison
+- All repository methods are covered by unit tests using an in-memory SQLite database
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

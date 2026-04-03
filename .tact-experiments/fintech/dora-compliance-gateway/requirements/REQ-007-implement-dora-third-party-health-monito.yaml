@@ -1,0 +1,26 @@
+title: Implement DORA third-party health monitoring probe
+approval: draft
+phase: planned
+priority: high
+description: Build a background health probe scheduler that periodically checks the
+  availability and latency of configured upstream Open Banking API endpoints, compares
+  results against DORA Article 11 operational resilience thresholds, and records results
+  in the audit log.
+acceptanceCriteria:
+- 'Health probes run at configurable intervals (default: 60 seconds) against each
+  configured upstream endpoint''s health/status path.'
+- 'Each probe records: endpoint, timestamp, latency_ms, status_code, is_available
+  boolean.'
+- When an endpoint's error rate over a configurable window exceeds the DORA resilience
+  threshold, a threshold_breach audit event is logged with severity 'critical'.
+- An MCP tool (get-health-report) returns the current health status and historical
+  availability percentage for all monitored endpoints.
+- Probes do not block the main request processing pipeline; they run on a separate
+  async scheduler.
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server scaffold with tool registration
+- Implement declarative YAML configuration loader with JSON Schema validation
+- Implement append-only hash-chained audit log store
+source: discovered

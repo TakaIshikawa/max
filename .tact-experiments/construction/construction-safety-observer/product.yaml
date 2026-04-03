@@ -1,0 +1,55 @@
+name: construction-safety-observer
+version: 0.1.0
+vision: Empower every construction field worker to capture safety observations instantly
+  with their phone, using AI to auto-classify issues against OSHA standards and generate
+  compliance-ready documentation that syncs seamlessly to existing project management
+  systems.
+goals:
+- id: G-1
+  description: Enable field workers to capture and submit safety observations in under
+    60 seconds
+  successCriteria: Average time from photo capture to saved observation is ≤60 seconds,
+    measured via in-app analytics for 100+ observations
+- id: G-2
+  description: Achieve 70%+ accuracy in OSHA category auto-classification to reduce
+    manual categorization workload
+  successCriteria: AI-suggested OSHA category matches worker-confirmed category in
+    ≥70% of observations across 200+ test cases
+- id: G-3
+  description: Support offline-first operation for field environments with intermittent
+    connectivity
+  successCriteria: App captures, stores, and displays observations with zero connectivity;
+    syncs 100% of queued observations within 5 minutes of connectivity restoration
+- id: G-4
+  description: Generate OSHA-compliant incident logs that reduce safety manager reporting
+    time by 50%
+  successCriteria: Export PDF/CSV reports containing all required OSHA fields (date,
+    location, hazard type, corrective action); safety managers report ≥50% time savings
+    in user testing
+constraints:
+- MVP focuses on mobile app with standalone export (PDF/CSV); Procore API integration
+  deferred to post-MVP
+- 'On-device image classification limited to 6 core OSHA construction categories:
+  fall protection, scaffolding, electrical, PPE, housekeeping, equipment'
+- Initial training dataset uses transfer learning from pre-trained models + synthetic/augmented
+  construction images; field data collection improves model iteratively
+- Mobile app must function 100% offline for capture and local storage; sync is opportunistic
+  when connectivity available
+- Web dashboard is read-only view for MVP; editing/workflow management deferred
+- Single-project scope for MVP; multi-project/organization features deferred
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - React Native
+  - Expo
+  - TensorFlow Lite
+  - SQLite
+  - FastAPI
+  - React
+  infrastructure:
+  - AWS S3
+  - AWS Lambda
+  - PostgreSQL
+  - REST API

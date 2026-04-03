@@ -1,0 +1,26 @@
+title: Implement DuckDB storage layer with append-only audit semantics
+approval: draft
+phase: planned
+priority: critical
+description: Create the storage module that manages DuckDB database initialization,
+  schema creation, record insertion (append-only), and query methods for retrieving
+  emission records by category, time range, parser, and quality score. The append-only
+  pattern ensures full auditability for CSRD compliance.
+acceptanceCriteria:
+- Storage.init_db(path) creates a DuckDB database with scope3_emission_records table
+  matching the EmissionRecord schema and scope3_ingestion_log table tracking parser
+  runs
+- 'Storage.insert_records(records: list[EmissionRecord]) appends records atomically
+  — either all records in a batch are inserted or none are (transaction semantics)'
+- 'Storage.query_by_category(category: Scope3Category) returns all current (non-superseded)
+  records for a given Scope 3 category'
+- Storage.supersede_record(original_id, new_record) inserts the new record with a
+  supersedes_id reference and marks the relationship without mutating or deleting
+  the original
+- Database file is portable — can be copied to another machine and opened without
+  migration steps
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+source: discovered

@@ -1,0 +1,22 @@
+title: Create immutable audit log for training completions
+approval: draft
+phase: planned
+priority: critical
+description: Implement append-only audit_log table with cryptographic timestamps that
+  records all training completions with evidence. Provides legally defensible compliance
+  records for audits.
+acceptanceCriteria:
+- 'audit_log table has columns: id, employee_id, assignment_id, completed_at, content_hash
+  (SHA-256 of training URL), evidence_json (Slack message ID, user confirmation),
+  cryptographic_timestamp'
+- PostgreSQL trigger prevents UPDATE and DELETE operations on audit_log table
+- Completion events generate RFC 3161 timestamp from FreeTSA.org or mock TSA in development
+- Audit log entries include full requirement details (training type, jurisdiction,
+  frequency) denormalized for historical integrity
+- Query endpoint /audit-log/{employee_id} returns all completion records in chronological
+  order with cryptographic proof
+decomposition:
+  assignments: []
+dependencies:
+- Send training assignments via Slack with interactive completion
+source: discovered

@@ -1,0 +1,25 @@
+title: Extract structured report fields from voice transcriptions
+approval: draft
+phase: planned
+priority: critical
+description: Parse transcribed voice notes to automatically populate daily report
+  fields (weather, crew count, materials delivered, equipment used, work completed,
+  safety observations) using rule-based NLP. This eliminates manual typing and structures
+  unstructured voice input.
+acceptanceCriteria:
+- System extracts crew count from phrases like '14 workers on site', 'crew of 8',
+  '12 people today'
+- Weather conditions are extracted from keywords (clear, rain, cloudy, wind, temperature
+  values)
+- Material deliveries are identified with quantities and timestamps ('6 yards concrete
+  at 10am', 'delivered 40 bags cement')
+- Equipment usage is extracted from mentions of equipment types (crane, excavator,
+  forklift, etc.)
+- Extraction achieves 85% field accuracy on test dataset of 50 sample construction
+  voice notes
+- Extracted data is mapped to report template fields and displayed for user review
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline voice note recording with local transcription
+source: discovered

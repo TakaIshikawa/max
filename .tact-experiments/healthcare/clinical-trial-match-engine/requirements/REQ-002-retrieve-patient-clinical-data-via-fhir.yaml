@@ -1,0 +1,22 @@
+title: Retrieve patient clinical data via FHIR R4 API
+approval: draft
+phase: planned
+priority: critical
+description: Implement FHIR client to retrieve patient demographics, conditions, observations
+  (lab results), medications, and procedures from EHR system using FHIR R4 standard.
+  Support authentication and error handling for FHIR server connectivity.
+acceptanceCriteria:
+- FHIR client successfully authenticates with FHIR server using OAuth2 or API key
+  (configurable)
+- Patient resource retrieved with demographics (birthDate, gender) given patient ID
+- Condition resources retrieved with SNOMED CT codes and onset dates for patient
+- Observation resources retrieved for common lab values (hemoglobin, creatinine, platelet
+  count) with LOINC codes, values, and dates
+- MedicationStatement resources retrieved with RxNorm codes for active and past medications
+- FHIR API errors (404, 401, timeout) are caught and return structured error messages
+  without crashing
+- Retrieved FHIR data is validated against FHIR R4 schema before processing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

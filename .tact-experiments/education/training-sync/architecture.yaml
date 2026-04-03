@@ -1,0 +1,72 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Validation flows through sequential stages: package extraction → schema
+    validation → static analysis → runtime simulation → report generation. Each stage
+    is independent and can be run in isolation for debugging.'
+  scope:
+  - validation engine
+  - CLI commands
+- name: Adapter Pattern for LMS Simulators
+  description: Each LMS platform has a dedicated adapter implementing a common interface
+    (setup, deploy, execute, capture, teardown). New LMS platforms can be added by
+    implementing the adapter interface without changing core validation logic.
+  scope:
+  - LMS simulation
+  - Docker container management
+- name: Knowledge Base Pattern
+  description: LMS quirks and compatibility issues stored in structured SQLite database
+    with issue signatures, affected LMS versions, and remediation steps. Validators
+    query this database to provide context-aware fix suggestions.
+  scope:
+  - compatibility checking
+  - report generation
+invariants:
+- All validation results must be deterministic—running the same package twice produces
+  identical results
+- LMS simulation containers must be fully isolated with no shared state between test
+  runs
+- Validation process never modifies the original package files—all operations on extracted
+  copies in temp directories
+- CLI tool must exit with code 0 for valid packages, non-zero for validation failures
+  or errors
+- All file paths in reports must be relative to package root for portability across
+  environments
+- Sensitive data (LRS endpoints, API keys in xAPI statements) must be redacted in
+  reports and logs
+conventions:
+- Use TypeScript strict mode for all core validation logic
+- 'CLI commands follow pattern: trainingsync <command> <package-path> [options]'
+- 'Error codes use prefix system: SCORM-xxx for SCORM issues, XAPI-xxx for xAPI issues,
+  LMS-xxx for runtime failures'
+- All async operations use async/await (no raw Promises or callbacks)
+- Docker container names prefixed with 'trainingsync-' for easy identification and
+  cleanup
+- Test fixtures stored in __fixtures__ directories alongside test files
+- Validation reports use ISO 8601 timestamps and semantic versioning for schema versions
+decisions:
+- id: D-1
+  title: CLI-first with Node.js/TypeScript over web-first approach
+  decision: Build core functionality as a CLI tool in Node.js/TypeScript before considering
+    web interface
+  rationale: Developers (primary MVP users) prefer CLI tools that integrate into existing
+    workflows and CI/CD pipelines. Node.js provides excellent XML/JSON parsing libraries
+    and Puppeteer integration. TypeScript adds type safety for complex validation
+    logic. Web interface can be added later without rewriting core logic.
+- id: D-2
+  title: Docker-based LMS simulation over cloud-hosted LMS instances
+  decision: Run LMS platforms in local Docker containers rather than maintaining cloud-hosted
+    LMS instances
+  rationale: 'Docker approach eliminates ongoing hosting costs, provides reproducible
+    test environments, works offline, and avoids data privacy concerns from uploading
+    training packages to external services. Users can run validation entirely on their
+    infrastructure. Trade-off: longer first-run setup time to pull images.'
+- id: D-3
+  title: SQLite knowledge base over hardcoded validation rules
+  decision: Store LMS quirks and compatibility issues in SQLite database rather than
+    hardcoding in validation logic
+  rationale: Database approach allows updating compatibility knowledge without code
+    changes, enables community contributions via database exports, supports querying
+    by LMS version/issue type, and provides foundation for analytics (most common
+    issues). SQLite chosen for zero-config, single-file portability suitable for CLI
+    tool distribution.
+contracts: []

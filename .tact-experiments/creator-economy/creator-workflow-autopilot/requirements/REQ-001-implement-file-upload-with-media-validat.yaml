@@ -1,0 +1,22 @@
+title: Implement file upload with media validation and S3 storage
+approval: draft
+phase: planned
+priority: critical
+description: Provide an upload endpoint and UI component that accepts long-form audio/video
+  files, validates format and size constraints, uploads to S3-compatible storage,
+  and creates a Source record in the database. This is the entry point for the entire
+  pipeline.
+acceptanceCriteria:
+- POST /api/sources accepts multipart file upload of mp3, wav, m4a, mp4, and webm
+  files up to 5GB
+- Files exceeding 5GB or with unsupported MIME types are rejected with a 422 response
+  and descriptive error message
+- 'Uploaded files are stored in S3 under a unique key pattern: sources/{uuid}/{original-filename}'
+- 'A Source record is created in PostgreSQL with fields: id, originalFilename, mimeType,
+  sizeBytes, s3Key, duration (extracted via ffprobe), status, createdAt'
+- The upload UI shows a progress bar during upload and displays the created Source
+  with its metadata on completion
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

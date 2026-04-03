@@ -1,0 +1,21 @@
+title: Implement counterfactual explanation generation with DiCE
+approval: draft
+phase: planned
+priority: high
+description: Integrate DiCE to generate diverse counterfactual explanations for credit
+  scoring decisions, showing applicants what minimal changes to their features would
+  result in a different outcome. Counterfactuals respect feature constraints (e.g.,
+  age cannot decrease, categorical features have valid ranges).
+acceptanceCriteria:
+- Given a denied applicant's feature vector, generates 2-4 diverse counterfactual
+  examples that would result in approval
+- 'Counterfactuals respect configured feature constraints: immutable features (e.g.,
+  age, gender) are not modified, continuous features stay within specified ranges'
+- Each counterfactual includes a list of changed features with original value, new
+  value, and change direction
+- Generation completes within 10 seconds for models with up to 50 features
+decomposition:
+  assignments: []
+dependencies:
+- Implement model adapter for REST API credit scoring endpoints
+source: discovered

@@ -1,0 +1,22 @@
+title: Display safety dashboard with observation analytics
+approval: draft
+phase: planned
+priority: medium
+description: Web dashboard for safety managers showing observation trends, OSHA category
+  breakdown, and location heat map. Provides visibility into safety patterns across
+  project. Read-only for MVP.
+acceptanceCriteria:
+- Dashboard accessible via web browser at /dashboard route; requires login (simple
+  auth for MVP)
+- 'Overview page displays: total observation count, observations by OSHA category
+  (bar chart), observations over time (line chart, last 30 days)'
+- Map view shows observation locations as pins; clicking pin shows observation details
+  in sidebar
+- Observation table lists all observations with filters by date range and OSHA category
+- Dashboard data refreshes from backend API every 60 seconds or on manual refresh
+- Dashboard loads and renders within 3 seconds on desktop browser
+decomposition:
+  assignments: []
+dependencies:
+- Sync observations to backend when online
+source: discovered

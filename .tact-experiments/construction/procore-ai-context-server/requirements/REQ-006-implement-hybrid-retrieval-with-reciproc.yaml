@@ -1,0 +1,25 @@
+title: Implement hybrid retrieval with reciprocal rank fusion
+approval: draft
+phase: planned
+priority: high
+description: Combine BM25 keyword search and vector semantic search using reciprocal
+  rank fusion (RRF) to merge results. Rerank by recency and relevance, then apply
+  token budget constraints to return optimized context.
+acceptanceCriteria:
+- Retrieval function accepts query string and returns merged results from BM25 + vector
+  search
+- 'RRF formula: score = sum(1/(k + rank)) where k=60, applied to both result sets
+  before merging'
+- Recency boost multiplies scores by (1 + days_ago/365) to favor recent documents
+- Token counting uses tiktoken library to calculate total tokens for all returned
+  chunks
+- Function truncates results to fit within configured token budget (default 8000 tokens)
+  while preserving highest-ranked chunks
+- Returned context includes source attribution for each chunk (document title, date,
+  section)
+decomposition:
+  assignments: []
+dependencies:
+- Implement document embedding and vector storage
+- Build BM25 keyword search for construction terminology
+source: discovered

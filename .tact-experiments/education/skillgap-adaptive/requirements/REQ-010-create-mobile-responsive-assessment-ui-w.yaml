@@ -1,0 +1,18 @@
+title: Create Mobile-Responsive Assessment UI with Accessibility Support
+approval: draft
+phase: planned
+priority: medium
+description: Build React-based assessment interface that works on desktop, tablet,
+  and mobile devices. Must meet WCAG 2.1 AA accessibility standards for keyboard navigation
+  and screen readers.
+acceptanceCriteria:
+- Render assessment questions legibly on screens ≥375px width (iPhone SE)
+- Support keyboard navigation (Tab, Enter, Space) for all interactive elements
+- Provide ARIA labels for question text, options, and navigation buttons
+- Display progress indicator showing questions answered and estimated time remaining
+- Pass axe-core accessibility audit with zero critical violations
+decomposition:
+  assignments: []
+dependencies:
+- Create Adaptive Assessment Engine with IRT-Based Question Selection
+source: discovered

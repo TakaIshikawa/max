@@ -1,0 +1,50 @@
+name: compliance-evidence
+version: 0.1.0
+vision: Automate SOC2 and ISO 27001 training audit evidence generation by continuously
+  monitoring LMS and HRIS data, producing cryptographically-verified, audit-ready
+  evidence packages that reduce compliance preparation time from 40 hours to under
+  2 hours per audit cycle.
+goals:
+- id: G-1
+  description: Generate audit-ready training compliance evidence packages on-demand
+  successCriteria: System produces PDF and CSV evidence packages for SOC2 CC1.4 and
+    ISO 27001 A.7.2.2 controls in under 30 seconds, covering 100% of employees in
+    HRIS
+- id: G-2
+  description: Provide cryptographic proof of training completion authenticity
+  successCriteria: Every training completion record includes a cryptographic timestamp
+    verifiable via external service, with verification links embedded in generated
+    reports
+- id: G-3
+  description: Detect training compliance gaps in real-time
+  successCriteria: System identifies employees missing required training within 24
+    hours of HRIS role change or training deadline passage, with gap reports accessible
+    via API
+- id: G-4
+  description: Integrate with at least one LMS and one HRIS for MVP validation
+  successCriteria: Successfully collect and map training completion data from xAPI
+    LRS and BambooHR API, with automated daily synchronization
+constraints:
+- MVP supports exactly one LMS integration (xAPI LRS) and one HRIS integration (BambooHR
+  API)
+- Control mappings limited to SOC2 CC1.4 and ISO 27001 A.7.2.2 (security awareness
+  training controls only)
+- Cryptographic timestamping uses OpenTimestamps (Bitcoin blockchain anchoring) to
+  avoid paid timestamping services
+- No user authentication in MVP—single-tenant deployment with API key protection only
+- Evidence packages generated on-demand only (no scheduled automatic generation)
+- Maximum 500 employee records for MVP performance testing
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - Celery
+  - SQLAlchemy
+  - Pydantic
+  - ReportLab
+  infrastructure:
+  - PostgreSQL
+  - Redis (Celery broker)
+  - OpenTimestamps
+  - Docker

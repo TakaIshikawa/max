@@ -1,0 +1,21 @@
+title: Generate FHIR AuditEvent logs for compliance
+approval: draft
+phase: planned
+priority: critical
+description: Create audit logging system that generates FHIR AuditEvent records for
+  every context compression and external API transmission. Logs must be tamper-evident,
+  include all required compliance fields, and be stored in local SQLite database.
+acceptanceCriteria:
+- 'Generate FHIR AuditEvent resource with: timestamp, user_id, patient_id, action
+  (read/transmit), outcome (success/failure)'
+- Include AuditEvent.entity listing all FHIR resources included in compressed context
+- Store events in SQLite with append-only constraint and SHA-256 hash of previous
+  record for chain integrity
+- 'Provide query interface: get_audit_trail(patient_id, start_date, end_date) returns
+  chronological events'
+- Export audit events to FHIR JSON format for external compliance systems
+- Audit log creation failure prevents context transmission (fail-secure behavior)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

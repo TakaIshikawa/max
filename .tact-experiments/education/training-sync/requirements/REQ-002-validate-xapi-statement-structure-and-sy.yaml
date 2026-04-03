@@ -1,0 +1,22 @@
+title: Validate xAPI statement structure and syntax
+approval: draft
+phase: planned
+priority: critical
+description: Parse xAPI statements from package (tincan.xml or extracted from JavaScript),
+  validate JSON structure against xAPI 1.0.3 specification, check required properties
+  (actor, verb, object), and validate IRI formats. Prevents malformed statements that
+  LRS endpoints will reject.
+acceptanceCriteria:
+- Detects and extracts xAPI statements from tincan.xml or JavaScript files in package
+- 'Validates required statement properties: actor, verb, object are present with error
+  code XAPI-001 for missing properties'
+- Checks verb.id and object.id are valid IRIs (absolute URLs) with error code XAPI-002
+  for invalid formats
+- 'Validates actor.mbox format (must be mailto: IRI) or actor.account structure with
+  error code XAPI-003'
+- Reports statements missing timestamp or stored fields as warnings (not errors) since
+  they're optional
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

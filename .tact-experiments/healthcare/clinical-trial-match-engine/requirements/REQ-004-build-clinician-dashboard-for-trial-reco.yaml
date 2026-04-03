@@ -1,0 +1,23 @@
+title: Build clinician dashboard for trial recommendations
+approval: draft
+phase: planned
+priority: high
+description: React-based web interface for clinicians to select a patient, view ranked
+  trial matches, and see detailed explanations for each match. Display trial metadata,
+  match score, and criteria explanations to support clinical decision-making.
+acceptanceCriteria:
+- Dashboard displays patient search/selection interface with autocomplete by name
+  or MRN
+- Upon patient selection, displays list of matched trials ranked by match score (highest
+  first)
+- Each trial card shows NCT ID, title, phase, match score, and top 3 matching criteria
+- Clicking trial card expands to show full eligibility criteria with color-coded status
+  (met/not met/unknown)
+- Trial contact information and enrollment links displayed for each trial
+- Dashboard loads trial recommendations within 5 seconds of patient selection
+- Error states handled gracefully (no patient data, FHIR API down, no matching trials)
+decomposition:
+  assignments: []
+dependencies:
+- Implement patient-to-trial matching engine with scoring
+source: discovered

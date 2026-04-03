@@ -1,0 +1,23 @@
+title: Implement regulatory deadline database with seed data
+approval: draft
+phase: planned
+priority: critical
+description: Create the PostgreSQL schema and FastAPI CRUD endpoints for regulatory
+  deadlines. Seed the database with at least 20 real milestones across DORA, CSRD,
+  and EU AI Act including enforcement dates, descriptions, and applicable firm types
+  (e.g., credit institutions, insurance undertakings, large enterprises, SMEs). This
+  is the foundational data layer that drives urgency signals throughout the application.
+acceptanceCriteria:
+- 'Database table stores: id, regulation_name, milestone_title, description, enforcement_date,
+  applicable_firm_types (array), created_at, updated_at.'
+- 'Alembic seed migration populates at least 20 deadlines: minimum 7 for DORA, 7 for
+  CSRD, 6 for EU AI Act.'
+- 'GET /api/v1/deadlines returns all deadlines with optional query filters: regulation,
+  firm_type, date_from, date_to.'
+- POST /api/v1/deadlines creates a new deadline with validation (all required fields,
+  enforcement_date in ISO format).
+- GET /api/v1/deadlines/{id} returns a single deadline or 404.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

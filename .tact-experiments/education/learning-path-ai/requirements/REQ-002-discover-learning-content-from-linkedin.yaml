@@ -1,0 +1,20 @@
+title: Discover learning content from LinkedIn Learning API
+approval: draft
+phase: planned
+priority: critical
+description: Query LinkedIn Learning API to find courses matching extracted skills.
+  LinkedIn Learning is a primary enterprise content source with 16,000+ courses, making
+  it essential for comprehensive path generation.
+acceptanceCriteria:
+- Given a skill keyword, system retrieves up to 10 relevant LinkedIn Learning courses
+  via API
+- Each course result includes title, URL, duration, difficulty level, and description
+- API responses are cached for 24 hours to respect rate limits
+- System handles API errors gracefully, logging failures and continuing with other
+  content sources
+- Content results are normalized into internal ContentItem schema with source='linkedin_learning'
+decomposition:
+  assignments: []
+dependencies:
+- Extract skills from job role descriptions using NLP
+source: discovered

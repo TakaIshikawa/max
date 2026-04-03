@@ -1,0 +1,21 @@
+title: Bundle and index SigmaHQ rule subset
+approval: draft
+phase: planned
+priority: high
+description: Bundle a curated subset of SigmaHQ community Sigma rules (those tagged
+  with ATT&CK technique IDs present in the mapping registry) as local YAML files.
+  Build a SQLite index mapping technique IDs to rule file paths at initialization
+  for fast lookup during rule generation.
+acceptanceCriteria:
+- Bundled rules directory contains valid Sigma YAML rules covering at least 30 distinct
+  ATT&CK technique IDs from the mapping registry
+- Each bundled rule is parseable by pySigma without errors
+- SQLite index maps ATT&CK technique IDs to one or more rule file paths
+- Index is rebuilt on server startup if the rules directory has changed (based on
+  file count or hash)
+- A manifest file records the SigmaHQ source commit/tag for reproducibility
+decomposition:
+  assignments: []
+dependencies:
+- Build curated infrastructure-to-ATT&CK mapping registry
+source: discovered

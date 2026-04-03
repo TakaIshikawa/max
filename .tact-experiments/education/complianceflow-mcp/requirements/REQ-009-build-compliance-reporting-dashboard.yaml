@@ -1,0 +1,23 @@
+title: Build compliance reporting dashboard
+approval: draft
+phase: planned
+priority: medium
+description: 'Create simple web UI that displays organization-wide compliance status:
+  completion rates by department/role, upcoming deadlines, overdue assignments, and
+  audit log export. Gives HR visibility into compliance posture.'
+acceptanceCriteria:
+- Dashboard shows total employees, total assignments, completion rate percentage,
+  overdue count as summary metrics
+- Table view lists all employees with their current assignments, status, and days
+  until deadline
+- Filter by department, role, training type, and status (pending/completed/overdue)
+- Export button generates CSV of audit log with all completion records including cryptographic
+  timestamps
+- Dashboard accessible at /dashboard with basic authentication (username/password
+  from environment variables)
+decomposition:
+  assignments: []
+dependencies:
+- Create immutable audit log for training completions
+- Implement deadline monitoring and reminder system
+source: discovered

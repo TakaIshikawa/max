@@ -1,0 +1,65 @@
+name: eu-ai-act-credit-explainability-server
+version: 0.1.0
+vision: An MCP server that wraps any AI-powered credit scoring model to generate EU
+  AI Act-compliant explanations, bias detection, and audit documentation — making
+  high-risk compliance a bolt-on layer rather than a platform migration.
+goals:
+- id: G-1
+  description: Provide per-decision explainability for any credit scoring model via
+    SHAP feature attribution and counterfactual explanations, accessible through MCP
+    tools.
+  successCriteria: Every credit scoring decision processed through the server produces
+    a SHAP-based feature attribution breakdown and at least one counterfactual explanation
+    within 5 seconds for models with up to 50 features.
+- id: G-2
+  description: Detect and report bias across protected characteristics using demographic
+    parity and equalized odds metrics.
+  successCriteria: Bias reports can be generated on-demand for any protected characteristic
+    (age, gender, ethnicity) over a configurable time window, with results matching
+    Fairlearn reference outputs within 1% tolerance.
+- id: G-3
+  description: Generate EU AI Act Annex IV-compliant technical documentation automatically
+    from model metadata and decision audit logs.
+  successCriteria: A single MCP tool call produces a structured document covering
+    all mandatory Annex IV sections, populated from registered model metadata and
+    accumulated decision statistics.
+- id: G-4
+  description: Maintain a complete, immutable audit log of all credit scoring decisions,
+    explanations, and human review actions.
+  successCriteria: 100% of decisions processed through the server are persisted to
+    PostgreSQL with full explanation payloads, timestamps, and model version identifiers,
+    queryable via MCP tools.
+constraints:
+- MVP supports tabular credit scoring models only — no image, text, or multimodal
+  model inputs
+- Model integration limited to REST API endpoints that accept JSON feature vectors
+  and return numeric scores — local model file loading is out of scope for MVP
+- LLM-based plain-language explanation generation depends on Ollama availability;
+  the system must degrade gracefully to template-based explanations when Ollama is
+  unavailable
+- Bias detection operates on accumulated decision logs, not on training data — the
+  server does not require access to model training datasets
+- MVP targets a single-tenant deployment; multi-tenancy and authentication are deferred
+- Annex IV documentation generation uses structured templates with placeholder guidance
+  for sections requiring manual legal review — the tool does not provide legal advice
+- Maximum of 50 input features per model for SHAP computation within acceptable latency
+  bounds
+- No real-time model interception/proxy mode in MVP — the server is called explicitly
+  by the scoring pipeline, not deployed as a transparent proxy
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - MCP Python SDK (mcp)
+  - SHAP (feature attribution)
+  - DiCE (counterfactual explanations)
+  - Fairlearn (bias detection)
+  - Jinja2 (Annex IV document templates)
+  - SQLAlchemy (ORM)
+  - Pydantic (data validation)
+  - httpx (async HTTP client for model endpoints)
+  - Ollama Python client (local LLM inference)
+  infrastructure:
+  - PostgreSQL 15+ (decision audit log)
+  - Ollama (local LLM runtime for plain-language explanations)
+  - Docker / Docker Compose (development and deployment)

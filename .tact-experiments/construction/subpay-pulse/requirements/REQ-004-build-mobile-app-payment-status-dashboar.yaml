@@ -1,0 +1,22 @@
+title: Build mobile app payment status dashboard
+approval: draft
+phase: planned
+priority: critical
+description: React Native mobile app must display subcontractor's payment pipeline
+  with real-time status for each pay application. This is the primary user-facing
+  feature that delivers payment visibility.
+acceptanceCriteria:
+- App displays list of pay applications grouped by GC, sorted by submission date (newest
+  first)
+- 'Each pay application shows: project name, amount, current status (Submitted/Approved/Payment
+  Initiated/Paid), submission date, expected payment date'
+- App uses visual status indicator (progress bar or stepper) showing current position
+  in payment pipeline
+- App displays retainage amount and balance for each pay application
+- App refreshes payment data on pull-to-refresh gesture and automatically on app foreground
+- App shows empty state with onboarding instructions when no payment data exists
+decomposition:
+  assignments: []
+dependencies:
+- Create backend API for payment event retrieval
+source: discovered

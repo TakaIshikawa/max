@@ -1,0 +1,21 @@
+title: Infer prerequisite relationships between content items
+approval: draft
+phase: planned
+priority: high
+description: Determine logical ordering of learning content based on difficulty progression
+  and skill dependencies. Proper sequencing is critical for learner success—advanced
+  content before foundational content causes frustration and dropout.
+acceptanceCriteria:
+- Given a set of content items, system identifies prerequisite relationships using
+  LLM API or rule-based heuristics
+- Prerequisite graph is validated as DAG (no circular dependencies) before path generation
+- Content with explicit difficulty levels (beginner/intermediate/advanced) is automatically
+  sequenced by difficulty
+- For content without difficulty metadata, LLM infers relationships based on titles
+  and descriptions
+- Prerequisite inference completes within 20 seconds for up to 30 content items
+decomposition:
+  assignments: []
+dependencies:
+- Score content relevance to required skills using embeddings
+source: discovered

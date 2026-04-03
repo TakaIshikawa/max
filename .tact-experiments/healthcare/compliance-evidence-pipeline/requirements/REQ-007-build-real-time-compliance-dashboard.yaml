@@ -1,0 +1,20 @@
+title: Build real-time compliance dashboard
+approval: draft
+phase: planned
+priority: high
+description: Create web dashboard showing current compliance posture across all 5
+  HIPAA technical safeguard standards. Display event counts, compliance gaps, trend
+  charts, and time since last evidence collection.
+acceptanceCriteria:
+- Dashboard displays compliance status (compliant/gaps/failing) for each of 5 technical
+  safeguards
+- 'Each standard shows: total events, pass/fail counts, most recent gap, last update
+  timestamp'
+- Trend chart shows compliance status over last 90 days
+- Dashboard highlights standards with no recent evidence (>7 days) as 'stale'
+- Dashboard loads in <3 seconds with 100,000+ historical events
+decomposition:
+  assignments: []
+dependencies:
+- Build HIPAA Technical Safeguards mapping engine
+source: discovered

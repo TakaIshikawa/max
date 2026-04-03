@@ -1,0 +1,25 @@
+title: Implement ship-or-kill feature scoring engine
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the data model and scoring API for the ship-or-kill decision
+  framework. Users enter feature ideas, link them to regulatory deadlines and customer
+  pain points, and receive a composite priority score. The scoring algorithm weights:
+  customer mention frequency × regulatory deadline proximity × competitor gap size.'
+acceptanceCriteria:
+- 'Database table: feature_ideas (id, title, description, linked_deadline_ids array,
+  linked_theme_keywords array, competitor_gap_score 1-5, created_at, updated_at, composite_score
+  float).'
+- POST /api/v1/features creates a feature idea with linked deadlines and theme keywords.
+- GET /api/v1/features/scored returns all features ranked by composite score descending.
+- 'Composite score formula: (customer_mention_count / max_mentions) * 0.4 + (1 / days_until_nearest_deadline_normalized)
+  * 0.35 + (competitor_gap_score / 5) * 0.25. Score is 0-1 range.'
+- customer_mention_count is derived by counting pain point notes matching linked_theme_keywords.
+- If no deadlines are linked, the deadline proximity component scores 0. If no themes
+  linked, customer component scores 0.
+decomposition:
+  assignments: []
+dependencies:
+- Implement regulatory deadline database with seed data
+- Implement pain point theme extraction across interviews
+source: discovered

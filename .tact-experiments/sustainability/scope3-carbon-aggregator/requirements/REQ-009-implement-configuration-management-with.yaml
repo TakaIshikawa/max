@@ -1,0 +1,21 @@
+title: Implement configuration management with YAML and environment variable support
+approval: draft
+phase: planned
+priority: medium
+description: Create the configuration system that loads settings from a YAML file
+  (scope3_config.yaml), supports environment variable overrides, and validates all
+  configuration values using pydantic-settings. Configuration covers database path,
+  parser-specific settings, logging level, and output preferences.
+acceptanceCriteria:
+- Application loads configuration from scope3_config.yaml in the current directory
+  or a path specified by SCOPE3_CONFIG_PATH environment variable
+- Configuration model validates all settings at startup — invalid values produce clear
+  error messages listing the specific field and constraint violated
+- Environment variables override YAML values using SCOPE3_ prefix convention (e.g.,
+  SCOPE3_DB_PATH overrides db_path in YAML)
+- A scope3 init-config command generates a documented default configuration file with
+  comments explaining each setting
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

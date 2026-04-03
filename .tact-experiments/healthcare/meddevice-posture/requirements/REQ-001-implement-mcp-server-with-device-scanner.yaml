@@ -1,0 +1,21 @@
+title: Implement MCP server with device scanner plugin interface
+approval: draft
+phase: planned
+priority: critical
+description: Create FastAPI-based MCP server that loads scanner plugins dynamically.
+  Each plugin discovers devices, runs scans, and publishes results to Redis event
+  stream. Enables extensibility for different device types without modifying core
+  server.
+acceptanceCriteria:
+- MCP server starts and loads plugins from /plugins directory based on YAML configuration
+- Plugin interface defines discover(), scan(), and publish_results() methods with
+  type hints
+- Trivy scanner plugin successfully scans Docker-based medical device images and publishes
+  CVE findings
+- Server exposes /api/v1/plugins endpoint listing loaded plugins with status and last
+  run timestamp
+- Plugin execution failures are logged with stack traces but don't crash server
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

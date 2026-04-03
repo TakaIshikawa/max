@@ -1,0 +1,22 @@
+title: Add configuration file and environment-aware policy loading
+approval: draft
+phase: planned
+priority: medium
+description: 'Create a YAML/JSON configuration file that controls server behavior:
+  policy directory path, SQLite database path, environment classification mappings
+  (workspace-to-environment), resource criticality overrides, and OPA CLI path. The
+  server loads and validates this config at startup.'
+acceptanceCriteria:
+- Configuration file (dora-policy-engine.yaml) is loaded from the current directory
+  or a path specified via DORA_CONFIG_PATH environment variable
+- Config schema is validated at startup with Zod — invalid config produces a clear
+  error message listing all validation failures
+- Default values are provided for all optional fields so the server runs with a minimal
+  config (just policy_dir)
+- Environment classification mapping allows workspace names or tag patterns to map
+  to environment labels (e.g., 'prod-*' → 'production')
+- Changes to config require a server restart — no hot-reloading in MVP
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

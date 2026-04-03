@@ -1,0 +1,24 @@
+title: Implement document embedding and vector storage
+approval: draft
+phase: planned
+priority: high
+description: Generate semantic embeddings for document chunks using sentence-transformers
+  (via Python subprocess) and store them in LanceDB for similarity search. Support
+  incremental updates when documents change in Procore.
+acceptanceCriteria:
+- Python script accepts document chunks via stdin and returns embeddings (384-dim
+  vectors) via stdout
+- Embeddings are generated using 'all-MiniLM-L6-v2' model for balance of speed and
+  quality
+- 'LanceDB table stores: chunk_text, embedding_vector, metadata (document_id, type,
+  section, created_at)'
+- Indexing function processes all documents from a project and stores embeddings in
+  <5 minutes for 100 documents
+- Re-indexing detects updated documents (by updated_at timestamp) and only regenerates
+  changed embeddings
+- Vector search returns top-k similar chunks with cosine similarity scores >0.5
+decomposition:
+  assignments: []
+dependencies:
+- Define construction document schemas and chunking strategy
+source: discovered

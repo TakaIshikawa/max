@@ -1,0 +1,51 @@
+name: procore-ai-context-server
+version: 0.1.0
+vision: An MCP server that provides AI agents with construction-domain-aware context
+  from Procore projects, enabling automated generation of daily reports, RFIs, and
+  change orders through optimized document retrieval and construction-specific context
+  engineering.
+goals:
+- id: G-1
+  description: Enable AI agents to access Procore project context through MCP protocol
+  successCriteria: MCP server successfully connects to Procore API, retrieves project
+    data (daily reports, RFIs, submittals), and exposes at least 3 tools (get_project_context,
+    list_daily_reports, list_rfis) that return valid responses to MCP-compatible clients
+- id: G-2
+  description: Implement construction-aware context optimization to stay within token
+    budgets
+  successCriteria: Context retrieval for a typical project (100+ documents) returns
+    relevant results within 8K token limit, with BM25 keyword matching achieving >70%
+    precision on construction-specific terms (trade names, equipment, materials)
+- id: G-3
+  description: Demonstrate automated daily report generation from project context
+  successCriteria: 'AI agent using the server can generate a draft daily report in
+    <30 seconds that includes: weather data, active trades, work completed, and issues/delays,
+    reducing manual creation time from 30-45 minutes to <5 minutes'
+- id: G-4
+  description: Provide read-only, secure access to Procore data with proper authentication
+  successCriteria: Server authenticates via Procore OAuth 2.0, enforces read-only
+    API access, stores credentials securely (environment variables), and handles token
+    refresh automatically without exposing sensitive data in logs
+constraints:
+- 'MVP is read-only: no write operations to Procore (no creating/updating documents)'
+- 'Single project scope: MVP supports one Procore project at a time, not multi-project
+  queries'
+- 'Local-only vector storage: no cloud dependencies for embeddings, all data stays
+  on user''s machine'
+- 'Token budget: all context responses must fit within 8K tokens to support Claude
+  Sonnet 3.5 and similar models'
+- 'Construction document types limited to: daily reports, RFIs, and submittals (no
+  change orders, schedules, or drawings in MVP)'
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - MCP SDK
+  - Express.js (for OAuth callback)
+  - rank-bm25
+  - sentence-transformers
+  infrastructure:
+  - Node.js runtime
+  - LanceDB (local vector store)
+  - Procore REST API

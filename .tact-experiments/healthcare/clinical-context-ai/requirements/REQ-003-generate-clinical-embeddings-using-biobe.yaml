@@ -1,0 +1,20 @@
+title: Generate clinical embeddings using BioBERT
+approval: draft
+phase: planned
+priority: critical
+description: Integrate pre-trained BioBERT model to generate semantic embeddings for
+  clinical document chunks. Embeddings must capture medical terminology and clinical
+  concepts for effective similarity search during context retrieval.
+acceptanceCriteria:
+- Load pre-trained BioBERT model (dmis-lab/biobert-base-cased-v1.2) using sentence-transformers
+- Generate 768-dimensional embeddings for clinical text chunks
+- Batch processing supports ≥50 chunks per second on CPU
+- Embeddings for identical clinical text are deterministic (same input = same vector)
+- Store embeddings in Qdrant with payload containing chunk text, metadata, and patient_id
+- 'Verify semantic similarity: embeddings for ''myocardial infarction'' and ''heart
+  attack'' have cosine similarity ≥0.75'
+decomposition:
+  assignments: []
+dependencies:
+- Build clinical-document-aware chunking engine
+source: discovered

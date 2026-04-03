@@ -1,0 +1,21 @@
+title: Implement Prefect workflow orchestration
+approval: draft
+phase: planned
+priority: critical
+description: Create Prefect flows that orchestrate daily ingestion from all configured
+  data sources, apply HIPAA mapping transformations, and trigger evidence package
+  generation. Handle failures with retries and alerting.
+acceptanceCriteria:
+- Daily scheduled flow ingests from all 3 data source types (EHR, vulnerability, identity)
+- Flow applies HIPAA mapping transformations to all new events
+- Failed tasks retry up to 3 times with exponential backoff
+- Flow sends alert (log/email) on persistent failures after retries exhausted
+- Flow execution history retained for 90 days for audit purposes
+decomposition:
+  assignments: []
+dependencies:
+- Implement EHR audit log file ingestion connector
+- Implement vulnerability scan result ingestion connector
+- Implement identity provider access log ingestion connector
+- Build HIPAA Technical Safeguards mapping engine
+source: discovered

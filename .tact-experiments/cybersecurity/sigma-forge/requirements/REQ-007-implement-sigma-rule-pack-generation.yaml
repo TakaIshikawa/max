@@ -1,0 +1,25 @@
+title: Implement Sigma rule pack generation
+approval: draft
+phase: planned
+priority: high
+description: The generate_rule_pack tool selects Sigma rules matching the mapped ATT&CK
+  techniques, customizes log source field mappings for the target format, compiles
+  rules via pySigma, and outputs a deployment-ready rule pack directory with priority-ordered
+  rules.
+acceptanceCriteria:
+- Selects Sigma rules from the bundled index that match the ATT&CK techniques in the
+  current mapping
+- Compiles selected rules via pySigma to Elasticsearch query format as the default
+  target backend
+- Outputs compiled rules to the output directory with filenames indicating priority
+  rank and technique ID
+- Each output rule file includes a header comment with the source technique ID, rationale,
+  and priority score
+- Returns structured JSON listing all generated rules with their technique, priority,
+  and output file path
+decomposition:
+  assignments: []
+dependencies:
+- Implement attack surface mapping service
+- Bundle and index SigmaHQ rule subset
+source: discovered

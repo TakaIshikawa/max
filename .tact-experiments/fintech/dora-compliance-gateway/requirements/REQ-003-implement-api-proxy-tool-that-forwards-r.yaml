@@ -1,0 +1,24 @@
+title: Implement API proxy tool that forwards requests to upstream Open Banking APIs
+approval: draft
+phase: planned
+priority: critical
+description: Create an MCP tool (proxy-api-call) that accepts an API request specification
+  (method, URL, headers, body), forwards it to the configured upstream Open Banking
+  API endpoint via undici, and returns the response. This is the core data path through
+  which all compliance middleware operates.
+acceptanceCriteria:
+- The proxy-api-call MCP tool accepts method, endpoint path, headers, and optional
+  body as typed input parameters.
+- Requests are forwarded to the configured upstream base URL with original headers
+  preserved (minus hop-by-hop headers).
+- Upstream responses are returned to the caller with status code, headers, and body.
+- Requests to endpoints not defined in configuration are rejected with a structured
+  error indicating the endpoint is not covered by any compliance policy.
+- A mock upstream server is used in tests to verify proxy behavior without live API
+  dependencies.
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server scaffold with tool registration
+- Implement declarative YAML configuration loader with JSON Schema validation
+source: discovered

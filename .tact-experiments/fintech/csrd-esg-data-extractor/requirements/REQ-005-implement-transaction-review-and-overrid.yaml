@@ -1,0 +1,25 @@
+title: Implement transaction review and override interface API
+approval: draft
+phase: planned
+priority: high
+description: 'Build REST API endpoints that support the human-in-the-loop review workflow:
+  listing transactions by review status and confidence level, viewing classification
+  details, submitting overrides with justification, and recording all actions in an
+  immutable audit trail.'
+acceptanceCriteria:
+- GET /api/v1/review/queue returns paginated transactions filtered by review_status
+  (pending_review, reviewed, overridden) with sorting by confidence_score ascending
+- GET /api/v1/transactions/{id}/classification returns the full classification detail
+  including rationale, confidence score, and any previous overrides
+- POST /api/v1/transactions/{id}/override accepts a new ESRS topic code, justification
+  text, and operator identifier, persists the override, and updates review_status
+  to 'overridden'
+- 'All overrides are recorded in an audit_trail table with: transaction_id, original_classification,
+  new_classification, justification, operator_id, timestamp'
+- 'GET /api/v1/review/stats returns summary statistics: total classified, pending
+  review count, override count, average confidence by ESRS topic'
+decomposition:
+  assignments: []
+dependencies:
+- Build ESRS taxonomy classification engine with local LLM
+source: discovered

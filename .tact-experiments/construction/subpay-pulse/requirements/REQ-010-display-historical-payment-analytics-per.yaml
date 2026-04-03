@@ -1,0 +1,22 @@
+title: Display historical payment analytics per GC
+approval: draft
+phase: planned
+priority: medium
+description: Mobile app shows subcontractor the average payment timeline for each
+  GC based on historical data. Helps subcontractors understand GC payment reliability.
+acceptanceCriteria:
+- Backend API calculates average days from Approved to Paid status for each GC (across
+  all completed pay applications)
+- 'Backend API exposes GET /api/v1/gc-analytics/:gc_id endpoint returning: avg_days_to_payment,
+  total_payments, on_time_percentage'
+- 'Mobile app displays GC analytics card on payment dashboard showing ''Avg payment
+  time: X days'' for each GC'
+- Analytics only include pay applications with both Approved and Paid events (complete
+  payment cycles)
+- Analytics require minimum 3 completed payments to display (otherwise show 'Insufficient
+  data')
+decomposition:
+  assignments: []
+dependencies:
+- Create backend API for payment event retrieval
+source: discovered

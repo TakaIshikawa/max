@@ -1,0 +1,22 @@
+title: Implement reach decay sub-score using linear regression
+approval: draft
+phase: planned
+priority: high
+description: Build the reach decay sub-score calculator that fits a linear regression
+  to reach-rate time-series data over 30/60/90-day windows per platform. A negative
+  slope indicates decay; the magnitude and consistency of decay across platforms determines
+  the sub-score.
+acceptanceCriteria:
+- Linear regression is computed on (timestamp, reachRate) pairs for each platform
+  over 30, 60, and 90-day windows.
+- A statistically significant negative slope (p < 0.1) on the primary platform contributes
+  to a higher risk score.
+- Score is 0 when reach is stable or growing; score approaches 100 when reach rate
+  has declined by >50% over 90 days.
+- 'Handles insufficient data gracefully: requires minimum 5 data points per window,
+  returns null sub-score with explanation if insufficient.'
+- Function is pure and unit-testable with synthetic time-series data.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

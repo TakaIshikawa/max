@@ -1,0 +1,104 @@
+patterns:
+- name: Compliance Proxy Middleware Pipeline
+  description: 'All Open Banking API calls flow through an ordered pipeline of compliance
+    middleware stages: request validation → SCA check → outbound proxy → response
+    data minimization → audit logging → response delivery. Each stage is an independent,
+    composable middleware function that can pass, modify, or reject the request/response.'
+  scope:
+  - src/proxy/
+  - src/middleware/
+- name: Append-Only Hash-Chained Audit Log
+  description: Audit entries are stored in SQLite with each row containing a SHA-256
+    hash of the previous entry's hash concatenated with the current entry's content,
+    forming a certificate-transparency-style tamper-evident chain. Rows are never
+    updated or deleted; the table enforces append-only semantics via application-level
+    constraints and a verification tool.
+  scope:
+  - src/audit/
+- name: Declarative Regulatory Configuration
+  description: All compliance rules, data minimization allowlists, SCA requirements,
+    health thresholds, and endpoint-to-regulation mappings are defined in YAML files
+    validated against JSON Schemas at startup. No compliance logic is hardcoded; the
+    gateway is a policy engine driven by configuration.
+  scope:
+  - config/
+  - src/config/
+- name: MCP Tool Registry
+  description: Each compliance capability is exposed as a named MCP tool with a typed
+    input schema and structured output. Tools are registered declaratively and follow
+    a consistent request/response contract. The MCP server acts as the primary interface
+    for AI agents to interact with compliance operations.
+  scope:
+  - src/mcp/
+  - src/tools/
+- name: Health Probe Scheduler
+  description: A background scheduler periodically probes configured third-party API
+    endpoints, recording latency, error rates, and availability. Results are compared
+    against DORA resilience thresholds defined in configuration, and threshold breaches
+    are recorded as audit events and surfaced via MCP tools.
+  scope:
+  - src/monitoring/
+invariants:
+- Audit log entries are NEVER updated or deleted once written; the SQLite table must
+  enforce append-only semantics.
+- Every hash chain entry must include the previous entry's hash; a broken chain is
+  a fatal integrity error.
+- No PII field outside the purpose-specific allowlist may appear in a proxied API
+  response delivered to the client.
+- Every proxied API call — whether successful, rejected, or errored — MUST produce
+  exactly one audit log entry.
+- Configuration files must pass JSON Schema validation at startup; the server must
+  refuse to start with invalid configuration.
+- SCA evidence must be validated BEFORE any payment initiation request is forwarded
+  to the upstream API.
+- The gateway must never silently swallow errors; all failures must be logged and
+  returned as structured error responses with compliance-relevant context.
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., audit-store.ts, health-probe.ts).'
+- 'Export style: named exports only; no default exports.'
+- 'Error handling: all errors extend a base ComplianceGatewayError class with a machine-readable
+  error code and regulatory context.'
+- 'Configuration types: every YAML config file has a corresponding TypeScript interface
+  and JSON Schema; types are generated or manually kept in sync in src/config/types.ts.'
+- 'MCP tool naming: verb-noun pattern in kebab-case (e.g., query-audit-log, check-sca-status,
+  get-health-report).'
+- 'Test files: co-located with source as *.test.ts files; integration tests in tests/
+  directory.'
+- 'Middleware functions: pure functions of type (context: ProxyContext) => Promise<ProxyContext
+  | ComplianceRejection>.'
+- All timestamps in ISO 8601 UTC; all hashes as lowercase hex strings.
+- 'Logging: structured JSON to stdout via a thin logger wrapper; no console.log in
+  production code.'
+decisions:
+- id: D-1
+  title: SQLite with hash chaining over external database or blockchain
+  decision: Use embedded SQLite via better-sqlite3 for the audit log with application-level
+    SHA-256 hash chaining, rather than an external database, event store, or blockchain.
+  rationale: SQLite is zero-dependency, embeddable, and provides ACID guarantees sufficient
+    for a single-process MVP. Hash chaining at the application layer provides tamper
+    evidence without the operational complexity of a blockchain or the network dependency
+    of an external database. This keeps the deployment footprint minimal (single binary
+    + SQLite file) while still producing a verifiable audit trail. Migration to a
+    distributed store can happen post-MVP if needed.
+- id: D-2
+  title: Compliance proxy as MCP server rather than standalone HTTP proxy
+  decision: Implement the gateway as an MCP server that exposes compliance tools and
+    proxying capabilities via the Model Context Protocol, rather than as a pure HTTP
+    reverse proxy.
+  rationale: The MCP interface allows AI agents and LLM-powered fintech applications
+    to interact with compliance checks programmatically — querying audit logs, requesting
+    compliance verdicts, and triggering health checks as tool calls. This aligns with
+    the composability goal and differentiates from a simple proxy. The proxy functionality
+    is implemented internally but invoked through MCP tool calls (e.g., proxy-api-call
+    tool), making every compliance-checked API call a first-class MCP interaction.
+- id: D-3
+  title: Declarative YAML configuration over programmatic rule definition
+  decision: All compliance rules, endpoint mappings, data minimization allowlists,
+    and health thresholds are defined in YAML files validated by JSON Schemas, rather
+    than being coded as TypeScript rule functions.
+  rationale: Declarative configuration separates compliance policy from gateway implementation,
+    allowing compliance officers (or future UI tools) to modify rules without code
+    changes. JSON Schema validation at startup ensures configuration correctness before
+    any API calls are processed. This also makes the system auditable — the YAML files
+    themselves serve as documentation of the compliance posture at any point in time.
+contracts: []

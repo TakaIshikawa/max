@@ -1,0 +1,20 @@
+title: Implement MCP server scaffold with tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Create the MCP stdio server using @modelcontextprotocol/sdk that registers
+  four tools (check_plan, get_compliance_status, list_exceptions, generate_audit_report)
+  with typed Zod input schemas. Each tool initially returns a placeholder response.
+  This establishes the server entry point and protocol handling.
+acceptanceCriteria:
+- Server starts via 'node dist/server.js' and communicates over stdio using MCP protocol
+- Four tools are listed when an MCP client sends a tools/list request
+- Each tool has a JSON Schema derived from its Zod input schema in the tool listing
+- Calling any tool with valid input returns a structured JSON response (placeholder
+  content is acceptable)
+- Calling any tool with invalid input returns a structured error with field-level
+  validation messages
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

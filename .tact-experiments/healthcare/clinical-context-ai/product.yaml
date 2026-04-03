@@ -1,0 +1,51 @@
+name: clinical-context-ai
+version: 0.1.0
+vision: A local-first context compression pipeline that optimizes clinical documentation
+  for AI-assisted charting, reducing token costs by 60-80% while ensuring PHI never
+  leaves the provider's infrastructure through HIPAA-compliant processing and audit
+  trails.
+goals:
+- id: G-1
+  description: Achieve 60-80% token reduction for clinical AI queries while maintaining
+    clinical accuracy
+  successCriteria: Benchmark tests on 100 real patient charts show average token reduction
+    of ≥60% with ≥95% retention of clinically-relevant information as validated by
+    physician review
+- id: G-2
+  description: Ensure HIPAA compliance through local processing and comprehensive
+    audit trails
+  successCriteria: All PHI processing occurs on-premises, zero external API calls
+    contain unaudited data, and all context transmissions generate FHIR AuditEvent
+    logs with timestamp, user, patient ID, and data elements sent
+- id: G-3
+  description: Enable seamless integration with FHIR-compliant EHR systems
+  successCriteria: Successfully retrieve patient demographics, problem lists, medications,
+    and clinical notes from at least one FHIR R4-compliant test EHR endpoint within
+    2 seconds per patient
+- id: G-4
+  description: Provide medical-domain-aware context retrieval superior to generic
+    RAG
+  successCriteria: Hybrid retrieval (BM25 + clinical embeddings) outperforms baseline
+    vector-only search by ≥20% on clinical relevance metrics (problem list prioritization,
+    medication interaction detection, temporal relevance)
+constraints:
+- MVP scope limited to read-only FHIR integration (no EHR write-back)
+- Support only FHIR R4 standard (no legacy HL7 v2 or proprietary APIs)
+- Clinical embeddings use pre-trained BioBERT model (no custom fine-tuning in MVP)
+- Audit logs stored locally only (no external SIEM integration in MVP)
+- Single-user deployment model (no multi-tenancy or role-based access control)
+- Context optimization for text-based clinical notes only (no DICOM imaging or genomic
+  data)
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - Pydantic
+  - fhirclient
+  - sentence-transformers
+  - rank-bm25
+  infrastructure:
+  - Qdrant (vector database)
+  - SQLite (audit log storage)
+  - Docker (deployment)

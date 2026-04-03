@@ -1,0 +1,21 @@
+title: Display care plan tasks as interactive checklist
+approval: draft
+phase: planned
+priority: high
+description: Show extracted action items in dedicated 'My Care Plan' screen with checkboxes,
+  due dates, and completion tracking. Helps patients manage post-discharge requirements.
+acceptanceCriteria:
+- Care plan screen lists all active tasks grouped by category (Appointments, Medications,
+  Monitoring)
+- Each task shows description, due date, and checkbox for completion
+- Tapping checkbox marks task as complete and records completion timestamp
+- Overdue tasks highlighted in red with 'Overdue' badge
+- Completed tasks moved to 'Completed' section at bottom of list with strikethrough
+  text
+- Empty state shows 'No active care plan tasks' if no tasks extracted from recent
+  clinical events
+decomposition:
+  assignments: []
+dependencies:
+- Extract action items from discharge summaries using NLP
+source: discovered

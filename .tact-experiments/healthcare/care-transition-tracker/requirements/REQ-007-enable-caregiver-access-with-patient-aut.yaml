@@ -1,0 +1,21 @@
+title: Enable caregiver access with patient authorization
+approval: draft
+phase: planned
+priority: medium
+description: Allow patients to grant read-only timeline and care plan access to family
+  caregivers via email invitation. Supports care coordination without provider phone
+  calls.
+acceptanceCriteria:
+- Patient can enter caregiver email address and send invitation from app settings
+- Invitation email contains secure link to caregiver registration flow
+- Caregiver creates account with email/password and gains read-only access to patient
+  timeline and care plan
+- Patient can view list of authorized caregivers and revoke access at any time
+- Revoked caregiver immediately loses access to patient data on next API call
+- Audit log records caregiver authorization, access events, and revocation with timestamps
+decomposition:
+  assignments: []
+dependencies:
+- Render interactive timeline of clinical events
+- Display care plan tasks as interactive checklist
+source: discovered

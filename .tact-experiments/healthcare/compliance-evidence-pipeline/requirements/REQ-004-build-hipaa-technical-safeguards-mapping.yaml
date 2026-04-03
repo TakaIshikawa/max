@@ -1,0 +1,23 @@
+title: Build HIPAA Technical Safeguards mapping engine
+approval: draft
+phase: planned
+priority: critical
+description: Implement transformation logic that maps normalized security events to
+  the 5 HIPAA Technical Safeguard standards (§164.312.a-e). Each event tagged with
+  applicable standard(s) and implementation specification (required vs. addressable).
+acceptanceCriteria:
+- 'Mapping engine covers all 5 technical safeguard standards: Access Control (a),
+  Audit Controls (b), Integrity (c), Authentication (d), Transmission Security (e)'
+- EHR audit events mapped to §164.312.b (Audit Controls) and §164.312.a.1 (Unique
+  User ID)
+- Vulnerability findings mapped to §164.312.c.1 (Integrity Controls)
+- Identity events mapped to §164.312.a (Access Control) and §164.312.d (Authentication)
+- Each mapped event includes standard reference, implementation spec type (required/addressable),
+  and compliance status (pass/fail/gap)
+decomposition:
+  assignments: []
+dependencies:
+- Implement EHR audit log file ingestion connector
+- Implement vulnerability scan result ingestion connector
+- Implement identity provider access log ingestion connector
+source: discovered

@@ -1,0 +1,25 @@
+title: Validate matching accuracy against manual clinical coordinator review
+approval: draft
+phase: planned
+priority: medium
+description: Test matching engine against 20 synthetic patient cases with known trial
+  eligibility (manually reviewed by oncology research coordinator). Measure precision,
+  recall, and explanation quality to validate MVP readiness.
+acceptanceCriteria:
+- 20 synthetic patient cases created with Synthea covering range of oncology scenarios
+  (newly diagnosed, recurrent, various stages)
+- Clinical research coordinator manually reviews each patient against 50 oncology
+  trials and documents eligible trials
+- Matching engine run on same 20 patients; results compared against manual review
+- Precision (% of system matches that are truly eligible) ≥ 75%
+- Recall (% of truly eligible trials that system identifies) ≥ 70%
+- Explanation quality reviewed by coordinator; ≥ 80% of explanations rated 'clear
+  and accurate'
+- Validation results documented with error analysis for future improvement
+decomposition:
+  assignments: []
+dependencies:
+- Implement patient-to-trial matching engine with scoring
+- Ingest and parse oncology trial data from ClinicalTrials.gov
+- Retrieve patient clinical data via FHIR R4 API
+source: discovered

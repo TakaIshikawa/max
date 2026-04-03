@@ -1,0 +1,53 @@
+name: fieldvoice-mobile-app
+version: 0.1.0
+vision: An offline-first mobile application that transforms field supervisors' voice
+  notes and photos into structured daily construction reports during their commute,
+  syncing to Procore when connectivity returns to eliminate manual transcription and
+  documentation delays.
+goals:
+- id: G-1
+  description: Reduce daily report creation time from 30-45 minutes to under 5 minutes
+    of voice input
+  successCriteria: Field supervisors can record voice notes throughout the day and
+    generate a complete daily report in under 5 minutes of total recording time, with
+    80% of report fields auto-populated
+- id: G-2
+  description: Enable fully offline report creation and editing with reliable background
+    sync
+  successCriteria: App functions completely offline for voice recording, photo capture,
+    and report editing. Reports sync successfully to Procore within 2 minutes of connectivity
+    restoration with 99% success rate
+- id: G-3
+  description: Achieve field adoption by making voice input more convenient than handwritten
+    notes
+  successCriteria: 70% of pilot users prefer voice recording over handwritten notes
+    after 2 weeks of use, measured by usage frequency and user survey
+- id: G-4
+  description: Extract structured data from voice notes with acceptable accuracy for
+    construction daily reports
+  successCriteria: Automated extraction achieves 85% accuracy for key fields (crew
+    count, weather, materials, equipment) requiring minimal manual correction
+constraints:
+- MVP must function completely offline - no cloud dependencies for core voice-to-report
+  functionality
+- Must run on iOS and Android devices from the last 3 years (iPhone 11+, Android 10+)
+- On-device speech recognition must process 5-minute voice notes in under 30 seconds
+- Initial MVP uses rule-based NLP extraction, not local LLM, to reduce complexity
+- Procore integration limited to daily report creation via REST API - no bidirectional
+  sync in MVP
+- Single daily report template format in MVP - no customization
+- Photo limit of 20 images per report to manage storage and sync bandwidth
+- MVP scope excludes Google Docs integration and webhook extensibility
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Expo
+  - SQLite
+  - Whisper.cpp (via react-native-whisper)
+  infrastructure:
+  - Procore REST API
+  - Local file system
+  - Background sync service

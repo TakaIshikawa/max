@@ -1,0 +1,55 @@
+name: training-sync
+version: 0.1.0
+vision: A developer tool that validates SCORM and xAPI training packages against LMS
+  compatibility standards and simulates deployment across multiple LMS platforms,
+  preventing costly production failures and reducing troubleshooting time from days
+  to minutes.
+goals:
+- id: G-1
+  description: Validate SCORM 1.2/2004 and xAPI packages against official specifications
+    with actionable error reporting
+  successCriteria: Successfully detect and report 95%+ of common compatibility issues
+    (missing manifest elements, malformed xAPI statements, API misuse) with fix suggestions
+    for each error type
+- id: G-2
+  description: Simulate package execution in containerized LMS environments to catch
+    runtime failures
+  successCriteria: Run packages in at least 2 open-source LMS platforms (Moodle, Canvas)
+    and capture JavaScript errors, API call failures, and completion tracking issues
+    with 100% reliability
+- id: G-3
+  description: Generate compatibility reports that clearly identify which LMS platforms
+    will support the package
+  successCriteria: Produce JSON and HTML reports showing pass/fail status per LMS,
+    specific issues found, and remediation guidance within 5 minutes for typical SCORM
+    packages (<100MB)
+- id: G-4
+  description: Enable CI/CD integration so validation runs automatically on every
+    course build
+  successCriteria: Provide CLI tool that exits with appropriate status codes and structured
+    output, successfully integrating with GitHub Actions and GitLab CI with <10 lines
+    of configuration
+constraints:
+- MVP focuses on SCORM 1.2 and xAPI 1.0.3 only (SCORM 2004 deferred to post-MVP)
+- LMS testing limited to open-source platforms (Moodle 4.x, Canvas LMS) to avoid licensing
+  complexity
+- Package size limit of 500MB for validation to ensure reasonable processing times
+- No cloud hosting required—tool runs entirely locally or in CI/CD environments
+- Web interface deferred to post-MVP—CLI-first approach for developer adoption
+- Knowledge base of LMS quirks starts with 10-15 manually curated common issues, community
+  contributions post-MVP
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  - Bash
+  frameworks:
+  - Node.js
+  - Commander.js
+  - Puppeteer
+  - Docker
+  - Docker Compose
+  infrastructure:
+  - SQLite
+  - GitHub Actions
+  - Local filesystem

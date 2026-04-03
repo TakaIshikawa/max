@@ -1,0 +1,24 @@
+title: Display pending payments in web dashboard for review
+approval: draft
+phase: planned
+priority: critical
+description: Web interface showing all calculated payments pending approval, with
+  summary table (subcontractor, project, amount, deadline) and detail view showing
+  calculation breakdown, source data, and warnings. Accounting users can approve or
+  reject payments.
+acceptanceCriteria:
+- Display table of payments with status='pending_approval' sorted by prompt_pay_deadline
+- 'Show columns: subcontractor name, project name, approved amount, retainage, net
+  payment, deadline, warnings'
+- Detail view shows calculation breakdown (approved - retainage + change orders =
+  net)
+- 'Display source data: contract terms, retainage %, change order list, lien waiver
+  status'
+- Highlight payments with warnings (missing lien waiver, approaching deadline) in
+  yellow/red
+- Provide 'Approve' and 'Reject' buttons for each payment with confirmation dialog
+decomposition:
+  assignments: []
+dependencies:
+- Generate QuickBooks Online bill format for payment export
+source: discovered

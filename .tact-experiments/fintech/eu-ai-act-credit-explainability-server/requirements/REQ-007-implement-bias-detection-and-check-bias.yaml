@@ -1,0 +1,23 @@
+title: Implement bias detection and check_bias MCP tool
+approval: draft
+phase: planned
+priority: high
+description: Integrate Fairlearn to compute demographic parity and equalized odds
+  metrics across protected characteristics using accumulated decision audit log data.
+  Expose as the check_bias MCP tool that compliance officers can invoke to get bias
+  reports for any protected attribute over a configurable time window.
+acceptanceCriteria:
+- check_bias tool accepts protected_attribute (string), time_range_start (ISO datetime),
+  time_range_end (ISO datetime), and optional model_id as parameters
+- Returns demographic parity difference and equalized odds difference metrics computed
+  from audit log decisions, with per-group approval rates and counts
+- 'Flags metrics that exceed configurable thresholds (default: demographic parity
+  difference > 0.1) with a warning level indicator'
+- Returns meaningful error message if insufficient data exists for the requested analysis
+  (minimum 30 decisions per group)
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with tool registration
+- Implement decision audit log with PostgreSQL persistence
+source: discovered

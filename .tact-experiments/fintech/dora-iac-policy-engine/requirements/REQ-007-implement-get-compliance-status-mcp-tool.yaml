@@ -1,0 +1,22 @@
+title: Implement get_compliance_status MCP tool
+approval: draft
+phase: planned
+priority: medium
+description: Build the get_compliance_status tool that queries the audit log to produce
+  a summary of the current infrastructure compliance posture. It aggregates the most
+  recent evaluation results to show which DORA policy areas are passing or failing,
+  with trend data.
+acceptanceCriteria:
+- 'Tool accepts optional filters: time_range (last 24h, 7d, 30d), environment, and
+  dora_article'
+- 'Response includes: compliance_score (percentage of passing rules across recent
+  evaluations), per-article breakdown with pass/fail/warn counts, and list of currently-failing
+  rules with last failure timestamp'
+- If no evaluations exist, returns a clear 'no data' status rather than an error
+- Results are computed from audit log queries — no separate state is maintained
+decomposition:
+  assignments: []
+dependencies:
+- Implement append-only hash-chained audit log
+- Implement MCP server scaffold with tool registration
+source: discovered

@@ -1,0 +1,64 @@
+name: dora-compliance-gateway
+version: 0.1.0
+vision: An MCP server that acts as a compliance middleware layer between fintech applications
+  and Open Banking APIs, automatically enforcing DORA ICT risk management, PSD2 SCA
+  validation, GDPR data minimization, and immutable audit logging on every API call
+  — turning Open Banking integration from a compliance liability into a compliance
+  asset.
+goals:
+- id: G-1
+  description: Provide a transparent proxy layer that intercepts Open Banking API
+    calls and applies declarative compliance rules without requiring changes to existing
+    SDK integration code.
+  successCriteria: A fintech application can route API calls through the gateway by
+    changing only the base URL, and all calls are processed with compliance checks
+    in under 200ms of added latency at p95.
+- id: G-2
+  description: Produce a cryptographically chained, append-only audit log that satisfies
+    DORA Article 11 ICT incident reporting metadata requirements for every proxied
+    API interaction.
+  successCriteria: Every proxied request/response pair generates an audit log entry
+    with tamper-evident hash chaining, and the log can be independently verified for
+    integrity with a single CLI command.
+- id: G-3
+  description: Enforce GDPR data minimization by stripping response fields not explicitly
+    allowlisted for the declared data access purpose.
+  successCriteria: Given a YAML configuration declaring purpose-to-fields mappings,
+    the gateway removes all non-allowlisted PII fields from API responses, and a test
+    suite validates that no over-fetched data leaks through for at least 3 common
+    Open Banking response schemas.
+- id: G-4
+  description: Expose compliance operations as MCP tools so that AI agents and LLM-powered
+    applications can query compliance status, audit logs, and health metrics programmatically.
+  successCriteria: At least 5 MCP tools are registered and callable via the MCP protocol,
+    returning structured JSON responses with compliance verdicts, audit trail queries,
+    and third-party health summaries.
+constraints:
+- MVP targets a simulated/mock Open Banking API — no live bank API credentials required
+  for development or testing.
+- SCA validation in MVP is limited to verifying the presence and structure of SCA
+  evidence tokens (e.g., WebAuthn assertion format), not full FIDO2 ceremony orchestration.
+- The gateway runs as a single-process MCP server; horizontal scaling and clustering
+  are out of scope for MVP.
+- EU AI Act risk flagging in MVP is a simple rule-based classifier (endpoint pattern
+  matching), not a full risk assessment framework.
+- DORA compliance checks encode a best-effort interpretation of regulatory requirements
+  and carry an explicit disclaimer that they do not constitute legal advice.
+- MVP supports only JSON-based REST APIs; GraphQL and gRPC Open Banking interfaces
+  are out of scope.
+- Configuration is file-based YAML only; no UI, no database-backed config, no hot-reload
+  in MVP.
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - better-sqlite3
+  - undici
+  - js-yaml
+  - ajv (JSON Schema validation)
+  - node:crypto
+  infrastructure:
+  - Node.js 20+ runtime
+  - SQLite (embedded, append-only audit store)
+  - YAML configuration files

@@ -1,0 +1,83 @@
+patterns:
+- name: LTI Tool Provider Architecture
+  description: Implement OAuth 2.0-based LTI 1.3 security framework with OIDC launch
+    flow, enabling the application to receive authenticated user context from LMS
+    platforms and return assessment results via LTI Assignment and Grade Services
+  scope:
+  - backend/lti
+  - backend/auth
+- name: Microservices for Domain Separation
+  description: Separate assessment delivery (Node.js/Express) from psychometric analysis
+    (Python/FastAPI) to isolate IRT computation complexity and enable independent
+    scaling of assessment traffic vs. analytics workload
+  scope:
+  - backend/assessment-service
+  - backend/analytics-service
+- name: Event-Driven Assessment Flow
+  description: Use event bus pattern to decouple question delivery, response recording,
+    IRT scoring, gap analysis, and badge issuance, allowing each stage to process
+    asynchronously and retry independently
+  scope:
+  - backend/events
+  - backend/assessment-service
+  - backend/analytics-service
+- name: Repository Pattern for Data Access
+  description: Abstract PostgreSQL queries behind repository interfaces to enable
+    testability and potential future migration to different storage backends
+  scope:
+  - backend/repositories
+invariants:
+- All LTI launches must validate platform signatures and nonce uniqueness before granting
+  access
+- Assessment responses must be immutable once recorded (append-only event log)
+- IRT difficulty parameters must remain within [-3, 3] range to prevent model instability
+- Open Badges must include cryptographic proof (hosted verification URL or signed
+  assertion)
+- Skill gap calculations must reference a versioned competency model to ensure reproducibility
+- User PII must never be logged or transmitted outside encrypted channels
+- Assessment sessions must timeout after 60 minutes of inactivity
+- All API responses must include correlation IDs for distributed tracing
+conventions:
+- Use kebab-case for package names, API endpoints, and file names
+- Use PascalCase for React components, TypeScript interfaces, and Python classes
+- Use camelCase for TypeScript/JavaScript variables and functions
+- Use snake_case for Python variables, functions, and database columns
+- Prefix environment variables with SKILLGAP_ namespace
+- Name database tables in singular form (learner, assessment, question)
+- Use ISO 8601 timestamps (UTC) for all date/time storage
+- Prefix event types with domain (assessment.started, badge.issued)
+- 'Use HTTP status codes: 200 (success), 201 (created), 400 (validation), 401 (auth),
+  403 (forbidden), 404 (not found), 500 (server error)'
+- Write acceptance tests in Given-When-Then format
+decisions:
+- id: D-1
+  title: Use 2-Parameter Logistic IRT Model Instead of Classical Test Theory
+  decision: Implement 2PL IRT model for adaptive assessment scoring
+  rationale: IRT enables adaptive question selection based on learner ability estimates,
+    reducing assessment time from 60+ minutes to 10-15 minutes while maintaining measurement
+    precision. 2PL balances model complexity (accounts for item difficulty and discrimination)
+    with parameter estimation stability given MVP question bank size (50 questions/domain).
+    Classical test theory would require fixed-length tests and provide less granular
+    skill level estimates.
+- id: D-2
+  title: Separate Node.js and Python Services Rather Than Single-Stack Solution
+  decision: Deploy Node.js/Express for LTI provider and assessment delivery, Python/FastAPI
+    for IRT calculations and analytics
+  rationale: Node.js ecosystem has mature LTI libraries (ltijs) and handles concurrent
+    assessment sessions efficiently. Python's scikit-learn provides proven IRT implementations
+    and ML tooling for future gap analysis enhancements. Separation allows each service
+    to scale independently (assessment traffic is spiky during training campaigns;
+    analytics is batch-oriented). Attempting to implement IRT in JavaScript would
+    require custom psychometric libraries with higher risk.
+- id: D-3
+  title: Use LTI Deep Linking for Learning Path Recommendations Instead of External
+    Catalog APIs
+  decision: Query LMS course catalog via LTI Deep Linking protocol to recommend learning
+    paths
+  rationale: LTI Deep Linking is part of LTI Advantage specification, ensuring compatibility
+    across all target LMS platforms without custom integrations. Keeps MVP scope focused
+    on standard-based interoperability. External catalog APIs (SCORM Cloud, xAPI registries)
+    would require per-platform authentication and mapping logic. This approach also
+    ensures recommended courses are actually available to the learner in their LMS
+    context.
+contracts: []

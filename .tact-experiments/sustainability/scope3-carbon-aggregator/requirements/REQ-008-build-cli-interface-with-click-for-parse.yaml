@@ -1,0 +1,28 @@
+title: Build CLI interface with click for parser execution and reporting
+approval: draft
+phase: planned
+priority: high
+description: Implement the command-line interface using click that provides commands
+  for initializing the database, listing available parsers, running individual or
+  all parsers, generating reports, and exporting data. The CLI is the primary user
+  interface for the MVP.
+acceptanceCriteria:
+- 'scope3 init command creates a new DuckDB database at a configurable path (default:
+  ./scope3_data.duckdb) and confirms initialization'
+- scope3 list-parsers command displays all registered parsers with their id, description,
+  supported Scope 3 categories, and data quality tier
+- scope3 run-parser <parser-id> [--input <path>] [--config <path>] executes a single
+  parser and inserts results into storage, reporting count of records inserted and
+  any validation warnings
+- scope3 report command outputs a Scope 3 category summary table to stdout showing
+  per-category totals, record counts, average data quality scores, and improvement
+  opportunities
+- scope3 export --format json|csv [--output <path>] exports the current Scope3Summary
+  or raw records in the specified format
+decomposition:
+  assignments: []
+dependencies:
+- Implement pluggy-based plugin manager for parser registration and discovery
+- Implement DuckDB storage layer with append-only audit semantics
+- Implement data quality scoring and aggregation module
+source: discovered

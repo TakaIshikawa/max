@@ -1,0 +1,18 @@
+title: Build Question Bank Management System with Skill Taxonomy Tagging
+approval: draft
+phase: planned
+priority: high
+description: Provide interface for training managers to create, edit, and calibrate
+  question banks organized by skill domain and tagged with competency metadata. Must
+  support multiple-choice questions with IRT parameters (difficulty, discrimination).
+acceptanceCriteria:
+- 'CRUD operations for questions with fields: text, options, correct answer, skill
+  tags, IRT parameters'
+- Support 3 skill domains (technical, compliance, soft skills) with 50 questions each
+- Tag questions with competency IDs from predefined taxonomy (O*NET codes or custom)
+- Import questions from CSV with validation for required fields
+- Prevent deletion of questions used in active assessments (soft delete only)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

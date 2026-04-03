@@ -1,0 +1,24 @@
+title: Build clinical-document-aware chunking engine
+approval: draft
+phase: planned
+priority: critical
+description: Develop a parser that segments clinical notes while respecting medical
+  document structure (SOAP format, section headers, problem lists). Chunks must maintain
+  clinical coherence and include metadata about document type, date, and source FHIR
+  resource for traceability.
+acceptanceCriteria:
+- Parse SOAP notes and create separate chunks for Subjective, Objective, Assessment,
+  Plan sections
+- Detect and preserve problem list structure (one chunk per problem with associated
+  notes)
+- Keep medication lists intact (all current meds in single chunk with interaction
+  context)
+- 'Each chunk includes metadata: document_type, authored_date, fhir_resource_id, section_type'
+- Chunk size targets 200-500 tokens with overlap of 50 tokens between adjacent chunks
+- Validate chunking on 10 sample clinical notes covering common formats (H&P, progress
+  notes, discharge summaries)
+decomposition:
+  assignments: []
+dependencies:
+- Implement FHIR R4 patient data retrieval
+source: discovered

@@ -1,0 +1,23 @@
+title: Create Sigma rule engine for medical device attack patterns
+approval: draft
+phase: planned
+priority: high
+description: Build detection engine that loads Sigma YAML rules, compiles them to
+  Python functions, and evaluates against normalized events from scanners and Zeek.
+  Maps detections to MITRE ATT&CK for ICS techniques and generates alerts.
+acceptanceCriteria:
+- Engine loads Sigma rules from /rules directory and validates YAML structure on startup
+- Compiler generates Python detection functions that match against event dictionaries
+  with field paths (e.g., 'network.protocol', 'device.firmware_version')
+- 'At least 5 healthcare-specific rules implemented: unauthorized DICOM query (T0868),
+  HL7 message injection (T0889), firmware version downgrade (T0873), device impersonation
+  via MAC spoofing (T0849), excessive failed authentication (T0859)'
+- 'Alerts stored in PostgreSQL with fields: rule_id, mitre_technique, severity, device_id,
+  event_data, detected_at'
+- Rule evaluation processes 100 events/second on single core
+decomposition:
+  assignments: []
+dependencies:
+- Build device inventory repository with vulnerability tracking
+- Integrate Zeek for DICOM and HL7 protocol monitoring
+source: discovered

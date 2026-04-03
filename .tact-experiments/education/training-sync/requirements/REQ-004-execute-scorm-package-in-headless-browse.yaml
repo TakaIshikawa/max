@@ -1,0 +1,23 @@
+title: Execute SCORM package in headless browser and capture runtime errors
+approval: draft
+phase: planned
+priority: high
+description: Use Puppeteer to launch SCORM package in headless Chrome, monitor JavaScript
+  console for errors, intercept SCORM API calls (LMSInitialize, LMSSetValue, LMSCommit,
+  LMSFinish), and detect failures. Catches issues that static validation misses like
+  JavaScript errors or API misuse.
+acceptanceCriteria:
+- Puppeteer successfully loads SCORM package launch URL from Moodle container
+- Intercepts and logs all SCORM 1.2 API calls (LMSInitialize, LMSGetValue, LMSSetValue,
+  LMSCommit, LMSFinish) with timestamps and parameters
+- Captures JavaScript console errors and warnings with stack traces as error code
+  LMS-001
+- Detects missing LMSFinish() call after 30 seconds of inactivity and reports as error
+  code SCORM-003
+- Records cmi.core.lesson_status and cmi.core.score.raw values to verify completion
+  tracking works
+decomposition:
+  assignments: []
+dependencies:
+- Build Docker-based Moodle LMS test environment
+source: discovered

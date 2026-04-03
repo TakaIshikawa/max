@@ -1,0 +1,21 @@
+title: Build regulatory deadline dashboard view
+approval: draft
+phase: planned
+priority: critical
+description: Create a React dashboard page that displays regulatory deadlines in a
+  timeline/list view with filtering controls. Deadlines approaching within 90 days
+  should be visually highlighted as urgent. This is the primary urgency signal that
+  motivates founders to prioritize GTM over feature building.
+acceptanceCriteria:
+- Page displays all deadlines sorted by enforcement_date ascending (soonest first).
+- Filter controls allow narrowing by regulation (DORA/CSRD/EU AI Act) and firm type.
+- Deadlines within 90 days of today are visually distinguished with an urgent indicator
+  (color, badge, or icon).
+- 'Each deadline card shows: regulation name, milestone title, enforcement date, days
+  remaining, and applicable firm types.'
+- Empty state shown when no deadlines match active filters.
+decomposition:
+  assignments: []
+dependencies:
+- Implement regulatory deadline database with seed data
+source: discovered

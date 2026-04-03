@@ -1,0 +1,18 @@
+title: Generate Skill Gap Reports Comparing Learner Proficiency to Role Requirements
+approval: draft
+phase: planned
+priority: critical
+description: Analyze assessment results to identify skill gaps by comparing learner
+  theta estimates to target proficiency levels defined in role-based competency models.
+  Output structured gap report with prioritized skill deficits.
+acceptanceCriteria:
+- Define competency models for 3 job roles with target theta values per skill
+- Calculate gap score as (target_theta - learner_theta) for each skill
+- Rank skills by gap magnitude and flag critical gaps (>1.0 theta difference)
+- Generate JSON report with learner_id, role, skill gaps, and proficiency percentiles
+- Display gap report in learner UI within 5 seconds of assessment completion
+decomposition:
+  assignments: []
+dependencies:
+- Create Adaptive Assessment Engine with IRT-Based Question Selection
+source: discovered

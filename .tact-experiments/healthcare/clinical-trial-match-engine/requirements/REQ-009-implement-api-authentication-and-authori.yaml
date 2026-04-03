@@ -1,0 +1,21 @@
+title: Implement API authentication and authorization for clinician dashboard
+approval: draft
+phase: planned
+priority: high
+description: Secure API endpoints with JWT-based authentication. Implement role-based
+  access control to ensure only authorized clinicians can access patient data and
+  trial recommendations.
+acceptanceCriteria:
+- API endpoints require valid JWT token in Authorization header
+- JWT tokens issued upon successful login with username/password (stored as bcrypt
+  hashes)
+- Tokens expire after 8 hours; refresh token mechanism implemented for session extension
+- User roles defined (clinician, admin) with permissions stored in database
+- Clinician role can access patient matching endpoints; admin role can access audit
+  logs and system configuration
+- Unauthorized requests (missing/invalid token) return 401 with clear error message
+- Authorization failures (valid token, insufficient permissions) return 403
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

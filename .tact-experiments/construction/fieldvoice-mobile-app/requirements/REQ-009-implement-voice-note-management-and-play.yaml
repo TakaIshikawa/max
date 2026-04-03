@@ -1,0 +1,21 @@
+title: Implement voice note management and playback
+approval: draft
+phase: planned
+priority: medium
+description: Allow users to review, replay, delete, and re-transcribe individual voice
+  notes before finalizing the daily report. This supports iterative refinement of
+  voice input.
+acceptanceCriteria:
+- User can tap any voice note to play back the original audio recording
+- User can delete individual voice notes, which removes associated extracted data
+  from report
+- User can manually trigger re-transcription of a voice note if initial transcription
+  was poor
+- Voice notes list shows duration, timestamp, and first 50 characters of transcription
+- Deleted voice notes are removed from database and audio files are deleted from file
+  system
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline voice note recording with local transcription
+source: discovered

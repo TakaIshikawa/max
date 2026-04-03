@@ -1,0 +1,28 @@
+title: Build DEFRA emission factors parser plugin
+approval: draft
+phase: planned
+priority: high
+description: Implement the first concrete parser that ingests UK DEFRA/BEIS greenhouse
+  gas conversion factors from their published CSV/Excel datasets. DEFRA factors cover
+  materials, transport, energy, and waste — making this a high-value initial parser
+  that demonstrates the architecture with freely available, well-structured public
+  data.
+acceptanceCriteria:
+- 'Parser reads DEFRA conversion factor CSV files (2023 or 2024 dataset) and extracts
+  emission factors for at least the categories: business travel, freight transport,
+  materials, and waste disposal'
+- Each extracted factor is normalized into one or more EmissionRecord instances with
+  correct Scope 3 category mapping (e.g., freight -> Category 4, business travel ->
+  Category 6)
+- Data quality score is set to 3 (activity-based) for all DEFRA factors, with source
+  provenance including DEFRA dataset version and publication year
+- Parser handles unit conversions (e.g., kg CO2e per tonne-km, kg CO2e per kWh) to
+  the canonical kg CO2e with original units preserved
+- Parser validates that no duplicate factors are produced for the same activity and
+  reports warnings for unmapped DEFRA categories via logging
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+- Implement pluggy-based plugin manager for parser registration and discovery
+source: discovered

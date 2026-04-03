@@ -1,0 +1,22 @@
+title: Parse and validate SCORM 1.2 package structure
+approval: draft
+phase: planned
+priority: critical
+description: Extract SCORM package ZIP, locate and parse imsmanifest.xml, validate
+  against SCORM 1.2 schema, and check for required elements (metadata, organizations,
+  resources). This is the foundation for all SCORM validation—without it, runtime
+  testing is meaningless.
+acceptanceCriteria:
+- Successfully extracts ZIP packages up to 500MB to temporary directory
+- Locates imsmanifest.xml at package root and parses XML with error handling for malformed
+  files
+- 'Validates presence of required SCORM 1.2 elements: <metadata>, <organizations>,
+  <resources>, <schema>, <schemaversion>'
+- Detects missing or incorrect schemaversion (must be '1.2') and reports as error
+  code SCORM-001
+- Reports file path references in manifest that don't exist in package as error code
+  SCORM-002
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,20 @@
+title: Generate sequenced learning path from prerequisite graph
+approval: draft
+phase: planned
+priority: critical
+description: Produce final ordered list of learning resources forming a coherent curriculum
+  from foundational to advanced content. This is the core deliverable that users receive
+  and follow.
+acceptanceCriteria:
+- System performs topological sort on prerequisite graph to produce valid learning
+  sequence
+- Generated path contains 5-15 learning resources (configurable range)
+- Path includes mix of content types (courses, videos) and sources when available
+- Each path item includes sequence number, estimated duration, and prerequisite references
+- Path generation is deterministic—same inputs produce same output within cache validity
+  period
+decomposition:
+  assignments: []
+dependencies:
+- Infer prerequisite relationships between content items
+source: discovered

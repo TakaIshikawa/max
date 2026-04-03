@@ -1,0 +1,24 @@
+title: Build ship-or-kill dashboard view
+approval: draft
+phase: planned
+priority: high
+description: Create a React page that displays feature ideas ranked by their composite
+  ship-or-kill score. Each feature shows its score breakdown so founders understand
+  why a feature ranks high or low. Includes a form to add new feature ideas and link
+  them to deadlines and pain point themes.
+acceptanceCriteria:
+- Page displays feature ideas sorted by composite score, highest first.
+- 'Each feature card shows: title, composite score, and breakdown of three sub-scores
+  (customer evidence, deadline urgency, competitor gap).'
+- Features scoring above 0.7 are visually marked as 'Ship' candidates; below 0.3 as
+  'Kill' candidates.
+- Add feature form allows selecting from existing regulatory deadlines (multi-select)
+  and entering theme keywords.
+- Score updates are reflected after adding or editing a feature without full page
+  reload.
+decomposition:
+  assignments: []
+dependencies:
+- Implement ship-or-kill feature scoring engine
+- Build regulatory deadline dashboard view
+source: discovered

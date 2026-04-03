@@ -1,0 +1,23 @@
+title: Implement CLI skeleton with terraform passthrough
+approval: draft
+phase: planned
+priority: critical
+description: Create the cobra-based CLI entrypoint that accepts all terraform subcommands.
+  Recognized commands (plan, apply, analyze, audit) are intercepted and enhanced;
+  all other commands are passed through to the terraform/tofu binary transparently.
+  The CLI must support --json output mode, --config flag for tool configuration, and
+  auto-detection of terraform vs tofu binary.
+acceptanceCriteria:
+- Running `tfca init` delegates to `terraform init` with identical arguments and exit
+  code
+- Running `tfca plan` invokes the incremental plan pipeline instead of raw terraform
+  plan
+- Running `tfca --json plan` produces all output as newline-delimited JSON
+- Unrecognized subcommands (e.g., `tfca import`) pass through to terraform with all
+  flags preserved
+- If neither terraform nor tofu binary is found on PATH, the CLI exits with a clear
+  error message and exit code 1
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

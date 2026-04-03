@@ -1,0 +1,23 @@
+title: Implement GC-subcontractor relationship linking
+approval: draft
+phase: planned
+priority: high
+description: Enable subcontractors to link their account to GC organizations and enable
+  GCs to approve/manage these relationships. This establishes the trust boundary for
+  data access.
+acceptanceCriteria:
+- Mobile app allows subcontractor to request link to GC by entering GC organization
+  code or email
+- Backend creates pending relationship record in gc_subcontractor_relationships table
+  with status='pending'
+- GC admin receives email notification of pending relationship request with approve/deny
+  links
+- 'GC admin can approve relationship via email link or future web dashboard (MVP:
+  email link only)'
+- Approved relationships enable subcontractor to view payment events for that GC
+- Backend API enforces relationship status check on all payment event queries (only
+  return data for approved relationships)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

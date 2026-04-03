@@ -1,0 +1,28 @@
+title: Generate draft CSRD disclosure reports from classified data
+approval: draft
+phase: planned
+priority: high
+description: Implement a report generation service that aggregates classified transaction
+  data by ESRS topic, computes summary metrics (totals, counts, confidence indicators),
+  and renders draft CSRD disclosure sections using Jinja2 templates. MVP covers E1
+  (Climate Change) and S1 (Own Workforce) topics.
+acceptanceCriteria:
+- POST /api/v1/reports/generate triggers report generation and returns a report ID;
+  GET /api/v1/reports/{id} retrieves the generated report
+- 'E1 (Climate Change) section includes: total spend classified as emissions-related,
+  breakdown by Scope 1/2/3 proxy categories, transaction count per category, and weighted
+  average confidence score'
+- 'S1 (Own Workforce) section includes: total payroll-related spend, workforce-related
+  transaction categories, and relevant social metric proxies'
+- Report output is available in both HTML (rendered Jinja2 template) and JSON (structured
+  data) formats
+- Each report section includes a data quality indicator showing the percentage of
+  underlying transactions that were human-reviewed vs. AI-only classified
+- Report includes a methodology note explaining that metrics are transaction-based
+  proxies and may require adjustment by qualified sustainability professionals
+decomposition:
+  assignments: []
+dependencies:
+- Build ESRS taxonomy classification engine with local LLM
+- Create ESRS taxonomy reference data and system prompt
+source: discovered

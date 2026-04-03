@@ -1,0 +1,27 @@
+title: Implement data quality scoring and aggregation module
+approval: draft
+phase: planned
+priority: high
+description: Build the module that aggregates emission records by Scope 3 category,
+  computes quality-weighted totals, calculates uncertainty ranges, and identifies
+  categories where data quality improvement would have the highest impact. This is
+  the analytical core that transforms raw records into actionable Scope 3 reporting
+  data.
+acceptanceCriteria:
+- Aggregator computes per-category CO2e totals by summing current (non-superseded)
+  emission records grouped by Scope 3 category (1-15)
+- 'Each category total includes: sum_co2e_kg, record_count, average_data_quality_score
+  (weighted by CO2e magnitude), min/max uncertainty_pct, and a list of contributing
+  parser_ids'
+- Aggregator identifies the top 3 categories by CO2e magnitude that have average data
+  quality score >= 4, flagging them as 'improvement opportunities'
+- Uncertainty range calculation propagates per-record uncertainty using root-sum-square
+  method to produce category-level confidence intervals
+- Aggregator output is a pydantic model (Scope3Summary) that serializes to JSON matching
+  a documented schema suitable for downstream CSRD tooling consumption
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+- Implement DuckDB storage layer with append-only audit semantics
+source: discovered

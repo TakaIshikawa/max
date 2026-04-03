@@ -1,0 +1,20 @@
+title: Persist and retrieve user-generated learning paths
+approval: draft
+phase: planned
+priority: critical
+description: Store generated learning paths in database associated with user accounts,
+  enabling users to access, review, and track their personalized curricula over time.
+acceptanceCriteria:
+- Generated paths are saved to PostgreSQL with user_id, job_role, skills, content_items,
+  and creation timestamp
+- Users can retrieve list of their previously generated paths via API endpoint
+- Each path has unique ID and can be retrieved individually with full content details
+- Path data includes generation metadata (skills extracted, sources queried, generation
+  duration)
+- Database schema supports versioning—users can regenerate paths for same role and
+  compare versions
+decomposition:
+  assignments: []
+dependencies:
+- Generate sequenced learning path from prerequisite graph
+source: discovered

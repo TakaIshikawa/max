@@ -1,0 +1,21 @@
+title: Handle FHIR API errors and data synchronization
+approval: draft
+phase: planned
+priority: high
+description: Implement robust error handling for FHIR API failures and background
+  sync to keep timeline data current. Ensures app remains functional despite network
+  issues or EHR downtime.
+acceptanceCriteria:
+- App displays cached timeline data from local database when FHIR API unavailable
+- Background sync runs every 6 hours to fetch new clinical events when app in foreground
+- User can manually trigger sync via pull-to-refresh gesture on timeline screen
+- 'Sync failures show user-friendly error message: ''Unable to connect to [EHR Name].
+  Showing cached data from [last sync time]'''
+- Retry logic with exponential backoff for transient API errors (HTTP 429, 503)
+- OAuth token refresh failures prompt user to re-authenticate with EHR
+decomposition:
+  assignments: []
+dependencies:
+- Fetch and store clinical events from FHIR API
+- Render interactive timeline of clinical events
+source: discovered

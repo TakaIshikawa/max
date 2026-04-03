@@ -1,0 +1,84 @@
+patterns:
+- name: FHIR Resource Adapter
+  description: Adapter pattern to normalize FHIR resources (Condition, Observation,
+    MedicationStatement, Procedure, Patient) from different EHR vendors into internal
+    domain models for matching logic
+  scope:
+  - fhir_client
+  - patient_data_service
+- name: Pipeline Architecture for Eligibility Parsing
+  description: Multi-stage pipeline (fetch trial data → extract structured criteria
+    → parse unstructured text → store parsed criteria) with each stage independently
+    testable and cacheable
+  scope:
+  - trial_ingestion_service
+  - eligibility_parser
+- name: Scoring Engine with Explainability
+  description: Matching engine produces both a numerical match score and structured
+    explanations (which criteria matched/failed) to support clinical decision-making
+    and debugging
+  scope:
+  - matching_engine
+  - explanation_generator
+- name: Repository Pattern for Data Access
+  description: Abstract data access behind repository interfaces to separate business
+    logic from persistence and enable testing with mock data
+  scope:
+  - database
+  - repositories
+invariants:
+- All patient data access must be logged with timestamp, user ID, and patient ID for
+  audit compliance
+- No PHI (Protected Health Information) may be persisted to application database;
+  only trial data and match metadata stored
+- FHIR API calls must include proper authentication tokens and fail gracefully with
+  clear error messages if unauthorized
+- Eligibility criteria parsing must preserve original trial text alongside parsed
+  structured data for clinical review
+- Match scores must be deterministic and reproducible given identical patient data
+  and trial criteria
+- All external API calls (FHIR, ClinicalTrials.gov) must have timeout limits and retry
+  logic with exponential backoff
+conventions:
+- Use snake_case for Python functions/variables, PascalCase for classes, kebab-case
+  for API endpoints
+- FHIR resource types referenced by official FHIR resource names (Patient, Condition,
+  Observation, etc.)
+- All API responses follow JSON:API structure with data/errors/meta top-level keys
+- Database tables prefixed by domain (trial_*, match_*, audit_*)
+- Environment-specific configuration via .env files, never hardcoded secrets
+- All dates/times stored and transmitted in ISO 8601 format with UTC timezone
+- Clinical terminology codes include both code and display text (e.g., SNOMED CT,
+  LOINC, RxNorm)
+- Test files mirror source structure with _test.py suffix
+decisions:
+- id: D-1
+  title: Use rule-based extraction for MVP eligibility parsing instead of fine-tuned
+    BioBERT
+  decision: Implement regex and spaCy-based rule extraction for age ranges, lab values,
+    and diagnosis keywords rather than training a custom BioBERT model
+  rationale: Fine-tuning BioBERT requires labeled training data (hundreds of annotated
+    eligibility criteria), GPU infrastructure, and NLP expertise that extends MVP
+    timeline by 2-3 months. Rule-based extraction can achieve 70-80% accuracy for
+    structured criteria (age, labs) and provides interpretable results. Can upgrade
+    to ML-based parsing in future iterations once we have usage data to guide model
+    training.
+- id: D-2
+  title: Retrieve patient data on-demand from FHIR server rather than caching/syncing
+  decision: Fetch patient FHIR resources via API at match request time instead of
+    maintaining a synchronized patient database
+  rationale: Avoids PHI storage compliance burden, ensures data freshness (recent
+    lab results, new diagnoses), and simplifies architecture. Trade-off is latency
+    (2-3 second FHIR API calls), but acceptable for non-real-time clinical workflow.
+    Implement Redis caching for session-duration to avoid redundant calls during single
+    clinician session.
+- id: D-3
+  title: Focus MVP on oncology trials with structured inclusion/exclusion criteria
+  decision: Limit initial trial ingestion to breast, lung, and colorectal cancer trials
+    from ClinicalTrials.gov with clearly structured eligibility sections
+  rationale: Oncology has highest trial density and clinical need (3-5% enrollment
+    problem most acute). Structured eligibility criteria (age, stage, biomarkers,
+    prior treatments) are more parseable than complex rare disease trials. Constraining
+    scope enables validation with oncology research coordinators and focused NLP rule
+    development. Extensible to other disease areas once core matching logic validated.
+contracts: []

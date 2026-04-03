@@ -1,0 +1,21 @@
+title: Connect to BambooHR API and sync employee data
+approval: draft
+phase: planned
+priority: critical
+description: Implement BambooHR adapter that authenticates via API key, fetches employee
+  roster with roles/departments, and maintains local employee cache. Enables matching
+  employees to regulatory requirements.
+acceptanceCriteria:
+- Adapter successfully authenticates with BambooHR API using subdomain and API key
+  from environment variables
+- Initial sync fetches all active employees and stores id, name, email, role, department,
+  hire_date in local PostgreSQL employees table
+- Sync operation is idempotent—running multiple times updates existing records without
+  creating duplicates
+- Sync detects role changes by comparing current BambooHR role to stored role and
+  emits role_changed event
+- Celery scheduled task runs sync every 6 hours with error logging and retry logic
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

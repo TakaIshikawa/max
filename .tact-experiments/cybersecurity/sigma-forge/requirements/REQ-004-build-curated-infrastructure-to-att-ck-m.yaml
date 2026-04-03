@@ -1,0 +1,24 @@
+title: Build curated infrastructure-to-ATT&CK mapping registry
+approval: draft
+phase: planned
+priority: critical
+description: Create a structured JSON mapping registry that maps service fingerprints
+  (image name patterns, exposed ports, technology types) to MITRE ATT&CK technique
+  IDs with rationale strings. Load and index this registry at server startup. This
+  is the core knowledge base that determines rule relevance quality.
+acceptanceCriteria:
+- 'Registry contains mappings for at least 15 common containerized services: Redis,
+  PostgreSQL, MySQL, MongoDB, Nginx, Apache, Node.js, Python/Flask, Elasticsearch,
+  RabbitMQ, Kafka, Vault, Grafana, Jenkins, and GitLab'
+- 'Each mapping entry includes: service fingerprint pattern, list of ATT&CK technique
+  IDs, rationale string per technique, and a base relevance score'
+- Registry includes CVE-to-technique mappings for at least 5 well-known container
+  CVEs (e.g., Log4Shell → T1190, T1059)
+- All technique IDs in the registry are validated against the bundled ATT&CK STIX
+  dataset at load time
+- Registry is stored as a JSON file in src/data/ and loaded into SQLite at initialization
+  for indexed querying
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

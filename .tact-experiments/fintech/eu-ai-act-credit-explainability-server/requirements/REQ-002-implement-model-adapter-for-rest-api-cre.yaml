@@ -1,0 +1,21 @@
+title: Implement model adapter for REST API credit scoring endpoints
+approval: draft
+phase: planned
+priority: critical
+description: Create a ModelAdapter interface and a REST API implementation that calls
+  external credit scoring model endpoints. The adapter accepts a feature vector, sends
+  it to the configured model URL, and returns the numeric score along with model metadata.
+  Includes timeout, retry, and error handling.
+acceptanceCriteria:
+- 'ModelAdapter interface defines predict(features: dict[str, float]) -> ModelPrediction
+  with score, model_id, and model_version fields'
+- REST adapter sends POST request with JSON feature vector to configured endpoint
+  and parses numeric score from configurable response path
+- Requests timeout after a configurable duration (default 5 seconds) and retry up
+  to 3 times with exponential backoff
+- Adapter raises typed ModelConnectionError or ModelResponseError exceptions on failure,
+  never raw HTTP exceptions
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement MCP server skeleton with tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Set up the FastMCP server with four registered tools (discover_infrastructure,
+  map_attack_surface, generate_rule_pack, get_coverage_report) that accept typed input
+  schemas and return structured JSON responses. This is the foundational entry point
+  for all functionality.
+acceptanceCriteria:
+- MCP server starts and responds to the MCP initialize handshake
+- All four tools appear in the tools/list response with JSON Schema descriptions
+- Each tool accepts its defined input parameters and returns a valid JSON response
+  (stub data acceptable for this requirement)
+- Server handles invalid tool parameters gracefully with structured error responses
+- Server runs via stdio transport for local MCP client integration
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

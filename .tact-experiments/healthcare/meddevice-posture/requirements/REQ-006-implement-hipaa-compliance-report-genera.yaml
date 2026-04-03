@@ -1,0 +1,22 @@
+title: Implement HIPAA compliance report generation
+approval: draft
+phase: planned
+priority: medium
+description: Create report generator that exports device inventory, vulnerability
+  remediation status, and detection coverage as PDF/CSV. Aligns with HIPAA Security
+  Rule technical safeguards requirements for audit evidence.
+acceptanceCriteria:
+- API endpoint /api/v1/reports/hipaa generates report covering specified date range
+- 'Report includes sections: device inventory summary, vulnerabilities by severity,
+  remediation timeline, detection rule coverage by MITRE ATT&CK tactic'
+- PDF output formatted with hospital name/logo (configurable), table of contents,
+  and page numbers
+- CSV export includes raw data tables for device inventory and vulnerability records
+- Report generation completes in under 60 seconds for 500 devices with 2000 vulnerability
+  records
+decomposition:
+  assignments: []
+dependencies:
+- Build device inventory repository with vulnerability tracking
+- Create Sigma rule engine for medical device attack patterns
+source: discovered

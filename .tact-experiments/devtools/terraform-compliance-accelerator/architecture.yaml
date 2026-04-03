@@ -1,0 +1,101 @@
+patterns:
+- name: CLI Wrapper / Facade
+  description: The application acts as a thin orchestration layer around the terraform/tofu
+    binary, intercepting plan and apply commands to inject incremental refresh logic,
+    policy evaluation, and audit logging before and after delegating to the real binary.
+    All terraform subcommands not explicitly handled are passed through transparently.
+  scope:
+  - cmd/
+  - internal/orchestrator/
+- name: Dependency Graph Engine
+  description: Terraform state and HCL configuration are parsed into an in-memory
+    directed acyclic graph (DAG) of resources and their dependencies. This graph drives
+    incremental refresh (only refresh changed nodes and their dependents), Terralith
+    analysis (graph metrics), and policy evaluation (resource context).
+  scope:
+  - internal/graph/
+  - internal/parser/
+- name: Policy Evaluation Pipeline
+  description: 'Safety policies are loaded from YAML files, compiled into an in-memory
+    rule set, and evaluated against the planned resource changes in a pipeline: parse
+    plan → enrich with environment context → evaluate rules → emit allow/deny decisions
+    with explanations. The pipeline is extensible for future OPA integration.'
+  scope:
+  - internal/policy/
+- name: Append-Only Audit Log with Hash Chaining
+  description: Every significant operation (plan, apply, policy evaluation) produces
+    a structured JSON log entry appended to an immutable log file. Each entry includes
+    a SHA-256 hash of the previous entry, forming a tamper-evident chain. A separate
+    verify command walks the chain to detect tampering.
+  scope:
+  - internal/audit/
+- name: Repository / Data Access Layer
+  description: SQLite access for staleness metadata (resource fingerprints, last refresh
+    timestamps, configuration hashes) is encapsulated behind a repository interface,
+    enabling unit testing with in-memory databases and future migration to other storage
+    backends.
+  scope:
+  - internal/store/
+invariants:
+- Audit log entries are append-only — no entry may be modified or deleted once written;
+  the hash chain must remain intact
+- A policy deny decision must always block the operation and produce a non-zero exit
+  code — policy evaluation failures are never silently ignored
+- Incremental plan must never produce a different set of planned changes than a full
+  plan would — correctness is paramount over speed; when in doubt, refresh
+- The tool must never modify Terraform state directly — all state mutations happen
+  through the terraform/tofu binary via terraform-exec
+- All CLI output in JSON mode must conform to a documented JSON schema — machine consumers
+  must be able to parse output reliably
+- Passthrough mode for unrecognized terraform subcommands must not alter behavior
+  — the wrapper must be transparent for commands it does not enhance
+conventions:
+- 'Go project layout follows golang-standards/project-layout: cmd/ for entrypoints,
+  internal/ for private packages, pkg/ only for genuinely reusable public APIs'
+- All exported functions and types have GoDoc comments; internal packages have package-level
+  doc comments explaining purpose
+- Error handling uses wrapped errors with fmt.Errorf and %w verb; no bare error strings
+  — all errors are traceable to origin
+- Configuration files (policy YAML, tool config) use snake_case keys; Go structs use
+  PascalCase with yaml/json struct tags
+- CLI flags use kebab-case (e.g., --staleness-threshold); environment variables use
+  TFCA_ prefix with UPPER_SNAKE_CASE (e.g., TFCA_STALENESS_THRESHOLD)
+- Tests are colocated with source files (*_test.go); integration tests use build tag
+  //go:build integration
+- Commit messages follow Conventional Commits (feat:, fix:, docs:, test:, chore:)
+- All public-facing types implement the fmt.Stringer interface for human-readable
+  output
+decisions:
+- id: D-1
+  title: Wrap terraform-exec rather than parse provider protocols directly
+  decision: Use hashicorp/terraform-exec to invoke terraform as a subprocess for all
+    state-mutating operations, rather than embedding provider logic or parsing the
+    provider plugin protocol.
+  rationale: Embedding provider logic would create an enormous maintenance surface
+    and tight coupling to Terraform internals. terraform-exec provides a stable Go
+    API for invoking terraform plan, apply, show, and state operations. This keeps
+    the wrapper thin and resilient to Terraform version changes. The tradeoff is subprocess
+    overhead, but this is negligible compared to provider API call latency.
+- id: D-2
+  title: YAML DSL for safety policies instead of OPA/Rego in MVP
+  decision: Implement a purpose-built YAML DSL for environment-aware safety policies
+    in MVP, with OPA integration planned as a post-MVP extension point.
+  rationale: OPA/Rego has a steep learning curve for infrastructure teams and adds
+    a significant dependency. A focused YAML DSL covering the core use cases (resource
+    type × environment × operation → allow/deny) is faster to implement, easier for
+    users to adopt, and sufficient for MVP. The policy evaluation pipeline is designed
+    with an interface boundary so OPA can be plugged in later without restructuring.
+- id: D-3
+  title: SQLite for staleness metadata with content-hash-based change detection
+  decision: Track resource staleness in a local SQLite database keyed by resource
+    address, storing the SHA-256 hash of the resource's HCL configuration block and
+    the timestamp of the last successful refresh. A resource is considered stale if
+    its config hash changed or its last refresh exceeds the configurable staleness
+    threshold.
+  rationale: 'SQLite is zero-dependency, embeddable, and provides ACID guarantees
+    for the metadata store. Content hashing of HCL blocks is more reliable than file
+    modification timestamps for detecting actual configuration changes. The staleness
+    threshold (default: 24h) provides a safety net ensuring all resources are periodically
+    refreshed even without config changes, maintaining the invariant that incremental
+    plans never diverge from full plans.'
+contracts: []

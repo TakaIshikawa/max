@@ -1,0 +1,22 @@
+title: Score content relevance to required skills using embeddings
+approval: draft
+phase: planned
+priority: critical
+description: Compute semantic similarity between discovered content and required skills
+  to filter and rank learning resources. This ensures generated paths contain genuinely
+  relevant content rather than keyword-matched noise.
+acceptanceCriteria:
+- System generates embeddings for skill descriptions and content titles/descriptions
+  using sentence-transformers model
+- Cosine similarity scores computed between each content item and target skills, with
+  scores 0.0-1.0
+- Content items with relevance score below 0.5 are filtered out from path generation
+- Embedding computation and similarity scoring completes within 10 seconds for 50
+  content items
+- Relevance scores are stored with content items for debugging and path explanation
+decomposition:
+  assignments: []
+dependencies:
+- Discover learning content from LinkedIn Learning API
+- Discover learning content from YouTube API
+source: discovered

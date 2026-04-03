@@ -1,0 +1,22 @@
+title: Manage OSHA category taxonomy
+approval: draft
+phase: planned
+priority: medium
+description: Define and maintain mapping between app categories and OSHA 1926 construction
+  standards. Stored as local JSON config in mobile app and backend. Ensures compliance
+  and consistent classification.
+acceptanceCriteria:
+- 'OSHA category config file (osha-categories.json) defines 6 categories: FALL_PROTECTION
+  (1926 Subpart M), SCAFFOLDING (1926 Subpart L), ELECTRICAL (1926 Subpart K), PPE
+  (1926 Subpart E), HOUSEKEEPING (1926.25), EQUIPMENT (1926 Subpart O)'
+- 'Each category includes: enum key, display name, OSHA standard reference, description,
+  example hazards'
+- Mobile app bundles config at build time; loaded into memory on startup
+- Backend validates observation categories against same config on API requests
+- Category picker UI displays categories sorted alphabetically with OSHA reference
+  in subtitle
+- Config schema validated with JSON Schema; build fails if invalid
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

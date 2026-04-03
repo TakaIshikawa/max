@@ -1,0 +1,22 @@
+title: Set up Docker Compose deployment and project scaffolding
+approval: draft
+phase: planned
+priority: critical
+description: Create the project scaffolding including Docker Compose configuration,
+  database initialization, backend project structure, and frontend project structure.
+  This is the foundation that all other requirements build upon.
+acceptanceCriteria:
+- 'docker-compose.yml defines three services: api (FastAPI), db (PostgreSQL 15), and
+  frontend (React dev server or nginx).'
+- 'Running ''docker compose up'' starts all services and the API is reachable at localhost:8000
+  with a health check endpoint GET /api/v1/health returning {"status": "ok"}.'
+- 'Backend project follows layered structure: app/routers/, app/services/, app/repositories/,
+  app/models/, app/schemas/.'
+- Frontend project bootstrapped with Vite + React + TypeScript + Tailwind CSS with
+  sidebar navigation shell.
+- Alembic is configured and initial migration creates the database schema.
+- .env.example file documents all required environment variables.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

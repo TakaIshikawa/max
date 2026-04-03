@@ -1,0 +1,21 @@
+title: Process voice notes into text descriptions
+approval: draft
+phase: planned
+priority: low
+description: Convert recorded voice notes to text using speech-to-text API. Enables
+  searchable descriptions and reduces manual typing for field workers. Optional enhancement
+  to core capture workflow.
+acceptanceCriteria:
+- If user records voice note, audio file (m4a/wav) saved locally with observation
+- On sync, audio uploaded to S3 and backend triggers speech-to-text processing (AWS
+  Transcribe or similar)
+- Transcribed text stored in observation.transcription field; original audio preserved
+- Mobile app displays transcription in observation detail view once available
+- Transcription completes within 2 minutes of sync for 60-second audio clip
+- If transcription fails, audio remains accessible; user can manually add text description
+decomposition:
+  assignments: []
+dependencies:
+- Capture observation with photo and metadata
+- Sync observations to backend when online
+source: discovered

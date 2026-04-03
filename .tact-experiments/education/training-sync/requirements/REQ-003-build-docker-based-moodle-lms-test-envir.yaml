@@ -1,0 +1,22 @@
+title: Build Docker-based Moodle LMS test environment
+approval: draft
+phase: planned
+priority: critical
+description: Create Docker Compose configuration for Moodle 4.x with database and
+  web server, implement setup scripts to initialize Moodle with SCORM plugin enabled,
+  and provide API for deploying packages. This enables runtime testing against real
+  LMS behavior.
+acceptanceCriteria:
+- Docker Compose file successfully starts Moodle 4.x container with MariaDB and configured
+  SCORM activity module
+- Automated setup script creates test course and configures SCORM settings without
+  manual intervention
+- 'Adapter interface provides methods: setupEnvironment(), deployPackage(path), executePackage(),
+  captureResults(), teardownEnvironment()'
+- Environment starts from clean state in under 60 seconds on typical developer machine
+- All container logs and Moodle error logs are captured and included in validation
+  results
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

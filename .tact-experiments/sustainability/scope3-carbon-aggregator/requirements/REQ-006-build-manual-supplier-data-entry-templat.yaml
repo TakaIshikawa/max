@@ -1,0 +1,26 @@
+title: Build manual supplier data entry template parser plugin
+approval: draft
+phase: planned
+priority: high
+description: Implement a parser that ingests manually prepared supplier emission data
+  from a structured CSV or JSON template. This enables companies to incorporate supplier-specific
+  data (from CDP disclosures, sustainability reports, or direct data exchange) which
+  represents the highest quality tier in the data quality hierarchy.
+acceptanceCriteria:
+- Parser provides a generate-template CLI subcommand that outputs a blank CSV and
+  JSON template with all required fields, descriptions, and example rows
+- Parser reads completed templates and normalizes each row into EmissionRecord instances
+  with appropriate Scope 3 category assignment
+- 'Data quality score is assigned based on a ''methodology'' column in the template:
+  ''verified'' -> 1, ''unverified'' -> 2, ''estimated'' -> 3, defaulting to 2 if omitted'
+- Parser validates template completeness and reports row-level errors (missing required
+  fields, invalid values) without failing the entire batch — valid rows are processed
+  and invalid rows are logged with specific error messages
+- Template supports emission data in multiple units (kg CO2e, tonnes CO2e, lbs CO2e)
+  with automatic conversion to canonical kg CO2e
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+- Implement pluggy-based plugin manager for parser registration and discovery
+source: discovered

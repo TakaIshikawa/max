@@ -1,0 +1,23 @@
+title: Calculate net payment amount with retainage and change orders
+approval: draft
+phase: planned
+priority: critical
+description: 'Core business logic that calculates the net payment amount: approved
+  pay application amount minus retainage (based on contract percentage) plus any approved
+  change orders included in this billing period. All calculations use decimal precision
+  to avoid rounding errors. Result stored with full audit trail.'
+acceptanceCriteria:
+- Calculate retainage_amount = approved_amount * (retainage_percentage / 100) using
+  Decimal type
+- Sum approved change orders included in current pay period from Procore data
+- Calculate net_payment = approved_amount - retainage_amount + change_order_total
+- Store calculation breakdown (approved_amount, retainage_amount, change_order_total,
+  net_payment) in database
+- Validate net_payment <= approved_amount (retainage cannot result in negative payment)
+- Include source data snapshot (contract terms, retainage %, change orders) in audit
+  record
+decomposition:
+  assignments: []
+dependencies:
+- Fetch contract terms and retainage schedule from Procore
+source: discovered

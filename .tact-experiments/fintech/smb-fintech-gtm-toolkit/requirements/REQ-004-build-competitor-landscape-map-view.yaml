@@ -1,0 +1,18 @@
+title: Build competitor landscape map view
+approval: draft
+phase: planned
+priority: high
+description: Create a React page that visualizes the competitor landscape as a categorized
+  grid or table, showing which compliance areas are crowded vs. underserved. Founders
+  use this to identify where gaps exist for positioning.
+acceptanceCriteria:
+- Page displays competitors grouped or filterable by compliance category.
+- 'Each competitor card/row shows: company name, compliance categories, funding stage,
+  and gap notes.'
+- A summary section shows category-level counts indicating crowded vs. sparse areas.
+- Users can add a new competitor via an inline form or modal without leaving the page.
+decomposition:
+  assignments: []
+dependencies:
+- Implement competitor landscape data model and CRUD
+source: discovered

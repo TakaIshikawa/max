@@ -1,0 +1,22 @@
+title: Auto-classify observation against OSHA categories
+approval: draft
+phase: planned
+priority: critical
+description: After photo capture, run on-device ML inference to suggest OSHA category.
+  User confirms or corrects classification before saving. Reduces manual categorization
+  burden and ensures structured data.
+acceptanceCriteria:
+- TensorFlow Lite model loaded on app startup and cached in memory
+- Image preprocessed (resized to 224x224, normalized) and passed to model within 1
+  second of capture
+- Model returns top 3 OSHA category predictions with confidence scores
+- UI displays top prediction as suggested category with confidence indicator (e.g.,
+  'Fall Protection - 85% confident')
+- User can accept suggestion with one tap or manually select from full category list
+  (6 categories for MVP)
+- Final confirmed category stored in observation record
+decomposition:
+  assignments: []
+dependencies:
+- Capture observation with photo and metadata
+source: discovered

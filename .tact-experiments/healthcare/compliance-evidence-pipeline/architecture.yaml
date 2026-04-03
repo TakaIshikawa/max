@@ -1,0 +1,69 @@
+patterns:
+- name: ETL Pipeline Pattern
+  description: Extract-Transform-Load architecture with separate ingestion, transformation,
+    and output stages orchestrated by Prefect workflows. Each data source has dedicated
+    extractor, transformers apply HIPAA mapping logic, loaders generate evidence packages.
+  scope:
+  - data ingestion
+  - transformation layer
+  - evidence generation
+- name: Plugin Architecture for Data Sources
+  description: Abstract base classes define connector interface (connect, extract,
+    validate) allowing new data sources to be added without modifying core pipeline
+    logic. Each connector handles source-specific parsing and normalization.
+  scope:
+  - data source connectors
+  - extensibility
+- name: Immutable Evidence Store
+  description: Once evidence is collected and timestamped, records are write-once/read-many.
+    Cryptographic hashes and timestamps ensure audit trail integrity. No deletion
+    or modification of historical evidence.
+  scope:
+  - evidence storage
+  - audit trail
+  - data integrity
+invariants:
+- All ingested security events must be timestamped with RFC 3161 cryptographic timestamp
+  before storage
+- Evidence records are immutable—no updates or deletes allowed after timestamp applied
+- Every generated evidence package must map to at least one specific HIPAA Security
+  Rule standard (§164.312.a through §164.312.e)
+- Data source connectors must validate input schema before processing—reject malformed
+  data with clear error messages
+- All PHI-adjacent data (patient IDs, user identifiers) must be hashed before storage
+  in compliance database
+- Pipeline failures must not result in partial evidence packages—atomic generation
+  or rollback
+conventions:
+- Data source connectors named `{source_type}_connector.py` (e.g., `ehr_audit_connector.py`)
+- HIPAA mapping functions prefixed with `map_to_hipaa_` (e.g., `map_to_hipaa_access_control`)
+- Prefect flows named `{action}_{entity}_flow` (e.g., `ingest_ehr_audit_flow`, `generate_evidence_package_flow`)
+- All timestamps stored in UTC with ISO 8601 format
+- Configuration via environment variables with `HIPAA_PIPELINE_` prefix
+- 'Evidence package filenames: `{org_id}_{standard}_{start_date}_{end_date}.{format}`
+  (e.g., `org123_164-312-a_2024-01-01_2024-01-31.pdf`)'
+- Database table names use `evidence_` prefix (e.g., `evidence_events`, `evidence_packages`)
+decisions:
+- id: D-1
+  title: Use Prefect over Airflow for orchestration
+  decision: Implement pipeline orchestration using Prefect 2.x instead of Apache Airflow
+  rationale: Prefect provides simpler deployment for MVP (no separate scheduler/worker
+    setup), native Python API reduces boilerplate, and dynamic workflow generation
+    better supports varying data source configurations. Airflow's complexity is overkill
+    for initial 3-source pipeline.
+- id: D-2
+  title: File-based EHR integration for MVP
+  decision: Accept EHR audit logs as uploaded CSV/JSON files rather than direct API
+    integration
+  rationale: Epic/Cerner API access requires vendor partnerships and certifications
+    (6+ months). File uploads allow healthcare orgs to export audit logs manually,
+    unblocking MVP validation. 80% of small practices already export logs for manual
+    review, so workflow exists.
+- id: D-3
+  title: Hash identifiers instead of encryption
+  decision: Use SHA-256 hashing for patient IDs and user identifiers rather than encryption
+  rationale: Compliance evidence needs to prove access patterns occurred, not reveal
+    specific patient identities. One-way hashing prevents re-identification while
+    allowing correlation of access events. Simpler key management than encryption,
+    and sufficient for audit trail purposes.
+contracts: []

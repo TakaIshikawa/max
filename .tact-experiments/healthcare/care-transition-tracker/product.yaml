@@ -1,0 +1,49 @@
+name: care-transition-tracker
+version: 0.1.0
+vision: A mobile-first patient portal that transforms fragmented clinical events from
+  EHR systems into an actionable care coordination timeline, reducing preventable
+  readmissions by helping patients and caregivers navigate high-risk care transitions.
+goals:
+- id: G-1
+  description: Enable patients to visualize their care journey across transitions
+  successCriteria: Timeline displays at least 5 clinical event types (admissions,
+    discharges, medications, labs, appointments) from FHIR-enabled EHR within 2 seconds
+    of app launch
+- id: G-2
+  description: Extract actionable tasks from clinical documentation to reduce missed
+    follow-ups
+  successCriteria: NLP pipeline extracts and displays at least 3 action items from
+    discharge summaries with 80% accuracy, converting them into trackable checklist
+    items
+- id: G-3
+  description: Provide proactive reminders to improve care plan adherence
+  successCriteria: Push notifications sent 24 hours before scheduled appointments
+    and daily for pending medication refills or care plan tasks
+- id: G-4
+  description: Enable caregiver coordination without provider phone calls
+  successCriteria: Caregivers can access patient timeline with authorized read-only
+    permissions and view all active care plan tasks
+constraints:
+- MVP supports read-only FHIR R4 integration with one EHR vendor (Epic recommended
+  for market coverage)
+- 'HIPAA compliance required: data encrypted at rest and in transit, audit logging
+  for all data access'
+- NLP limited to English-language discharge summaries and visit notes
+- Mobile app targets iOS only for MVP to reduce platform complexity
+- No direct medication ordering or clinical decision support (view-only medication
+  data)
+- Authentication via OAuth 2.0 with EHR vendor identity provider (no custom patient
+  registration)
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - React Native
+  - Express.js
+  - spaCy
+  infrastructure:
+  - Node.js runtime
+  - PostgreSQL (encrypted)
+  - Firebase Cloud Messaging
+  - FHIR API client libraries

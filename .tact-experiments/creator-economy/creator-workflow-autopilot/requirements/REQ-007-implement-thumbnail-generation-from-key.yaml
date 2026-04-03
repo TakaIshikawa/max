@@ -1,0 +1,22 @@
+title: Implement thumbnail generation from key frames
+approval: draft
+phase: planned
+priority: medium
+description: For each clip, extract a visually compelling key frame using ffmpeg,
+  apply text overlay with the clip title using sharp, and produce a thumbnail image
+  suitable for social media posting.
+acceptanceCriteria:
+- For each clip, ffmpeg extracts 5 candidate frames evenly spaced across the clip
+  duration
+- The frame with the highest visual contrast/brightness variance is selected as the
+  key frame (simple heuristic via sharp metadata)
+- A text overlay with the clip title is composited onto the key frame using sharp,
+  with a semi-transparent background bar for readability
+- Thumbnails are produced at 1280x720 (landscape) and 1080x1920 (portrait) and uploaded
+  to S3
+- Asset records are created with type 'thumbnail' and status 'pending_review'
+decomposition:
+  assignments: []
+dependencies:
+- Implement clip extraction and format adaptation with ffmpeg
+source: discovered

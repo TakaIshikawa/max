@@ -1,0 +1,22 @@
+title: Implement audit log export for compliance reporting
+approval: draft
+phase: planned
+priority: medium
+description: Provide an `audit export` subcommand that filters and formats audit log
+  entries for compliance reporting. Support filtering by date range, operation type,
+  and operator. Support output as JSON, CSV, and a human-readable summary report suitable
+  for attaching to DORA Article 11 evidence packages.
+acceptanceCriteria:
+- Running `tfca audit export --from 2024-01-01 --to 2024-03-31` outputs only entries
+  within that date range
+- Running `tfca audit export --format csv` produces valid CSV with headers matching
+  the audit log schema fields
+- Running `tfca audit export --format summary` produces a human-readable report with
+  operation counts, unique operators, and resource change statistics
+- Export includes chain verification status in the output header/metadata
+- Empty result sets produce a clear 'no entries found' message rather than empty output
+decomposition:
+  assignments: []
+dependencies:
+- Implement append-only audit log with hash chaining
+source: discovered

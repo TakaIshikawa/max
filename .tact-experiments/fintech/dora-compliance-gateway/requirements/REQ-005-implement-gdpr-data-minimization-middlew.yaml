@@ -1,0 +1,24 @@
+title: Implement GDPR data minimization middleware
+approval: draft
+phase: planned
+priority: high
+description: Build a response processing middleware that strips all fields from upstream
+  API responses that are not explicitly allowlisted for the declared data access purpose.
+  The allowlist is defined in YAML configuration as (endpoint, purpose) → permitted
+  field paths.
+acceptanceCriteria:
+- Given a response with 10 fields and an allowlist permitting 3 fields, only the 3
+  permitted fields appear in the output.
+- Nested object fields are supported via dot-notation paths (e.g., account.holder.name).
+- If no purpose is declared in the request, the middleware rejects the call with a
+  DataMinimizationError requiring purpose declaration.
+- A special wildcard purpose 'audit' permits all fields for regulatory investigation
+  use cases, and this access is flagged in the audit log.
+- 'Stripped fields are counted and recorded in the audit log entry (e.g., ''fields_stripped:
+  7'').'
+decomposition:
+  assignments: []
+dependencies:
+- Implement declarative YAML configuration loader with JSON Schema validation
+- Implement append-only hash-chained audit log store
+source: discovered

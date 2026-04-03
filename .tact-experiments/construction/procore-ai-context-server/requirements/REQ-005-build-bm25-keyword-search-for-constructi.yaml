@@ -1,0 +1,22 @@
+title: Build BM25 keyword search for construction terminology
+approval: draft
+phase: planned
+priority: high
+description: Implement BM25 keyword-based retrieval optimized for construction-specific
+  terms (trade names, equipment, materials, issue types). Index document chunks and
+  support keyword queries that complement semantic search.
+acceptanceCriteria:
+- BM25 index built from document chunks using rank-bm25 library with construction-specific
+  tokenization
+- 'Tokenizer preserves construction terms: trade names (HVAC, MEP), equipment (excavator,
+  crane), materials (rebar, concrete)'
+- Keyword search for 'HVAC delay' returns chunks mentioning HVAC and delay with BM25
+  scores
+- Search supports multi-word phrases and handles common construction abbreviations
+  (RFI, CO, SI)
+- BM25 results include document metadata and relevance scores for ranking
+decomposition:
+  assignments: []
+dependencies:
+- Define construction document schemas and chunking strategy
+source: discovered

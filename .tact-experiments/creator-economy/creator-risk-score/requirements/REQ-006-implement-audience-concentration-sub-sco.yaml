@@ -1,0 +1,21 @@
+title: Implement audience concentration sub-score using Herfindahl-Hirschman Index
+approval: draft
+phase: planned
+priority: critical
+description: Build the concentration sub-score calculator that computes a Herfindahl-Hirschman
+  Index (HHI) across all platforms based on audience share. Normalize the HHI (range
+  0-10000) to a 0-100 risk score where 100 means all audience is on one platform.
+acceptanceCriteria:
+- HHI is computed as the sum of squared audience share percentages across all connected
+  platforms.
+- A creator with 100% audience on one platform scores 100; a creator with equal audience
+  across 4 platforms scores approximately 25.
+- 'Score handles edge cases: single platform (score=100), no data (returns null with
+  explanation), zero audience on a platform (excluded from calculation).'
+- 'Function is pure: takes an array of {platform, audienceSize} and returns {score:
+  number, breakdown: PlatformShare[]}.'
+- Unit tests cover at least 5 distribution scenarios including edge cases.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement declarative YAML configuration loader with JSON Schema validation
+approval: draft
+phase: planned
+priority: critical
+description: Build the configuration system that loads YAML files defining endpoint-to-regulation
+  mappings, data minimization allowlists, SCA requirements, and health thresholds.
+  Every config file must be validated against a JSON Schema before the server accepts
+  it.
+acceptanceCriteria:
+- A sample configuration file defines at least 3 API endpoints with different regulatory
+  framework mappings (DORA, PSD2, GDPR).
+- Loading a config file with missing required fields throws a typed ConfigValidationError
+  with the JSON Schema validation path.
+- Loading a valid config file produces a strongly-typed TypeScript configuration object
+  matching the defined interfaces.
+- Data minimization allowlists in config map (endpoint, purpose) pairs to arrays of
+  permitted response field paths using dot notation.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

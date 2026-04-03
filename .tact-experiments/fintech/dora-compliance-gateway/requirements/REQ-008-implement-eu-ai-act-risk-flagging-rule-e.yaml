@@ -1,0 +1,23 @@
+title: Implement EU AI Act risk flagging rule engine
+approval: draft
+phase: planned
+priority: medium
+description: Build a lightweight rule engine that flags when financial data accessed
+  through the gateway flows to endpoints configured as ML pipeline destinations, which
+  would trigger EU AI Act high-risk classification for credit scoring use cases.
+acceptanceCriteria:
+- Configuration allows marking downstream endpoints as 'ai-pipeline' destinations
+  with a risk classification (high-risk, limited-risk, minimal-risk).
+- When a proxy-api-call response contains financial data categories (account balances,
+  transaction history) AND the declared purpose maps to an ai-pipeline destination,
+  the audit log entry includes an ai_act_flag with the risk level.
+- An MCP tool (check-ai-risk) accepts a data flow description and returns the applicable
+  EU AI Act risk classification based on configured rules.
+- Flagged high-risk flows include a structured recommendation field noting explainability
+  and human oversight requirements.
+decomposition:
+  assignments: []
+dependencies:
+- Implement declarative YAML configuration loader with JSON Schema validation
+- Implement append-only hash-chained audit log store
+source: discovered

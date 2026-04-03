@@ -1,0 +1,20 @@
+title: Display learning path in interactive web interface
+approval: draft
+phase: planned
+priority: high
+description: Render generated learning paths in React frontend with clear visual progression,
+  content details, and external links. The interface is the primary user touchpoint
+  for consuming and acting on generated paths.
+acceptanceCriteria:
+- Path displayed as vertical timeline or numbered list showing sequence and prerequisites
+- Each content item shows title, source logo, duration, and clickable link to original
+  content
+- Path header displays target role, total duration, and skill coverage summary
+- Interface includes progress tracking UI (checkboxes or progress bar) for marking
+  completed items
+- Responsive design works on desktop and tablet viewports (mobile optional for MVP)
+decomposition:
+  assignments: []
+dependencies:
+- Persist and retrieve user-generated learning paths
+source: discovered

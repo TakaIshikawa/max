@@ -1,0 +1,80 @@
+patterns:
+- name: Offline-First Architecture
+  description: All data writes happen to local SQLite database first. Background sync
+    service detects connectivity and pushes to backend. App remains fully functional
+    without network access.
+  scope:
+  - mobile-app
+  - data-layer
+- name: Repository Pattern
+  description: Abstract data access behind repository interfaces. Repositories handle
+    local storage, caching, and sync logic. Enables swapping storage implementations
+    and testing without real database.
+  scope:
+  - mobile-app
+  - backend
+- name: Model-View-ViewModel (MVVM)
+  description: Separate UI components (View) from business logic (ViewModel) and data
+    models (Model). ViewModels expose observable state and commands for UI binding.
+  scope:
+  - mobile-app
+  - web-dashboard
+- name: Hexagonal Architecture
+  description: Backend API isolates core domain logic from external dependencies (database,
+    file storage, ML inference). Adapters translate between domain and infrastructure.
+  scope:
+  - backend
+invariants:
+- 'Every observation must have: unique ID, timestamp (ISO 8601), photo file reference,
+  GPS coordinates (if available), and OSHA category (user-confirmed or AI-suggested)'
+- Photos are immutable once captured; metadata (annotations, classifications) stored
+  separately and versioned
+- Local database is source of truth until successful sync; backend never overwrites
+  local data without conflict resolution
+- OSHA category taxonomy is fixed at app build time (no runtime schema changes); categories
+  map 1:1 to OSHA 1926 construction standards
+- All timestamps use UTC; timezone conversion happens only at presentation layer
+- Observation sync is idempotent; retrying sync with same observation ID never creates
+  duplicates
+conventions:
+- TypeScript strict mode enabled; no implicit any types
+- React Native components use functional components with hooks (no class components)
+- 'File naming: PascalCase for components (ObservationCard.tsx), camelCase for utilities
+  (formatTimestamp.ts), kebab-case for feature folders (observation-capture/)'
+- Database tables use snake_case; TypeScript models use camelCase; conversion happens
+  at repository boundary
+- OSHA categories use uppercase enum keys (FALL_PROTECTION, ELECTRICAL_HAZARD) matching
+  OSHA 1926 subpart codes
+- All user-facing strings externalized to i18n files (en.json) for future localization
+- 'API endpoints follow REST conventions: /api/v1/observations (collection), /api/v1/observations/:id
+  (resource)'
+- 'Git commits follow Conventional Commits: feat:, fix:, docs:, test:, refactor:'
+decisions:
+- id: D-1
+  title: Use React Native with Expo for mobile development
+  decision: Build mobile app with React Native and Expo managed workflow
+  rationale: React Native enables single codebase for iOS and Android. Expo provides
+    out-of-box camera, file system, location, and SQLite APIs without native code.
+    Expo's OTA updates allow rapid iteration. TensorFlow Lite integrates via expo-gl
+    for on-device inference. Team can ship MVP faster than native development while
+    maintaining performance for photo capture and ML inference.
+- id: D-2
+  title: Store photos locally and sync URLs, not raw images
+  decision: Photos stored in device file system; sync uploads to S3 and stores URL
+    in backend database
+  rationale: 'Uploading multi-MB photos over cellular is slow and expensive. Local-first
+    approach keeps app responsive. Background sync uploads photos to S3 when on WiFi
+    (configurable). Backend stores S3 URLs, not binary data, keeping database lightweight.
+    Enables progressive sync: metadata syncs immediately, photos upload opportunistically.
+    Reduces backend storage costs and complexity.'
+- id: D-3
+  title: Use transfer learning with MobileNetV2 for OSHA classification
+  decision: Fine-tune MobileNetV2 (pre-trained on ImageNet) with construction safety
+    image dataset; deploy via TensorFlow Lite
+  rationale: Training from scratch requires 10K+ labeled construction images (unavailable).
+    Transfer learning leverages MobileNetV2's feature extraction, requiring only 500-1000
+    labeled examples per category. MobileNetV2 optimized for mobile inference (<10MB
+    model, <200ms latency). TensorFlow Lite runs on-device without network calls.
+    Model updates ship via app updates initially; over-the-air model updates deferred
+    to post-MVP. Accepts 70% accuracy target is achievable with limited training data.
+contracts: []

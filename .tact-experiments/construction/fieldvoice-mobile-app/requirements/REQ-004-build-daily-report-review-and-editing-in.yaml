@@ -1,0 +1,21 @@
+title: Build daily report review and editing interface
+approval: draft
+phase: planned
+priority: critical
+description: Provide an interface where supervisors review the auto-generated daily
+  report, edit any fields, and approve for submission. This is the final quality control
+  step before sync to Procore.
+acceptanceCriteria:
+- 'Report screen displays all template sections: weather, crew count, equipment, materials,
+  work completed, safety observations, photos'
+- Each field is editable with appropriate input type (text, number, dropdown for weather)
+- User can add/remove/reorder photos in the report
+- User can manually add report sections that weren't auto-populated from voice notes
+- Report shows clear 'Draft' status until user taps 'Approve & Submit' button
+- Edited reports are saved to local database immediately (auto-save on field blur)
+decomposition:
+  assignments: []
+dependencies:
+- Extract structured report fields from voice transcriptions
+- Enable photo capture with automatic metadata tagging
+source: discovered

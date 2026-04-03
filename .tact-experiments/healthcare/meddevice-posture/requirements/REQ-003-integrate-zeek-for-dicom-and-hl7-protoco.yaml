@@ -1,0 +1,21 @@
+title: Integrate Zeek for DICOM and HL7 protocol monitoring
+approval: draft
+phase: planned
+priority: high
+description: Deploy Zeek with custom protocol analyzers for DICOM (port 104) and HL7
+  v2 (port 2575) traffic. Parse protocol metadata and publish connection logs to Redis
+  for detection rule processing. Enables behavioral anomaly detection.
+acceptanceCriteria:
+- Zeek container runs with custom DICOM analyzer that extracts SOP Class UID and modality
+  from DICOM associations
+- HL7 analyzer parses message types (ADT, ORM, ORU) and extracts sending/receiving
+  applications
+- Zeek logs published to Redis stream 'network-telemetry' within 10 seconds of connection
+  close
+- 'Event schema includes: timestamp, src_ip, dst_ip, protocol, metadata (protocol-specific
+  fields)'
+- Documentation explains how to configure network tap/SPAN port for Zeek packet capture
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

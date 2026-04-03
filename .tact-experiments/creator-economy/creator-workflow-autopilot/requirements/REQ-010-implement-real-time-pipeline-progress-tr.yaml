@@ -1,0 +1,22 @@
+title: Implement real-time pipeline progress tracking via SSE
+approval: draft
+phase: planned
+priority: high
+description: Provide a Server-Sent Events endpoint that streams pipeline step status
+  updates to the frontend in real time, and build a progress UI component that visualizes
+  the DAG execution state.
+acceptanceCriteria:
+- GET /api/pipelines/[id]/events returns a text/event-stream response that emits a
+  JSON event whenever any step in the pipeline changes status
+- 'Each event includes: stepName, status (queued, running, completed, failed), timestamp,
+  and optional progress percentage'
+- The frontend PipelineProgress component subscribes to the SSE endpoint and renders
+  each step as a node in a vertical timeline with color-coded status indicators
+- The connection auto-reconnects if dropped, resuming from the last received event
+- When all steps are completed or the pipeline reaches a terminal state, the stream
+  sends a 'pipeline_complete' event and the UI shows a link to the review dashboard
+decomposition:
+  assignments: []
+dependencies:
+- Build the DAG pipeline engine with BullMQ flows
+source: discovered

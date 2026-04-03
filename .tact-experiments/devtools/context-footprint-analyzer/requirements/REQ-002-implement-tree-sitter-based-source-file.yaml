@@ -1,0 +1,23 @@
+title: Implement tree-sitter based source file parser
+approval: draft
+phase: planned
+priority: critical
+description: Build a parser module that takes a source file path, detects its language
+  (Python or TypeScript), parses it with the appropriate tree-sitter grammar, and
+  extracts a structured representation of symbols (functions, classes, imports) and
+  their locations.
+acceptanceCriteria:
+- Given a Python file, the parser returns a list of all top-level function definitions,
+  class definitions, and import statements with line ranges.
+- Given a TypeScript file, the parser returns a list of all top-level function/class/interface
+  declarations, import statements, and export statements with line ranges.
+- Files with syntax errors are parsed in best-effort mode (tree-sitter error recovery)
+  and flagged with a parse_errors field rather than raising exceptions.
+- Unsupported file extensions return a structured 'unsupported language' result rather
+  than crashing.
+- 'Parser output is a typed dataclass (ParsedModule) with fields: file_path, language,
+  symbols, imports, exports, parse_errors.'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement mock Open Banking PSD2 API adapter
+approval: draft
+phase: planned
+priority: high
+description: Create a mock PSD2 Account Information Service endpoint that returns
+  realistic synthetic transaction data, and a corresponding ingestion adapter that
+  consumes it. This validates the API-based ingestion path and provides demo data
+  for testing the full pipeline without requiring live bank connectivity.
+acceptanceCriteria:
+- A mock PSD2 endpoint at /api/v1/mock/psd2/accounts/{accountId}/transactions returns
+  paginated synthetic transaction data conforming to Berlin Group PSD2 schema structure
+- An ingestion endpoint at /api/v1/transactions/ingest/psd2 accepts an account ID,
+  calls the mock endpoint, normalizes responses, and persists transactions using the
+  same adapter interface as file uploads
+- Synthetic data includes at least 200 transactions spanning multiple ESRS-relevant
+  categories (energy purchases, travel, payroll, office supplies, waste management,
+  etc.)
+- Mock data is deterministic (seeded) so tests produce reproducible results
+decomposition:
+  assignments: []
+dependencies:
+- Implement transaction data ingestion from file uploads
+source: discovered

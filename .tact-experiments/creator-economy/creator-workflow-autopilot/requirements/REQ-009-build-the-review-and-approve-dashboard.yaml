@@ -1,0 +1,24 @@
+title: Build the review-and-approve dashboard
+approval: draft
+phase: planned
+priority: critical
+description: Create the frontend dashboard where creators review all generated assets
+  for a pipeline run. The dashboard displays each asset with preview, allows editing
+  of text fields, and supports approve/reject actions per asset. This is the primary
+  UI creators interact with after pipeline completion.
+acceptanceCriteria:
+- The dashboard at /review/[pipelineRunId] displays all assets grouped by type (clips,
+  thumbnails, captions, newsletter draft)
+- Video clips are playable inline with an HTML5 video player showing both horizontal
+  and vertical versions
+- Text assets (captions, newsletter draft) are displayed in editable text fields —
+  saving an edit updates the Asset record and changes status to 'edited'
+- Each asset has Approve and Reject buttons that update the asset status via PATCH
+  /api/assets/[id]
+- A summary bar shows counts of pending/approved/rejected/edited assets and a 'Download
+  Approved' button that triggers a zip download of all approved media assets
+decomposition:
+  assignments: []
+dependencies:
+- Implement file upload with media validation and S3 storage
+source: discovered

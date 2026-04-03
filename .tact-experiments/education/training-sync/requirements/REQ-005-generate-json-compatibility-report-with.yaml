@@ -1,0 +1,24 @@
+title: Generate JSON compatibility report with issues and remediation
+approval: draft
+phase: planned
+priority: high
+description: Aggregate validation results from all stages (schema validation, static
+  analysis, runtime testing) into structured JSON report showing pass/fail per LMS,
+  list of issues with error codes, and fix suggestions from knowledge base. Enables
+  CI/CD integration and programmatic processing.
+acceptanceCriteria:
+- 'JSON report includes: package metadata, validation timestamp, overall pass/fail
+  status, per-LMS results array'
+- 'Each issue includes: error code, severity (error/warning), description, file location,
+  line number (if applicable), and remediation suggestion'
+- Report schema is versioned (v1.0.0) and includes schema version field for future
+  compatibility
+- CLI outputs report to stdout by default, with --output flag to write to file
+- Report generation completes within 5 seconds after all validation stages finish
+decomposition:
+  assignments: []
+dependencies:
+- Parse and validate SCORM 1.2 package structure
+- Validate xAPI statement structure and syntax
+- Execute SCORM package in headless browser and capture runtime errors
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement human oversight flagging and query_decisions tool
+approval: draft
+phase: planned
+priority: medium
+description: Add the flag_for_review and query_decisions MCP tools. flag_for_review
+  allows automatic or manual flagging of decisions that exceed confidence thresholds
+  or show anomalous patterns. query_decisions allows compliance officers to search
+  and filter the audit log with natural-language-style structured queries.
+acceptanceCriteria:
+- flag_for_review tool accepts decision_id and reason (string), sets review_status
+  to 'flagged' on the audit record, and returns confirmation
+- Automatic flagging triggers when a decision score falls within a configurable uncertainty
+  band (e.g., within 0.05 of the approval threshold)
+- query_decisions tool accepts filters (date_range, score_range, model_id, review_status,
+  applicant_id) and returns paginated results with summary statistics
+- query_decisions returns results sorted by created_at descending with configurable
+  page_size (default 50) and offset
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with tool registration
+- Implement decision audit log with PostgreSQL persistence
+source: discovered

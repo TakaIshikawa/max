@@ -1,0 +1,20 @@
+title: Authenticate patient via FHIR-enabled EHR OAuth 2.0
+approval: draft
+phase: planned
+priority: critical
+description: Implement SMART on FHIR authorization flow to authenticate patients using
+  their existing EHR credentials (Epic MyChart, Cerner portal). This establishes patient
+  identity and obtains access token for FHIR API calls without custom credential storage.
+acceptanceCriteria:
+- App redirects to EHR vendor OAuth 2.0 authorization page when user taps 'Connect
+  to [EHR Name]'
+- Successfully exchanges authorization code for access token and refresh token
+- Stores tokens securely using iOS Keychain
+- Retrieves Patient FHIR resource for authenticated user and displays patient name
+  on home screen
+- Handles token expiration by automatically refreshing access token using refresh
+  token
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

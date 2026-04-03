@@ -1,0 +1,21 @@
+title: Implement append-only hash-chained audit log store
+approval: draft
+phase: planned
+priority: critical
+description: Build the SQLite-backed audit log that records every proxied API interaction
+  with DORA-compliant metadata. Each entry is hash-chained to the previous entry using
+  SHA-256, creating a tamper-evident log. The store must enforce append-only semantics.
+acceptanceCriteria:
+- 'Each audit entry contains: id, timestamp (ISO 8601 UTC), request method, endpoint,
+  request hash, response status, response hash, applicable regulations, compliance
+  verdict (pass/fail/warn), previous entry hash, and current entry hash.'
+- The current entry hash is SHA-256 of (previous_hash + entry_content_json), stored
+  as lowercase hex.
+- A verify-audit-chain function walks the entire log and returns the first broken
+  link or confirms full integrity.
+- Attempting to UPDATE or DELETE via the application layer throws an AuditIntegrityError.
+- The audit store handles concurrent write attempts safely using SQLite's WAL mode.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

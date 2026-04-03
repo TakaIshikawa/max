@@ -1,0 +1,49 @@
+name: prosync-payment-reconciliation
+version: 0.1.0
+vision: Bridge the gap between Procore project management and accounting systems by
+  automating subcontractor payment reconciliation, reducing payment cycles from 30-90
+  days to 5-10 days while ensuring compliance and accuracy.
+goals:
+- id: G-1
+  description: Automate payment reconciliation workflow from Procore approval to accounting
+    system instruction
+  successCriteria: Process approved pay applications end-to-end without manual spreadsheet
+    reconciliation, generating payment instructions within 5 minutes of Procore approval
+- id: G-2
+  description: Ensure payment calculation accuracy across contract terms, retainage,
+    and change orders
+  successCriteria: 100% of payment calculations match expected values in test scenarios
+    covering standard contracts, retainage schedules, and change order combinations
+    with full audit trail
+- id: G-3
+  description: Support primary accounting system integration for payment export
+  successCriteria: Successfully export payment instructions to at least one accounting
+    system (QuickBooks Online) in correct format, validated by successful import
+- id: G-4
+  description: Provide visibility and control for accounting teams before payment
+    execution
+  successCriteria: Web dashboard allows review of calculated payments with drill-down
+    to source data, with approve/reject workflow before accounting system export
+constraints:
+- MVP focuses on QuickBooks Online as single accounting system integration (not Sage/Viewpoint/Foundation)
+- Procore API polling interval minimum 5 minutes to respect rate limits
+- Payment initiation is export-only (no direct bank API integration in MVP)
+- Lien waiver verification is status check only (no document parsing/validation)
+- Prompt pay law deadline tracking limited to configurable day counts (no state-specific
+  rule engine)
+- Single-tenant deployment model (no multi-company support in MVP)
+- Email notifications only (no SMS via Twilio in MVP)
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - React
+  - SQLAlchemy
+  - Pydantic
+  infrastructure:
+  - PostgreSQL 15+
+  - Docker
+  - Redis (for job queue)
+  - Nginx

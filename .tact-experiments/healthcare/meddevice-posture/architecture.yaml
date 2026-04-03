@@ -1,0 +1,76 @@
+patterns:
+- name: MCP Server Plugin Architecture
+  description: Core MCP server with pluggable scanners for different device types
+    and data sources. Each plugin implements standard interface for device discovery,
+    vulnerability scanning, and telemetry collection.
+  scope:
+  - backend
+  - scanner-plugins
+- name: Event-Driven Detection Pipeline
+  description: Asynchronous processing of scan results, network flows, and secrets
+    audits through detection rule engine. Events published to Redis streams, consumed
+    by Sigma rule evaluator, alerts stored in PostgreSQL.
+  scope:
+  - detection-engine
+  - alerting
+- name: Repository Pattern for Device Inventory
+  description: Abstract data access layer for device inventory, vulnerability records,
+    and alerts. Enables testing without database and future support for alternative
+    storage backends.
+  scope:
+  - backend
+  - data-access
+invariants:
+- All network monitoring must be passive only - no packets sent to medical devices
+- Device inventory records are immutable after creation - updates create new versions
+  with timestamps
+- Alert severity calculations must be deterministic and auditable (no ML black boxes
+  for MVP)
+- All PHI-adjacent data (device locations, patient-facing identifiers) must be optional
+  fields with clear documentation
+- Detection rules must map to specific MITRE ATT&CK for ICS techniques with documented
+  rationale
+- Vulnerability data must include CVE IDs and CVSS scores from authoritative sources
+  (NVD, vendor advisories)
+conventions:
+- 'Python: Follow PEP 8, use type hints, async/await for I/O operations'
+- 'API endpoints: RESTful design, /api/v1 prefix, kebab-case paths'
+- 'Database: snake_case table/column names, UUID primary keys, created_at/updated_at
+  timestamps on all tables'
+- 'Detection rules: Sigma YAML format stored in /rules directory, organized by MITRE
+  ATT&CK tactic'
+- 'Frontend: Functional React components, TypeScript strict mode, CSS modules for
+  styling'
+- 'Configuration: Environment variables for secrets, YAML for scanner/rule configs'
+- 'Logging: Structured JSON logs with correlation IDs, separate audit log for compliance
+  events'
+decisions:
+- id: D-1
+  title: Use Zeek for network telemetry instead of Suricata
+  decision: Implement network monitoring using Zeek with custom protocol analyzers
+    for DICOM and HL7
+  rationale: Zeek's scripting language enables rapid development of custom protocol
+    parsers for medical device traffic without C++ compilation. Suricata is signature-focused
+    (better for IDS), while Zeek excels at protocol analysis and metadata extraction
+    needed for behavioral detection. Zeek's conn.log and protocol-specific logs integrate
+    cleanly with Sigma rule engine.
+- id: D-2
+  title: PostgreSQL for primary data store with Redis for event streaming
+  decision: Use PostgreSQL for device inventory, vulnerabilities, and alerts; Redis
+    Streams for real-time event processing between scanner plugins and detection engine
+  rationale: PostgreSQL provides JSONB for flexible device metadata storage, full-text
+    search for vulnerability descriptions, and strong consistency for compliance reporting.
+    Redis Streams enable decoupled, scalable event processing without heavyweight
+    message broker complexity. Avoids Elasticsearch/ELK stack overhead for MVP while
+    maintaining query performance.
+- id: D-3
+  title: Sigma rules compiled to Python detection logic rather than native Sigma backend
+  decision: Parse Sigma YAML rules and generate Python detection functions that operate
+    on normalized telemetry events
+  rationale: 'Medical device telemetry doesn''t fit standard Sigma backends (Splunk,
+    Elastic, etc.). Custom Python compilation allows matching against Zeek logs, Trivy
+    JSON output, and Infisical audit events with unified event schema. Enables unit
+    testing of detection logic and runtime rule updates without external dependencies.
+    Trade-off: lose Sigma tooling ecosystem, but gain flexibility for non-standard
+    data sources.'
+contracts: []

@@ -1,0 +1,27 @@
+title: Implement the score_module MCP tool
+approval: draft
+phase: planned
+priority: high
+description: Expose an MCP tool that accepts a module file path and returns its context
+  footprint score with full metric breakdown. This is the most granular analysis tool
+  and the building block for codebase-wide analysis.
+acceptanceCriteria:
+- 'Tool accepts input: {module_path: string} and returns a JSON object with fields:
+  module_path, total_token_count, dependency_fan_out_cost (sum of token counts of
+  all transitive dependencies), boundary_complexity (count of cross-module symbol
+  references), composite_score (0-100 weighted composite), sub_scores (object with
+  each metric''s raw value and weighted contribution).'
+- If the module is not yet indexed, the tool parses and indexes it (and its dependencies)
+  on demand before scoring.
+- Dependency fan-out cost traverses the full transitive dependency closure, with cycle
+  detection preventing infinite loops.
+- Response includes a 'context_budget_estimate' field showing what percentage of common
+  context windows (8K, 32K, 128K tokens) this module plus dependencies would consume.
+- Invalid or non-existent module paths return a structured error with a helpful message.
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with stdio transport
+- Build dependency graph from parsed modules
+- Implement SQLite index for codebase analysis results
+source: discovered

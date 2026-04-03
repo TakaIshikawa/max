@@ -1,0 +1,24 @@
+title: Implement coverage gap analysis and reporting
+approval: draft
+phase: planned
+priority: medium
+description: The get_coverage_report tool compares the mapped ATT&CK techniques against
+  the generated rule pack to identify coverage gaps (techniques with no matching Sigma
+  rule) and produces both a JSON summary and an ATT&CK Navigator layer file for visual
+  reporting.
+acceptanceCriteria:
+- Identifies which mapped ATT&CK techniques have corresponding generated rules (covered)
+  vs. which have no rules (gaps)
+- Returns a structured JSON report with covered techniques, gap techniques, and overall
+  coverage percentage
+- Generates a valid ATT&CK Navigator layer JSON file with covered techniques colored
+  by priority (critical=red, high=orange, medium=yellow) and gaps shown in grey
+- Navigator layer file is written to the output directory and its path is included
+  in the response
+- Report includes a summary of top 5 highest-priority uncovered techniques as actionable
+  recommendations
+decomposition:
+  assignments: []
+dependencies:
+- Implement Sigma rule pack generation
+source: discovered

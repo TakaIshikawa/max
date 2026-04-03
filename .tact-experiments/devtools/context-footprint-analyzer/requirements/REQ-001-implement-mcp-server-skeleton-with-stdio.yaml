@@ -1,0 +1,21 @@
+title: Implement MCP server skeleton with stdio transport
+approval: draft
+phase: planned
+priority: critical
+description: Set up the MCP server entry point that registers tools, handles stdio
+  transport, and responds to MCP protocol messages (initialize, tools/list, tools/call).
+  This is the foundation all tools are built on.
+acceptanceCriteria:
+- Server starts via `python -m context_footprint_analyzer` and communicates over stdio
+  using MCP protocol.
+- Server responds to `initialize` with server capabilities and metadata.
+- 'Server responds to `tools/list` with the three registered tools: analyze_context_footprint,
+  score_module, and recommend_refactoring, each with a JSON Schema for inputs.'
+- Server responds to `tools/call` for an unknown tool name with a structured error
+  response.
+- Server can be configured with a target codebase directory via an environment variable
+  or init parameter.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

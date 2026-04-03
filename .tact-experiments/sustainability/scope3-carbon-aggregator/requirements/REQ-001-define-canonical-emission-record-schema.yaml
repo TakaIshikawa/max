@@ -1,0 +1,28 @@
+title: Define canonical emission record schema with pydantic models
+approval: draft
+phase: planned
+priority: critical
+description: Create the core pydantic v2 models that represent the canonical data
+  format for all emission records. This schema is the contract between parsers and
+  storage — every parser normalizes to it, and storage only accepts it. Models must
+  cover EmissionRecord (the primary data unit), DataQualityScore (methodology tier
+  metadata), EmissionSource (provenance tracking), and Scope3Category (enum of categories
+  1-15 with human-readable names per GHG Protocol).
+acceptanceCriteria:
+- 'EmissionRecord model includes fields: id (UUID), co2e_kg (float, > 0), original_value
+  (float), original_unit (string), scope3_category (Scope3Category enum, 1-15), data_quality_score
+  (int, 1-5), source (EmissionSource), activity_description (string), reference_period_start
+  (date), reference_period_end (date), uncertainty_pct (optional float, 0-100), metadata
+  (dict), ingestion_timestamp (datetime UTC)'
+- 'EmissionSource model includes: parser_id (string), source_name (string), source_version
+  (string), raw_data_hash (string SHA-256), fetch_timestamp (datetime UTC)'
+- Scope3Category is an IntEnum with all 15 GHG Protocol categories with descriptive
+  names (e.g., PURCHASED_GOODS_AND_SERVICES = 1)
+- All models pass strict validation — invalid co2e_kg (negative, zero, NaN), out-of-range
+  quality scores, and missing required fields raise ValidationError with descriptive
+  messages
+- Models serialize to/from JSON and dict with round-trip fidelity confirmed by tests
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

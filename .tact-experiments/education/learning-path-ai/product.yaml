@@ -1,0 +1,52 @@
+name: learning-path-ai
+version: 0.1.0
+vision: An AI-powered learning path generator that analyzes job roles and discovers
+  relevant training content across multiple sources, creating personalized, sequenced
+  curricula that reduce path creation time from hours to minutes while maximizing
+  training ROI.
+goals:
+- id: G-1
+  description: Enable rapid learning path generation from job role descriptions
+  successCriteria: Generate a complete learning path with 5-15 sequenced learning
+    resources in under 2 minutes from job description input
+- id: G-2
+  description: Aggregate content from multiple learning sources into unified paths
+  successCriteria: Successfully discover and include content from at least 3 different
+    sources (internal LMS, LinkedIn Learning, and one additional platform) in 80%
+    of generated paths
+- id: G-3
+  description: Provide intelligent content sequencing based on skill prerequisites
+  successCriteria: Generated paths show logical progression from foundational to advanced
+    content, validated by 75% of training managers rating sequencing as 'good' or
+    'excellent'
+- id: G-4
+  description: Deliver actionable time estimates for learning path completion
+  successCriteria: Provide time-to-completion estimates for each learning path with
+    accuracy within ±20% based on content metadata and learner pace assumptions
+constraints:
+- 'MVP limited to 3 content sources: simulated LMS content, LinkedIn Learning API
+  (or mock), and YouTube API'
+- Skill extraction uses pre-trained NLP models only (no custom model training)
+- Prerequisite inference uses rule-based heuristics and LLM API calls (OpenAI/Anthropic)
+  rather than custom graph ML models
+- No real-time LMS integration via LTI in MVP—focus on API-based content discovery
+  and standalone path viewing
+- User authentication limited to simple email/password (no SSO/SAML)
+- Maximum 50 learning resources per generated path to ensure performance
+- Content embeddings computed on-demand for MVP (no pre-indexing of entire content
+  catalogs)
+techStack:
+  languages:
+  - Python
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - FastAPI
+  - React
+  - sentence-transformers
+  - spaCy
+  infrastructure:
+  - PostgreSQL
+  - Pinecone
+  - Docker
+  - REST APIs

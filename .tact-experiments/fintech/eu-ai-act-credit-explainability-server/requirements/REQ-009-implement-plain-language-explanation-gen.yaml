@@ -1,0 +1,23 @@
+title: Implement plain-language explanation generation with LLM fallback
+approval: draft
+phase: planned
+priority: medium
+description: Add a plain-language translation layer that converts technical SHAP values
+  and counterfactuals into consumer-friendly explanations suitable for adverse action
+  notices. Uses Ollama for LLM inference with a deterministic template fallback when
+  Ollama is unavailable.
+acceptanceCriteria:
+- Given SHAP values and counterfactuals, produces a plain-language paragraph explaining
+  the key factors in the credit decision
+- 'LLM prompt includes guardrails: no hallucinated features, no specific score disclosure
+  unless configured, neutral tone appropriate for regulatory correspondence'
+- If Ollama is unreachable or response exceeds 10-second timeout, falls back to Jinja2
+  template-based explanation without error
+- Plain-language explanation is included in the explain_decision tool response under
+  a consumer_explanation field
+decomposition:
+  assignments: []
+dependencies:
+- Implement SHAP feature attribution for credit decisions
+- Implement the explain_decision MCP tool
+source: discovered

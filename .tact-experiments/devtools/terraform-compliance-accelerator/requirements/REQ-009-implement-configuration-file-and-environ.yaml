@@ -1,0 +1,22 @@
+title: Implement configuration file and environment variable support
+approval: draft
+phase: planned
+priority: medium
+description: 'Support a .tfca.yaml configuration file (searched in current directory,
+  then home directory) and TFCA_-prefixed environment variables for all configurable
+  parameters: staleness threshold, policy file paths, audit log path, binary path
+  override, fallback threshold percentage, and output format. Environment variables
+  override file config; CLI flags override both.'
+acceptanceCriteria:
+- 'A .tfca.yaml with `staleness_threshold: 12h` sets the staleness window to 12 hours'
+- Setting TFCA_STALENESS_THRESHOLD=6h overrides the file-based value
+- Passing --staleness-threshold=1h overrides both file and environment values
+- 'Running with no config file uses documented defaults (staleness: 24h, fallback:
+  50%, log: .tfca/audit.jsonl)'
+- Running `tfca config show` displays the resolved configuration with the source of
+  each value (default/file/env/flag)
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI skeleton with terraform passthrough
+source: discovered

@@ -1,0 +1,23 @@
+title: Calculate expected payment dates based on contract terms
+approval: draft
+phase: planned
+priority: medium
+description: Backend must calculate expected payment date for each pay application
+  based on approval date and contract payment terms. Provides subcontractors with
+  payment timeline expectations.
+acceptanceCriteria:
+- Backend parses contract payment terms from Procore data (net-30, net-60, net-90
+  formats)
+- Backend calculates expected_payment_date as approved_date + payment_terms_days (business
+  days, excluding weekends)
+- Backend stores expected_payment_date in payment_events table when event status is
+  'Approved' or later
+- 'Mobile app displays expected payment date with disclaimer: ''Estimated based on
+  contract terms'''
+- If payment terms are missing or unparseable, expected_payment_date is null and app
+  shows 'Payment date TBD'
+decomposition:
+  assignments: []
+dependencies:
+- Create backend API for payment event ingestion
+source: discovered

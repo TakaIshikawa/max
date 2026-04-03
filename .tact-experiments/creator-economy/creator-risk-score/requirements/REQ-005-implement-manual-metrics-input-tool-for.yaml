@@ -1,0 +1,23 @@
+title: Implement manual metrics input tool for unsupported platforms
+approval: draft
+phase: planned
+priority: high
+description: Create an MCP tool (add-manual-metrics) that allows creators to input
+  audience size, reach rates, and revenue figures for platforms without API integrations
+  (TikTok, podcasts, newsletters, etc.). These manual inputs are stored as metric
+  snapshots and participate in scoring equally with API-fetched data.
+acceptanceCriteria:
+- Tool accepts platform name, audience size, estimated reach rate, and optional revenue
+  amount as validated inputs.
+- Manual metrics are stored as metric_snapshots rows with a 'manual' source tag.
+- Calling the tool multiple times for the same platform appends new snapshots (preserving
+  history for trend analysis).
+- Tool returns confirmation with the stored values and timestamp.
+- Manually entered platforms appear in risk score calculations alongside API-connected
+  platforms.
+decomposition:
+  assignments: []
+dependencies:
+- Initialize MCP server with tool registration and stdio transport
+- Implement SQLite database schema and repository layer
+source: discovered

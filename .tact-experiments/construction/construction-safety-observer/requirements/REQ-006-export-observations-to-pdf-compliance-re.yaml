@@ -1,0 +1,24 @@
+title: Export observations to PDF compliance report
+approval: draft
+phase: planned
+priority: high
+description: Generate OSHA-compliant PDF report containing all observations with photos,
+  categories, timestamps, and locations. Enables safety managers to submit documentation
+  without Procore integration.
+acceptanceCriteria:
+- User taps 'Export Report' in app settings or observation list menu
+- Report generation happens on backend (mobile app calls POST /api/v1/reports endpoint
+  with date range filter)
+- 'PDF includes: cover page with project name and date range, table of contents by
+  OSHA category, one page per observation with photo, category, timestamp, GPS coordinates,
+  description'
+- PDF follows OSHA 300 log format guidelines (date, location, hazard description,
+  classification)
+- Generated PDF available for download via URL; mobile app opens PDF in system viewer
+  or shares via email/messaging
+- Report generation completes within 30 seconds for up to 50 observations
+decomposition:
+  assignments: []
+dependencies:
+- Sync observations to backend when online
+source: discovered

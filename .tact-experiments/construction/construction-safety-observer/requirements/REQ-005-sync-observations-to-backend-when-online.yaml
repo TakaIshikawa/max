@@ -1,0 +1,25 @@
+title: Sync observations to backend when online
+approval: draft
+phase: planned
+priority: critical
+description: Background service detects connectivity and uploads pending observations
+  to backend API. Ensures data reaches safety managers and enables web dashboard access.
+  Must handle failures gracefully and avoid duplicates.
+acceptanceCriteria:
+- Sync service runs every 5 minutes when app in foreground; every 30 minutes in background
+  (platform permitting)
+- Service uploads observation metadata (JSON) to POST /api/v1/observations endpoint
+- Photos uploaded to S3 via presigned URLs; S3 URL stored in backend observation record
+- Successful sync updates local observation record with sync timestamp and backend
+  ID
+- Failed syncs retry with exponential backoff (5s, 10s, 30s, 60s); max 5 retries before
+  marking failed
+- 'Sync is idempotent: re-uploading observation with same local ID updates existing
+  backend record, no duplicates created'
+- User can view sync errors in observation detail and manually retry
+decomposition:
+  assignments: []
+dependencies:
+- Capture observation with photo and metadata
+- Display observation list with offline support
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement JSON evidence export for programmatic access
+approval: draft
+phase: planned
+priority: medium
+description: Create JSON export functionality that outputs structured compliance evidence
+  in machine-readable format. Enables integration with GRC platforms and custom reporting
+  tools.
+acceptanceCriteria:
+- 'JSON export includes: organization ID, date range, HIPAA standard, event list,
+  compliance status, timestamp'
+- Schema documented with JSON Schema definition for validation
+- Export supports filtering by HIPAA standard, date range, and compliance status
+- JSON includes cryptographic timestamp and hash for verification
+- Export handles 50,000+ events without performance degradation
+decomposition:
+  assignments: []
+dependencies:
+- Build HIPAA Technical Safeguards mapping engine
+source: discovered

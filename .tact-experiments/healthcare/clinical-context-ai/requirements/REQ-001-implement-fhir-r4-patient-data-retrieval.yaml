@@ -1,0 +1,21 @@
+title: Implement FHIR R4 patient data retrieval
+approval: draft
+phase: planned
+priority: critical
+description: Create a FHIR client that authenticates with EHR systems and retrieves
+  patient demographics, problem lists (Condition resources), medications (MedicationStatement),
+  and clinical notes (DocumentReference) using standard FHIR R4 queries. This is foundational
+  for all downstream processing.
+acceptanceCriteria:
+- Successfully authenticate with FHIR test server using OAuth2 client credentials
+  flow
+- Retrieve Patient resource by ID and parse demographics (name, DOB, MRN)
+- Fetch all active Condition resources for a patient and extract ICD-10 codes
+- Retrieve MedicationStatement resources and parse RxNorm codes and dosages
+- Pull DocumentReference resources and download clinical note text content
+- Handle FHIR API errors gracefully with retry logic (3 attempts with exponential
+  backoff)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

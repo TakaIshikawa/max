@@ -1,0 +1,73 @@
+patterns:
+- name: Repository Pattern
+  description: Abstract data access for training records, employee data, and control
+    mappings behind repository interfaces to enable testing and future data source
+    swapping
+  scope:
+  - data access layer
+  - training_records
+  - employee_repository
+  - control_mappings
+- name: Background Job Processing
+  description: Use Celery for scheduled LMS/HRIS data synchronization and cryptographic
+    timestamping to avoid blocking API requests
+  scope:
+  - data_collection
+  - crypto_timestamping
+  - scheduled_sync
+- name: Adapter Pattern
+  description: Create adapters for each external integration (xAPI LRS, BambooHR,
+    OpenTimestamps) to isolate integration logic and enable future connector additions
+  scope:
+  - integrations
+  - lms_adapter
+  - hris_adapter
+  - timestamp_adapter
+invariants:
+- Every training completion record MUST have a cryptographic timestamp before being
+  included in evidence packages
+- Employee PII (email, full name) MUST be stored encrypted at rest in PostgreSQL
+- Control mappings (training course → compliance control) MUST be versioned with effective
+  dates to support historical audit evidence
+- Evidence package generation MUST be idempotent—generating the same report twice
+  for the same date range produces identical output
+- Training completion records MUST never be deleted, only marked as superseded or
+  corrected with audit trail
+- All external API calls (LMS, HRIS, timestamping) MUST implement exponential backoff
+  retry with circuit breaker pattern
+conventions:
+- Use snake_case for Python functions, variables, and database columns
+- Use PascalCase for class names and Pydantic models
+- Prefix background Celery tasks with 'task_' (e.g., task_sync_lms_data)
+- 'Name API endpoints with plural nouns: /api/v1/training-records, /api/v1/evidence-packages'
+- Store all timestamps in UTC with timezone awareness (use datetime.timezone.utc)
+- Use structured logging with correlation IDs for all external integration calls
+- 'Database migrations managed via Alembic with descriptive names: YYYYMMDD_description.py'
+- Environment variables prefixed with COMPLIANCE_EVIDENCE_ (e.g., COMPLIANCE_EVIDENCE_DB_URL)
+decisions:
+- id: D-1
+  title: Use OpenTimestamps for cryptographic proof instead of paid timestamping authority
+  decision: Implement OpenTimestamps with Bitcoin blockchain anchoring for tamper-proof
+    completion record timestamps
+  rationale: 'OpenTimestamps provides free, independently verifiable cryptographic
+    proof without recurring costs. Bitcoin blockchain anchoring gives auditors a trusted
+    third-party verification mechanism. Trade-off: 1-hour confirmation delay for blockchain
+    anchoring is acceptable since evidence packages are generated after training completion,
+    not in real-time.'
+- id: D-2
+  title: Start with xAPI LRS integration rather than direct LMS APIs
+  decision: Build initial LMS integration against xAPI Learning Record Store standard
+  rationale: xAPI is a standardized learning data format supported by major LMS platforms
+    (Canvas, Moodle, Cornerstone via plugins). Starting with xAPI allows broader compatibility
+    with less integration code. Direct LMS APIs can be added later for platforms lacking
+    xAPI support. MVP focuses on proving value with one integration path.
+- id: D-3
+  title: Store control mappings as versioned configuration data, not hardcoded logic
+  decision: Maintain training course → compliance control mappings in PostgreSQL with
+    effective_from/effective_to dates and version tracking
+  rationale: Compliance control requirements change over time (e.g., SOC2 2023 vs
+    2024 criteria). Versioned mappings allow generating historical evidence packages
+    that reflect the control requirements in effect at the time of training. This
+    is critical for multi-year audits. Configuration-based approach allows non-developers
+    to update mappings via future admin UI.
+contracts: []

@@ -1,0 +1,25 @@
+title: Create context compression and token optimization
+approval: draft
+phase: planned
+priority: high
+description: Build the core compression logic that takes a clinical query and patient
+  ID, retrieves relevant chunks via hybrid search, and assembles optimized context
+  staying within token budget while preserving critical clinical information (active
+  problems, current medications).
+acceptanceCriteria:
+- 'Accept input: clinical_query (string), patient_id (string), max_tokens (int, default
+  2000)'
+- Always include active problem list and current medications regardless of token budget
+- Rank remaining chunks by hybrid retrieval score and temporal relevance (recent =
+  higher priority)
+- 'Assemble context with clear section headers: ACTIVE_PROBLEMS, CURRENT_MEDICATIONS,
+  RELEVANT_HISTORY'
+- Return compressed context, token count, compression ratio, and list of included
+  FHIR resource IDs
+- Achieve ≥60% token reduction compared to sending full patient chart on test dataset
+  of 20 patients
+decomposition:
+  assignments: []
+dependencies:
+- Implement hybrid retrieval with BM25 and vector search
+source: discovered

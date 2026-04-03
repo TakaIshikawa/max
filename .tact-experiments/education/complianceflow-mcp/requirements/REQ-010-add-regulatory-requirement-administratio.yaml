@@ -1,0 +1,23 @@
+title: Add regulatory requirement administration interface
+approval: draft
+phase: planned
+priority: medium
+description: Build simple admin UI for adding, editing, and viewing regulatory requirements
+  in the requirement_rules table. Allows compliance experts to update training obligations
+  without code changes.
+acceptanceCriteria:
+- Admin interface at /admin/requirements lists all current requirements with role
+  pattern, jurisdiction, training type, frequency
+- Create form accepts role_pattern (text with wildcard support), jurisdiction (dropdown
+  of US states), training_type (text), frequency_days (integer), content_url (URL)
+- Edit form allows updating all fields except id; shows which employees currently
+  match this requirement
+- Delete operation soft-deletes requirement (sets active=false) rather than hard delete
+  to preserve audit trail
+- Changes to requirements trigger background task to re-evaluate all employee matches
+  and create new assignments if needed
+decomposition:
+  assignments: []
+dependencies:
+- Build regulatory requirement matching engine
+source: discovered

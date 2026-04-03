@@ -1,0 +1,19 @@
+title: Recommend Personalized Learning Paths via LTI Deep Linking
+approval: draft
+phase: planned
+priority: high
+description: Query LMS course catalog using LTI Deep Linking to discover courses tagged
+  with skills matching identified gaps. Generate ranked learning path recommendations
+  based on gap priority and course metadata.
+acceptanceCriteria:
+- Initiate LTI Deep Linking request to platform with skill tags from gap report
+- Parse Deep Linking response to extract course titles, URLs, and skill metadata
+- Match courses to skill gaps using competency tag overlap (≥50% match threshold)
+- Rank recommended courses by gap priority and display top 5 in learner UI
+- Handle platforms that don't support Deep Linking gracefully (show manual search
+  guidance)
+decomposition:
+  assignments: []
+dependencies:
+- Generate Skill Gap Reports Comparing Learner Proficiency to Role Requirements
+source: discovered

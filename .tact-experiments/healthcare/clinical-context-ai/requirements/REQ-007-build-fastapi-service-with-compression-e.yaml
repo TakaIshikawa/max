@@ -1,0 +1,24 @@
+title: Build FastAPI service with compression endpoints
+approval: draft
+phase: planned
+priority: high
+description: Develop REST API service that exposes context compression functionality
+  via HTTP endpoints. Supports both synchronous compression requests and batch processing
+  for multiple patients.
+acceptanceCriteria:
+- POST /compress endpoint accepts {patient_id, clinical_query, max_tokens} and returns
+  compressed context
+- 'Response includes: compressed_text, token_count, compression_ratio, source_resources[],
+  audit_event_id'
+- GET /audit/{patient_id} returns audit trail for patient
+- POST /batch endpoint processes multiple compression requests and returns results
+  array
+- API documentation auto-generated via OpenAPI/Swagger at /docs
+- Request validation using Pydantic models with clear error messages for invalid inputs
+- Health check endpoint GET /health returns service status and FHIR server connectivity
+decomposition:
+  assignments: []
+dependencies:
+- Create context compression and token optimization
+- Generate FHIR AuditEvent logs for compliance
+source: discovered

@@ -1,0 +1,68 @@
+name: creator-workflow-autopilot
+version: 0.1.0
+vision: An end-to-end pipeline application that takes a single long-form content upload
+  (podcast, video, livestream VOD) and automatically orchestrates transcription, clip
+  extraction, format adaptation, caption generation, and multi-platform asset packaging
+  — compressing the 4-6 hour manual repurposing workflow into a 15-minute review-and-approve
+  cycle.
+goals:
+- id: G-1
+  description: Enable a creator to upload a single long-form asset and receive a complete
+    package of repurposed assets (clips, captions, thumbnails, newsletter draft) without
+    manual orchestration between tools.
+  successCriteria: 'A 60-minute audio/video file uploaded through the UI produces
+    at minimum: a full transcript, 3 identified clip segments with extracted video
+    files, per-platform captions for each clip, a thumbnail per clip, and a newsletter
+    summary draft — all within a single pipeline run.'
+- id: G-2
+  description: Provide a review-and-approve dashboard where creators maintain creative
+    control over every generated asset before any publishing action occurs.
+  successCriteria: Every generated asset is presented in a review UI where the creator
+    can preview, edit text fields (captions, titles, descriptions), approve, or reject
+    each item individually. No asset leaves the system without explicit creator approval.
+- id: G-3
+  description: Implement a reliable DAG-based job pipeline that processes steps in
+    the correct dependency order, handles failures gracefully, and reports progress
+    in real time.
+  successCriteria: Pipeline execution follows a defined DAG where downstream steps
+    only run after their dependencies complete. Any step failure is retried up to
+    3 times, and persistent failures mark the step as failed without crashing the
+    entire pipeline. The UI displays per-step status (queued, running, completed,
+    failed) updated within 5 seconds of state change.
+- id: G-4
+  description: Support reusable distribution templates so creators define their desired
+    output package once and apply it to every future upload.
+  successCriteria: A creator can create, save, edit, and delete distribution templates
+    specifying which output types to generate (e.g., 3 short clips, 1 newsletter,
+    5 quote cards). Uploading a new asset with a saved template produces exactly the
+    outputs defined in that template.
+constraints:
+- 'MVP scope: no actual multi-platform publishing — pipeline ends at the review-and-approve
+  stage with downloadable assets and copyable captions. Publishing integrations are
+  post-MVP.'
+- MVP supports audio (mp3, wav, m4a) and video (mp4, webm) uploads up to 2 hours in
+  length and 5GB in file size.
+- LLM provider must be configurable via environment variable — support both OpenAI
+  API and Ollama so the app works with either cloud or local inference.
+- Transcription provider must be swappable — abstract behind an interface so Whisper.cpp
+  and Deepgram are interchangeable.
+- Single-user mode for MVP — no multi-tenancy, auth, or billing. One creator instance.
+- All media processing runs server-side via ffmpeg/sharp — no client-side video processing.
+- The system must be runnable locally with Docker Compose for development and testing.
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - Next.js 14 (App Router)
+  - BullMQ
+  - Prisma ORM
+  - Tailwind CSS
+  - shadcn/ui
+  infrastructure:
+  - PostgreSQL
+  - Redis
+  - S3-compatible object storage (MinIO for local dev)
+  - ffmpeg
+  - sharp
+  - Whisper.cpp or Deepgram API
+  - OpenAI API (GPT-4o) or Ollama for LLM tasks

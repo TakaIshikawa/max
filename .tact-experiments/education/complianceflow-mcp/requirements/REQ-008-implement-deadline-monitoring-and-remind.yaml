@@ -1,0 +1,19 @@
+title: Implement deadline monitoring and reminder system
+approval: draft
+phase: planned
+priority: high
+description: Build Celery scheduled task that checks for upcoming and overdue deadlines,
+  sends reminder notifications via Slack, and updates assignment status. Prevents
+  missed deadlines through proactive nudging.
+acceptanceCriteria:
+- Celery beat task runs daily at 9am UTC to check all pending assignments
+- Assignments with deadline in 7 days receive first reminder via Slack
+- Assignments with deadline in 1 day receive urgent reminder via Slack
+- Assignments past deadline have status updated to overdue and trigger overdue notification
+  to employee and HR admin
+- Reminders include original assignment context and direct link to training content
+decomposition:
+  assignments: []
+dependencies:
+- Send training assignments via Slack with interactive completion
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement append-only hash-chained audit log
+approval: draft
+phase: planned
+priority: high
+description: Create a SQLite-backed audit repository that stores policy evaluation
+  events in an append-only, hash-chained log. Each entry includes a SHA-256 hash linking
+  it to the previous entry, creating a tamper-evident chain. The repository exposes
+  methods to append entries, query by time range, and verify chain integrity.
+acceptanceCriteria:
+- 'Audit log table schema: id (auto-increment), timestamp (ISO 8601), previous_hash
+  (hex string), entry_hash (hex string), event_type (enum), payload (JSON string)'
+- First entry uses a well-known genesis hash (SHA-256 of 'DORA-IAC-POLICY-ENGINE-GENESIS')
+- entry_hash is computed as SHA-256(previous_hash + JSON.stringify(payload)) and is
+  deterministic
+- No UPDATE or DELETE SQL statements exist anywhere in the repository module — enforced
+  by code review and a grep-based test
+- A verify_chain() method walks the entire log and returns true if all hashes are
+  consistent, or the first broken link if tampered
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

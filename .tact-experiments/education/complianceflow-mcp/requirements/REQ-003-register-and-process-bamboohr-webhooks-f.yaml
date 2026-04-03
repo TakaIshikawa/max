@@ -1,0 +1,19 @@
+title: Register and process BambooHR webhooks for real-time events
+approval: draft
+phase: planned
+priority: high
+description: Implement webhook endpoint that receives BambooHR employee.new and employee.updated
+  events, validates signatures, and triggers training assignment workflows. Provides
+  real-time responsiveness to role changes.
+acceptanceCriteria:
+- POST /webhooks/bamboohr endpoint validates BambooHR webhook signature before processing
+- employee.new events trigger new_hire_onboarding Celery task with employee_id parameter
+- employee.updated events with role field changes trigger role_change_assignment task
+- Webhook handler returns 200 OK within 2 seconds and processes assignment logic asynchronously
+- Duplicate webhook events (same employee_id + event_type within 5 minutes) are deduplicated
+  using Redis cache
+decomposition:
+  assignments: []
+dependencies:
+- Connect to BambooHR API and sync employee data
+source: discovered

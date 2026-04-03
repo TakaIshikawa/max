@@ -1,0 +1,24 @@
+title: Create Docker Compose deployment with health checks
+approval: draft
+phase: planned
+priority: high
+description: Package entire stack (MCP server, PostgreSQL, Redis, Zeek, frontend)
+  as Docker Compose configuration for single-command deployment. Includes health checks
+  and initialization scripts for production-ready self-hosting.
+acceptanceCriteria:
+- docker-compose.yml defines services for all components with resource limits and
+  restart policies
+- Database initialization script creates schema and seeds sample detection rules
+- Health check endpoints implemented for MCP server (/health) and frontend (HTTP 200
+  on /)
+- Environment variable template (.env.example) documents all required configuration
+- README includes deployment instructions tested on Ubuntu 22.04 with prerequisites
+  (Docker, network tap setup)
+- All services start successfully and pass health checks within 60 seconds on 4-core/8GB
+  system
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with device scanner plugin interface
+- Develop React dashboard with device inventory and alert views
+source: discovered

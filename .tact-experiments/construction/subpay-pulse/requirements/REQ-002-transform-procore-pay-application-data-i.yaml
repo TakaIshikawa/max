@@ -1,0 +1,22 @@
+title: Transform Procore pay application data into payment events
+approval: draft
+phase: planned
+priority: critical
+description: GC integration service must map Procore pay application status changes
+  to SubPay payment event schema and send to backend API via webhook. This normalizes
+  Procore-specific data into platform-agnostic events.
+acceptanceCriteria:
+- 'Service maps Procore pay application statuses to SubPay states: ''draft'' → Submitted,
+  ''approved'' → Approved, ''paid'' → Paid'
+- 'Service extracts required fields: pay_app_id, project_id, subcontractor_name, amount,
+  retainage, approved_date, contract_payment_terms'
+- Service sends payment events to backend API POST /api/v1/payment-events endpoint
+  with authentication header
+- Service retries failed webhook deliveries up to 3 times with exponential backoff
+- Service maintains cursor/checkpoint of last successfully processed pay application
+  to prevent duplicate events
+decomposition:
+  assignments: []
+dependencies:
+- Implement Procore API authentication and pay application polling
+source: discovered

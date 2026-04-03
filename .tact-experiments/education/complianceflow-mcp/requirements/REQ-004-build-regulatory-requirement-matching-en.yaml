@@ -1,0 +1,22 @@
+title: Build regulatory requirement matching engine
+approval: draft
+phase: planned
+priority: critical
+description: Create database schema and matching logic that maps employee attributes
+  (role, state, department) to applicable training requirements from the regulatory
+  calendar. Core business logic for determining who needs what training.
+acceptanceCriteria:
+- requirement_rules table stores role_pattern (regex), jurisdiction, training_type,
+  frequency_days, content_url columns
+- Matching engine queries rules and returns all applicable requirements for a given
+  employee profile
+- MVP includes 3 seeded CME requirements (CA physicians 50 hours/24 months, NY physicians
+  50 hours/36 months, TX physicians 48 hours/24 months)
+- Role pattern matching supports wildcards (e.g., 'Physician*' matches 'Physician',
+  'Physician - Cardiology', 'Physician Assistant')
+- Matching logic accounts for employee state (derived from BambooHR work location
+  or default org location)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement BambooHR employee data synchronization
+approval: draft
+phase: planned
+priority: critical
+description: Build a Celery background task that fetches employee records from BambooHR
+  API, including employee ID, email, role/title, department, and employment status.
+  This data determines who should have completed training and maps to compliance control
+  requirements.
+acceptanceCriteria:
+- Celery task authenticates to BambooHR API using API key from environment variable
+- 'Task retrieves active employees with fields: id, email, jobTitle, department, hireDate,
+  employmentStatus'
+- Employee data is stored in employees table with encrypted email and full name fields
+- Task detects new hires (employees not previously in database) and logs them for
+  training assignment tracking
+- Synchronization runs daily via Celery beat schedule and can be triggered manually
+  via API endpoint
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

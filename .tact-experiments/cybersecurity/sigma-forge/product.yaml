@@ -1,0 +1,68 @@
+name: sigma-forge
+version: 0.1.0
+vision: An MCP server that inventories your actual running infrastructure, maps it
+  against MITRE ATT&CK techniques, and generates prioritized, deployment-ready Sigma
+  detection rule packs tailored to your specific attack surface — eliminating the
+  expertise barrier in detection engineering for small security teams.
+goals:
+- id: G-1
+  description: Enable automated infrastructure inventory from Docker containers and
+    Trivy scan results, producing a structured asset catalog with known vulnerabilities
+    and exposed services.
+  successCriteria: The system can ingest a Trivy JSON scan report and query the Docker
+    API to produce a complete inventory of running containers, their images, exposed
+    ports, detected CVEs, and service types within 30 seconds for up to 50 containers.
+- id: G-2
+  description: Map discovered infrastructure components to relevant MITRE ATT&CK techniques
+    using a curated mapping database, producing a prioritized list of applicable techniques
+    per asset.
+  successCriteria: Given a discovered inventory, the system produces ATT&CK technique
+    mappings for at least 15 common service types (e.g., Redis, PostgreSQL, Nginx,
+    Node.js) and elevates priority for any technique associated with a known CVE found
+    by Trivy.
+- id: G-3
+  description: Generate customized Sigma rule packs from SigmaHQ community rules that
+    match the mapped ATT&CK techniques, with field mappings appropriate to the user's
+    log format.
+  successCriteria: The system outputs valid Sigma YAML rules filtered to only the
+    techniques relevant to the discovered infrastructure, with a coverage report showing
+    covered vs. uncovered ATT&CK techniques, and can compile rules via pySigma to
+    at least one target backend (Elasticsearch).
+- id: G-4
+  description: Expose all functionality through a well-structured MCP server interface
+    that AI assistants can invoke conversationally.
+  successCriteria: All four core tools (discover_infrastructure, map_attack_surface,
+    generate_rule_pack, get_coverage_report) are callable via the MCP protocol, return
+    structured JSON responses, and include descriptive tool schemas that an LLM can
+    interpret without additional documentation.
+constraints:
+- MVP scope limited to Docker container discovery only — Kubernetes and cloud provider
+  API integrations are deferred to post-MVP.
+- Infrastructure-to-ATT&CK mapping database is curated manually for the MVP, covering
+  the top 20-30 most common containerized services (Redis, PostgreSQL, Nginx, Node.js,
+  Python/Flask, MongoDB, Elasticsearch, etc.) rather than attempting exhaustive coverage.
+- Trivy integration is limited to ingesting pre-generated Trivy JSON output files
+  — the server does not invoke Trivy directly.
+- Rule compilation targets a single pySigma backend (Elasticsearch/OpenSearch) for
+  MVP; additional backends are configuration-only extensions.
+- SigmaHQ rules are bundled as a local snapshot (specific commit/tag) rather than
+  requiring live GitHub access at runtime.
+- No authentication or multi-tenancy — the MCP server is designed for single-team,
+  local or trusted-network use.
+- ATT&CK Navigator layer export is limited to JSON format compatible with the ATT&CK
+  Navigator web app.
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - mcp Python SDK (FastMCP)
+  - pySigma (rule parsing and compilation)
+  - mitreattack-python (ATT&CK STIX data access)
+  - docker Python SDK (Docker API integration)
+  - pydantic (data validation and serialization)
+  - aiosqlite (async SQLite access)
+  infrastructure:
+  - SQLite (inventory state, mapping database, rule tracking)
+  - Docker Engine API (container discovery)
+  - SigmaHQ community rules (bundled subset or fetched)
+  - MITRE ATT&CK STIX dataset (bundled or cached locally)

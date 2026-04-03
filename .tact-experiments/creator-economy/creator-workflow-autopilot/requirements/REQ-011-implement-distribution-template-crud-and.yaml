@@ -1,0 +1,26 @@
+title: Implement distribution template CRUD and pipeline trigger
+approval: draft
+phase: planned
+priority: high
+description: Allow creators to define, save, and reuse distribution templates that
+  specify what outputs the pipeline should generate (number of clips, which platforms,
+  whether to generate newsletter, etc.). Provide the UI to select a template when
+  triggering a pipeline run.
+acceptanceCriteria:
+- 'A DistributionTemplate model exists with fields: id, name, config (JSON specifying:
+  clipCount, targetPlatforms, generateNewsletter, generateThumbnails), createdAt,
+  updatedAt'
+- CRUD API routes at /api/templates support creating, listing, updating, and deleting
+  templates
+- The upload page includes a template selector dropdown that loads saved templates
+  and a 'Quick Configure' inline form for one-off runs
+- Triggering a pipeline run with a template passes the template config to the DAG
+  builder, which includes/excludes steps based on the config (e.g., skip newsletter
+  step if generateNewsletter is false)
+- 'A default template is seeded on first run: ''3 clips for TikTok/YouTube Shorts/Reels
+  + newsletter + thumbnails'''
+decomposition:
+  assignments: []
+dependencies:
+- Build the DAG pipeline engine with BullMQ flows
+source: discovered

@@ -1,0 +1,19 @@
+title: Check lien waiver status and prompt pay deadline
+approval: draft
+phase: planned
+priority: high
+description: Validate that lien waiver is on file for the subcontractor (status check
+  in Procore or configuration) and calculate prompt pay deadline based on configurable
+  day count from approval date. Flag payments requiring attention before export.
+acceptanceCriteria:
+- Check lien_waiver_status field in Procore subcontractor record or pay application
+- Flag payment if lien waiver status is 'missing' or 'expired' for manual review
+- Calculate prompt_pay_deadline = approval_date + configured_days (default 30)
+- Store lien_waiver_status and prompt_pay_deadline with payment record
+- Mark payment as 'requires_review' if lien waiver missing or deadline within 3 days
+- Display warnings in dashboard for flagged payments
+decomposition:
+  assignments: []
+dependencies:
+- Poll Procore API for approved pay applications
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement RFC 3161 timestamping integration
+approval: draft
+phase: planned
+priority: high
+description: Integrate with public RFC 3161 Time Stamp Authority (FreeTSA.org) to
+  obtain cryptographic timestamps for all ingested evidence. Store timestamp tokens
+  and provide verification functionality.
+acceptanceCriteria:
+- Integration obtains RFC 3161 timestamp token for each evidence batch within 60 seconds
+- Timestamp tokens stored in database and linked to evidence records
+- Verification function validates timestamp token against TSA public certificate
+- System handles TSA unavailability gracefully with retry logic (3 attempts over 5
+  minutes)
+- Timestamp verification succeeds for tokens obtained 90+ days ago
+decomposition:
+  assignments: []
+dependencies:
+- Create immutable evidence storage with PostgreSQL
+source: discovered

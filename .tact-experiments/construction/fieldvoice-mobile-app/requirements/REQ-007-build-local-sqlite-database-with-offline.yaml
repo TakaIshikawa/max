@@ -1,0 +1,20 @@
+title: Build local SQLite database with offline-first data layer
+approval: draft
+phase: planned
+priority: critical
+description: Implement SQLite database schema and repository layer to store reports,
+  voice notes, photos, and sync queue offline. This is the foundation for offline-first
+  architecture.
+acceptanceCriteria:
+- 'Database schema includes tables: fv_reports, fv_voice_notes, fv_photos, fv_sync_queue,
+  fv_settings'
+- Repository classes (ReportRepository, VoiceNoteRepository, PhotoRepository) abstract
+  all database access
+- All write operations complete in under 100ms for typical report data
+- Database supports concurrent reads during sync operations without blocking UI
+- Database migrations are versioned and applied automatically on app updates
+- Test suite validates repository CRUD operations and query performance
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

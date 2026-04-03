@@ -1,0 +1,22 @@
+title: Build customer discovery UI with interview templates
+approval: draft
+phase: planned
+priority: high
+description: Create a React page for managing customer discovery interviews. Includes
+  pre-built question templates per persona type inspired by Mom Test methodology (no
+  leading questions, focus on past behavior and existing spend). Users create sessions,
+  take notes inline, and flag pain points.
+acceptanceCriteria:
+- Page lists all interviews with persona type, company, date, and pain point count.
+- New interview form pre-populates 5-7 suggested questions based on selected persona
+  type (different templates for CCO vs. CFO vs. Head of Risk).
+- During an interview session, user can add notes with a single click to flag as pain
+  point.
+- Pain point notes are visually distinct from regular notes in the session view.
+- 'Question templates follow Mom Test principles: no hypothetical questions, focus
+  on current workflows and past purchasing decisions.'
+decomposition:
+  assignments: []
+dependencies:
+- Implement customer discovery interview workflow
+source: discovered

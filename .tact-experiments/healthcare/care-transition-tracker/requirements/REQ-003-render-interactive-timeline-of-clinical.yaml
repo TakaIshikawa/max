@@ -1,0 +1,25 @@
+title: Render interactive timeline of clinical events
+approval: draft
+phase: planned
+priority: critical
+description: Display chronological timeline view in mobile app showing clinical events
+  with patient-friendly labels, icons, and expandable details. This is the core UI
+  for care journey visualization.
+acceptanceCriteria:
+- Timeline displays events in reverse chronological order (most recent first) with
+  date/time stamps
+- Each event type has distinct icon and color (hospital admission = red, medication
+  = blue, appointment = green)
+- 'Tapping event expands to show details: hospital admissions show facility name and
+  admission reason, medications show drug name and dosage, labs show result value
+  and reference range'
+- Medical terminology translated to patient-friendly language (e.g., 'Acute Myocardial
+  Infarction' → 'Heart Attack')
+- Timeline loads and renders within 2 seconds for patients with up to 50 events
+- Empty state displayed with 'No clinical events found' message if FHIR query returns
+  no results
+decomposition:
+  assignments: []
+dependencies:
+- Fetch and store clinical events from FHIR API
+source: discovered

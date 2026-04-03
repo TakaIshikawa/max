@@ -1,0 +1,63 @@
+name: terraform-compliance-accelerator
+version: 0.1.0
+vision: A CLI wrapper for Terraform/OpenTofu that makes plan operations fast enough
+  to never skip, enforces environment-aware safety policies via a YAML DSL, and generates
+  cryptographically chained audit logs for DORA/CSRD compliance — turning IaC governance
+  into an automated, evidence-generating workflow for regulated industries.
+goals:
+- id: G-1
+  description: Deliver incremental plan operations that selectively refresh only stale
+    or changed resources, dramatically reducing plan time on large state files.
+  successCriteria: On a synthetic state with 500+ resources where only 5 resources
+    have config changes, incremental plan completes in under 20% of the wall-clock
+    time of a full terraform plan -refresh-only, as measured by benchmark tests.
+- id: G-2
+  description: Enforce environment-aware safety policies that prevent dangerous operations
+    (e.g., destroy on production) based on resource type, workspace context, and tags
+    — defined in a declarative YAML DSL.
+  successCriteria: A plan containing a destroy of a tagged production database resource
+    is blocked with a clear error message, while the same operation on a dev-tagged
+    resource is allowed, validated by integration tests against at least 3 policy
+    rule types.
+- id: G-3
+  description: Generate immutable, cryptographically chained audit logs for every
+    plan and apply operation, capturing who-what-when-why evidence suitable for DORA
+    Article 11 examination.
+  successCriteria: Every CLI invocation produces an append-only JSON log entry with
+    operator identity, timestamp, operation type, resource diff summary, and a SHA-256
+    chain hash linking to the previous entry; chain integrity is verifiable via a
+    built-in verify command.
+- id: G-4
+  description: Detect Terralith anti-patterns in existing state files and provide
+    actionable decomposition recommendations.
+  successCriteria: Given a state file with 200+ resources spanning 5+ unrelated modules,
+    the analyze command outputs at least 2 concrete split recommendations with resource
+    groupings and estimated post-split state sizes.
+constraints:
+- MVP targets Terraform >= 1.5 and OpenTofu >= 1.6 state format only; older formats
+  are out of scope
+- No cloud-hosted components — the tool runs entirely locally or in CI/CD runners
+  with no external service dependencies
+- Safety policies are evaluated locally via the YAML DSL; OPA integration is deferred
+  to post-MVP
+- The tool wraps terraform/tofu CLI binaries and does not embed provider logic — it
+  depends on terraform-exec for process orchestration
+- Audit logs are stored as local files; remote log shipping (S3, SIEM) is out of scope
+  for MVP
+- Terralith analysis provides recommendations only — automated state splitting is
+  out of scope for MVP
+- MVP supports Linux and macOS; Windows support is deferred
+- No GUI or web interface — CLI-only with JSON output for machine consumption
+techStack:
+  languages:
+  - Go 1.22+
+  frameworks:
+  - cobra (CLI framework)
+  - terraform-exec (Terraform process management)
+  - hcl/v2 (HCL parsing)
+  - go-opa (policy evaluation)
+  - mattn/go-sqlite3 (staleness metadata)
+  infrastructure:
+  - Local SQLite database for resource staleness tracking and configuration hashes
+  - Append-only JSON log files for audit trail
+  - CI/CD integration via standard exit codes and JSON output mode

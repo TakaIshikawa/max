@@ -1,0 +1,23 @@
+title: Set up project infrastructure and development environment
+approval: draft
+phase: planned
+priority: critical
+description: 'Initialize the project repository with the full development toolchain:
+  Python backend with FastAPI, React frontend, SQLite database with migrations, Ollama
+  integration health check, Docker Compose for optional containerized development,
+  and CI-ready test configuration.'
+acceptanceCriteria:
+- Repository contains a working Docker Compose file that starts the FastAPI backend,
+  React frontend dev server, and Ollama service
+- FastAPI application starts and serves a health check endpoint at GET /api/v1/health
+  that verifies database connectivity and Ollama availability
+- 'SQLAlchemy models and Alembic migrations create the core tables: transactions,
+  classifications, overrides, audit_trail, reports'
+- pytest configuration with fixtures for test database, mock Ollama responses, and
+  sample transaction data is operational
+- README.md documents setup steps, environment variables, and how to run the application
+  locally with and without Docker
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

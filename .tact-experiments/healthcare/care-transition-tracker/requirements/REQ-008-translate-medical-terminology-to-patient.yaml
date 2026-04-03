@@ -1,0 +1,20 @@
+title: Translate medical terminology to patient-friendly language
+approval: draft
+phase: planned
+priority: medium
+description: Build medical terminology dictionary to convert clinical jargon in timeline
+  events and tasks to plain language. Improves patient comprehension of care information.
+acceptanceCriteria:
+- Dictionary maps at least 50 common medical terms to patient-friendly equivalents
+  (e.g., 'Hypertension' → 'High Blood Pressure', 'Dyspnea' → 'Shortness of Breath')
+- Timeline event descriptions automatically replace medical terms with translations
+  when available
+- Original medical term shown in parentheses after translation (e.g., 'High Blood
+  Pressure (Hypertension)')
+- Untranslated terms displayed as-is without breaking UI
+- Dictionary stored as JSON configuration file for easy updates without code changes
+decomposition:
+  assignments: []
+dependencies:
+- Render interactive timeline of clinical events
+source: discovered

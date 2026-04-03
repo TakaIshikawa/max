@@ -1,0 +1,21 @@
+title: Send training assignments via Slack with interactive completion
+approval: draft
+phase: planned
+priority: high
+description: Build Slack adapter that sends training assignment messages to employees
+  with deadline info, training content link, and 'Mark Complete' button. Provides
+  user-friendly delivery channel and completion workflow.
+acceptanceCriteria:
+- 'Slack bot sends direct message to employee (matched by email) with assignment details:
+  training title, deadline, reason (new hire/role change/renewal), and content link'
+- Message includes 'Mark Complete' button that opens Slack modal for completion confirmation
+- Completion modal captures completion_date (defaults to today) and optional notes
+  field
+- Submitting modal creates completion record and updates assignment status to completed
+- If employee email not found in Slack workspace, assignment marked as delivery_failed
+  with error logged
+decomposition:
+  assignments: []
+dependencies:
+- Generate training assignments from requirement matches
+source: discovered

@@ -1,0 +1,25 @@
+title: Create ESRS taxonomy reference data and system prompt
+approval: draft
+phase: planned
+priority: critical
+description: Define the ESRS taxonomy as structured reference data (JSON) covering
+  all CSRD disclosure topics with their codes, descriptions, and example transaction
+  patterns. Build the LLM system prompt template that incorporates this taxonomy with
+  few-shot examples for accurate classification. This is the core domain knowledge
+  artifact that drives classification quality.
+acceptanceCriteria:
+- 'ESRS taxonomy JSON file covers all 12 ESRS topics: E1 (Climate Change), E2 (Pollution),
+  E3 (Water & Marine Resources), E4 (Biodiversity), E5 (Circular Economy), S1 (Own
+  Workforce), S2 (Workers in Value Chain), S3 (Affected Communities), S4 (Consumers
+  & End-users), G1 (Business Conduct), G2 (Corporate Culture)'
+- 'Each topic entry includes: code, name, description, relevant_transaction_patterns
+  (list of example descriptions), and scope_mapping where applicable'
+- System prompt template is a Jinja2 template that renders the taxonomy and few-shot
+  examples into a structured prompt with explicit output format instructions (JSON)
+- At least 5 few-shot examples per major category (E1, S1, G1) are included showing
+  transaction-to-classification mappings
+- Taxonomy data is loadable and validatable via a Pydantic model
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

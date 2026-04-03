@@ -1,0 +1,24 @@
+title: Implement LMS quirks knowledge base with common issues
+approval: draft
+phase: planned
+priority: high
+description: Create SQLite database schema for storing known LMS compatibility issues,
+  populate with 10-15 curated common problems (e.g., Moodle requires specific manifest
+  metadata, Canvas rejects certain xAPI verbs), and implement query interface for
+  validators to fetch relevant remediation guidance.
+acceptanceCriteria:
+- 'SQLite schema includes tables: issues (id, code, title, description, severity),
+  lms_platforms (id, name, version_pattern), issue_lms_mapping, remediations (issue_id,
+  fix_description, code_example)'
+- Database seeded with at least 10 common issues covering SCORM manifest problems,
+  xAPI statement issues, and JavaScript API misuse patterns
+- Query interface allows lookup by error code, LMS platform, or issue signature (e.g.,
+  missing manifest element)
+- Each remediation includes code example showing correct implementation (e.g., proper
+  imsmanifest.xml structure)
+- Database file is bundled with CLI tool distribution and loaded automatically on
+  startup
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,24 @@
+title: Add Canvas LMS Docker test environment
+approval: draft
+phase: planned
+priority: medium
+description: Create Docker Compose configuration for Canvas LMS (open-source version)
+  similar to Moodle setup, implement Canvas-specific adapter for package deployment
+  and testing. Provides second LMS platform for compatibility matrix, increasing confidence
+  in multi-LMS support.
+acceptanceCriteria:
+- Docker Compose file successfully starts Canvas LMS container with PostgreSQL and
+  Redis dependencies
+- Canvas adapter implements same interface as Moodle adapter (setup, deploy, execute,
+  capture, teardown)
+- Automated setup creates Canvas course and configures SCORM/xAPI settings without
+  manual steps
+- Validation report correctly shows separate results for Moodle and Canvas with platform-specific
+  issues
+- Canvas environment starts in under 90 seconds (Canvas is heavier than Moodle)
+decomposition:
+  assignments: []
+dependencies:
+- Build Docker-based Moodle LMS test environment
+- Execute SCORM package in headless browser and capture runtime errors
+source: discovered

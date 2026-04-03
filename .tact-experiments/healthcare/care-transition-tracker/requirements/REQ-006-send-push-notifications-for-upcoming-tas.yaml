@@ -1,0 +1,22 @@
+title: Send push notifications for upcoming tasks and appointments
+approval: draft
+phase: planned
+priority: high
+description: Implement Firebase Cloud Messaging to send timely reminders for care
+  plan tasks and scheduled appointments. Proactive notifications reduce missed follow-ups.
+acceptanceCriteria:
+- Push notification sent 24 hours before scheduled appointment with title 'Appointment
+  Reminder' and body 'You have an appointment tomorrow at [time] with [provider]'
+- Daily notification sent at 9 AM for overdue care plan tasks with count of overdue
+  items
+- Notification sent when new discharge summary processed with message 'New care plan
+  tasks added'
+- Notifications do not include PHI in notification body (only generic reminders)
+- User can disable notifications in app settings
+- Tapping notification opens app to relevant screen (appointment details or care plan)
+decomposition:
+  assignments: []
+dependencies:
+- Display care plan tasks as interactive checklist
+- Render interactive timeline of clinical events
+source: discovered

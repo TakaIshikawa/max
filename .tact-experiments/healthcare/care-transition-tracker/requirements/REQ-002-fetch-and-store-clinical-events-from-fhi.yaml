@@ -1,0 +1,23 @@
+title: Fetch and store clinical events from FHIR API
+approval: draft
+phase: planned
+priority: critical
+description: Retrieve key FHIR resources (Encounter, MedicationRequest, Observation,
+  Appointment, DocumentReference) from EHR and persist to local encrypted database.
+  This provides the raw clinical data for timeline construction.
+acceptanceCriteria:
+- Backend fetches Encounter resources for past 6 months and maps to timeline event
+  types (hospital-admission, hospital-discharge, office-visit)
+- Fetches MedicationRequest resources and extracts medication name, dosage, start
+  date, and prescriber
+- Fetches Observation resources filtered to vital signs and lab results with LOINC
+  codes
+- Fetches Appointment resources for upcoming scheduled visits
+- Stores all resources in PostgreSQL with AES-256 encryption at rest and indexes on
+  patient ID and event timestamp
+- Generates audit log entry for each FHIR API call with timestamp and resource type
+decomposition:
+  assignments: []
+dependencies:
+- Authenticate patient via FHIR-enabled EHR OAuth 2.0
+source: discovered

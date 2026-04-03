@@ -1,0 +1,18 @@
+title: Implement Assessment Response Storage with Audit Trail
+approval: draft
+phase: planned
+priority: critical
+description: Persist all assessment events (started, question presented, response
+  recorded, completed) in append-only event log for auditability and IRT recalibration.
+  Must support querying learner history and response patterns.
+acceptanceCriteria:
+- 'Store events with schema: event_id, learner_id, assessment_id, event_type, timestamp,
+  payload'
+- Ensure events are immutable (no UPDATE or DELETE operations, only INSERT)
+- Index events by learner_id and assessment_id for fast retrieval
+- Support querying response patterns for IRT parameter recalibration (item analysis)
+- Retain events for minimum 2 years per compliance requirements
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

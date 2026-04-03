@@ -1,0 +1,26 @@
+title: Build the DAG pipeline engine with BullMQ flows
+approval: draft
+phase: planned
+priority: critical
+description: Implement the core pipeline orchestration engine that takes a Source
+  and a DistributionTemplate, constructs a BullMQ flow (DAG of jobs), enqueues it,
+  and tracks execution state. This is the backbone that all processing steps plug
+  into.
+acceptanceCriteria:
+- 'A PipelineRun record is created in PostgreSQL when a pipeline is triggered, with
+  fields: id, sourceId, templateId, status (queued, running, completed, failed), stepStatuses
+  (JSON), createdAt, updatedAt'
+- The engine constructs a BullMQ flow where transcription runs first, clip identification
+  and newsletter draft depend on transcription, clip extraction depends on clip identification,
+  and caption/thumbnail generation depend on clip extraction
+- Each step's status (queued, running, completed, failed) is persisted to the PipelineRun.stepStatuses
+  field within 2 seconds of state change
+- A failed step is retried up to 3 times with exponential backoff before being marked
+  as permanently failed
+- If a step fails permanently, independent branches of the DAG continue executing
+  — only direct dependents are skipped
+decomposition:
+  assignments: []
+dependencies:
+- Implement file upload with media validation and S3 storage
+source: discovered

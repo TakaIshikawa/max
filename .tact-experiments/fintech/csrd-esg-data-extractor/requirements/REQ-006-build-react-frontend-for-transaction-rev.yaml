@@ -1,0 +1,24 @@
+title: Build React frontend for transaction review dashboard
+approval: draft
+phase: planned
+priority: high
+description: Create a single-page React application that provides compliance officers
+  with a dashboard to review AI classifications, inspect individual transactions,
+  submit overrides, and monitor classification quality. The UI must make the review
+  workflow efficient for processing hundreds of transactions.
+acceptanceCriteria:
+- Dashboard page shows summary statistics (total transactions, classified count, pending
+  review count, average confidence) and a confidence distribution chart
+- 'Review queue page displays a sortable, filterable table of transactions with columns:
+  date, description, amount, ESRS classification, confidence score, review status'
+- Transaction detail view shows full classification rationale, original transaction
+  data, and an override form with ESRS topic dropdown and justification text field
+- Override submission updates the transaction status in real-time without full page
+  reload
+- 'Bulk actions: user can select multiple transactions and mark them as ''reviewed''
+  (confirming AI classification) in a single action'
+decomposition:
+  assignments: []
+dependencies:
+- Implement transaction review and override interface API
+source: discovered

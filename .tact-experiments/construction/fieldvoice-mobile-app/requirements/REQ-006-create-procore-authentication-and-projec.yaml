@@ -1,0 +1,18 @@
+title: Create Procore authentication and project selection flow
+approval: draft
+phase: planned
+priority: high
+description: Implement OAuth authentication with Procore and allow users to select
+  which Procore project their daily reports should sync to. This establishes the integration
+  foundation.
+acceptanceCriteria:
+- User can initiate Procore login via OAuth 2.0 flow from settings screen
+- Access token and refresh token are stored securely in device keychain/keystore
+- After authentication, user sees list of Procore projects they have access to
+- User can select a default project for daily reports (stored in local settings)
+- App handles token refresh automatically when access token expires
+- User can disconnect Procore account and re-authenticate from settings
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

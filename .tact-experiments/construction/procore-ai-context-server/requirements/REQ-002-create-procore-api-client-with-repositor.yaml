@@ -1,0 +1,25 @@
+title: Create Procore API client with repository pattern
+approval: draft
+phase: planned
+priority: critical
+description: Build a typed API client that wraps Procore REST API endpoints for projects,
+  daily reports, RFIs, and submittals. Implement repository interfaces to abstract
+  API calls, enable caching, and facilitate testing with mock data.
+acceptanceCriteria:
+- ProjectRepository.getProject(projectId) returns typed Project object with id, name,
+  company, address
+- DailyReportRepository.list(projectId, dateRange) returns array of DailyReport objects
+  with all fields populated
+- RFIRepository.list(projectId, status) returns RFIs filtered by status (open/closed)
+  with question, answer, assignee
+- SubmittalRepository.list(projectId) returns submittals with title, status, due_date,
+  trade
+- All repositories handle API errors gracefully and return typed error objects (not
+  raw exceptions)
+- Repositories implement in-memory caching with 5-minute TTL to reduce API calls during
+  development
+decomposition:
+  assignments: []
+dependencies:
+- Implement Procore OAuth 2.0 authentication flow
+source: discovered

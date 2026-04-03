@@ -1,0 +1,19 @@
+title: Create Adaptive Assessment Engine with IRT-Based Question Selection
+approval: draft
+phase: planned
+priority: critical
+description: Build assessment delivery system that selects questions adaptively based
+  on learner ability estimates using 2PL IRT model. Must adjust difficulty in real-time,
+  terminate when ability estimate converges (standard error < 0.3), and complete within
+  15 minutes.
+acceptanceCriteria:
+- Select initial question at medium difficulty (b=0) for each skill domain
+- Update ability estimate (theta) after each response using maximum likelihood estimation
+- Select next question with maximum information at current theta estimate
+- Terminate assessment when SE(theta) < 0.3 or 20 questions answered
+- Complete 90% of assessments in ≤15 minutes in load testing with 100 concurrent users
+decomposition:
+  assignments: []
+dependencies:
+- Implement LTI 1.3 Tool Provider with OIDC Launch Flow
+source: discovered

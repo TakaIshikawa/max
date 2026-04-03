@@ -1,0 +1,24 @@
+title: Add project initialization and document indexing CLI
+approval: draft
+phase: planned
+priority: medium
+description: Provide CLI commands to initialize a Procore project (fetch and index
+  all documents) and refresh the index when documents are updated. Display progress
+  and handle errors gracefully.
+acceptanceCriteria:
+- Command 'npm run init-project <project_id>' fetches all daily reports, RFIs, and
+  submittals from Procore
+- 'Initialization displays progress: ''Fetching daily reports... 45/100'', ''Generating
+  embeddings... 80%'''
+- 'Command creates local project directory: ~/.procore-mcp/projects/<project_id>/
+  with vector DB and metadata'
+- Command 'npm run refresh-project <project_id>' detects updated documents and re-indexes
+  only changes
+- Errors during indexing (API failures, embedding errors) are logged but don't stop
+  entire process
+- 'Completion message shows: ''Indexed 120 documents (450 chunks) in 3m 24s'''
+decomposition:
+  assignments: []
+dependencies:
+- Create MCP server with core tools
+source: discovered

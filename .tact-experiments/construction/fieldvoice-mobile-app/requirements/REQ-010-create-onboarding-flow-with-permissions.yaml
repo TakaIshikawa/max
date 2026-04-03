@@ -1,0 +1,21 @@
+title: Create onboarding flow with permissions and Procore setup
+approval: draft
+phase: planned
+priority: high
+description: Guide new users through app setup including microphone/camera/location
+  permissions, Procore authentication, and project selection. First-run experience
+  determines adoption success.
+acceptanceCriteria:
+- First launch shows 3-screen onboarding explaining app value proposition and workflow
+- Onboarding requests microphone, camera, and location permissions with clear explanations
+- User is prompted to authenticate with Procore and select default project before
+  accessing main app
+- User can skip Procore setup and explore app in demo mode with sample data
+- Onboarding completion state is persisted - users don't see it again on subsequent
+  launches
+- Settings screen allows users to revisit Procore setup and permission requests
+decomposition:
+  assignments: []
+dependencies:
+- Create Procore authentication and project selection flow
+source: discovered

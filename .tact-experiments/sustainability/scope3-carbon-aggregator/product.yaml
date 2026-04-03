@@ -1,0 +1,64 @@
+name: scope3-carbon-aggregator
+version: 0.1.0
+vision: An open, plugin-based toolchain that programmatically collects, normalizes,
+  and scores heterogeneous supply chain carbon data sources into a unified, auditable
+  Scope 3 emissions dataset aligned with GHG Protocol categories — replacing inaccurate
+  spend-based estimation with a progressively improvable multi-source approach suitable
+  for CSRD ESRS E1 disclosures.
+goals:
+- id: G-1
+  description: Establish a working plugin-based parser architecture that allows new
+    data source integrations to be added without modifying core application code.
+  successCriteria: At least 3 distinct parser plugins can be registered, discovered,
+    and executed through the pluggy plugin system, each implementing the standard
+    parser interface, with a new parser addable by creating a single Python module
+    without touching core code.
+- id: G-2
+  description: Normalize heterogeneous emission factor data into a single canonical
+    schema aligned with GHG Protocol Scope 3 categories 1-15.
+  successCriteria: All parser outputs conform to the shared pydantic EmissionRecord
+    schema, pass validation, and are tagged with the correct Scope 3 category (1-15),
+    source provenance, and unit-normalized CO2e values — verified by round-trip serialization
+    tests.
+- id: G-3
+  description: Implement a data quality scoring system that rates each emission data
+    point by methodology tier, enabling users to identify where better data would
+    most improve accuracy.
+  successCriteria: Every stored emission record carries a data quality score (1-5
+    scale per PCAF/GHG Protocol hierarchy), and a CLI report can show per-category
+    average data quality with identification of the lowest-quality categories.
+- id: G-4
+  description: Provide a CLI-driven workflow that allows a user to run parsers, store
+    results, and generate a Scope 3 category summary suitable for CSRD disclosure
+    preparation.
+  successCriteria: A user can execute a full collection sweep via CLI, view per-category
+    CO2e totals with uncertainty ranges and data quality indicators, and export results
+    as structured JSON conforming to a documented output schema.
+constraints:
+- 'MVP scope limited to 3 bundled parsers: DEFRA emission factors (CSV), USEEIO spend-based
+  model, and a manual supplier data entry template (CSV/JSON) — no parsers requiring
+  paid API keys or enterprise contracts'
+- No web UI — CLI-only interface for MVP; programmatic Python API as secondary access
+  path
+- DuckDB as sole storage backend — no external database dependencies
+- All emission values must be stored in kg CO2e as the canonical unit, with original
+  units preserved for audit
+- No real-time data fetching in MVP — batch-oriented parser execution only
+- Parser plugins must be pure Python with no compiled dependencies beyond what DuckDB/pandas
+  require
+- GLEC framework parser deferred to post-MVP due to API access requirements — replaced
+  with manual template parser for MVP
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - pluggy (plugin system)
+  - pydantic v2 (schema validation)
+  - click (CLI framework)
+  - httpx (HTTP client)
+  - pandas (data transformation)
+  - DuckDB (embedded analytics storage)
+  infrastructure:
+  - Local filesystem / DuckDB file-based database
+  - PyPI-compatible package structure
+  - pytest for testing

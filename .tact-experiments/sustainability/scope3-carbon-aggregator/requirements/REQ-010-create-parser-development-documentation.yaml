@@ -1,0 +1,24 @@
+title: Create parser development documentation and template
+approval: draft
+phase: planned
+priority: medium
+description: Write developer documentation and provide a cookiecutter-style template
+  module that enables community contributors to create new parser plugins. This is
+  essential for the open parser ecosystem vision — the architecture is only valuable
+  if others can extend it.
+acceptanceCriteria:
+- A CONTRIBUTING.md file documents the parser interface contract, the four lifecycle
+  methods, expected input/output types, and data quality score assignment guidelines
+- A template parser module (parse_template.py) is provided in the repository with
+  TODO comments marking the sections a developer must customize, and it passes all
+  interface validation when registered
+- Documentation includes a step-by-step tutorial for creating a new parser, registering
+  it via entry_points, and testing it against the validation suite
+- A pytest fixture or test helper is provided that validates any parser implementation
+  against the hookspec contract and tests round-trip schema compliance
+decomposition:
+  assignments: []
+dependencies:
+- Define canonical emission record schema with pydantic models
+- Implement pluggy-based plugin manager for parser registration and discovery
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement Procore API authentication and pay application polling
+approval: draft
+phase: planned
+priority: critical
+description: GC integration service must authenticate with Procore API using OAuth
+  2.0 client credentials and poll for pay application status changes every 10-15 minutes.
+  This is the foundational data ingestion mechanism for the entire platform.
+acceptanceCriteria:
+- Service successfully authenticates with Procore API using client_id and client_secret
+  from environment variables
+- Service polls Procore /rest/v1.0/pay_applications endpoint every 10-15 minutes (configurable
+  interval)
+- Service retrieves pay applications with status changes since last poll (using updated_at
+  timestamp filter)
+- Service handles Procore API rate limiting (429 responses) with exponential backoff
+- Service logs all API requests and responses for debugging (excluding credentials)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement token counting for source files and symbols
+approval: draft
+phase: planned
+priority: critical
+description: Build a token counting module that computes the token count of a source
+  file's full text and individual symbol bodies using tiktoken cl100k_base encoding.
+  This is the foundation of the 'raw token cost' metric.
+acceptanceCriteria:
+- Given a file path, returns the total token count of the file contents using cl100k_base
+  encoding.
+- Given a ParsedModule, returns per-symbol token counts (each function/class body
+  counted individually).
+- 'Token counts are deterministic: calling the function twice on the same file produces
+  identical results.'
+- Empty files return a token count of 0 without errors.
+- A utility function computes 'token density ratio' as total_tokens / number_of_semantic_units
+  (functions + classes), returning the ratio or None for files with no semantic units.
+decomposition:
+  assignments: []
+dependencies:
+- Implement tree-sitter based source file parser
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement pain point theme extraction across interviews
+approval: draft
+phase: planned
+priority: medium
+description: Build a backend service that analyzes all pain-point-flagged notes across
+  interviews and extracts recurring themes using keyword frequency analysis. This
+  aggregation reveals which problems are mentioned most often, providing evidence
+  for feature prioritization.
+acceptanceCriteria:
+- GET /api/v1/discovery/themes returns a ranked list of extracted themes with mention
+  counts and source interview IDs.
+- Theme extraction uses word/phrase frequency analysis on pain-point-flagged notes,
+  filtering common stop words.
+- Themes include the top 10 most frequent meaningful terms/phrases.
+- 'Each theme entry includes: term, frequency count, and list of interview IDs where
+  it appeared.'
+- Results update dynamically as new pain point notes are added (computed on request,
+  not cached in MVP).
+decomposition:
+  assignments: []
+dependencies:
+- Implement customer discovery interview workflow
+source: discovered

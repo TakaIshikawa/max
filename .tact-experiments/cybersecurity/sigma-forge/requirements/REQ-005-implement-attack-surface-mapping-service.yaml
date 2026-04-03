@@ -1,0 +1,24 @@
+title: Implement attack surface mapping service
+approval: draft
+phase: planned
+priority: high
+description: The map_attack_surface tool takes the current inventory snapshot and
+  applies the mapping registry to produce a list of relevant ATT&CK techniques per
+  container/service, with priority scores elevated for CVE-linked techniques. Results
+  are persisted for use by rule generation.
+acceptanceCriteria:
+- Maps each discovered container to ATT&CK techniques by matching service fingerprints
+  against the mapping registry
+- Elevates priority score for any technique that is also linked to a CVE found by
+  Trivy in that container
+- Produces a deduplicated, prioritized list of all applicable ATT&CK techniques across
+  the entire inventory
+- Persists the mapping results to SQLite with references to the source inventory snapshot
+- Returns structured JSON including per-container technique lists and an aggregate
+  prioritized technique list with rationale
+decomposition:
+  assignments: []
+dependencies:
+- Implement Docker container discovery
+- Build curated infrastructure-to-ATT&CK mapping registry
+source: discovered

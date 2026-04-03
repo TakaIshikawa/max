@@ -1,0 +1,23 @@
+title: Implement retry logic and circuit breaker for external API calls
+approval: draft
+phase: planned
+priority: medium
+description: Add resilience patterns to all external integration calls (xAPI LRS,
+  BambooHR, OpenTimestamps) to handle transient failures gracefully and prevent cascading
+  failures.
+acceptanceCriteria:
+- 'All external HTTP calls use tenacity library with exponential backoff: 3 retries
+  with 2s, 4s, 8s delays'
+- 'Circuit breaker pattern implemented using pybreaker library: opens after 5 consecutive
+  failures, half-open retry after 60s'
+- Failed external calls log structured error messages with correlation ID, endpoint,
+  status code, and retry attempt number
+- When circuit is open, API endpoints return 503 Service Unavailable with informative
+  error message indicating which integration is down
+- Circuit breaker state exposed via GET /health endpoint with per-integration status
+decomposition:
+  assignments: []
+dependencies:
+- Implement xAPI LRS data collector for training completion records
+- Implement BambooHR employee data synchronization
+source: discovered

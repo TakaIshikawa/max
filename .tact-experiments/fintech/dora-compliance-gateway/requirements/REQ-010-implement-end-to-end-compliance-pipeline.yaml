@@ -1,0 +1,26 @@
+title: Implement end-to-end compliance pipeline integration test suite
+approval: draft
+phase: planned
+priority: medium
+description: 'Create an integration test suite that exercises the full compliance
+  pipeline: a mock Open Banking API, the gateway with a representative YAML configuration,
+  and verification of audit log integrity, data minimization, SCA enforcement, and
+  health monitoring.'
+acceptanceCriteria:
+- A mock Open Banking server returns realistic account and payment responses with
+  PII fields.
+- 'Test: a payment initiation without SCA evidence is rejected, and the rejection
+  is audit-logged.'
+- 'Test: an account information request returns only allowlisted fields for the declared
+  purpose, with stripped field count in the audit log.'
+- 'Test: after simulating upstream API failures, the health report shows degraded
+  status and a threshold breach audit event exists.'
+- 'Test: the full audit log chain verifies as intact after all test scenarios complete.'
+decomposition:
+  assignments: []
+dependencies:
+- Implement API proxy tool that forwards requests to upstream Open Banking APIs
+- Implement GDPR data minimization middleware
+- Implement SCA compliance validation middleware
+- Implement DORA third-party health monitoring probe
+source: discovered

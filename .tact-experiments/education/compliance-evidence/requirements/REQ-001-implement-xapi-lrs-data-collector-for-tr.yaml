@@ -1,0 +1,22 @@
+title: Implement xAPI LRS data collector for training completion records
+approval: draft
+phase: planned
+priority: critical
+description: Build a Celery background task that connects to an xAPI Learning Record
+  Store, queries for training completion statements, and stores them in PostgreSQL
+  with normalized employee identifiers. This is the primary data ingestion mechanism
+  for the MVP.
+acceptanceCriteria:
+- Celery task successfully authenticates to xAPI LRS using Basic Auth or OAuth2
+- Task retrieves xAPI statements with verb 'completed' and filters for training activity
+  types
+- 'Extracted data includes: employee identifier (actor.mbox), course identifier (object.id),
+  completion timestamp (timestamp), and score if present (result.score)'
+- Training records are upserted into training_completions table with deduplication
+  on (employee_id, course_id, completion_date)
+- Task logs structured output including record count processed and any API errors
+  with correlation IDs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

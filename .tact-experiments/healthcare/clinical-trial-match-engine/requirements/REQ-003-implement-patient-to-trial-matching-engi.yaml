@@ -1,0 +1,26 @@
+title: Implement patient-to-trial matching engine with scoring
+approval: draft
+phase: planned
+priority: critical
+description: Compare patient FHIR data against parsed trial eligibility criteria to
+  determine match eligibility. Generate match score (0-100) based on criteria met,
+  and produce structured explanation of which criteria matched or failed.
+acceptanceCriteria:
+- 'Age matching: patient age (calculated from birthDate) compared against trial min/max
+  age; fails if outside range'
+- 'Diagnosis matching: patient Condition resources checked for required diagnosis
+  keywords/codes; scores higher for exact SNOMED CT matches'
+- 'Lab value matching: patient Observation resources compared against lab thresholds;
+  uses most recent value within 90 days'
+- 'Medication matching: patient MedicationStatement checked against required prior
+  treatments and excluded medications'
+- Match score calculated as percentage of inclusion criteria met (0-100 scale)
+- Explanation object generated listing each criterion with status (met/not_met/insufficient_data)
+  and supporting evidence (e.g., 'Patient age 54 meets range 18-70')
+- Matching completes within 3 seconds for single patient against 100 trials
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and parse oncology trial data from ClinicalTrials.gov
+- Retrieve patient clinical data via FHIR R4 API
+source: discovered

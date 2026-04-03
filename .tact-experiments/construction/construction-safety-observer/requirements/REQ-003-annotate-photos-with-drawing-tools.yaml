@@ -1,0 +1,20 @@
+title: Annotate photos with drawing tools
+approval: draft
+phase: planned
+priority: high
+description: Allow user to highlight specific hazards in photo using simple drawing
+  tools (circle, arrow, freehand). Improves clarity for safety managers reviewing
+  observations and provides visual evidence for compliance reports.
+acceptanceCriteria:
+- After photo capture, user can tap 'Annotate' to open drawing overlay
+- 'Drawing tools available: red circle, red arrow, red freehand pen'
+- Annotations rendered on canvas layer over photo; original photo unchanged
+- User can undo last annotation or clear all annotations
+- Annotated photo saved as separate image file; both original and annotated versions
+  stored
+- Observation record references annotated photo for display and export
+decomposition:
+  assignments: []
+dependencies:
+- Capture observation with photo and metadata
+source: discovered

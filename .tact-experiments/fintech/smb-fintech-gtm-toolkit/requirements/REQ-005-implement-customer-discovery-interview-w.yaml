@@ -1,0 +1,24 @@
+title: Implement customer discovery interview workflow
+approval: draft
+phase: planned
+priority: critical
+description: Create the data model and API for structured customer discovery interviews
+  following Mom Test methodology. Supports creating interview sessions tied to compliance-buyer
+  personas (CCO, CFO, Head of Risk), recording structured notes with tagged pain points,
+  and retrieving interview history.
+acceptanceCriteria:
+- 'Database tables: interviews (id, persona_type, company_name, interviewee_role,
+  date, summary, created_at) and interview_notes (id, interview_id, note_text, is_pain_point
+  boolean, tags array, created_at).'
+- 'persona_type is constrained to enum: CCO, CFO, HEAD_OF_RISK, COMPLIANCE_ANALYST,
+  OTHER.'
+- GET /api/v1/interviews returns all interviews with note counts; supports filter
+  by persona_type.
+- POST /api/v1/interviews creates a new interview session.
+- POST /api/v1/interviews/{id}/notes adds a note to an interview with optional pain_point
+  flag and tags.
+- GET /api/v1/interviews/{id} returns the interview with all associated notes.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

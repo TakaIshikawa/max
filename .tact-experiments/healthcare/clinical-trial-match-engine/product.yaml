@@ -1,0 +1,59 @@
+name: clinical-trial-match-engine
+version: 0.1.0
+vision: A FHIR-integrated clinical decision support system that automatically matches
+  patients to relevant clinical trials by parsing eligibility criteria from ClinicalTrials.gov
+  and comparing against structured EHR data, increasing trial enrollment and patient
+  access to cutting-edge treatments.
+goals:
+- id: G-1
+  description: Enable automated patient-to-trial matching for oncology patients using
+    FHIR data
+  successCriteria: System successfully retrieves patient data via FHIR API, parses
+    eligibility criteria for at least 50 oncology trials, and generates ranked match
+    recommendations with >80% accuracy compared to manual clinical coordinator review
+- id: G-2
+  description: Reduce manual trial screening effort for clinicians and research coordinators
+  successCriteria: Clinician dashboard displays trial recommendations within 5 seconds
+    of patient selection, with explanations for each match that eliminate need for
+    manual ClinicalTrials.gov review in 70% of cases
+- id: G-3
+  description: Provide patient-accessible trial information in plain language
+  successCriteria: Patient portal displays trial matches with plain-language descriptions
+    at 8th-grade reading level, including contact information for enrollment, for
+    all matched trials
+- id: G-4
+  description: Maintain compliance with healthcare data security and privacy standards
+  successCriteria: System implements HIPAA-compliant data handling with encrypted
+    data in transit and at rest, audit logging for all patient data access, and passes
+    security review checklist
+constraints:
+- MVP scope limited to oncology trials (breast, lung, colorectal cancer) to constrain
+  NLP training and validation effort
+- FHIR integration targets FHIR R4 standard with initial support for synthetic test
+  data (Synthea) before live EHR integration
+- Trial data refresh occurs daily (not real-time) to manage API rate limits and processing
+  costs
+- Matching engine uses rule-based extraction for structured criteria (age, lab values)
+  and keyword matching for diagnoses/medications rather than full BioBERT fine-tuning
+  in MVP
+- Patient portal is read-only; enrollment coordination happens outside the system
+  via provided contact information
+- No PHI storage beyond session cache; all patient data retrieved on-demand from FHIR
+  server
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - SQL
+  frameworks:
+  - FastAPI
+  - React 18
+  - Pydantic
+  - SQLAlchemy
+  - Transformers (HuggingFace)
+  infrastructure:
+  - PostgreSQL
+  - Redis (caching)
+  - Docker
+  - FHIR Client Library (fhir.resources)
+  - ClinicalTrials.gov API

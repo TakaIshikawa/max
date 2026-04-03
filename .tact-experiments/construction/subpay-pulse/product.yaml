@@ -1,0 +1,49 @@
+name: subpay-pulse
+version: 0.1.0
+vision: A mobile-first platform that eliminates payment status uncertainty in construction
+  by giving subcontractors real-time visibility into their payment pipeline through
+  Procore integration, replacing the "where's my money?" phone call loop with transparent,
+  automated status tracking.
+goals:
+- id: G-1
+  description: Reduce payment status inquiry overhead for GC accounting teams
+  successCriteria: GC accounting teams report 50%+ reduction in payment status phone
+    calls and emails within 30 days of deployment
+- id: G-2
+  description: Provide subcontractors with real-time payment visibility
+  successCriteria: Subcontractors can view payment status within 5 minutes of status
+    change in Procore, with 95%+ accuracy on expected payment dates
+- id: G-3
+  description: Establish reliable Procore integration for pay application tracking
+  successCriteria: Successfully sync pay application status changes from Procore within
+    15 minutes, with zero data loss over 30-day period
+- id: G-4
+  description: Enable viral two-sided adoption through frictionless onboarding
+  successCriteria: Subcontractors can complete app setup and link to first GC relationship
+    in under 3 minutes; GCs can deploy integration in under 30 minutes
+constraints:
+- MVP scope limited to Procore integration only (no PlanGrid, Buildertrend, etc.)
+- Mobile app supports iOS and Android via single React Native codebase
+- GC integration must run as stateless service (Docker container or Lambda) with no
+  on-premise requirements
+- 'Payment status tracking covers 4 core states only: Submitted → Approved → Payment
+  Initiated → Paid'
+- No payment initiation or financial transaction capabilities in MVP (read-only payment
+  tracking)
+- Expected payment date calculations limited to simple contract terms (net-30, net-60)
+  without complex prompt pay law logic
+- Authentication via email/password only (no SSO or OAuth in MVP)
+- Retainage tracking is display-only (no automated release calculations)
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - React Native
+  - FastAPI
+  - Express.js
+  infrastructure:
+  - PostgreSQL
+  - Docker
+  - Firebase Cloud Messaging
+  - AWS Lambda

@@ -1,0 +1,22 @@
+title: Implement clip extraction and format adaptation with ffmpeg
+approval: draft
+phase: planned
+priority: high
+description: For each identified clip candidate, extract the video/audio segment using
+  ffmpeg, produce both horizontal (16:9) and vertical (9:16) versions, and burn in
+  captions. This transforms clip candidates into actual downloadable media assets.
+acceptanceCriteria:
+- For each ClipCandidate, ffmpeg extracts the segment from the source file at the
+  specified start/end timestamps
+- A 16:9 horizontal version is produced at 1920x1080 resolution (or source resolution
+  if lower)
+- A 9:16 vertical version is produced at 1080x1920 by center-cropping the horizontal
+  source
+- Both versions are uploaded to S3 under assets/{pipelineRunId}/clips/{clipId}/{format}.mp4
+- Asset records are created in PostgreSQL for each produced file with type 'clip',
+  format metadata, s3Key, and status 'pending_review'
+decomposition:
+  assignments: []
+dependencies:
+- Implement AI-powered clip identification step
+source: discovered

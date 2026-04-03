@@ -1,0 +1,54 @@
+name: compliance-evidence-pipeline
+version: 0.1.0
+vision: A healthcare-focused data pipeline that automatically collects, transforms,
+  and packages security evidence from EHR audit logs and security tools into HIPAA
+  Security Rule compliance reports, reducing audit preparation from weeks to hours.
+goals:
+- id: G-1
+  description: Automate evidence collection from at least 3 common data sources (EHR
+    audit logs, vulnerability scanners, identity providers) with daily ingestion
+  successCriteria: Pipeline successfully ingests and processes data from 3+ configured
+    sources on a daily schedule with <5% failure rate over 30 days
+- id: G-2
+  description: Map security events to HIPAA Security Rule technical safeguards (§164.312)
+    with accurate compliance coverage
+  successCriteria: Generated evidence packages cover all 5 technical safeguard standards
+    (Access Control, Audit Controls, Integrity, Person/Entity Authentication, Transmission
+    Security) with mappings validated against HIPAA requirements
+- id: G-3
+  description: Generate audit-ready evidence packages with cryptographic timestamping
+    for defensible compliance trails
+  successCriteria: Evidence packages include RFC 3161 timestamps, are exportable in
+    2+ formats (PDF, JSON), and contain verifiable cryptographic proof of collection
+    time
+- id: G-4
+  description: Provide real-time compliance dashboard showing posture against HIPAA
+    technical safeguards
+  successCriteria: Dashboard displays compliance status for each HIPAA technical safeguard
+    standard, updates within 24 hours of data ingestion, and highlights gaps requiring
+    remediation
+constraints:
+- MVP limited to HIPAA Security Rule Technical Safeguards (§164.312) only—excludes
+  Administrative and Physical Safeguards
+- EHR integration via CSV/JSON file uploads only—no direct API integration with Epic/Cerner
+  in MVP
+- 'Support exactly 3 data source types: EHR audit logs (CSV), vulnerability scan results
+  (JSON), identity provider logs (JSON)'
+- Single-tenant deployment only—no multi-organization support in MVP
+- Evidence packages stored locally or in S3-compatible storage—no GRC platform integrations
+  in MVP
+- Cryptographic timestamping uses public TSA (FreeTSA.org)—no private PKI infrastructure
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - Prefect 2.x
+  - FastAPI
+  - Pydantic
+  - SQLAlchemy
+  - Jinja2
+  infrastructure:
+  - PostgreSQL
+  - Docker
+  - MinIO/S3
+  - RFC 3161 TSA client

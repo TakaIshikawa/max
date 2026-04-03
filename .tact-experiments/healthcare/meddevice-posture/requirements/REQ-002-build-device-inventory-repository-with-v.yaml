@@ -1,0 +1,21 @@
+title: Build device inventory repository with vulnerability tracking
+approval: draft
+phase: planned
+priority: critical
+description: Implement PostgreSQL schema and repository layer for storing device inventory
+  (type, IP, firmware version) and associated vulnerability records. Supports querying
+  devices by risk level and generating compliance reports.
+acceptanceCriteria:
+- Database schema includes devices table (id, type, ip_address, firmware_version,
+  first_seen, last_seen) and vulnerabilities table (id, device_id, cve_id, cvss_score,
+  detected_at, status)
+- 'Repository provides methods: add_device(), update_device(), get_devices_by_risk(),
+  get_vulnerability_history()'
+- Device updates create new version records with timestamps (immutable history)
+- Query returns devices with critical vulnerabilities (CVSS >= 9.0) in under 100ms
+  for 1000 device inventory
+- Foreign key constraints ensure vulnerability records reference valid devices
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

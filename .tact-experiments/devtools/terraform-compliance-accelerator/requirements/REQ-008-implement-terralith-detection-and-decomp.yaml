@@ -1,0 +1,23 @@
+title: Implement Terralith detection and decomposition recommendations
+approval: draft
+phase: planned
+priority: medium
+description: 'Analyze the resource dependency graph to detect Terralith anti-patterns:
+  excessive resource count, high cross-module coupling, mixed concerns (e.g., networking
+  and application resources in the same state). Produce actionable recommendations
+  for state decomposition with suggested resource groupings.'
+acceptanceCriteria:
+- Running `tfca analyze` on a state with 200+ resources outputs a 'Terralith detected'
+  warning with the resource count
+- The analysis identifies distinct resource clusters based on module boundaries and
+  dependency connectivity
+- Each recommendation includes a list of resource addresses to move and the suggested
+  new state/workspace name
+- The analysis reports a coupling score (0-100) indicating how entangled the current
+  state is
+- Output is available in both human-readable table format and JSON format
+decomposition:
+  assignments: []
+dependencies:
+- Parse Terraform state and HCL configuration into dependency graph
+source: discovered

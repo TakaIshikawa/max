@@ -1,0 +1,21 @@
+title: Implement MCP server with training status query tools
+approval: draft
+phase: planned
+priority: critical
+description: Build FastAPI-based MCP server that exposes tools for querying employee
+  training status, upcoming deadlines, and overdue assignments. This is the core interface
+  for AI agents to access compliance context.
+acceptanceCriteria:
+- MCP server responds to stdio transport with valid protocol handshake
+- get_training_status tool accepts employee_id parameter and returns current assignments
+  with completion status
+- query_upcoming_deadlines tool accepts days_ahead parameter (default 30) and returns
+  list of employees with deadlines in that window
+- list_overdue_assignments tool returns all incomplete assignments past their deadline
+  with employee and requirement details
+- All tool responses follow MCP schema with proper error handling for invalid employee
+  IDs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

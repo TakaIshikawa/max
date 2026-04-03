@@ -1,0 +1,18 @@
+title: Implement MCP server scaffold with tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Create the foundational MCP server using @modelcontextprotocol/sdk that
+  starts up, loads configuration, and supports dynamic registration of compliance
+  tools. This is the entry point for all interactions.
+acceptanceCriteria:
+- Server starts and connects via MCP stdio transport without errors.
+- Server exposes a tools/list endpoint that returns all registered tool definitions
+  with input schemas.
+- Server gracefully shuts down on SIGTERM, flushing any pending audit log writes.
+- Server refuses to start if configuration files fail JSON Schema validation, logging
+  the specific validation errors.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

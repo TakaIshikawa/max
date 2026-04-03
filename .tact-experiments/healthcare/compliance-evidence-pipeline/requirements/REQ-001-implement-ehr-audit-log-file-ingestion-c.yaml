@@ -1,0 +1,20 @@
+title: Implement EHR audit log file ingestion connector
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a connector that accepts CSV uploads of EHR audit logs (columns:
+  timestamp, user_id, patient_id, action, resource) and normalizes them into standardized
+  security events. Must validate schema, hash identifiers, and store events with cryptographic
+  timestamps.'
+acceptanceCriteria:
+- Connector accepts CSV files with required columns (timestamp, user_id, patient_id,
+  action, resource)
+- Invalid CSV schema rejected with specific error message identifying missing/malformed
+  columns
+- Patient IDs and user IDs hashed with SHA-256 before storage
+- Each ingested event receives RFC 3161 timestamp within 60 seconds of processing
+- Connector processes 10,000 audit log entries in <2 minutes
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

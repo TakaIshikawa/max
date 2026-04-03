@@ -1,0 +1,20 @@
+title: Initialize MCP server with tool registration and stdio transport
+approval: draft
+phase: planned
+priority: critical
+description: Set up the MCP server entry point using @modelcontextprotocol/sdk with
+  stdio transport. Register all tool definitions with their zod input schemas. The
+  server must start cleanly, advertise its tools, and handle the MCP lifecycle (initialize,
+  tool calls, shutdown).
+acceptanceCriteria:
+- Server starts via 'node dist/index.js' and completes MCP handshake over stdio without
+  errors.
+- 'Server advertises at least 4 tools: get-risk-score, get-recommendations, refresh-platform-data,
+  add-manual-metrics.'
+- Each tool has a zod-validated input schema that rejects malformed inputs with a
+  structured error message.
+- Server shuts down gracefully on SIGINT/SIGTERM without data corruption.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

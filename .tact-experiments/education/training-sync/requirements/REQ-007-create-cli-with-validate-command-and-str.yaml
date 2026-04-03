@@ -1,0 +1,26 @@
+title: Create CLI with validate command and structured output
+approval: draft
+phase: planned
+priority: critical
+description: Build CLI using Commander.js with 'validate' command that accepts package
+  path, runs validation pipeline, and outputs results. Must support flags for output
+  format (JSON/text), LMS selection, and verbosity. This is the primary user interface
+  for MVP.
+acceptanceCriteria:
+- 'CLI command structure: trainingsync validate <package-path> [--lms moodle,canvas]
+  [--format json|text] [--output file.json]'
+- Exits with code 0 if package passes all validations, code 1 for validation failures,
+  code 2 for tool errors (missing Docker, etc.)
+- Text format output shows color-coded summary (green for pass, red for fail) with
+  issue count and top 5 critical issues
+- JSON format output matches report schema from 'Generate JSON compatibility report'
+  requirement
+- Displays progress indicators during long operations (extracting package, starting
+  containers, running tests)
+- Includes --version flag showing tool version and --help with usage examples
+decomposition:
+  assignments: []
+dependencies:
+- Parse and validate SCORM 1.2 package structure
+- Generate JSON compatibility report with issues and remediation
+source: discovered

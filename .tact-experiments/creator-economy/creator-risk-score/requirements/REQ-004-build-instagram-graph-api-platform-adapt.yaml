@@ -1,0 +1,20 @@
+title: Build Instagram Graph API platform adapter
+approval: draft
+phase: planned
+priority: high
+description: Implement a PlatformAdapter for Instagram that authenticates via OAuth2
+  (Facebook Login), fetches account metrics (followers, reach, impressions), and normalizes
+  them into the unified CreatorMetrics schema.
+acceptanceCriteria:
+- Adapter implements the PlatformAdapter interface consistently with the YouTube adapter.
+- Fetches follower count, media count, and recent post reach/impressions via Instagram
+  Graph API.
+- Computes reach rate as (average post reach / follower count) × 100.
+- Handles Instagram API-specific errors (token expiry, rate limits) and returns structured
+  Result errors.
+- Cached responses respect TTL configuration.
+decomposition:
+  assignments: []
+dependencies:
+- Implement SQLite database schema and repository layer
+source: discovered

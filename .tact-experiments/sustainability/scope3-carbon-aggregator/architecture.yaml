@@ -1,0 +1,107 @@
+patterns:
+- name: Plugin Architecture (pluggy)
+  description: Core application defines a hookspec interface (ParserHookSpec) that
+    all parsers must implement. Parsers register via pluggy's plugin discovery mechanism
+    (setuptools entry_points or explicit registration). The core never imports parser
+    modules directly — it discovers and invokes them through the plugin manager. This
+    enables community-contributed parsers as installable packages.
+  scope:
+  - src/scope3_carbon_aggregator/plugins/
+  - src/scope3_carbon_aggregator/core/plugin_manager.py
+- name: Canonical Schema Normalization
+  description: All parsers output data conforming to a shared pydantic model hierarchy
+    (EmissionRecord, EmissionSource, DataQualityScore). Raw source data is first parsed
+    into source-specific intermediate models, then mapped to the canonical schema.
+    The canonical schema is the only format that enters storage. This two-stage normalization
+    isolates source-format changes from the core data model.
+  scope:
+  - src/scope3_carbon_aggregator/schema/
+  - src/scope3_carbon_aggregator/parsers/
+- name: Append-Only Audit Storage
+  description: DuckDB tables use an append-only pattern — records are never updated
+    or deleted, only superseded by newer records with a later ingestion timestamp.
+    Each record carries full provenance (parser_id, source_version, ingestion_timestamp,
+    raw_hash). This enables full auditability required for CSRD disclosures and allows
+    point-in-time reconstruction of any previous dataset state.
+  scope:
+  - src/scope3_carbon_aggregator/storage/
+- name: Standard Parser Interface
+  description: 'Every parser implements four lifecycle methods: configure(settings)
+    -> None, fetch(params) -> RawData, normalize(raw) -> list[EmissionRecord], validate(records)
+    -> ValidationResult. The core orchestrator calls these in sequence. Parsers that
+    work with local files implement fetch() as a file read; API-based parsers implement
+    it as HTTP calls. This uniform interface enables the CLI to treat all parsers
+    identically.'
+  scope:
+  - src/scope3_carbon_aggregator/core/interfaces.py
+  - src/scope3_carbon_aggregator/parsers/
+invariants:
+- Every EmissionRecord stored in DuckDB MUST have a non-null data_quality_score (integer
+  1-5), scope3_category (integer 1-15), co2e_kg (float > 0), source_id (string identifying
+  the parser), and ingestion_timestamp (UTC datetime)
+- Emission values MUST be stored in kg CO2e as the canonical unit — original values
+  and units are preserved in separate fields but all aggregation operates on co2e_kg
+- Storage records are NEVER mutated or deleted — corrections are appended as new records
+  with a supersedes_id reference to the original
+- All parser plugins MUST implement the full ParserHookSpec interface (configure,
+  fetch, normalize, validate) — partial implementations cause explicit registration
+  failure
+- 'Data quality scores MUST follow the GHG Protocol hierarchy: 1 = supplier-specific
+  verified, 2 = supplier-specific unverified, 3 = activity-based, 4 = spend-based
+  with specific factors, 5 = spend-based with generic factors'
+- CLI commands MUST return exit code 0 on success and non-zero on failure, with structured
+  error output to stderr
+conventions:
+- 'Python package uses src-layout: src/scope3_carbon_aggregator/ with subpackages
+  core/, schema/, parsers/, storage/, cli/'
+- All pydantic models use strict mode with explicit field validators — no implicit
+  coercion
+- Parser modules are named parse_{source_name}.py (e.g., parse_defra.py, parse_useeio.py,
+  parse_manual.py)
+- Test files mirror source structure under tests/ with test_ prefix (e.g., tests/parsers/test_parse_defra.py)
+- All public functions and classes have Google-style docstrings with Args, Returns,
+  and Raises sections
+- Type hints required on all function signatures — mypy strict mode compatibility
+  targeted
+- Configuration uses a single YAML file (scope3_config.yaml) with pydantic-settings
+  for validation and env var overrides
+- DuckDB table names use snake_case prefixed with scope3_ (e.g., scope3_emission_records,
+  scope3_audit_log)
+- CLI commands use kebab-case (e.g., scope3 run-parser, scope3 collect-all, scope3
+  report)
+- Logging via Python stdlib logging with structured JSON output when LOG_FORMAT=json
+  env var is set
+decisions:
+- id: D-1
+  title: Use pluggy for parser plugin system instead of custom plugin loader
+  decision: Adopt pluggy as the plugin framework for parser registration, discovery,
+    and lifecycle management.
+  rationale: Pluggy is battle-tested (powers pytest's plugin system), supports setuptools
+    entry_point discovery for third-party parsers, provides hookspec/hookimpl validation
+    at registration time, and handles plugin ordering. A custom loader would require
+    reimplementing these features. The tradeoff is a learning curve for contributors
+    unfamiliar with pluggy's hookspec pattern, mitigated by providing a well-documented
+    parser template and cookiecutter.
+- id: D-2
+  title: Use DuckDB over SQLite or PostgreSQL for emission record storage
+  decision: Use DuckDB as the sole storage backend with file-based persistence.
+  rationale: DuckDB provides columnar storage optimized for the analytical queries
+    needed (aggregation by category, time-range filtering, quality score analysis)
+    while remaining zero-dependency and embeddable like SQLite. It natively handles
+    Parquet import/export for data interchange, supports append-only patterns efficiently,
+    and its SQL dialect includes window functions needed for supersession logic. PostgreSQL
+    would add deployment complexity inappropriate for a CLI tool; SQLite lacks columnar
+    analytics performance.
+- id: D-3
+  title: Implement data quality scoring as a first-class schema field rather than
+    a post-hoc calculation
+  decision: Each parser assigns a data_quality_score at normalization time as a required
+    field on EmissionRecord, rather than computing quality scores after storage.
+  rationale: The parser has the most context about the methodology tier of its data
+    (e.g., the DEFRA parser knows it produces activity-based factors = score 3, the
+    spend-based parser knows it produces score 4-5). Computing quality post-hoc would
+    require the core to understand each parser's methodology, violating the plugin
+    encapsulation. The score travels with the record through storage and reporting,
+    enabling quality-weighted aggregation and progressive improvement tracking without
+    additional joins or lookups.
+contracts: []

@@ -1,0 +1,21 @@
+title: Implement Trivy scan result ingestion
+approval: draft
+phase: planned
+priority: critical
+description: Extend the discover_infrastructure tool to accept a file path to a Trivy
+  JSON scan report, parse it, and enrich the inventory with CVE data (CVE ID, severity,
+  affected package, fixed version) linked to the corresponding container images.
+acceptanceCriteria:
+- Accepts an optional trivy_report_path parameter pointing to a Trivy JSON output
+  file
+- Parses Trivy JSON format and extracts CVE ID, severity (CRITICAL/HIGH/MEDIUM/LOW),
+  affected package, and fixed version for each vulnerability
+- Links CVEs to inventory containers by matching image name and tag
+- Persists CVE data in SQLite associated with the inventory snapshot
+- Returns enriched inventory including vulnerability counts per container and list
+  of CRITICAL/HIGH CVEs
+decomposition:
+  assignments: []
+dependencies:
+- Implement Docker container discovery
+source: discovered

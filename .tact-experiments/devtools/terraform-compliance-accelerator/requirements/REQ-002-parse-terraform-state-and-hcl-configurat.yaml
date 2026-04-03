@@ -1,0 +1,21 @@
+title: Parse Terraform state and HCL configuration into dependency graph
+approval: draft
+phase: planned
+priority: critical
+description: Implement parsers for Terraform state files (JSON format from terraform
+  show -json) and HCL configuration files to build an in-memory DAG of resources,
+  data sources, modules, and their dependency edges. This graph is the foundation
+  for incremental planning, Terralith analysis, and policy evaluation context.
+acceptanceCriteria:
+- Given a terraform show -json output, all resources are extracted with their type,
+  name, module path, provider, and attribute values
+- Given a directory of .tf files, HCL is parsed to extract resource blocks, data blocks,
+  module blocks, and their explicit/implicit dependency references
+- The resulting DAG correctly represents depends_on edges, reference-based edges (e.g.,
+  resource A references resource B's output), and module containment
+- Circular dependency detection raises a clear error rather than infinite looping
+- Parser handles Terraform state format v4 (TF >= 1.5) and OpenTofu equivalent
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

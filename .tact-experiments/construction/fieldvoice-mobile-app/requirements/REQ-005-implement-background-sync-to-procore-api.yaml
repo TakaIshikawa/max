@@ -1,0 +1,24 @@
+title: Implement background sync to Procore API
+approval: draft
+phase: planned
+priority: critical
+description: Create a background sync service that monitors connectivity and pushes
+  approved reports to Procore via REST API. Sync must be reliable, idempotent, and
+  handle network failures gracefully.
+acceptanceCriteria:
+- When user approves a report, it's added to sync queue and marked 'Pending Sync'
+  in database
+- Background service checks connectivity every 60 seconds and processes queued reports
+  when online
+- Report data is formatted according to Procore Daily Log API schema and POSTed to
+  correct project endpoint
+- Photos are uploaded as attachments via Procore's file upload API
+- Sync operations are idempotent - retrying a failed sync doesn't create duplicate
+  reports in Procore
+- Failed syncs are retried with exponential backoff (1min, 5min, 15min, 1hr)
+- User receives notification on sync success or persistent failure (after 3 retries)
+decomposition:
+  assignments: []
+dependencies:
+- Build daily report review and editing interface
+source: discovered

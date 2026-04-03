@@ -1,0 +1,24 @@
+title: Implement automated daily report generation tool
+approval: draft
+phase: planned
+priority: medium
+description: Add procore_generate_daily_report tool that uses project context to help
+  AI agents draft daily reports. Retrieves recent reports, weather data, and active
+  trades to provide structured template data.
+acceptanceCriteria:
+- 'Tool procore_generate_daily_report accepts: project_id, date, notes (optional user
+  input/voice transcription)'
+- 'Tool retrieves context: previous 3 daily reports, active submittals, open RFIs,
+  project team members'
+- 'Returns structured template data: suggested_trades (from recent reports), common_issues
+  (from RFI history), weather_placeholder'
+- If notes parameter provided, extracts key information (trades mentioned, work completed,
+  issues) and includes in template
+- Response fits within 4000 tokens to leave room for AI agent to generate final report
+- 'Template includes source references: ''Based on daily reports from [dates]'' and
+  ''Active RFIs: [numbers]'''
+decomposition:
+  assignments: []
+dependencies:
+- Create MCP server with core tools
+source: discovered

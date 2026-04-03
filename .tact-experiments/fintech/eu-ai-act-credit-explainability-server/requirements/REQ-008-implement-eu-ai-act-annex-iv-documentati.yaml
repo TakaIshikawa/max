@@ -1,0 +1,25 @@
+title: Implement EU AI Act Annex IV documentation generation
+approval: draft
+phase: planned
+priority: high
+description: Create Jinja2 templates covering all mandatory Annex IV sections and
+  a generate_documentation MCP tool that populates them from registered model metadata,
+  aggregated decision statistics, and bias reports. Output is a structured Markdown
+  document suitable for regulatory submission.
+acceptanceCriteria:
+- 'Model metadata registration accepts: model_id, model_version, model_type, training_data_description,
+  input_features_schema, performance_metrics, intended_purpose, and risk_mitigation_measures'
+- 'Generated document includes all Annex IV sections: general description, detailed
+  development process information, monitoring and oversight, accuracy and robustness
+  metrics, and bias/fairness assessment'
+- Statistics sections are auto-populated from audit log aggregates (total decisions,
+  approval rate, score distribution, bias metrics)
+- Output is valid Markdown with a clear table of contents and section numbering aligned
+  to Annex IV article references
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with tool registration
+- Implement decision audit log with PostgreSQL persistence
+- Implement bias detection and check_bias MCP tool
+source: discovered

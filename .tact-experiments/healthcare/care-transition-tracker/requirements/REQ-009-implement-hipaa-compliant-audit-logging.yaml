@@ -1,0 +1,20 @@
+title: Implement HIPAA-compliant audit logging
+approval: draft
+phase: planned
+priority: critical
+description: Log all access to patient health data for HIPAA compliance and security
+  monitoring. Audit trail required for regulatory compliance and breach investigation.
+acceptanceCriteria:
+- 'Every FHIR API call logged with: patient ID, user ID (patient or caregiver), timestamp,
+  resource type, and HTTP status code'
+- 'Every database query for patient data logged with: patient ID, user ID, timestamp,
+  and query type (read/write)'
+- Audit logs stored in separate database table with append-only permissions (no updates
+  or deletes)
+- Audit log entries include IP address and user agent for access tracking
+- Logs retained for minimum 6 years per HIPAA requirements
+- Admin interface allows querying audit logs by patient ID and date range
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

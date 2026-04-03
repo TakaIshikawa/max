@@ -1,0 +1,24 @@
+title: Create comprehensive test suite and documentation
+approval: draft
+phase: planned
+priority: medium
+description: Write unit tests for core components (repositories, chunking, retrieval,
+  MCP tools) and integration tests with mock Procore API. Provide README with setup
+  instructions, usage examples, and troubleshooting guide.
+acceptanceCriteria:
+- Unit tests achieve >80% code coverage for repositories, chunking logic, and retrieval
+  pipeline
+- Integration tests use mock Procore API responses to test end-to-end flows without
+  real API calls
+- 'README includes: prerequisites, installation steps, OAuth setup instructions, example
+  MCP client usage'
+- Documentation shows example tool calls with sample inputs/outputs for all 4 tools
+- 'Troubleshooting section covers: OAuth failures, API rate limits, embedding generation
+  errors, token budget issues'
+- All tests pass in CI environment with 'npm test' command
+decomposition:
+  assignments: []
+dependencies:
+- Add project initialization and document indexing CLI
+- Implement automated daily report generation tool
+source: discovered

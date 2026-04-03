@@ -1,0 +1,24 @@
+title: Generate cryptographic timestamps for training completion records
+approval: draft
+phase: planned
+priority: critical
+description: Integrate OpenTimestamps to create tamper-proof cryptographic proofs
+  for each training completion record. Hash the completion record data and submit
+  to OpenTimestamps for Bitcoin blockchain anchoring, storing the timestamp proof
+  for later verification.
+acceptanceCriteria:
+- After inserting a training completion record, system generates SHA256 hash of (employee_id,
+  course_id, completion_timestamp, course_content_hash)
+- Hash is submitted to OpenTimestamps API and .ots timestamp file is stored in database
+  as bytea field
+- Timestamp verification endpoint accepts a training record ID and returns verification
+  status (pending, confirmed) with blockchain transaction reference
+- System handles pending timestamps gracefully—records can be included in evidence
+  packages with 'pending verification' status
+- Timestamp generation failures are retried with exponential backoff (3 attempts over
+  1 hour)
+decomposition:
+  assignments: []
+dependencies:
+- Implement xAPI LRS data collector for training completion records
+source: discovered

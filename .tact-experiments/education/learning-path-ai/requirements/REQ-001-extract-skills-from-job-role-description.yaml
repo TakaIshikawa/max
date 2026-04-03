@@ -1,0 +1,21 @@
+title: Extract skills from job role descriptions using NLP
+approval: draft
+phase: planned
+priority: critical
+description: Parse user-provided job descriptions or role titles to identify required
+  skills and competencies. This forms the foundation for content discovery, ensuring
+  paths are tailored to actual job requirements rather than generic curricula.
+acceptanceCriteria:
+- Given a job description text input, system extracts minimum 3 and maximum 20 distinct
+  skills
+- Extracted skills are normalized to standard taxonomy (e.g., 'JavaScript', 'React',
+  'API Development') not raw phrases
+- System handles both structured job descriptions (with bullet points) and unstructured
+  paragraph text
+- Skill extraction completes within 5 seconds for descriptions up to 2000 characters
+- API returns skills with confidence scores, filtering out skills below 0.6 confidence
+  threshold
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

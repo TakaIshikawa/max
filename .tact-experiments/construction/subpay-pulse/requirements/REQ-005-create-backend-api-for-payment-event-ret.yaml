@@ -1,0 +1,22 @@
+title: Create backend API for payment event retrieval
+approval: draft
+phase: planned
+priority: critical
+description: Backend API must serve payment event data to mobile clients with proper
+  filtering and authorization. Enables subcontractors to view their payment history.
+acceptanceCriteria:
+- API exposes GET /api/v1/payment-events endpoint that returns payment events for
+  authenticated user
+- API filters events to only include pay applications where user is linked subcontractor
+  (enforces data isolation)
+- 'API supports query parameters: gc_id (filter by GC), status (filter by payment
+  status), limit (pagination)'
+- API returns events sorted by created_at descending (newest first)
+- API includes calculated expected_payment_date field based on approved_date + contract
+  payment terms (net-30, net-60)
+- API returns 200 OK with JSON array of payment events, 401 Unauthorized if not authenticated
+decomposition:
+  assignments: []
+dependencies:
+- Create backend API for payment event ingestion
+source: discovered

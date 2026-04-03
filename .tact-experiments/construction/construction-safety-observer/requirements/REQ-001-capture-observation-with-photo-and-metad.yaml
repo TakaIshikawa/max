@@ -1,0 +1,20 @@
+title: Capture observation with photo and metadata
+approval: draft
+phase: planned
+priority: critical
+description: Field worker opens app, captures photo of safety issue, adds optional
+  text/voice description, and saves observation locally. This is the core workflow
+  that must be fast and reliable offline.
+acceptanceCriteria:
+- Camera opens within 2 seconds of tapping 'New Observation' button
+- Photo captured at ≥1080p resolution and saved to device file system with unique
+  filename
+- User can add text description (≤500 chars) or record voice note (≤60 seconds)
+- GPS coordinates captured automatically if location permission granted
+- Observation saved to local SQLite database with timestamp, photo reference, description,
+  and GPS within 3 seconds of tapping 'Save'
+- App displays success confirmation and returns to observation list
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement offline voice note recording with local transcription
+approval: draft
+phase: planned
+priority: critical
+description: Allow field supervisors to record voice notes throughout the day that
+  are transcribed on-device using Whisper.cpp. Notes must be stored locally and remain
+  accessible offline. This is the core input mechanism that replaces handwritten notes.
+acceptanceCriteria:
+- User can tap a record button to capture voice notes up to 5 minutes in length
+- Audio is transcribed to text using Whisper.cpp within 30 seconds of recording completion
+  on iPhone 11 or equivalent Android device
+- Transcribed text is stored in SQLite database with timestamp and GPS coordinates
+  (if available)
+- User can view list of all voice notes for current day with playback and text preview
+- Voice notes and transcriptions persist across app restarts and remain accessible
+  offline
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

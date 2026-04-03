@@ -1,0 +1,19 @@
+title: Implement API authentication and rate limiting
+approval: draft
+phase: planned
+priority: high
+description: Secure API endpoints with API key authentication and implement rate limiting
+  to prevent abuse. MVP uses simple API key approach without user management, suitable
+  for single-tenant deployment.
+acceptanceCriteria:
+- All API endpoints require X-API-Key header matching COMPLIANCE_EVIDENCE_API_KEY
+  environment variable
+- Requests without valid API key return 401 Unauthorized with JSON error response
+- Rate limiting implemented at 100 requests per minute per API key using Redis-backed
+  counter
+- Rate limit exceeded returns 429 Too Many Requests with Retry-After header
+- Health check endpoint GET /health is exempt from authentication and rate limiting
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

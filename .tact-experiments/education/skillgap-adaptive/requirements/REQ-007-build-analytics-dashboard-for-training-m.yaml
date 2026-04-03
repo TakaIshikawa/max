@@ -1,0 +1,18 @@
+title: Build Analytics Dashboard for Training Managers with Aggregate Skill Gaps
+approval: draft
+phase: planned
+priority: high
+description: Provide web dashboard showing aggregate skill gap metrics across departments
+  and roles. Must support filtering, drill-down, and export to CSV/PDF for workforce
+  planning.
+acceptanceCriteria:
+- Display heatmap of average skill gaps by department and skill domain
+- Show top 10 skill deficits across organization with affected employee count
+- Filter dashboard by department, role, date range (last 30/90/365 days)
+- Drill down from department to individual learner gap reports
+- Export dashboard data to CSV and PDF with charts included
+decomposition:
+  assignments: []
+dependencies:
+- Generate Skill Gap Reports Comparing Learner Proficiency to Role Requirements
+source: discovered

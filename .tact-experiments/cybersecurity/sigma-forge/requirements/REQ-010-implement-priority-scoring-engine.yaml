@@ -1,0 +1,21 @@
+title: Implement priority scoring engine
+approval: draft
+phase: planned
+priority: medium
+description: 'Create a scoring service that assigns numerical priority scores to ATT&CK
+  technique mappings and generated rules based on: CVE severity (CRITICAL=+40, HIGH=+30,
+  MEDIUM=+20, LOW=+10), service exposure (public-facing port=+20, internal-only=+5),
+  and base technique relevance from the mapping registry. This score determines rule
+  ordering in the generated pack.'
+acceptanceCriteria:
+- Produces a deterministic numerical priority score for each technique-container pair
+- CVE-linked techniques always score higher than non-CVE techniques for the same service
+- Containers with ports mapped to the host network score higher than containers with
+  no exposed ports
+- Score calculation is unit-testable with fixed inputs producing fixed outputs
+- Priority scores are persisted alongside technique mappings in SQLite
+decomposition:
+  assignments: []
+dependencies:
+- Implement attack surface mapping service
+source: discovered

@@ -1,0 +1,20 @@
+title: Update payment status in Procore after successful export
+approval: draft
+phase: planned
+priority: high
+description: After successful export to QuickBooks, update the pay application status
+  in Procore to reflect that payment has been processed. Add note with payment date
+  and accounting system reference for traceability.
+acceptanceCriteria:
+- Update Procore pay application status to 'payment_processed' via API
+- 'Add note to pay application: ''Payment exported to QuickBooks on {date}, Bill ID:
+  {qbo_bill_id}'''
+- Only update Procore after confirmed successful QBO export (status='exported')
+- Handle Procore API errors without blocking payment export (log for retry)
+- Retry Procore status update up to 3 times if initial attempt fails
+- Store Procore update timestamp in payment record
+decomposition:
+  assignments: []
+dependencies:
+- Export approved payments to QuickBooks Online via API
+source: discovered

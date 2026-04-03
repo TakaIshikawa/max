@@ -1,0 +1,53 @@
+name: complianceflow-mcp
+version: 0.1.0
+vision: An MCP server that automates compliance training assignment and tracking by
+  connecting HRIS systems to regulatory deadline calendars, delivering training via
+  Slack/Teams, and generating audit-trail-grade completion records for regulated industries.
+goals:
+- id: G-1
+  description: Automate compliance training assignment based on HRIS role changes
+    and regulatory deadlines
+  successCriteria: System detects new hire or role change events from at least one
+    HRIS integration (BambooHR or Gusto) and auto-assigns appropriate training within
+    5 minutes with 100% reliability
+- id: G-2
+  description: Provide audit-defensible completion tracking with cryptographic evidence
+  successCriteria: All training completions generate immutable audit log entries with
+    cryptographic timestamps, employee ID, training content hash, and completion evidence
+    that pass external audit review
+- id: G-3
+  description: Deliver training assignments and reminders through existing communication
+    channels
+  successCriteria: Training assignments sent via Slack with interactive completion
+    workflows achieve 80%+ engagement rate (click-through to training content) within
+    48 hours of assignment
+- id: G-4
+  description: Enable AI agents to query compliance status for proactive monitoring
+  successCriteria: MCP server exposes tools that allow agents to query employee training
+    status, upcoming deadlines, and overdue assignments with <500ms response time
+    for datasets up to 500 employees
+constraints:
+- MVP supports exactly one HRIS integration (BambooHR) to validate the integration
+  pattern before expanding
+- MVP supports exactly one communication channel (Slack) for training delivery
+- Regulatory calendar limited to US healthcare CME requirements for 3 states (CA,
+  NY, TX) to prove the data model without operational burden of maintaining 50+ jurisdictions
+- No custom LMS implementation—training content delivered as external links only (LTI/SCORM
+  integration deferred to post-MVP)
+- Maximum 500 employees per organization for MVP performance targets
+- Audit log uses PostgreSQL with append-only constraints rather than blockchain/distributed
+  ledger for simplicity
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - Celery
+  - SQLAlchemy
+  - Pydantic
+  - MCP Python SDK
+  infrastructure:
+  - PostgreSQL 15+
+  - Redis (Celery broker)
+  - Docker
+  - ngrok/webhook relay for development

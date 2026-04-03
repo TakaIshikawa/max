@@ -1,0 +1,22 @@
+title: Create backend API for payment event ingestion
+approval: draft
+phase: planned
+priority: critical
+description: Backend API must receive payment events from GC integration services,
+  validate them, store in database, and trigger notifications. This is the central
+  hub for all payment status updates.
+acceptanceCriteria:
+- API exposes POST /api/v1/payment-events endpoint that accepts payment event JSON
+  payload
+- API validates event schema (required fields, valid status transitions, amount >
+  0)
+- API stores payment events in PostgreSQL payment_events table with immutable append-only
+  semantics
+- API rejects duplicate events (same pay_app_id + status combination)
+- API triggers push notification to linked subcontractor users when event is stored
+- API returns 201 Created on success, 400 Bad Request on validation failure, 401 Unauthorized
+  if authentication fails
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

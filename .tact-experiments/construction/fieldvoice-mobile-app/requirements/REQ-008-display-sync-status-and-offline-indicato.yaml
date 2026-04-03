@@ -1,0 +1,21 @@
+title: Display sync status and offline indicator in UI
+approval: draft
+phase: planned
+priority: medium
+description: Provide clear visual feedback about connectivity status, pending syncs,
+  and report sync state. Users need confidence that their work is saved and will sync
+  when possible.
+acceptanceCriteria:
+- App header shows connectivity indicator (online/offline) that updates in real-time
+- 'Each report displays sync status badge: Draft, Pending Sync, Syncing, Synced, Sync
+  Failed'
+- Reports list shows count of pending syncs in section header
+- User can tap sync status to see detailed sync history and error messages for failed
+  syncs
+- Offline mode shows banner explaining 'Reports will sync when connectivity returns'
+decomposition:
+  assignments: []
+dependencies:
+- Implement background sync to Procore API
+- Build local SQLite database with offline-first data layer
+source: discovered

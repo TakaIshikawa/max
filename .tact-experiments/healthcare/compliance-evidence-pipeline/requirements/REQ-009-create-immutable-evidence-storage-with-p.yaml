@@ -1,0 +1,22 @@
+title: Create immutable evidence storage with PostgreSQL
+approval: draft
+phase: planned
+priority: critical
+description: Implement PostgreSQL schema for storing security events, HIPAA mappings,
+  and evidence packages. Enforce immutability via database constraints (no updates/deletes)
+  and maintain cryptographic audit trail.
+acceptanceCriteria:
+- 'Schema includes tables: evidence_events, evidence_mappings, evidence_packages,
+  evidence_timestamps'
+- Database triggers prevent UPDATE and DELETE operations on evidence_events and evidence_packages
+  tables
+- Each record includes SHA-256 hash and RFC 3161 timestamp stored in evidence_timestamps
+  table
+- Foreign key constraints enforce referential integrity between events, mappings,
+  and packages
+- Database supports 1M+ evidence events with query performance <500ms for dashboard
+  queries
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

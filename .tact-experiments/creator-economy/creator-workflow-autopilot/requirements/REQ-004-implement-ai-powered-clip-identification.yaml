@@ -1,0 +1,25 @@
+title: Implement AI-powered clip identification step
+approval: draft
+phase: planned
+priority: critical
+description: Using the transcript, identify the most engaging segments suitable for
+  short-form clips. The LLM analyzes the transcript for hooks, emotional peaks, counterintuitive
+  statements, and self-contained narratives, then outputs ranked clip candidates with
+  start/end timestamps and reasoning.
+acceptanceCriteria:
+- 'An ILlmProvider interface is defined with a complete(prompt: string, options?:
+  { temperature?: number, maxTokens?: number }) method, with implementations for OpenAI
+  API and Ollama selected via LLM_PROVIDER env var'
+- The clip identification job reads the Transcript, constructs a prompt asking the
+  LLM to identify the top N clip-worthy segments (N defined by the distribution template),
+  and parses the structured response
+- 'Each identified clip includes: startTime, endTime, title, hookScore (1-10), reasoning,
+  and suggestedCaption'
+- Clips are between 15 seconds and 90 seconds in duration
+- Identified clips are stored as ClipCandidate records linked to the PipelineRun with
+  status 'identified'
+decomposition:
+  assignments: []
+dependencies:
+- Implement transcription pipeline step with provider abstraction
+source: discovered

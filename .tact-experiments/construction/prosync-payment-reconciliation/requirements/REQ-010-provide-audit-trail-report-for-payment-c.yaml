@@ -1,0 +1,23 @@
+title: Provide audit trail report for payment calculations
+approval: draft
+phase: planned
+priority: medium
+description: 'Generate detailed audit report for any payment showing complete calculation
+  trail: source pay application data, contract terms used, retainage calculation,
+  change orders applied, final amount, and all status transitions with timestamps.
+  Supports compliance and dispute resolution.'
+acceptanceCriteria:
+- API endpoint /api/v1/payments/{id}/audit returns complete payment history JSON
+- 'Include snapshots: original pay app data, contract terms, retainage schedule, change
+  orders'
+- 'Show calculation steps: approved_amount, retainage_percentage, retainage_amount,
+  change_order_total, net_payment'
+- 'List all status transitions with timestamps: received → calculated → pending_approval
+  → approved → exported'
+- Include user who approved payment and approval timestamp
+- Dashboard provides 'View Audit Trail' button that displays formatted report
+decomposition:
+  assignments: []
+dependencies:
+- Calculate net payment amount with retainage and change orders
+source: discovered

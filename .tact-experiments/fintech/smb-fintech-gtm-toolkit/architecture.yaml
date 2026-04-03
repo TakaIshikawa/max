@@ -1,0 +1,78 @@
+patterns:
+- name: Layered Backend Architecture
+  description: FastAPI application organized into routers (HTTP layer), services (business
+    logic), and repositories (data access) to maintain separation of concerns and
+    testability.
+  scope:
+  - backend
+- name: RESTful Resource API
+  description: All backend functionality exposed as RESTful JSON endpoints organized
+    by resource (deadlines, competitors, interviews, features, scores). Frontend consumes
+    these exclusively via HTTP.
+  scope:
+  - backend
+  - frontend
+- name: Dashboard SPA
+  description: React single-page application with a sidebar navigation layout. Each
+    major feature (deadlines, competitors, discovery, ship-or-kill) is a top-level
+    route with its own page component.
+  scope:
+  - frontend
+- name: Seed Data Migration
+  description: Regulatory deadlines and initial competitor landscape data are loaded
+    via Alembic data migrations, ensuring a useful out-of-the-box experience without
+    requiring manual data entry.
+  scope:
+  - backend
+  - database
+invariants:
+- Every regulatory deadline must have a regulation name, description, enforcement
+  date, and at least one applicable firm type.
+- Interview notes must always be associated with a persona type and a creation timestamp
+  — orphaned notes are never permitted.
+- 'Ship-or-kill scores must be deterministically reproducible: given the same inputs
+  (customer mentions, deadline proximity, competitor gap), the same composite score
+  must result.'
+- All API endpoints return consistent JSON error responses with a 'detail' field for
+  client-side error handling.
+- Database schema changes are only applied through Alembic migrations — never manual
+  DDL.
+conventions:
+- 'Python: snake_case for all variables, functions, and modules. PascalCase for SQLAlchemy
+  models and Pydantic schemas.'
+- 'TypeScript/React: PascalCase for components, camelCase for functions and variables,
+  kebab-case for file names.'
+- API routes namespaced under /api/v1/ with plural resource names (e.g., /api/v1/deadlines,
+  /api/v1/interviews).
+- 'Pydantic models suffixed by purpose: *Create for input, *Update for partial updates,
+  *Response for output.'
+- React pages live in src/pages/, reusable components in src/components/, API client
+  functions in src/api/.
+- All database queries go through repository functions — services never import SQLAlchemy
+  session directly.
+- Environment configuration via .env file loaded by Pydantic BaseSettings class.
+decisions:
+- id: D-1
+  title: Manual curation over automated scraping for MVP
+  decision: Regulatory deadlines and competitor data are seeded via migrations and
+    managed through CRUD endpoints rather than automated scraping or API integrations.
+  rationale: The evaluation highlighted scraper maintenance and API restrictions as
+    major fragility risks. Manual curation is more reliable for MVP, ensures data
+    quality, and eliminates external dependencies. Automated ingestion can be layered
+    on post-MVP once the data model is validated.
+- id: D-2
+  title: Simple keyword frequency over NLP/LLM for theme extraction
+  decision: Interview pain point extraction uses TF-IDF-style keyword frequency analysis
+    across interview notes rather than spaCy or LLM-based NLP.
+  rationale: Keeps the dependency footprint minimal and the Docker image small. For
+    MVP with a small corpus of interviews (5-20), simple frequency analysis surfaces
+    meaningful patterns. LLM integration is a post-MVP enhancement once the interview
+    workflow is validated.
+- id: D-3
+  title: Monorepo with Docker Compose deployment
+  decision: Backend and frontend live in a single repository with a Docker Compose
+    file that orchestrates API, database, and frontend containers.
+  rationale: Simplifies development setup, CI, and self-hosting for a single-user
+    tool. The target user is a technical founder who can run docker compose up. Microservice
+    decomposition adds no value at this scale.
+contracts: []

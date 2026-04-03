@@ -1,0 +1,19 @@
+title: Display observation list with offline support
+approval: draft
+phase: planned
+priority: critical
+description: Show all observations captured on device in reverse chronological order.
+  Must work offline and provide visual indicators for sync status. Primary navigation
+  for reviewing past observations.
+acceptanceCriteria:
+- Observation list loads from local SQLite database within 1 second
+- Each list item shows thumbnail, OSHA category, timestamp, and sync status icon (synced/pending/failed)
+- List displays correctly with 0, 1, and 100+ observations
+- Tapping observation opens detail view with full-size photo, description, GPS, and
+  metadata
+- Pull-to-refresh triggers manual sync attempt if connectivity available
+- Empty state displays helpful message prompting user to create first observation
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

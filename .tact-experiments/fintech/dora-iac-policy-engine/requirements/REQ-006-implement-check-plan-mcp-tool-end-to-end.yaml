@@ -1,0 +1,27 @@
+title: Implement check_plan MCP tool end-to-end
+approval: draft
+phase: planned
+priority: high
+description: 'Wire the check_plan MCP tool to the full pipeline: accept a Terraform
+  plan JSON (as file path or inline JSON), parse it to canonical changes, evaluate
+  against OPA policies, persist the evaluation to the audit log, and return a structured
+  verdict with per-rule results and remediation guidance.'
+acceptanceCriteria:
+- 'Tool accepts input with fields: plan_source (''terraform''), plan_content (JSON
+  string) or plan_path (file path), and optional context (environment override, exception_ids)'
+- 'Response includes: overall_verdict (''pass'' | ''fail'' | ''warn''), evaluated_at
+  timestamp, total_rules_evaluated count, violations array, and warnings array'
+- 'Each violation includes: rule_id, dora_article, severity, resource_id, message,
+  and remediation steps'
+- The evaluation is persisted to the audit log before the response is returned — verified
+  by checking the audit log after a tool call
+- If an approved exception matches a violation (by rule_id and resource pattern),
+  the violation is downgraded to a warning with the exception_id noted
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server scaffold with tool registration
+- Parse Terraform JSON plan into canonical change model
+- Integrate OPA CLI for policy evaluation
+- Implement append-only hash-chained audit log
+source: discovered

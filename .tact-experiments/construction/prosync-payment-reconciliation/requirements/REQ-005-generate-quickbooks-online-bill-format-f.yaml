@@ -1,0 +1,21 @@
+title: Generate QuickBooks Online bill format for payment export
+approval: draft
+phase: planned
+priority: critical
+description: Transform calculated payment into QuickBooks Online bill format (JSON
+  structure matching QBO API specification) including vendor (subcontractor), amount,
+  line items, memo with pay application reference, and due date. Prepare for API export
+  or file download.
+acceptanceCriteria:
+- Map subcontractor name/ID to QuickBooks vendor (lookup or create mapping table)
+- 'Generate QBO bill JSON with required fields: Vendor, TotalAmt, Line items, DueDate'
+- Include pay application ID and project name in bill Memo field for traceability
+- Set DueDate to prompt_pay_deadline or current_date + 7 days
+- Validate generated JSON against QBO API schema before storage
+- Store generated bill JSON linked to payment record with status='pending_approval'
+decomposition:
+  assignments: []
+dependencies:
+- Calculate net payment amount with retainage and change orders
+- Check lien waiver status and prompt pay deadline
+source: discovered

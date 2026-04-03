@@ -1,0 +1,24 @@
+title: Build YouTube Data API v3 platform adapter
+approval: draft
+phase: planned
+priority: critical
+description: Implement a PlatformAdapter for YouTube that authenticates via OAuth2,
+  fetches channel statistics (subscribers, views, video-level metrics), and normalizes
+  them into the unified CreatorMetrics schema. Must cache responses in SQLite and
+  respect API rate limits.
+acceptanceCriteria:
+- 'Adapter implements the PlatformAdapter interface with methods: authenticate(),
+  fetchMetrics(), getAudienceSize(), getReachRate().'
+- OAuth2 flow stores refresh token locally and automatically refreshes access tokens
+  on expiry.
+- Fetches channel subscriber count, total views, and per-video view counts for the
+  last 90 days.
+- Computes reach rate as (average recent video views / subscriber count) × 100.
+- All API responses are cached in SQLite; subsequent calls within TTL return cached
+  data without API calls.
+- Returns a Result type with structured error on API failure instead of throwing.
+decomposition:
+  assignments: []
+dependencies:
+- Implement SQLite database schema and repository layer
+source: discovered

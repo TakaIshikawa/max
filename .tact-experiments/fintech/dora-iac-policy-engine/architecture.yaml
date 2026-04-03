@@ -1,0 +1,94 @@
+patterns:
+- name: MCP Server with Tool Registry
+  description: The application is structured as an MCP stdio server that registers
+    discrete tools (check_plan, get_compliance_status, list_exceptions, generate_audit_report).
+    Each tool has a typed input schema (Zod), a handler function, and returns structured
+    JSON. The MCP SDK handles protocol framing and transport.
+  scope:
+  - src/server.ts
+  - src/tools/
+- name: Pipeline Pattern for Plan Evaluation
+  description: 'IaC plan evaluation follows a pipeline: parse raw plan → normalize
+    to a canonical change model → classify resources by criticality → evaluate OPA
+    policies against each change → aggregate results → persist audit log → return
+    verdict. Each stage is a pure function where possible, making the pipeline testable
+    in isolation.'
+  scope:
+  - src/pipeline/
+- name: Repository Pattern for Audit Store
+  description: All persistence (audit logs, policy evaluation results, exceptions)
+    goes through a repository abstraction backed by SQLite. The audit log repository
+    enforces append-only semantics and hash-chaining at the application level. This
+    isolates storage concerns and makes the integrity model testable without touching
+    the database.
+  scope:
+  - src/store/
+- name: Policy-as-Data with OPA/Rego
+  description: DORA compliance rules are expressed as Rego policies organized by DORA
+    article. The TypeScript application treats policies as external data — it constructs
+    an OPA input document from the normalized plan, invokes OPA evaluation, and interprets
+    the structured output. No compliance logic lives in TypeScript.
+  scope:
+  - policies/
+  - src/policy-engine/
+invariants:
+- Audit log entries are append-only — no update or delete operations are ever permitted
+  on the audit_log table
+- Every audit log entry contains a SHA-256 hash of the previous entry, forming an
+  unbroken chain from the genesis entry
+- Policy evaluation results must be persisted to the audit log BEFORE the verdict
+  is returned to the caller — a crash must never produce an unlogged evaluation
+- OPA policies are the single source of truth for compliance rules — no compliance
+  decision logic exists in TypeScript code
+- All MCP tool inputs are validated against Zod schemas before processing — invalid
+  inputs return structured errors, never exceptions
+- Resource criticality classification is deterministic — given the same resource type,
+  tags, and environment context, the classification is always identical
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., terraform-parser.ts,
+  audit-repository.ts)'
+- 'Exports: each module has an index.ts barrel file; no deep imports across module
+  boundaries'
+- 'Error handling: use a Result<T, E> type (custom discriminated union) for all operations
+  that can fail — no thrown exceptions in business logic'
+- 'Rego policies: one file per rule, named {article}-{rule-name}.rego (e.g., art11-prevent-production-destroy.rego),
+  each with a corresponding _test.rego file'
+- 'Types: all domain types defined in src/types/ with Zod schemas that serve as both
+  runtime validators and TypeScript type sources'
+- 'Logging: structured JSON logging via a thin wrapper; log levels: debug, info, warn,
+  error'
+- 'Tests: colocated test files using vitest (e.g., terraform-parser.test.ts next to
+  terraform-parser.ts); Rego tests in policies/ directory'
+- 'Constants: environment names, resource criticality levels, and DORA article references
+  are defined as enums/const objects in src/types/constants.ts'
+decisions:
+- id: D-1
+  title: Use OPA CLI subprocess for policy evaluation instead of OPA Wasm
+  decision: Invoke the OPA CLI binary via child_process.execFile for each policy evaluation,
+    passing input as a temporary JSON file and reading structured output from stdout.
+  rationale: OPA Wasm integration in Node.js requires the @open-policy-agent/opa-wasm
+    package which has limited maintenance and complex build steps. The CLI approach
+    is simpler, well-documented, and sufficient for MVP throughput (plan evaluations
+    are infrequent, not high-QPS). The abstraction layer allows swapping to Wasm later
+    without changing the pipeline.
+- id: D-2
+  title: Normalize all IaC plans to a canonical change model before policy evaluation
+  decision: Define a CanonicalChange interface (resource_type, resource_id, action,
+    environment, tags, provider_specific_config) and parse Terraform plans into this
+    format before OPA evaluation.
+  rationale: This decouples OPA policies from Terraform-specific JSON structure, making
+    the same policies reusable when Pulumi and CloudFormation parsers are added post-MVP.
+    It also simplifies Rego policies since they operate on a clean, predictable input
+    schema rather than deeply nested provider-specific structures.
+- id: D-3
+  title: SQLite with application-level hash-chaining for audit integrity
+  decision: 'Use SQLite as the audit store with a simple schema: (id, timestamp, previous_hash,
+    entry_hash, event_type, payload_json). Hash-chaining is enforced in the repository
+    layer — each new entry computes SHA-256 over (previous_hash + payload_json) and
+    stores it as entry_hash.'
+  rationale: SQLite provides zero-dependency persistence suitable for a local MCP
+    server. Application-level hash-chaining gives cryptographic tamper evidence without
+    requiring blockchain or specialized append-only databases. An auditor can verify
+    the chain independently with a simple script. This is proportionate for MVP —
+    a production version could use a dedicated tamper-evident log service.
+contracts: []

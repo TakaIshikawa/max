@@ -1,0 +1,27 @@
+title: Implement composite risk score aggregation and get-risk-score tool
+approval: draft
+phase: planned
+priority: critical
+description: Build the composite scoring pipeline that combines all sub-scores (concentration,
+  decay, revenue, format) with configurable weights into a single 0-100 risk score.
+  Expose this as the get-risk-score MCP tool that returns the composite score, all
+  sub-scores, and a risk level classification.
+acceptanceCriteria:
+- 'Composite score is a weighted average of available sub-scores with default weights:
+  concentration=0.35, decay=0.30, revenue=0.20, format=0.15.'
+- When sub-scores are unavailable (null), weights are redistributed proportionally
+  among available sub-scores.
+- 'Tool response includes: compositeScore (0-100), riskLevel (''low''|''moderate''|''high''|''critical''),
+  all sub-scores with their values and weights, and a list of platforms with their
+  individual metrics.'
+- 'Risk level thresholds: low=0-25, moderate=26-50, high=51-75, critical=76-100.'
+- Tool fetches latest metrics from repositories, computes all sub-scores, and returns
+  the full risk profile within the MCP response format.
+decomposition:
+  assignments: []
+dependencies:
+- Initialize MCP server with tool registration and stdio transport
+- Implement audience concentration sub-score using Herfindahl-Hirschman Index
+- Implement reach decay sub-score using linear regression
+- Implement revenue concentration and format risk sub-scores
+source: discovered

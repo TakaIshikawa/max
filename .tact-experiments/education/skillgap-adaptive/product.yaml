@@ -1,0 +1,51 @@
+name: skillgap-adaptive
+version: 0.1.0
+vision: An LTI-compatible adaptive assessment engine that identifies employee skill
+  gaps through AI-powered analysis and issues Open Badges credentials, enabling data-driven
+  training decisions within existing LMS platforms.
+goals:
+- id: G-1
+  description: Deliver accurate skill gap identification through adaptive assessments
+    that complete in under 15 minutes per skill domain
+  successCriteria: 90% of assessments complete in ≤15 minutes; skill level predictions
+    correlate ≥0.75 with expert evaluations on validation dataset
+- id: G-2
+  description: Enable seamless LMS integration through LTI 1.3 standard compliance
+  successCriteria: Successfully deploy as LTI tool into at least 2 different LMS platforms
+    (Canvas, Moodle); pass LTI Advantage conformance tests
+- id: G-3
+  description: Issue verifiable Open Badges credentials that employees can share externally
+  successCriteria: Generate Open Badges 2.0 compliant credentials; badges validate
+    successfully in Mozilla Backpack and LinkedIn; 100% of issued badges include skill
+    metadata and assessment evidence
+- id: G-4
+  description: Provide training managers with actionable skill gap analytics across
+    their workforce
+  successCriteria: Dashboard displays aggregate skill gaps by department and role;
+    export reports in CSV/PDF format; analytics update within 5 minutes of assessment
+    completion
+constraints:
+- MVP limited to 3 skill domains (technical, compliance, soft skills) with 50 questions
+  per domain
+- LTI 1.3 integration only (no legacy LTI 1.1 support in MVP)
+- Single-tenant deployment model (no multi-tenancy in MVP)
+- IRT model uses 2-parameter logistic (2PL) model only, not 3PL
+- Learning path recommendations limited to courses discoverable via LTI Deep Linking
+  (no external catalog integrations)
+- Open Badges hosted verification only (no blockchain anchoring in MVP)
+- Assessment UI must be mobile-responsive but optimized for desktop/tablet
+- No HRIS or talent management platform integrations in MVP
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - React
+  - Node.js/Express
+  - FastAPI
+  - scikit-learn
+  infrastructure:
+  - PostgreSQL
+  - Docker
+  - LTI 1.3 libraries (ltijs)
+  - Open Badges libraries (openbadges-validator)

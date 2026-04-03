@@ -1,0 +1,63 @@
+name: creator-risk-score
+version: 0.1.0
+vision: An MCP server that quantifies creator platform dependency as a composite risk
+  score by aggregating cross-platform audience, reach, and revenue metrics — transforming
+  vague platform anxiety into actionable, financial-advisor-style diversification
+  guidance accessible to any AI agent or dashboard.
+goals:
+- id: G-1
+  description: Deliver a working MCP server that exposes platform dependency risk
+    scores and diversification recommendations as callable tools for AI agents.
+  successCriteria: An MCP client (e.g., Claude Desktop) can connect to the server,
+    invoke the risk-score tool with a creator profile, and receive a valid composite
+    score (0-100) with at least 3 actionable recommendations within 10 seconds.
+- id: G-2
+  description: Integrate with at least two major creator platform APIs (YouTube and
+    one other) to demonstrate real cross-platform analytics aggregation.
+  successCriteria: The server successfully authenticates via OAuth2, fetches audience/reach/revenue
+    metrics from YouTube Data API v3 and at least one additional platform (Instagram
+    Graph API or mock TikTok data), and persists historical snapshots to SQLite.
+- id: G-3
+  description: Implement a statistically grounded risk scoring engine that quantifies
+    audience concentration, reach decay, and revenue fragility.
+  successCriteria: The scoring engine computes a Herfindahl-Hirschman Index for audience
+    concentration, detects reach decay via linear regression over 30/60/90-day windows,
+    maps revenue sources, and produces a weighted composite score that changes meaningfully
+    when input distributions shift.
+- id: G-4
+  description: Provide a rule-based recommendation engine that outputs specific, prioritized
+    diversification actions based on the computed risk profile.
+  successCriteria: Given a risk profile with audience concentration >60% on one platform,
+    the engine returns at least 3 ranked recommendations with concrete metrics (e.g.,
+    'Capture 15% of YouTube audience as newsletter subscribers') and each recommendation
+    references the specific risk factor it mitigates.
+constraints:
+- MVP supports YouTube Data API v3 as the primary real integration; Instagram Graph
+  API as secondary; other platforms (TikTok, Spotify, newsletters) use manual input
+  or mock adapters to avoid API access barriers.
+- No ML models — all analytics use deterministic statistical methods (HHI, linear
+  regression, weighted averages).
+- MCP transport is stdio only for MVP; no HTTP/SSE server.
+- All API credentials and tokens are stored locally — no cloud backend, no user accounts,
+  no multi-tenancy.
+- 'Rate limit compliance: all API calls are cached in SQLite with configurable TTL
+  (minimum 1 hour default) to avoid quota exhaustion.'
+- Revenue data is self-reported by the creator via tool input parameters — no direct
+  monetization API integrations for MVP.
+- The server must function in a degraded mode when only partial platform data is available,
+  clearly indicating which score components are estimated vs. measured.
+techStack:
+  languages:
+  - TypeScript 5.x
+  - SQL (SQLite dialect)
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - Node.js 20+ runtime
+  - better-sqlite3
+  - googleapis (YouTube Data API v3 client)
+  - simple-statistics (linear regression)
+  - zod (schema validation)
+  infrastructure:
+  - SQLite (local file-based storage)
+  - OAuth2 token storage (encrypted local file)
+  - stdio transport for MCP

@@ -1,0 +1,28 @@
+title: Create MCP server with core tools
+approval: draft
+phase: planned
+priority: critical
+description: Implement MCP server using stdio transport that exposes tools for AI
+  agents to query Procore project context. Support tool discovery, parameter validation,
+  and structured responses conforming to MCP specification.
+acceptanceCriteria:
+- Server initializes on stdio and responds to initialize/initialized handshake with
+  server capabilities
+- 'tools/list returns at least 3 tools: procore_get_context, procore_list_daily_reports,
+  procore_list_rfis'
+- 'procore_get_context accepts parameters: project_id (required), query (required),
+  token_limit (optional, default 8000)'
+- 'procore_get_context returns JSON with: context_chunks (array), total_tokens (number),
+  sources (array of document references)'
+- procore_list_daily_reports accepts project_id and date_range, returns array of daily
+  report summaries
+- procore_list_rfis accepts project_id and status filter, returns array of RFI summaries
+- All tools validate parameters and return descriptive errors for missing/invalid
+  inputs
+- Server handles tools/call requests and returns results conforming to MCP JSON-RPC
+  2.0 format
+decomposition:
+  assignments: []
+dependencies:
+- Implement hybrid retrieval with reciprocal rank fusion
+source: discovered

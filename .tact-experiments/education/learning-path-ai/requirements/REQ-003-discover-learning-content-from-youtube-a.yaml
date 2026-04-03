@@ -1,0 +1,20 @@
+title: Discover learning content from YouTube API
+approval: draft
+phase: planned
+priority: high
+description: Query YouTube Data API to find educational videos matching extracted
+  skills. YouTube provides free, accessible content that complements paid course platforms
+  and increases path diversity.
+acceptanceCriteria:
+- Given a skill keyword, system retrieves up to 10 relevant YouTube videos filtered
+  for educational content
+- Search query includes filters for video duration (>10 minutes) and excludes non-educational
+  channels where possible
+- Each video result includes title, URL, channel name, duration, and view count
+- API responses are cached for 24 hours to minimize quota usage
+- Content results are normalized into internal ContentItem schema with source='youtube'
+decomposition:
+  assignments: []
+dependencies:
+- Extract skills from job role descriptions using NLP
+source: discovered

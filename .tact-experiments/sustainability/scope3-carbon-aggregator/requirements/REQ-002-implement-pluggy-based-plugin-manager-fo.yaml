@@ -1,0 +1,24 @@
+title: Implement pluggy-based plugin manager for parser registration and discovery
+approval: draft
+phase: planned
+priority: critical
+description: Build the plugin management layer using pluggy that defines the ParserHookSpec
+  interface, registers built-in parsers, discovers third-party parsers via entry_points,
+  and provides methods to list, validate, and invoke registered parsers. This is the
+  architectural backbone that enables the open parser ecosystem.
+acceptanceCriteria:
+- 'ParserHookSpec defines four hook specifications: configure(settings: dict) -> None,
+  fetch(params: dict) -> RawData, normalize(raw: RawData) -> list[EmissionRecord],
+  validate(records: list[EmissionRecord]) -> ValidationResult'
+- PluginManager.discover() finds and registers all parsers from both built-in modules
+  and setuptools entry_points under the 'scope3_carbon_aggregator.parsers' group
+- PluginManager.list_parsers() returns metadata (id, name, description, supported_categories)
+  for all registered parsers
+- Registration fails with a descriptive error if a plugin does not implement all four
+  required hook methods
+- A minimal test parser can be registered programmatically and executed through the
+  plugin manager in an integration test
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

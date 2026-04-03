@@ -1,0 +1,23 @@
+title: Implement hybrid retrieval with BM25 and vector search
+approval: draft
+phase: planned
+priority: high
+description: Build a retrieval pipeline that combines BM25 keyword search (for exact
+  medical term matching) with BioBERT semantic search, using reciprocal rank fusion
+  to merge results. Supports clinical query patterns like 'patient with diabetes and
+  hypertension' or 'recent cardiac events'.
+acceptanceCriteria:
+- BM25 index built from clinical chunks with medical term tokenization (preserve ICD-10
+  codes, medication names)
+- Vector search queries Qdrant filtered by patient_id for patient-specific retrieval
+- Reciprocal rank fusion combines top-20 results from each method with k=60
+- Query 'diabetes complications' retrieves chunks mentioning diabetic retinopathy,
+  neuropathy, nephropathy in top 5 results
+- Retrieval latency ≤500ms for patient chart with 100 clinical notes
+- Configurable result limit (default 10 chunks) and relevance threshold (minimum score
+  0.3)
+decomposition:
+  assignments: []
+dependencies:
+- Generate clinical embeddings using BioBERT
+source: discovered

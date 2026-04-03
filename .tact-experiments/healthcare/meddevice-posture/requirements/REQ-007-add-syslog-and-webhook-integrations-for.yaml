@@ -1,0 +1,22 @@
+title: Add syslog and webhook integrations for SIEM and ticketing
+approval: draft
+phase: planned
+priority: medium
+description: Enable alert forwarding to external systems via syslog (for SIEM integration)
+  and webhooks (for ticketing platforms like Jira/ServiceNow). Supports integration
+  with existing hospital security workflows.
+acceptanceCriteria:
+- Configuration file supports multiple syslog destinations with host, port, and severity
+  threshold
+- Alerts above configured threshold sent via syslog in RFC 5424 format with structured
+  data containing alert fields
+- Webhook configuration supports URL, headers (for auth tokens), and JSON payload
+  template
+- Webhook delivery retries up to 3 times with exponential backoff on failure
+- Integration status dashboard shows last successful delivery timestamp and error
+  counts for each destination
+decomposition:
+  assignments: []
+dependencies:
+- Create Sigma rule engine for medical device attack patterns
+source: discovered

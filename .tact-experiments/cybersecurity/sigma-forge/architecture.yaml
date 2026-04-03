@@ -1,0 +1,101 @@
+patterns:
+- name: MCP Tool-per-Capability
+  description: Each major capability (discover, map, generate, report) is exposed
+    as a discrete MCP tool with its own input schema and structured output. Tools
+    can be called independently or composed into a pipeline by the AI assistant. Each
+    tool is a thin orchestration layer over domain services.
+  scope:
+  - src/server.py
+  - src/tools/
+- name: Pipeline Architecture
+  description: 'The four core operations form a logical pipeline: Discover → Map →
+    Generate → Report. Each stage produces a well-defined intermediate data structure
+    persisted to SQLite, allowing stages to be re-run independently. The pipeline
+    state is tracked so that generate_rule_pack can use the latest inventory and mapping
+    without requiring re-discovery.'
+  scope:
+  - src/tools/
+  - src/services/
+  - src/models/
+- name: Repository Pattern for Data Access
+  description: All SQLite persistence is mediated through repository classes that
+    abstract storage details from domain logic. Repositories handle inventory records,
+    ATT&CK mappings, generated rules, and coverage state.
+  scope:
+  - src/repositories/
+- name: Mapping Registry
+  description: The infrastructure-to-ATT&CK technique mapping is stored as a structured
+    registry (JSON/SQLite) with entries keyed by service fingerprint (image name pattern,
+    exposed port, detected technology). The registry is the single source of truth
+    for which techniques apply to which service types and is designed to be extended
+    without code changes.
+  scope:
+  - src/data/
+  - src/services/mapping_service.py
+invariants:
+- Every generated Sigma rule MUST be valid YAML that passes pySigma parsing without
+  errors.
+- ATT&CK technique IDs MUST reference real techniques from the bundled ATT&CK STIX
+  dataset — no fabricated or hallucinated technique IDs.
+- The mapping registry MUST never map a service to an ATT&CK technique without a documented
+  rationale string explaining the relevance.
+- Infrastructure inventory MUST only reflect actually-running containers at discovery
+  time — never cache or assume containers from previous runs are still active.
+- 'Rule priority scores MUST be deterministic: given the same inventory and mapping
+  state, the same priority ordering is always produced.'
+- All MCP tool responses MUST return structured JSON conforming to defined Pydantic
+  response models — never raw strings or unstructured output.
+- CVE-linked rules MUST always receive higher priority than generic technique-based
+  rules for the same ATT&CK technique.
+conventions:
+- Python code follows PEP 8 with type hints on all function signatures.
+- All domain models are Pydantic BaseModel subclasses defined in src/models/.
+- 'File naming: snake_case for all Python modules; one primary class per file.'
+- MCP tool functions are async and defined in src/tools/ with one file per tool.
+- Service classes in src/services/ contain business logic; tool functions are thin
+  wrappers.
+- Configuration via environment variables with defaults, loaded through a single src/config.py
+  module.
+- Logging via Python stdlib logging; structured log messages with context (container_id,
+  technique_id, etc.).
+- Tests use pytest with async support (pytest-asyncio); test files mirror source structure
+  in tests/.
+- 'ATT&CK technique IDs always stored and displayed in canonical format: TXXXX or
+  TXXXX.XXX.'
+- Sigma rules output directory defaults to ./output/rules/ with subdirectories per
+  generation run.
+decisions:
+- id: D-1
+  title: Curated static mapping registry over dynamic ML-based mapping
+  decision: Use a hand-curated JSON mapping registry that maps service fingerprints
+    (image name patterns, port numbers, technology identifiers) to ATT&CK techniques,
+    rather than attempting NLP/ML-based mapping or relying on LLM inference at runtime.
+  rationale: The evaluation correctly identified that mapping quality is the critical
+    differentiator. A curated registry with documented rationale for each mapping
+    produces deterministic, auditable, and high-quality results. ML-based approaches
+    would introduce non-determinism, require training data we don't have, and risk
+    generating plausible-but-wrong mappings that undermine trust. The registry can
+    be community-extended over time. Starting with 20-30 well-researched service mappings
+    is more valuable than 500 shallow ones.
+- id: D-2
+  title: Bundle SigmaHQ rules as a local snapshot rather than live fetching
+  decision: Ship with a curated subset of SigmaHQ rules (pinned to a specific release
+    tag) stored locally in the project, indexed by ATT&CK technique ID in SQLite at
+    initialization time.
+  rationale: Live GitHub fetching introduces network dependency, rate limiting, and
+    unpredictable rule changes. A bundled snapshot ensures reproducible rule generation,
+    enables offline operation, and allows pre-indexing rules by technique ID for fast
+    lookup. The snapshot can be updated by bumping the pinned version. For MVP, we
+    bundle only rules tagged with ATT&CK technique IDs that appear in our mapping
+    registry, keeping the bundle small and relevant.
+- id: D-3
+  title: SQLite for all persistent state with async access
+  decision: Use a single SQLite database (via aiosqlite) to store infrastructure inventory
+    snapshots, ATT&CK mappings, generated rule metadata, and coverage state. No external
+    database dependencies.
+  rationale: SQLite is zero-configuration, embeddable, and sufficient for the single-team
+    use case. Async access via aiosqlite keeps the MCP server responsive. The schema
+    is simple (inventory, mappings, rules, coverage tables) and the data volume is
+    small (dozens to low hundreds of containers/rules). This avoids requiring users
+    to set up PostgreSQL or Redis for what is fundamentally a local tool.
+contracts: []

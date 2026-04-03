@@ -1,0 +1,23 @@
+title: Calculate time-to-completion estimates for learning paths
+approval: draft
+phase: planned
+priority: medium
+description: Provide realistic time estimates for completing generated learning paths
+  based on content duration metadata. Time estimates help learners plan and increase
+  commitment by setting clear expectations.
+acceptanceCriteria:
+- System sums content durations for all items in path to calculate total learning
+  hours
+- Estimates include buffer multiplier (1.3x) to account for practice, note-taking,
+  and review time
+- Path summary shows total hours and suggested weekly commitment (e.g., '24 hours
+  total, 6 weeks at 4 hrs/week')
+- Individual content items display duration in human-readable format (e.g., '2h 30m',
+  '45m')
+- Paths with missing duration data show 'estimated' label and use average duration
+  for content type
+decomposition:
+  assignments: []
+dependencies:
+- Generate sequenced learning path from prerequisite graph
+source: discovered

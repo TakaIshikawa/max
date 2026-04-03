@@ -1,0 +1,24 @@
+title: Extract action items from discharge summaries using NLP
+approval: draft
+phase: planned
+priority: high
+description: Process discharge summary DocumentReference resources with spaCy medical
+  NLP to identify follow-up tasks, medication instructions, and warning signs. Converts
+  unstructured clinical text into structured checklist items.
+acceptanceCriteria:
+- NLP pipeline extracts entities for follow-up appointments (e.g., 'see cardiologist
+  in 2 weeks'), medications to start/stop, and monitoring instructions (e.g., 'check
+  blood pressure daily')
+- 'Each extracted task includes: description, due date (if specified), category (appointment,
+  medication, monitoring)'
+- Tasks stored in database linked to source discharge event with confidence score
+  from NLP model
+- Manual testing on 10 sample discharge summaries achieves 80% precision and 70% recall
+  for task extraction
+- Tasks with due dates automatically flagged as overdue if current date exceeds due
+  date
+decomposition:
+  assignments: []
+dependencies:
+- Fetch and store clinical events from FHIR API
+source: discovered

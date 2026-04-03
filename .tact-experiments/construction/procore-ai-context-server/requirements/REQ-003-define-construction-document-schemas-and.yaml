@@ -1,0 +1,24 @@
+title: Define construction document schemas and chunking strategy
+approval: draft
+phase: planned
+priority: high
+description: Create TypeScript interfaces for construction document types (DailyReport,
+  RFI, Submittal) and implement domain-aware chunking that splits documents into semantically
+  meaningful sections while preserving context boundaries.
+acceptanceCriteria:
+- 'DailyReport schema includes: date, weather, trades_on_site, work_performed, issues,
+  created_by with proper types'
+- 'RFI schema includes: number, question, answer, status, assignee, due_date, created_at'
+- 'Submittal schema includes: number, title, spec_section, status, due_date, trade,
+  description'
+- Chunking function splits daily reports into sections (weather, trades, work, issues)
+  as separate chunks
+- RFI chunking keeps question+answer together in single chunk, does not split across
+  boundaries
+- 'Each chunk includes metadata: document_type, document_id, section_name, created_at,
+  chunk_index'
+decomposition:
+  assignments: []
+dependencies:
+- Create Procore API client with repository pattern
+source: discovered

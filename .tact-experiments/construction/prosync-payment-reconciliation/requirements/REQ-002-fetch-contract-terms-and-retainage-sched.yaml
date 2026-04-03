@@ -1,0 +1,22 @@
+title: Fetch contract terms and retainage schedule from Procore
+approval: draft
+phase: planned
+priority: critical
+description: For each approved pay application, retrieve associated contract data
+  from Procore including original contract amount, retainage percentage, retainage
+  terms (when released), and change order history. This data feeds the payment calculation
+  engine.
+acceptanceCriteria:
+- Given pay application with contract_id, fetch contract details via Procore API
+- Extract retainage percentage from contract terms (default to 0% if not specified)
+- Retrieve all approved change orders for contract up to pay application date
+- Store contract snapshot (original amount, retainage %, change orders) linked to
+  pay application record
+- Handle missing contract data gracefully with clear error message for manual review
+- Cache contract data for 24 hours to reduce API calls for multiple pay apps on same
+  contract
+decomposition:
+  assignments: []
+dependencies:
+- Poll Procore API for approved pay applications
+source: discovered

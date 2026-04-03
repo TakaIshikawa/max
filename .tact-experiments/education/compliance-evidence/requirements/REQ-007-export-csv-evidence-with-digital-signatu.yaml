@@ -1,0 +1,22 @@
+title: Export CSV evidence with digital signatures
+approval: draft
+phase: planned
+priority: medium
+description: Provide machine-readable CSV export of training completion data with
+  digital signature for tamper detection. This allows auditors to import data into
+  their own analysis tools while maintaining authenticity guarantees.
+acceptanceCriteria:
+- POST /api/v1/evidence-packages endpoint with format=csv parameter returns CSV file
+  instead of PDF
+- 'CSV includes columns: employee_id, employee_email, course_id, course_name, completion_date,
+  control_framework, control_id, timestamp_status, verification_url'
+- CSV file is accompanied by separate .sig file containing HMAC-SHA256 signature of
+  CSV content using secret key
+- GET /api/v1/verify-csv endpoint accepts uploaded CSV and signature file, returns
+  verification status (valid/invalid/tampered)
+- CSV export completes in under 10 seconds for 500 employee dataset
+decomposition:
+  assignments: []
+dependencies:
+- Generate PDF evidence package with embedded verification links
+source: discovered

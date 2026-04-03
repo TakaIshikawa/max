@@ -1,0 +1,83 @@
+patterns:
+- name: MCP Server Pattern
+  description: Implements Model Context Protocol server specification with stdio transport,
+    exposing tools and resources that AI agents can discover and invoke. Server handles
+    JSON-RPC 2.0 messages for tool calls and returns structured responses.
+  scope:
+  - Server initialization
+  - Tool registration
+  - Request/response handling
+- name: Hybrid Retrieval Pipeline
+  description: Combines BM25 keyword-based retrieval (optimized for construction terminology)
+    with semantic vector search (sentence embeddings) to find relevant documents.
+    Results are merged using reciprocal rank fusion and reranked by recency and relevance.
+  scope:
+  - Document indexing
+  - Context retrieval
+  - Result ranking
+- name: Domain-Aware Chunking
+  description: 'Splits construction documents into semantically meaningful chunks
+    that respect document structure: daily report sections (weather, trades, work
+    performed, issues), RFI question/answer pairs, submittal metadata. Preserves context
+    boundaries to avoid fragmenting critical information.'
+  scope:
+  - Document processing
+  - Embedding generation
+  - Context assembly
+- name: Repository Pattern
+  description: Abstracts Procore API access behind repository interfaces (ProjectRepository,
+    DailyReportRepository, RFIRepository) to enable testing, caching, and future support
+    for other construction platforms.
+  scope:
+  - API client
+  - Data access layer
+  - Caching strategy
+invariants:
+- All Procore API calls must be read-only (GET requests only, no POST/PUT/DELETE)
+- User credentials (OAuth tokens, API keys) must never be logged or exposed in error
+  messages
+- Context responses must include source attribution (document ID, title, date) for
+  every piece of information returned
+- Token count must be calculated before returning context to ensure it fits within
+  the configured budget
+- Document embeddings must be regenerated if the source document in Procore has been
+  updated (based on updated_at timestamp)
+- All MCP tool responses must conform to JSON schema definitions and include error
+  details on failure
+conventions:
+- Use kebab-case for file names and package names
+- Use PascalCase for class names and TypeScript interfaces
+- Use camelCase for function names and variables
+- Prefix MCP tool names with procore_ (e.g., procore_get_context, procore_list_rfis)
+- Construction document types use singular form in code (DailyReport, RFI, Submittal)
+- All async functions must include proper error handling with try/catch blocks
+- API response types must be defined as TypeScript interfaces in types/ directory
+- Environment variables use SCREAMING_SNAKE_CASE with PROCORE_ prefix
+- Test files use .test.ts suffix and mirror source file structure
+decisions:
+- id: D-1
+  title: Use TypeScript as primary language with Python for embeddings
+  decision: Implement MCP server core in TypeScript, with Python subprocess for sentence-transformers
+    embeddings
+  rationale: TypeScript provides better MCP SDK support and type safety for API integration,
+    while Python's sentence-transformers library is the industry standard for embeddings.
+    Hybrid approach allows using best tool for each component while keeping deployment
+    simple (single Node.js process spawns Python for embedding generation).
+- id: D-2
+  title: Use LanceDB for local vector storage instead of Chroma
+  decision: Store document embeddings in LanceDB with file-based persistence
+  rationale: LanceDB offers zero-config local storage with TypeScript support, no
+    server process required. Chroma requires running a separate service. For MVP scope
+    (single project, local-only), LanceDB's simplicity and performance (columnar format)
+    outweigh Chroma's advanced features. Enables users to run the MCP server without
+    additional infrastructure.
+- id: D-3
+  title: Implement OAuth 2.0 flow with local callback server
+  decision: Use OAuth 2.0 authorization code flow with temporary local Express server
+    for callback, store refresh tokens in encrypted local config file
+  rationale: Procore requires OAuth 2.0 for production API access (API keys are deprecated).
+    Local callback server (localhost:3000) handles the redirect, then shuts down after
+    token exchange. This provides secure authentication without requiring users to
+    manually copy tokens, while keeping credentials local. Refresh tokens enable long-lived
+    sessions without re-authentication.
+contracts: []

@@ -1,0 +1,21 @@
+title: Implement SQLite database schema and repository layer
+approval: draft
+phase: planned
+priority: critical
+description: Create the SQLite database with tables for creator profiles, platform
+  connections, metric snapshots (time-series), and cached API responses. Implement
+  repository classes that provide typed CRUD operations. Database is auto-initialized
+  on first run.
+acceptanceCriteria:
+- Database file is created automatically at a configurable path on first server start.
+- 'Schema includes tables: creators, platform_connections, metric_snapshots, api_cache
+  with appropriate indexes.'
+- MetricsRepository.appendSnapshot() inserts a new time-series row and never updates
+  existing rows.
+- MetricsRepository.getSnapshots(creatorId, platform, days) returns snapshots within
+  the specified window sorted by timestamp.
+- 'ApiCacheRepository respects TTL: get() returns null for expired entries.'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

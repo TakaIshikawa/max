@@ -1,0 +1,23 @@
+title: Implement SQLite index for codebase analysis results
+approval: draft
+phase: planned
+priority: high
+description: Create a repository layer that persists parsed module data, dependency
+  edges, and computed metrics in a local SQLite database. Support incremental updates
+  based on file modification timestamps.
+acceptanceCriteria:
+- Database schema includes tables for modules (file_path, language, token_count, last_modified,
+  hash), dependencies (source, target, type), and metrics (module_path, metric_name,
+  value).
+- Inserting analysis results for a module is atomic — partial writes from crashes
+  do not corrupt the index.
+- A 'needs_reanalysis' query returns modules whose file modification time or content
+  hash has changed since last indexing.
+- The full dependency graph can be reconstructed from the database without re-parsing
+  source files.
+- 'Database file is created automatically on first run in a configurable location
+  (default: .context-footprint/index.db in the target codebase root).'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

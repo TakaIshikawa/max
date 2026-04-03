@@ -1,0 +1,24 @@
+title: Build dependency graph from parsed modules
+approval: draft
+phase: planned
+priority: critical
+description: Construct a networkx DiGraph from parsed modules where nodes are module
+  file paths and directed edges represent import dependencies. Each node is annotated
+  with its token count; each edge is annotated with the dependency type.
+acceptanceCriteria:
+- Given a list of ParsedModule objects, produces a networkx DiGraph with one node
+  per module and edges for each resolved import.
+- Import resolution maps relative imports to file paths within the codebase; unresolvable
+  imports (external packages) are recorded as external_dependencies metadata on the
+  importing node, not as graph nodes.
+- 'Each node has attributes: file_path, language, token_count, symbol_count.'
+- 'Each edge has attributes: type (one of ''import'', ''re-export'', ''type-reference''),
+  source_line.'
+- Circular dependencies are detected and stored as a list of cycles accessible via
+  a graph metadata attribute.
+decomposition:
+  assignments: []
+dependencies:
+- Implement tree-sitter based source file parser
+- Implement token counting for source files and symbols
+source: discovered

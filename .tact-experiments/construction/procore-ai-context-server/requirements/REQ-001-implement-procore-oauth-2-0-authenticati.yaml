@@ -1,0 +1,21 @@
+title: Implement Procore OAuth 2.0 authentication flow
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to authenticate with Procore using OAuth 2.0 authorization
+  code flow. Start a temporary local server to handle the OAuth callback, exchange
+  authorization code for access/refresh tokens, and store tokens securely in local
+  configuration. This is required for all Procore API access.
+acceptanceCriteria:
+- Running 'npm run auth' opens browser to Procore OAuth consent page
+- After user approves, callback server receives authorization code and exchanges it
+  for tokens
+- Access token and refresh token are stored in ~/.procore-mcp/config.json with file
+  permissions set to 600
+- Tokens are automatically refreshed when access token expires (before API calls fail)
+- Authentication errors display helpful messages (e.g., 'Invalid client ID' or 'User
+  denied access')
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

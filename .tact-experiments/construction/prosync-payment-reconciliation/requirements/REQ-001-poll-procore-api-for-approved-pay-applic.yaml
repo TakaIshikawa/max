@@ -1,0 +1,19 @@
+title: Poll Procore API for approved pay applications
+approval: draft
+phase: planned
+priority: critical
+description: Background job polls Procore API every 5 minutes to detect newly approved
+  pay applications. Maintains cursor (last processed timestamp) to fetch only new
+  approvals. Stores raw pay application data including approved amount, subcontractor
+  details, project reference, and approval timestamp.
+acceptanceCriteria:
+- Job runs every 5 minutes via scheduler (cron or similar)
+- Fetches pay applications with status='approved' and approval_date > last_cursor_timestamp
+- Updates cursor timestamp after successful fetch to prevent reprocessing
+- Stores complete pay application JSON in database with received_at timestamp
+- Handles Procore API rate limit errors with exponential backoff retry
+- Logs fetch results (count of new applications, any errors) for monitoring
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

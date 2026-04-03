@@ -1,0 +1,62 @@
+name: smb-fintech-gtm-toolkit
+version: 0.1.0
+vision: A focused validation toolkit that helps technical fintech founders escape
+  the infinite feature backlog trap by connecting what they're building to real regulatory
+  deadlines, competitor gaps, and validated customer pain points — turning compliance
+  urgency into structured go-to-market discipline.
+goals:
+- id: G-1
+  description: Provide a curated, queryable regulatory deadline database covering
+    DORA, CSRD, and EU AI Act with firm-type applicability so founders can identify
+    urgency windows.
+  successCriteria: Database contains at least 20 regulatory milestones across 3 regulations
+    with firm-type tagging, and users can filter deadlines by regulation, firm type,
+    and date range within 2 seconds.
+- id: G-2
+  description: Enable structured customer discovery workflows using Mom Test methodology
+    so founders capture validated pain points instead of vanity feedback.
+  successCriteria: Users can create interview sessions with pre-built compliance-buyer
+    persona templates, record structured notes, and view auto-extracted pain point
+    themes across 5+ interviews.
+- id: G-3
+  description: Deliver a ship-or-kill scoring framework that quantitatively ranks
+    feature ideas against customer evidence, regulatory deadlines, and competitor
+    gaps.
+  successCriteria: Users can score at least 5 feature ideas and receive a ranked priority
+    list with composite scores derived from customer mention frequency, deadline proximity,
+    and competitor coverage.
+- id: G-4
+  description: Map the competitor landscape for regtech/compliance solutions so founders
+    can identify underserved gaps before committing to a product direction.
+  successCriteria: System displays competitor entries across at least 3 compliance
+    categories with coverage indicators, and users can manually add or edit competitor
+    entries.
+constraints:
+- 'MVP scoped to three EU regulations only: DORA, CSRD, and EU AI Act — no other jurisdictions
+  or frameworks.'
+- Regulatory deadline data is manually curated via seed data and admin UI — no automated
+  RSS/EUR-Lex scraping in MVP.
+- Competitor data is manually entered and curated — no live web scraping or API integrations
+  with Crunchbase/CB Insights in MVP.
+- NLP theme extraction uses simple keyword/phrase frequency analysis — no LLM or spaCy
+  dependency in MVP.
+- No external API integrations (Reddit, LinkedIn, Google Trends) in MVP — demand signals
+  are deferred to post-MVP.
+- Single-user application — no authentication, multi-tenancy, or team collaboration
+  in MVP.
+- Must run as a single Docker Compose stack (API + DB + frontend) for local self-hosting.
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - React 18
+  - SQLAlchemy
+  - Alembic
+  - TanStack Query
+  - Tailwind CSS
+  infrastructure:
+  - PostgreSQL 15
+  - Docker
+  - Docker Compose

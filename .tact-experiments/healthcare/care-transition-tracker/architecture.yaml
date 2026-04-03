@@ -1,0 +1,68 @@
+patterns:
+- name: Backend for Frontend (BFF)
+  description: Express.js backend acts as aggregation layer between React Native app
+    and multiple FHIR endpoints, transforming clinical data into patient-friendly
+    timeline events
+  scope:
+  - backend API
+  - FHIR integration layer
+- name: Event Sourcing for Timeline
+  description: Clinical events stored as immutable timeline entries with timestamps,
+    enabling chronological reconstruction of care journey and audit trail
+  scope:
+  - database schema
+  - timeline API
+- name: Pipeline Pattern for NLP
+  description: 'Multi-stage processing pipeline: document ingestion → medical entity
+    recognition → task extraction → patient-friendly translation'
+  scope:
+  - NLP service
+  - task extraction
+invariants:
+- All patient health data must be encrypted at rest using AES-256 and in transit using
+  TLS 1.2+
+- Every data access must generate an audit log entry with user ID, timestamp, and
+  resource accessed
+- Timeline events must preserve original clinical data source and timestamp without
+  modification
+- Caregiver access requires explicit patient authorization with revocable permissions
+- Medical terminology translations must include source term and never alter clinical
+  meaning
+- Push notifications must never include PHI in notification body (only generic reminders)
+conventions:
+- TypeScript strict mode enabled for all frontend and backend code
+- FHIR resource types use PascalCase (Patient, Encounter, MedicationRequest) per FHIR
+  spec
+- Timeline event types use kebab-case (hospital-admission, medication-change, lab-result)
+- 'API endpoints follow REST conventions: /api/v1/timeline, /api/v1/tasks, /api/v1/caregivers'
+- Date/time handling uses ISO 8601 format with timezone preservation from FHIR sources
+- Medical NLP entities tagged with SNOMED CT or RxNorm codes where available
+- React Native components use functional components with hooks (no class components)
+- Environment-specific secrets managed via .env files (never committed to version
+  control)
+decisions:
+- id: D-1
+  title: Use FHIR R4 API over HL7 v2 messaging
+  decision: Integrate with EHR systems exclusively via FHIR R4 REST APIs
+  rationale: FHIR R4 is the mandated standard under 21st Century Cures Act, has better
+    developer tooling than HL7 v2, and supports patient-mediated access via OAuth
+    2.0. Epic, Cerner, and Athenahealth all provide FHIR R4 patient access APIs. Avoids
+    need for HL7 v2 message parsing and VPN-based integration.
+- id: D-2
+  title: Build custom NLP pipeline instead of using GPT-4 API
+  decision: Use spaCy with medical NER models (scispaCy) for task extraction from
+    clinical notes
+  rationale: HIPAA compliance prohibits sending PHI to third-party LLM APIs without
+    BAA. Open-source spaCy models can run on-premise, provide deterministic outputs
+    for audit trails, and have lower latency/cost than API calls. Medical NER models
+    (en_core_sci_md) trained on clinical text perform adequately for discharge summary
+    entity recognition.
+- id: D-3
+  title: OAuth 2.0 delegation via EHR vendor instead of custom patient auth
+  decision: Authenticate patients using EHR vendor OAuth 2.0 identity provider (Epic
+    MyChart login, Cerner patient portal credentials)
+  rationale: Reduces patient friction (reuses existing credentials), ensures identity
+    verification already performed by healthcare organization, and simplifies HIPAA
+    compliance (no need to store patient credentials or verify identity). SMART on
+    FHIR authorization flow is industry standard for patient-facing apps.
+contracts: []

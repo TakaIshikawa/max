@@ -1,0 +1,26 @@
+title: Implement the explain_decision MCP tool
+approval: draft
+phase: planned
+priority: critical
+description: 'Wire together the model adapter, SHAP explainer, counterfactual generator,
+  and audit log into the explain_decision MCP tool. This is the primary tool that
+  processes a credit scoring request end-to-end: calls the model, generates explanations,
+  persists the decision, and returns the complete explanation payload.'
+acceptanceCriteria:
+- Tool accepts input_features (dict), applicant_id (string), and optional demographic_metadata
+  (dict) as parameters
+- 'Returns a structured response containing: score, decision (approved/denied based
+  on configurable threshold), top contributing features with SHAP values, counterfactual
+  explanations (for denials), and decision_id for audit reference'
+- Decision is persisted to audit log before the tool response is returned
+- If counterfactual generation fails, the tool still returns SHAP explanations and
+  logs the partial result — graceful degradation
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server skeleton with tool registration
+- Implement model adapter for REST API credit scoring endpoints
+- Implement SHAP feature attribution for credit decisions
+- Implement counterfactual explanation generation with DiCE
+- Implement decision audit log with PostgreSQL persistence
+source: discovered

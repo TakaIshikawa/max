@@ -1,0 +1,21 @@
+title: Implement audit log query MCP tool
+approval: draft
+phase: planned
+priority: medium
+description: Expose an MCP tool that allows querying the audit log with filters for
+  time range, endpoint, regulation, compliance verdict, and AI Act flags. This enables
+  AI agents to investigate compliance posture and generate reports.
+acceptanceCriteria:
+- 'The query-audit-log MCP tool accepts optional filters: start_time, end_time, endpoint_pattern,
+  regulation, verdict, ai_act_flagged.'
+- 'Results are returned as paginated JSON with a configurable page size (default:
+  50, max: 500).'
+- A summary mode returns aggregate counts grouped by regulation and verdict rather
+  than individual entries.
+- The tool includes a verify_chain boolean parameter that, when true, runs chain verification
+  on the returned entries and includes an integrity_verified field in the response.
+decomposition:
+  assignments: []
+dependencies:
+- Implement append-only hash-chained audit log store
+source: discovered

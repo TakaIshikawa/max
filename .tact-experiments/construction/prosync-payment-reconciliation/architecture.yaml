@@ -1,0 +1,85 @@
+patterns:
+- name: Polling Integration Pattern
+  description: Background worker polls Procore API on scheduled intervals to detect
+    approved pay applications, maintaining cursor/timestamp to track processed items
+    and avoid duplicates
+  scope:
+  - procore-integration
+  - job-scheduler
+- name: Command Query Responsibility Segregation (CQRS)
+  description: Separate read models for dashboard queries from write models for payment
+    processing workflow, enabling audit trail without impacting operational performance
+  scope:
+  - api-layer
+  - database-schema
+- name: Adapter Pattern for Accounting Systems
+  description: Abstract accounting system interface with concrete implementations
+    per system (QuickBooks, future Sage/Viewpoint), isolating integration-specific
+    logic from core payment calculation engine
+  scope:
+  - accounting-integration
+  - payment-export
+- name: Saga Pattern for Payment Workflow
+  description: Multi-step payment processing workflow with compensating transactions
+    for rollback (fetch from Procore → calculate → validate → export → update status),
+    ensuring consistency across systems
+  scope:
+  - payment-processing
+  - workflow-engine
+invariants:
+- Every payment calculation must be stored with complete audit trail including source
+  data snapshot (contract terms, retainage schedule, change orders at time of calculation)
+- Payment amounts must never exceed approved pay application amount from Procore
+- No payment instruction may be exported to accounting system without explicit user
+  approval via dashboard
+- Retainage calculations must always use percentage from contract terms, never hardcoded
+  values
+- All monetary values must be stored and calculated using decimal types (never floating
+  point) to prevent rounding errors
+- Payment status updates to Procore must only occur after successful export to accounting
+  system
+- Each pay application from Procore must be processed exactly once (idempotent processing
+  with deduplication)
+conventions:
+- 'API endpoints follow REST conventions: /api/v1/{resource} with standard HTTP verbs'
+- Database tables use snake_case naming; Python classes use PascalCase; functions
+  use snake_case
+- All timestamps stored in UTC; timezone conversion only at presentation layer
+- Environment-specific configuration via environment variables, never hardcoded
+- All external API calls wrapped in retry logic with exponential backoff
+- Monetary amounts stored as integer cents/pennies with currency code
+- Git commit messages follow Conventional Commits specification (feat:, fix:, docs:,
+  etc.)
+- All business logic functions include type hints and docstrings with examples
+- Test files mirror source structure with _test.py suffix
+decisions:
+- id: D-1
+  title: Use polling instead of webhooks for Procore integration
+  decision: Implement scheduled polling (every 5 minutes) to detect approved pay applications
+    rather than webhook-based event subscription
+  rationale: Procore webhook reliability varies by customer configuration and requires
+    publicly accessible endpoint. Polling provides simpler deployment model (works
+    behind firewall), easier error recovery (can replay from cursor), and sufficient
+    latency for payment workflow (5-minute detection delay acceptable vs 30-90 day
+    baseline). Cursor-based polling prevents duplicate processing.
+- id: D-2
+  title: Build calculation engine in-house rather than using rules engine
+  decision: Implement payment calculation logic as Python business logic layer with
+    explicit functions for retainage, change orders, etc., rather than adopting rules
+    engine (Drools, etc.)
+  rationale: Payment calculations follow deterministic formulas (approved amount -
+    retainage + change orders) without complex branching logic. In-house implementation
+    provides full transparency for audit trail, easier testing with decimal precision
+    requirements, and avoids learning curve of rules engine DSL. Can refactor to rules
+    engine if calculation complexity grows beyond MVP scope.
+- id: D-3
+  title: Require manual approval before accounting system export
+  decision: All calculated payments must be reviewed and approved via web dashboard
+    before export to accounting system; no fully automated end-to-end processing in
+    MVP
+  rationale: Payment errors have high financial and relationship cost. Manual approval
+    gate provides safety net during MVP validation phase, builds user trust in calculation
+    accuracy, and allows accounting teams to verify against their existing processes.
+    Can introduce auto-approval rules (e.g., payments under threshold) in future iterations
+    once confidence is established.
+contracts: []

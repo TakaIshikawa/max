@@ -1,0 +1,25 @@
+title: Implement transaction data ingestion from file uploads
+approval: draft
+phase: planned
+priority: critical
+description: 'Build a file upload endpoint and adapter system that accepts CSV, OFX,
+  and QIF financial transaction files, parses them into a normalized transaction schema,
+  and persists them to SQLite. Each adapter must handle format-specific parsing while
+  producing a common Transaction model with fields: id, date, amount, currency, description,
+  counterparty, source_format, raw_data, and ingestion_timestamp.'
+acceptanceCriteria:
+- POST /api/v1/transactions/upload accepts multipart file upload and returns a summary
+  of ingested transactions (count, date range, any parse errors)
+- CSV adapter correctly parses files with columns for date, amount, description, and
+  counterparty (with configurable column mapping via header detection)
+- OFX adapter parses standard OFX/QFX bank statement files and extracts transaction
+  records
+- QIF adapter parses Quicken Interchange Format files and extracts transaction records
+- All ingested transactions are persisted to SQLite with source_format and raw_data
+  fields preserved for audit lineage
+- Invalid or unparseable rows are collected and returned in the response as warnings
+  without blocking valid rows
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

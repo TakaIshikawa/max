@@ -1,0 +1,82 @@
+patterns:
+- name: API Gateway Pattern
+  description: Centralized FastAPI backend acts as gateway to multiple content source
+    APIs, normalizing responses into unified content schema
+  scope:
+  - backend
+  - content-aggregation
+- name: Repository Pattern
+  description: Abstract data access for learning paths, user profiles, and content
+    metadata behind repository interfaces to enable testing and future data source
+    changes
+  scope:
+  - backend
+  - data-access
+- name: Pipeline Pattern
+  description: 'Learning path generation flows through sequential pipeline stages:
+    skill extraction → content discovery → relevance scoring → prerequisite sequencing
+    → time estimation'
+  scope:
+  - ai-engine
+  - path-generation
+- name: Adapter Pattern
+  description: Each content source (LMS, LinkedIn Learning, YouTube) has dedicated
+    adapter implementing common ContentSource interface for extensibility
+  scope:
+  - content-aggregation
+  - integrations
+invariants:
+- All learning paths must contain at least one learning resource and have a defined
+  sequence order
+- Content from external APIs must be cached for 24 hours to respect rate limits and
+  reduce latency
+- Skill extraction must produce at least 3 skills from any valid job description input
+- Generated learning paths must be idempotent—same input produces same output within
+  24-hour cache window
+- All content items must have title, source, URL, and estimated duration before inclusion
+  in path
+- Prerequisite relationships must form a DAG (directed acyclic graph)—no circular
+  dependencies allowed
+- User data (profiles, generated paths) must be isolated per user—no cross-user data
+  leakage
+conventions:
+- Python code follows PEP 8 with Black formatting, maximum line length 100 characters
+- TypeScript/React code uses functional components with hooks, ESLint with Airbnb
+  config
+- 'API endpoints follow RESTful conventions: /api/v1/{resource} with standard HTTP
+  verbs'
+- Database tables use snake_case naming, model classes use PascalCase
+- All async operations use Python asyncio/await patterns consistently
+- Environment variables for API keys and secrets, never hardcoded
+- 'Test files colocated with source: {module}_test.py or {component}.test.tsx'
+- 'Git commits follow Conventional Commits: feat:, fix:, docs:, refactor:, test:'
+decisions:
+- id: D-1
+  title: Use Pinecone for vector embeddings instead of local vector database
+  decision: Use Pinecone cloud-hosted vector database for content embeddings
+  rationale: Pinecone provides managed vector similarity search without infrastructure
+    overhead, critical for MVP speed. Offers better scalability than local solutions
+    (FAISS, Annoy) and simpler than self-hosting Weaviate. Free tier supports up to
+    100K vectors, sufficient for MVP content catalog. Can migrate to self-hosted solution
+    post-MVP if cost becomes concern.
+- id: D-2
+  title: Use LLM API for prerequisite inference rather than custom graph model
+  decision: Leverage OpenAI GPT-4 API to infer prerequisite relationships between
+    learning content items
+  rationale: Building and training custom prerequisite prediction models requires
+    large labeled datasets of content dependencies that don't exist. LLM can perform
+    few-shot reasoning about content prerequisites based on titles, descriptions,
+    and skill tags. Faster to implement for MVP, and quality is sufficient for initial
+    validation. Rule-based heuristics (e.g., 'intro' before 'advanced') supplement
+    LLM when API calls fail or for cost optimization.
+- id: D-3
+  title: Generate paths server-side with async processing instead of client-side
+  decision: Path generation runs as async backend job with polling/webhooks for status
+    rather than synchronous API call
+  rationale: Path generation involves multiple external API calls (LinkedIn Learning,
+    YouTube, OpenAI), embedding computations, and graph algorithms that may take 30-90
+    seconds. Synchronous HTTP requests would timeout and create poor UX. Async job
+    pattern allows frontend to show progress, handle failures gracefully, and scale
+    to multiple concurrent path generations. Uses simple job queue (PostgreSQL-based)
+    for MVP, can upgrade to Celery/Redis later.
+contracts: []

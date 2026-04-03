@@ -1,0 +1,24 @@
+title: Parse Terraform JSON plan into canonical change model
+approval: draft
+phase: planned
+priority: critical
+description: Build a parser that reads Terraform plan JSON output (from 'terraform
+  show -json tfplan') and transforms each resource_change into the CanonicalChange
+  format. The parser must extract resource type, name, action (create/update/delete/replace),
+  provider, and all tags. Environment classification is derived from workspace name,
+  resource tags, or a configurable mapping.
+acceptanceCriteria:
+- Parser correctly extracts all resource changes from a Terraform 1.5+ JSON plan including
+  create, update, delete, and replace actions
+- Each change is mapped to a CanonicalChange with resource_type, resource_id, action,
+  environment, tags, and a provider_config blob
+- 'Environment is resolved from: (1) explicit ''environment'' tag on the resource,
+  (2) workspace name mapping in config, (3) fallback to ''unknown'''
+- Parser returns a Result type — malformed JSON produces a descriptive error, not
+  an exception
+- 'Unit tests cover plans with: no changes, single create, single delete, multiple
+  mixed actions, and a malformed plan file'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement async job processing for path generation
+approval: draft
+phase: planned
+priority: high
+description: Handle path generation as background async job rather than synchronous
+  request, preventing timeouts and enabling better UX with progress indicators. Path
+  generation involves multiple API calls and AI processing that can take 30-90 seconds.
+acceptanceCriteria:
+- Path generation request creates job record in database and returns job_id immediately
+- Frontend polls job status endpoint every 2 seconds to check completion status
+- 'Job statuses include: pending, processing, completed, failed with error messages'
+- Completed jobs store generated path data and transition to completed status atomically
+- Failed jobs capture error details and allow retry without re-submitting job description
+decomposition:
+  assignments: []
+dependencies:
+- Extract skills from job role descriptions using NLP
+- Generate sequenced learning path from prerequisite graph
+source: discovered

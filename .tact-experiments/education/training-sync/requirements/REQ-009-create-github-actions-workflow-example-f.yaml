@@ -1,0 +1,23 @@
+title: Create GitHub Actions workflow example for CI/CD integration
+approval: draft
+phase: planned
+priority: medium
+description: Provide documented GitHub Actions workflow YAML that installs CLI tool,
+  runs validation on SCORM packages in repository, and fails build if validation fails.
+  Demonstrates CI/CD integration pattern that users can adapt for their pipelines.
+acceptanceCriteria:
+- Workflow YAML file (.github/workflows/validate-training.yml) included in repository
+  with inline comments explaining each step
+- Workflow installs Node.js, Docker, and trainingsync CLI tool from npm (or direct
+  from repo for MVP)
+- Runs validation on all .zip files in specified directory (e.g., ./packages/) with
+  JSON output
+- Uploads validation reports as workflow artifacts for later review
+- Workflow fails (exit code 1) if any package has critical validation errors, allowing
+  warnings to pass
+- README includes section on CI/CD integration with GitHub Actions and GitLab CI examples
+decomposition:
+  assignments: []
+dependencies:
+- Create CLI with validate command and structured output
+source: discovered

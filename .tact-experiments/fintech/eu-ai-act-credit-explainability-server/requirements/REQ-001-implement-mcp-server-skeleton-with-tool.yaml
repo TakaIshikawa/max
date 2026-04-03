@@ -1,0 +1,20 @@
+title: Implement MCP server skeleton with tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Set up the MCP server using the Python SDK with the foundational project
+  structure, configuration management, and health check. Register placeholder handlers
+  for all five core tools (explain_decision, check_bias, generate_documentation, query_decisions,
+  flag_for_review) with typed input/output schemas.
+acceptanceCriteria:
+- MCP server starts and responds to the MCP initialize handshake
+- All five tools are listed in the tools/list response with complete input schemas
+  defined as Pydantic models
+- Server reads configuration (database URL, model endpoint, Ollama URL, log level)
+  from environment variables via pydantic-settings
+- A health check tool returns server status including database connectivity and Ollama
+  availability
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

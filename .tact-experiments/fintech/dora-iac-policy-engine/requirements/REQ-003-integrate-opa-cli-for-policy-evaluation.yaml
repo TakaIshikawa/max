@@ -1,0 +1,25 @@
+title: Integrate OPA CLI for policy evaluation
+approval: draft
+phase: planned
+priority: critical
+description: Create a policy engine module that invokes the OPA CLI to evaluate Rego
+  policies against a set of CanonicalChanges. The module constructs the OPA input
+  document, calls 'opa eval' with the policy bundle directory, and parses the structured
+  output into a PolicyEvaluationResult containing pass/fail per rule with violation
+  details and remediation text.
+acceptanceCriteria:
+- Module invokes 'opa eval' with the correct data file, input file, and policy bundle
+  path
+- 'PolicyEvaluationResult contains: overall verdict (pass/fail), list of rule results
+  each with rule_id, dora_article, severity, pass/fail, violation_message, and remediation_guidance'
+- If OPA CLI is not found on PATH, the module returns a clear error indicating OPA
+  must be installed
+- Evaluation completes in under 3 seconds for a plan with 50 resource changes against
+  the full policy set
+- Unit tests use a mock OPA output fixture to verify result parsing without requiring
+  OPA installation
+decomposition:
+  assignments: []
+dependencies:
+- Parse Terraform JSON plan into canonical change model
+source: discovered

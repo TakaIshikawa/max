@@ -1,0 +1,20 @@
+title: Send email notification to subcontractor on payment processing
+approval: draft
+phase: planned
+priority: medium
+description: After payment is exported to accounting system, send email notification
+  to subcontractor contact email (from Procore) confirming payment is being processed,
+  including amount, expected payment date, and pay application reference.
+acceptanceCriteria:
+- Retrieve subcontractor contact email from Procore pay application or vendor record
+- 'Send email via SendGrid API with template: payment amount, expected date, pay app
+  ID, project name'
+- Include 'Expected payment date' as prompt_pay_deadline or 'within 5-7 business days'
+- Only send email after payment status='exported' (successful accounting system export)
+- Log email send status (success/failure) with payment record
+- Handle missing email addresses gracefully (log warning, don't block workflow)
+decomposition:
+  assignments: []
+dependencies:
+- Export approved payments to QuickBooks Online via API
+source: discovered

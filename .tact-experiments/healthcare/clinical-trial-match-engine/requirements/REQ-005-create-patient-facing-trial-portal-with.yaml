@@ -1,0 +1,22 @@
+title: Create patient-facing trial portal with plain-language descriptions
+approval: draft
+phase: planned
+priority: high
+description: Public-facing web portal where patients can view their matched trials
+  with simplified, plain-language descriptions of trial purpose, eligibility, and
+  enrollment process. No medical jargon; 8th-grade reading level.
+acceptanceCriteria:
+- Patient portal accessible via unique secure link (token-based, no login required
+  for MVP)
+- Displays patient's matched trials with plain-language title and 2-3 sentence description
+  of trial purpose
+- 'Eligibility criteria translated to plain language (e.g., ''You must be between
+  18 and 70 years old'' instead of ''Age: 18-70 years'')'
+- Each trial shows location, contact phone/email, and 'How to Enroll' instructions
+- Content readability validated at 8th-grade level using Flesch-Kincaid score
+- Portal is mobile-responsive and accessible (WCAG 2.1 AA compliance)
+decomposition:
+  assignments: []
+dependencies:
+- Implement patient-to-trial matching engine with scoring
+source: discovered

@@ -1,0 +1,25 @@
+title: Implement transcription pipeline step with provider abstraction
+approval: draft
+phase: planned
+priority: critical
+description: Create the transcription step that takes a Source audio/video file, sends
+  it to a configurable transcription provider, and stores the resulting transcript
+  with timestamps and optional speaker diarization. This step is the foundation for
+  all downstream content analysis.
+acceptanceCriteria:
+- 'An ITranscriptionProvider interface is defined with a transcribe(s3Key: string)
+  method returning { segments: Array<{ start: number, end: number, text: string, speaker?:
+  string }>, fullText: string }'
+- At least one concrete implementation exists (Deepgram API or Whisper.cpp) selected
+  via TRANSCRIPTION_PROVIDER env var
+- The transcription job downloads the source from S3, sends it to the provider, and
+  stores the result as a Transcript record linked to the PipelineRun
+- Transcripts longer than 10 minutes include timestamp segments no longer than 30
+  seconds each
+- The step is idempotent — running it twice for the same PipelineRun reuses or overwrites
+  the existing Transcript without creating duplicates
+decomposition:
+  assignments: []
+dependencies:
+- Build the DAG pipeline engine with BullMQ flows
+source: discovered

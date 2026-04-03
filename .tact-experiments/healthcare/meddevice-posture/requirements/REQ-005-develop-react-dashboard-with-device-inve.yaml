@@ -1,0 +1,22 @@
+title: Develop React dashboard with device inventory and alert views
+approval: draft
+phase: planned
+priority: high
+description: Build web UI showing device inventory table with vulnerability counts,
+  alert feed with MITRE ATT&CK mappings, and device detail pages. Provides security
+  team with actionable visibility into medical device posture.
+acceptanceCriteria:
+- 'Dashboard home page displays device inventory table with columns: device type,
+  IP, firmware version, critical/high/medium vulnerability counts, last seen timestamp'
+- Clicking device row navigates to detail page showing vulnerability list (CVE ID,
+  CVSS score, description, detection date) and recent network activity
+- Alert feed page shows real-time alerts with severity badges, MITRE ATT&CK technique
+  tags, and affected device links
+- Filtering by device type, severity, and date range works on all views
+- UI updates within 30 seconds when new alerts are generated (polling or WebSocket)
+decomposition:
+  assignments: []
+dependencies:
+- Build device inventory repository with vulnerability tracking
+- Create Sigma rule engine for medical device attack patterns
+source: discovered

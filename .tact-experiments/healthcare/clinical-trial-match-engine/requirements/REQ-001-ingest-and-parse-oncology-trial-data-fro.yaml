@@ -1,0 +1,24 @@
+title: Ingest and parse oncology trial data from ClinicalTrials.gov
+approval: draft
+phase: planned
+priority: critical
+description: Fetch active oncology trials (breast, lung, colorectal cancer) from ClinicalTrials.gov
+  API daily, extract eligibility criteria sections, and parse into structured format
+  (age ranges, required diagnoses, excluded conditions, lab value thresholds). Store
+  parsed criteria in database for matching.
+acceptanceCriteria:
+- System retrieves all active trials with condition='breast cancer' OR 'lung cancer'
+  OR 'colorectal cancer' from ClinicalTrials.gov API
+- Eligibility criteria text is extracted and stored with original trial NCT ID and
+  metadata (title, phase, location)
+- Age ranges are parsed into min/max integer values (e.g., '18-65 years' → min=18,
+  max=65)
+- Required diagnosis keywords are extracted and mapped to SNOMED CT codes where possible
+- Lab value thresholds are extracted with parameter name, operator, and value (e.g.,
+  'hemoglobin > 10 g/dL')
+- Parsing errors are logged with trial NCT ID for manual review; trials with parsing
+  failures are flagged but not discarded
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,24 @@
+title: Add CLI entry point for standalone analysis
+approval: draft
+phase: planned
+priority: medium
+description: Provide a CLI interface using click that allows running codebase analysis
+  without an MCP client, outputting results to stdout as JSON or a human-readable
+  summary. Useful for CI integration and debugging.
+acceptanceCriteria:
+- Running `python -m context_footprint_analyzer analyze <directory>` performs a full
+  codebase scan and prints the summary to stdout.
+- Running `python -m context_footprint_analyzer score <file_path>` prints the module
+  score with breakdown.
+- A `--format` flag supports 'json' (default) and 'text' (human-readable table) output
+  formats.
+- 'A `--top-n` flag controls how many hotspots are shown in the analysis summary (default:
+  10).'
+- Exit code is 0 for success, 1 for errors, and optionally 2 if any module exceeds
+  a configurable score threshold (for CI gate use via `--fail-threshold` flag).
+decomposition:
+  assignments: []
+dependencies:
+- Implement the analyze_context_footprint MCP tool
+- Implement the score_module MCP tool
+source: discovered

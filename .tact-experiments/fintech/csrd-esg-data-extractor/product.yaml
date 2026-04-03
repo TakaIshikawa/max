@@ -1,0 +1,69 @@
+name: csrd-esg-data-extractor
+version: 0.1.0
+vision: An affordable, local-first application that ingests financial transaction
+  data via Open Banking APIs and file imports, classifies transactions against CSRD/ESRS
+  taxonomy categories using a locally-run LLM, and generates draft sustainability
+  disclosure reports — enabling mid-market firms to meet CSRD reporting mandates without
+  enterprise-grade ESG platforms or expensive consultants.
+goals:
+- id: G-1
+  description: Enable ingestion and normalization of financial transaction data from
+    multiple sources (CSV, OFX, QIF files and mock Open Banking API responses) into
+    a unified transaction store.
+  successCriteria: The system can ingest at least 3 file formats (CSV, OFX, QIF) and
+    a mock PSD2 API response, normalizing all into a common transaction schema with
+    ≥95% field-mapping accuracy on test datasets.
+- id: G-2
+  description: Classify financial transactions against ESRS taxonomy categories (E1-E5,
+    S1-S4, G1-G2) using a locally-run LLM with confidence scoring, routing low-confidence
+    items to human review.
+  successCriteria: Each ingested transaction receives an ESRS category classification
+    and a confidence score (0-1). Transactions with confidence below a configurable
+    threshold (default 0.7) are automatically flagged for human review. Classification
+    throughput supports ≥100 transactions/minute on consumer hardware via Ollama.
+- id: G-3
+  description: Generate draft CSRD disclosure documents from aggregated classified
+    transaction data using structured templates.
+  successCriteria: The system produces a downloadable draft CSRD disclosure report
+    covering at least the E1 (Climate Change) and S1 (Own Workforce) ESRS topics,
+    with aggregated metrics, data lineage references, and per-section confidence indicators.
+- id: G-4
+  description: Provide a review interface where compliance officers can verify, override,
+    and correct AI classifications, creating a feedback loop for continuous improvement.
+  successCriteria: A web UI allows users to filter transactions by confidence level,
+    view classification rationale, override categories, and submit corrections. All
+    overrides are persisted in an audit trail and exportable as training feedback
+    data.
+constraints:
+- MVP scope limited to file-based ingestion (CSV, OFX, QIF) plus a mock Open Banking
+  PSD2 endpoint — no live bank API integration in v0.1.0
+- LLM inference must run entirely locally via Ollama; no external API calls for classification
+  to satisfy data sovereignty requirements
+- MVP uses a prompted general-purpose model (e.g., Mistral 7B or Llama 3 8B) with
+  a detailed ESRS taxonomy system prompt — full FinGPT fine-tuning with LoRA is deferred
+  to post-MVP
+- SQLite is the only supported database for MVP; PostgreSQL support is deferred
+- CSRD template generation covers E1 (Climate Change) and S1 (Own Workforce) ESRS
+  topics only — remaining topics (E2-E5, S2-S4, G1-G2) are post-MVP
+- Frontend is a single-page React app communicating with the FastAPI backend via REST;
+  no SSR or complex state management required
+- All financial data stays on the local machine; no telemetry, analytics, or external
+  data transmission of any kind
+- Target deployment is a single developer/compliance officer machine — no multi-tenancy,
+  auth, or horizontal scaling in MVP
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - SQLAlchemy
+  - Pydantic v2
+  - React 18
+  - Jinja2
+  - Pytest
+  infrastructure:
+  - SQLite (default, single-file DB)
+  - Ollama (local LLM inference)
+  - Docker / Docker Compose (optional dev environment)
+  - Node.js 20+ (frontend build)

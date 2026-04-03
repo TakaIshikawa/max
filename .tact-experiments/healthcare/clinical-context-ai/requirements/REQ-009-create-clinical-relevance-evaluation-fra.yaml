@@ -1,0 +1,22 @@
+title: Create clinical relevance evaluation framework
+approval: draft
+phase: planned
+priority: medium
+description: Build testing framework to measure compression quality using clinical
+  relevance metrics. Validates that compressed context retains information necessary
+  for clinical decision-making compared to full chart.
+acceptanceCriteria:
+- Test suite with 10 synthetic patient scenarios covering common clinical queries
+  (diabetes management, cardiac risk assessment, medication reconciliation)
+- 'Metrics: problem_list_retention (% of active problems included), medication_retention
+  (% of current meds included), temporal_relevance (% of recent events captured)'
+- 'Comparison baseline: naive truncation vs. hybrid retrieval compression'
+- Automated test runs on each build and reports compression_ratio, retention_metrics,
+  and retrieval_latency
+- Physician review checklist template for manual validation of clinical accuracy
+- 'Performance benchmark: process 100-note patient chart in ≤2 seconds end-to-end'
+decomposition:
+  assignments: []
+dependencies:
+- Create context compression and token optimization
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement competitor landscape data model and CRUD
+approval: draft
+phase: planned
+priority: high
+description: Create the schema and API for tracking competitors in the regtech/compliance
+  space. Each competitor entry captures the company, what compliance area they address,
+  their maturity level, and coverage gaps. This enables founders to identify underserved
+  market segments.
+acceptanceCriteria:
+- 'Database table stores: id, company_name, website_url, compliance_categories (array),
+  description, funding_stage, coverage_notes, gap_notes, created_at, updated_at.'
+- GET /api/v1/competitors returns all competitors with optional filter by compliance_category.
+- POST /api/v1/competitors creates a new entry with validation.
+- PUT /api/v1/competitors/{id} updates an existing entry.
+- DELETE /api/v1/competitors/{id} removes an entry.
+- Alembic seed migration populates at least 10 real regtech competitors across DORA,
+  CSRD, and EU AI Act categories.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered
