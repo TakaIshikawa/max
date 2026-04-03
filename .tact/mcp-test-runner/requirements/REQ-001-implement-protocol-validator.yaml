@@ -1,0 +1,12 @@
+title: Implement protocol validator
+approval: draft
+phase: planned
+priority: critical
+description: Core validation engine
+acceptanceCriteria:
+- Validates initialize
+- Validates tool listing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

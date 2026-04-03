@@ -9,6 +9,12 @@ import pytest
 
 from max.evaluation.weights import DEFAULT_WEIGHTS
 from max.pipeline.runner import PipelineResult, run_pipeline
+from max.profiles.schema import (
+    DomainContext,
+    EvaluationConfig,
+    PipelineProfile,
+    SourceConfig,
+)
 from max.store.db import Store
 from max.synthesis.engine import SynthesisOutput, InsightOutput
 from max.ideation.engine import IdeationOutput, BuildableUnitOutput
@@ -602,3 +608,361 @@ def test_pipeline_meta_intelligence_features(tmp_path: Path) -> None:
     # Output files created
     project_dir = output_dir / "mcp-test-runner"
     assert project_dir.exists()
+
+
+# ── Profile-aware pipeline e2e tests ──────────────────────────────
+
+
+def _make_healthcare_profile(output_dir: str = ".tact") -> PipelineProfile:
+    """Construct a healthcare profile for testing (no YAML file dependency)."""
+    return PipelineProfile(
+        name="healthcare",
+        domain=DomainContext(
+            name="healthcare",
+            description=(
+                "Healthcare technology and clinical operations. "
+                "Focus on EHR interoperability, clinical decision support, and patient engagement"
+            ),
+            categories=[
+                "clinical_tool",
+                "patient_portal",
+                "ehr_integration",
+                "compliance_automation",
+                "telehealth",
+                "workflow_automation",
+                "application",
+                "library",
+            ],
+            target_user_types=["clinicians", "patients", "administrators", "both"],
+            extra_instructions=(
+                "HIPAA compliance is mandatory. Prioritize solutions that reduce clinician burnout."
+            ),
+        ),
+        sources=[
+            SourceConfig(adapter="hackernews", params={"filter_keywords": ["health", "medical", "ehr"]}),
+            SourceConfig(adapter="npm_registry", params={"queries": ["fhir", "ehr", "health"]}),
+        ],
+        evaluation=EvaluationConfig(weight_profile="default", min_score=40.0),
+        output_dir=output_dir,
+        signal_limit=10,
+        ideation_mode="direct",
+    )
+
+
+def _mock_healthcare_ideation_output() -> IdeationOutput:
+    """Healthcare-domain ideation mock (uses healthcare-relevant categories)."""
+    return IdeationOutput(
+        ideas=[
+            BuildableUnitOutput(
+                title="FHIR Data Sync",
+                one_liner="Automated EHR interoperability via FHIR R4",
+                category="ehr_integration",
+                problem="Healthcare data silos between EHR systems",
+                solution="FHIR R4 sync engine with bidirectional mapping",
+                target_users="clinicians",
+                value_proposition="Reduce manual data entry by 60%",
+                inspiring_insights=["ins-mock001"],
+                tech_approach="Python service with FHIR R4 client",
+                suggested_stack={"language": "python"},
+                composability_notes="Integrates with any FHIR R4-compliant EHR",
+            ),
+        ]
+    )
+
+
+def _mock_healthcare_spec_output() -> SpecOutput:
+    return SpecOutput(
+        name="fhir-data-sync",
+        vision="Automated EHR interoperability",
+        goals=[GoalOutput(id="G-1", description="Sync FHIR resources", success_criteria="Round-trip accuracy")],
+        tech_stack=TechStackOutput(languages=["Python"], frameworks=["FastAPI"], infrastructure=["Docker"]),
+        constraints=["HIPAA compliant"],
+        patterns=[],
+        invariants=["PHI must be encrypted at rest"],
+        conventions=["snake_case"],
+        decisions=[DecisionOutput(id="ADR-1", title="Use FHIR R4", decision="R4", rationale="Latest standard")],
+        requirements=[
+            RequirementOutput(
+                title="Implement FHIR sync",
+                priority="critical",
+                description="Core sync engine",
+                acceptance_criteria=["Supports Patient resource", "Supports Observation resource"],
+            ),
+        ],
+    )
+
+
+def _mock_healthcare_structured_call(system, prompt, output_type, **kwargs):
+    """Structured call mock that returns healthcare-domain outputs."""
+    global _call_count
+    _call_count += 1
+    type_name = output_type.__name__
+    _captured_calls.append({"stage": type_name, "system": system, "prompt": prompt})
+
+    if type_name == "SynthesisOutput":
+        return _mock_synthesis_output()
+    elif type_name == "IdeationOutput":
+        return _mock_healthcare_ideation_output()
+    elif type_name == "EvaluationOutput":
+        return _mock_evaluation_output()
+    elif type_name == "SpecOutput":
+        return _mock_healthcare_spec_output()
+    else:
+        raise ValueError(f"Unexpected output_type: {type_name}")
+
+
+def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
+    """Profile's DomainContext appears in LLM system prompts for all stages."""
+    db_path = str(tmp_path / "test_profile.db")
+    output_dir = tmp_path / ".tact"
+    profile = _make_healthcare_profile(str(output_dir))
+
+    hn_responses = {
+        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
+        "item/1.json": MagicMock(
+            json=lambda: _mock_hn_item(1, "EHR Interoperability Framework"),
+            raise_for_status=lambda: None,
+        ),
+    }
+    npm_response = MagicMock(
+        json=lambda: {"objects": [{"package": {"name": "fhir-client", "description": "FHIR R4 client", "version": "2.0.0"}, "searchScore": 40000}]},
+        raise_for_status=lambda: None,
+    )
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        for key, resp in hn_responses.items():
+            if url.endswith(key):
+                return resp
+        return npm_response
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
+        patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
+        patch("max.llm.client.get_client"),
+        patch("max.synthesis.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.ideation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.evaluation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.spec.generator.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.store.db.DB_PATH", db_path),
+        patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
+    ):
+        result = run_pipeline(profile=profile)
+
+    # -- Result records profile name --
+    assert result.profile_name == "healthcare"
+
+    # -- Synthesis system prompt contains healthcare domain --
+    synth_calls = [c for c in _captured_calls if c["stage"] == "SynthesisOutput"]
+    assert len(synth_calls) == 1
+    synth_system = synth_calls[0]["system"]
+    assert "Healthcare technology" in synth_system
+    assert "clinical" in synth_system.lower()
+    assert "HIPAA" in synth_system  # extra_instructions threaded
+    # Should NOT contain dev-tools defaults
+    assert "developer tools" not in synth_system.lower()
+
+    # Synthesis user prompt references healthcare domain
+    synth_prompt = synth_calls[0]["prompt"]
+    assert "the healthcare ecosystem" in synth_prompt
+
+    # -- Ideation system prompt contains healthcare categories + target users --
+    ideation_calls = [c for c in _captured_calls if c["stage"] == "IdeationOutput"]
+    assert len(ideation_calls) >= 1
+    ideation_system = ideation_calls[0]["system"]
+    assert "Healthcare technology" in ideation_system
+    assert "clinical_tool" in ideation_system
+    assert "ehr_integration" in ideation_system
+    assert "clinicians" in ideation_system
+    # extra_instructions in ideation system prompt
+    assert "HIPAA" in ideation_system
+
+    # Ideation user prompt references healthcare domain
+    ideation_prompt = ideation_calls[0]["prompt"]
+    assert "the healthcare domain" in ideation_prompt
+
+    # -- Evaluation system prompt contains healthcare description --
+    eval_calls = [c for c in _captured_calls if c["stage"] == "EvaluationOutput"]
+    assert len(eval_calls) >= 1
+    eval_system = eval_calls[0]["system"]
+    assert "Healthcare technology" in eval_system
+
+    # -- Pipeline output structure is correct --
+    assert isinstance(result, PipelineResult)
+    assert result.signals_fetched > 0
+    assert result.insights_generated == 1
+    assert result.ideas_generated == 1
+    assert result.ideas_evaluated == 1
+    assert result.specs_generated == 1
+
+
+def test_profile_source_configs_control_adapters(tmp_path: Path) -> None:
+    """Profile's source configs determine which adapters are instantiated."""
+    db_path = str(tmp_path / "test_source_cfg.db")
+
+    # Profile with ONLY hackernews — npm_registry, reddit, github etc. excluded
+    profile = PipelineProfile(
+        name="minimal-test",
+        domain=DomainContext(
+            name="test-domain",
+            description="Test domain for adapter filtering",
+            categories=["test_tool"],
+            target_user_types=["testers"],
+        ),
+        sources=[
+            SourceConfig(adapter="hackernews", params={"filter_keywords": ["test"]}),
+            # npm_registry is disabled
+            SourceConfig(adapter="npm_registry", enabled=False, params={"queries": ["test"]}),
+        ],
+        evaluation=EvaluationConfig(min_score=40.0),
+        signal_limit=5,
+    )
+
+    hn_responses = {
+        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
+        "item/1.json": MagicMock(
+            json=lambda: _mock_hn_item(1, "Test Framework"),
+            raise_for_status=lambda: None,
+        ),
+    }
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        for key, resp in hn_responses.items():
+            if url.endswith(key):
+                return resp
+        raise AssertionError(f"Unexpected URL fetch: {url} — npm adapter should be disabled")
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
+        patch("max.llm.client.get_client"),
+        patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
+        patch("max.store.db.DB_PATH", db_path),
+        patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
+    ):
+        result = run_pipeline(profile=profile)
+
+    # Pipeline completed with only hackernews adapter
+    assert result.signals_fetched > 0
+    assert result.profile_name == "minimal-test"
+    # Only hackernews should appear in fetch_allocation
+    assert "hackernews" in result.fetch_allocation
+    assert "npm_registry" not in result.fetch_allocation
+
+
+def test_no_profile_matches_default_behavior(tmp_path: Path) -> None:
+    """Running without a profile produces identical behavior to pre-profile code."""
+    db_path = str(tmp_path / "test_default.db")
+    output_dir = tmp_path / ".tact"
+
+    hn_responses = {
+        "topstories.json": MagicMock(json=lambda: [1, 2], raise_for_status=lambda: None),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Agent Framework"), raise_for_status=lambda: None),
+        "item/2.json": MagicMock(json=lambda: _mock_hn_item(2, "MCP Security Audit"), raise_for_status=lambda: None),
+    }
+    npm_response = MagicMock(
+        json=lambda: {"objects": [{"package": {"name": "test-mcp", "description": "test", "version": "1.0.0"}, "searchScore": 50000}]},
+        raise_for_status=lambda: None,
+    )
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        for key, resp in hn_responses.items():
+            if url.endswith(key):
+                return resp
+        return npm_response
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
+        patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
+        patch("max.llm.client.get_client"),
+        patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
+        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
+        patch("max.store.db.DB_PATH", db_path),
+        patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
+    ):
+        # No profile — old-style kwargs only
+        result = run_pipeline(output_dir=output_dir, signal_limit=10, min_score=40.0)
+
+    # profile_name is empty when no profile provided
+    assert result.profile_name == ""
+
+    # Synthesis system prompt uses DEFAULT text (developer tools)
+    synth_calls = [c for c in _captured_calls if c["stage"] == "SynthesisOutput"]
+    assert len(synth_calls) == 1
+    synth_system = synth_calls[0]["system"]
+    assert "developer tools" in synth_system.lower()
+
+    # Ideation system prompt uses DEFAULT text
+    ideation_calls = [c for c in _captured_calls if c["stage"] == "IdeationOutput"]
+    assert len(ideation_calls) >= 1
+    ideation_system = ideation_calls[0]["system"]
+    assert "developer tools" in ideation_system.lower()
+    assert "mcp_server" in ideation_system
+
+    # Pipeline works normally
+    assert result.signals_fetched > 0
+    assert result.insights_generated == 1
+    assert result.ideas_generated == 1
+
+
+def test_profile_from_yaml_loads_and_runs(tmp_path: Path) -> None:
+    """Load a real profile from YAML (healthcare.yaml) and run the pipeline."""
+    from max.profiles.loader import load_profile
+
+    db_path = str(tmp_path / "test_yaml.db")
+
+    profile = load_profile("healthcare")
+    assert profile.name == "healthcare"
+    assert profile.domain.name == "healthcare"
+    assert len(profile.sources) > 0
+
+    # Override output_dir for test isolation
+    mock_signals = [
+        Signal(
+            id="sig-yt01",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="hackernews",
+            title="FHIR interoperability gaps in hospital EHR systems",
+            content="Discussion about EHR data silos and FHIR adoption barriers.",
+            url="https://example.com/ehr-discussion",
+            credibility=0.7,
+        ),
+    ]
+
+    with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=(mock_signals, {"mock": 1})),
+        patch("max.llm.client.get_client"),
+        patch("max.synthesis.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.ideation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.evaluation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.spec.generator.structured_call", side_effect=_mock_healthcare_structured_call),
+        patch("max.store.db.DB_PATH", db_path),
+        patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
+    ):
+        result = run_pipeline(profile=profile, output_dir=tmp_path / ".tact")
+
+    assert result.profile_name == "healthcare"
+    assert result.insights_generated == 1
+    assert result.ideas_generated == 1
+
+    # Verify domain context in prompts
+    synth_calls = [c for c in _captured_calls if c["stage"] == "SynthesisOutput"]
+    assert "Healthcare" in synth_calls[0]["system"]

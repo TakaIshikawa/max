@@ -1,0 +1,13 @@
+title: Add CLI interface
+approval: draft
+phase: planned
+priority: high
+description: CLI entry point
+acceptanceCriteria:
+- Supports --verbose flag
+- Returns exit code
+decomposition:
+  assignments: []
+dependencies:
+- Implement protocol validator
+source: discovered

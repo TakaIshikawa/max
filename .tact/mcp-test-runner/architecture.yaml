@@ -1,0 +1,15 @@
+patterns:
+- name: Plugin
+  description: Pluggable test suites
+  scope:
+  - tests
+invariants:
+- Tests must be deterministic
+conventions:
+- kebab-case files
+decisions:
+- id: ADR-1
+  title: Use stdio transport
+  decision: stdio
+  rationale: Most common
+contracts: []

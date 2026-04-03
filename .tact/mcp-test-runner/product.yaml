@@ -1,0 +1,16 @@
+name: mcp-test-runner
+version: 0.1.0
+vision: Automated MCP server testing
+goals:
+- id: G-1
+  description: Validate MCP compliance
+  successCriteria: 100% protocol coverage
+constraints:
+- MVP scope only
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - Node.js
+  infrastructure:
+  - npm
