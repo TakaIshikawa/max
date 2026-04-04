@@ -1,0 +1,21 @@
+title: Ingest GitHub security advisories for AI/ML frameworks
+approval: draft
+phase: planned
+priority: critical
+description: Poll GitHub GraphQL API every 30 minutes to fetch security advisories
+  for monitored AI/ML frameworks (MCP, LangChain, LlamaIndex, OpenAI SDKs, etc.).
+  Parse advisory data including CVE IDs, GHSA IDs, severity, affected versions, and
+  patched versions. Store in PostgreSQL with deduplication logic.
+acceptanceCriteria:
+- GraphQL query fetches advisories for pip and npm ecosystems filtered by monitored
+  framework list
+- Advisories are parsed into structured records with CVE ID, GHSA ID, severity (CVSS
+  score), affected versions, and publication timestamp
+- Deduplication prevents duplicate storage of same advisory across polling cycles
+- Polling job runs every 30 minutes with error handling and retry logic (3 retries
+  with exponential backoff)
+- Ingestion timestamp and source attribution (GitHub) are recorded for each advisory
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

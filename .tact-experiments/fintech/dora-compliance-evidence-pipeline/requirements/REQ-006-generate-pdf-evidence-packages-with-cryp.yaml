@@ -1,0 +1,23 @@
+title: Generate PDF evidence packages with cryptographic signatures
+approval: draft
+phase: planned
+priority: high
+description: Implement PDF report generation that compiles evidence items for specified
+  DORA controls into formatted audit package with metadata header, evidence details,
+  and SHA-256 signature. PDF format is standard for regulatory audit submissions.
+acceptanceCriteria:
+- PDF generator accepts control IDs and date range as input parameters
+- 'Generated PDF includes: cover page with generation timestamp and control scope,
+  evidence summary table, detailed evidence entries with source tool and timestamps'
+- PDF metadata includes SHA-256 hash of content for integrity verification
+- Uses ReportLab or WeasyPrint library for PDF generation with consistent formatting
+  template
+- 'PDF stored in reports/ directory with filename format: DORA_Evidence_{control_ids}_{timestamp}.pdf'
+- API endpoint POST /api/v1/reports/generate returns PDF download link and signature
+  hash
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence correlation engine with DORA control mappings
+- Create immutable audit trail with PostgreSQL triggers
+source: discovered

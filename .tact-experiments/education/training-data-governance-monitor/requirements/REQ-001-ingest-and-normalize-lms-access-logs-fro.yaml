@@ -1,0 +1,20 @@
+title: Ingest and normalize LMS access logs from multiple formats
+approval: draft
+phase: planned
+priority: critical
+description: 'Accept log files in ECS (Elastic Common Schema) and generic JSON formats,
+  parse them into normalized schema with fields: timestamp, user_id, vendor_id, action,
+  resource_type, record_count, ip_address. Store normalized events in Elasticsearch
+  with 24-hour indexing latency SLA.'
+acceptanceCriteria:
+- Parse ECS-formatted logs and extract user_id, timestamp, action, source.ip into
+  normalized schema
+- Parse generic JSON logs with configurable field mappings (e.g., 'actor' -> user_id,
+  'event' -> action)
+- Reject malformed logs with validation errors logged to separate error index
+- Index normalized logs in Elasticsearch within 5 minutes of ingestion
+- Support batch upload of log files up to 100MB via REST API endpoint
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

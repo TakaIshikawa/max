@@ -1,0 +1,19 @@
+title: Implement policy library schema validation
+approval: draft
+phase: planned
+priority: medium
+description: Validate HIPAA role bundle YAML files against JSON schema on load to
+  catch malformed policy definitions before OPA evaluation.
+acceptanceCriteria:
+- Define JSON schema for role bundle YAML structure with required fields (name, permissions,
+  platform_mappings)
+- CLI validates all policy YAML files in policies/bundles/ directory on startup
+- Report schema validation errors with field path and expected type/format
+- Reject policy bundles missing required HIPAA control mappings
+- Support --validate-policies flag to check policy library without running configuration
+  validation
+decomposition:
+  assignments: []
+dependencies:
+- Create HIPAA-aligned role bundle library
+source: discovered

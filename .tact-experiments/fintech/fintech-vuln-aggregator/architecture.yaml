@@ -1,0 +1,80 @@
+patterns:
+- name: Scheduled Job Pattern
+  description: APScheduler manages periodic polling of external sources (GitHub, CVE
+    feeds, vendor RSS). Each source has a dedicated job with configurable intervals
+    and retry logic.
+  scope:
+  - vulnerability ingestion
+  - data aggregation
+- name: Repository Pattern
+  description: Abstract database operations behind repository interfaces for vulnerabilities,
+    frameworks, and alerts. Enables testing with in-memory repositories and future
+    database migrations.
+  scope:
+  - data access layer
+  - vulnerability storage
+- name: Adapter Pattern
+  description: Notification adapters (Slack, PagerDuty) implement common interface
+    for sending alerts. New channels can be added without modifying core alert logic.
+  scope:
+  - notification system
+  - integrations
+- name: Pipeline Pattern
+  description: 'Vulnerability processing pipeline: fetch → parse → deduplicate → score
+    → store → notify. Each stage is independently testable and can be extended.'
+  scope:
+  - vulnerability processing
+  - risk scoring
+invariants:
+- Every vulnerability must have a unique identifier (CVE ID, GHSA ID, or vendor advisory
+  ID)
+- Vulnerability records are immutable once created (updates create new versions with
+  timestamps)
+- Risk scores must be recalculated whenever CVSS, prevalence data, or exploit availability
+  changes
+- 'No duplicate notifications: each vulnerability-channel-recipient combination can
+  only be notified once'
+- All external API calls must have timeout limits (max 30 seconds) and exponential
+  backoff retry logic
+- Vulnerability data must include source attribution (GitHub, NVD, vendor) and ingestion
+  timestamp
+- Framework monitoring list must be configurable without code changes (database or
+  config file)
+conventions:
+- Use snake_case for Python functions, variables, and database columns
+- Use PascalCase for class names and Pydantic models
+- Prefix environment variables with FVULN_ (e.g., FVULN_GITHUB_TOKEN)
+- 'API endpoints follow REST conventions: /api/v1/vulnerabilities, /api/v1/frameworks'
+- 'Database migrations use Alembic with descriptive names: YYYYMMDD_description.py'
+- 'Log levels: DEBUG for polling details, INFO for vulnerability ingestion, WARNING
+  for API rate limits, ERROR for failures'
+- All timestamps stored in UTC with timezone awareness
+- 'Test files mirror source structure: tests/test_<module_name>.py'
+decisions:
+- id: D-1
+  title: Use GitHub GraphQL API over REST for security advisories
+  decision: Implement GitHub advisory fetching using GraphQL queries with ecosystem
+    filters for Python (pip) and JavaScript (npm) packages
+  rationale: GraphQL API provides structured access to GitHub Security Advisories
+    with filtering by ecosystem (pip, npm) and severity. Single query can fetch advisories
+    with CVE mappings, affected versions, and CVSS scores, reducing API calls by 80%
+    compared to REST pagination.
+- id: D-2
+  title: PostgreSQL over NoSQL for vulnerability storage
+  decision: Use PostgreSQL with SQLAlchemy ORM, JSONB columns for extensible metadata,
+    and unique constraints for deduplication
+  rationale: Vulnerability data has structured relationships (frameworks, CVEs, advisories,
+    alerts) that benefit from relational integrity. Need for complex queries (filter
+    by severity, framework, date range) and deduplication logic across sources. PostgreSQL
+    JSONB columns provide flexibility for vendor-specific metadata while maintaining
+    relational structure.
+- id: D-3
+  title: 'Hybrid deployment: Docker container + AWS Lambda for scheduled jobs'
+  decision: Deploy FastAPI as ECS Fargate container for API, separate Lambda functions
+    for each polling job (GitHub, CVE, vendors), shared RDS PostgreSQL database
+  rationale: FastAPI server needs persistent uptime for API/webhook access, but polling
+    jobs are periodic and can run serverless to reduce costs. Lambda functions for
+    polling (triggered by EventBridge) write to shared RDS PostgreSQL. API container
+    reads from same database. Reduces infrastructure costs by 60% compared to always-on
+    EC2 instances.
+contracts: []

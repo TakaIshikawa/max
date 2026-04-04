@@ -1,0 +1,76 @@
+patterns:
+- name: Infrastructure as Code
+  description: All lab environments provisioned via Terraform modules with declarative
+    configuration. Each scenario defines required infrastructure (VMs, databases,
+    services) as code for reproducibility.
+  scope:
+  - lab-provisioner
+  - scenario-engine
+- name: Command-Query Responsibility Segregation (CQRS)
+  description: Separate read models for progress tracking/analytics from write models
+    for command execution and validation. xAPI statements written to event store,
+    queried via separate analytics service.
+  scope:
+  - progress-tracker
+  - analytics-service
+- name: Adapter Pattern for PTY Integration
+  description: Abstract PTY operations behind adapter interface to allow swapping
+    implementations (subprocess wrapper, native API when available, mock for testing)
+    without changing core agent logic.
+  scope:
+  - ai-agent
+  - pty-handler
+- name: Scenario State Machine
+  description: Each training scenario modeled as finite state machine with defined
+    states, transitions, and validation criteria. Enables consistent progress tracking
+    and hint generation.
+  scope:
+  - scenario-engine
+  - validation-service
+invariants:
+- Lab environments must be fully isolated - no network connectivity between different
+  user sessions
+- All user shell commands must be logged with timestamps before execution for audit
+  trail
+- Lab environments must be automatically destroyed after session timeout (60 min)
+  or explicit termination
+- AI agent must never execute commands directly - only provide guidance and validate
+  user-executed commands
+- Scenario validation must be deterministic - same commands in same order always produce
+  same validation result
+- User credentials for lab environments must be unique per session and never reused
+- All PTY sessions must have command history captured for xAPI statement generation
+conventions:
+- Use kebab-case for all service names and API endpoints
+- Prefix environment variables with service name (e.g., PROVISIONER_*, AGENT_*)
+- All async operations return task IDs for polling-based status checks
+- Terraform modules versioned and stored in separate repository with semantic versioning
+- xAPI statements follow ADL xAPI profile for simulation-based learning
+- API responses follow JSON:API specification for consistency
+- All timestamps in ISO 8601 format with UTC timezone
+- Shell command validation uses exit codes + output pattern matching
+- Scenario definitions stored as YAML with JSON Schema validation
+decisions:
+- id: D-1
+  title: Use subprocess wrapper for PTY instead of waiting for native API
+  decision: Implement PTY support by wrapping Claude API calls with Python pty module
+    that intercepts shell I/O, sends context to Claude, and applies responses to the
+    pseudo-terminal
+  rationale: Native PTY-enabled AI APIs don't exist yet. Subprocess wrapper allows
+    MVP development now while maintaining adapter pattern for future migration. Adds
+    latency but proves concept feasibility.
+- id: D-2
+  title: Kubernetes namespaces for isolation instead of separate clusters
+  decision: Provision each lab environment as isolated Kubernetes namespace with network
+    policies, not separate clusters
+  rationale: Reduces infrastructure costs and provisioning time (target <2 min). Namespaces
+    with network policies provide sufficient isolation for training scenarios. Separate
+    clusters would exceed MVP budget and complexity.
+- id: D-3
+  title: Predefined decision trees for AI guidance instead of autonomous agents
+  decision: AI hints and validation follow scenario-specific decision trees with Claude
+    used for natural language generation, not autonomous problem-solving
+  rationale: Reduces unpredictability and ensures consistent training outcomes. Autonomous
+    agents could provide incorrect guidance or validate wrong solutions. Decision
+    trees allow expert-authored content with AI-enhanced UX.
+contracts: []

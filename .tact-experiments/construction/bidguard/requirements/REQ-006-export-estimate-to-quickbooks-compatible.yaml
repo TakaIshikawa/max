@@ -1,0 +1,19 @@
+title: Export estimate to QuickBooks-compatible CSV
+approval: draft
+phase: planned
+priority: high
+description: Generate CSV file formatted for QuickBooks import, enabling contractors
+  to convert accepted estimates into project budgets and invoices. Reduces double-entry
+  and ensures estimate data flows into accounting system.
+acceptanceCriteria:
+- 'CSV export includes columns: Item, Description, Quantity, Unit, Rate, Amount, Category'
+- Monetary values formatted with 2 decimal places, no currency symbols
+- Excluded line items omitted from CSV export entirely
+- 'CSV filename format: EstimateName_QuickBooks_YYYYMMDD.csv'
+- Export validates that all line items have required fields before generating CSV
+- Generated CSV passes QuickBooks Desktop import validation (tested with sample file)
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

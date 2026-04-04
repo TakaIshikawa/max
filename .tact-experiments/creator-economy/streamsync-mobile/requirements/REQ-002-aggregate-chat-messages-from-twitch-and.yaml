@@ -1,0 +1,24 @@
+title: Aggregate chat messages from Twitch and YouTube Live into unified feed
+approval: draft
+phase: planned
+priority: critical
+description: Establish WebSocket connections to Twitch IRC and YouTube Live Chat API
+  to receive real-time chat messages. Display messages in a unified chronological
+  feed with platform identification tags. This is the core value proposition for multi-platform
+  streamers.
+acceptanceCriteria:
+- Chat messages from Twitch appear in unified feed with 'Twitch' platform tag within
+  2 seconds of being sent
+- Chat messages from YouTube Live appear in unified feed with 'YouTube' platform tag
+  within 2 seconds of being sent
+- Messages are displayed in chronological order regardless of source platform
+- Each message shows username, message content, timestamp, and platform tag
+- WebSocket reconnection occurs automatically with exponential backoff if connection
+  drops
+- Chat feed scrolls automatically to newest message unless user has scrolled up to
+  view history
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authentication for Twitch and YouTube
+source: discovered

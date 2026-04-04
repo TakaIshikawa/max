@@ -1,0 +1,21 @@
+title: Build review queue API endpoints
+approval: draft
+phase: planned
+priority: critical
+description: Create REST API endpoints for retrieving documents pending review and
+  submitting human validation decisions. Enables frontend review queue UI to function.
+acceptanceCriteria:
+- GET /api/v1/review-queue returns paginated list of documents with status='pending_review'
+  ordered by upload timestamp
+- GET /api/v1/documents/{id} returns document metadata, S3 presigned URL, and extracted
+  fields with confidence scores
+- POST /api/v1/documents/{id}/review accepts validated field corrections and approval/rejection
+  decision
+- Updates document status to 'approved' or 'rejected' based on review decision
+- Creates audit event for human review with user_id, timestamp, original vs corrected
+  field values
+decomposition:
+  assignments: []
+dependencies:
+- Implement extraction orchestration service
+source: discovered

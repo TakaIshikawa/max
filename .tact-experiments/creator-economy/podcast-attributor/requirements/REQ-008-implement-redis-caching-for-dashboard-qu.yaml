@@ -1,0 +1,19 @@
+title: Implement Redis caching for dashboard query performance
+approval: draft
+phase: planned
+priority: medium
+description: Cache frequently accessed analytics aggregations in Redis to reduce database
+  load and improve dashboard response times, especially for users with large historical
+  datasets.
+acceptanceCriteria:
+- Dashboard summary metrics (total downloads, 7-day trends) are cached with 1-hour
+  TTL
+- Cache keys include user_id and time_range to prevent data leakage between users
+- Cache invalidation occurs automatically after ETL pipeline completes new data ingestion
+- Cache hit rate exceeds 80% for dashboard page loads during normal usage
+- Fallback to database queries occurs gracefully if Redis is unavailable
+decomposition:
+  assignments: []
+dependencies:
+- Create unified analytics dashboard displaying aggregated download metrics
+source: discovered

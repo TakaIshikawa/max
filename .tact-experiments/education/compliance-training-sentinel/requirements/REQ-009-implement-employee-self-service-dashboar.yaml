@@ -1,0 +1,20 @@
+title: Implement employee self-service dashboard
+approval: draft
+phase: planned
+priority: medium
+description: Build employee-facing web dashboard showing personal certification status,
+  upcoming deadlines, completion history, and direct links to training courses. Reduces
+  HR support requests and empowers employees to self-manage compliance.
+acceptanceCriteria:
+- Dashboard displays all assigned certifications with status indicators (current,
+  expiring soon, expired)
+- Shows countdown timer for certifications expiring within 30 days
+- Provides direct links to LMS course enrollment pages for incomplete certifications
+- Displays completion history with dates and scores for past certifications
+- Sends browser notification when employee has certifications due within 7 days
+- Loads dashboard data in under 2 seconds for employees with 20+ certifications
+decomposition:
+  assignments: []
+dependencies:
+- Build deadline detection agent
+source: discovered

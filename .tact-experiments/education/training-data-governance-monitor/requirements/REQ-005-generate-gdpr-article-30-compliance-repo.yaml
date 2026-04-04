@@ -1,0 +1,23 @@
+title: Generate GDPR Article 30 compliance reports
+approval: draft
+phase: planned
+priority: high
+description: Produce records of processing activities report listing all vendors,
+  data categories processed (employee PII, training records, performance data), legal
+  basis for processing, and retention periods. Export as PDF and JSON formats.
+acceptanceCriteria:
+- Query integrations and vendors tables to compile list of all active third-party
+  processors
+- 'Map integration.data_fields to GDPR data categories: ''PII'' (name, email), ''Training
+  Records'' (course completions), ''Performance Data'' (assessment scores)'
+- 'Generate report with sections: Controller info, Processor list (vendor name, contact,
+  data categories, legal basis, retention period)'
+- 'Export report as JSON with schema: {generated_at, controller, processors: [{vendor_name,
+  data_categories, legal_basis, retention_days}]}'
+- Store generated reports in PostgreSQL compliance_reports table with cryptographic
+  hash for immutability verification
+decomposition:
+  assignments: []
+dependencies:
+- Maintain vendor and integration registry
+source: discovered

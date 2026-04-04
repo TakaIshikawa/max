@@ -1,0 +1,49 @@
+name: osintsandbox-mcp
+version: 0.1.0
+vision: An MCP server that enables security teams to safely execute untrusted OSINT
+  and security research tools through automated supply chain vetting and containerized,
+  network-monitored execution environments, eliminating the risk of installing malicious
+  packages on analyst workstations.
+goals:
+- id: G-1
+  description: Provide automated supply chain risk assessment for OSINT tools before
+    installation
+  successCriteria: Successfully analyze and score at least 3 PyPI packages for malicious
+    patterns, dependency risks, and maintainer reputation with results returned in
+    under 30 seconds per package
+- id: G-2
+  description: Enable isolated execution of untrusted tools with comprehensive monitoring
+  successCriteria: Execute at least 2 different OSINT tools in containerized environments
+    with complete network traffic logging and filesystem isolation, with zero host
+    system exposure
+- id: G-3
+  description: Detect and alert on suspicious tool behavior during execution
+  successCriteria: Identify and log at least 3 categories of suspicious behavior (unexpected
+    network calls, credential access attempts, unusual file operations) with actionable
+    alerts
+- id: G-4
+  description: Maintain audit trail of tool usage for compliance and incident response
+  successCriteria: Generate structured execution logs containing tool identity, vetting
+    score, network activity, and file access for every tool execution, exportable
+    in JSON format
+constraints:
+- MVP focuses on PyPI packages only (no npm/gem support in initial release)
+- Requires Docker Engine running on host system (no Podman support initially)
+- Network monitoring limited to HTTP/HTTPS traffic inspection (no deep packet inspection
+  of encrypted protocols)
+- Static analysis detects common malicious patterns only (no ML-based anomaly detection)
+- Single-container execution model (no support for multi-container tool orchestration)
+- Manual result extraction via MCP tools (no automatic SIEM integration in MVP)
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - MCP SDK (Python)
+  - Docker SDK for Python
+  - mitmproxy
+  - Bandit
+  - semgrep
+  infrastructure:
+  - Docker Engine
+  - Container networking (bridge mode)
+  - Volume mounts for result extraction

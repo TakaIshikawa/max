@@ -1,0 +1,19 @@
+title: Generate index files for easy imports
+approval: draft
+phase: planned
+priority: medium
+description: Create index.ts files in types/, schemas/, and factories/ directories
+  that re-export all generated code, enabling clean imports like 'import { PatientSchema
+  } from './generated/schemas'.
+acceptanceCriteria:
+- Index files generated in types/, schemas/, and factories/ directories
+- Index files export all generated types, schemas, and factories by name
+- 'Imports work correctly: import { PatientSchema, buildPatient } from generated code'
+- Index files include header comment indicating they are auto-generated
+decomposition:
+  assignments: []
+dependencies:
+- Generate Zod schemas with embedded FHIR metadata
+- Generate Fishery test data factories from FHIR examples
+- Generate TypeScript type definitions from Zod schemas
+source: discovered

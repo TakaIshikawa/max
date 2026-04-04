@@ -1,0 +1,21 @@
+title: Store reports locally in SQLite with offline persistence
+approval: draft
+phase: planned
+priority: critical
+description: All report data (transcript, photos, metadata, structured fields) must
+  persist to local SQLite database before any UI confirmation. Enables offline-first
+  workflow and prevents data loss.
+acceptanceCriteria:
+- SQLite schema includes tables for reports, photos, sync_queue with proper foreign
+  key relationships
+- Report save operation writes to SQLite within 500ms, with transaction rollback on
+  any error
+- User can close app and reopen to see all previously created reports in 'Pending
+  Sync' list
+- Database includes indexes on report_id, created_at, and sync_status for fast queries
+- 'Reports marked with sync_status enum: ''pending'', ''in_progress'', ''completed'',
+  ''failed'''
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,19 @@
+title: Test token storage and leakage detection
+approval: draft
+phase: planned
+priority: high
+description: Validate that access tokens and refresh tokens are not leaked through
+  insecure channels (URL parameters, referrer headers, logs) and detect insufficient
+  token entropy.
+acceptanceCriteria:
+- Flag as HIGH if access_token appears in redirect_uri query parameters instead of
+  fragment
+- Detect tokens in HTTP Referer headers during post-authorization redirects
+- Validate access_token and refresh_token entropy (minimum 128 bits)
+- Check for token exposure in error messages or debug responses
+- Map findings to MITRE ATT&CK T1528 (Steal Application Access Token)
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authorization code flow simulator
+source: discovered

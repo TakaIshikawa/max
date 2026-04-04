@@ -1,0 +1,21 @@
+title: Create encryption at rest policy
+approval: draft
+phase: planned
+priority: critical
+description: Implement Rego policy validating FHIR stores use customer-managed encryption
+  keys (CMEK) rather than Google-managed keys, as required by many HIPAA Business
+  Associate Agreements.
+acceptanceCriteria:
+- Policy ID GCP-ENCRYPTION-001 detects resources without kms_key_name attribute
+- Violation severity HIGH (not CRITICAL since Google-managed encryption meets baseline
+  HIPAA)
+- Policy passes when kms_key_name references a valid Cloud KMS key resource
+- Remediation hint includes example showing kms_key_name configuration and dependency
+  on google_kms_crypto_key
+- Policy includes configuration option to set severity level (HIGH vs CRITICAL) based
+  on organization policy
+decomposition:
+  assignments: []
+dependencies:
+- Implement OPA policy engine integration
+source: discovered

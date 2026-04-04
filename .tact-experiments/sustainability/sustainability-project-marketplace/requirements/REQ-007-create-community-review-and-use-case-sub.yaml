@@ -1,0 +1,21 @@
+title: Create community review and use case submission system
+approval: draft
+phase: planned
+priority: medium
+description: Enable authenticated users to submit reviews (ratings, comments) and
+  use case descriptions for projects and connectors. Display aggregated ratings and
+  recent reviews on detail pages.
+acceptanceCriteria:
+- 'Prisma schema defines Review model with fields: userId, projectId, connectorId
+  (nullable), rating (1-5), comment, useCase (nullable text), createdAt'
+- POST /api/v1/reviews endpoint validates authenticated user and creates review
+- Project detail pages display average rating and 5 most recent reviews
+- Review submission form includes rating (star selector), comment (textarea), and
+  optional use case description
+- Reviews display author GitHub username and submission date
+decomposition:
+  assignments: []
+dependencies:
+- Implement authentication for community contributions
+- Create project detail pages with integration metadata
+source: discovered

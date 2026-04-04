@@ -1,0 +1,20 @@
+title: Implement xAPI LMS integration adapter
+approval: draft
+phase: planned
+priority: critical
+description: Create an LMS integration adapter that connects to xAPI-compliant learning
+  platforms to fetch employee completion statements and certification data. This enables
+  the system to monitor certification status from modern LMS platforms that support
+  the Experience API standard.
+acceptanceCriteria:
+- Adapter successfully authenticates with xAPI LRS endpoint using OAuth 2.0
+- Fetches completion statements for all employees with pagination support (handles
+  1000+ records)
+- 'Parses xAPI statements to extract: employee ID, certification name, completion
+  date, expiration date, score'
+- Handles API rate limiting with exponential backoff (max 3 retries)
+- Logs all sync operations with timestamp, record count, and error details
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

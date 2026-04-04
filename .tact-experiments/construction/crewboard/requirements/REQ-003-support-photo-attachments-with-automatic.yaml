@@ -1,0 +1,19 @@
+title: Support photo attachments with automatic compression
+approval: draft
+phase: planned
+priority: critical
+description: Users attach up to 10 photos per report from camera or photo library.
+  Photos are automatically compressed to under 5MB on-device and uploaded to S3 in
+  background queue. Photos are embedded in PDF reports and viewable in report detail
+  view.
+acceptanceCriteria:
+- User can attach photos from camera or photo library (up to 10 per report)
+- Photos are compressed to under 5MB on-device before upload
+- Photos are queued for background upload to S3 with retry on failure
+- Photo upload progress is visible to user with success/failure indicators
+- Photos are embedded in generated PDF reports in chronological order
+- Photos are viewable in report detail view with tap-to-enlarge functionality
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,20 @@
+title: Detect and parse Jupyter notebook files
+approval: draft
+phase: planned
+priority: high
+description: Discover .ipynb files in target directory, parse JSON structure to extract
+  code cells, and feed cell contents to pattern scanner as Python source. Must handle
+  notebook format variations and corrupted JSON gracefully.
+acceptanceCriteria:
+- Recursively finds all .ipynb files in target directory and subdirectories
+- Extracts source code from cells where cell_type='code' in notebook JSON
+- Concatenates multi-line cell source arrays into single Python source string
+- Reports findings with notebook filename and cell index (e.g., 'notebook.ipynb:cell[3]:line
+  5')
+- Handles invalid JSON in .ipynb files with warning message, skips file, continues
+  scan
+decomposition:
+  assignments: []
+dependencies:
+- Implement AST-based pattern scanner for dangerous code
+source: discovered

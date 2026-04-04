@@ -1,0 +1,21 @@
+title: Create offline-capable stream notes with automatic sync
+approval: draft
+phase: planned
+priority: high
+description: Provide a notes interface for streamers to create and edit talking points,
+  sponsor mentions, and shoutouts. Notes must be readable and editable offline using
+  local storage, with automatic background sync when connectivity is restored. Critical
+  for IRL streamers with unstable mobile connectivity.
+acceptanceCriteria:
+- User can create, edit, and delete stream notes while offline
+- Notes are persisted to local storage using Redux Persist and remain accessible after
+  app restart
+- When connectivity is restored, local notes sync to backend within 30 seconds
+- Sync status indicator shows 'Synced', 'Syncing', or 'Offline' state
+- Conflict resolution uses 'last write wins' strategy if notes are edited on multiple
+  devices
+- Notes support basic formatting (bullet points, checkboxes for completed items)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

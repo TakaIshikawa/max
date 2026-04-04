@@ -1,0 +1,53 @@
+name: opensecposture-mcp
+version: 0.1.0
+vision: A lightweight, open-source MCP server that unifies Infisical secrets audit
+  logs and Trivy vulnerability scans into MITRE ATT&CK-aligned security alerts, enabling
+  small security teams to detect correlated threats without enterprise SIEM complexity.
+goals:
+- id: G-1
+  description: Enable single-command deployment that ingests and correlates security
+    data from Infisical and Trivy
+  successCriteria: Docker-compose deployment completes in under 5 minutes and successfully
+    receives Infisical webhook events and Trivy JSON scan results within 10 minutes
+    of setup
+- id: G-2
+  description: Detect high-risk correlated threats by mapping secrets access to vulnerable
+    containers
+  successCriteria: 'System generates MITRE ATT&CK-aligned alerts for at least 3 correlation
+    scenarios: (1) secret accessed from container with critical CVE, (2) bulk secret
+    enumeration, (3) secret access from new IP address'
+- id: G-3
+  description: Provide actionable alert triage interface for small security teams
+  successCriteria: Dashboard displays alerts with MITRE ATT&CK context, severity scoring,
+    and remediation guidance; users can acknowledge/dismiss alerts; 90% of alerts
+    contain sufficient context to act without consulting external documentation
+- id: G-4
+  description: Establish extensibility foundation for community-contributed Sigma
+    rules
+  successCriteria: System loads and executes custom Sigma rules from a configurable
+    directory; includes 5+ pre-configured rules covering T1552.001 (credential access)
+    and T1190 (exploit public-facing application)
+constraints:
+- MVP scope limited to Infisical webhook ingestion and Trivy JSON file parsing (no
+  active polling or agent deployment)
+- Correlation engine assumes container metadata is provided via Trivy scan labels
+  or environment variables (no runtime discovery)
+- Dashboard is read-only for MVP (no alert workflow automation or playbook execution)
+- Pre-configured Sigma rules limited to 5-7 high-signal detections to minimize false
+  positives
+- Deployment assumes single-host Docker environment (no distributed/HA architecture)
+- No authentication/authorization in MVP beyond basic API key for webhook endpoint
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - pySigma
+  - SQLAlchemy
+  - HTMX
+  - Alpine.js
+  infrastructure:
+  - Docker
+  - Docker Compose
+  - PostgreSQL 15
+  - Nginx

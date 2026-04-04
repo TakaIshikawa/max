@@ -1,0 +1,20 @@
+title: Build dependency scanner for vulnerable ML libraries
+approval: draft
+phase: planned
+priority: critical
+description: Scan requirements.txt, setup.py, and pyproject.toml files to extract
+  dependencies, then check against pip-audit and custom ML vulnerability database.
+  Must detect known CVEs in Kedro, python-multipart, Tornado, and other ML infrastructure
+  libraries.
+acceptanceCriteria:
+- Detects dependencies from requirements.txt, setup.py (install_requires), and pyproject.toml
+  (dependencies)
+- Identifies CVE-2024-XXXX in Kedro <0.19.0 when present in dependencies
+- Identifies python-multipart ReDoS vulnerability (CVE-2024-YYYY) in affected versions
+- Each finding includes package name, installed version, fixed version, CVE identifier,
+  and CVSS score
+- Handles missing dependency files gracefully (logs warning, continues scan)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

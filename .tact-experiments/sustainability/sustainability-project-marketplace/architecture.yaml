@@ -1,0 +1,71 @@
+patterns:
+- name: API-First Architecture
+  description: All platform features exposed through REST API endpoints, enabling
+    programmatic access and future third-party integrations
+  scope:
+  - backend
+  - frontend
+- name: Repository Pattern
+  description: Database access abstracted through repository layer using Prisma ORM
+    for type-safe queries and migrations
+  scope:
+  - backend
+  - database
+- name: Static Generation with ISR
+  description: Project listings and connector pages use Next.js Incremental Static
+    Regeneration for performance while allowing periodic updates
+  scope:
+  - frontend
+- name: Connector Versioning
+  description: All connectors follow semantic versioning with backward compatibility
+    guarantees for minor/patch releases
+  scope:
+  - connectors
+  - registry
+invariants:
+- All project metadata must include at least one CSRD applicability tag or 'Not Applicable'
+  designation
+- Connector packages must pass automated tests in sandbox environment before registry
+  publication
+- API responses must include pagination for collections exceeding 50 items
+- All user-generated content (reviews, use cases) must be associated with authenticated
+  user accounts
+- Integration templates must reference only connectors available in the registry
+- Database schema changes must use Prisma migrations with rollback capability
+- All API endpoints must return structured error responses with HTTP status codes
+  and error messages
+conventions:
+- Use kebab-case for URLs and package names, PascalCase for React components, camelCase
+  for TypeScript variables/functions
+- Prefix database table names with 'sustainability_' to avoid naming conflicts
+- 'Connector package naming: @sustainability-marketplace/<tool-name>-connector for
+  npm, sustainability_marketplace_<tool_name> for PyPI'
+- API routes follow /api/v1/<resource> pattern with versioning
+- Environment variables prefixed with NEXT_PUBLIC_ for client-side access, no prefix
+  for server-only
+- Git commit messages follow Conventional Commits specification (feat:, fix:, docs:,
+  etc.)
+- All TypeScript code must pass strict type checking with no 'any' types except in
+  explicitly typed external API responses
+decisions:
+- id: D-1
+  title: PostgreSQL with Prisma over MongoDB
+  decision: Use PostgreSQL with Prisma ORM for structured data storage
+  rationale: Project metadata has well-defined schema with relationships (projects
+    → connectors → templates). PostgreSQL provides ACID guarantees, full-text search,
+    and JSON fields for flexible metadata. Prisma enables type-safe queries and automatic
+    migrations.
+- id: D-2
+  title: Dual-language connector support (Python + Node.js)
+  decision: Build connector SDK templates for both Python and Node.js ecosystems
+  rationale: Sustainability tools span both ecosystems (Python for data science/carbon
+    accounting, Node.js for web integrations). Supporting both maximizes addressable
+    connectors and developer adoption. MVP focuses on these two; other languages deferred.
+- id: D-3
+  title: Extend OpenSustain.tech data vs. fork
+  decision: Import OpenSustain.tech data via API/scraping and enhance in separate
+    database rather than forking their Grist
+  rationale: Maintains independence while leveraging their catalog. Allows custom
+    schema for integration metadata without coupling to Grist limitations. Enables
+    periodic sync to stay current with their updates while preserving our enhancements.
+contracts: []

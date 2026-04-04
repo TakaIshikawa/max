@@ -1,0 +1,19 @@
+title: Implement CLI with configurable severity thresholds and output formats
+approval: draft
+phase: planned
+priority: critical
+description: Provide command-line interface for scanning projects with options to
+  control output format, severity filtering, and exit codes. Enables both interactive
+  use and CI/CD automation.
+acceptanceCriteria:
+- CLI accepts target directory path as positional argument (e.g., 'mlscan scan ./my-ml-project')
+- 'Support --format flag with options: sarif, json, html (default: sarif)'
+- Support --severity-threshold flag (critical, high, medium, low) that sets exit code
+  to 1 if findings meet/exceed threshold
+- Display summary statistics (total findings by severity) to stderr, write report
+  to stdout or --output file
+decomposition:
+  assignments: []
+dependencies:
+- Generate SARIF 2.1.0 formatted output for CI/CD integration
+source: discovered

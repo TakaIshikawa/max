@@ -1,0 +1,25 @@
+title: Implement circuit breaker with automatic fallback orchestration
+approval: draft
+phase: planned
+priority: critical
+description: Build FallbackOrchestrator class that wraps provider adapters with circuit
+  breaker logic. Orchestrator monitors provider health, detects failures based on
+  configurable thresholds, and automatically switches to fallback provider. Implements
+  half-open state for recovery testing.
+acceptanceCriteria:
+- Circuit breaker tracks failure rate per provider with sliding window (last 10 requests)
+- Circuit opens (switches to fallback) when failure rate exceeds 50% within sliding
+  window
+- Circuit transitions to half-open state after 30-second timeout, allowing test requests
+  to primary provider
+- Circuit closes (returns to primary) after 3 consecutive successful requests in half-open
+  state
+- Orchestrator logs all state transitions with provider name, timestamp, and failure
+  reason
+- Integration tests verify fallback behavior with simulated provider failures
+decomposition:
+  assignments: []
+dependencies:
+- Build Fintecture provider adapter
+- Build GoCardless provider adapter
+source: discovered

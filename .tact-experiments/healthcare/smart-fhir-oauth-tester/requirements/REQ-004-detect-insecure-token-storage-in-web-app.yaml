@@ -1,0 +1,23 @@
+title: Detect insecure token storage in web applications
+approval: draft
+phase: planned
+priority: high
+description: Use browser automation to inspect where the application stores access
+  tokens and refresh tokens after OAuth flow completion. Fail if refresh tokens are
+  stored in localStorage or sessionStorage (vulnerable to XSS), and warn if access
+  tokens are stored insecurely.
+acceptanceCriteria:
+- Test SEC-020 launches application in Playwright browser and completes OAuth flow
+- Test SEC-021 fails if refresh_token is found in localStorage, sessionStorage, or
+  IndexedDB
+- Test SEC-022 warns if access_token is found in localStorage (acceptable for short-lived
+  tokens but not recommended)
+- Test SEC-023 passes if tokens are stored in httpOnly cookies or not accessible via
+  JavaScript
+- Storage inspection occurs 2 seconds after OAuth callback to allow for async storage
+  operations
+decomposition:
+  assignments: []
+dependencies:
+- Implement SMART App Launch mock authorization server
+source: discovered

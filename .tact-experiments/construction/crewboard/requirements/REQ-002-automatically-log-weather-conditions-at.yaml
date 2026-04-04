@@ -1,0 +1,19 @@
+title: Automatically log weather conditions at report creation
+approval: draft
+phase: planned
+priority: critical
+description: Fetch and store weather data (temperature, precipitation, conditions)
+  from OpenWeatherMap API based on job site geolocation at time of report creation.
+  Weather data is immutable once report is submitted to provide accurate documentation
+  for delay claims and concrete curing.
+acceptanceCriteria:
+- When user creates new report, app fetches current weather data using job site lat/lng
+  from OpenWeatherMap API
+- Weather data includes temperature (°F), precipitation (inches), and conditions (clear/cloudy/rain/snow)
+- Weather data is displayed in report form and stored with report in database
+- If weather API call fails, user is prompted to manually enter weather conditions
+- Weather data is included in generated PDF reports
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

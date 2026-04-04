@@ -1,0 +1,49 @@
+name: open-banking-adapter
+version: 0.1.0
+vision: A unified TypeScript SDK that abstracts multiple open banking providers behind
+  a common interface with automatic fallback capabilities, enabling fintech developers
+  to build resilient integrations that meet DORA compliance requirements without vendor
+  lock-in.
+goals:
+- id: G-1
+  description: Provide a unified interface for core open banking operations across
+    multiple providers
+  successCriteria: Support at least 2 providers (Fintecture and GoCardless) with identical
+    TypeScript interfaces for account retrieval, transaction history, and payment
+    initiation. 100% type safety with zero 'any' types in public API.
+- id: G-2
+  description: Implement automatic fallback mechanism for provider failures
+  successCriteria: Circuit breaker pattern detects provider failures within 5 seconds
+    and automatically switches to fallback provider. Health check system monitors
+    provider availability with configurable thresholds.
+- id: G-3
+  description: Enable drop-in replacement for existing provider-specific SDKs
+  successCriteria: Migration guide demonstrates replacement of Fintecture or GoCardless
+    SDK with adapter in under 50 lines of code changes. Async/await interface matches
+    common SDK patterns.
+- id: G-4
+  description: Deliver production-ready npm package with comprehensive documentation
+  successCriteria: Published to npm with TypeScript definitions, achieving 80%+ test
+    coverage. Documentation includes quickstart guide, API reference, and provider
+    configuration examples.
+constraints:
+- MVP limited to 2 providers (Fintecture and GoCardless) to validate adapter pattern
+  before scaling
+- Scope limited to read operations (account info, transactions) and basic payment
+  initiation—no advanced features like standing orders or variable recurring payments
+- No persistent storage—adapter is stateless, relying on provider SDKs for session
+  management
+- Webhook normalization deferred to post-MVP—initial version focuses on synchronous
+  API calls
+- Provider credentials must be supplied by consuming application—no credential management
+  or vault integration in MVP
+techStack:
+  languages:
+  - TypeScript 5.x
+  - Node.js 18+
+  frameworks:
+  - Jest for testing
+  - TSDoc for documentation
+  infrastructure:
+  - npm registry
+  - GitHub Actions for CI/CD

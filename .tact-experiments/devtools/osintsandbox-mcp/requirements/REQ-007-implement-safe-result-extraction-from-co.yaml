@@ -1,0 +1,22 @@
+title: Implement safe result extraction from containers
+approval: draft
+phase: planned
+priority: medium
+description: Provide mechanism to safely extract tool output files from container
+  to host without exposing host filesystem or allowing container escape. Enables users
+  to access tool results while maintaining isolation.
+acceptanceCriteria:
+- Container writes results to /output volume (Docker volume mounted read-only from
+  container perspective)
+- Host reads results from volume after container termination, never while container
+  running
+- Extracted files scanned for suspicious content (no executables, no files >100MB,
+  no symlinks outside /output)
+- extract_results tool accepts execution_id and returns list of output files with
+  content or paths
+- Volume cleaned up after result extraction completes
+decomposition:
+  assignments: []
+dependencies:
+- Implement isolated tool execution MCP tool
+source: discovered

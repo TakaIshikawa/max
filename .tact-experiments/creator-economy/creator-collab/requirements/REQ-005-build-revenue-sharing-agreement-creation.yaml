@@ -1,0 +1,21 @@
+title: Build revenue-sharing agreement creation workflow
+approval: draft
+phase: planned
+priority: high
+description: Podcasters and collaborators must be able to create revenue-sharing agreements
+  specifying percentage splits, payment frequency, and project scope. Agreements require
+  both parties to digitally sign before activation. This enables ongoing partnerships
+  beyond hourly billing.
+acceptanceCriteria:
+- Agreement form collects collaborator splits (percentage per collaborator, must sum
+  to 100%), payment frequency (per episode/monthly), and project description
+- System validates split percentages sum to exactly 100% before allowing submission
+- Both parties receive email notification with agreement preview and 'Sign Agreement'
+  link
+- Digital signature captured via checkbox consent with timestamp and IP logging
+- Agreement status tracked as draft/pending_signatures/active/terminated
+decomposition:
+  assignments: []
+dependencies:
+- Implement user registration and role-based onboarding
+source: discovered

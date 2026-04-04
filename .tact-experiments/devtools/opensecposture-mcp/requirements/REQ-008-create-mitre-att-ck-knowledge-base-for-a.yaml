@@ -1,0 +1,21 @@
+title: Create MITRE ATT&CK knowledge base for alert enrichment
+approval: draft
+phase: planned
+priority: medium
+description: Embed MITRE ATT&CK technique descriptions and detection guidance to provide
+  context in alerts without external API dependencies.
+acceptanceCriteria:
+- Database table mitre_techniques stores technique_id, name, description, tactics
+  (array), and detection_guidance fields
+- Initialization script loads data for techniques referenced in pre-configured Sigma
+  rules (T1552.001, T1190, T1078, T1548)
+- Alert generation automatically enriches alerts with MITRE context by joining on
+  technique_id
+- Dashboard displays technique name, tactics, and detection guidance in alert detail
+  view
+- Knowledge base data sourced from MITRE ATT&CK public dataset with attribution in
+  README
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

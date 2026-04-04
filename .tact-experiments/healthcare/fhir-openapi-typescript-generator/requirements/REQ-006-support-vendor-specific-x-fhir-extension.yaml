@@ -1,0 +1,19 @@
+title: Support vendor-specific x-fhir-* extension formats
+approval: draft
+phase: planned
+priority: medium
+description: Implement pluggable metadata extractors for HAPI FHIR and at least one
+  cloud provider (Google/Azure/AWS) to handle vendor-specific x-fhir-* extension naming
+  and structure variations.
+acceptanceCriteria:
+- 'CLI accepts --vendor flag with options: hapi, google, azure, aws, or default'
+- HAPI extractor successfully processes HAPI FHIR OpenAPI spec with x-fhir-* extensions
+- At least one cloud provider extractor (Google/Azure/AWS) successfully processes
+  vendor-specific OpenAPI spec
+- Extractor selection is automatic based on OpenAPI spec metadata if --vendor not
+  specified
+decomposition:
+  assignments: []
+dependencies:
+- Extract FHIR metadata from x-fhir-* extensions
+source: discovered

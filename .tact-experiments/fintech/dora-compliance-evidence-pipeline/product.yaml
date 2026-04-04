@@ -1,0 +1,52 @@
+name: dora-compliance-evidence-pipeline
+version: 0.1.0
+vision: Automated compliance evidence aggregation system that transforms fragmented
+  security tool outputs into DORA-ready audit packages, enabling mid-market financial
+  firms to demonstrate operational resilience with continuous compliance visibility
+  instead of manual evidence collection.
+goals:
+- id: G-1
+  description: Automate evidence collection from common security tools used by mid-market
+    firms
+  successCriteria: Successfully ingest and parse outputs from at least 3 security
+    tools (Trivy, Infisical, one cloud provider) with 100% data integrity validation
+- id: G-2
+  description: Map security findings to DORA control framework requirements
+  successCriteria: Cover at least 15 DORA controls across ICT risk management, incident
+    response, and third-party monitoring domains with automated evidence correlation
+- id: G-3
+  description: Generate audit-ready evidence packages with cryptographic integrity
+  successCriteria: Produce timestamped PDF/JSON evidence packages with SHA-256 signatures
+    that pass external audit review criteria
+- id: G-4
+  description: Provide compliance officers with real-time visibility into coverage
+    gaps
+  successCriteria: Dashboard displays compliance posture with control coverage percentage,
+    remediation status, and evidence freshness within 5 seconds of data ingestion
+constraints:
+- 'MVP limited to 3 security tool integrations: Trivy (vulnerability scanning), Infisical
+  (secrets management), AWS CloudTrail (audit logs)'
+- DORA control library scoped to 15 core controls across ICT risk management, incident
+  response, and third-party monitoring
+- Evidence packages support PDF and JSON formats only (no SCAP/XML in MVP)
+- Single-tenant deployment model (no multi-tenancy in MVP)
+- Evidence retention limited to 90 days for MVP storage constraints
+- Dashboard read-only in MVP (no inline remediation workflows)
+- Authentication via API keys only (no SSO/SAML in MVP)
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - SQL
+  frameworks:
+  - FastAPI
+  - React 18
+  - SQLAlchemy
+  - Pydantic
+  - Alembic
+  infrastructure:
+  - PostgreSQL 15+
+  - Docker
+  - Nginx
+  - Celery
+  - Redis

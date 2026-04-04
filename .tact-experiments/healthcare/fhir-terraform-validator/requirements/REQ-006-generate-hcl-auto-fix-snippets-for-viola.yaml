@@ -1,0 +1,21 @@
+title: Generate HCL auto-fix snippets for violations
+approval: draft
+phase: planned
+priority: high
+description: For each detected policy violation, generate valid HCL code snippets
+  that would remediate the issue. Snippets must be syntactically correct and include
+  explanatory comments.
+acceptanceCriteria:
+- Generate HCL snippets for audit logging violations showing notification_config block
+  with pubsub_topic
+- Generate HCL snippets for encryption violations showing kms_key_name attribute and
+  required KMS key resource
+- All generated HCL passes terraform fmt validation (proper indentation, syntax)
+- Snippets include comments explaining the HIPAA requirement being addressed
+- Auto-fix snippets included in validation output alongside violation details
+decomposition:
+  assignments: []
+dependencies:
+- Create HIPAA audit logging policy
+- Create encryption at rest policy
+source: discovered

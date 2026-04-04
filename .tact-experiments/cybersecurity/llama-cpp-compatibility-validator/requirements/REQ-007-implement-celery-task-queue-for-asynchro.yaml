@@ -1,0 +1,22 @@
+title: Implement Celery task queue for asynchronous test execution
+approval: draft
+phase: planned
+priority: high
+description: Distributed task processing system that executes model tests asynchronously
+  across multiple workers. Prevents long-running tests from blocking API and enables
+  parallel test execution.
+acceptanceCriteria:
+- Celery workers consume test jobs from Redis-backed queue
+- Task definition includes model_id, llama_cpp_version_id, quantization with retry
+  logic (max 3 attempts)
+- Workers execute inference pipeline and write results directly to PostgreSQL
+- Task status queryable via Celery result backend (pending/running/success/failure)
+- System processes 10 concurrent test jobs without worker crashes or memory exhaustion
+- Failed tasks log exceptions to database with full traceback for debugging
+decomposition:
+  assignments: []
+dependencies:
+- Build inference testing pipeline that validates llama.cpp output against transformers
+  reference
+- Create PostgreSQL schema for storing compatibility test results
+source: discovered

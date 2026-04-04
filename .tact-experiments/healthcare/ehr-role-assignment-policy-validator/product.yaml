@@ -1,0 +1,50 @@
+name: ehr-role-assignment-policy-validator
+version: 0.1.0
+vision: A policy-as-code validation engine that prevents HIPAA access control violations
+  by analyzing role assignment configurations against least-privilege principles before
+  deployment to EHR and cloud infrastructure.
+goals:
+- id: G-1
+  description: Validate cloud infrastructure role assignments against HIPAA least-privilege
+    requirements
+  successCriteria: Successfully parse and validate Azure Bicep and AWS IAM JSON configurations,
+    detecting at least 5 common anti-patterns (PHI access without MFA, overly broad
+    service account scopes, admin roles on FHIR stores, non-clinical users with PHI-reader
+    roles, missing audit logging requirements)
+- id: G-2
+  description: Provide reusable HIPAA-aligned role policy library
+  successCriteria: Deliver 3 pre-validated role bundles (PHI Reader, PHI Writer, Break-Glass
+    Emergency Access) with documented permission sets that map to Azure RBAC and AWS
+    IAM primitives
+- id: G-3
+  description: Generate audit-ready compliance reports
+  successCriteria: Output validation results in OSCAL format with severity scores,
+    violation descriptions, and remediation suggestions that can be imported into
+    compliance management tools
+- id: G-4
+  description: Integrate seamlessly into existing IaC CI/CD pipelines
+  successCriteria: Provide CLI tool that exits with non-zero status on policy violations,
+    processes 1000+ line configuration files in under 5 seconds, and supports GitHub
+    Actions/GitLab CI integration via example workflows
+constraints:
+- MVP focuses on cloud infrastructure (Azure Bicep, AWS IAM) only; Epic/Cerner parsers
+  deferred to post-MVP
+- Policy library limited to 3 core HIPAA role bundles; organization-specific extensions
+  via plugin mechanism
+- OSCAL output format v1.0.4 for compliance reports
+- CLI must be stateless and require no external dependencies beyond OPA runtime
+- All policies must be human-readable YAML with inline documentation
+- No network calls or external API dependencies during validation
+techStack:
+  languages:
+  - Go
+  - Rego
+  frameworks:
+  - Open Policy Agent (OPA)
+  - HCL parser (hashicorp/hcl)
+  - encoding/json
+  - encoding/xml
+  infrastructure:
+  - CLI binary distribution
+  - Docker container for CI/CD
+  - GitHub Actions workflows

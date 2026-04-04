@@ -1,0 +1,20 @@
+title: Build search and filtering API for project discovery
+approval: draft
+phase: planned
+priority: critical
+description: Implement REST API endpoints for searching and filtering projects by
+  CSRD requirements, API availability, integration difficulty, and keywords using
+  PostgreSQL full-text search. Support pagination and sorting.
+acceptanceCriteria:
+- 'GET /api/v1/projects endpoint returns paginated results (default 20 per page) with
+  query parameters: csrdTags, apiAvailable, integrationDifficulty, search (keyword)'
+- Full-text search on project name and description returns relevant results ranked
+  by relevance
+- Response includes total count, current page, and hasMore boolean for pagination
+- Query performance under 500ms for filtered searches across 100 projects
+- API returns 400 error with validation messages for invalid filter values
+decomposition:
+  assignments: []
+dependencies:
+- Implement project discovery database with CSRD metadata
+source: discovered

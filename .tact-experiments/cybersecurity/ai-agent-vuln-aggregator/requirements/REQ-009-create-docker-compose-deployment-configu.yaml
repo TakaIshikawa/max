@@ -1,0 +1,21 @@
+title: Create Docker Compose deployment configuration
+approval: draft
+phase: planned
+priority: high
+description: Package the application as Docker containers with docker-compose.yml
+  for single-command self-hosted deployment.
+acceptanceCriteria:
+- 'docker-compose.yml defines services: api (FastAPI), worker (Celery), beat (Celery
+  Beat), postgres, redis, nginx (reverse proxy), frontend (React build)'
+- Environment variables configured via .env file with defaults in .env.example
+- Database migrations run automatically on api container startup via Alembic
+- Nginx serves React static files and proxies /api/* to FastAPI container
+- docker-compose up -d starts all services and application is accessible on http://localhost:8080
+- Includes health check endpoints for all services and restart policies for resilience
+decomposition:
+  assignments: []
+dependencies:
+- Create REST API for vulnerability querying
+- Build web dashboard for vulnerability browsing
+- Implement notification dispatcher and channel handlers
+source: discovered

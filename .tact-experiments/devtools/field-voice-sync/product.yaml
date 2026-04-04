@@ -1,0 +1,52 @@
+name: field-voice-sync
+version: 0.1.0
+vision: Mobile-first application that converts field workers' voice notes and photos
+  into structured construction reports during offline periods, syncing to Procore
+  when connectivity returns, eliminating 24-48 hour manual transcription delays.
+goals:
+- id: G-1
+  description: Enable offline voice-to-structured-data capture for daily construction
+    reports
+  successCriteria: Field worker can record 5-minute voice note describing work completed,
+    crew count, equipment, and weather while offline, and system converts to structured
+    JSON matching daily report schema with >85% field accuracy
+- id: G-2
+  description: Sync structured reports to Procore when connectivity returns
+  successCriteria: When device regains connectivity, queued reports automatically
+    sync to Procore Daily Log API within 30 seconds, with retry logic handling transient
+    failures
+- id: G-3
+  description: Support photo attachment with automatic metadata tagging
+  successCriteria: User can attach up to 10 photos per report, each automatically
+    tagged with timestamp and GPS coordinates (when available), stored locally and
+    synced with report data
+- id: G-4
+  description: Reduce field-to-office documentation delay from 24-48 hours to same-day
+  successCriteria: Reports created in field before 5pm appear in Procore within 2
+    hours of worker returning to connectivity (measured across 20 test reports)
+constraints:
+- MVP targets iOS only to reduce cross-platform complexity (Android in future iteration)
+- Offline speech-to-text limited to 10-minute recordings to manage device memory constraints
+- Initial version supports Procore Daily Log API only (PlanGrid and other integrations
+  deferred)
+- LLM structuring uses cloud API (OpenAI) when online; offline mode saves raw transcript
+  for later processing
+- No custom template system in MVP—uses fixed daily report schema matching Procore's
+  Daily Log format
+- Photo limit of 10 per report, max 5MB each, to manage local storage
+- Requires iOS 15+ for on-device speech recognition capabilities
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Expo
+  - SQLite
+  - Whisper.cpp (via react-native-whisper)
+  - Zustand (state management)
+  infrastructure:
+  - Local device storage
+  - Procore REST API
+  - OpenAI API (fallback for online LLM)
+  - Expo Application Services (build/deploy)

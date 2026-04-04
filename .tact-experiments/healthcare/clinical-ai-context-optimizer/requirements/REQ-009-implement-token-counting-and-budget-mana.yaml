@@ -1,0 +1,20 @@
+title: Implement token counting and budget management
+approval: draft
+phase: planned
+priority: medium
+description: Track token usage throughout compression pipeline using tiktoken (cl100k_base
+  encoding). Enforce configurable token budget by iteratively including resources
+  by relevance score until budget is reached. Provide token usage metrics in API response.
+acceptanceCriteria:
+- Counts tokens for each FHIR resource using tiktoken cl100k_base encoding
+- Includes resources in output bundle in relevance order until token budget reached
+- Always includes Patient resource regardless of budget (baseline requirement)
+- 'Returns token usage metadata in custom Bundle.meta.extension field: totalTokens,
+  includedResources, excludedResources'
+- Configurable token budget via TOKEN_LIMIT environment variable (default 6000)
+- Logs warning if fewer than 5 resources fit within token budget
+decomposition:
+  assignments: []
+dependencies:
+- Generate FHIR-compliant context bundles with relevance metadata
+source: discovered

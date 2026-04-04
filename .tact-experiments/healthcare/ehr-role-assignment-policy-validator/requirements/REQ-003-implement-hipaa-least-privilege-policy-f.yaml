@@ -1,0 +1,19 @@
+title: Implement HIPAA least-privilege policy for PHI access
+approval: draft
+phase: planned
+priority: critical
+description: Encode HIPAA Security Rule minimum necessary standard (§164.514(d)) as
+  Rego policy that detects overly permissive PHI access grants. Core compliance validation
+  logic.
+acceptanceCriteria:
+- Flag role assignments granting PHI read/write access to non-clinical user principals
+- Detect wildcard (*) permissions on FHIR API or PHI storage resources
+- Require MFA condition for any administrative roles on PHI-containing resources
+- Identify service accounts with PHI access lacking scope restrictions
+- Generate violation with severity=critical and remediation suggestion for each anti-pattern
+decomposition:
+  assignments: []
+dependencies:
+- Parse Azure Bicep role assignment configurations
+- Parse AWS IAM policy documents
+source: discovered

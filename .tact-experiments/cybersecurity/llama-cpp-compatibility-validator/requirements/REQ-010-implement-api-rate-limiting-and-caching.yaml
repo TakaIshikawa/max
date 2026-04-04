@@ -1,0 +1,19 @@
+title: Implement API rate limiting and caching for public access
+approval: draft
+phase: planned
+priority: medium
+description: Protection mechanisms to prevent API abuse and reduce database load for
+  frequently accessed compatibility queries. Ensures service remains available under
+  high traffic.
+acceptanceCriteria:
+- Rate limiting enforces 100 requests per IP per minute using Redis-backed token bucket
+- Compatibility query results cached in Redis for 1 hour with cache key including
+  model+version+quantization
+- Cache hit rate >70% for production traffic patterns (measured via metrics endpoint)
+- Rate limit exceeded returns 429 status with Retry-After header
+- Cache invalidation triggered when new test results recorded for cached model combinations
+decomposition:
+  assignments: []
+dependencies:
+- Implement FastAPI JSON API with compatibility query endpoints
+source: discovered

@@ -1,0 +1,26 @@
+title: Create Docker deployment configuration with health checks
+approval: draft
+phase: planned
+priority: medium
+description: Package application as Docker containers with docker-compose setup for
+  local development and production deployment. Must include health checks and environment-based
+  configuration.
+acceptanceCriteria:
+- 'Dockerfile for FastAPI service: multi-stage build (build stage installs dependencies,
+  runtime stage copies artifacts), runs as non-root user, exposes port 8000'
+- 'docker-compose.yml defines services: api (FastAPI), worker (Celery), db (PostgreSQL),
+  redis (Celery broker), with volume mounts for persistence and environment variable
+  configuration'
+- 'Health check endpoints: GET /health returns 200 with status: ok, database connection
+  status, redis connection status; Docker HEALTHCHECK configured with 30s interval'
+- 'Environment configuration: .env.example template with all required variables (DATABASE_URL,
+  REDIS_URL, PLAID_CLIENT_ID, GOCARDLESS_SECRET_ID, ENCRYPTION_KEY), docker-compose
+  reads from .env file'
+- 'README.md includes: prerequisites (Docker, API keys), setup instructions (5 steps
+  max), example API calls using curl, troubleshooting section for common issues'
+decomposition:
+  assignments: []
+dependencies:
+- Build FastAPI REST API with authentication and core endpoints
+- Develop Celery-based transaction processing pipeline
+source: discovered

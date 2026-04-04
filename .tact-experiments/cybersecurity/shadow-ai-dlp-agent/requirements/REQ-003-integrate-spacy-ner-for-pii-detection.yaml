@@ -1,0 +1,20 @@
+title: Integrate spaCy NER for PII detection
+approval: draft
+phase: planned
+priority: high
+description: Add spaCy-based semantic analysis to detect named entities (PERSON, ORG,
+  GPE, DATE) in request prompts. Use pretrained en_core_web_sm model for MVP. Detected
+  entities feed into policy engine as additional context for rule evaluation. Optimize
+  model loading to minimize memory footprint.
+acceptanceCriteria:
+- spaCy model loads on agent startup and remains resident in memory
+- NER analysis correctly identifies person names, organizations, and locations with
+  85%+ recall on CoNLL-2003 test set
+- Analysis completes in <200ms for prompts up to 2000 tokens
+- Detected entities are passed to policy engine with confidence scores
+- Agent memory usage stays under 100MB with model loaded
+decomposition:
+  assignments: []
+dependencies:
+- Build policy engine with YAML-based rule definitions
+source: discovered

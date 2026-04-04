@@ -1,0 +1,52 @@
+name: ai-code-audit-pipeline
+version: 0.1.0
+vision: An AI-powered code auditing pipeline that leverages LLMs to identify security
+  vulnerabilities in codebases and dependencies, producing MITRE ATT&CK-mapped findings
+  to augment traditional static analysis for resource-constrained security teams.
+goals:
+- id: G-1
+  description: Enable automated vulnerability detection across multiple programming
+    languages using LLM-based analysis
+  successCriteria: Successfully parse and analyze codebases in at least 3 languages
+    (Python, JavaScript, C/C++) and generate vulnerability findings with <30% false
+    positive rate on benchmark datasets
+- id: G-2
+  description: Provide actionable, prioritized security findings with industry-standard
+    mappings
+  successCriteria: Each vulnerability finding includes MITRE ATT&CK technique mapping,
+    CVSS-like severity score (0-10), code location, and remediation guidance in JSON/Markdown/SARIF
+    formats
+- id: G-3
+  description: Support flexible LLM backends for cost and privacy tradeoffs
+  successCriteria: Pipeline successfully executes with at least 2 LLM providers (OpenAI
+    GPT-4 and Anthropic Claude) with configurable backend selection via CLI flags
+- id: G-4
+  description: Reduce code audit time from weeks to hours for SMB security teams
+  successCriteria: Process a 10,000 LOC codebase and generate complete vulnerability
+    report in under 2 hours using cloud LLM backends
+constraints:
+- MVP supports Python, JavaScript, and C/C++ codebases only (extensible via tree-sitter
+  grammars)
+- Cloud LLM backends only for MVP (OpenAI GPT-4, Anthropic Claude); local llama.cpp
+  support deferred to v0.2
+- Deduplication uses simple embedding cosine similarity (threshold-based); no ML clustering
+- MITRE ATT&CK mappings limited to 20 most common software vulnerability techniques
+- No real-time analysis or IDE integration in MVP; batch processing only
+- 'Maximum codebase size: 50,000 LOC for MVP (chunking strategy optimized for this
+  scale)'
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - tree-sitter
+  - LangChain
+  - sentence-transformers
+  - OpenAI Python SDK
+  - Anthropic Python SDK
+  - Click (CLI framework)
+  - Pydantic (data validation)
+  infrastructure:
+  - Local execution (CLI tool)
+  - OpenAI API
+  - Anthropic API
+  - 'Optional: llama.cpp for local models'

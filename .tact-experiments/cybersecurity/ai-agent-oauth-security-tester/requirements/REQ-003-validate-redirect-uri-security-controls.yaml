@@ -1,0 +1,19 @@
+title: Validate redirect URI security controls
+approval: draft
+phase: planned
+priority: high
+description: Test redirect URI handling to detect open redirect vulnerabilities, insufficient
+  validation, and authorization code interception risks through redirect manipulation.
+acceptanceCriteria:
+- Attempt authorization with modified redirect_uri (subdomain, path, query parameter
+  changes)
+- Flag as HIGH if authorization succeeds with redirect_uri not matching registered
+  URI
+- Test for open redirect by injecting external domains in redirect_uri parameter
+- Verify authorization server rejects redirect_uri with wildcard or missing scheme
+- Map findings to MITRE ATT&CK T1566.002 (Spearphishing Link) for open redirect cases
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authorization code flow simulator
+source: discovered

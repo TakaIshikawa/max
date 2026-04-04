@@ -1,0 +1,105 @@
+patterns:
+- name: Provider Abstraction Pattern
+  description: Abstract Open Banking provider APIs (Plaid, GoCardless) behind unified
+    BankingProvider interface with standardized Transaction model. Each provider implements
+    connect(), fetch_transactions(), and sync() methods. Enables transparent fallback
+    and future provider additions without core logic changes.
+  scope:
+  - banking_connectors
+  - transaction_sync
+- name: Pipeline Architecture
+  description: 'Transaction processing as multi-stage pipeline: Ingestion → Normalization
+    → ESG Categorization → Enrichment (supplier carbon lookup) → Storage → Reporting.
+    Each stage is independently testable Celery task with retry logic and dead-letter
+    queue for failures.'
+  scope:
+  - transaction_processing
+  - ml_categorization
+  - reporting
+- name: Plugin Architecture
+  description: Accounting platform integrations via plugin interface defining sync_transactions(),
+    map_categories(), and export_report() contracts. Core system publishes webhook
+    events (transaction.categorized, report.generated) that plugins consume. Plugins
+    packaged as separate repositories with version compatibility matrix.
+  scope:
+  - accounting_integrations
+  - akaunting_plugin
+- name: Audit-First Data Model
+  description: All ESG categorizations, supplier lookups, and report generations stored
+    with immutable audit logs (user, timestamp, confidence score, model version).
+    Supports regulatory compliance requirements and ML model performance tracking
+    over time.
+  scope:
+  - database_schema
+  - compliance
+  - audit_trails
+invariants:
+- Every transaction categorization MUST store confidence score, model version, and
+  timestamp in audit log - no categorization without audit trail
+- ESG category assignments MUST map to official EU Taxonomy codes - no custom/unmapped
+  categories allowed
+- Bank account credentials MUST be encrypted at rest using Fernet symmetric encryption
+  - never store plaintext credentials
+- Transaction imports MUST be idempotent - re-importing same transaction (matched
+  by provider transaction_id) never creates duplicates
+- CSRD reports MUST include data lineage section tracing every metric back to source
+  transactions with provider references
+- API responses MUST never expose raw bank account numbers - only masked versions
+  (last 4 digits)
+- All financial amounts MUST be stored as integer cents/minor units - never floating
+  point to avoid rounding errors
+conventions:
+- Use snake_case for Python functions, variables, database columns; PascalCase for
+  classes
+- Prefix all ESG taxonomy codes with 'EU_TAX_' (e.g., EU_TAX_ENV_CLIMATE_MITIGATION)
+  for namespace clarity
+- 'Database table names: plural nouns (transactions, categorizations, audit_logs)'
+- 'API endpoints follow RESTful conventions: /api/v1/{resource}/{id}/{action}'
+- 'Celery task names: module.verb_noun pattern (e.g., categorization.classify_transaction)'
+- 'Environment variables: UPPERCASE_SNAKE_CASE with service prefix (e.g., PLAID_CLIENT_ID,
+  DB_CONNECTION_STRING)'
+- All timestamps stored as UTC in ISO 8601 format; timezone conversion only at presentation
+  layer
+- ML model artifacts versioned as YYYYMMDD_model_name (e.g., 20250115_esg_classifier)
+- Confidence scores normalized to 0.0-1.0 range; categorizations with <0.7 confidence
+  flagged for manual review
+- 'Git commits follow Conventional Commits: feat|fix|docs|refactor|test(scope): description'
+decisions:
+- id: D-1
+  title: Use Sentence-Transformers with Rule Augmentation Over Custom ML Training
+  decision: 'Implement hybrid categorization: sentence-transformers for semantic similarity
+    to ESG category descriptions + rule-based boosting for high-confidence patterns.
+    Store all categorizations with confidence scores to identify training data candidates
+    post-MVP.'
+  rationale: Pre-trained sentence-transformers (all-MiniLM-L6-v2) provide 80%+ accuracy
+    on transaction description similarity without training data collection overhead.
+    Augment with rule-based patterns (regex for 'solar', 'renewable', supplier name
+    matching) to reach 85%+ target accuracy. Custom model training deferred until
+    we have 10k+ labeled transactions from real usage. Reduces MVP timeline by 4-6
+    weeks and eliminates ML infrastructure complexity.
+- id: D-2
+  title: PostgreSQL JSON Columns for Provider-Specific Metadata Over NoSQL
+  decision: Store normalized transaction fields (amount, date, description) as typed
+    columns; provider-specific metadata in JSONB 'provider_data' column with GIN index.
+    Validate JSONB structure in application layer with Pydantic schemas per provider.
+  rationale: 'Open Banking providers return heterogeneous transaction metadata (Plaid:
+    ''category_id'', GoCardless: ''creditor_name'', etc.). Options: (1) NoSQL for
+    schema flexibility, (2) EAV pattern, (3) JSONB columns. Choose JSONB because:
+    maintains ACID guarantees for financial data, enables GIN indexing for metadata
+    queries, keeps single database (no MongoDB dependency), allows SQL joins for reporting.
+    Trade-off: less type safety for provider metadata, but acceptable since it''s
+    supplementary data.'
+- id: D-3
+  title: Akaunting Plugin as PHP Package Over API-Only Integration
+  decision: Build lightweight Akaunting plugin (PHP) that registers webhook endpoints,
+    maps Akaunting chart of accounts to ESG categories, and displays ESG metrics in
+    Akaunting UI. Plugin communicates with core Python service via REST API with API
+    key authentication.
+  rationale: 'Akaunting is PHP-based with plugin system expecting native PHP packages.
+    Options: (1) PHP plugin calling our API, (2) API-only with manual import, (3)
+    reverse: our system calls Akaunting API. Choose option 1 (PHP plugin) because:
+    matches Akaunting''s extension model, enables UI integration in Akaunting dashboard,
+    allows background sync via Akaunting''s job queue. Trade-off: requires PHP development
+    alongside Python core, but necessary for ''seamless integration'' goal. Plugin
+    handles auth, transaction mapping, and webhook subscriptions to our FastAPI service.'
+contracts: []

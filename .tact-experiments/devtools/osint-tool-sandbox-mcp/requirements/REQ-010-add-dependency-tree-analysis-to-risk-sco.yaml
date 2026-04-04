@@ -1,0 +1,22 @@
+title: Add dependency tree analysis to risk scoring
+approval: draft
+phase: planned
+priority: medium
+description: 'Enhance risk assessment by recursively analyzing package dependencies
+  from PyPI metadata. Flag high-risk patterns: excessive dependency depth (>3 levels),
+  dependencies with low download counts (<1000/month), recently created dependencies
+  (<6 months old). Incorporate dependency risk into overall score.'
+acceptanceCriteria:
+- Recursively fetch dependencies from PyPI metadata up to 3 levels deep
+- 'Calculate dependency metrics: total count, max depth, average maintainer age, average
+  download count'
+- 'Flag risky dependencies: <1000 downloads/month, maintainer account <6 months, no
+  GitHub repository'
+- Dependency risk contributes 30% weight to overall risk score calculation
+- 'Risk report includes dependency section: ''Analyzed 12 dependencies, 2 flagged:
+  package-x (low downloads), package-y (new maintainer)'''
+decomposition:
+  assignments: []
+dependencies:
+- Generate risk scores for PyPI packages using metadata and OpenSSF Scorecard
+source: discovered

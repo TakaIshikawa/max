@@ -1,0 +1,20 @@
+title: Visualize vendor data flow diagrams
+approval: draft
+phase: planned
+priority: medium
+description: 'Generate directed graph showing data flows: LMS platform -> vendors,
+  with edges labeled by data categories (PII, training records, performance data).
+  Export as JSON graph structure for frontend rendering.'
+acceptanceCriteria:
+- 'Query integrations table to build graph: nodes = {LMS platforms, vendors}, edges
+  = {platform -> vendor with data_fields label}'
+- 'Export graph as JSON: {nodes: [{id, label, type: ''platform''|''vendor''}], edges:
+  [{source, target, data_categories: []}]}'
+- 'Include edge metadata: authorization method (OAuth, API key, LTI), DPA status (signed/unsigned)'
+- Provide GET /api/v1/data-flows endpoint that returns graph JSON
+- Support filtering by platform or vendor_id query parameters
+decomposition:
+  assignments: []
+dependencies:
+- Maintain vendor and integration registry
+source: discovered

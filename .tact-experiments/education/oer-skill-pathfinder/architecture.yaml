@@ -1,0 +1,79 @@
+patterns:
+- name: Microservices Architecture
+  description: Separate services for content aggregation, skill mapping, progress
+    tracking, and badge issuance to enable independent scaling and development
+  scope:
+  - content-service
+  - skill-service
+  - tracking-service
+  - badge-service
+- name: Repository Pattern
+  description: Abstract data access for learning paths, user progress, and OER resources
+    to support future database migrations and testing
+  scope:
+  - data-access-layer
+  - models
+- name: Event-Driven Progress Tracking
+  description: Use event bus (Redis Pub/Sub) to capture and process learning events
+    (GitHub commits, MOOC completions) asynchronously
+  scope:
+  - tracking-service
+  - event-handlers
+- name: API Gateway Pattern
+  description: Single entry point for frontend and external integrations with authentication,
+    rate limiting, and routing to backend services
+  scope:
+  - api-gateway
+  - authentication
+invariants:
+- All OER resources must include publicly accessible URLs that remain valid for minimum
+  90 days
+- User progress data must never be deleted; only marked as archived to maintain audit
+  trail
+- Open Badges must conform to Open Badges 3.0 specification and include verifiable
+  issuer signature
+- 'Learning path completion percentage must be calculated consistently: (completed_resources
+  / total_resources) * 100'
+- All external API calls (GitHub, edX, Badgr) must implement retry logic with exponential
+  backoff and circuit breaker patterns
+- Employee PII must be encrypted at rest and in transit; badge metadata must not expose
+  sensitive employee information
+conventions:
+- Use kebab-case for API endpoints (/learning-paths, /user-progress)
+- Use camelCase for TypeScript/JavaScript variables and functions
+- Use snake_case for Python variables and database column names
+- Prefix environment variables with service name (CONTENT_SERVICE_API_KEY, BADGE_SERVICE_URL)
+- All API responses follow JSON:API specification with data, meta, and errors fields
+- Database migrations versioned with timestamp prefix (YYYYMMDDHHMMSS_description.sql)
+- All async functions must include timeout handling (default 30s for external APIs)
+- 'Log levels: ERROR for failures requiring intervention, WARN for degraded functionality,
+  INFO for business events, DEBUG for troubleshooting'
+decisions:
+- id: D-1
+  title: Use Badgr API for Open Badges instead of custom blockchain solution
+  decision: Integrate with Badgr API for badge issuance, storage, and verification
+  rationale: Badgr is an established Open Badges platform with built-in verification,
+    LinkedIn integration, and compliance with Open Badges 3.0 spec. Building custom
+    blockchain anchoring adds significant complexity and maintenance burden for MVP
+    without proven employer adoption. Badgr reduces time-to-market by 4-6 weeks and
+    provides immediate credential portability.
+- id: D-2
+  title: Limit MVP to GitHub-based OER and edX MOOC integration only
+  decision: MVP supports GitHub repositories (via GitHub API) and edX courses (via
+    xAPI) as sole OER sources
+  rationale: Supporting multiple MOOC platforms (Coursera, edX, Udacity) and diverse
+    OER sources (Project Gutenberg, YouTube) creates integration fragmentation and
+    testing complexity. GitHub + edX covers two distinct learning modalities (project-based
+    and video/quiz-based) while keeping integration surface area manageable. Additional
+    platforms can be added post-MVP based on user demand.
+- id: D-3
+  title: Use template-based skill mapping instead of LLM extraction for MVP
+  decision: Implement predefined competency templates for 5 initial job roles with
+    manual OER-to-competency mapping
+  rationale: LLM-based competency extraction from arbitrary OER content requires significant
+    prompt engineering, validation, and cost management (estimated $500-1000/month
+    for GPT-4 API). Predefined competency templates for 5 common tech roles (Junior
+    Developer, Data Analyst, DevOps Engineer, QA Engineer, Product Manager) mapped
+    to O*NET frameworks provides 80% of value with 20% of complexity. LLM enhancement
+    can be added post-MVP for custom role creation.
+contracts: []

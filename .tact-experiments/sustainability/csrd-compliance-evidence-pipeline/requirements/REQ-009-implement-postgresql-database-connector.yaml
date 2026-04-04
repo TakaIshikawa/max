@@ -1,0 +1,23 @@
+title: Implement PostgreSQL database connector
+approval: draft
+phase: planned
+priority: medium
+description: Connect to external PostgreSQL databases containing sustainability data.
+  Execute configured SQL queries on schedule, fetch results, and transform to evidence
+  items. Supports integration with custom internal databases and ERP systems.
+acceptanceCriteria:
+- Admin UI accepts PostgreSQL connection string (host, port, database, credentials)
+  and SQL query template
+- Connector validates connection and query syntax before saving configuration
+- Airflow DAG executes query on schedule, handles connection pooling, and processes
+  result rows into evidence items
+- Query results mapped to evidence schema using column name matching or explicit field
+  mapping
+- Connector supports parameterized queries with date range variables (e.g., WHERE
+  measurement_date > {{last_sync_date}})
+decomposition:
+  assignments: []
+dependencies:
+- Implement REST API connector with OAuth2 authentication
+- Create connector configuration admin interface
+source: discovered

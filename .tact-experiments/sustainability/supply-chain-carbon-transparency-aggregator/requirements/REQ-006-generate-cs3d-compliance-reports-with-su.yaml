@@ -1,0 +1,22 @@
+title: Generate CS3D compliance reports with supplier scorecards
+approval: draft
+phase: planned
+priority: high
+description: Produce PDF reports aggregating supplier carbon data into CS3D due diligence
+  format with supplier rankings. Achieves goal G-3 by covering Scope 3 Category 1
+  emissions and providing carbon intensity scorecards for procurement decisions.
+acceptanceCriteria:
+- 'Report includes sections: executive summary (total Scope 3 emissions), methodology
+  (GHG Protocol reference), supplier breakdown table (name, category, emissions, intensity)'
+- 'Supplier scorecard ranks suppliers by carbon intensity (kg CO2e per $) with color
+  coding: green (<10), yellow (10-50), red (>50)'
+- 'Visualizations: pie chart of emissions by supplier category, bar chart of top 10
+  emitting suppliers, trend line if historical data exists'
+- PDF generated via Puppeteer with company logo upload, report date, data collection
+  period, and disclaimer about data quality limitations
+- 'Report downloadable from admin dashboard with filename: CS3D_Report_{buyer_name}_{date}.pdf'
+decomposition:
+  assignments: []
+dependencies:
+- Implement data normalization and validation pipeline
+source: discovered

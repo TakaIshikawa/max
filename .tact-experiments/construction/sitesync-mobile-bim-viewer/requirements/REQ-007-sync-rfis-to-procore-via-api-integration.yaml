@@ -1,0 +1,22 @@
+title: Sync RFIs to Procore via API integration
+approval: draft
+phase: planned
+priority: critical
+description: When connectivity is available, app must push RFI data (title, description,
+  photos, BIM element references, metadata) to Procore project management system via
+  their API, creating RFIs that match Procore's data model.
+acceptanceCriteria:
+- Backend service authenticates with Procore API using OAuth 2.0 and project-specific
+  credentials
+- RFI data is transformed to Procore RFI schema including required fields (title,
+  question, due_date, assignee)
+- Photos are uploaded to Procore as attachments linked to the created RFI record
+- BIM element GlobalId and metadata are stored in Procore custom fields or RFI description
+  for traceability
+- Successful Procore RFI creation returns RFI number which is stored locally and displayed
+  to user
+decomposition:
+  assignments: []
+dependencies:
+- Detect connectivity changes and trigger background sync
+source: discovered

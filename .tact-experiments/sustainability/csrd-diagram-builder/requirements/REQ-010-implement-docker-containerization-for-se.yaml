@@ -1,0 +1,20 @@
+title: Implement Docker containerization for self-hosted deployment
+approval: draft
+phase: planned
+priority: medium
+description: Package the application as a Docker container with all dependencies (Node.js,
+  PostgreSQL) for easy self-hosted deployment. This enables organizations to run the
+  tool on their own infrastructure without relying on cloud services.
+acceptanceCriteria:
+- Dockerfile builds successfully and creates a runnable container image
+- Docker Compose configuration includes both application and PostgreSQL database services
+- Container exposes application on configurable port (default 3000)
+- Environment variables allow configuration of database connection, port, and storage
+  paths
+- README includes clear instructions for building and running the Docker container
+- Container persists diagram data and uploaded files to mounted volumes
+decomposition:
+  assignments: []
+dependencies:
+- Implement diagram save/load with local storage
+source: discovered

@@ -1,0 +1,42 @@
+name: llama-cpp-compatibility-validator
+version: 0.1.0
+vision: Automated testing framework that validates llama.cpp compatibility with newly
+  released models, providing a queryable compatibility matrix to prevent production
+  deployment of broken model/runtime combinations.
+goals:
+- id: G-1
+  description: Detect incompatible model/llama.cpp combinations before production
+    deployment
+  successCriteria: Compatibility matrix covers top 20 most-downloaded instruction-tuned
+    models on Hugging Face with test results updated within 24 hours of new llama.cpp
+    releases
+- id: G-2
+  description: Provide programmatic access to compatibility data for CI/CD integration
+  successCriteria: JSON API returns compatibility status for any model+llama.cpp version
+    combination in <200ms with 99.5% uptime
+- id: G-3
+  description: Enable developers to validate custom models before deployment
+  successCriteria: GitHub Action successfully validates at least 3 different model
+    formats (GGUF, safetensors conversion) in CI pipelines with clear pass/fail status
+constraints:
+- MVP tests only pre-quantized GGUF models from Hugging Face (no on-the-fly quantization)
+- Reference validation limited to single-turn inference comparison (no multi-turn
+  chat validation)
+- Initial model coverage limited to models <30B parameters to manage compute costs
+- Testing runs on CPU-only infrastructure for MVP (no GPU acceleration validation)
+- Dashboard is read-only (no user authentication or custom test submission)
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - Bash
+  frameworks:
+  - FastAPI
+  - React
+  - Celery
+  - SQLAlchemy
+  infrastructure:
+  - PostgreSQL
+  - Redis
+  - Docker
+  - GitHub Actions

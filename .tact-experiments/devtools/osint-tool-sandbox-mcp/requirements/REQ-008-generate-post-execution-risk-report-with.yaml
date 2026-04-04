@@ -1,0 +1,24 @@
+title: Generate post-execution risk report with network activity summary
+approval: draft
+phase: planned
+priority: high
+description: 'After tool execution completes, generate structured report summarizing:
+  execution metadata, network activity statistics (request counts, domains contacted,
+  flagged behaviors), risk assessment, and recommendations. Report returned via MCP
+  response and stored in audit log.'
+acceptanceCriteria:
+- 'Report includes: execution duration, exit code, stdout/stderr excerpts (first 500
+  chars)'
+- 'Network summary shows: total requests, unique domains contacted, flagged requests
+  with reasons'
+- 'Risk assessment section displays: original risk score, observed behaviors (e.g.,
+  ''contacted 3 external domains''), updated risk recommendation'
+- Report formatted as JSON with structured fields for programmatic parsing
+- Report stored in audit_executions table in report_json column for historical queries
+decomposition:
+  assignments: []
+dependencies:
+- Implement network monitoring with mitmproxy and activity logging
+- Orchestrate containerized tool execution with resource limits and timeout
+- Create SQLite audit database with execution and network activity tables
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement feedback data collection for model retraining
+approval: draft
+phase: planned
+priority: medium
+description: Store validated human corrections in structured format to enable future
+  model retraining. Actual retraining pipeline is out of MVP scope, but data collection
+  establishes foundation.
+acceptanceCriteria:
+- 'hitl_training_samples table stores: document_id, field_name, original_value, corrected_value,
+  confidence_score, extractor_name'
+- Training sample records created automatically when human review includes field corrections
+- GET /api/v1/training-samples endpoint returns training data in JSON format with
+  pagination
+- Training samples include document metadata (document_type) to enable filtering by
+  use case
+- At least 10 corrected documents generate valid training sample records
+decomposition:
+  assignments: []
+dependencies:
+- Build review queue API endpoints
+source: discovered

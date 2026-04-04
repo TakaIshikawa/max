@@ -1,0 +1,23 @@
+title: Compress context using ontology-aware techniques
+approval: draft
+phase: planned
+priority: critical
+description: Replace verbose clinical descriptions with standardized codes and concise
+  representations. Use SNOMED CT, LOINC, and RxNorm to compress condition descriptions,
+  lab test names, and medication descriptions while preserving clinical meaning. Remove
+  administrative metadata and redundant information.
+acceptanceCriteria:
+- Replaces verbose Condition.code.text with SNOMED CT preferred term (e.g., 'Type
+  2 diabetes mellitus' instead of 'Patient has been diagnosed with type two diabetes')
+- Compresses MedicationRequest by using RxNorm code + dosage instead of full narrative
+- Removes FHIR metadata fields not needed for clinical context (meta.versionId, meta.lastUpdated,
+  text.div)
+- Compresses Observation values by keeping code, value, and unit only
+- Achieves 40-60% size reduction measured in tokens using tiktoken
+- Compressed resources remain valid FHIR and can be parsed by fhirclient
+decomposition:
+  assignments: []
+dependencies:
+- Extract clinical entities using medical NLP
+- Calculate clinical relevance scores for FHIR resources
+source: discovered

@@ -1,0 +1,22 @@
+title: Build GoCardless provider adapter
+approval: draft
+phase: planned
+priority: critical
+description: Implement GoCardlessAdapter class that wraps the GoCardless API and implements
+  core domain interfaces. Adapter translates GoCardless-specific API responses (account
+  schema, transaction format) to unified domain models and handles GoCardless authentication
+  flow.
+acceptanceCriteria:
+- GoCardlessAdapter implements IAccountProvider, ITransactionProvider, IPaymentProvider
+  interfaces
+- Adapter successfully authenticates using GoCardless secret_id and secret_key credentials
+- GoCardless account and transaction objects transformed to unified domain models
+  with field mapping documented
+- GoCardless-specific errors (requisition failures, token expiry) wrapped in AdapterError
+  with provider context
+- Unit tests with mocked GoCardless API responses achieve 90%+ code coverage
+decomposition:
+  assignments: []
+dependencies:
+- Implement core domain interfaces for open banking operations
+source: discovered

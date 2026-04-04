@@ -1,0 +1,71 @@
+patterns:
+- name: Offline-First Architecture
+  description: All data writes go to local storage first (AsyncStorage/SQLite), then
+    sync to backend when connectivity available. Read operations prioritize local
+    cache with background refresh.
+  scope:
+  - mobile app
+  - data layer
+  - sync service
+- name: Repository Pattern
+  description: Abstract data access behind repository interfaces that handle local/remote
+    data source switching, conflict resolution, and sync queue management.
+  scope:
+  - mobile data layer
+  - backend API clients
+- name: Background Job Queue
+  description: Asynchronous processing for AI transcription and tagging using job
+    queue (Bull/BullMQ) to handle API rate limits and retries.
+  scope:
+  - backend services
+  - AI processing
+- name: RESTful API with Optimistic Updates
+  description: Mobile app shows immediate UI feedback on user actions while queuing
+    sync operations, with rollback handling for failed syncs.
+  scope:
+  - mobile app
+  - API layer
+invariants:
+- Every technique entry MUST have at least one photo - voice notes are optional
+- Photos and voice recordings MUST be stored locally before any network operation
+  is attempted
+- Sync operations MUST be idempotent - retrying a sync never creates duplicate entries
+- User-created tags MUST be preserved even if AI auto-tagging suggests different tags
+- Deletion of technique entries MUST be soft deletes with tombstone records for sync
+  integrity
+- All timestamps MUST be stored in UTC with device timezone metadata for accurate
+  project timeline reconstruction
+- Voice transcriptions MUST retain original audio file reference for verification/re-transcription
+conventions:
+- Use TypeScript strict mode for all mobile and backend code
+- Component names use PascalCase (TechniqueCard, VoiceRecorder)
+- File names use kebab-case (technique-card.tsx, voice-recorder.tsx)
+- 'API endpoints follow REST conventions: /api/v1/{resource}/{id}'
+- Database tables use snake_case (technique_entries, sync_queue)
+- 'Environment variables prefixed by scope: MOBILE_*, API_*, DB_*'
+- 'Test files colocated with source: component.tsx + component.test.tsx'
+- Async functions always return explicit Promise types
+- 'Error messages include context codes for debugging: ERR_SYNC_001, ERR_UPLOAD_002'
+decisions:
+- id: D-1
+  title: Use Expo for React Native development
+  decision: Build mobile app using Expo managed workflow instead of bare React Native
+  rationale: Expo provides out-of-box camera, audio recording, and file system APIs
+    needed for MVP. Simplifies build/deployment process and enables faster iteration.
+    Can eject to bare workflow later if native modules are needed for integrations.
+- id: D-2
+  title: Server-side AI processing over on-device
+  decision: Perform voice transcription and photo tagging via backend API calls to
+    OpenAI rather than on-device ML models
+  rationale: OpenAI APIs provide superior accuracy for construction-specific vocabulary
+    without requiring model training. Reduces mobile app complexity and battery drain.
+    Offline-first architecture queues AI processing jobs for when connectivity returns,
+    so latency is acceptable.
+- id: D-3
+  title: SQLite for local mobile storage
+  decision: Use SQLite (via expo-sqlite) for local structured data instead of AsyncStorage
+    or IndexedDB
+  rationale: SQLite provides relational queries needed for filtering/searching techniques
+    locally while offline. Better performance for complex queries (filter by trade
+    + date range). Easier sync logic with explicit schema versioning.
+contracts: []

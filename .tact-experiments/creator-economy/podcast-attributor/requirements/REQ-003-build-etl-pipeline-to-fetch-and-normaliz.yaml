@@ -1,0 +1,22 @@
+title: Build ETL pipeline to fetch and normalize download data from connected platforms
+approval: draft
+phase: planned
+priority: critical
+description: Create scheduled jobs that extract download metrics from Anchor and Buzzsprout
+  APIs, transform them into a unified schema, and load into PostgreSQL. This enables
+  cross-platform analytics aggregation and historical trend analysis.
+acceptanceCriteria:
+- Scheduled job runs every 6 hours to fetch new download data from all connected platforms
+- 'Platform-specific API responses are transformed into normalized schema with fields:
+  episode_id, episode_title, downloads, timestamp, platform_source, referrer'
+- Duplicate records are detected and skipped using composite unique constraint on
+  (episode_id, platform_source, timestamp)
+- Failed API requests are retried up to 3 times with exponential backoff before logging
+  error
+- ETL job completion status and record counts are logged for monitoring and debugging
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authentication for Anchor API
+- Implement OAuth authentication for Buzzsprout API
+source: discovered

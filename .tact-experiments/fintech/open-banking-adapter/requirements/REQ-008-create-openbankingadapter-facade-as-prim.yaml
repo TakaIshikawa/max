@@ -1,0 +1,24 @@
+title: Create OpenBankingAdapter facade as primary SDK entry point
+approval: draft
+phase: planned
+priority: critical
+description: Build OpenBankingAdapter class that serves as the main entry point for
+  consuming applications. Facade initializes provider adapters, fallback orchestrator,
+  and health monitor based on configuration. Exposes unified methods (getAccounts,
+  getTransactions, initiatePayment) that delegate to orchestrator.
+acceptanceCriteria:
+- OpenBankingAdapter constructor accepts AdapterConfig and initializes all components
+  (adapters, orchestrator, health monitor)
+- 'Facade exposes methods: getAccounts(), getAccountById(id), getTransactions(accountId,
+  options), initiatePayment(request)'
+- All facade methods delegate to FallbackOrchestrator with primary and fallback providers
+- Facade provides getProviderHealth() method to expose current provider health status
+- Facade implements graceful shutdown via close() method that cleans up health monitor
+  intervals
+decomposition:
+  assignments: []
+dependencies:
+- Implement circuit breaker with automatic fallback orchestration
+- Build configuration system for provider credentials and fallback strategy
+- Implement provider health monitoring system
+source: discovered

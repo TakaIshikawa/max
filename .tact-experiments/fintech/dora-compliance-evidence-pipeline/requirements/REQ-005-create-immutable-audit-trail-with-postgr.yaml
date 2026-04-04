@@ -1,0 +1,22 @@
+title: Create immutable audit trail with PostgreSQL triggers
+approval: draft
+phase: planned
+priority: critical
+description: Design database schema with append-only audit tables and implement PostgreSQL
+  triggers to automatically log all evidence ingestion, control mapping, and report
+  generation events. Audit trail is foundational for DORA compliance demonstration.
+acceptanceCriteria:
+- 'Database schema includes audit_log table with columns: id, timestamp, actor, action,
+  entity_type, entity_id, change_data (JSONB)'
+- PostgreSQL triggers on evidence, control_evidence, and report tables automatically
+  insert audit_log entries on INSERT operations
+- UPDATE and DELETE operations on evidence tables are blocked via triggers (append-only
+  enforcement)
+- Alembic migration creates audit schema with indexes on timestamp and entity_type
+  for query performance
+- Audit log entries include SHA-256 hash of change_data for tamper detection
+- Integration test verifies audit log capture for complete evidence ingestion workflow
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

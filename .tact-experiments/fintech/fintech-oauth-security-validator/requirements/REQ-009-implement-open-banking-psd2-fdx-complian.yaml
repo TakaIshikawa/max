@@ -1,0 +1,20 @@
+title: Implement Open Banking PSD2/FDX compliance checks
+approval: draft
+phase: planned
+priority: medium
+description: Validate OAuth flows against PSD2 Strong Customer Authentication (SCA)
+  requirements and FDX API security standards for open banking integrations, including
+  consent scope validation and token expiration limits.
+acceptanceCriteria:
+- Verify authorization request includes consent_id parameter for PSD2 flows
+- Validate access token expiration does not exceed 90 days per PSD2 RTS Article 10
+- Test refresh token rotation and confirm new refresh token issued on each refresh
+- 'Verify scopes match FDX permission patterns: accounts.read, transactions.read,
+  payments.write'
+- Generate compliance report section tagged with 'PSD2-RTS' or 'FDX-5.0' framework
+  identifiers
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based test scenario configuration loader
+source: discovered

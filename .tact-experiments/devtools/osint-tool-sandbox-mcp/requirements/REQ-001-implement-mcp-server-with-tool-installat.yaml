@@ -1,0 +1,22 @@
+title: Implement MCP server with tool installation and execution endpoints
+approval: draft
+phase: planned
+priority: critical
+description: Create MCP server exposing tools for requesting package installation
+  (sandbox_install_tool) and executing tools in sandbox (sandbox_execute_tool). Server
+  must handle MCP protocol messages, validate inputs, and return structured responses
+  with execution results or error details.
+acceptanceCriteria:
+- MCP server starts and responds to protocol handshake
+- sandbox_install_tool accepts package_name (string) and package_version (optional
+  string) parameters
+- sandbox_execute_tool accepts tool_name (string), command (string), and arguments
+  (array) parameters
+- Server returns error responses for invalid inputs (missing required params, malformed
+  commands)
+- All tool invocations are logged with timestamp, user context, and parameters before
+  execution
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

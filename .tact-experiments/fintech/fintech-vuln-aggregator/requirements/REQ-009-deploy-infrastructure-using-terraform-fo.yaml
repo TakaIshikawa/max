@@ -1,0 +1,22 @@
+title: Deploy infrastructure using Terraform for AWS
+approval: draft
+phase: planned
+priority: high
+description: 'Create Terraform modules for provisioning AWS infrastructure: RDS PostgreSQL,
+  ECS Fargate for FastAPI, Lambda functions for polling jobs, EventBridge schedules,
+  VPC networking, and IAM roles. Support environment-based deployments (dev, staging,
+  prod).'
+acceptanceCriteria:
+- Terraform module creates RDS PostgreSQL 15 instance with automated backups and encryption
+- ECS Fargate service deploys FastAPI container with auto-scaling (min 1, max 3 tasks)
+- Lambda functions created for GitHub, CVE, and vendor polling jobs with EventBridge
+  triggers
+- VPC with private subnets for RDS, public subnets for ECS, and NAT gateway for Lambda
+  internet access
+- IAM roles follow least-privilege principle (Lambda can write to RDS, ECS can read
+  secrets)
+- Terraform state stored in S3 with DynamoDB locking for team collaboration
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

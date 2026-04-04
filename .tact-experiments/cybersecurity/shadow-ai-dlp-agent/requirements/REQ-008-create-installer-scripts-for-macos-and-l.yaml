@@ -1,0 +1,24 @@
+title: Create installer scripts for macOS and Linux
+approval: draft
+phase: planned
+priority: high
+description: Develop installation scripts that automate agent deployment on macOS
+  (bash + launchd) and Linux (bash + systemd). Scripts install Python dependencies,
+  configure agent as system service, generate CA certificate, and set up proxy configuration.
+  Support uninstall script that removes all agent artifacts and restores original
+  proxy settings.
+acceptanceCriteria:
+- install.sh script completes successfully on macOS 12+ and Ubuntu 22.04+ with sudo
+  privileges
+- Agent runs as system service (launchd on macOS, systemd on Linux) and starts automatically
+  on boot
+- Installer prompts for dashboard URL and API key, storing them in /etc/shadow-ai-dlp/config.yaml
+- uninstall.sh removes agent service, CA certificate, proxy configuration, and all
+  config files
+- Installation completes in <2 minutes on typical developer workstation
+decomposition:
+  assignments: []
+dependencies:
+- Implement HTTPS interception with mitmproxy
+- Create centralized logging to dashboard API
+source: discovered

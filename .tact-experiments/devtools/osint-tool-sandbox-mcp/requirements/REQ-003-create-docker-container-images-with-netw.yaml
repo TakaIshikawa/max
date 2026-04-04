@@ -1,0 +1,18 @@
+title: Create Docker container images with network proxy configuration
+approval: draft
+phase: planned
+priority: critical
+description: Build base Docker image with Python runtime, mitmproxy client configuration,
+  and network settings to route all traffic through monitoring proxy. Image must support
+  installing arbitrary PyPI packages and executing commands in isolated environment.
+acceptanceCriteria:
+- Dockerfile creates image with Python 3.11+, pip, and CA certificates for mitmproxy
+- Container network configured to use bridge network with proxy as gateway
+- Environment variables set to route HTTP/HTTPS through mitmproxy (HTTP_PROXY, HTTPS_PROXY)
+- Container has no access to host network namespace (verified via docker inspect)
+- Test execution of 'pip install requests' routes traffic through proxy and completes
+  successfully
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

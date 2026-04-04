@@ -1,0 +1,70 @@
+patterns:
+- name: Event-Driven Aggregation
+  description: Scheduled crawlers emit vulnerability events to a central processing
+    queue. Correlation engine deduplicates and enriches events before persistence.
+    Decouples data ingestion from processing and alerting.
+  scope:
+  - crawlers
+  - correlation-engine
+  - alert-dispatcher
+- name: Repository Pattern
+  description: Abstract database operations behind repository interfaces. Enables
+    testing with in-memory repositories and future database migrations without business
+    logic changes.
+  scope:
+  - vulnerability-repository
+  - package-repository
+  - alert-repository
+- name: Plugin Architecture for Sources
+  description: Each vulnerability source (GitHub, npm, PyPI) implements a common SourcePlugin
+    interface with fetch() and parse() methods. Enables adding new sources without
+    modifying core aggregation logic.
+  scope:
+  - source-plugins
+  - crawler-scheduler
+invariants:
+- Every vulnerability record must have a unique identifier (CVE or source-specific
+  ID) to prevent duplicate alerts
+- Risk scores must be deterministic and reproducible given the same input data
+- Vulnerability records are immutable once created; updates create new versions with
+  timestamps
+- Alert delivery must be idempotent; duplicate webhook calls for the same vulnerability+version
+  do not trigger multiple notifications
+- Package prevalence data (download counts, stars) must have a recorded timestamp
+  to track staleness
+- Crawler failures must not block other crawlers; each source operates independently
+conventions:
+- Use snake_case for Python functions, variables, and module names
+- Use PascalCase for class names and Pydantic models
+- Prefix database table names with 'vuln_' (e.g., vuln_advisories, vuln_packages)
+- Environment variables use UPPER_SNAKE_CASE with VULN_AGGREGATOR_ prefix
+- 'API endpoints follow REST conventions: /api/v1/vulnerabilities, /api/v1/packages'
+- Crawler plugins stored in src/crawlers/ with filename pattern {source}_crawler.py
+- All timestamps stored in UTC with timezone awareness
+- 'Log structured JSON with fields: timestamp, level, component, message, context'
+decisions:
+- id: D-1
+  title: Use GitHub Security Advisories GraphQL API as primary source
+  decision: Leverage GitHub's GraphQL API for security advisories instead of scraping
+    HTML pages
+  rationale: GitHub's GraphQL API provides structured data with reliable schema, includes
+    CVSS scores and affected package versions, and has generous rate limits (5000
+    requests/hour authenticated). Reduces parsing fragility compared to HTML scraping
+    and provides official vulnerability metadata.
+- id: D-2
+  title: Store vulnerability records as append-only event log
+  decision: Treat vulnerability updates as new events rather than in-place database
+    updates
+  rationale: Enables audit trail of when vulnerabilities were discovered, updated,
+    or patched. Supports temporal queries like 'what was the risk score on March 29?'
+    for incident analysis. Simplifies deduplication logic by comparing against historical
+    records. Aligns with event-driven architecture pattern.
+- id: D-3
+  title: Implement risk scoring as synchronous calculation on query
+  decision: Calculate risk scores on-demand during API queries rather than pre-computing
+    and storing scores
+  rationale: Prevalence data (npm downloads, GitHub stars) changes frequently; pre-computed
+    scores become stale within hours. On-demand calculation ensures scores reflect
+    latest deployment data. Simplifies MVP by avoiding background score refresh jobs.
+    Performance acceptable for MVP query volumes (<100 QPS).
+contracts: []

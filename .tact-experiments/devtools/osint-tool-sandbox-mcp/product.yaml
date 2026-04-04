@@ -1,0 +1,45 @@
+name: osint-tool-sandbox-mcp
+version: 0.1.0
+vision: Provide security teams with a containerized, network-monitored execution environment
+  for safely vetting and running untrusted OSINT tools, reducing supply chain attack
+  risk while enabling safe experimentation with new security research tools.
+goals:
+- id: G-1
+  description: Isolate untrusted OSINT tool execution from analyst workstations
+  successCriteria: 100% of tool executions run in containerized environments with
+    no direct access to host filesystem or network credentials
+- id: G-2
+  description: Detect potential supply chain attacks and data exfiltration attempts
+  successCriteria: Network monitoring captures and logs all HTTP/DNS requests with
+    flagging of suspicious patterns (credential endpoints, known C2 domains, unusual
+    data volumes)
+- id: G-3
+  description: Provide automated risk assessment for OSINT packages before installation
+  successCriteria: Generate risk scores for PyPI/npm packages within 30 seconds, incorporating
+    maintainer reputation, dependency analysis, and OpenSSF Scorecard data
+- id: G-4
+  description: Maintain comprehensive audit trail for compliance and incident response
+  successCriteria: SQLite database logs all tool installations, executions, network
+    activity, and risk assessments with queryable timestamps and metadata
+constraints:
+- MVP supports Python (PyPI) packages only; npm support deferred to post-MVP
+- Network monitoring limited to HTTP/HTTPS/DNS; raw packet analysis deferred
+- Manual approval workflow via CLI; web UI deferred to post-MVP
+- Single-host deployment only; distributed execution deferred
+- Risk scoring uses publicly available APIs only; no proprietary threat intelligence
+  integration
+- Container runtime must be Docker-compatible (Docker or Podman)
+- 'Maximum container execution time: 5 minutes for MVP safety'
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - MCP Python SDK
+  - Docker SDK for Python
+  - mitmproxy
+  - SQLite3
+  infrastructure:
+  - Docker or Podman
+  - Trivy (container scanning)
+  - OpenSSF Scorecard API
+  - PyPI/npm metadata APIs

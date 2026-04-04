@@ -1,0 +1,24 @@
+title: Build GitHub activity tracking for project-based learning progress
+approval: draft
+phase: planned
+priority: critical
+description: Implement tracking service that monitors employee GitHub activity (commits,
+  PRs, issues) on repositories included in learning paths. Calculates completion based
+  on defined milestones (e.g., complete 5 exercises, submit 2 PRs). Essential for
+  validating hands-on skill development.
+acceptanceCriteria:
+- Service polls GitHub API hourly to fetch commit and PR activity for tracked employees
+  on learning path repositories
+- Progress calculation correctly identifies completion of exercises based on commit
+  messages matching pattern (e.g., 'Exercise 3 complete')
+- 'Dashboard displays real-time progress metrics: commits made, PRs submitted, exercises
+  completed, overall completion percentage'
+- API endpoint GET /user-progress/:userId/:pathId returns progress object with completion
+  status for each module
+- System handles private repositories by requesting OAuth access from employees during
+  onboarding
+decomposition:
+  assignments: []
+dependencies:
+- Create learning path builder with role-based templates
+source: discovered

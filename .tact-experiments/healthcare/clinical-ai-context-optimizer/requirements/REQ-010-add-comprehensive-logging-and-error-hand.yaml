@@ -1,0 +1,24 @@
+title: Add comprehensive logging and error handling
+approval: draft
+phase: planned
+priority: medium
+description: Implement structured logging for all pipeline stages with correlation
+  IDs. Log clinical relevance decisions, compression ratios, and token usage. Handle
+  FHIR API errors, missing resources, and malformed data gracefully with informative
+  error messages.
+acceptanceCriteria:
+- All log entries include correlation ID (request ID), timestamp, log level, and component
+  name
+- Logs compression ratio (original tokens / compressed tokens) for each resource type
+- Logs relevance score distribution (min, max, mean) for each optimization request
+- FHIR API errors include HTTP status, resource type, and sanitized error message
+  (no PHI)
+- Missing required FHIR fields log warning but don't crash pipeline
+- Unhandled exceptions return 500 with generic error message and log full stack trace
+  with correlation ID
+- Supports LOG_LEVEL environment variable (DEBUG, INFO, WARN, ERROR)
+decomposition:
+  assignments: []
+dependencies:
+- Provide REST API for context optimization requests
+source: discovered

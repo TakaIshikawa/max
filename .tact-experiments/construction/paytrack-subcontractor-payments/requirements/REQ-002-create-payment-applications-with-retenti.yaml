@@ -1,0 +1,21 @@
+title: Create payment applications with retention tracking
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to create payment applications (invoices) for specific
+  projects with line items, change orders, and retention amounts to track what they're
+  owed.
+acceptanceCriteria:
+- User can create payment application with project name, GC selection, invoice number,
+  and submission date
+- User can add multiple line items with description and amount
+- User can specify retention percentage (0-100%) with automatic calculation of retention
+  amount
+- User can add change orders as separate line items that adjust total amount
+- 'Total amount calculation: sum(line items) + sum(change orders) - retention amount'
+- Payment application saves offline and syncs when online
+decomposition:
+  assignments: []
+dependencies:
+- Create and manage general contractor profiles
+source: discovered

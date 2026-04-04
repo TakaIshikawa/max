@@ -1,0 +1,48 @@
+name: creator-collab
+version: 0.1.0
+vision: A portfolio-based collaboration marketplace that matches podcasters with editors,
+  co-hosts, and cover artists through creative alignment, enabling ongoing partnerships
+  with built-in revenue-sharing and project management.
+goals:
+- id: G-1
+  description: Enable podcasters to discover and evaluate collaborators through portfolio-based
+    browsing
+  successCriteria: Users can filter collaborators by role (editor/co-host/artist),
+    genre, and style, and preview at least 3 portfolio samples per collaborator within
+    2 minutes of landing on search results
+- id: G-2
+  description: Facilitate trust and partnership formation through compatibility matching
+  successCriteria: System generates compatibility scores for collaborator-podcaster
+    pairs based on genre tags, style preferences, and values, with at least 60% of
+    users reporting matches feel relevant
+- id: G-3
+  description: Support ongoing creative partnerships with revenue-sharing agreements
+  successCriteria: Platform supports creation of revenue-sharing agreements with percentage-based
+    splits, tracks payments through escrow, and distributes funds automatically within
+    48 hours of payment receipt
+- id: G-4
+  description: Streamline episode production workflows with integrated project management
+  successCriteria: Users can create episode-based projects, upload/download assets
+    (audio files, cover art), and track production status through at least 3 stages
+    (recording → editing → published)
+constraints:
+- 'MVP limited to three collaborator roles: editor, co-host, cover artist'
+- Audio samples limited to 5 minutes duration and 50MB file size per upload
+- Revenue-sharing agreements support percentage splits only (no complex tiered structures)
+- Project management limited to single-podcast workflows (no multi-show management)
+- Authentication via email/password only (no OAuth in MVP)
+- US-based users only for initial launch due to Stripe Connect regulatory requirements
+techStack:
+  languages:
+  - Ruby
+  - JavaScript
+  - SQL
+  frameworks:
+  - Ruby on Rails 7
+  - React 18
+  - Tailwind CSS
+  infrastructure:
+  - PostgreSQL
+  - AWS S3
+  - Stripe Connect
+  - Heroku/Railway

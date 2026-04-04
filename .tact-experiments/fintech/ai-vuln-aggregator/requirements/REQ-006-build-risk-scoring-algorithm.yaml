@@ -1,0 +1,22 @@
+title: Build risk scoring algorithm
+approval: draft
+phase: planned
+priority: critical
+description: Implement risk scoring formula that combines CVSS base score, deployment
+  prevalence, exploit availability, and patch status to produce actionable risk levels
+  (CRITICAL/HIGH/MEDIUM/LOW).
+acceptanceCriteria:
+- Base score starts with CVSS score (0-10 scale)
+- Adds +2 points if package has >100k weekly npm downloads OR >10k GitHub stars
+- Adds +1.5 points if public exploit code detected (via GitHub search for CVE + 'exploit'
+  OR 'poc')
+- Subtracts -1 point if patch is available in stable release
+- 'Maps final score to risk levels: >=9.0=CRITICAL, 7.0-8.9=HIGH, 4.0-6.9=MEDIUM,
+  <4.0=LOW'
+- Scoring function is pure (no side effects) and returns same result for same inputs
+decomposition:
+  assignments: []
+dependencies:
+- Implement package prevalence data collection
+- Build vulnerability correlation engine
+source: discovered

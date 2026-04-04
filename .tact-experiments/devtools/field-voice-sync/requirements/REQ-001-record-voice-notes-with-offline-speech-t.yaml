@@ -1,0 +1,21 @@
+title: Record voice notes with offline speech-to-text transcription
+approval: draft
+phase: planned
+priority: critical
+description: Field workers must be able to record voice notes up to 10 minutes describing
+  daily work activities, with automatic transcription to text using on-device speech
+  recognition. Must work completely offline.
+acceptanceCriteria:
+- User can tap 'Record' button and speak for up to 10 minutes without app crashing
+  or losing audio
+- Transcription begins automatically when recording stops, completing within 30 seconds
+  for 5-minute recording
+- Transcribed text displays in editable text field, allowing user to correct errors
+  before saving
+- Raw audio file (.m4a) and transcript (.txt) both saved to local SQLite with unique
+  report_id
+- Works with device in airplane mode (no network connectivity required)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

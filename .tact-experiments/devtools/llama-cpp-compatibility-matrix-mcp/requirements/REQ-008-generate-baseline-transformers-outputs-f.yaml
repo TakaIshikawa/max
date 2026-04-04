@@ -1,0 +1,18 @@
+title: Generate baseline transformers outputs for comparison
+approval: draft
+phase: planned
+priority: high
+description: For each tested model, run inference using Hugging Face transformers
+  library with same prompt to establish correctness baseline. Store baseline outputs
+  for comparison during llama.cpp testing.
+acceptanceCriteria:
+- Baseline generation runs in separate container with transformers library
+- Uses same prompt as llama.cpp tests (fixed 50-token generation)
+- Stores first 20 output token IDs in compat_baselines table linked to model
+- Baseline regenerated if model updated (detected via Hugging Face commit hash)
+- Handles models not available in transformers format gracefully (marks as 'no_baseline')
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema for compatibility matrix
+source: discovered

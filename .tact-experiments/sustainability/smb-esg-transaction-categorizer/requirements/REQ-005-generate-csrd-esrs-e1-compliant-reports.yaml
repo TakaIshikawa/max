@@ -1,0 +1,27 @@
+title: Generate CSRD ESRS E1 compliant reports with audit trails
+approval: draft
+phase: planned
+priority: high
+description: Build report generation system producing CSRD-compliant sustainability
+  reports focused on ESRS E1 (Climate Change) with Scope 3 Category 1 emissions calculated
+  from transaction data and supplier carbon intensity. Must include complete data
+  lineage for regulatory audits.
+acceptanceCriteria:
+- 'Jinja2 templates created for CSRD ESRS E1 report structure: Executive Summary,
+  Scope 3 Category 1 Emissions (by supplier and category), Data Lineage section, Methodology
+  notes'
+- 'Report calculation engine: aggregates transactions by ESG category, joins with
+  supplier carbon_intensity_kg_co2e, calculates total emissions = SUM(transaction_amount
+  * supplier_carbon_intensity), handles missing supplier data with industry averages'
+- 'Data lineage section lists every transaction contributing to metrics with: transaction_id,
+  date, supplier, amount, carbon_intensity_source, provider_transaction_id for traceability'
+- PDF export using WeasyPrint with professional formatting, page numbers, table of
+  contents, and CSRD compliance statement
+- 'Generated reports stored in csrd_reports table with: report_id, account_id, period_start,
+  period_end, total_scope3_emissions_kg, report_file_path, generated_at, report_version'
+decomposition:
+  assignments: []
+dependencies:
+- Build ESG transaction categorization engine with ML and rules
+- Create PostgreSQL schema with audit-first data model
+source: discovered

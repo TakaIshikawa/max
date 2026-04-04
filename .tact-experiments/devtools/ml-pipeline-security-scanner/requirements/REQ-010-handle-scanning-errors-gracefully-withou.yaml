@@ -1,0 +1,17 @@
+title: Handle scanning errors gracefully without failing entire scan
+approval: draft
+phase: planned
+priority: medium
+description: Ensure scanner continues processing remaining files when individual file
+  parsing fails (e.g., malformed notebook, syntax errors). Improves reliability in
+  real-world projects with diverse file quality.
+acceptanceCriteria:
+- Catch and log parsing exceptions for individual files without terminating scan
+- Include error summary in output (e.g., '3 files skipped due to parsing errors')
+- Report skipped files with error messages in verbose mode (--verbose flag)
+- Exit code reflects findings severity, not parsing errors (unless all files fail)
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI with configurable severity thresholds and output formats
+source: discovered

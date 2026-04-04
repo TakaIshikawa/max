@@ -1,0 +1,20 @@
+title: Orchestrate containerized tool execution with resource limits and timeout
+approval: draft
+phase: planned
+priority: critical
+description: Implement execution orchestrator that launches Docker container with
+  installed tool, enforces resource limits (CPU, memory, execution time), captures
+  stdout/stderr, and ensures container cleanup. Execution must be isolated per invocation
+  with unique container instances.
+acceptanceCriteria:
+- Create new container instance for each execution with unique name (osint-sandbox-{tool}-{timestamp})
+- 'Enforce resource limits: 1 CPU core, 512MB memory, 5 minute timeout'
+- Mount read-only volume for input files (if provided), no write access to host filesystem
+- Capture stdout/stderr streams and return in execution response
+- Container automatically destroyed after execution completes, times out, or errors
+  (verified via docker ps)
+decomposition:
+  assignments: []
+dependencies:
+- Create Docker container images with network proxy configuration
+source: discovered

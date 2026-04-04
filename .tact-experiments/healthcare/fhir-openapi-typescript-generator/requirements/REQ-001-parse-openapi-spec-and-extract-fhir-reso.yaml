@@ -1,0 +1,19 @@
+title: Parse OpenAPI spec and extract FHIR resource schemas
+approval: draft
+phase: planned
+priority: critical
+description: CLI must accept an OpenAPI 3.x spec file (JSON or YAML) and identify
+  FHIR resource schemas based on x-fhir-type extensions or schema naming conventions
+  (e.g., Patient, Observation). This is the foundation for all downstream generation.
+acceptanceCriteria:
+- CLI accepts --input flag with path to OpenAPI spec file (JSON or YAML)
+- Parser identifies all schemas with x-fhir-type extension or matching FHIR resource
+  naming pattern
+- Parser extracts schema definitions for Patient, Observation, and Condition resources
+  from HAPI FHIR OpenAPI spec
+- Parser fails gracefully with clear error message if OpenAPI spec is invalid or missing
+  required FHIR schemas
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

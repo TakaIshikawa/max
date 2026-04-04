@@ -1,0 +1,54 @@
+name: paytrack-subcontractor-payments
+version: 0.1.0
+vision: A mobile-first payment tracking system that gives subcontractors real-time
+  visibility into payment applications, retention amounts, and change orders across
+  multiple general contractors, with automated alerts to prevent cash flow disruptions.
+goals:
+- id: G-1
+  description: Enable subcontractors to track payment applications and retention amounts
+    across multiple GCs in a single dashboard
+  successCriteria: User can create and view payment applications for at least 3 different
+    GCs, with retention amounts automatically calculated and displayed. Dashboard
+    shows aggregate payment status with filtering by GC and project.
+- id: G-2
+  description: Automate overdue payment detection and notifications based on contract
+    payment terms
+  successCriteria: System sends SMS alerts when payments are 5 days overdue based
+    on contract terms. 90% of alerts delivered within 1 hour of detection. Users can
+    configure alert thresholds (e.g., 5, 15, 30 days).
+- id: G-3
+  description: Provide offline-first mobile experience for field use without reliable
+    connectivity
+  successCriteria: App functions fully offline for creating/viewing payment applications
+    and change orders. Data syncs automatically when connectivity restored. No data
+    loss during offline periods.
+- id: G-4
+  description: Generate payment history reports suitable for bank loan and bonding
+    applications
+  successCriteria: Users can export PDF reports showing payment history by GC, including
+    total billed, paid, retained, and outstanding amounts. Reports include payment
+    velocity metrics (average days to payment).
+constraints:
+- MVP excludes third-party integrations (Procore, Buildertrend, QuickBooks) - manual
+  data entry only
+- MVP excludes GPT-4 Vision PDF parsing - users manually enter payment application
+  details
+- Mobile app targets iOS and Android via React Native/Expo - no web interface in MVP
+- SMS notifications limited to 100 messages/month per user in freemium tier
+- Offline storage limited to 6 months of payment history to manage device storage
+- MVP supports USD currency only - no multi-currency support
+techStack:
+  languages:
+  - TypeScript
+  - SQL
+  frameworks:
+  - React Native
+  - Expo
+  - Node.js
+  - Express
+  - Prisma ORM
+  infrastructure:
+  - PostgreSQL
+  - Redis (job queue)
+  - AWS S3 (document storage)
+  - Twilio SMS API

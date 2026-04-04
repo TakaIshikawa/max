@@ -1,0 +1,20 @@
+title: Document test suite and remediation guidance
+approval: draft
+phase: planned
+priority: medium
+description: Create comprehensive documentation explaining each security test, why
+  it matters for SMART-on-FHIR applications, and how to fix common failures. Include
+  quick start guide for running tests and interpreting results.
+acceptanceCriteria:
+- README.md includes quick start with installation, basic usage, and example output
+- docs/tests.md documents all SEC-XXX tests with description, rationale, and remediation
+  steps
+- docs/remediation.md provides code examples for fixing common issues (PKCE implementation,
+  secure token storage)
+- Each test failure links to specific section in docs/remediation.md
+- Documentation includes architecture diagram showing mock server, test harness, and
+  application under test interaction
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

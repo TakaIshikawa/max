@@ -1,0 +1,20 @@
+title: Create test orchestration worker for background processing
+approval: draft
+phase: planned
+priority: high
+description: Implement background worker that processes pending tests from queue,
+  launches Docker containers, executes tests, and updates database with results. Supports
+  concurrent test execution.
+acceptanceCriteria:
+- Worker polls compat_tests table for status='pending' every 5 minutes
+- Launches Docker container for appropriate llama.cpp version with model mounted
+- Executes test script inside container, captures stdout/stderr
+- Updates test status to 'running' during execution, 'completed' or 'error' after
+- Supports max 2 concurrent tests to limit resource usage
+- Implements retry logic (max 3 attempts) for transient failures
+decomposition:
+  assignments: []
+dependencies:
+- Build Docker images for multiple llama.cpp versions
+- Create PostgreSQL schema for compatibility matrix
+source: discovered

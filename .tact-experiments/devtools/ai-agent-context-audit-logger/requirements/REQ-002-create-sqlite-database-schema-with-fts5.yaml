@@ -1,0 +1,20 @@
+title: Create SQLite database schema with FTS5 support
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement the SQLite database schema for storing context audit
+  logs with indexed metadata fields and full-text search capability. Schema must support
+  efficient querying by timestamp, file path, and token count while enabling full-text
+  search on code and prompts.
+acceptanceCriteria:
+- 'Database includes contexts table with columns: id (TEXT PRIMARY KEY), timestamp
+  (TEXT), file_path (TEXT), token_count (INTEGER), payload (TEXT as JSON), outcome
+  (TEXT)'
+- Indexes created on timestamp, file_path, and token_count columns for fast filtering
+- FTS5 virtual table contexts_fts created for full-text search on payload content
+- Database automatically created on first run if it doesn't exist
+- Schema migration is idempotent and safe to run multiple times
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

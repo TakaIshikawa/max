@@ -1,0 +1,25 @@
+title: Build Sigma rule engine with pySigma integration
+approval: draft
+phase: planned
+priority: critical
+description: Load Sigma rules from filesystem, compile to detection logic, and apply
+  to normalized event streams. This is the core detection mechanism for generating
+  alerts.
+acceptanceCriteria:
+- Rule loader reads all .yml files from /rules directory at startup and validates
+  Sigma syntax
+- Service fails to start with clear error message if any rule fails validation
+- Detection engine applies rules to events from both Infisical and Trivy sources using
+  normalized field mappings (e.g., user, ip_address, timestamp)
+- 'Rule matches generate alerts in alerts table with fields: alert_id, rule_id, mitre_technique_id,
+  severity, matched_events (array of event_ids), created_at'
+- 'Include 5 pre-configured rules: bulk secret enumeration (T1552.001), new IP access
+  (T1078), critical CVE in production image (T1190), secret access from vulnerable
+  container (T1552.001 + T1190 correlation), privilege escalation via exposed credentials
+  (T1548)'
+decomposition:
+  assignments: []
+dependencies:
+- Implement Infisical webhook receiver with HMAC validation
+- Implement Trivy JSON scan result file watcher
+source: discovered

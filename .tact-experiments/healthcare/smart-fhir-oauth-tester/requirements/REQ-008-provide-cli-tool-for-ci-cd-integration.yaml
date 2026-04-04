@@ -1,0 +1,22 @@
+title: Provide CLI tool for CI/CD integration
+approval: draft
+phase: planned
+priority: high
+description: Create a command-line interface that accepts application configuration,
+  runs the test suite, and outputs results. Support common CI/CD environment variables
+  and provide options for test filtering and timeout configuration.
+acceptanceCriteria:
+- CLI command 'sfot test --app-url <url> --redirect-uri <uri>' executes full test
+  suite
+- CLI supports --output-format json|html flag for report format selection
+- CLI supports --timeout <seconds> to configure maximum test execution time (default
+  300s)
+- CLI supports --filter <test-id> to run specific tests (e.g., --filter SEC-001,SEC-002)
+- CLI reads configuration from environment variables (SFOT_APP_URL, SFOT_REDIRECT_URI)
+  when flags not provided
+- Complete test suite execution completes in under 5 minutes for typical web application
+decomposition:
+  assignments: []
+dependencies:
+- Generate security scorecard report
+source: discovered

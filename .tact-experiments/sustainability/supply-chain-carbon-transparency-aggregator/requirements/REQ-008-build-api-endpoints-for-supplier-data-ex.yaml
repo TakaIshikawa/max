@@ -1,0 +1,23 @@
+title: Build API endpoints for supplier data export and integration
+approval: draft
+phase: planned
+priority: medium
+description: Expose REST API for exporting normalized supplier carbon data to external
+  systems (CSRD platforms, carbon accounting tools). Supports composability vision
+  by enabling integration with procurement and reporting platforms.
+acceptanceCriteria:
+- GET /api/v1/suppliers returns paginated list of suppliers with carbon intensity
+  metrics (JSON)
+- GET /api/v1/suppliers/{id}/emissions returns detailed emission data including raw
+  submissions and normalized values
+- 'POST /api/v1/suppliers/bulk-export generates CSV with columns: supplier_name, category,
+  emission_kg_co2e, intensity, quality_score, submission_date'
+- API authentication via bearer tokens generated in admin dashboard with configurable
+  expiration
+- 'Rate limiting: 100 requests per minute per organization to prevent abuse'
+decomposition:
+  assignments: []
+dependencies:
+- Implement data normalization and validation pipeline
+- Implement buyer organization and user management
+source: discovered

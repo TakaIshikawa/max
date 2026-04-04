@@ -1,0 +1,19 @@
+title: Add logging and monitoring instrumentation
+approval: draft
+phase: planned
+priority: medium
+description: Implement structured logging and basic metrics collection to enable operational
+  visibility into scraper health and API performance.
+acceptanceCriteria:
+- 'All application logs output structured JSON with fields: timestamp, level, message,
+  correlation_id, service (api/worker/beat)'
+- 'Scraper tasks log metrics: source, duration_ms, vulnerabilities_discovered, vulnerabilities_updated,
+  errors_count'
+- 'API requests logged with: method, path, status_code, duration_ms, user_agent'
+- Celery task success/failure logged with task_name, duration_ms, retry_count
+- Logs written to stdout for container log aggregation
+- README documents how to query logs for common troubleshooting scenarios
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

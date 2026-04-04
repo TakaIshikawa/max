@@ -1,0 +1,22 @@
+title: Manage local storage and model cache cleanup
+approval: draft
+phase: planned
+priority: medium
+description: Users must be able to view storage consumption by downloaded models and
+  RFI photos, and selectively delete cached models to free up device storage, preventing
+  the app from consuming excessive space over time.
+acceptanceCriteria:
+- Settings screen displays total storage used by app (models + photos + RFI data)
+  in MB/GB
+- User can view list of downloaded models with individual file sizes and download
+  dates
+- User can delete individual models from cache, which removes IFC file and parsed
+  data from IndexedDB
+- App warns user if deleting a model that has linked RFIs in DRAFT or QUEUED state
+- Auto-cleanup option deletes models not accessed in 30+ days (configurable, default
+  OFF for MVP)
+decomposition:
+  assignments: []
+dependencies:
+- Download and parse IFC models for offline viewing
+source: discovered

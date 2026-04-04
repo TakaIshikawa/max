@@ -1,0 +1,20 @@
+title: Implement email alert delivery
+approval: draft
+phase: planned
+priority: medium
+description: Build email notification service that sends formatted alerts for CRITICAL
+  vulnerabilities to configured recipients. Must include actionable remediation guidance.
+acceptanceCriteria:
+- 'Reads SMTP configuration from environment variables: VULN_AGGREGATOR_SMTP_HOST,
+  SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_RECIPIENTS'
+- Sends email alerts only for CRITICAL risk level vulnerabilities
+- 'Email subject format: ''[CRITICAL] Vulnerability in {package_name}: {CVE}'''
+- 'Email body includes: package name, CVE, CVSS score, risk level, affected versions,
+  patched version (if available), exploit status, and link to advisory'
+- 'Deduplicates emails: does not re-send for same vulnerability ID within 24 hours'
+- Handles SMTP failures gracefully with logging; does not crash alert dispatcher
+decomposition:
+  assignments: []
+dependencies:
+- Build risk scoring algorithm
+source: discovered

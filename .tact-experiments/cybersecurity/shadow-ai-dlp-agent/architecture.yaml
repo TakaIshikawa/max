@@ -1,0 +1,81 @@
+patterns:
+- name: Transparent Proxy Interception
+  description: Use mitmproxy as transparent HTTPS proxy to intercept TLS traffic without
+    requiring application-level integration. Agent installs CA certificate to system
+    trust store and configures system proxy settings to route traffic through local
+    proxy server.
+  scope:
+  - agent
+  - proxy-configuration
+- name: Policy-as-Code
+  description: Define detection rules and enforcement policies in version-controlled
+    YAML files with regex patterns, entity types, and action specifications. Policy
+    engine loads rules at startup and evaluates each intercepted request against rule
+    set.
+  scope:
+  - policy-engine
+  - configuration
+- name: Event Sourcing for Audit Trail
+  description: All policy violations, blocks, and redactions are logged as immutable
+    events to centralized PostgreSQL database. Dashboard queries event log for compliance
+    reporting and alerting.
+  scope:
+  - logging
+  - dashboard
+  - compliance
+- name: Plugin Architecture for NLP Analyzers
+  description: Abstract semantic analysis behind analyzer interface to support multiple
+    detection strategies (spaCy NER, regex, custom models). Analyzers run in pipeline,
+    each contributing detected entities to policy evaluation context.
+  scope:
+  - nlp
+  - extensibility
+invariants:
+- Agent MUST never log or persist actual prompt content containing PII—only metadata
+  (timestamp, endpoint, entity types detected, action taken)
+- Policy evaluation MUST complete within 500ms or request is allowed through with
+  alert logged
+- Certificate private key MUST be generated locally on endpoint and never transmitted
+  to dashboard
+- Redaction operations MUST be deterministic and reversible for audit purposes (use
+  placeholder tokens, not random strings)
+- Agent MUST fail open (allow traffic) if policy engine crashes or becomes unresponsive
+- Dashboard API authentication MUST use API keys with role-based access control (no
+  unauthenticated endpoints)
+- All inter-component communication (agent to dashboard) MUST use TLS 1.3+
+conventions:
+- Python code follows PEP 8 with Black formatting (line length 100)
+- Use structured logging (JSON format) with correlation IDs for request tracing
+- YAML policy files use snake_case for keys, semantic versioning for schema changes
+- 'API endpoints follow REST conventions: /api/v1/{resource}/{id}'
+- Git commit messages follow Conventional Commits (feat:, fix:, docs:, etc.)
+- Test coverage minimum 80% for policy engine and analyzer modules
+- Environment-specific config via .env files (never commit secrets)
+- Database migrations use Alembic with descriptive revision names
+decisions:
+- id: D-1
+  title: Use mitmproxy instead of custom TLS interception
+  decision: Adopt mitmproxy as HTTPS interception layer rather than building custom
+    proxy with OpenSSL
+  rationale: 'mitmproxy provides battle-tested TLS interception, certificate management,
+    and HTTP/2 support out of the box. Building custom proxy would require 3-4 weeks
+    of security-critical code with high risk of vulnerabilities. Trade-off: mitmproxy
+    adds 50MB dependency but saves significant development time and reduces attack
+    surface.'
+- id: D-2
+  title: Python for agent runtime despite performance concerns
+  decision: Implement agent in Python 3.11+ rather than Rust for MVP
+  rationale: 'Python enables rapid integration with mitmproxy (Python-native) and
+    spaCy NLP library. Performance testing shows Python agent meets <100ms latency
+    target for 90% of requests. Rust rewrite can be considered post-MVP if profiling
+    identifies bottlenecks. Trade-off: 2-3x higher memory usage but 4x faster development
+    velocity.'
+- id: D-3
+  title: Centralized dashboard over peer-to-peer agent mesh
+  decision: Use centralized FastAPI dashboard for policy management and logging rather
+    than distributed agent coordination
+  rationale: 'Security teams need single pane of glass for compliance auditing and
+    policy enforcement. Centralized architecture simplifies MVP deployment and meets
+    SMB scale requirements (<500 endpoints). Trade-off: introduces single point of
+    failure but acceptable for MVP with future HA considerations.'
+contracts: []

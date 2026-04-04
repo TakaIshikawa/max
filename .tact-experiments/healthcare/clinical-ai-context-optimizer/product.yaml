@@ -1,0 +1,52 @@
+name: clinical-ai-context-optimizer
+version: 0.1.0
+vision: A local-first FHIR-native context compression pipeline that extracts clinically
+  relevant EHR data and optimizes it for AI-assisted documentation tools, ensuring
+  PHI remains on-premise while reducing API costs and improving documentation quality.
+goals:
+- id: G-1
+  description: Achieve clinically intelligent context compression that preserves medical
+    relevance
+  successCriteria: Compressed context bundles are 60% smaller than raw EHR data while
+    maintaining 95% of clinically relevant entities (active diagnoses, current medications,
+    recent encounters) as validated by clinical review
+- id: G-2
+  description: Ensure HIPAA-compliant on-premise processing with no external PHI transmission
+  successCriteria: All patient data processing occurs within local container environment
+    with no network calls to external services except user-initiated export of anonymized
+    context bundles
+- id: G-3
+  description: Enable seamless integration with existing EHR systems via FHIR standards
+  successCriteria: Successfully ingests patient context from FHIR R4 endpoints and
+    outputs FHIR-compliant Bundle resources that validate against HL7 FHIR specification
+- id: G-4
+  description: Provide actionable clinical context for AI documentation tools
+  successCriteria: Generated context bundles include relevance scores for each resource
+    and maintain temporal ordering of clinical events, enabling AI tools to prioritize
+    recent and active clinical information
+constraints:
+- 'MVP scope limited to FHIR R4 resources: Condition, MedicationRequest, Encounter,
+  Observation, DiagnosticReport, Patient'
+- No external API calls for NLP or ontology mapping - all processing must run locally
+  with pre-downloaded models and terminologies
+- Context compression targets 4000-8000 token output suitable for common LLM context
+  windows
+- Initial version supports FHIR JSON format only (no XML or bulk data NDJSON)
+- Clinical relevance scoring uses rule-based heuristics (not ML-based) for MVP to
+  reduce complexity
+- No user authentication/authorization - assumes deployment within secure provider
+  network with existing access controls
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - fhirclient (SMART-on-FHIR client library)
+  - spaCy 3.x with scispaCy models (en_core_sci_md)
+  - sentence-transformers (clinical BERT embeddings)
+  - FastAPI (REST API for context optimization requests)
+  - Pydantic (data validation)
+  infrastructure:
+  - Docker (containerized deployment)
+  - Local UMLS/SNOMED CT/RxNorm databases (ontology mapping)
+  - SQLite (caching and relevance scoring metadata)
+  - FHIR R4 server (external EHR integration point)

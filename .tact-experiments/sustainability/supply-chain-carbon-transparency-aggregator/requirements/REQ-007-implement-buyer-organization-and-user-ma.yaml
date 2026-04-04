@@ -1,0 +1,20 @@
+title: Implement buyer organization and user management
+approval: draft
+phase: planned
+priority: high
+description: Support multi-tenant architecture where each buyer organization has isolated
+  data and multiple admin users can collaborate. Ensures data isolation invariant
+  and enables team-based workflows.
+acceptanceCriteria:
+- Buyer organization registration with company name, industry, primary contact email
+- 'User authentication via email/password with role-based access: admin (full access),
+  viewer (read-only reports)'
+- Organization-level data isolation enforced at database query level (row-level security
+  or application-level filters)
+- Admin users can invite team members via email with role assignment
+- User can switch between organizations if they belong to multiple (e.g., consultants
+  serving multiple clients)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,22 @@
+title: Maintain vendor and integration registry
+approval: draft
+phase: planned
+priority: critical
+description: Store vendor metadata (name, contact email, privacy policy URL, data
+  processing agreement status) and integration mappings (vendor_id, LMS platform,
+  data fields accessed, authorization method). Provide CRUD API and CSV import for
+  manual entry in MVP.
+acceptanceCriteria:
+- Create PostgreSQL schema with vendors table (id, name, contact_email, privacy_policy_url,
+  dpa_signed) and integrations table (id, vendor_id, platform, data_fields_json, auth_method)
+- 'Implement REST API endpoints: POST /api/v1/vendors, GET /api/v1/vendors, PUT /api/v1/vendors/{id},
+  DELETE /api/v1/vendors/{id}'
+- 'Support CSV import of integrations with columns: vendor_name, platform, data_fields,
+  auth_method'
+- 'Enforce foreign key constraint: integrations.vendor_id must reference existing
+  vendor'
+- Return validation errors for missing required fields (vendor name, contact email)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

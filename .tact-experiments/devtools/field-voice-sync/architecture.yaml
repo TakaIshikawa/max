@@ -1,0 +1,86 @@
+patterns:
+- name: Offline-First Architecture
+  description: All data capture and storage happens locally first. Network operations
+    are asynchronous enhancements. App remains fully functional without connectivity.
+  scope:
+  - voice recording
+  - photo capture
+  - data storage
+  - UI interactions
+- name: Queue-Based Sync
+  description: Sync operations are queued with metadata (timestamp, retry count, priority).
+    Background process monitors connectivity and drains queue with exponential backoff
+    on failures.
+  scope:
+  - Procore API sync
+  - photo uploads
+  - report submissions
+- name: Progressive Enhancement for AI
+  description: Basic functionality (voice recording, photo capture, manual data entry)
+    works offline. AI structuring happens opportunistically when online, with fallback
+    to raw transcript storage.
+  scope:
+  - speech-to-text
+  - LLM structuring
+  - data extraction
+- name: Repository Pattern for Data Access
+  description: Abstract data storage behind repository interfaces. Enables swapping
+    SQLite implementation, adding caching layers, or migrating storage without changing
+    business logic.
+  scope:
+  - report storage
+  - photo storage
+  - sync queue
+  - settings
+invariants:
+- User-created data must never be lost—all captures persist to local SQLite before
+  any UI confirmation
+- Sync operations must be idempotent—retrying a failed sync produces same result as
+  successful first attempt
+- Photos must never be uploaded without their associated report metadata
+- Offline mode must never block user from creating new reports—queue grows unbounded
+  if needed
+- GPS coordinates and timestamps must be captured at moment of photo/recording creation,
+  not at sync time
+- Raw voice recordings must be retained locally until successful sync confirmation,
+  even after transcription
+- Sync queue must process reports in chronological order (oldest first) to maintain
+  timeline integrity in Procore
+conventions:
+- Use TypeScript strict mode for all source files
+- Prefix database table names with 'fvs_' (field_voice_sync) to avoid conflicts
+- Name React components with PascalCase, hooks with 'use' prefix
+- Store all timestamps in UTC ISO 8601 format, convert to local for display only
+- Use kebab-case for file names, camelCase for variables/functions
+- Prefix async functions with 'async' or suffix with 'Async' for clarity
+- Keep all business logic in services/ directory, components only handle UI
+- Use Zod schemas for runtime validation of API responses and user inputs
+- Log all sync operations with structured metadata (report_id, attempt_count, error_type)
+  for debugging
+decisions:
+- id: D-1
+  title: Use React Native with Expo for mobile framework
+  decision: Build with React Native + Expo managed workflow instead of native Swift
+  rationale: 'Expo provides out-of-box SQLite, file system, audio recording, and camera
+    APIs. Enables faster MVP iteration with single codebase. Expo Go allows testing
+    without full builds. Trade-off: slightly larger app size and potential future
+    ejection if native modules needed, but acceptable for MVP speed.'
+- id: D-2
+  title: Defer offline LLM to post-MVP, use cloud API with queue
+  decision: Use OpenAI API for structuring when online, queue raw transcripts when
+    offline for later processing
+  rationale: 'On-device LLM (llama.cpp mobile) adds significant complexity: model
+    size (100MB+), battery drain, inference speed issues. For MVP, acceptable to process
+    queued transcripts when connectivity returns. 90% of users will have connectivity
+    within 4 hours (commute home). Reduces MVP scope by 3-4 weeks while validating
+    core workflow.'
+- id: D-3
+  title: Use iOS native speech recognition instead of Whisper for MVP
+  decision: Leverage iOS Speech framework for on-device transcription rather than
+    bundling Whisper model
+  rationale: iOS Speech framework is free, already optimized for device, supports
+    offline mode, and has no model download/storage overhead. Whisper provides better
+    accuracy for construction terminology but requires 100MB+ model and react-native-whisper
+    integration complexity. For MVP, validate workflow with native STT, then evaluate
+    Whisper if accuracy is insufficient. Saves 2 weeks of integration effort.
+contracts: []

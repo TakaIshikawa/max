@@ -1,0 +1,22 @@
+title: Create IAM overly-permissive access policy
+approval: draft
+phase: planned
+priority: high
+description: Implement policy detecting IAM bindings that grant overly broad access
+  to FHIR stores, such as roles/owner or roles/editor on PHI-containing resources,
+  violating principle of least privilege.
+acceptanceCriteria:
+- Policy ID GCP-IAM-001 detects google_healthcare_fhir_store_iam_binding or google_healthcare_fhir_store_iam_member
+  resources granting roles/owner or roles/editor
+- Violation severity CRITICAL with message explaining least privilege requirement
+- Policy passes when only healthcare-specific roles used (roles/healthcare.fhirResourceEditor,
+  roles/healthcare.fhirResourceReader)
+- Detect bindings on parent dataset resources (google_healthcare_dataset_iam_*) that
+  would inherit to FHIR stores
+- Remediation suggests specific healthcare roles appropriate for common use cases
+  (application access, admin access, read-only analytics)
+decomposition:
+  assignments: []
+dependencies:
+- Implement OPA policy engine integration
+source: discovered

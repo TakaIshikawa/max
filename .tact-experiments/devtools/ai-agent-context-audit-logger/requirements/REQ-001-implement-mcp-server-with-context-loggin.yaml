@@ -1,0 +1,20 @@
+title: Implement MCP server with context logging tool
+approval: draft
+phase: planned
+priority: critical
+description: Create an MCP server that exposes an audit_log_context tool for capturing
+  AI agent context payloads. The tool must accept structured input including source
+  code, prompts, retrieval results, file paths, and optional metadata, then persist
+  to SQLite with a unique ID and timestamp.
+acceptanceCriteria:
+- MCP server starts successfully and registers with MCP clients via stdio transport
+- 'audit_log_context tool accepts parameters: source_code (string), prompt (string),
+  file_path (optional string), metadata (optional JSON object)'
+- Each logged context receives a unique UUID and UTC timestamp
+- Token count is calculated and stored for each context payload using tiktoken or
+  equivalent
+- Tool returns the generated context ID to the caller for reference
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

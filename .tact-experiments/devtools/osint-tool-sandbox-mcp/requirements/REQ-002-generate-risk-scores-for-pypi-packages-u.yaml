@@ -1,0 +1,21 @@
+title: Generate risk scores for PyPI packages using metadata and OpenSSF Scorecard
+approval: draft
+phase: planned
+priority: critical
+description: Implement risk assessment module that fetches PyPI package metadata (maintainer
+  info, release history, download stats) and OpenSSF Scorecard data, then computes
+  normalized risk score (0.0-1.0). Risk score combines maintainer reputation, dependency
+  count, scorecard metrics, and package age.
+acceptanceCriteria:
+- Fetch package metadata from PyPI JSON API within 10 seconds
+- Query OpenSSF Scorecard API for repository security score (handle missing data gracefully)
+- 'Calculate risk score incorporating: maintainer account age, number of dependencies,
+  OpenSSF score, package release frequency'
+- Store risk assessment in risk_assessments table with package_name, version, score,
+  timestamp, raw_data JSON
+- 'Return risk score and human-readable summary (e.g., ''High risk: 15 dependencies,
+  maintainer account <6 months old'')'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

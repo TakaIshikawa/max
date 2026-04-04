@@ -1,0 +1,22 @@
+title: Implement user authentication and role-based access control
+approval: draft
+phase: planned
+priority: critical
+description: Build secure authentication system with employee and admin roles. Employees
+  access their own learning paths and progress; admins manage paths, view analytics,
+  and assign training. Foundation for multi-tenant security.
+acceptanceCriteria:
+- System supports email/password authentication with JWT tokens (15min access, 7day
+  refresh) and OAuth2 via GitHub for employee onboarding
+- 'Two roles implemented: ''employee'' (view own paths, progress, badges) and ''admin''
+  (manage paths, view all employee data, analytics)'
+- API endpoints enforce role-based access control; employees receive 403 when accessing
+  admin routes
+- 'Password requirements: minimum 12 characters, mix of uppercase, lowercase, numbers,
+  and symbols; passwords hashed with bcrypt'
+- Session management includes logout endpoint that invalidates refresh tokens and
+  automatic token refresh before expiration
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,21 @@
+title: Create episode-based project management boards
+approval: draft
+phase: planned
+priority: high
+description: Provide Kanban-style project boards for episode production workflows
+  with stages (recording, editing, review, published). Users can upload/download assets,
+  leave comments, and track progress. This centralizes collaboration and reduces tool
+  fragmentation.
+acceptanceCriteria:
+- Podcasters can create episode projects with title, due date, and assigned collaborators
+- 'Projects display as cards in columns representing stages: Recording → Editing →
+  Review → Published'
+- Users can drag-drop cards between stages or use 'Move to' dropdown
+- Each project supports file uploads (audio, images, documents) up to 100MB total
+  per project
+- Comment thread on each project card with @mention support for assigned collaborators
+decomposition:
+  assignments: []
+dependencies:
+- Build revenue-sharing agreement creation workflow
+source: discovered

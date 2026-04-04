@@ -1,0 +1,22 @@
+title: Create estimate from project template
+approval: draft
+phase: planned
+priority: critical
+description: Users select a project type (roof framing, room addition, kitchen remodel)
+  and input basic parameters (square footage, region). System generates estimate with
+  pre-populated line items based on template, including materials, labor, and equipment
+  categories. Enables rapid estimate creation without starting from blank spreadsheet.
+acceptanceCriteria:
+- Template selection screen displays 3 project types with thumbnail images and descriptions
+- Parameter input form validates square footage (100-5000 range) and region (Pacific
+  Northwest only for MVP)
+- Generated estimate contains minimum 15 line items organized by category (materials,
+  labor, equipment)
+- Each line item includes description, quantity, unit (hours/days/sqft), unit cost,
+  and calculated total
+- Estimate total recalculates automatically when any line item is modified
+- Estimate saves to IndexedDB within 500ms of any change
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

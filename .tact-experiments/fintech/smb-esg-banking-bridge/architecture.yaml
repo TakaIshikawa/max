@@ -1,0 +1,83 @@
+patterns:
+- name: Adapter Pattern
+  description: Abstract open banking provider differences behind unified BankingProvider
+    interface with provider-specific adapters (FintectureAdapter, GoCardlessAdapter)
+    implementing standardized transaction retrieval and account access methods
+  scope:
+  - src/providers
+  - src/adapters
+- name: Strategy Pattern
+  description: ESG categorization engine uses pluggable categorization strategies
+    (MerchantCodeStrategy, AIDescriptionStrategy, RuleBasedStrategy) with configurable
+    priority ordering and fallback chain
+  scope:
+  - src/categorization
+- name: Circuit Breaker
+  description: Wrap external API calls (open banking providers, OpenAI) with circuit
+    breaker to handle provider outages gracefully and trigger failover to secondary
+    providers after threshold failures
+  scope:
+  - src/providers
+  - src/services
+- name: Repository Pattern
+  description: Isolate data access logic behind repository interfaces (TransactionRepository,
+    AccountRepository, ESGCategoryRepository) to decouple business logic from PostgreSQL
+    implementation
+  scope:
+  - src/repositories
+invariants:
+- All external API calls (open banking, AI categorization) must have timeout limits
+  (30s max) and retry logic with exponential backoff
+- Transaction data must never be modified after initial import - ESG categories stored
+  as separate metadata records with audit trail
+- Provider credentials (API keys, OAuth tokens) must never be logged or exposed in
+  API responses
+- Every transaction must have exactly one primary ESG category assignment, with optional
+  secondary categories stored separately
+- Webhook deliveries to accounting platforms must be idempotent - duplicate sends
+  must not create duplicate transactions
+- ESG taxonomy schema must match EU Taxonomy Regulation structure and never be modified
+  without migration scripts
+- All monetary amounts must be stored as integers (cents) to avoid floating-point
+  precision errors
+conventions:
+- Use kebab-case for file names, PascalCase for classes/interfaces, camelCase for
+  variables/functions
+- Prefix interface names with 'I' (IBankingProvider, ITransactionRepository)
+- Suffix adapter classes with 'Adapter' (FintectureAdapter, GoCardlessAdapter)
+- Suffix service classes with 'Service' (SyncService, CategorizationService)
+- Use Zod schemas for all API request/response validation with co-located type inference
+- Store all timestamps in UTC using ISO 8601 format
+- Prefix environment variables with module name (FINTECTURE_API_KEY, GOCARD_ACCESS_TOKEN)
+- Use structured logging with correlation IDs for all external API calls
+- Write unit tests co-located with source files (*.spec.ts pattern)
+- Use async/await exclusively - no raw Promise chains or callbacks
+decisions:
+- id: D-1
+  title: Use TypeORM with PostgreSQL instead of Prisma
+  decision: Implement data layer using TypeORM with PostgreSQL, using entity decorators
+    for schema definition and migration CLI for taxonomy updates
+  rationale: TypeORM provides better support for complex ESG taxonomy relationships
+    (self-referencing categories, many-to-many transaction mappings) and migration
+    tooling for evolving EU Taxonomy schema. Decorator-based entity definitions align
+    with existing TypeScript patterns and reduce boilerplate compared to Prisma schema
+    language.
+- id: D-2
+  title: Implement provider fallback at sync orchestration layer, not per-transaction
+  decision: SyncService attempts full sync with primary provider, switches to secondary
+    provider only on authentication/connection failures, not individual transaction
+    errors
+  rationale: Per-transaction fallback creates complexity (partial syncs, duplicate
+    detection) and increases API costs. Orchestration-level fallback (try Fintecture
+    for all accounts, fallback to GoCardless on failure) simplifies error handling
+    and meets DORA resilience requirements while reducing external API calls by 50%+.
+- id: D-3
+  title: Use OpenAI function calling for ESG categorization instead of prompt engineering
+  decision: Implement AIDescriptionStrategy using OpenAI function calling with ESG
+    taxonomy categories as function parameters, validating returned category IDs against
+    database schema before persistence
+  rationale: OpenAI function calling provides structured JSON output with category
+    IDs and confidence scores, eliminating parsing errors from freeform prompt responses.
+    Enables deterministic category validation against ESG taxonomy schema and reduces
+    token costs by 30% compared to few-shot prompting approaches.
+contracts: []

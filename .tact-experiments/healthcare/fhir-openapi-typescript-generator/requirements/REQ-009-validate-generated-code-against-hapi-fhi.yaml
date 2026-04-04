@@ -1,0 +1,23 @@
+title: Validate generated code against HAPI FHIR OpenAPI spec
+approval: draft
+phase: planned
+priority: critical
+description: End-to-end integration test that runs the generator against a real HAPI
+  FHIR OpenAPI spec, compiles the output, and validates that factories produce resources
+  passing Zod validation.
+acceptanceCriteria:
+- Integration test downloads or uses bundled HAPI FHIR R4 OpenAPI spec
+- Test runs CLI to generate code for Patient, Observation, Condition resources
+- Generated TypeScript code compiles without errors
+- Test instantiates factories (buildPatient, buildObservation, buildCondition) and
+  validates output against schemas
+- All FHIR examples from OpenAPI spec pass Zod validation
+decomposition:
+  assignments: []
+dependencies:
+- Parse OpenAPI spec and extract FHIR resource schemas
+- Extract FHIR metadata from x-fhir-* extensions
+- Generate Zod schemas with embedded FHIR metadata
+- Generate Fishery test data factories from FHIR examples
+- Implement CLI with configuration options
+source: discovered

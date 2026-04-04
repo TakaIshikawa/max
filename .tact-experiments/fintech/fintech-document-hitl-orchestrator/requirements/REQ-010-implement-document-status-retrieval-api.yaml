@@ -1,0 +1,21 @@
+title: Implement document status retrieval API
+approval: draft
+phase: planned
+priority: medium
+description: Create webhook-style API endpoint for clients to check document processing
+  status and retrieve extraction results. Enables async integration pattern for external
+  systems.
+acceptanceCriteria:
+- GET /api/v1/documents/{id}/status returns current status (uploaded, processing,
+  pending_review, approved, rejected, failed)
+- Response includes extracted fields and confidence scores when status is pending_review
+  or approved
+- Response includes error details when status is failed
+- Endpoint supports optional webhook_url parameter to receive callback when processing
+  completes
+- Returns 404 for non-existent document IDs with RFC 7807 problem details
+decomposition:
+  assignments: []
+dependencies:
+- Implement extraction orchestration service
+source: discovered

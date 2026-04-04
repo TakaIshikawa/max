@@ -1,0 +1,20 @@
+title: Detect FastAPI route vulnerabilities in model serving code
+approval: draft
+phase: planned
+priority: high
+description: Analyze FastAPI application files for routes that handle file uploads
+  or multipart form data without proper validation, which can expose ReDoS or path
+  traversal vulnerabilities in model serving endpoints.
+acceptanceCriteria:
+- Use AST parsing to identify FastAPI route decorators (@app.post, @app.put) and extract
+  route handler functions
+- Detect usage of UploadFile, Form, or File parameters in route handlers
+- Flag routes using python-multipart (via FastAPI) when vulnerable version detected
+  in dependencies
+- Generate findings with route path, HTTP method, and specific vulnerability (e.g.,
+  'ReDoS in multipart parsing')
+decomposition:
+  assignments: []
+dependencies:
+- Parse dependency files to extract ML library versions
+source: discovered

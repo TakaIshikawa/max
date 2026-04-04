@@ -1,0 +1,19 @@
+title: Add conditional color coding based on data thresholds
+approval: draft
+phase: planned
+priority: high
+description: Allow users to define rules that automatically color-code diagram elements
+  based on data values (e.g., suppliers with risk score > 7 are red, 4-7 yellow, <
+  4 green). This automates visual risk highlighting for CSRD reporting.
+acceptanceCriteria:
+- User can define threshold-based color rules in the data binding UI (e.g., 'if value
+  > 7 then red, else if value > 4 then yellow, else green')
+- Rules support numeric comparisons (>, <, >=, <=, ==) and string matching
+- Element colors update automatically when bound data changes
+- User can define separate rules for fill color, stroke color, and text color
+- Rules are saved with the diagram and re-applied on load
+decomposition:
+  assignments: []
+dependencies:
+- Build data binding UI for connecting elements to data sources
+source: discovered

@@ -1,0 +1,22 @@
+title: Render 3D BIM models with touch-based navigation
+approval: draft
+phase: planned
+priority: critical
+description: Field crews must be able to view and navigate downloaded BIM models in
+  3D using intuitive touch gestures (pinch-zoom, rotate, pan) to locate specific building
+  elements and understand spatial relationships.
+acceptanceCriteria:
+- 3D model renders with Three.js at minimum 30fps on iPad 8th gen with 50MB IFC model
+  loaded
+- User can rotate model with single-finger drag, pan with two-finger drag, and zoom
+  with pinch gesture
+- Model supports isolation mode to show/hide building systems (architectural, structural,
+  MEP) via toggle controls
+- User can tap on any BIM element to highlight it and display properties (element
+  type, ID, material)
+- Viewer includes reset button to return to default camera position and zoom level
+decomposition:
+  assignments: []
+dependencies:
+- Download and parse IFC models for offline viewing
+source: discovered

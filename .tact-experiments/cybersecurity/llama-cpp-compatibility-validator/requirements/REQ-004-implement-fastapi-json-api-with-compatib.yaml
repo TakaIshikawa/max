@@ -1,0 +1,22 @@
+title: Implement FastAPI JSON API with compatibility query endpoints
+approval: draft
+phase: planned
+priority: critical
+description: REST API that exposes compatibility data for programmatic access. Enables
+  CI/CD integration and third-party tools to query validation status before deploying
+  models.
+acceptanceCriteria:
+- GET /v1/compatibility/{model_repo}/{quantization} returns latest test results for
+  all llama.cpp versions
+- GET /v1/compatibility/{model_repo}/{quantization}/llama-cpp/{version} returns specific
+  version compatibility
+- GET /v1/models returns list of all tested models with latest test timestamps
+- All endpoints return JSON with consistent schema including status, similarity_score,
+  tested_at, llama_cpp_version
+- API returns 404 for untested model combinations with clear error message
+- Response times <200ms for single model queries (99th percentile)
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema for storing compatibility test results
+source: discovered

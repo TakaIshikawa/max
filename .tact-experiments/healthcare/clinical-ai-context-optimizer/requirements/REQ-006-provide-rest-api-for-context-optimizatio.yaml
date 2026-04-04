@@ -1,0 +1,22 @@
+title: Provide REST API for context optimization requests
+approval: draft
+phase: planned
+priority: high
+description: Expose FastAPI endpoint that accepts patient ID and FHIR server configuration,
+  orchestrates the optimization pipeline, and returns compressed context bundle. Support
+  synchronous processing for MVP with request timeout of 30 seconds.
+acceptanceCriteria:
+- POST /optimize endpoint accepts JSON payload with patientId, fhirServerUrl, and
+  optional tokenLimit
+- 'Returns FHIR Bundle JSON response with Content-Type: application/fhir+json'
+- Returns 200 status with bundle on success, 404 if patient not found, 500 on processing
+  errors
+- Request completes within 30 seconds or returns 504 timeout
+- Logs request ID, patient ID (hashed), processing time, and output token count for
+  each request
+- Health check endpoint GET /health returns 200 with service status
+decomposition:
+  assignments: []
+dependencies:
+- Generate FHIR-compliant context bundles with relevance metadata
+source: discovered

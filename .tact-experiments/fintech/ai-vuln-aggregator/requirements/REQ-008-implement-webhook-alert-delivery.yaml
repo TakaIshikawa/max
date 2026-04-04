@@ -1,0 +1,24 @@
+title: Implement webhook alert delivery
+approval: draft
+phase: planned
+priority: high
+description: Build alert dispatcher that sends webhook notifications when new CRITICAL
+  or HIGH risk vulnerabilities are detected. Must support configurable webhook URLs
+  and include retry logic.
+acceptanceCriteria:
+- Reads webhook URLs from environment variable VULN_AGGREGATOR_WEBHOOK_URLS (comma-separated
+  list)
+- 'Sends POST request with JSON payload containing: vulnerability ID, CVE, package
+  name, risk level, CVSS score, affected versions, patch availability, and advisory
+  URL'
+- Only triggers for vulnerabilities with risk level CRITICAL or HIGH
+- 'Implements retry logic: 3 attempts with exponential backoff (1s, 5s, 15s) for failed
+  webhook deliveries'
+- Logs webhook delivery status (success/failure) with timestamp and response code
+- 'Deduplicates alerts: does not re-send webhook for same vulnerability ID within
+  24 hours'
+decomposition:
+  assignments: []
+dependencies:
+- Build risk scoring algorithm
+source: discovered

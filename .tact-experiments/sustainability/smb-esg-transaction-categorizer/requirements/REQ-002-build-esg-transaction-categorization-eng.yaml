@@ -1,0 +1,27 @@
+title: Build ESG transaction categorization engine with ML and rules
+approval: draft
+phase: planned
+priority: critical
+description: Implement hybrid categorization system using sentence-transformers for
+  semantic matching to EU Taxonomy categories, augmented with rule-based patterns
+  for high-confidence ESG indicators. Must achieve 85%+ accuracy target with confidence
+  scoring.
+acceptanceCriteria:
+- Sentence-transformer model (all-MiniLM-L6-v2) loaded and generates embeddings for
+  transaction descriptions and EU Taxonomy Level 1 category descriptions (6 environmental
+  objectives + 3 social categories)
+- 'Rule-based classifier detects patterns: renewable energy keywords, carbon-intensive
+  logistics terms, diversity supplier certifications, with configurable regex patterns
+  stored in database'
+- Categorization pipeline returns top category match with confidence score (0.0-1.0);
+  transactions with <0.7 confidence flagged for manual review
+- 'Categorization results stored in categorizations table with audit fields: transaction_id,
+  category_code, confidence_score, model_version, categorized_at, categorization_method
+  (ml|rule|manual)'
+- Test dataset of 100 labeled transactions achieves 85%+ accuracy (F1 score) with
+  category distribution matching expected SMB transaction patterns
+decomposition:
+  assignments: []
+dependencies:
+- Implement unified Open Banking provider abstraction layer
+source: discovered

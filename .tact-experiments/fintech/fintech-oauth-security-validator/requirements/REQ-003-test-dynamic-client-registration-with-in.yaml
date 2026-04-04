@@ -1,0 +1,21 @@
+title: Test Dynamic Client Registration with initial access token support
+approval: draft
+phase: planned
+priority: high
+description: Validate DCR implementation per RFC 7591, including initial access token
+  authentication, client metadata validation, and registration response handling.
+  Addresses MCP Inspector's lack of DCR initial access token support.
+acceptanceCriteria:
+- Send DCR request to registration endpoint with valid initial access token in Authorization
+  header
+- Verify server rejects DCR request without initial access token when required
+- Validate server returns client_id, client_secret, and registration_access_token
+  in response
+- Test DCR request with invalid redirect_uris and confirm server returns invalid_redirect_uri
+  error per RFC 7591 Section 3.2.2
+- Generate finding with CWE-306 (Missing Authentication for Critical Function) if
+  DCR endpoint accepts unauthenticated requests
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

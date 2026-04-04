@@ -1,0 +1,21 @@
+title: Implement YAML-based test scenario configuration loader
+approval: draft
+phase: planned
+priority: high
+description: Load custom test scenarios from YAML configuration files to support PSD2,
+  FDX, and SMART-on-FHIR specific OAuth requirements without code changes. Enables
+  extensibility for custom fintech OAuth flows.
+acceptanceCriteria:
+- 'Parse YAML files with schema: test_name, oauth_endpoints, required_scopes, validation_rules,
+  compliance_framework'
+- Validate YAML schema using pydantic models and reject files exceeding 100KB size
+  limit
+- Load test scenarios from default config directory and user-specified paths via --config
+  flag
+- Support variable substitution in YAML for environment-specific values (client_id,
+  endpoints)
+- Log loaded test scenarios with count and compliance frameworks at INFO level
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

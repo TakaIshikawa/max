@@ -1,0 +1,18 @@
+title: Implement authentication for community contributions
+approval: draft
+phase: planned
+priority: medium
+description: Add authentication system (NextAuth.js with GitHub OAuth) to enable users
+  to submit reviews, use cases, and connector registrations. Public browsing remains
+  unauthenticated.
+acceptanceCriteria:
+- NextAuth.js configured with GitHub OAuth provider
+- 'User model in Prisma schema with fields: id, email, name, githubUsername, createdAt'
+- Protected API routes (/api/v1/connectors POST, /api/v1/reviews POST) require valid
+  session
+- Login button in header redirects to GitHub OAuth flow
+- User profile page at /profile shows submitted reviews and connectors
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

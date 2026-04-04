@@ -1,0 +1,22 @@
+title: Implement AST-based pattern scanner for dangerous code
+approval: draft
+phase: planned
+priority: critical
+description: 'Parse Python files (.py, .ipynb cells) into ASTs and detect dangerous
+  patterns: pickle.load/loads on untrusted data, eval/exec calls, os.system/subprocess
+  with user input, open() with user-controlled paths. Must track data flow to distinguish
+  safe vs. unsafe usage.'
+acceptanceCriteria:
+- Detects pickle.load() calls and flags as high severity with CWE-502 (Deserialization
+  of Untrusted Data)
+- Detects eval() and exec() calls and flags as high severity with CWE-95 (Code Injection)
+- Extracts code from Jupyter notebook JSON cells and scans as Python source
+- Reports include file path, line number, matched pattern, and code snippet (±2 lines
+  context)
+- Handles syntax errors in source files gracefully (logs error, skips file, continues
+  scan)
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI interface with scan command
+source: discovered

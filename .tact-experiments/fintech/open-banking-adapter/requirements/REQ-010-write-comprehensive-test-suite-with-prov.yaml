@@ -1,0 +1,24 @@
+title: Write comprehensive test suite with provider mocks
+approval: draft
+phase: planned
+priority: high
+description: Create Jest test suite covering unit tests for adapters, integration
+  tests for orchestrator, and end-to-end tests for facade. Mock provider SDKs to simulate
+  various scenarios (success, failures, rate limits, timeouts). Achieve 80%+ code
+  coverage.
+acceptanceCriteria:
+- Unit tests for each adapter verify correct transformation of provider responses
+  to domain models
+- Integration tests verify circuit breaker state transitions with simulated provider
+  failures
+- 'End-to-end tests verify complete flows: successful calls, automatic fallback, provider
+  recovery'
+- Mock factories created for Fintecture and GoCardless SDK responses covering success
+  and error cases
+- Test coverage report shows 80%+ line coverage across all source files
+- CI pipeline runs tests on every commit with coverage enforcement
+decomposition:
+  assignments: []
+dependencies:
+- Create OpenBankingAdapter facade as primary SDK entry point
+source: discovered

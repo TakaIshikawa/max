@@ -1,0 +1,77 @@
+patterns:
+- name: Event-Driven Log Processing Pipeline
+  description: Asynchronous pipeline using Celery workers to ingest, normalize, and
+    enrich log events. Raw logs are queued, normalized to common schema, enriched
+    with integration metadata, then stored in both PostgreSQL (structured queries)
+    and Elasticsearch (full-text search and time-series analysis).
+  scope:
+  - log_ingestion
+  - normalization
+  - storage
+- name: Repository Pattern with Dual Storage
+  description: Abstract data access layer that writes to both PostgreSQL (source of
+    truth for integrations, vendors, compliance metadata) and Elasticsearch (optimized
+    for log queries and time-series aggregations). Queries route to appropriate backend
+    based on use case.
+  scope:
+  - data_access
+  - storage
+- name: Strategy Pattern for Anomaly Detection
+  description: Pluggable anomaly detection strategies (BulkDownloadDetector, UnusualQueryDetector,
+    OffHoursAccessDetector) that implement common interface. Each strategy analyzes
+    normalized logs and emits alerts independently.
+  scope:
+  - anomaly_detection
+  - alerting
+invariants:
+- All ingested logs must be normalized to common schema before storage - no raw log
+  storage in primary databases
+- Every detected third-party integration must have an associated vendor record with
+  contact information for compliance reporting
+- 'Anomaly alerts must include complete audit trail: triggering log events, detection
+  rule, timestamp, and affected employee identifiers'
+- Personal identifiable information (PII) in logs must be encrypted at rest using
+  AES-256
+- All compliance reports must be immutable once generated - store as versioned artifacts
+  with cryptographic hash
+- 'Data retention policies must be enforced: raw logs retained for 90 days, aggregated
+  metrics for 2 years, compliance reports indefinitely'
+conventions:
+- Use snake_case for Python functions, variables, and database columns
+- Use PascalCase for Python classes and type definitions
+- 'Prefix Celery task names with domain: ''logs.ingest'', ''anomaly.detect'', ''compliance.generate'''
+- 'Log structured JSON with fields: timestamp (ISO8601), level, component, event_type,
+  context'
+- 'API endpoints follow REST conventions: /api/v1/{resource}/{id}'
+- 'Database migrations managed via Alembic with descriptive names: YYYYMMDD_description'
+- All timestamps stored in UTC, converted to user timezone only in presentation layer
+- Environment-specific config via environment variables, never hardcoded secrets
+decisions:
+- id: D-1
+  title: 'Dual Storage: PostgreSQL + Elasticsearch'
+  decision: Use PostgreSQL as source of truth for structured entities (vendors, integrations,
+    employees) and Elasticsearch for log events and time-series queries. Implement
+    repository pattern to abstract storage backend selection.
+  rationale: PostgreSQL provides ACID guarantees for critical compliance metadata
+    (vendor records, integration mappings, DSAR workflows) while Elasticsearch excels
+    at time-series log analysis and full-text search needed for anomaly detection.
+    Dual-write complexity is acceptable given distinct query patterns.
+- id: D-2
+  title: Statistical Anomaly Detection Over ML Models
+  decision: Implement rule-based and statistical anomaly detection in MVP. Design
+    detection engine with strategy pattern to allow ML model integration in future
+    versions without architectural changes.
+  rationale: ML models require training data that doesn't exist yet (cold start problem)
+    and add operational complexity (model versioning, retraining pipelines). Statistical
+    methods (z-score for volume spikes, time-based baselines for access patterns)
+    provide immediate value with interpretable results for compliance officers.
+- id: D-3
+  title: Manual Integration Discovery in MVP
+  decision: Provide CSV import interface for integration metadata in MVP. Design data
+    model to support automated discovery fields (oauth_client_id, api_key_hash, lti_deployment_id)
+    that can be populated programmatically in v0.2.
+  rationale: Automated discovery of OAuth tokens, API keys, and LTI registrations
+    requires deep integration with each LMS platform's admin APIs, which vary significantly.
+    Manual CSV upload of integration metadata (vendor name, data accessed, authorization
+    method) provides 80% of value with 20% of complexity.
+contracts: []

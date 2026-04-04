@@ -1,0 +1,24 @@
+title: Build categorization engine with strategy chain execution
+approval: draft
+phase: planned
+priority: high
+description: Implement CategorizationService that executes categorization strategies
+  in priority order (MerchantCode → AIDescription) with confidence threshold-based
+  fallback. Optimizes for speed and cost while maximizing accuracy.
+acceptanceCriteria:
+- CategorizationService executes MerchantCodeStrategy first, only calls AIDescriptionStrategy
+  if confidence < 0.8
+- Successfully categorize batch of 100 mixed transactions (50 with MCCs, 50 without)
+  with 80%+ using merchant codes, 20% using AI
+- Service persists category assignments to TransactionCategories table with strategy
+  name and confidence score
+- Categorization is idempotent - re-running on same transactions does not create duplicate
+  category records
+- Service exposes categorizeTransaction(transactionId) and categorizeBatch(transactionIds[])
+  methods with proper error handling
+decomposition:
+  assignments: []
+dependencies:
+- Implement merchant code-based ESG categorization strategy
+- Implement AI-powered transaction description categorization
+source: discovered

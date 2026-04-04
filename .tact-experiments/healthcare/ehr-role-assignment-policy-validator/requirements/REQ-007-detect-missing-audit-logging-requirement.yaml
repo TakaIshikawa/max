@@ -1,0 +1,20 @@
+title: Detect missing audit logging requirements
+approval: draft
+phase: planned
+priority: high
+description: Validate that all role assignments granting PHI access include mandatory
+  audit logging configurations per HIPAA audit controls (§164.312(b)).
+acceptanceCriteria:
+- Flag Azure role assignments on FHIR/storage resources without diagnostic settings
+  enabled
+- Detect AWS IAM policies with PHI access lacking CloudTrail logging or S3 access
+  logging
+- Verify audit log retention meets HIPAA 6-year requirement where configured
+- Generate medium-severity violation for missing audit configurations
+- Suggest specific audit logging resources to add in remediation guidance
+decomposition:
+  assignments: []
+dependencies:
+- Parse Azure Bicep role assignment configurations
+- Parse AWS IAM policy documents
+source: discovered

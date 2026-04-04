@@ -1,0 +1,22 @@
+title: Implement execution log retrieval MCP tool
+approval: draft
+phase: planned
+priority: high
+description: Provide get_execution_logs tool that returns comprehensive audit trail
+  of tool execution including vetting results, network activity, and behavioral alerts.
+  Enables compliance and incident response workflows.
+acceptanceCriteria:
+- Tool accepts execution_id parameter (returned from execute_tool)
+- 'Returns JSON structure with: tool_identity (package, version), vetting_score, execution_metadata
+  (start_time, end_time, exit_code), network_summary (request_count, suspicious_flags),
+  and file_access_log'
+- Logs persisted to host filesystem in structured format (one JSON file per execution)
+- Supports optional time_range filter to retrieve logs for multiple executions
+- Log entries include enough detail for security team to reconstruct what tool did
+  and what data it accessed
+decomposition:
+  assignments: []
+dependencies:
+- Implement isolated tool execution MCP tool
+- Implement network traffic logging and analysis
+source: discovered

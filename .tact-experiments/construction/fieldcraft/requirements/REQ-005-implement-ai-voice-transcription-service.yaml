@@ -1,0 +1,18 @@
+title: Implement AI voice transcription service
+approval: draft
+phase: planned
+priority: high
+description: Backend service that processes voice recordings through OpenAI Whisper
+  API and stores transcriptions linked to technique entries. Must handle API rate
+  limits and provide retry logic for failed transcriptions.
+acceptanceCriteria:
+- Job queue worker picks up voice transcription jobs from sync process
+- Audio files sent to Whisper API with construction-specific prompt for better accuracy
+- Transcription text stored in database linked to technique entry ID
+- Failed transcriptions retry up to 3 times with exponential backoff
+- Transcription completion triggers mobile notification when app is online
+decomposition:
+  assignments: []
+dependencies:
+- Build offline-first sync engine
+source: discovered

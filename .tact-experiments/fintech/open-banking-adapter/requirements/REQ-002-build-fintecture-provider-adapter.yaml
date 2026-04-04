@@ -1,0 +1,22 @@
+title: Build Fintecture provider adapter
+approval: draft
+phase: planned
+priority: critical
+description: Implement FintectureAdapter class that wraps the fintecture-client SDK
+  and implements core domain interfaces. Adapter translates Fintecture-specific API
+  responses to unified domain models and handles Fintecture-specific authentication
+  and error codes.
+acceptanceCriteria:
+- FintectureAdapter implements IAccountProvider, ITransactionProvider, IPaymentProvider
+  interfaces
+- Adapter successfully authenticates using Fintecture app_id and app_secret credentials
+- Fintecture account objects transformed to unified Account domain model with field
+  mapping documented
+- Fintecture errors (rate limits, auth failures, API errors) wrapped in AdapterError
+  with provider context
+- Unit tests with mocked fintecture-client SDK achieve 90%+ code coverage
+decomposition:
+  assignments: []
+dependencies:
+- Implement core domain interfaces for open banking operations
+source: discovered

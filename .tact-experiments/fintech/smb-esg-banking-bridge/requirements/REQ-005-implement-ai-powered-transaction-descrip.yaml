@@ -1,0 +1,26 @@
+title: Implement AI-powered transaction description categorization
+approval: draft
+phase: planned
+priority: high
+description: Build AIDescriptionStrategy using OpenAI function calling to categorize
+  transactions based on description text when merchant codes are unavailable or ambiguous.
+  Enables high-accuracy ESG categorization for diverse transaction types.
+acceptanceCriteria:
+- AIDescriptionStrategy calls OpenAI API with function definition containing all ESG
+  category IDs and descriptions from database
+- 'Successfully categorize test transactions: ''Tesla Supercharger'' → Environmental
+  (renewable energy), ''Minority-owned supplier payment'' → Social (supplier diversity),
+  ''Board meeting catering'' → Governance'
+- Strategy validates returned category ID exists in ESG taxonomy before persisting,
+  throws error for invalid categories
+- Categorization achieves 70%+ accuracy on manually tagged test dataset of 100 diverse
+  transactions
+- Strategy implements retry logic with exponential backoff for OpenAI API rate limits
+  and timeouts
+- Batch processing of 50 transactions completes within 30 seconds with proper error
+  handling for individual failures
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema for transactions and ESG taxonomy
+source: discovered

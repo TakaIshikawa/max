@@ -1,0 +1,21 @@
+title: Package as Docker container for portability
+approval: draft
+phase: planned
+priority: medium
+description: Containerize the entire testing framework (mock authorization server,
+  test harness, browser automation) as a Docker image that can run in any environment
+  without dependency installation. Provide docker-compose.yml for local development.
+acceptanceCriteria:
+- Dockerfile builds image with Python 3.11, Playwright browsers, and all dependencies
+- Docker image tagged as smart-fhir-oauth-tester:0.1.0 and published to Docker Hub
+- docker-compose.yml defines services for mock server and test runner with configurable
+  ports
+- Container accepts configuration via environment variables and volume-mounted config
+  files
+- 'README includes docker run example: ''docker run smart-fhir-oauth-tester test --app-url
+  https://myapp.example.com'''
+decomposition:
+  assignments: []
+dependencies:
+- Provide CLI tool for CI/CD integration
+source: discovered

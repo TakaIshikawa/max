@@ -1,0 +1,25 @@
+title: Generate CSRD-compliant sustainability report exports
+approval: draft
+phase: planned
+priority: medium
+description: Implement reporting service that aggregates categorized transactions
+  into CSRD-required metrics (Scope 3 emissions proxies, supplier diversity spend,
+  renewable energy purchases) and exports as CSV/JSON. Delivers core compliance value
+  proposition.
+acceptanceCriteria:
+- 'ReportingService generates report with metrics: total environmental spend, renewable
+  energy spend %, social impact spend (education/diversity), governance spend, covering
+  specified date range'
+- Report includes transaction count and total amount for each ESG category with percentage
+  of total spend
+- 'Export formats: CSV with headers (Category, Transaction Count, Amount, Percentage)
+  and JSON with nested category structure'
+- Successfully generate report for 500 categorized transactions across 90-day period
+  in <2 seconds
+- 'Report excludes uncategorized transactions and includes metadata: report generation
+  date, date range, total transactions analyzed'
+decomposition:
+  assignments: []
+dependencies:
+- Build categorization engine with strategy chain execution
+source: discovered

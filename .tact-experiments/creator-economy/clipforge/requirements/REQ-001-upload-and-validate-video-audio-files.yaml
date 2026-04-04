@@ -1,0 +1,18 @@
+title: Upload and validate video/audio files
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to upload video or audio files through a web interface.
+  The system validates file format, size, and duration before accepting the upload.
+  This is the entry point for all content repurposing workflows.
+acceptanceCriteria:
+- Accept MP4, MOV, MP3, and WAV file formats
+- Reject files larger than 2GB with clear error message
+- Reject files longer than 3 hours with clear error message
+- Display upload progress percentage in real-time
+- Generate unique identifier for each uploaded file and store metadata (filename,
+  duration, format, upload timestamp) in database
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

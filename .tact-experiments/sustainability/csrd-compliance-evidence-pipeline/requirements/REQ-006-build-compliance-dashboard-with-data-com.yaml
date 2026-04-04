@@ -1,0 +1,22 @@
+title: Build compliance dashboard with data completeness tracking
+approval: draft
+phase: planned
+priority: high
+description: 'Next.js dashboard showing real-time compliance readiness: percentage
+  of required evidence collected, items pending review, missing data categories, and
+  upcoming deadlines. Provides executive visibility into reporting status.'
+acceptanceCriteria:
+- Dashboard displays completeness percentage for each CSRD category (emissions, energy,
+  waste) calculated as (approved evidence items / required items) * 100
+- Chart visualizes evidence collection trend over time (weekly aggregation) using
+  Recharts
+- Alert panel highlights missing evidence categories and items pending review for
+  >7 days
+- Deadline tracker shows days remaining until next CSRD reporting deadline with status
+  indicator (green >30 days, yellow 15-30, red <15)
+- Dashboard auto-refreshes every 60 seconds and supports manual refresh button
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence repository with confidence scoring
+source: discovered

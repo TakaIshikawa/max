@@ -1,0 +1,85 @@
+patterns:
+- name: Adapter Pattern
+  description: Each security tool integration implements a common SourceAdapter interface
+    with standardized methods for authentication, data extraction, and normalization.
+    Adapters transform tool-specific outputs into unified Evidence objects.
+  scope:
+  - backend/adapters
+  - backend/models/evidence.py
+- name: ETL Pipeline with Immutable Audit Trail
+  description: Evidence ingestion follows Extract-Transform-Load pattern with each
+    stage logged to immutable audit table. Raw inputs stored alongside normalized
+    outputs to preserve chain of custody for regulatory audits.
+  scope:
+  - backend/pipeline
+  - database/audit_trail
+- name: Repository Pattern
+  description: Data access abstracted through repository classes that encapsulate
+    PostgreSQL queries and enforce audit trail requirements. All write operations
+    append to audit log with timestamp and actor metadata.
+  scope:
+  - backend/repositories
+- name: Strategy Pattern for Report Generation
+  description: Evidence package generation uses pluggable ReportStrategy implementations
+    (PDFReportStrategy, JSONReportStrategy) to support multiple output formats from
+    unified evidence data.
+  scope:
+  - backend/reporting
+invariants:
+- All evidence records must have immutable timestamps and cryptographic hashes - no
+  updates allowed, only append operations
+- Every evidence item must map to at least one DORA control identifier before storage
+- Raw source data must be preserved alongside normalized evidence for audit trail
+  integrity
+- Generated evidence packages must include SHA-256 signature and generation timestamp
+  in metadata
+- Control mappings must reference versioned DORA framework definitions (no hardcoded
+  control logic)
+- API responses containing evidence data must never expose raw credentials or secrets
+  from source tools
+- Database migrations must preserve audit trail continuity (no destructive schema
+  changes to audit tables)
+conventions:
+- Python code follows PEP 8 with Black formatter (line length 100)
+- All adapter classes named {ToolName}Adapter and inherit from SourceAdapter base
+  class
+- Evidence model fields use snake_case, API responses use camelCase (Pydantic aliases)
+- 'Database tables prefixed by domain: evidence_, control_, audit_, report_'
+- DORA control IDs follow format DORA-{domain}-{number} (e.g., DORA-ICT-001)
+- API endpoints versioned with /api/v1 prefix
+- 'Environment variables prefixed by component: DB_, TRIVY_, INFISICAL_, AWS_'
+- 'Test files mirror source structure: tests/unit/adapters/test_trivy_adapter.py'
+- 'Commit messages follow Conventional Commits: feat/fix/docs/test'
+- All timestamps stored as UTC in ISO 8601 format
+decisions:
+- id: D-1
+  title: PostgreSQL with append-only audit tables over document database
+  decision: Use PostgreSQL with dedicated audit trail tables instead of MongoDB or
+    event sourcing database
+  rationale: DORA compliance requires demonstrable data integrity and immutable audit
+    trails. PostgreSQL's ACID guarantees, trigger support for audit logging, and SQL
+    audit query capabilities provide stronger compliance story than eventual consistency
+    models. Relational schema enforces referential integrity between evidence and
+    control mappings. Append-only pattern implemented via application logic and database
+    triggers is simpler than event sourcing for MVP scope.
+- id: D-2
+  title: YAML-based control framework configuration over database storage
+  decision: Store DORA control definitions and mappings in versioned YAML files under
+    source control rather than database tables
+  rationale: 'Control frameworks evolve with regulatory updates - version control
+    provides audit trail of changes and enables rollback. YAML allows compliance officers
+    to review/modify mappings without database access. Git history provides transparent
+    change log for auditors. Simplifies deployment across environments (no data migration
+    for control updates). Trade-off: requires application restart for control changes,
+    but acceptable for infrequent regulatory updates.'
+- id: D-3
+  title: Celery task queue for scheduled ingestion over cron jobs
+  decision: Use Celery with Redis broker for orchestrating evidence collection tasks
+    instead of system cron jobs
+  rationale: Celery provides retry logic, task monitoring, and failure handling critical
+    for reliable evidence collection. Enables dynamic scheduling (on-demand scans
+    + scheduled jobs) through single interface. Task status visibility helps compliance
+    officers diagnose ingestion failures. Redis broker adds minimal infrastructure
+    complexity while providing task result backend. Alternative cron approach would
+    require custom retry logic and monitoring infrastructure.
+contracts: []

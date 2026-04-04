@@ -1,0 +1,50 @@
+name: fhir-openapi-typescript-generator
+version: 0.1.0
+vision: A code generator that preserves FHIR metadata (resource examples, element
+  labels, terminology bindings) when converting OpenAPI specs to TypeScript Zod validators
+  and client SDKs, enabling auto-generated test fixtures and data entry forms without
+  manual annotation.
+goals:
+- id: G-1
+  description: Preserve FHIR metadata through the OpenAPI-to-TypeScript generation
+    pipeline
+  successCriteria: Generated Zod schemas include .describe() with human-readable labels
+    and .meta() with FHIR-specific metadata (resource type, profile URL, terminology
+    bindings) for 100% of fields with x-fhir-* extensions in source OpenAPI spec
+- id: G-2
+  description: Auto-generate type-safe test data factories from FHIR examples
+  successCriteria: Generated factory functions create valid FHIR resource instances
+    from OpenAPI examples, passing Zod validation for all generated resource types
+- id: G-3
+  description: Enable regeneration without losing metadata annotations
+  successCriteria: Running the generator twice on the same OpenAPI spec produces identical
+    output, and updating the spec regenerates code without requiring manual metadata
+    re-annotation
+- id: G-4
+  description: Support major FHIR server OpenAPI specs
+  successCriteria: Successfully generate TypeScript clients with metadata from HAPI
+    FHIR and at least one cloud provider (Google Healthcare API, Azure Health Data
+    Services, or AWS HealthLake) OpenAPI spec
+constraints:
+- MVP focuses on generating Zod schemas and test factories only; React Hook Form integration
+  is out of scope
+- Support FHIR R4 OpenAPI specs only (not DSTU2, STU3, or R5)
+- Generated code must be compatible with TypeScript 5.0+
+- CLI tool only; no GUI or web interface
+- Metadata extraction limited to x-fhir-* extensions defined in OpenAPI spec; no external
+  FHIR StructureDefinition fetching
+- MVP supports Patient, Observation, and Condition resources as initial validation
+  targets
+techStack:
+  languages:
+  - TypeScript
+  - Node.js
+  frameworks:
+  - Zod
+  - Commander.js
+  - Handlebars
+  - openapi-typescript
+  - Fishery
+  infrastructure:
+  - npm
+  - CLI tool (no server required)

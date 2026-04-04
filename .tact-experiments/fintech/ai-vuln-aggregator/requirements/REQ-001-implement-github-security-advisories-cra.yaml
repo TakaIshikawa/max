@@ -1,0 +1,22 @@
+title: Implement GitHub Security Advisories crawler
+approval: draft
+phase: planned
+priority: critical
+description: Build a crawler that fetches AI/ML package vulnerabilities from GitHub
+  Security Advisories GraphQL API every hour. Must authenticate with GitHub token,
+  filter for Python/JavaScript ecosystems, and extract CVE, CVSS score, affected package
+  versions, and patch availability.
+acceptanceCriteria:
+- Crawler successfully authenticates with GitHub GraphQL API using token from environment
+  variable VULN_AGGREGATOR_GITHUB_TOKEN
+- Fetches advisories updated in the last 24 hours for ecosystems 'PIP' and 'NPM'
+- 'Extracts and stores: advisory ID, CVE identifier (if present), CVSS base score,
+  affected package name, vulnerable version ranges, patched versions, and publication
+  timestamp'
+- Handles API rate limiting with exponential backoff (max 3 retries)
+- 'Logs structured JSON for each fetched advisory with fields: source=''github'',
+  advisory_id, package_name, severity'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement approval workflow with risk threshold enforcement
+approval: draft
+phase: planned
+priority: high
+description: Create approval mechanism that blocks tool installation if risk score
+  exceeds threshold (default 0.4). Approvals recorded in approvals table with approver
+  identity, timestamp, and risk acknowledgment. Provide override capability for manual
+  approval of high-risk tools.
+acceptanceCriteria:
+- Installation blocked if risk score < 0.4 with error message showing risk summary
+- 'Approval record created in approvals table with: tool_name, version, risk_score,
+  approver, timestamp, override_reason'
+- Manual approval via sandbox_approve_tool MCP endpoint with tool_name and justification
+  parameters
+- Approved tools can be installed and executed; approval persists for specific package
+  version
+- Approval check occurs before both installation and execution with audit log entry
+decomposition:
+  assignments: []
+dependencies:
+- Generate risk scores for PyPI packages using metadata and OpenSSF Scorecard
+- Implement MCP server with tool installation and execution endpoints
+source: discovered

@@ -1,0 +1,17 @@
+title: Provision isolated Kubernetes lab environments on demand
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to request a lab environment for a specific scenario
+  and receive a fully provisioned Kubernetes namespace with all required services
+  running. This is the foundation for all hands-on training activities.
+acceptanceCriteria:
+- API endpoint accepts scenario ID and returns lab environment ID within 5 seconds
+- Terraform applies infrastructure within 120 seconds of request
+- Provisioned namespace includes network policies preventing cross-namespace communication
+- Environment includes SSH access credentials and connection details in API response
+- Failed provisioning attempts clean up partial resources and return error details
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

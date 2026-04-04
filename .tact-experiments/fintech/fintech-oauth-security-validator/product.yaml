@@ -1,0 +1,51 @@
+name: fintech-oauth-security-validator
+version: 0.1.0
+vision: Automated security testing framework that validates OAuth 2.0 implementations
+  in fintech APIs against RFC compliance, SMART-on-FHIR requirements, and open banking
+  standards to prevent authentication vulnerabilities before production deployment.
+goals:
+- id: G-1
+  description: Detect critical OAuth 2.0 security vulnerabilities in fintech API implementations
+  successCriteria: Successfully identify PKCE verifier exposure, missing state parameters,
+    and token leakage in GET parameters across 5 test OAuth flows with zero false
+    negatives for HIGH/CRITICAL severity findings
+- id: G-2
+  description: Provide actionable remediation guidance mapped to security frameworks
+  successCriteria: Generate JSON reports with CWE mappings, MITRE ATT&CK technique
+    IDs, and remediation steps for 100% of detected vulnerabilities, validated against
+    OWASP OAuth Security Cheat Sheet
+- id: G-3
+  description: Enable seamless CI/CD integration for pre-deployment security validation
+  successCriteria: Execute complete test suite in under 60 seconds with exit code-based
+    pass/fail and integrate with GitHub Actions/GitLab CI via single configuration
+    file
+- id: G-4
+  description: Support extensibility for custom OAuth flows and compliance requirements
+  successCriteria: Load and execute custom test scenarios from YAML configuration
+    files covering PSD2, FDX, and SMART-on-FHIR specific requirements without code
+    changes
+constraints:
+- MVP scope limited to authorization code flow with PKCE and Dynamic Client Registration
+  (DCR) - excludes implicit flow, device flow, and client credentials flow
+- Test execution must not require live production OAuth servers - supports mock server
+  testing and sandboxes only
+- CLI tool must operate without external dependencies beyond Python standard library
+  and declared packages
+- Initial release supports read-only validation (no active exploitation or penetration
+  testing capabilities)
+- Configuration files limited to 100KB to prevent resource exhaustion attacks
+- Test reports must not log sensitive tokens or credentials in plain text
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - pytest
+  - requests
+  - pydantic
+  - click
+  - PyYAML
+  infrastructure:
+  - GitHub Actions
+  - GitLab CI
+  - Docker
+  - PyPI

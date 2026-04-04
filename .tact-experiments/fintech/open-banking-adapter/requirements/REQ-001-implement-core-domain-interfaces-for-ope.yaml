@@ -1,0 +1,21 @@
+title: Implement core domain interfaces for open banking operations
+approval: draft
+phase: planned
+priority: critical
+description: Define TypeScript interfaces (IAccountProvider, ITransactionProvider,
+  IPaymentProvider) that represent common open banking operations. These interfaces
+  must be provider-agnostic and cover account retrieval, transaction history, and
+  payment initiation. Interfaces form the contract that all provider adapters must
+  implement.
+acceptanceCriteria:
+- 'IAccountProvider interface defines methods: getAccounts(), getAccountById(), getAccountBalance()'
+- 'ITransactionProvider interface defines methods: getTransactions(accountId, dateRange),
+  getTransactionById()'
+- 'IPaymentProvider interface defines method: initiatePayment(paymentRequest)'
+- All methods return Promise<Result<T, AdapterError>> with strongly-typed domain models
+- Domain models (Account, Transaction, Payment) defined with required fields common
+  across all providers (id, name, balance, currency, timestamp)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

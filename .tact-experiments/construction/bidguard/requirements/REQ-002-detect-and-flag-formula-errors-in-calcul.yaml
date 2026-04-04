@@ -1,0 +1,22 @@
+title: Detect and flag formula errors in calculations
+approval: draft
+phase: planned
+priority: critical
+description: Client-side validation engine checks all line item calculations for formula
+  errors (quantity × unit cost ≠ total), unit mismatches (hours vs days confusion),
+  and missing required fields. Prevents the catastrophic errors that occur in spreadsheet-based
+  estimating. Runs synchronously on every estimate modification.
+acceptanceCriteria:
+- Flag line items where quantity × unit cost differs from total by >$0.01
+- Detect unit mismatches where labor hours >160 (likely should be days) or days <1
+  (likely should be hours)
+- Highlight missing required fields (description, quantity, unit cost) with red border
+  and error message
+- Display error count badge in estimate header showing total validation failures
+- Prevent export to PDF/CSV when critical formula errors exist
+- Validation runs within 100ms of line item modification without blocking UI
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

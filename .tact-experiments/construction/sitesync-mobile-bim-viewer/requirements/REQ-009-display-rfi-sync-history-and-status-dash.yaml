@@ -1,0 +1,23 @@
+title: Display RFI sync history and status dashboard
+approval: draft
+phase: planned
+priority: medium
+description: Users need visibility into which RFIs have been successfully synced,
+  which are pending, and which failed, with ability to manually retry failed syncs
+  or view error details for troubleshooting.
+acceptanceCriteria:
+- RFI list view displays status badge for each RFI (DRAFT, QUEUED, SYNCING, SUBMITTED,
+  FAILED) with color coding
+- User can filter RFI list by status to quickly find drafts or failed submissions
+- Tapping a FAILED RFI shows error message and 'Retry Sync' button to re-queue for
+  sync
+- Successfully submitted RFIs display Procore RFI number and link to view in Procore
+  (if connectivity available)
+- 'Dashboard shows summary metrics: total RFIs created, pending sync count, last successful
+  sync timestamp'
+decomposition:
+  assignments: []
+dependencies:
+- Create RFI drafts with photo attachments offline
+- Detect connectivity changes and trigger background sync
+source: discovered

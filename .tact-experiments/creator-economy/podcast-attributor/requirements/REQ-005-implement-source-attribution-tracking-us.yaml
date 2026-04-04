@@ -1,0 +1,22 @@
+title: Implement source attribution tracking using referrer data
+approval: draft
+phase: planned
+priority: high
+description: Parse and categorize referrer information from platform APIs to identify
+  traffic sources (direct, social media, search, platform recommendations). This enables
+  creators to understand which discovery channels drive downloads.
+acceptanceCriteria:
+- Referrer URLs are extracted from platform API responses and stored in analytics
+  table
+- 'Referrer categorization logic maps URLs to source types: direct, social (Twitter,
+  Facebook, Reddit), search (Google, Bing), platform (Spotify, Apple Podcasts), other'
+- Source attribution view displays percentage breakdown of downloads by source category
+- Unknown or null referrers are categorized as 'direct' and tracked separately from
+  identified sources
+- Source attribution achieves at least 70% categorization rate (non-null referrers)
+  on test data
+decomposition:
+  assignments: []
+dependencies:
+- Build ETL pipeline to fetch and normalize download data from connected platforms
+source: discovered

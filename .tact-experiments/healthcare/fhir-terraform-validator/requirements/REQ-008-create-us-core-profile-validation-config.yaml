@@ -1,0 +1,22 @@
+title: Create US Core profile validation config policy
+approval: draft
+phase: planned
+priority: medium
+description: Implement policy detecting FHIR stores missing validation_config that
+  enforces US Core profiles, which are required by ONC interoperability rules for
+  certified health IT.
+acceptanceCriteria:
+- Policy ID GCP-FHIR-001 detects resources without validation_config block or with
+  disabled_profile_validation=true
+- Violation severity HIGH with message explaining US Core profile requirement for
+  ONC compliance
+- Policy passes when validation_config block present with enabled_implementation_guides
+  including US Core
+- Remediation shows example validation_config with US Core IG reference
+- Policy includes note that this validation requires FHIR store version R4 (flag if
+  version is STU3)
+decomposition:
+  assignments: []
+dependencies:
+- Implement OPA policy engine integration
+source: discovered

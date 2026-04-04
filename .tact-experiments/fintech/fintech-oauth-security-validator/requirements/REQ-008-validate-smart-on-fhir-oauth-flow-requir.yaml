@@ -1,0 +1,19 @@
+title: Validate SMART-on-FHIR OAuth flow requirements
+approval: draft
+phase: planned
+priority: medium
+description: Test SMART-on-FHIR specific OAuth requirements including launch context
+  parameters, scopes (patient/*.read, user/*.read), and token introspection for healthcare
+  fintech integrations.
+acceptanceCriteria:
+- Verify authorization request includes launch parameter when launch context provided
+- 'Validate SMART scopes follow pattern: (patient|user)/(ResourceType).(read|write|*)'
+- Confirm token response includes patient context when patient/*.read scope granted
+- Test token introspection endpoint returns active status and scope claims
+- Generate finding with custom compliance tag 'SMART-on-FHIR-IG-v2.0' when validation
+  fails
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based test scenario configuration loader
+source: discovered

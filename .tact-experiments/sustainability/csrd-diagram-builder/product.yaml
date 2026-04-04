@@ -1,0 +1,55 @@
+name: csrd-diagram-builder
+version: 0.1.0
+vision: An open-source diagramming tool for sustainability reporting that enables
+  data-driven visual creation with rich text formatting, automated color-coding from
+  ESG data sources, and regulatory-compliant PDF/A export for CSRD submissions.
+goals:
+- id: G-1
+  description: Enable sustainability managers to create CSRD-compliant diagrams with
+    rich text formatting and data-driven styling
+  successCriteria: Users can create a supply chain diagram with at least 10 nodes,
+    apply different colors to text within a single element, and connect to a CSV data
+    source to automatically color-code elements based on risk scores within 30 minutes
+- id: G-2
+  description: Support regulatory export requirements for CSRD archival compliance
+  successCriteria: Diagrams export to valid PDF/A-2b format with embedded fonts and
+    color profiles, passing PDF/A validation tools (e.g., VeraPDF) with zero errors
+- id: G-3
+  description: Provide sustainability-specific templates to accelerate diagram creation
+  successCriteria: Tool includes at least 3 pre-built templates (supply chain map,
+    Scope 1/2/3 emissions flow, energy consumption diagram) that users can customize
+    and populate with their data in under 10 minutes
+- id: G-4
+  description: Enable data integration from external ESG data sources
+  successCriteria: Users can import CSV/JSON files containing ESG metrics (supplier
+    names, risk scores, emission values) and automatically populate diagram elements
+    with this data, with changes reflected in real-time when data is updated
+constraints:
+- MVP must fork and extend Excalidraw rather than building diagramming engine from
+  scratch
+- Rich text editing limited to color formatting and basic styles (bold, italic) -
+  no complex layouts or embedded media in MVP
+- Data source integration limited to CSV and JSON file uploads - no live API connectors
+  to carbon accounting platforms in MVP
+- Collaboration features deferred to post-MVP - focus on single-user editing with
+  export/import for sharing
+- Template library limited to 3 sustainability-specific templates in MVP
+- PDF/A export must meet PDF/A-2b standard minimum - advanced features like digital
+  signatures deferred
+- Self-hosted deployment only for MVP - cloud SaaS offering deferred to post-MVP
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  - Node.js
+  frameworks:
+  - React
+  - Express
+  - Excalidraw (forked)
+  - ProseMirror
+  - Zustand
+  - pdf-lib
+  infrastructure:
+  - Docker
+  - PostgreSQL
+  - Vercel/self-hosted

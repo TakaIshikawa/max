@@ -1,0 +1,48 @@
+name: ai-agent-oauth-security-tester
+version: 0.1.0
+vision: An automated security testing framework that validates OAuth 2.0 and PKCE
+  implementations in AI agent platforms, catching critical authentication vulnerabilities
+  before production deployment and reducing manual security review time from days
+  to hours.
+goals:
+- id: G-1
+  description: Detect critical OAuth implementation vulnerabilities in AI agent platforms
+  successCriteria: Successfully identify PKCE verifier/state parameter confusion,
+    authorization code interception, redirect URI manipulation, and token leakage
+    vulnerabilities with 95%+ accuracy against known vulnerable implementations (e.g.,
+    OpenClaw CVE-2026-33579)
+- id: G-2
+  description: Generate audit-ready security reports with industry-standard mappings
+  successCriteria: Produce reports in JSON, Markdown, and SARIF formats with MITRE
+    ATT&CK technique mappings (T1550, T1528) and OWASP OAuth Security Cheat Sheet
+    references within 5 minutes of test completion
+- id: G-3
+  description: Enable automated OAuth security validation in CI/CD pipelines
+  successCriteria: Execute complete OAuth flow validation test suite in under 2 minutes
+    with configurable pass/fail thresholds and zero false positives on compliant implementations
+- id: G-4
+  description: Support multiple OAuth grant types used by AI agent platforms
+  successCriteria: Validate authorization code flow, PKCE extension, and client credentials
+    grant with configurable test scenarios covering at least 15 distinct vulnerability
+    patterns from OWASP OAuth Security Cheat Sheet
+constraints:
+- MVP focuses on authorization code flow with PKCE extension only (defer client credentials
+  and implicit flows)
+- Testing is black-box only via HTTP endpoints; no source code analysis or instrumentation
+- Does not perform active exploitation; detects vulnerabilities through flow validation
+  and fuzzing only
+- Requires target platform to expose OAuth endpoints (authorization, token, introspection)
+- MVP supports single-threaded sequential testing; parallel test execution deferred
+  to post-MVP
+- No GUI; CLI-only interface for MVP with configuration via YAML files
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - pytest
+  - httpx
+  - pydantic
+  - click
+  infrastructure:
+  - GitHub Actions (optional)
+  - Docker (optional)

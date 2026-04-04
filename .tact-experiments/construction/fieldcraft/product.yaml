@@ -1,0 +1,51 @@
+name: fieldcraft
+version: 0.1.0
+vision: Transform construction quality documentation from ephemeral word-of-mouth
+  into a structured, searchable knowledge base that captures exceptional craftsmanship
+  through mobile photo and voice capture, enabling training, performance evaluation,
+  and expertise sharing across field crews.
+goals:
+- id: G-1
+  description: Enable field crews to capture quality workmanship documentation with
+    minimal friction during active work
+  successCriteria: Average time from opening app to saving a documented technique
+    is under 60 seconds; 80% of entries include both photo and voice note
+- id: G-2
+  description: Build a searchable knowledge base of construction techniques organized
+    by trade and skill type
+  successCriteria: Users can find relevant technique examples within 3 search queries;
+    auto-tagging achieves 85% accuracy for trade classification
+- id: G-3
+  description: Provide offline-first mobile experience for field environments with
+    unreliable connectivity
+  successCriteria: App remains fully functional without network connection; background
+    sync completes within 5 minutes of connectivity restoration
+- id: G-4
+  description: Generate objective quality metrics linked to specific crews and projects
+    for performance evaluation
+  successCriteria: System tracks quality entries per crew/project; exports structured
+    data showing technique frequency and crew attribution
+constraints:
+- MVP excludes Procore/Buildertrend/QuickBooks integrations - focus on standalone
+  mobile app with manual project/crew entry
+- Offline storage limited to 100MB per device to manage local storage constraints
+- Voice notes capped at 60 seconds to control transcription costs and encourage concise
+  documentation
+- Photo uploads limited to 5MB per image with client-side compression
+- MVP supports single organization only - no multi-tenant architecture
+- Auto-tagging limited to 10 predefined trade categories (framing, drywall, electrical,
+  plumbing, HVAC, roofing, concrete, tile, painting, finish carpentry)
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Expo
+  - Node.js
+  - Express
+  infrastructure:
+  - PostgreSQL
+  - AWS S3
+  - OpenAI Whisper API
+  - OpenAI GPT-4 Vision API

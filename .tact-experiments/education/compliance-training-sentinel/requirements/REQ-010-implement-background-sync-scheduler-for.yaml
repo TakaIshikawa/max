@@ -1,0 +1,23 @@
+title: Implement background sync scheduler for LMS data
+approval: draft
+phase: planned
+priority: medium
+description: Build Celery-based background job scheduler that periodically syncs certification
+  completion data from connected LMS platforms. Ensures deadline detection operates
+  on fresh data without manual intervention.
+acceptanceCriteria:
+- Scheduler runs LMS sync jobs every 6 hours (configurable interval)
+- Sync job iterates through all configured LMS integrations and fetches updated completion
+  data
+- Detects new completions and updates employee certification records with completion
+  date
+- Handles sync failures gracefully with retry logic (3 attempts with exponential backoff)
+- Sends admin notification if sync fails after all retries
+- 'Logs sync metrics: start time, end time, records processed, records updated, errors
+  encountered'
+decomposition:
+  assignments: []
+dependencies:
+- Implement xAPI LMS integration adapter
+- Implement SCORM LMS integration adapter
+source: discovered

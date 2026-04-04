@@ -1,0 +1,21 @@
+title: Build OpenAI Vision extraction adapter
+approval: draft
+phase: planned
+priority: high
+description: Implement adapter for OpenAI Vision API to extract identity document
+  fields using GPT-4 Vision. Provides alternative extraction service and enables confidence
+  comparison between services.
+acceptanceCriteria:
+- OpenAIVisionAdapter class implements BaseExtractor interface with extract() method
+- Sends document image to OpenAI Vision API with structured prompt for identity field
+  extraction
+- 'Parses JSON response and extracts fields: full_name, date_of_birth, document_number,
+  expiry_date'
+- Generates confidence scores based on response structure completeness (0.9 if all
+  fields present, 0.5 if partial)
+- Handles OpenAI API rate limits and errors with retry logic
+decomposition:
+  assignments: []
+dependencies:
+- Implement document upload API endpoint
+source: discovered

@@ -1,0 +1,24 @@
+title: Build FastAPI REST API with authentication and core endpoints
+approval: draft
+phase: planned
+priority: critical
+description: Implement REST API providing endpoints for bank account connection, transaction
+  sync, categorization management, and report generation. Must include API key authentication
+  and comprehensive error handling.
+acceptanceCriteria:
+- 'API endpoints implemented: POST /api/v1/accounts (connect bank account), GET /api/v1/accounts/{id}/transactions
+  (list transactions), POST /api/v1/transactions/{id}/categorize (trigger categorization),
+  GET /api/v1/reports (list reports), POST /api/v1/reports/generate (create new report)'
+- API key authentication middleware validates X-API-Key header against hashed keys
+  in database; returns 401 for invalid/missing keys
+- Request validation using Pydantic models with detailed error messages (422 responses);
+  response models enforce consistent JSON structure
+- 'Error handling: 400 for bad requests, 404 for not found, 500 for server errors
+  with sanitized error messages (no stack traces in production), correlation IDs for
+  request tracing'
+- OpenAPI documentation auto-generated at /docs with example requests/responses for
+  all endpoints; API versioning via /api/v1 prefix
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

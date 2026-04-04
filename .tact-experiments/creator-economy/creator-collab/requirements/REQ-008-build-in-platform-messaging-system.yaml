@@ -1,0 +1,21 @@
+title: Build in-platform messaging system
+approval: draft
+phase: planned
+priority: medium
+description: Enable direct messaging between podcasters and collaborators for initial
+  outreach, chemistry discussions, and ongoing communication. Messages are scoped
+  to user pairs and support text only in MVP. Reduces reliance on external communication
+  tools.
+acceptanceCriteria:
+- Users can initiate conversations from collaborator profile pages via 'Send Message'
+  button
+- Conversation list shows all active threads with most recent message preview and
+  timestamp
+- Message thread displays chronologically with sender name, avatar, and timestamp
+- Real-time message delivery using Action Cable (WebSocket) with fallback to polling
+- Unread message count badge appears on navigation bar and conversation list items
+decomposition:
+  assignments: []
+dependencies:
+- Create collaborator search and filtering interface
+source: discovered

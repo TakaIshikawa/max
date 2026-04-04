@@ -1,0 +1,24 @@
+title: Implement unified banking provider adapter interface
+approval: draft
+phase: planned
+priority: critical
+description: Create abstract IBankingProvider interface with concrete implementations
+  for Fintecture and GoCardless APIs to enable multi-provider transaction retrieval
+  with standardized data models. Required foundation for provider fallback and future
+  provider additions.
+acceptanceCriteria:
+- 'IBankingProvider interface defines methods: authenticateUser(), listAccounts(),
+  getTransactions(accountId, startDate, endDate), with TypeScript types for all parameters
+  and return values'
+- FintectureAdapter successfully authenticates using Fintecture SDK and retrieves
+  transactions from test bank account, mapping to internal Transaction model
+- GoCardlessAdapter successfully authenticates using GoCardless API and retrieves
+  transactions from test bank account, mapping to internal Transaction model
+- 'Both adapters normalize transaction data to common schema with fields: id, date,
+  amount, currency, description, merchantName, merchantCategory'
+- Unit tests verify adapter error handling for authentication failures, network timeouts,
+  and invalid account IDs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

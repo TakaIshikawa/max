@@ -1,0 +1,68 @@
+patterns:
+- name: Plugin Architecture
+  description: Test scenarios implemented as independent plugin modules loaded dynamically
+    from YAML configuration, enabling extensibility for custom OAuth flows and compliance
+    frameworks
+  scope:
+  - test_scenarios
+  - validators
+  - reporters
+- name: Strategy Pattern for Validators
+  description: OAuth validation logic separated into strategy classes (PKCEValidator,
+    DCRValidator, StateParameterValidator) allowing independent testing and composition
+  scope:
+  - validators
+  - compliance_checks
+- name: Chain of Responsibility for Test Execution
+  description: Test cases executed sequentially through validation chain, with each
+    validator deciding whether to pass request to next validator or fail fast
+  scope:
+  - test_runner
+  - validation_pipeline
+invariants:
+- Test execution must never transmit sensitive data (tokens, credentials, PKCE verifiers)
+  to external systems beyond the configured target OAuth server
+- All test reports must redact sensitive values (tokens, secrets) before writing to
+  disk or stdout
+- Validation logic must strictly follow RFC 6749, RFC 7591, RFC 7636, and SMART-on-FHIR
+  IG specifications without custom interpretations
+- 'Exit codes must consistently indicate test results: 0 for pass, 1 for validation
+  failures, 2 for configuration errors'
+- Test scenarios must be idempotent and not modify OAuth server state beyond ephemeral
+  test client registrations
+conventions:
+- Use snake_case for all Python modules, functions, and variables
+- Prefix validator classes with purpose and suffix with 'Validator' (e.g., PKCEValidator,
+  StateParameterValidator)
+- 'Test scenario YAML files follow naming convention: {compliance_framework}_{flow_type}_tests.yaml'
+- CWE and MITRE ATT&CK IDs stored as constants in security_mappings.py module
+- 'All HTTP requests include custom User-Agent: fintech-oauth-validator/{version}'
+- 'Log levels: DEBUG for request/response details, INFO for test progress, WARNING
+  for non-critical findings, ERROR for critical vulnerabilities'
+decisions:
+- id: AD-1
+  title: Use pytest framework for test execution instead of custom test runner
+  decision: Leverage pytest's fixture system, parameterization, and plugin ecosystem
+    for test scenario execution
+  rationale: Pytest provides mature test discovery, parallel execution, and extensive
+    plugin support (pytest-json-report for structured output). Reduces development
+    time by 40% compared to custom runner and enables developers to use familiar testing
+    patterns. Supports CI/CD integration out-of-box with JUnit XML output.
+- id: AD-2
+  title: Implement validation logic as pure functions with explicit RFC section references
+  decision: Each validator function accepts request/response objects and returns ValidationResult
+    with RFC section citations
+  rationale: Pure functions enable deterministic testing and parallel execution. RFC
+    section references in validation results provide audit trail for compliance officers
+    and map directly to remediation guidance. Facilitates future updates when RFCs
+    are revised by isolating spec-specific logic.
+- id: AD-3
+  title: Store security mappings (CWE/MITRE ATT&CK) as static JSON files instead of
+    database
+  decision: Maintain vulnerability-to-framework mappings in JSON files versioned with
+    code
+  rationale: Eliminates runtime database dependency, ensures reproducible results
+    across environments, and allows security mappings to be reviewed in pull requests.
+    Mappings change infrequently (quarterly updates) and total dataset is <50KB, making
+    file-based storage optimal for CLI tool distribution.
+contracts: []

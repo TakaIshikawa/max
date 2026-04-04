@@ -1,0 +1,26 @@
+title: Build evidence correlation engine with DORA control mappings
+approval: draft
+phase: planned
+priority: critical
+description: Implement core logic to load DORA control definitions from YAML configuration,
+  correlate ingested evidence items to applicable controls based on mapping rules,
+  and persist control-evidence relationships. This is the central intelligence layer
+  that transforms raw security data into compliance artifacts.
+acceptanceCriteria:
+- Loads DORA control definitions from config/dora_controls.yaml on application startup
+  with schema validation
+- 'Control YAML includes: control ID, title, description, evidence_mapping_rules (tool
+  type + severity/category filters)'
+- Correlation engine evaluates mapping rules against each Evidence object and creates
+  ControlEvidence join records
+- Supports multiple controls per evidence item (e.g., critical vulnerability maps
+  to both ICT-003 and incident response controls)
+- Logs unmapped evidence items as warnings for compliance officer review
+- Unit tests verify correct mapping for 10+ evidence scenarios across all three adapters
+decomposition:
+  assignments: []
+dependencies:
+- Implement Trivy vulnerability scan adapter
+- Implement Infisical secrets audit log adapter
+- Implement AWS CloudTrail audit log adapter
+source: discovered

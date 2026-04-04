@@ -1,0 +1,18 @@
+title: Create project detail pages with integration metadata
+approval: draft
+phase: planned
+priority: high
+description: Build Next.js pages displaying comprehensive project information including
+  API documentation links, CSRD applicability, available connectors, integration templates,
+  and community reviews. Use ISR for performance.
+acceptanceCriteria:
+- Dynamic route /projects/[id] renders project details with all metadata fields
+- Page displays list of available connectors (if any) with links to registry
+- Page shows applicable CSRD requirements as tagged badges
+- ISR revalidation set to 3600 seconds (1 hour) for automatic updates
+- Page includes 'Report Issue' link to GitHub for community corrections
+decomposition:
+  assignments: []
+dependencies:
+- Implement project discovery database with CSRD metadata
+source: discovered

@@ -1,0 +1,24 @@
+title: Implement WebSocket reconnection with exponential backoff
+approval: draft
+phase: planned
+priority: high
+description: Handle WebSocket connection failures gracefully for Twitch IRC and YouTube
+  Live Chat API. Implement exponential backoff retry logic to prevent API rate limit
+  violations and provide user feedback on connection status. Essential for reliability
+  during IRL streams with unstable connectivity.
+acceptanceCriteria:
+- When WebSocket connection drops, automatic reconnection attempts occur with exponential
+  backoff (1s, 2s, 4s, 8s, max 60s)
+- Connection status indicator shows 'Connected', 'Reconnecting', or 'Disconnected'
+  for each platform
+- After 5 failed reconnection attempts, user is prompted to manually retry or check
+  network settings
+- Successful reconnection resumes chat message streaming without requiring app restart
+- Reconnection logic respects platform API rate limits (no more than 1 connection
+  attempt per second)
+- User can manually trigger reconnection from connection status indicator
+decomposition:
+  assignments: []
+dependencies:
+- Aggregate chat messages from Twitch and YouTube Live into unified feed
+source: discovered

@@ -1,0 +1,19 @@
+title: Analyze Kedro pipeline code for dataset loading vulnerabilities
+approval: draft
+phase: planned
+priority: high
+description: Parse Kedro pipeline.py and catalog.yml files to detect unsafe dataset
+  loading patterns that could enable path traversal or arbitrary file access. Addresses
+  Kedro-specific attack surface.
+acceptanceCriteria:
+- Use AST parsing to identify DataCatalog.load() calls and extract dataset name arguments
+- Parse catalog.yml to find dataset definitions with filepath parameters containing
+  user-controllable variables
+- Generate findings for datasets using versioned loading without path validation (CVE-2023-XXXXX
+  pattern)
+- Report line numbers in both pipeline.py and catalog.yml for each finding
+decomposition:
+  assignments: []
+dependencies:
+- Parse dependency files to extract ML library versions
+source: discovered

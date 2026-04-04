@@ -1,0 +1,78 @@
+patterns:
+- name: API Gateway Pattern
+  description: Centralized service layer abstracts platform-specific API clients (YouTube,
+    TikTok, Instagram) behind a unified interface, allowing controllers to fetch comments
+    without knowing platform implementation details
+  scope:
+  - backend/services
+  - backend/integrations
+- name: Repository Pattern
+  description: Data access layer separates business logic from database queries, with
+    repositories for Comment, Platform, Creator, and AnalysisResult entities
+  scope:
+  - backend/repositories
+  - backend/models
+- name: Job Queue Pattern
+  description: Background jobs handle comment fetching and NLP processing asynchronously
+    using a queue (Redis-backed) to avoid blocking API requests and handle rate limits
+    gracefully
+  scope:
+  - backend/jobs
+  - backend/queue
+- name: Adapter Pattern
+  description: Platform-specific response formats are normalized into a common Comment
+    schema by adapter classes, ensuring consistent data structure across YouTube,
+    TikTok, and Instagram
+  scope:
+  - backend/adapters
+invariants:
+- All comments must be stored with original platform metadata (platform_id, platform_type,
+  author_id, timestamp) to enable cross-platform deduplication and attribution
+- Sentiment scores must be normalized to a consistent scale (-1.0 to 1.0) regardless
+  of underlying NLP model
+- OAuth tokens must be encrypted at rest and refreshed automatically before expiration
+  to prevent data access interruptions
+- API rate limits must be tracked per platform and per user; jobs must pause when
+  quotas are exhausted and resume after reset
+- All NLP processing must be idempotent—reprocessing the same comment yields identical
+  results
+- User data from different platforms must never be merged without explicit user consent
+  and account linking
+conventions:
+- Use kebab-case for file names and directory names (e.g., comment-service.ts, youtube-adapter.ts)
+- Use PascalCase for class names and interfaces (e.g., CommentRepository, YouTubeClient)
+- Use camelCase for variables, functions, and methods (e.g., fetchComments, sentimentScore)
+- Prefix interface names with 'I' only for dependency injection contracts (e.g., ICommentService)
+- Database table names use snake_case plural (e.g., comments, platform_connections,
+  analysis_results)
+- Environment variables use SCREAMING_SNAKE_CASE (e.g., YOUTUBE_API_KEY, DATABASE_URL)
+- 'API endpoints follow REST conventions: /api/v1/{resource}/{id}/{sub-resource}'
+- All async functions must include proper error handling with try-catch and logging
+- Test files colocated with source files using .test.ts or .spec.ts suffix
+decisions:
+- id: D-1
+  title: Use TypeScript for backend with Python microservice for NLP
+  decision: Node.js/TypeScript backend with Python NLP microservice
+  rationale: TypeScript provides type safety for API integrations and business logic,
+    while Python's spaCy ecosystem is superior for NLP. A lightweight Python microservice
+    (Flask/FastAPI) handles sentiment analysis and topic extraction, called via HTTP
+    from the Node.js backend. This avoids forcing all NLP into JavaScript libraries
+    with weaker model support.
+- id: D-2
+  title: Store raw comments in PostgreSQL with full-text search, cache aggregations
+    in Redis
+  decision: PostgreSQL for persistence, Redis for caching
+  rationale: PostgreSQL's full-text search (tsvector) enables efficient comment search
+    and topic extraction without external search infrastructure. Redis caches expensive
+    aggregations (sentiment timelines, topic clouds) with 6-hour TTL matching the
+    comment fetch schedule. This avoids recomputing NLP results on every dashboard
+    load while keeping infrastructure simple.
+- id: D-3
+  title: Defer scraping fallback to post-MVP; gracefully degrade when API quotas exhausted
+  decision: API-only approach with quota monitoring and user prioritization
+  rationale: Scraping with Puppeteer introduces significant maintenance burden (DOM
+    changes, anti-bot detection, legal risks). For MVP, display clear messaging when
+    API quotas are exhausted and allow users to prioritize which content to analyze.
+    This validates demand before investing in fragile scraping infrastructure. Most
+    creators with <100k followers stay within free API quotas.
+contracts: []

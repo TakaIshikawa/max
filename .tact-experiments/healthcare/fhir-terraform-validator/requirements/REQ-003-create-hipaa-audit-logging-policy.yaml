@@ -1,0 +1,22 @@
+title: Create HIPAA audit logging policy
+approval: draft
+phase: planned
+priority: critical
+description: Implement Rego policy that validates FHIR stores have audit logging properly
+  configured via notification_config or linked Cloud Logging sink. HIPAA requires
+  comprehensive audit trails for all PHI access.
+acceptanceCriteria:
+- Policy ID GCP-AUDIT-001 detects google_healthcare_fhir_store resources missing notification_config
+  block
+- Violation severity set to CRITICAL with message explaining HIPAA audit logging requirement
+- Policy passes (no violation) when notification_config.pubsub_topic is configured
+  with valid topic reference
+- Remediation hint includes example HCL snippet showing notification_config block
+  configuration
+- Policy documented in YAML metadata file with HIPAA Security Rule citation (45 CFR
+  § 164.312(b))
+decomposition:
+  assignments: []
+dependencies:
+- Implement OPA policy engine integration
+source: discovered

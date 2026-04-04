@@ -1,0 +1,20 @@
+title: Integrate Stripe Connect for payment processing and escrow
+approval: draft
+phase: planned
+priority: critical
+description: Connect Stripe Connect accounts for collaborators to receive payments
+  and implement escrow-style holding for revenue-sharing agreements. Podcasters deposit
+  funds which are distributed according to agreement splits after milestone confirmation.
+acceptanceCriteria:
+- Collaborators can onboard to Stripe Connect Express accounts via OAuth flow from
+  settings page
+- Podcasters can deposit funds to escrow for specific agreements via Stripe Checkout
+- Funds held in platform Stripe account until both parties mark milestone as complete
+- Automatic distribution to collaborator Connect accounts within 48 hours of milestone
+  confirmation
+- Payment history page shows all transactions with status (pending/held/distributed/refunded)
+decomposition:
+  assignments: []
+dependencies:
+- Build revenue-sharing agreement creation workflow
+source: discovered

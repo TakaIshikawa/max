@@ -1,0 +1,19 @@
+title: Implement YouTube OAuth authentication and comment fetching
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to authenticate with YouTube via OAuth 2.0 and fetch comments
+  from their videos using YouTube Data API v3. This is the foundational platform integration
+  for MVP, as YouTube is the primary use case.
+acceptanceCriteria:
+- User can initiate OAuth flow and grant access to YouTube account
+- System stores encrypted OAuth tokens and refreshes them automatically before expiration
+- System fetches top-level comments and replies for a given video ID using commentThreads.list
+  endpoint
+- 'Comments are normalized into common schema with fields: id, platform, author, text,
+  timestamp, likes, reply_count'
+- API quota usage is tracked and logged; graceful error shown when quota exhausted
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

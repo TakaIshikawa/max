@@ -1,0 +1,20 @@
+title: Implement rich text formatting within diagram elements
+approval: draft
+phase: planned
+priority: critical
+description: Extend Excalidraw text elements to support inline color formatting, bold,
+  italic, and underline using ProseMirror editor. This enables users to highlight
+  specific words or values (e.g., high-risk suppliers in red, compliant in green)
+  within a single text element, eliminating the need for separate elements per color.
+acceptanceCriteria:
+- User can select text within a diagram element and apply color from a predefined
+  palette (red, green, yellow, blue, black)
+- User can apply bold, italic, and underline formatting to selected text
+- Formatted text renders correctly on canvas with colors and styles visible
+- Rich text formatting persists when diagram is saved and reloaded
+- Formatting data is stored in Excalidraw-compatible JSON schema without breaking
+  core serialization
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

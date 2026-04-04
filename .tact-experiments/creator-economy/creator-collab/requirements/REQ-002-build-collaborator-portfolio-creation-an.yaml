@@ -1,0 +1,21 @@
+title: Build collaborator portfolio creation and management
+approval: draft
+phase: planned
+priority: critical
+description: Collaborators must be able to create portfolios showcasing their work
+  through uploaded samples (audio for editors/co-hosts, images for artists), descriptions,
+  genre tags, and style preferences. Portfolios are the primary discovery mechanism
+  for podcasters.
+acceptanceCriteria:
+- Collaborators can upload up to 5 portfolio samples with title, description, and
+  genre tags
+- Audio samples (MP3/WAV) limited to 5 minutes and 50MB, uploaded directly to S3
+- Cover art samples (JPG/PNG) limited to 5MB per image
+- Portfolio includes bio (500 char max), hourly rate, and revenue-share willingness
+  (yes/no toggle)
+- Collaborators can mark portfolio as 'published' to appear in search results
+decomposition:
+  assignments: []
+dependencies:
+- Implement user registration and role-based onboarding
+source: discovered

@@ -1,0 +1,23 @@
+title: Implement data quality validation rules and audit logging
+approval: draft
+phase: planned
+priority: medium
+description: Enforce GHG Protocol standards and maintain audit trail for CS3D compliance.
+  Ensures carbon intensity calculation invariant and modification logging invariant
+  are upheld.
+acceptanceCriteria:
+- Validation rules reject submissions without units or scope boundaries (Scope 1/2/3
+  designation)
+- 'Audit log table captures: user_id, action (create/update/delete), resource (supplier/submission/report),
+  timestamp, old_value, new_value, reason'
+- Admin edits to normalized data require mandatory 'reason' field (e.g., 'Corrected
+  unit conversion error')
+- Audit log queryable from admin dashboard with filters by date range, user, action
+  type
+- System prevents deletion of supplier submissions - only soft delete with audit trail
+decomposition:
+  assignments: []
+dependencies:
+- Implement data normalization and validation pipeline
+- Implement buyer organization and user management
+source: discovered

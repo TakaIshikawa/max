@@ -1,0 +1,79 @@
+patterns:
+- name: Offline-First Architecture
+  description: Mobile app stores reports locally in SQLite and syncs to backend when
+    connectivity is available. All create/read operations work offline with background
+    sync queue.
+  scope:
+  - mobile-app
+  - sync-service
+- name: Repository Pattern
+  description: Abstract data access behind repository interfaces to support both local
+    (SQLite) and remote (PostgreSQL) data sources with consistent API.
+  scope:
+  - mobile-app
+  - backend-api
+- name: Template Method Pattern
+  description: Report templates (concrete pour, framing, electrical rough-in) extend
+    base report structure with template-specific fields and validation rules.
+  scope:
+  - mobile-app
+  - backend-api
+- name: Queue-Based Photo Upload
+  description: Photos queued for background upload with automatic retry on failure.
+    Compression happens on-device before upload to minimize cellular data usage.
+  scope:
+  - mobile-app
+  - photo-service
+invariants:
+- Every report must have a creation timestamp, job site location (lat/lng), and creator
+  user ID
+- Weather data must be fetched and stored at report creation time (never null for
+  submitted reports)
+- Photos must be compressed to under 5MB before upload and stored with reference to
+  parent report ID
+- Reports in local SQLite must maintain sync status (pending/synced/failed) and never
+  be deleted until confirmed synced
+- Voice transcriptions must be stored as both audio file (S3) and text (database)
+  for audit trail
+- PDF generation must include all report fields, weather data, and embedded photos
+  in chronological order
+- Full-text search index must update within 30 seconds of report submission
+conventions:
+- Use TypeScript strict mode for all frontend and backend code
+- 'API endpoints follow RESTful conventions: /api/v1/reports, /api/v1/photos, /api/v1/weather'
+- Database tables use snake_case, TypeScript/JavaScript uses camelCase
+- All timestamps stored in UTC, converted to local timezone in UI
+- Error responses follow JSON:API error format with status code, title, and detail
+- 'Environment variables prefixed by service: MOBILE_, API_, WEATHER_, PHOTO_'
+- 'React Native components organized by feature: /reports, /photos, /weather, /sync'
+- All async operations use async/await (no raw promises or callbacks)
+- 'Photo filenames use format: {reportId}_{timestamp}_{index}.jpg'
+- 'Report templates identified by kebab-case slugs: concrete-pour, framing, electrical-rough-in'
+decisions:
+- id: D-1
+  title: Use OpenAI Whisper API instead of device-native speech-to-text
+  decision: Integrate OpenAI Whisper API with fallback to device-native speech-to-text
+    when offline. Store audio file locally and queue for Whisper transcription when
+    connectivity available.
+  rationale: 'Whisper provides superior accuracy for construction terminology (e.g.,
+    ''rebar'', ''j-bolt'', ''trusses'') compared to iOS/Android native APIs. Trade-off:
+    requires connectivity for transcription, but acceptable since reports typically
+    created at end of day when supervisors return to office/trailer with WiFi.'
+- id: D-2
+  title: Defer Procore/Buildertrend integrations to post-MVP
+  decision: MVP generates PDF reports and emails to configurable recipient list. Post-MVP
+    will add Procore/Buildertrend API sync to link reports to project schedules and
+    cost codes.
+  rationale: PM system integrations require OAuth flows, field mapping configuration,
+    and extensive testing across different project structures. MVP focuses on core
+    value proposition (voice-to-text, weather, photos, PDF) with email distribution.
+    Integration APIs can be added once core workflow is validated.
+- id: D-3
+  title: Use PostgreSQL full-text search instead of Elasticsearch
+  decision: Implement full-text search using PostgreSQL tsvector columns with GIN
+    indexes on report_text, weather_conditions, and template_type fields.
+  rationale: MVP search requirements (search across report text, weather conditions,
+    dates) are well-served by PostgreSQL's built-in full-text search with GIN indexes.
+    Avoids operational complexity of running separate search infrastructure. Can migrate
+    to Elasticsearch if search performance becomes bottleneck at scale.
+contracts: []

@@ -1,0 +1,16 @@
+title: Generate TypeScript type definitions from Zod schemas
+approval: draft
+phase: planned
+priority: high
+description: Emit TypeScript type definitions inferred from Zod schemas using z.infer<>,
+  ensuring type safety between validators and application code.
+acceptanceCriteria:
+- Generated types use z.infer<typeof ResourceSchema> pattern
+- Types exported from types/ directory with .generated.ts suffix
+- Types include JSDoc comments with FHIR resource descriptions from OpenAPI spec
+- Generated types compile without errors and match OpenAPI schema structure
+decomposition:
+  assignments: []
+dependencies:
+- Generate Zod schemas with embedded FHIR metadata
+source: discovered

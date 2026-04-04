@@ -1,0 +1,20 @@
+title: Burn captions into video clips
+approval: draft
+phase: planned
+priority: high
+description: Overlay generated captions onto video clips using FFmpeg subtitle filters.
+  Supports customizable caption styling (font, size, color, background, position).
+  Produces final platform-ready video files with embedded captions.
+acceptanceCriteria:
+- Burn SRT captions into video using FFmpeg subtitles filter
+- 'Apply default caption style: white text with black outline, centered at bottom
+  20% of frame, sans-serif font'
+- Allow users to preview caption style before final rendering
+- Generate final video file with captions embedded (no separate subtitle file needed)
+- Final clips maintain platform-specific format requirements from previous step
+decomposition:
+  assignments: []
+dependencies:
+- Generate styled captions for clips
+- Generate platform-specific formatted clips
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement GitHub Security Advisories scraper
+approval: draft
+phase: planned
+priority: critical
+description: Create a scraper that fetches AI/ML-related vulnerabilities from GitHub
+  Security Advisories API, focusing on Python and JavaScript ecosystems. This is the
+  highest-priority source as it captures upstream disclosures before NVD publication.
+acceptanceCriteria:
+- Scraper queries GitHub GraphQL API for security advisories with ecosystems 'pip'
+  and 'npm' published in last 7 days
+- Extracts GHSA ID, CVE ID (if available), severity, affected package names, vulnerable
+  version ranges, patched versions, and publication timestamp
+- Normalizes data to internal schema and persists to vulnerabilities table with source='github'
+- Runs every 15 minutes via Celery Beat schedule
+- Handles API rate limits (5000 req/hour) with exponential backoff and logs errors
+  without crashing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

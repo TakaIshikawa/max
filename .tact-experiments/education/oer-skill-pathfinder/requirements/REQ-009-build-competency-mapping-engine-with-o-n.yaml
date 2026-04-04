@@ -1,0 +1,23 @@
+title: Build competency mapping engine with O*NET integration
+approval: draft
+phase: planned
+priority: medium
+description: Create service that maps OER resources to standardized competencies using
+  O*NET framework for 5 initial job roles. Enables skill gap analysis and alignment
+  with industry standards. Uses predefined templates in MVP; LLM enhancement post-MVP.
+acceptanceCriteria:
+- System includes competency templates for 5 roles with mappings to O*NET knowledge,
+  skills, and abilities (KSAs)
+- Each OER resource in learning path is tagged with 1-5 competencies from relevant
+  role template
+- API endpoint GET /competencies/:role returns list of competencies with definitions
+  and proficiency levels
+- Skill gap analysis compares employee's completed competencies against target role
+  requirements and returns gap percentage
+- Competency data stored in normalized database schema supporting many-to-many relationships
+  between resources and competencies
+decomposition:
+  assignments: []
+dependencies:
+- Implement OER content aggregation from GitHub repositories
+source: discovered

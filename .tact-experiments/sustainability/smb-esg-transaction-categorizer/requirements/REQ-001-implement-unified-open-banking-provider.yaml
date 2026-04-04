@@ -1,0 +1,22 @@
+title: Implement unified Open Banking provider abstraction layer
+approval: draft
+phase: planned
+priority: critical
+description: Create abstract BankingProvider interface with concrete implementations
+  for Plaid and GoCardless. Must handle authentication, transaction fetching, and
+  error normalization across providers to enable transparent fallback and future extensibility.
+acceptanceCriteria:
+- BankingProvider abstract base class defines connect(credentials), fetch_transactions(account_id,
+  start_date, end_date), and get_accounts() methods
+- PlaidProvider and GoCardlessProvider implementations successfully authenticate and
+  fetch transactions from sandbox accounts
+- 'Transactions normalized to standard Transaction model with fields: id, date, amount,
+  description, provider_transaction_id, provider_name, raw_metadata (JSONB)'
+- Provider factory pattern selects provider based on configuration with automatic
+  fallback if primary provider fails (logs fallback event)
+- Unit tests achieve 90%+ coverage for both provider implementations with mocked API
+  responses
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

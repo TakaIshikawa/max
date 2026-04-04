@@ -1,0 +1,58 @@
+name: smb-esg-transaction-categorizer
+version: 0.1.0
+vision: An open-source accounting bridge that automatically categorizes SMB bank transactions
+  by ESG impact using Open Banking APIs and ML models, generating CSRD-compliant sustainability
+  reports without enterprise software costs.
+goals:
+- id: G-1
+  description: Automate ESG transaction categorization for SMB accounting platforms
+  successCriteria: Categorize 90%+ of bank transactions into ESG taxonomy categories
+    (EU Taxonomy aligned) with 85%+ accuracy, reducing manual categorization time
+    from 15+ hours/month to <2 hours/month for review
+- id: G-2
+  description: Enable CSRD-compliant sustainability reporting from banking data
+  successCriteria: Generate CSRD-compliant reports mapping financial transactions
+    to Scope 3 emissions and social metrics with complete audit trails, validated
+    against CSRD ESRS E1 (Climate) requirements
+- id: G-3
+  description: Integrate seamlessly with existing open-source accounting platforms
+  successCriteria: Successfully sync transactions bidirectionally with at least one
+    accounting platform (Akaunting or Odoo) with <5 minute setup time and zero data
+    loss
+- id: G-4
+  description: Provide multi-provider Open Banking connectivity with fallback resilience
+  successCriteria: Connect to SMB bank accounts via at least 2 Open Banking providers
+    (Plaid, GoCardless, or Fintecture) with automatic fallback, achieving 99%+ transaction
+    import success rate
+constraints:
+- MVP supports exactly 2 Open Banking providers (Plaid + GoCardless) to validate multi-provider
+  pattern without over-engineering
+- ESG categorization limited to EU Taxonomy Level 1 categories (6 environmental objectives
+  + basic social metrics) - no custom taxonomy support in MVP
+- CSRD reporting scope limited to ESRS E1 (Climate Change) with Scope 3 Category 1
+  (Purchased Goods/Services) - other ESRS standards deferred
+- Integration limited to Akaunting plugin only (Odoo deferred to post-MVP) to validate
+  plugin architecture
+- ML model uses pre-trained sentence-transformers with rule-based augmentation - no
+  custom model training in MVP
+- Supplier carbon intensity database limited to manual CSV upload - automated CDP/Ecoinvent
+  integration deferred
+- Single-tenant deployment only - no multi-tenancy in MVP
+- Authentication via API keys only - OAuth2/SSO deferred
+techStack:
+  languages:
+  - Python 3.11+
+  - SQL
+  frameworks:
+  - FastAPI
+  - SQLAlchemy
+  - Celery
+  - sentence-transformers
+  - scikit-learn
+  - Jinja2
+  - WeasyPrint
+  infrastructure:
+  - PostgreSQL 15+
+  - Redis (Celery broker)
+  - Docker
+  - REST API

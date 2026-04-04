@@ -1,0 +1,18 @@
+title: Create comprehensive README with usage examples
+approval: draft
+phase: planned
+priority: medium
+description: Write documentation that explains how to install, configure, and use
+  the audit logger MCP server. Include examples of logging contexts, querying audit
+  logs, and replaying contexts for debugging scenarios.
+acceptanceCriteria:
+- README includes installation instructions with Python version requirements and dependencies
+- MCP server configuration example for Claude Desktop provided
+- At least 3 usage examples showing audit_log_context, audit_query_context, and audit_replay_context
+- Documentation explains compliance use cases and how to export audit logs for SOC2/HIPAA
+  audits
+- Troubleshooting section covers common issues (database permissions, FTS5 availability)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

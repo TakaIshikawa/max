@@ -1,0 +1,18 @@
+title: Implement GitHub Action for CI/CD validation
+approval: draft
+phase: planned
+priority: high
+description: Provide reusable GitHub Action that validates specific model+llama.cpp
+  combination by querying MCP server. Fails workflow if compatibility test failed
+  or model untested.
+acceptanceCriteria:
+- 'Action accepts inputs: model_name, llamacpp_version, mcp_server_url'
+- Queries MCP server check_compatibility tool via HTTP transport
+- Exits with code 0 if status='passed', code 1 if 'failed' or 'untested'
+- Outputs test metrics as workflow annotations
+- Includes example workflow YAML in documentation
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP tool for compatibility queries
+source: discovered

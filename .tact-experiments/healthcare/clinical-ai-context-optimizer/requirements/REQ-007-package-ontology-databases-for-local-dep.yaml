@@ -1,0 +1,19 @@
+title: Package ontology databases for local deployment
+approval: draft
+phase: planned
+priority: high
+description: Create SQLite databases containing SNOMED CT, LOINC, and RxNorm subsets
+  focused on common clinical codes. Include lookup tables for code-to-preferred-term
+  mapping and UMLS CUI linking. Package databases in Docker image for offline operation.
+acceptanceCriteria:
+- SQLite database includes SNOMED CT codes for top 500 common diagnoses with preferred
+  terms
+- Includes RxNorm codes for top 300 common medications with generic names
+- Includes LOINC codes for top 200 common lab tests and vital signs
+- 'Provides lookup functions: get_snomed_term(code), get_rxnorm_term(code), get_loinc_term(code)'
+- Database file size under 100MB to keep Docker image manageable
+- Lookup queries execute in under 10ms for 95th percentile
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

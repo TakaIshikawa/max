@@ -1,0 +1,20 @@
+title: Implement OAuth authorization code flow simulator
+approval: draft
+phase: planned
+priority: critical
+description: Create a state machine that simulates the complete OAuth 2.0 authorization
+  code flow with PKCE extension, capturing all HTTP requests/responses for analysis.
+  This is the foundation for all vulnerability detection.
+acceptanceCriteria:
+- Generate cryptographically random state parameter (32+ bytes) and PKCE code_verifier
+  (43-128 characters)
+- Construct authorization URL with client_id, redirect_uri, state, code_challenge,
+  and code_challenge_method=S256
+- Exchange authorization code for access token with code_verifier validation
+- Capture full HTTP request/response pairs (headers, body, status) for each flow step
+- Detect and report flow failures (invalid redirect, token exchange errors) with specific
+  error codes
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

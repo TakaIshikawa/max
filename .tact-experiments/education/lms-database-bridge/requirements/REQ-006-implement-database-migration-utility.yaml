@@ -1,0 +1,22 @@
+title: Implement database migration utility
+approval: draft
+phase: planned
+priority: medium
+description: Create CLI tool for migrating LMS data between database backends (PostgreSQL
+  <-> MongoDB). Tool exports data to intermediate JSON format, validates schema compatibility,
+  and imports to target database with automatic ID remapping.
+acceptanceCriteria:
+- CLI command 'npm run migrate -- --from postgres --to mongodb' exports all users,
+  courses, enrollments from PostgreSQL
+- Migration preserves all data fields and relationships (foreign keys become embedded
+  references in MongoDB)
+- Tool validates data integrity before and after migration (record counts, referential
+  integrity)
+- Migration generates detailed log file with statistics (records migrated, errors,
+  duration)
+- 'Rollback capability: migration can be reversed if validation fails'
+decomposition:
+  assignments: []
+dependencies:
+- Implement database adapter interface with PostgreSQL and MongoDB support
+source: discovered

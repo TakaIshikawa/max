@@ -1,0 +1,21 @@
+title: Build policy engine with YAML-based rule definitions
+approval: draft
+phase: planned
+priority: critical
+description: Create policy engine that loads detection rules from YAML configuration
+  files. Each rule specifies entity types to detect (email, ssn, api_key), regex patterns,
+  and enforcement action (block, redact, alert). Engine evaluates intercepted request
+  bodies against all active rules and returns list of policy violations with detected
+  entities.
+acceptanceCriteria:
+- Policy engine loads rules from policies/ directory on startup, validating YAML schema
+- Engine correctly matches regex patterns for emails (RFC 5322), SSNs (XXX-XX-XXXX),
+  credit cards (Luhn algorithm), API keys (common prefixes like sk-, ghp_)
+- Each rule evaluation completes in <50ms for request bodies up to 10KB
+- Engine returns structured violation objects with entity type, matched text (redacted
+  in logs), rule ID, and recommended action
+- Invalid YAML files log error and skip rule without crashing agent
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

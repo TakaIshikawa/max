@@ -1,0 +1,21 @@
+title: Implement Infisical webhook receiver with HMAC validation
+approval: draft
+phase: planned
+priority: critical
+description: Create FastAPI endpoint that receives Infisical audit log webhooks, validates
+  HMAC signatures, and persists events to PostgreSQL. This is the primary data source
+  for secrets access detection.
+acceptanceCriteria:
+- POST /api/v1/webhooks/infisical endpoint accepts JSON payloads with event_type,
+  timestamp, user, secret_id, ip_address fields
+- HMAC signature validation rejects requests with invalid or missing X-Infisical-Signature
+  header
+- Valid events are stored in events table with normalized schema including event_id,
+  source='infisical', raw_data (JSONB), and created_at timestamp
+- Endpoint returns 202 Accepted for valid events and 401 Unauthorized for invalid
+  signatures
+- Logs structured JSON for each received event including correlation_id for tracing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,22 @@
+title: Seed regional cost benchmark database
+approval: draft
+phase: planned
+priority: high
+description: Populate PostgreSQL database with curated regional cost data for Pacific
+  Northwest covering 3 project types. Data sourced from contractor surveys, RS Means
+  data, and public construction cost indices. Provides foundation for validation engine.
+acceptanceCriteria:
+- Database contains cost ranges for roof framing, room additions, kitchen remodels
+  in Pacific Northwest region
+- 'Each benchmark record includes: project_type, region, sqft_range, cost_per_sqft_min,
+  cost_per_sqft_max, material_labor_ratio_min, material_labor_ratio_max, last_updated'
+- Minimum 5 sqft range brackets per project type (e.g., 100-250, 251-500, 501-1000,
+  1001-2000, 2001-5000)
+- API endpoint /benchmarks/{project_type}/{region}/{sqft} returns applicable cost
+  ranges within 200ms
+- 'Benchmark data includes metadata: data_source, sample_size, confidence_level'
+- Database migration script seeds initial data from CSV files in /data directory
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,19 @@
+title: Build quality metrics dashboard
+approval: draft
+phase: planned
+priority: low
+description: Analytics view showing aggregate metrics on technique entries by crew,
+  project, and trade. Provides objective data for performance evaluation and identifying
+  knowledge gaps.
+acceptanceCriteria:
+- Dashboard shows total entries count, entries per crew (bar chart), entries per trade
+  (pie chart)
+- Date range filter to analyze specific project phases or time periods
+- Crew leaderboard showing top contributors to knowledge base
+- Export button to download CSV with entry metadata for external analysis
+- Dashboard updates automatically when new entries sync from backend
+decomposition:
+  assignments: []
+dependencies:
+- Build searchable technique library view
+source: discovered

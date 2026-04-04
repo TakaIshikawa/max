@@ -1,0 +1,21 @@
+title: Capture and attach photos with automatic metadata tagging
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to attach up to 10 photos per report, with automatic
+  capture of timestamp and GPS coordinates at moment of photo creation. Photos stored
+  locally until sync.
+acceptanceCriteria:
+- User can launch camera from report screen and capture photo, which immediately appears
+  in report's photo gallery
+- Each photo automatically tagged with UTC timestamp and GPS coordinates (latitude/longitude)
+  if location permission granted
+- Photos stored in local file system with references in SQLite, linked to report_id
+- User can attach existing photos from device gallery (not just new captures)
+- Photo metadata (timestamp, GPS, file path) persists even if app crashes before sync
+- Displays placeholder/disabled GPS field if location permission denied, but allows
+  photo capture to proceed
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

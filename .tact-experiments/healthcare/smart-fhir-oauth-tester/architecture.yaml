@@ -1,0 +1,72 @@
+patterns:
+- name: Mock Authorization Server Pattern
+  description: Implement a fully functional OAuth 2.0 authorization server that deliberately
+    instruments the flow to detect client-side security violations. The mock server
+    tracks state parameters, PKCE challenges, and authorization codes to validate
+    proper client behavior.
+  scope:
+  - authorization server
+  - token endpoint
+  - test orchestration
+- name: Security Test Harness Pattern
+  description: Each security requirement is implemented as an independent test case
+    that can pass, fail, or be skipped. Tests are orchestrated in dependency order
+    and results are aggregated into a security scorecard.
+  scope:
+  - test execution
+  - result reporting
+- name: Browser Automation for Storage Inspection
+  description: Use Playwright to launch the application under test, complete the OAuth
+    flow, and inspect browser storage (localStorage, sessionStorage, cookies, IndexedDB)
+    for insecure token storage patterns.
+  scope:
+  - web app testing
+  - token storage validation
+invariants:
+- The mock authorization server MUST never persist any tokens or credentials beyond
+  the test session
+- Test results MUST be deterministic for the same application configuration
+- The authorization server MUST implement SMART App Launch IG v2.0.0 endpoints correctly
+  to avoid false positives
+- Security test failures MUST include specific remediation guidance with links to
+  relevant specifications
+- The test harness MUST NOT make network requests to external services during testing
+- Each test case MUST be independent and not rely on shared state from other tests
+conventions:
+- Test case IDs follow pattern SEC-XXX (e.g., SEC-001 for PKCE validation)
+- 'All OAuth endpoints follow SMART App Launch IG naming: /authorize, /token, /.well-known/smart-configuration'
+- 'Security scorecard uses traffic light colors: PASS (green), FAIL (red), SKIP (yellow),
+  ERROR (gray)'
+- Test reports are output as JSON with schema version for forward compatibility
+- Environment variables prefixed with SFOT_ (SMART FHIR OAuth Tester)
+- All async operations use Python asyncio with explicit timeout handling
+- Remediation links point to official specifications (OAuth 2.0 RFCs, SMART App Launch
+  IG) not blog posts
+decisions:
+- id: D-1
+  title: Use Authlib for OAuth 2.0 server implementation
+  decision: Implement the mock authorization server using Authlib rather than building
+    from scratch or using a full identity provider like Keycloak
+  rationale: Authlib provides low-level OAuth 2.0 primitives that allow us to instrument
+    the flow for security testing while maintaining spec compliance. Full IdPs like
+    Keycloak are too heavyweight and don't expose the hooks needed to detect client-side
+    violations. Building from scratch would require months of OAuth expertise to get
+    right.
+- id: D-2
+  title: Playwright for browser automation over Selenium
+  decision: Use Playwright for web app token storage inspection instead of Selenium
+    or Puppeteer
+  rationale: Playwright provides native async/await support in Python, better browser
+    storage inspection APIs, and automatic waiting that reduces test flakiness. It
+    supports Chromium, Firefox, and WebKit out of the box, enabling cross-browser
+    security testing. Selenium's Python bindings are less mature for storage inspection.
+- id: D-3
+  title: Defer mobile app testing to post-MVP
+  decision: Exclude Frida-based mobile app instrumentation from MVP, focusing exclusively
+    on web applications
+  rationale: Mobile app instrumentation requires platform-specific tooling (Frida
+    for iOS/Android), device emulation infrastructure, and significantly more complex
+    test orchestration. Web apps represent 70%+ of SMART-on-FHIR implementations based
+    on Epic App Orchard listings. Deferring mobile testing allows us to validate the
+    core testing framework and deliver value faster.
+contracts: []

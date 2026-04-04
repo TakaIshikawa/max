@@ -1,0 +1,22 @@
+title: Add voice annotations to RFIs using device speech-to-text
+approval: draft
+phase: planned
+priority: medium
+description: Field crews wearing gloves or in noisy environments should be able to
+  add voice annotations to RFIs using device native speech-to-text, reducing typing
+  burden and capturing more detailed context.
+acceptanceCriteria:
+- User can tap microphone button in RFI description field to start voice recording
+- Device native speech-to-text (iOS Speech Framework / Android SpeechRecognizer) transcribes
+  audio to text in real-time
+- Transcribed text is appended to RFI description field with option to edit before
+  saving
+- Voice annotation works offline using on-device speech recognition (no cloud API
+  required for MVP)
+- User receives clear feedback if speech recognition is unavailable or fails (e.g.,
+  permissions denied)
+decomposition:
+  assignments: []
+dependencies:
+- Create RFI drafts with photo attachments offline
+source: discovered

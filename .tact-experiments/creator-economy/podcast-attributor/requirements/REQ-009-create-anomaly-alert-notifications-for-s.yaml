@@ -1,0 +1,21 @@
+title: Create anomaly alert notifications for significant traffic spikes
+approval: draft
+phase: planned
+priority: low
+description: Send email notifications when anomaly detection identifies significant
+  traffic spikes, enabling creators to investigate and capitalize on viral moments
+  in real-time.
+acceptanceCriteria:
+- Email notification is triggered when anomaly confidence score exceeds 90% (>3 standard
+  deviations)
+- Notification includes episode title, download count, percentage increase, and link
+  to dashboard
+- Users can configure notification preferences (email frequency, threshold sensitivity)
+  in settings
+- Notifications are rate-limited to maximum 1 per episode per day to prevent spam
+- Email delivery is queued asynchronously to avoid blocking ETL pipeline execution
+decomposition:
+  assignments: []
+dependencies:
+- Build anomaly detection system to flag unusual traffic spikes
+source: discovered

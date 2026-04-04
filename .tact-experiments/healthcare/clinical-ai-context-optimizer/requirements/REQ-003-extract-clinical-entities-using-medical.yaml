@@ -1,0 +1,20 @@
+title: Extract clinical entities using medical NLP
+approval: draft
+phase: planned
+priority: high
+description: Process narrative text fields (Condition.note, Encounter.reasonCode.text,
+  DiagnosticReport.conclusion) using scispaCy to extract clinical entities (problems,
+  medications, procedures, anatomy). Identify UMLS concepts and map to standardized
+  codes where possible.
+acceptanceCriteria:
+- Loads scispaCy en_core_sci_md model on startup and processes text fields
+- 'Extracts named entities with labels: DISEASE, MEDICATION, PROCEDURE, ANATOMY'
+- Links extracted entities to UMLS CUIs (Concept Unique Identifiers) when available
+- Preserves original text alongside extracted entities for context
+- Processes a 500-word clinical note in under 2 seconds
+- Handles missing or empty text fields gracefully without errors
+decomposition:
+  assignments: []
+dependencies:
+- Ingest patient context from FHIR R4 endpoints
+source: discovered

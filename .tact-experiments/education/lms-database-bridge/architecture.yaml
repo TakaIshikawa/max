@@ -1,0 +1,88 @@
+patterns:
+- name: Repository Pattern
+  description: Abstract database operations behind repository interfaces (UserRepository,
+    CourseRepository, EnrollmentRepository) with database-specific implementations
+    for PostgreSQL, MySQL, and MongoDB
+  scope:
+  - data-access
+  - adapters
+- name: Adapter Pattern
+  description: Database-specific adapters (PrismaAdapter, MongooseAdapter) implement
+    a common DatabaseAdapter interface, allowing runtime database selection without
+    code changes
+  scope:
+  - database-layer
+  - configuration
+- name: Strategy Pattern
+  description: HRIS connector strategies (BambooHRConnector, MockHRISConnector) implement
+    HRISConnector interface for pluggable employee data synchronization
+  scope:
+  - integrations
+  - hris-sync
+- name: Middleware Pipeline
+  description: Express middleware chain for authentication (OAuth 2.0), request validation
+    (Zod schemas), database connection management, and error handling
+  scope:
+  - api-layer
+  - request-handling
+invariants:
+- All database operations MUST go through repository interfaces - direct database
+  client usage is prohibited
+- Employee identifiers (email or external_id) MUST be unique across all database backends
+  and remain immutable after creation
+- Course enrollment records MUST maintain referential integrity (valid user_id and
+  course_id) regardless of underlying database
+- Completion tracking timestamps MUST be stored in UTC and be monotonically increasing
+  (completed_at >= enrolled_at)
+- HRIS synchronization MUST be idempotent - running sync multiple times produces identical
+  results
+- Database migrations MUST preserve all data - lossy transformations are prohibited
+- API responses MUST NOT leak database-specific implementation details (no raw SQL
+  errors or MongoDB ObjectIds in public APIs)
+conventions:
+- Use kebab-case for file names and package names
+- Use PascalCase for class names and interfaces
+- Use camelCase for variables, functions, and methods
+- Prefix interface names with 'I' (IUserRepository, IDatabaseAdapter)
+- Suffix adapter implementations with 'Adapter' (PrismaAdapter, MongooseAdapter)
+- Suffix connector implementations with 'Connector' (BambooHRConnector)
+- Database table/collection names use snake_case (users, course_enrollments, completion_records)
+- All async functions must use async/await (no raw promises or callbacks)
+- Configuration files use YAML format with .config.yaml extension
+- Environment variables use SCREAMING_SNAKE_CASE with DB_ prefix for database config
+- All API endpoints follow REST conventions with plural resource names (/api/v1/users,
+  /api/v1/enrollments)
+- Error responses follow RFC 7807 Problem Details format
+decisions:
+- id: D-1
+  title: Use Prisma for SQL databases and Mongoose for MongoDB
+  decision: Implement separate adapter classes (PrismaAdapter, MongooseAdapter) that
+    both implement IDatabaseAdapter interface, allowing the repository layer to remain
+    database-agnostic while using specialized ORMs underneath
+  rationale: 'Prisma provides type-safe query builders and automatic migrations for
+    PostgreSQL/MySQL, while Mongoose offers mature schema validation for MongoDB.
+    This dual-ORM approach allows leveraging best-in-class tools for each database
+    family rather than building custom query translators. Trade-off: increases dependency
+    footprint but dramatically reduces development time and improves type safety.'
+- id: D-2
+  title: Implement LTI 1.3 as REST API rather than full LTI platform
+  decision: Expose REST API endpoints (/api/v1/lti/enrollments, /api/v1/lti/completions)
+    with OAuth 2.0 bearer token authentication, providing LTI-compatible data structures
+    without implementing full LTI launch protocol
+  rationale: 'Full LTI 1.3 platform implementation requires complex OAuth 2.0 flows,
+    JWKS key management, and deep linking protocols. For MVP, focus on core LMS integration
+    needs: enrollment sync and completion tracking via REST endpoints that LMS platforms
+    can call. This reduces scope by 60% while delivering 80% of value. Future versions
+    can add full LTI certification.'
+- id: D-3
+  title: Use schema mapping configuration files instead of runtime introspection
+  decision: Require schema mapping YAML files for each HRIS integration defining field
+    mappings, data types, and transformation rules. Validate mappings at startup using
+    Zod schemas and fail fast if configuration is invalid
+  rationale: 'Runtime database schema introspection is fragile and slow, especially
+    across heterogeneous databases. Pre-defined YAML mapping files allow explicit
+    control over field mappings (e.g., HRIS ''employee_id'' -> LMS ''external_id''),
+    validation rules, and data transformations. This approach is more predictable,
+    testable, and performant. Trade-off: requires manual configuration but provides
+    better error handling and documentation.'
+contracts: []

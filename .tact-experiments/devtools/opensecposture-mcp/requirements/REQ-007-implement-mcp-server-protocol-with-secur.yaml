@@ -1,0 +1,21 @@
+title: Implement MCP server protocol with security tool exposure
+approval: draft
+phase: planned
+priority: high
+description: Expose core functionality via MCP protocol tools to enable AI assistant
+  integration for alert querying and triage assistance.
+acceptanceCriteria:
+- 'MCP server exposes security_get_alerts tool accepting parameters: severity_filter,
+  technique_filter, limit, offset'
+- 'MCP server exposes security_query_events tool accepting parameters: source (infisical/trivy),
+  time_range, filters (JSONB query)'
+- MCP server exposes security_get_mitre_context tool accepting technique_id and returning
+  description, tactics, and detection guidance
+- Tools return structured JSON responses compatible with MCP protocol schema
+- MCP server runs on stdio transport for local AI assistant integration
+decomposition:
+  assignments: []
+dependencies:
+- Build Sigma rule engine with pySigma integration
+- Build HTMX-based alert dashboard with MITRE ATT&CK context
+source: discovered

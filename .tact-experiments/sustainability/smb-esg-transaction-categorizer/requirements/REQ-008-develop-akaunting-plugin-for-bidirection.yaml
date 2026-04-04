@@ -1,0 +1,27 @@
+title: Develop Akaunting plugin for bidirectional transaction sync
+approval: draft
+phase: planned
+priority: high
+description: Build PHP plugin for Akaunting that syncs transactions, maps chart of
+  accounts to ESG categories, and displays sustainability metrics in Akaunting dashboard.
+  Validates plugin architecture pattern for future integrations.
+acceptanceCriteria:
+- 'Akaunting plugin package structure: manifest.json (metadata, version, dependencies),
+  routes.php (webhook endpoints), EsgController.php (handles sync logic), views/ (dashboard
+  widgets)'
+- 'Plugin installation: registers webhook endpoints in Akaunting, creates settings
+  page for API key configuration (connects to core FastAPI service), adds ''ESG Metrics''
+  menu item'
+- 'Bidirectional sync: plugin fetches categorized transactions from FastAPI /api/v1/transactions,
+  creates/updates Akaunting transactions with ESG category mapped to custom field,
+  sends new Akaunting transactions to FastAPI for categorization'
+- 'Dashboard widget displays: total Scope 3 emissions (current month), top 5 carbon-intensive
+  suppliers, categorization coverage percentage (categorized vs total transactions)'
+- Background sync job runs every 6 hours via Akaunting's scheduler, logs sync status
+  (success/failure, transaction count) to Akaunting's job log
+decomposition:
+  assignments: []
+dependencies:
+- Build FastAPI REST API with authentication and core endpoints
+- Build ESG transaction categorization engine with ML and rules
+source: discovered

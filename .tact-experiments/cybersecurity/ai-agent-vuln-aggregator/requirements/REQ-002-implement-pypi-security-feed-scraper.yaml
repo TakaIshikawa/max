@@ -1,0 +1,21 @@
+title: Implement PyPI security feed scraper
+approval: draft
+phase: planned
+priority: critical
+description: Create a scraper that monitors PyPI's security advisory feed (via PyPI
+  JSON API or OSV database) to capture Python package vulnerabilities affecting AI/ML
+  libraries.
+acceptanceCriteria:
+- Scraper fetches advisories from PyPI JSON API or queries OSV database for ecosystem='PyPI'
+  vulnerabilities
+- Filters for AI/ML-related packages (scikit-learn, transformers, torch, tensorflow,
+  langchain, etc.) using configurable package allowlist
+- Extracts package name, affected versions (PEP 440 format), severity, advisory text,
+  and references
+- Normalizes to internal schema with source='pypi' and deduplicates against existing
+  records
+- Runs every 30 minutes and logs scrape statistics (new/updated/skipped vulnerabilities)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

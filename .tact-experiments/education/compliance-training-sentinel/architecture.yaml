@@ -1,0 +1,83 @@
+patterns:
+- name: Multi-Agent Orchestration
+  description: LangChain-based agent system with specialized agents for deadline detection,
+    notification orchestration, and audit report generation. Agents communicate via
+    shared PostgreSQL state and event bus pattern.
+  scope:
+  - agent_system
+  - deadline_detector
+  - notification_orchestrator
+  - audit_generator
+- name: Repository Pattern
+  description: Data access abstraction layer using SQLAlchemy repositories for employees,
+    certifications, LMS integrations, and consent records to enable testability and
+    database independence.
+  scope:
+  - data_access
+  - repositories
+- name: Plugin Architecture
+  description: LMS integration adapters implement common interface for fetching completion
+    data, enabling easy addition of new LMS platforms without core system changes.
+  scope:
+  - lms_integrations
+  - adapters
+- name: Event-Driven Background Processing
+  description: Celery task queue for asynchronous LMS data synchronization, deadline
+    calculations, and notification delivery to prevent blocking API requests.
+  scope:
+  - background_tasks
+  - celery_workers
+invariants:
+- All employee personal data must be encrypted at rest using AES-256
+- Every data access operation must validate active employee consent before processing
+- Certification deadline calculations must be deterministic and auditable (logged
+  with calculation inputs)
+- LMS integration credentials must be stored in secure vault, never in application
+  database
+- All API endpoints handling personal data must enforce authentication and authorization
+- Deletion requests must cascade to all related data (certifications, notifications,
+  logs) within transaction boundaries
+- Notification delivery must be idempotent (duplicate sends prevented via deduplication
+  keys)
+- Audit reports must be immutable once generated (stored with cryptographic hash for
+  integrity verification)
+conventions:
+- Use snake_case for Python functions, variables, and database columns
+- Use PascalCase for class names and Pydantic models
+- Prefix agent classes with 'Agent' (e.g., DeadlineDetectorAgent)
+- Prefix repository classes with repository name (e.g., EmployeeRepository)
+- Use ISO 8601 format for all datetime storage and API responses
+- 'API endpoints follow REST conventions: /api/v1/{resource}/{id}'
+- Environment variables prefixed with CTS_ (Compliance Training Sentinel)
+- 'Database migrations managed via Alembic with descriptive names: YYYYMMDD_description'
+- All agent prompts stored in templates/prompts/ directory with versioning
+- Test files mirror source structure with _test.py suffix
+- Log structured events in JSON format with correlation IDs for request tracing
+decisions:
+- id: AD-1
+  title: Use LangChain for Multi-Agent Orchestration
+  decision: Implement the multi-agent system using LangChain framework rather than
+    custom agent implementation or alternative frameworks like AutoGen
+  rationale: LangChain provides mature agent abstractions, tool integration patterns,
+    and prompt management that accelerate development. Its ReAct agent pattern fits
+    deadline detection logic (reasoning about certification requirements + acting
+    on LMS data). Reduces custom orchestration code by ~60% compared to building from
+    scratch.
+- id: AD-2
+  title: PostgreSQL for Consent and Certification State Management
+  decision: Use PostgreSQL with JSONB columns for flexible certification metadata
+    rather than document database or separate compliance database
+  rationale: GDPR compliance requires ACID transactions for consent management and
+    cascading deletions. PostgreSQL provides strong consistency for audit trail integrity
+    while JSONB columns handle variable LMS metadata schemas. Simplifies deployment
+    (single database) and enables complex queries for audit reports (e.g., JOIN certifications
+    with employee roles).
+- id: AD-3
+  title: Defer HRIS Integration to Post-MVP
+  decision: Manual configuration of role-based certification requirements via admin
+    UI instead of automatic sync from HRIS systems (Workday, BambooHR)
+  rationale: HRIS integration adds 3-4 weeks of development (OAuth flows, field mapping,
+    sync logic) but provides limited MVP value. Manual configuration validates core
+    deadline detection and notification logic with faster time-to-value. Can migrate
+    existing spreadsheet data to prove 60% time savings goal without integration complexity.
+contracts: []

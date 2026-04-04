@@ -1,0 +1,19 @@
+title: Create admin dashboard for marketplace moderation
+approval: draft
+phase: planned
+priority: low
+description: Admin users need ability to review reported portfolios, suspend accounts
+  violating terms, and monitor platform health metrics. Ensures quality control and
+  trust/safety as marketplace grows.
+acceptanceCriteria:
+- Admin role flag on User model with authentication check on admin routes
+- 'Dashboard displays key metrics: total users, active agreements, total GMV (gross
+  marketplace volume), and flagged content count'
+- Portfolio review queue shows flagged portfolios with approve/reject actions
+- User management table supports search by email with suspend/unsuspend account actions
+- All admin actions logged with timestamp, admin user, and action type for audit trail
+decomposition:
+  assignments: []
+dependencies:
+- Build collaborator portfolio creation and management
+source: discovered

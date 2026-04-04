@@ -1,0 +1,19 @@
+title: Provide GitHub Actions integration example
+approval: draft
+phase: planned
+priority: medium
+description: Create reference GitHub Actions workflow that runs validation on pull
+  requests modifying infrastructure configurations, blocking merge on critical violations.
+acceptanceCriteria:
+- Workflow YAML file runs validator CLI on changed Bicep/IAM files in PR
+- Validation failures post inline comments on PR with violation details and line numbers
+- Workflow uploads OSCAL report as build artifact for audit trail
+- README includes step-by-step integration instructions with required secrets/permissions
+- Example workflow completes validation in under 30 seconds for typical configuration
+  files
+decomposition:
+  assignments: []
+dependencies:
+- Build CLI with validate command
+- Generate OSCAL compliance reports
+source: discovered

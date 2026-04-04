@@ -1,0 +1,21 @@
+title: Download and parse IFC models for offline viewing
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to download IFC format BIM models from the backend
+  and parse them locally for 3D viewing without network connectivity. This is the
+  foundational capability enabling offline-first field access to BIM data.
+acceptanceCriteria:
+- User can select and download IFC models (up to 100MB) from project list with progress
+  indicator
+- Downloaded IFC files are parsed using IFC.js and stored in IndexedDB within 15 seconds
+  for a 50MB model
+- Parsed model data persists locally and remains accessible after app restart with
+  zero connectivity
+- User receives clear error messages if model download fails or IFC parsing encounters
+  unsupported features
+- Downloaded models list shows file size, download date, and storage space consumed
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

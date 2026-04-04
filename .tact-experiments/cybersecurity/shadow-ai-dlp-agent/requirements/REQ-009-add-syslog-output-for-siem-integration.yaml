@@ -1,0 +1,22 @@
+title: Add syslog output for SIEM integration
+approval: draft
+phase: planned
+priority: medium
+description: Implement syslog output adapter that sends policy violation events to
+  remote syslog server (RFC 5424 format) in addition to dashboard API. Support configurable
+  syslog server address and facility. Enable security teams to ingest events into
+  existing SIEM platforms (Splunk, Elastic) for correlation with other security data.
+acceptanceCriteria:
+- Agent sends syslog messages to configured server address (UDP port 514 or TCP port
+  6514)
+- Messages follow RFC 5424 structured data format with custom SD-ID for policy violation
+  fields
+- Syslog output is optional and disabled by default (enabled via config.yaml)
+- Failed syslog transmissions do not block request processing or dashboard logging
+- Syslog messages include all event metadata (timestamp, agent ID, entity types, action,
+  rule IDs)
+decomposition:
+  assignments: []
+dependencies:
+- Create centralized logging to dashboard API
+source: discovered

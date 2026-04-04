@@ -1,0 +1,22 @@
+title: Create event correlation engine for secrets-to-container mapping
+approval: draft
+phase: planned
+priority: high
+description: Correlate Infisical secret access events with Trivy vulnerability data
+  to detect high-risk scenarios like secrets accessed from containers with known RCE
+  vulnerabilities.
+acceptanceCriteria:
+- Correlation logic maps secret access events to container images using metadata from
+  Trivy scan labels (e.g., container_id, image_name in Infisical event context)
+- Generate correlated alert when secret accessed within 1 hour of vulnerability scan
+  showing critical/high CVE in same container
+- Correlated alerts include both event_ids (Infisical + Trivy) and combined MITRE
+  ATT&CK techniques
+- Correlation runs asynchronously every 5 minutes on new events to avoid blocking
+  webhook ingestion
+- Correlation state persists to database to survive service restarts
+decomposition:
+  assignments: []
+dependencies:
+- Build Sigma rule engine with pySigma integration
+source: discovered

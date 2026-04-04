@@ -1,0 +1,19 @@
+title: Implement photo capture and local storage
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to capture photos using device camera with immediate local
+  storage. Photos must be compressed and stored locally before any upload attempt
+  to ensure offline functionality. This is the core input mechanism for documenting
+  quality work.
+acceptanceCriteria:
+- User can open camera from main screen with single tap
+- Captured photos are compressed to max 5MB and stored in local file system within
+  2 seconds
+- Photos display in technique entry preview immediately after capture
+- App handles camera permissions gracefully with clear error messages if denied
+- Multiple photos (up to 5) can be attached to single technique entry
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

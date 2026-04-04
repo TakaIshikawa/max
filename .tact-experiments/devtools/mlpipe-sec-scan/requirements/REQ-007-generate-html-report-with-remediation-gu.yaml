@@ -1,0 +1,22 @@
+title: Generate HTML report with remediation guidance
+approval: draft
+phase: planned
+priority: medium
+description: Create human-readable HTML report using Jinja2 templates that groups
+  findings by severity, shows code snippets with syntax highlighting, and provides
+  expandable remediation guidance. Must work offline (embedded CSS/JS, no CDN dependencies).
+acceptanceCriteria:
+- HTML renders in modern browsers without external network requests (embedded Bootstrap
+  CSS)
+- Findings grouped by severity with color coding (red=critical, orange=high, yellow=medium,
+  blue=low)
+- 'Each finding displays: title, file path (clickable if local), line number, code
+  snippet, CWE/CVE links, remediation steps'
+- Summary dashboard shows total findings count, breakdown by severity, and scan metadata
+  (timestamp, target path, scanner version)
+- Remediation sections use collapsible accordions to reduce visual clutter
+decomposition:
+  assignments: []
+dependencies:
+- Generate SARIF 2.1.0 compliant output
+source: discovered

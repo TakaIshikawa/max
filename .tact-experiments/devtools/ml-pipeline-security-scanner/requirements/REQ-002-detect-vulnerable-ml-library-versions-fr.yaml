@@ -1,0 +1,19 @@
+title: Detect vulnerable ML library versions from curated rule database
+approval: draft
+phase: planned
+priority: critical
+description: Match extracted dependencies against embedded vulnerability rules to
+  identify known CVEs in ML libraries (Kedro <0.18.14 path traversal, python-multipart
+  <0.0.6 ReDoS). Core value proposition of ML-specific scanning.
+acceptanceCriteria:
+- Load vulnerability rules from YAML files defining package name, affected version
+  ranges, CVE ID, severity, and description
+- Match dependency versions against rule patterns (e.g., 'kedro<0.18.14' matches kedro==0.18.10)
+- Generate findings with severity, CVE ID, affected file, and remediation guidance
+  (e.g., 'Upgrade to kedro>=0.18.14')
+- Include at least 5 curated rules for high-severity ML library CVEs in embedded database
+decomposition:
+  assignments: []
+dependencies:
+- Parse dependency files to extract ML library versions
+source: discovered

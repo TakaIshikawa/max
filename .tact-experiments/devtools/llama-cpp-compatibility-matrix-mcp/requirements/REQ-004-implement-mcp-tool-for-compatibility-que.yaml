@@ -1,0 +1,20 @@
+title: Implement MCP tool for compatibility queries
+approval: draft
+phase: planned
+priority: critical
+description: Expose check_compatibility MCP tool that accepts model name and optional
+  llama.cpp version, returns compatibility status and test metrics. Enables AI agents
+  to validate compatibility before model adoption.
+acceptanceCriteria:
+- 'Tool accepts parameters: model_name (required), llamacpp_version (optional, defaults
+  to latest stable)'
+- 'Returns structured response: status (passed/failed/untested), test_date, metrics
+  (latency, memory, accuracy)'
+- Queries compat_results table joining with compat_models and compat_tests
+- Returns 'untested' status with empty metrics if no test results exist
+- Response time <500ms for cached queries
+decomposition:
+  assignments: []
+dependencies:
+- Execute automated compatibility tests in isolated containers
+source: discovered

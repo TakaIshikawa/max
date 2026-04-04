@@ -1,0 +1,21 @@
+title: Build settings screen for platform management and preferences
+approval: draft
+phase: planned
+priority: medium
+description: Provide a settings interface where users can manage connected platforms,
+  configure notification preferences, set default stream configurations, and view
+  app information. Centralizes user control over app behavior.
+acceptanceCriteria:
+- Settings screen displays all connected platforms with option to disconnect/revoke
+  access
+- User can add new platform connections via OAuth flow from settings
+- Notification preferences are configurable by event type (followers, donations, raids)
+  and platform
+- Default stream title, description, and category can be set and saved
+- App version, privacy policy link, and terms of service link are displayed
+- Settings changes are persisted locally and sync to backend when online
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authentication for Twitch and YouTube
+source: discovered

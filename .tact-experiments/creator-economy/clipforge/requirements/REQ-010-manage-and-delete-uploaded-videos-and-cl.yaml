@@ -1,0 +1,20 @@
+title: Manage and delete uploaded videos and clips
+approval: draft
+phase: planned
+priority: medium
+description: Users can view all uploaded videos, delete videos they no longer need,
+  and manage storage. Deleting a video also removes all associated clips, transcripts,
+  and processing artifacts to free up disk space.
+acceptanceCriteria:
+- Display list of all uploaded videos with metadata (filename, upload date, duration,
+  processing status)
+- Provide delete button for each video with confirmation dialog
+- Deleting a video removes source file, all generated clips, transcripts, captions,
+  and database records
+- Show total storage used by user's videos and clips
+- Prevent deletion of videos with in-progress processing jobs (show warning message)
+decomposition:
+  assignments: []
+dependencies:
+- Upload and validate video/audio files
+source: discovered

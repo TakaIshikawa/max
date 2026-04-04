@@ -1,0 +1,79 @@
+patterns:
+- name: Policy-as-Code
+  description: HIPAA compliance rules and FHIR validation requirements encoded as
+    declarative OPA Rego policies and YAML policy definitions, separating policy logic
+    from validation engine implementation
+  scope:
+  - policy engine
+  - rule evaluation
+  - policy library management
+- name: Pipeline Pattern
+  description: 'Validation process structured as a pipeline: Terraform plan parsing
+    → resource extraction → policy evaluation → violation reporting → auto-fix generation,
+    with each stage independently testable'
+  scope:
+  - validation workflow
+  - CLI command execution
+  - error handling
+- name: Plugin Architecture
+  description: Cloud provider-specific parsers and validators implemented as pluggable
+    modules, enabling future extension to Azure/AWS without core engine changes
+  scope:
+  - resource parsers
+  - cloud provider adapters
+  - policy loaders
+invariants:
+- Validation process must never modify Terraform plan files, state files, or deployed
+  infrastructure
+- 'Policy evaluation must be deterministic: same Terraform plan + same policy set
+  always produces identical validation results'
+- CLI tool must exit with non-zero status code when policy violations are detected,
+  enabling CI/CD pipeline failure
+- All generated HCL auto-fix snippets must pass terraform validate before being presented
+  to users
+- Policy definitions must be version-controlled and immutable once loaded; runtime
+  policy modification is prohibited
+conventions:
+- 'Policy IDs follow format: {PROVIDER}-{CATEGORY}-{NUMBER} (e.g., GCP-AUDIT-001,
+  GCP-ENCRYPTION-002)'
+- 'Terraform resource types namespaced by provider: google_healthcare_fhir_store for
+  GCP'
+- 'Violation severity levels: CRITICAL (blocks deployment), HIGH (strong warning),
+  MEDIUM (recommendation)'
+- 'All CLI commands follow pattern: fhir-tf-validator <command> [flags], using Cobra
+  conventions'
+- Policy YAML files stored in policies/ directory, organized by provider subdirectories
+  (policies/gcp/, policies/azure/)
+- Auto-fix snippets formatted with terraform fmt conventions and include explanatory
+  comments
+decisions:
+- id: AD-1
+  title: Use OPA/Rego for policy engine instead of custom rule engine
+  decision: Implement policy evaluation using Open Policy Agent with Rego policy language
+  rationale: OPA provides battle-tested policy evaluation with strong ecosystem support,
+    avoiding need to build custom rule engine. Rego's declarative syntax is well-suited
+    for expressing compliance rules. OPA's JSON input model aligns perfectly with
+    Terraform plan JSON format. Enables future integration with broader OPA ecosystems
+    in organizations already using it for Kubernetes admission control or other policy
+    enforcement.
+- id: AD-2
+  title: Parse Terraform plan JSON instead of HCL source files
+  decision: Validate against terraform show -json plan output rather than parsing
+    .tf files directly
+  rationale: Terraform plan JSON provides fully resolved resource configurations including
+    computed values, module expansions, and variable interpolations, eliminating need
+    to reimplement Terraform's evaluation logic. This approach works with any Terraform
+    configuration structure (modules, workspaces, etc.) and avoids fragile HCL parsing.
+    Aligns with how other Terraform validation tools (Sentinel, OPA integrations)
+    operate.
+- id: AD-3
+  title: Start with GCP-only support for MVP
+  decision: Limit MVP scope to Google Cloud Healthcare API FHIR stores, deferring
+    Azure Health Data Services and AWS HealthLake
+  rationale: Google Cloud Healthcare API has the most mature Terraform provider for
+    FHIR with documented gaps in validation config support (confirmed by insights).
+    Focusing on single provider allows faster MVP delivery and validation of core
+    architecture before expanding. GCP's FHIR implementation is widely adopted in
+    US healthcare. Multi-provider support can be added via plugin architecture without
+    core refactoring.
+contracts: []

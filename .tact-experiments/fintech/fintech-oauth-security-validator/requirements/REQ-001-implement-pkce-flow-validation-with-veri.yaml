@@ -1,0 +1,23 @@
+title: Implement PKCE flow validation with verifier exposure detection
+approval: draft
+phase: planned
+priority: critical
+description: Validate OAuth 2.0 authorization code flow with PKCE (RFC 7636) by testing
+  code_challenge generation, code_verifier handling, and detecting exposure in logs
+  or responses. This addresses the CVSS 8.6 HIGH vulnerability found in OpenClaw where
+  PKCE verifiers were leaked.
+acceptanceCriteria:
+- Send authorization request with code_challenge using S256 method and verify server
+  accepts it
+- Attempt token exchange with mismatched code_verifier and verify server returns invalid_grant
+  error
+- Detect if code_verifier appears in server responses, error messages, or redirect
+  URLs
+- Generate finding with CWE-598 (Use of GET Request Method With Sensitive Query Strings)
+  when verifier exposure detected
+- Validate code_challenge length is minimum 43 characters and maximum 128 characters
+  per RFC 7636 Section 4.2
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

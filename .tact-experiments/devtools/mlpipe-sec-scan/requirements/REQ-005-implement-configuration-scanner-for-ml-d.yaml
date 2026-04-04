@@ -1,0 +1,23 @@
+title: Implement configuration scanner for ML deployment risks
+approval: draft
+phase: planned
+priority: high
+description: Scan FastAPI application files for missing authentication decorators
+  on inference endpoints, Kedro conf/ directories for overly permissive filesystem
+  paths, and MLflow tracking URIs for exposed HTTP endpoints without authentication.
+  Detect configuration anti-patterns specific to ML deployments.
+acceptanceCriteria:
+- Detects FastAPI route decorators (@app.post, @app.get) without authentication dependencies
+  and flags as medium severity
+- 'Scans Kedro catalog.yml for filepath: entries using absolute paths outside project
+  directory and flags as low severity'
+- Detects MLflow tracking URIs (http://) in code/config without authentication parameters
+- Each finding includes configuration file path, problematic setting, and secure configuration
+  example
+- Handles missing configuration files (no Kedro project, no FastAPI app) without failing
+  scan
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI interface with scan command
+source: discovered

@@ -1,0 +1,23 @@
+title: Process GDPR data subject access requests
+approval: draft
+phase: planned
+priority: medium
+description: Accept employee identifier (email or employee_id), query logs to find
+  all vendors that accessed their data, generate report with vendor names, access
+  timestamps, and data fields accessed. Track DSAR workflow status (submitted, in_progress,
+  completed).
+acceptanceCriteria:
+- Accept DSAR request via POST /api/v1/dsar with employee_email or employee_id
+- Query Elasticsearch for all log events where user_id matches employee identifier
+- 'Aggregate results by vendor_id: list of vendors, earliest/latest access timestamps,
+  unique data fields accessed'
+- 'Generate DSAR report JSON: {employee_id, vendors: [{vendor_name, first_access,
+  last_access, data_fields, access_count}]}'
+- 'Store DSAR requests in PostgreSQL with status workflow: submitted -> in_progress
+  -> completed, track status transitions with timestamps'
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and normalize LMS access logs from multiple formats
+- Maintain vendor and integration registry
+source: discovered

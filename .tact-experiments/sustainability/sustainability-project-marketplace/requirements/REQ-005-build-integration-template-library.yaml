@@ -1,0 +1,23 @@
+title: Build integration template library
+approval: draft
+phase: planned
+priority: high
+description: Create schema and UI for integration templates (YAML/JSON workflow definitions)
+  mapping common sustainability workflows to CSRD reporting. Templates reference connectors
+  and provide step-by-step integration guides.
+acceptanceCriteria:
+- 'Prisma schema defines Template model with fields: name, description, workflowDefinition
+  (JSON), csrdRequirements (array), connectorIds (array of foreign keys), difficulty'
+- 'Template YAML/JSON structure includes: steps (array), requiredConnectors, dataFlow,
+  outputFormat'
+- 'At least 5 templates published covering: Scope 3 carbon accounting, energy monitoring
+  to CSRD, supply chain emissions mapping, renewable energy tracking, waste management
+  reporting'
+- Template detail page at /templates/[id] renders workflow visualization and lists
+  required connectors with installation links
+- Templates downloadable as YAML/JSON files for local use
+decomposition:
+  assignments: []
+dependencies:
+- Develop connector registry with versioning
+source: discovered

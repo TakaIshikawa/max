@@ -1,0 +1,69 @@
+patterns:
+- name: Plugin Architecture
+  description: Scanner core orchestrates independent scanner plugins (DependencyScanner,
+    PatternScanner, ConfigScanner) that each implement a common Scanner interface,
+    enabling parallel execution and easy extension
+  scope:
+  - scanner engine
+  - plugin system
+- name: Visitor Pattern for AST Analysis
+  description: Use Python's ast.NodeVisitor to traverse Abstract Syntax Trees of Python
+    files, detecting dangerous patterns (pickle.load, eval, exec) through custom visitor
+    implementations
+  scope:
+  - static analysis
+  - pattern detection
+- name: Report Builder Pattern
+  description: Accumulate findings from all scanners into a central Finding registry,
+    then generate multiple output formats (JSON, SARIF, HTML) from the same data structure
+  scope:
+  - reporting
+  - output generation
+invariants:
+- 'All findings must include: severity (critical/high/medium/low), CWE/CVE identifier
+  (if applicable), file path, line number, and remediation guidance'
+- Scanner must never modify source files or execute user code - read-only static analysis
+  only
+- Exit code must be non-zero if any critical or high severity findings are detected
+  (for CI/CD blocking)
+- All file I/O must handle missing files/permissions gracefully without crashing the
+  entire scan
+- Vulnerability database must be versioned and include last-updated timestamp in all
+  reports
+conventions:
+- Use snake_case for Python functions/variables, PascalCase for classes
+- Each scanner plugin lives in scanners/ directory with filename matching class name
+  (dependency_scanner.py)
+- Findings use structured dataclasses with severity enum (not magic strings)
+- 'CLI commands follow pattern: mlpipe-sec-scan <command> <target> [options]'
+- All user-facing output uses rich library for colored/formatted terminal output
+- 'Test files mirror source structure: tests/scanners/test_dependency_scanner.py'
+- Vulnerability database stored in data/ml_vulnerabilities.yaml with schema validation
+  on load
+decisions:
+- id: AD-1
+  title: Use Bandit and pip-audit as libraries, not subprocess calls
+  decision: Import Bandit and pip-audit as Python libraries and invoke their APIs
+    programmatically rather than shelling out to CLI commands
+  rationale: Provides better control over output parsing, error handling, and performance
+    (avoid subprocess overhead). Allows us to filter/augment their findings with ML-specific
+    context before reporting. Simplifies testing by mocking library calls instead
+    of subprocess output.
+- id: AD-2
+  title: Static YAML vulnerability database for MVP
+  decision: Maintain ML-specific vulnerabilities (Kedro CVEs, pickle deserialization
+    patterns, etc.) in a curated YAML file bundled with the package, rather than querying
+    external APIs
+  rationale: Eliminates runtime dependencies on external services (works offline,
+    faster scans, no API rate limits). Simplifies MVP deployment and testing. Database
+    can be updated via package releases. Future versions can add external API sync,
+    but static file proves value first.
+- id: AD-3
+  title: Prioritize SARIF output format for CI/CD integration
+  decision: Implement SARIF (Static Analysis Results Interchange Format) as primary
+    machine-readable output, with JSON as secondary and HTML for human review
+  rationale: SARIF is the industry standard for security tool integration (GitHub
+    Code Scanning, Azure DevOps, etc.), maximizing composability. JSON provides flexibility
+    for custom integrations. HTML serves immediate human review needs. Focusing on
+    SARIF first ensures CI/CD blocking works out of the box.
+contracts: []

@@ -1,0 +1,19 @@
+title: Implement AI photo auto-tagging service
+approval: draft
+phase: planned
+priority: high
+description: Backend service that analyzes uploaded photos using GPT-4 Vision to identify
+  trade type and technique category. Auto-tags supplement user-provided manual tags
+  to improve searchability.
+acceptanceCriteria:
+- Job queue worker processes photos through GPT-4 Vision API with prompt specifying
+  10 trade categories
+- API response parsed to extract trade tags and confidence scores
+- Auto-tags stored separately from manual tags with confidence scores >= 0.7
+- Failed auto-tagging does not block entry from being searchable by manual tags
+- Auto-tags visible in UI with visual distinction from manual tags
+decomposition:
+  assignments: []
+dependencies:
+- Build offline-first sync engine
+source: discovered

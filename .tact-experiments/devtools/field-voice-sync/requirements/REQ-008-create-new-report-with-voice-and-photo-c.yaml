@@ -1,0 +1,25 @@
+title: Create new report with voice and photo capture workflow
+approval: draft
+phase: planned
+priority: critical
+description: 'Streamlined UI flow for creating a new report: tap ''+'' button, record
+  voice note, optionally add photos, review/edit transcript, save. Must feel fast
+  and intuitive for field workers.'
+acceptanceCriteria:
+- Floating '+' button on home screen navigates to 'New Report' screen
+- 'New Report screen shows: large ''Record'' button, photo gallery area (empty initially),
+  save/cancel buttons'
+- After recording and transcription, editable text field appears with transcript,
+  user can make corrections
+- User can tap 'Add Photos' to launch camera or gallery picker, selected photos appear
+  in gallery grid
+- Tapping 'Save' persists report to SQLite and returns to home screen with success
+  toast message
+- Entire workflow (record 2min voice, add 3 photos, save) completes in under 90 seconds
+decomposition:
+  assignments: []
+dependencies:
+- Record voice notes with offline speech-to-text transcription
+- Capture and attach photos with automatic metadata tagging
+- Store reports locally in SQLite with offline persistence
+source: discovered

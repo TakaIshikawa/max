@@ -1,0 +1,20 @@
+title: Implement Trivy JSON scan result file watcher
+approval: draft
+phase: planned
+priority: critical
+description: Monitor a configured directory for Trivy JSON output files, parse vulnerability
+  data, and persist to PostgreSQL. Enables vulnerability context for correlation with
+  secrets access.
+acceptanceCriteria:
+- File watcher monitors /data/trivy-scans directory (configurable via OSPM_TRIVY_SCAN_DIR)
+  for new .json files
+- Parser extracts container image name, CVE IDs, severity levels, and affected packages
+  from Trivy JSON schema
+- 'Vulnerabilities stored in vulnerabilities table with fields: image_name, cve_id,
+  severity, package_name, fixed_version, scan_timestamp'
+- Processed files are moved to /data/trivy-scans/processed to prevent reprocessing
+- Invalid JSON files are moved to /data/trivy-scans/failed with error logged
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

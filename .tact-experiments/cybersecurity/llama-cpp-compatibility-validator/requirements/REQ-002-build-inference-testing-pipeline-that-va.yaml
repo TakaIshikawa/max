@@ -1,0 +1,22 @@
+title: Build inference testing pipeline that validates llama.cpp output against transformers
+  reference
+approval: draft
+phase: planned
+priority: critical
+description: Core testing logic that runs standardized prompts through both transformers
+  (reference) and llama.cpp, compares outputs using semantic similarity, and records
+  pass/fail results. This is the primary validation mechanism for compatibility detection.
+acceptanceCriteria:
+- Pipeline generates reference output using transformers library with same model weights
+  before llama.cpp test
+- llama.cpp inference runs with standardized parameters (temp=0.7, top_p=0.9, max_tokens=256)
+- Output comparison uses sentence-transformers embeddings with cosine similarity threshold
+  of 0.85
+- Test result includes status (PASS/FAIL/ERROR/TIMEOUT), similarity score, execution
+  time, and memory usage
+- Pipeline handles llama.cpp crashes gracefully, recording ERROR status with stderr
+  logs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

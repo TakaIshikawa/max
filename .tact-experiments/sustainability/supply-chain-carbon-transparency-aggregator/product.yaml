@@ -1,0 +1,57 @@
+name: supply-chain-carbon-transparency-aggregator
+version: 0.1.0
+vision: A supplier engagement platform that automates multi-tier supply chain carbon
+  data collection, integrates open-source emission calculators, and generates CS3D
+  compliance reports to reduce carbon tracking time from months to weeks for mid-market
+  manufacturers.
+goals:
+- id: G-1
+  description: Enable automated supplier carbon data collection with minimal manual
+    intervention
+  successCriteria: System sends automated data requests to 50+ suppliers, achieves
+    60% response rate within 4 weeks, and normalizes responses to standardized schema
+    with <10% requiring manual review
+- id: G-2
+  description: Provide supplier carbon calculation assistance for suppliers lacking
+    emission data
+  successCriteria: Integrate 5+ open-source carbon calculators from OpenSustain.tech,
+    enable suppliers to complete emission estimates in <15 minutes, validate calculation
+    outputs against GHG Protocol standards
+- id: G-3
+  description: Generate CS3D-compliant due diligence reports from aggregated supplier
+    data
+  successCriteria: Produce multi-tier supply chain emission reports in PDF format
+    covering Scope 3 categories 1 (purchased goods) and 4 (upstream transportation),
+    include supplier scorecards with carbon intensity rankings (kg CO2e per unit)
+- id: G-4
+  description: Track data quality and supplier engagement metrics for procurement
+    teams
+  successCriteria: Admin dashboard displays real-time response rates, data completeness
+    scores, and flags 100% of inconsistencies (missing units, outlier values >3 std
+    dev) for human review
+constraints:
+- MVP scope limited to Scope 3 Category 1 (purchased goods/services) emissions only
+  - no Category 2-15 support
+- Support single-tier supplier relationships initially - multi-tier mapping deferred
+  to post-MVP
+- Maximum 5 integrated carbon calculators in MVP - full OpenSustain.tech directory
+  integration post-launch
+- Manual CSV upload for supplier lists - no ERP API integrations in MVP
+- English language only for supplier forms and reports
+- Self-serve supplier portal only - no white-label or custom branding in MVP
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - Next.js 14
+  - React 18
+  - Tailwind CSS
+  - Prisma ORM
+  - FastAPI
+  infrastructure:
+  - PostgreSQL
+  - Vercel
+  - Railway
+  - Docker
+  - SendGrid

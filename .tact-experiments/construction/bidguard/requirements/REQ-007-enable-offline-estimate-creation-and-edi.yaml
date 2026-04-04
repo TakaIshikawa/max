@@ -1,0 +1,21 @@
+title: Enable offline estimate creation and editing
+approval: draft
+phase: planned
+priority: high
+description: Service worker caches app shell, templates, and regional cost data. IndexedDB
+  stores draft estimates. Users can create and modify estimates without internet connectivity,
+  with automatic sync when connection restored. Critical for contractors working on
+  job sites without reliable connectivity.
+acceptanceCriteria:
+- App loads and displays cached content within 3 seconds when offline
+- Users can create new estimates from cached templates while offline
+- All estimate modifications save to IndexedDB immediately
+- Offline indicator appears in app header when no connectivity detected
+- Validation requests queue in background when offline, process when online
+- Sync status indicator shows 'Syncing...' when uploading queued validation requests
+- No data loss occurs if user closes browser while offline
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

@@ -1,0 +1,24 @@
+title: Create PostgreSQL schema with audit-first data model
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement database schema supporting transactions, categorizations,
+  supplier carbon data, and immutable audit logs. Must enforce financial data integrity
+  and regulatory compliance requirements.
+acceptanceCriteria:
+- 'Schema includes tables: bank_accounts (encrypted credentials), transactions (normalized
+  fields + JSONB provider_data), categorizations (with audit fields), suppliers (carbon_intensity_kg_co2e),
+  audit_logs (immutable append-only), csrd_reports (generated reports with metadata)'
+- 'Transactions table enforces: unique constraint on provider_transaction_id + provider_name,
+  amounts stored as integer cents, timestamps in UTC, CHECK constraint amount != 0'
+- 'Audit_logs table captures all categorization changes with: entity_type, entity_id,
+  action, old_value (JSONB), new_value (JSONB), user_id, timestamp, immutable (no
+  UPDATE/DELETE permissions)'
+- Database migration system (Alembic) configured with initial migration creating all
+  tables and indexes (GIN index on provider_data JSONB, B-tree on transaction date)
+- Foreign key constraints enforce referential integrity; cascade deletes configured
+  appropriately (e.g., deleting bank_account cascades to transactions)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

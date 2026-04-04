@@ -1,0 +1,19 @@
+title: Generate Zod schemas with embedded FHIR metadata
+approval: draft
+phase: planned
+priority: critical
+description: Transform FHIR resource schemas into Zod validators with .describe()
+  for labels and .meta() for FHIR-specific metadata. Generated schemas must validate
+  OpenAPI examples without modification.
+acceptanceCriteria:
+- Generated Zod schema includes .describe() with human-readable label for each field
+- Generated Zod schema includes .meta() with {fhirResourceType, fhirProfileUrl, fhirValueSet}
+  where applicable
+- Generated schema validates all x-fhir-examples from OpenAPI spec without errors
+- Generated code compiles with TypeScript 5.0+ without errors
+- Output written to schemas/ directory with .generated.ts suffix
+decomposition:
+  assignments: []
+dependencies:
+- Extract FHIR metadata from x-fhir-* extensions
+source: discovered

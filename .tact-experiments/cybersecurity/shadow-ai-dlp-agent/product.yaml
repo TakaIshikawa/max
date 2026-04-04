@@ -1,0 +1,50 @@
+name: shadow-ai-dlp-agent
+version: 0.1.0
+vision: An open-source endpoint agent that prevents accidental data exfiltration to
+  public LLMs by intercepting API calls, applying semantic analysis to detect sensitive
+  data, and enforcing configurable policies—enabling SMB security teams to govern
+  shadow AI usage without enterprise DLP complexity.
+goals:
+- id: G-1
+  description: Intercept and analyze outbound LLM API traffic from developer workstations
+  successCriteria: Agent successfully intercepts 95%+ of API calls to OpenAI, Anthropic,
+    and Cohere endpoints on macOS and Linux systems without breaking TLS connections
+    or causing >100ms latency per request
+- id: G-2
+  description: Detect and prevent PII/credential exfiltration using semantic analysis
+  successCriteria: Policy engine correctly identifies emails, SSNs, credit cards,
+    and API keys with 90%+ precision and 85%+ recall on standard test datasets, supporting
+    block/redact/alert enforcement modes
+- id: G-3
+  description: Provide centralized audit logging for security team compliance workflows
+  successCriteria: Dashboard displays real-time alerts, policy violations, and aggregated
+    metrics with <5 second latency; supports export to syslog for SIEM integration
+- id: G-4
+  description: Enable lightweight deployment on developer workstations without performance
+    degradation
+  successCriteria: Agent consumes <100MB RAM and <5% CPU during active interception;
+    installer scripts support automated deployment via MDM tools (Jamf, Intune)
+constraints:
+- MVP supports macOS and Linux only (Windows deferred to v0.2)
+- Initial LLM endpoint coverage limited to OpenAI, Anthropic, Cohere APIs
+- PII detection uses spaCy pretrained models only (no custom training in MVP)
+- Dashboard supports single-tenant deployment only (no multi-org support)
+- Agent requires root/sudo privileges for proxy configuration and certificate installation
+- No real-time policy updates (requires agent restart to reload YAML configs)
+- Maximum 1000 requests/minute throughput per agent instance
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - mitmproxy 10.x
+  - spaCy 3.x
+  - FastAPI 0.104+
+  - React 18
+  - PostgreSQL 15
+  infrastructure:
+  - systemd (Linux)
+  - launchd (macOS)
+  - Docker Compose (dashboard)
+  - pytest
+  - GitHub Actions

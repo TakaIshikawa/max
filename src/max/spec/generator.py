@@ -43,8 +43,8 @@ class PatternOutput(BaseModel):
 class DecisionOutput(BaseModel):
     id: str
     title: str
-    decision: str
-    rationale: str
+    decision: str = ""
+    rationale: str = ""
 
 
 class RequirementOutput(BaseModel):

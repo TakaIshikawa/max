@@ -1,0 +1,22 @@
+title: Build supplier portal for carbon data submission
+approval: draft
+phase: planned
+priority: critical
+description: Create public-facing web form where suppliers enter carbon emission data
+  or indicate they lack data. Reduces friction for SMB suppliers (no account required)
+  and collects structured data for normalization. Supports goal G-1 response rate
+  target.
+acceptanceCriteria:
+- Supplier accesses portal via tokenized URL without authentication
+- 'Form collects: product/service description, emission value, unit (kg CO2e/tonne
+  CO2e), calculation method (measured/estimated/calculator), date range'
+- Validation enforces required fields, numeric emission values, and unit selection
+- Suppliers can select 'I don't have emission data' option which redirects to calculator
+  selection page
+- Submission confirmation page displays summary and allows suppliers to download PDF
+  receipt
+decomposition:
+  assignments: []
+dependencies:
+- Implement supplier data request workflow with email automation
+source: discovered

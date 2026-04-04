@@ -1,0 +1,48 @@
+name: ml-pipeline-security-scanner
+version: 0.1.0
+vision: A specialized security scanner that detects ML/data pipeline-specific vulnerabilities
+  in Jupyter notebooks, Kedro pipelines, MLflow projects, and FastAPI model servers—filling
+  the blind spot between generic dependency scanning and production AI/ML infrastructure
+  threats.
+goals:
+- id: G-1
+  description: Detect ML-specific vulnerabilities that generic scanners miss
+  successCriteria: Successfully identify at least 3 categories of ML-specific risks
+    (vulnerable dependencies in ML libraries, unsafe dataset loading patterns, model
+    deserialization risks) across test projects containing Kedro pipelines, Jupyter
+    notebooks, and FastAPI servers
+- id: G-2
+  description: Generate actionable security findings with ML-aware remediation guidance
+  successCriteria: Produce scan reports in JSON and SARIF formats with severity ratings,
+    vulnerability descriptions, and remediation steps tailored to data science workflows
+    (e.g., 'Update Kedro to version X.Y.Z to fix path traversal in DataCatalog')
+- id: G-3
+  description: Integrate seamlessly into existing ML development workflows
+  successCriteria: Run as a CLI tool that scans a project directory in <30 seconds
+    for typical ML projects, with zero configuration required for standard project
+    structures (requirements.txt, Kedro conf/, Jupyter .ipynb files)
+- id: G-4
+  description: Enable CI/CD integration for automated ML security scanning
+  successCriteria: Support exit codes for pass/fail based on severity thresholds,
+    output SARIF format compatible with GitHub Security tab, and provide example GitHub
+    Actions workflow that blocks PRs with critical vulnerabilities
+constraints:
+- MVP focuses on Python-based ML pipelines only (no R, Julia, or other languages)
+- Vulnerability database limited to curated list of high-impact ML library CVEs (Kedro,
+  FastAPI, python-multipart, pickle-related) rather than comprehensive CVE coverage
+- Static analysis only—no runtime monitoring or dynamic testing
+- Scan scope limited to local filesystem (no remote repository fetching in MVP)
+- HTML reports use simple templating without interactive dashboards
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - Click (CLI)
+  - ast (Python AST parsing)
+  - nbformat/nbconvert (Jupyter notebook parsing)
+  - requests (vulnerability DB fetching)
+  - Jinja2 (HTML report templating)
+  infrastructure:
+  - Local filesystem scanning
+  - GitHub Actions (for CI examples)
+  - JSON/SARIF output files

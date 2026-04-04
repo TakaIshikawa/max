@@ -1,0 +1,19 @@
+title: Send SMS alerts for overdue payments
+approval: draft
+phase: planned
+priority: high
+description: Users must receive SMS notifications when payments become overdue to
+  prompt timely follow-up with GCs and prevent cash flow disruptions.
+acceptanceCriteria:
+- 'System sends SMS when payment becomes overdue (configurable threshold: 5, 15, 30
+  days)'
+- 'SMS includes: GC name, project, invoice number, amount, days overdue'
+- User can configure alert thresholds and enable/disable SMS notifications in settings
+- System prevents duplicate alerts for same payment within 24 hours
+- SMS delivery failures logged and retried up to 3 times with exponential backoff
+- Freemium users limited to 100 SMS/month with in-app notification when limit reached
+decomposition:
+  assignments: []
+dependencies:
+- Detect overdue payments based on contract terms
+source: discovered

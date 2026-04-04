@@ -1,0 +1,24 @@
+title: Generate CSRD-compliant PDF reports with evidence references
+approval: draft
+phase: planned
+priority: high
+description: Produce audit-ready PDF reports from Jinja2 templates containing sustainability
+  metrics, embedded evidence references (with IDs and provenance), and data lineage.
+  Reports must be reproducible and include immutable audit trail summary.
+acceptanceCriteria:
+- Jinja2 template renders report sections for Scope 1/2 emissions, energy consumption,
+  and waste metrics
+- Each metric value includes footnote referencing evidence item ID, source name, measurement
+  date, and reviewer
+- Report generation API endpoint accepts date range and metric filters, queries only
+  'approved' evidence items
+- WeasyPrint converts HTML template to PDF with embedded metadata (generation timestamp,
+  user ID, evidence item count)
+- Generated reports stored in S3 with immutable URL and audit log entry recording
+  generation event
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence repository with confidence scoring
+- Create human-in-the-loop review queue interface
+source: discovered

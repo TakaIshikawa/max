@@ -1,0 +1,28 @@
+title: Implement scheduled evidence collection with Celery
+approval: draft
+phase: planned
+priority: high
+description: Configure Celery task queue to orchestrate periodic evidence collection
+  from all configured adapters (daily schedule) and support on-demand collection via
+  API trigger. Scheduled collection ensures continuous compliance posture updates.
+acceptanceCriteria:
+- Celery beat scheduler configured to run evidence collection task daily at 02:00
+  UTC
+- Collection task sequentially invokes all enabled adapters (Trivy, Infisical, AWS)
+  and logs results
+- Task retries up to 3 times on adapter failures with exponential backoff (1min, 5min,
+  15min)
+- API endpoint POST /api/v1/evidence/collect triggers immediate collection job and
+  returns task ID
+- GET /api/v1/evidence/collect/{task_id} returns task status (pending/running/completed/failed)
+  and result summary
+- Failed tasks log detailed error messages to application logs and send notifications
+  (stdout in MVP)
+decomposition:
+  assignments: []
+dependencies:
+- Implement Trivy vulnerability scan adapter
+- Implement Infisical secrets audit log adapter
+- Implement AWS CloudTrail audit log adapter
+- Build evidence correlation engine with DORA control mappings
+source: discovered

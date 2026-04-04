@@ -1,0 +1,24 @@
+title: Implement Open Badges issuance via Badgr API
+approval: draft
+phase: planned
+priority: critical
+description: Integrate with Badgr API to automatically issue Open Badges 3.0 compliant
+  credentials when employees complete learning paths. Badges must be verifiable and
+  shareable on LinkedIn and digital wallets. Core value proposition for portable credentials.
+acceptanceCriteria:
+- System creates badge class in Badgr for each learning path with name, description,
+  criteria, and issuer information
+- When employee completes 100% of learning path modules, badge is automatically issued
+  via Badgr API POST /v2/badgeclasses/:id/assertions
+- Issued badge includes employee email, issue date, evidence URLs (GitHub repos, edX
+  courses), and expiration date (2 years)
+- Employee receives email with badge link and instructions to add to LinkedIn, GitHub
+  profile, or download as JSON/PNG
+- API endpoint GET /badges/:userId returns list of all badges earned by employee with
+  verification URLs
+decomposition:
+  assignments: []
+dependencies:
+- Build GitHub activity tracking for project-based learning progress
+- Integrate edX MOOC content with xAPI progress tracking
+source: discovered

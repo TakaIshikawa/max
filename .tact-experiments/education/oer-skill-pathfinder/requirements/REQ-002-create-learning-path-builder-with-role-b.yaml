@@ -1,0 +1,23 @@
+title: Create learning path builder with role-based templates
+approval: draft
+phase: planned
+priority: critical
+description: Develop UI and API for creating structured learning paths that group
+  OER resources into sequential modules. Include 5 predefined templates (Junior Developer,
+  Data Analyst, DevOps Engineer, QA Engineer, Product Manager) with competency mappings.
+  Enables HR/training managers to deploy role-specific training quickly.
+acceptanceCriteria:
+- Admin UI allows creation of learning path with title, description, target role,
+  and ordered list of OER resources
+- System includes 5 predefined templates, each containing minimum 10 OER resources
+  mapped to 5-8 competencies from O*NET framework
+- API endpoint POST /learning-paths creates new path and returns unique ID; GET /learning-paths/:id
+  retrieves path details
+- Each learning path module specifies estimated completion time and prerequisite modules
+- Learning paths can be assigned to employees via POST /learning-paths/:id/assign
+  with employee email list
+decomposition:
+  assignments: []
+dependencies:
+- Implement OER content aggregation from GitHub repositories
+source: discovered

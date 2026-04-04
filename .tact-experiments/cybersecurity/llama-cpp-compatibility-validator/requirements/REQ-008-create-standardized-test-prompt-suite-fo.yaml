@@ -1,0 +1,21 @@
+title: Create standardized test prompt suite for inference validation
+approval: draft
+phase: planned
+priority: medium
+description: Curated set of prompts that exercise different model capabilities (instruction
+  following, reasoning, formatting) to ensure comprehensive compatibility validation
+  beyond simple generation.
+acceptanceCriteria:
+- 'Suite includes 5 prompts covering: simple instruction, multi-step reasoning, JSON
+  formatting, code generation, refusal handling'
+- Each prompt has expected output characteristics documented (e.g., 'should produce
+  valid JSON')
+- Prompts stored in YAML configuration file with metadata (category, expected_tokens_range)
+- Test pipeline runs all prompts and requires 4/5 to pass similarity threshold for
+  overall PASS status
+- Prompts validated to produce consistent outputs across transformers runs (similarity
+  >0.95 between runs)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

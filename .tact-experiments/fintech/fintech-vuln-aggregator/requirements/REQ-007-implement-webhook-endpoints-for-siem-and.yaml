@@ -1,0 +1,21 @@
+title: Implement webhook endpoints for SIEM and security dashboard integrations
+approval: draft
+phase: planned
+priority: medium
+description: Provide webhook endpoints that push vulnerability events to external
+  systems (SIEM, Defect Dojo, OWASP Dependency-Track). Support configurable webhook
+  URLs with authentication (API keys, HMAC signatures). Include retry logic for failed
+  deliveries.
+acceptanceCriteria:
+- POST /api/v1/webhooks endpoint registers webhook URLs with authentication configuration
+- Vulnerability events (new, updated) trigger HTTP POST to registered webhooks with
+  JSON payload
+- Webhook payloads include full vulnerability details in OWASP Dependency-Track compatible
+  format
+- HMAC signature validation supported for webhook security (SHA256)
+- Failed webhook deliveries are retried 3 times with exponential backoff and logged
+decomposition:
+  assignments: []
+dependencies:
+- Provide REST API for vulnerability queries and subscriptions
+source: discovered

@@ -1,0 +1,18 @@
+title: Validate PKCE implementation correctness
+approval: draft
+phase: planned
+priority: critical
+description: Test that the application under test properly implements PKCE (Proof
+  Key for Code Exchange) to prevent authorization code interception attacks. Detect
+  common mistakes like code_verifier leakage in redirect URLs or missing code_challenge.
+acceptanceCriteria:
+- Test SEC-001 fails if /authorize request is missing code_challenge parameter
+- Test SEC-002 fails if code_verifier is exposed in any redirect_uri parameter
+- Test SEC-003 fails if code_challenge_method is 'plain' instead of 'S256'
+- Test SEC-004 fails if code_verifier sent to /token does not match the original code_challenge
+- Each failure includes remediation link to RFC 7636 section explaining the requirement
+decomposition:
+  assignments: []
+dependencies:
+- Implement SMART App Launch mock authorization server
+source: discovered

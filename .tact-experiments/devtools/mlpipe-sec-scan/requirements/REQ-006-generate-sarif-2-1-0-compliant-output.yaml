@@ -1,0 +1,22 @@
+title: Generate SARIF 2.1.0 compliant output
+approval: draft
+phase: planned
+priority: critical
+description: Transform accumulated findings into valid SARIF 2.1.0 JSON format for
+  integration with GitHub Code Scanning, Azure DevOps, and other security platforms.
+  Must include tool metadata, rules, results with locations, and severity mappings.
+acceptanceCriteria:
+- Output validates against official SARIF 2.1.0 JSON schema
+- Each finding maps to SARIF result with ruleId, level (error/warning/note), message,
+  and location (file URI, line, column)
+- Includes tool.driver section with name='mlpipe-sec-scan', version, and informationUri
+- 'Severity mapping: critical/high→error, medium→warning, low→note'
+- SARIF output includes at least one rule definition per detected vulnerability type
+  with helpUri to remediation docs
+decomposition:
+  assignments: []
+dependencies:
+- Build dependency scanner for vulnerable ML libraries
+- Implement AST-based pattern scanner for dangerous code
+- Implement configuration scanner for ML deployment risks
+source: discovered

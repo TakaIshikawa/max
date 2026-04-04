@@ -1,0 +1,19 @@
+title: Detect high-engagement moments using transcript and audio analysis
+approval: draft
+phase: planned
+priority: critical
+description: Analyze transcripts and audio to identify compelling segments suitable
+  for short clips. Uses heuristics like question-answer patterns, topic shifts, high
+  audio energy, and keyword density. Outputs ranked list of potential clip moments.
+acceptanceCriteria:
+- Identify at least 10 potential clip moments per hour of content
+- Each moment includes start timestamp, end timestamp, confidence score (0-1), and
+  reason (e.g., 'question-answer pattern', 'high energy', 'topic shift')
+- Moments are ranked by confidence score in descending order
+- Moment duration ranges from 15 seconds to 90 seconds (configurable)
+- Store detected moments in database linked to source video ID
+decomposition:
+  assignments: []
+dependencies:
+- Transcribe uploaded content with word-level timestamps
+source: discovered

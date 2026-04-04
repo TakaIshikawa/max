@@ -1,0 +1,24 @@
+title: Build compliance dashboard with control coverage visualization
+approval: draft
+phase: planned
+priority: high
+description: Create React-based web dashboard that displays DORA control coverage
+  status, evidence freshness, and compliance gaps. Dashboard provides compliance officers
+  with at-a-glance visibility into audit readiness.
+acceptanceCriteria:
+- 'Dashboard displays grid of 15 DORA controls with coverage status: Covered (green),
+  Partial (yellow), No Evidence (red)'
+- 'Each control card shows: control ID, title, evidence count, last evidence timestamp,
+  coverage percentage'
+- Clicking control card opens detail view with list of supporting evidence items and
+  source tools
+- 'Dashboard includes summary metrics: overall coverage percentage, controls at risk
+  (no evidence >7 days), total evidence items'
+- Frontend fetches data from GET /api/v1/dashboard/coverage endpoint with <5 second
+  load time
+- Responsive design works on desktop (1920x1080) and tablet (1024x768) viewports
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence correlation engine with DORA control mappings
+source: discovered

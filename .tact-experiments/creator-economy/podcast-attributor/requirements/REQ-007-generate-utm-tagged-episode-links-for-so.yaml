@@ -1,0 +1,21 @@
+title: Generate UTM-tagged episode links for social media tracking
+approval: draft
+phase: planned
+priority: medium
+description: Provide creators with UTM-tagged episode URLs for sharing on social media,
+  enabling precise attribution of downloads to specific promotional posts. This enhances
+  source attribution beyond platform-provided referrer data.
+acceptanceCriteria:
+- Link generator interface allows user to select episode and specify UTM parameters
+  (source, medium, campaign)
+- Generated links include properly formatted UTM parameters appended to episode URL
+- UTM parameters are extracted from referrer data during ETL processing and stored
+  separately
+- Dashboard displays download counts grouped by UTM campaign for performance comparison
+- Link generator provides copy-to-clipboard functionality and displays preview of
+  tagged URL
+decomposition:
+  assignments: []
+dependencies:
+- Build ETL pipeline to fetch and normalize download data from connected platforms
+source: discovered

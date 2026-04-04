@@ -1,0 +1,22 @@
+title: Create comment aggregation dashboard with sentiment visualization
+approval: draft
+phase: planned
+priority: high
+description: Build a React dashboard that displays aggregated comments from all connected
+  platforms with sentiment timeline, topic cloud, and filtering capabilities. This
+  is the primary user interface for MVP.
+acceptanceCriteria:
+- Dashboard displays comments from all connected platforms in unified feed with platform
+  badges
+- Sentiment timeline chart shows average sentiment per content piece over time using
+  D3.js or similar
+- Topic cloud visualizes most frequent topics/keywords extracted from comments
+- User can filter comments by platform, sentiment range, and date range
+- Dashboard loads aggregated data from cache within 2 seconds
+decomposition:
+  assignments: []
+dependencies:
+- Implement YouTube OAuth authentication and comment fetching
+- Implement TikTok or Instagram OAuth authentication and comment fetching
+- Build NLP microservice for sentiment analysis and topic extraction
+source: discovered

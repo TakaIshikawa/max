@@ -1,0 +1,22 @@
+title: Create HIPAA-aligned role bundle library
+approval: draft
+phase: planned
+priority: high
+description: Define 3 pre-validated role bundles (PHI Reader, PHI Writer, Break-Glass
+  Emergency Access) as YAML templates with documented permission sets for Azure and
+  AWS.
+acceptanceCriteria:
+- PHI Reader bundle specifies read-only permissions for FHIR resources and audit log
+  write access
+- PHI Writer bundle includes create/update permissions with mandatory audit logging
+  and MFA requirement
+- Break-Glass Emergency Access bundle grants temporary elevated access with time-bound
+  conditions and alerting requirements
+- Each bundle includes YAML schema with platform-specific mappings (Azure RBAC actions,
+  AWS IAM actions)
+- Bundle definitions include inline comments explaining HIPAA compliance rationale
+  for each permission
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

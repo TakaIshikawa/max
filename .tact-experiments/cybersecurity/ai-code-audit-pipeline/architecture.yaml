@@ -1,0 +1,80 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Sequential processing pipeline with distinct stages: ingestion → parsing
+    → chunking → LLM analysis → deduplication → scoring → reporting. Each stage is
+    independently testable and can be run in isolation for debugging.'
+  scope:
+  - core pipeline
+  - CLI commands
+- name: Strategy Pattern for LLM Backends
+  description: Abstract LLM provider interface with concrete implementations for OpenAI,
+    Anthropic. Allows runtime selection of provider without changing analysis logic.
+  scope:
+  - llm integration
+  - provider adapters
+- name: Prompt Template Library
+  description: Vulnerability detection prompts organized by CWE category (injection,
+    buffer overflow, race conditions, etc.) as reusable templates with variable substitution
+    for code context.
+  scope:
+  - vulnerability detection
+  - prompt engineering
+- name: Structured Output Parsing
+  description: LLM responses parsed into Pydantic models for type safety. Findings
+    validated against schema before deduplication/scoring.
+  scope:
+  - llm responses
+  - data validation
+invariants:
+- 'Every vulnerability finding MUST include: file path, line number range, vulnerability
+  type (CWE), description, and severity score'
+- MITRE ATT&CK technique mappings MUST only reference valid technique IDs from the
+  official ATT&CK matrix
+- 'Severity scores MUST be deterministic: same vulnerability characteristics always
+  produce same score'
+- Code chunks sent to LLMs MUST NOT exceed provider token limits (8K tokens for GPT-4,
+  100K for Claude)
+- Deduplication MUST preserve the highest-severity instance when merging similar findings
+- Output formats (JSON/Markdown/SARIF) MUST be valid according to their respective
+  schemas
+- API keys and sensitive configuration MUST NOT be logged or included in output reports
+conventions:
+- Use snake_case for Python functions, variables, and module names
+- Prefix LLM provider classes with 'LLM' (e.g., LLMOpenAI, LLMClaude)
+- 'Vulnerability finding IDs use format: VULN-{hash}-{index} (e.g., VULN-a3f2-001)'
+- 'CLI commands follow pattern: audit-pipeline <command> --options'
+- Configuration via environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY) or config
+  file (~/.audit-pipeline/config.yaml)
+- All LLM prompts stored in prompts/ directory as .txt files with YAML frontmatter
+  for metadata
+- Test fixtures use real-world vulnerable code samples from CVE databases
+- 'Logging uses structured JSON format with severity levels: DEBUG, INFO, WARNING,
+  ERROR'
+decisions:
+- id: D-1
+  title: Use tree-sitter for code parsing instead of language-specific parsers
+  decision: Adopt tree-sitter as the unified parsing library for all supported languages
+  rationale: Tree-sitter provides consistent AST structure across languages, enabling
+    reusable chunking logic. Alternative (language-specific parsers like ast for Python,
+    esprima for JS) would require maintaining separate parsing pipelines. Tree-sitter's
+    incremental parsing and error recovery also handle incomplete/malformed code better
+    than traditional parsers.
+- id: D-2
+  title: Embedding-based deduplication over rule-based matching
+  decision: Use sentence-transformers embeddings with cosine similarity (threshold
+    0.85) for finding deduplication
+  rationale: LLMs may describe the same vulnerability differently across runs (non-deterministic
+    output). Embedding similarity captures semantic equivalence better than exact
+    string matching or AST-based structural comparison. Threshold of 0.85 balances
+    false positive reduction with preserving distinct findings. Simpler than training
+    a custom classifier.
+- id: D-3
+  title: SARIF as primary output format with JSON/Markdown as secondary
+  decision: Generate SARIF 2.1.0 format by default, with --format flag for JSON/Markdown
+    alternatives
+  rationale: SARIF (Static Analysis Results Interchange Format) is the industry standard
+    supported by GitHub Security, VS Code, and major SIEM platforms. Prioritizing
+    SARIF maximizes composability with existing security workflows. JSON provides
+    programmatic access for custom integrations, Markdown for human readability. All
+    three formats generated from same internal Finding model.
+contracts: []

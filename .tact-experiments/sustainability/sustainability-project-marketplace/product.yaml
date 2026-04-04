@@ -1,0 +1,50 @@
+name: sustainability-project-marketplace
+version: 0.1.0
+vision: A discovery and integration platform that connects mid-market companies with
+  curated open-source sustainability tools through structured metadata, pre-built
+  connectors, and CSRD-mapped integration templates, reducing implementation time
+  from weeks to days.
+goals:
+- id: G-1
+  description: Enable rapid discovery of sustainability tools matched to specific
+    compliance needs
+  successCriteria: Users can filter 2,400+ projects by CSRD requirement, API availability,
+    and integration difficulty, with search results returned in <500ms
+- id: G-2
+  description: Provide working integration connectors for top sustainability tools
+  successCriteria: Deliver 10+ pre-built, tested connectors (Python/Node.js) for popular
+    tools with documented installation and usage examples
+- id: G-3
+  description: Accelerate CSRD compliance workflows through integration templates
+  successCriteria: Publish 5+ end-to-end workflow templates mapping common use cases
+    (carbon accounting, energy monitoring) to CSRD reporting requirements
+- id: G-4
+  description: Build community engagement through reviews and use case sharing
+  successCriteria: Enable authenticated users to submit reviews and use cases, with
+    20+ community contributions within first 3 months
+constraints:
+- MVP excludes full marketplace monetization (Stripe Connect) - focus on free connector
+  registry
+- Sandbox testing environment limited to Docker Compose for local validation, not
+  production Kubernetes
+- Initial dataset covers top 100 projects from OpenSustain.tech, not full 2,400+ catalog
+- Search uses PostgreSQL full-text search, not Algolia/Elasticsearch for MVP
+- Authentication required only for community contributions, not for browsing/discovery
+- Connector registry supports npm and PyPI packages only (no other language ecosystems)
+- Integration templates provided as static YAML/JSON files, not dynamic workflow orchestration
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - Next.js 14
+  - React 18
+  - Tailwind CSS
+  - Prisma
+  - FastAPI
+  infrastructure:
+  - PostgreSQL
+  - Vercel
+  - Docker
+  - npm registry
+  - PyPI

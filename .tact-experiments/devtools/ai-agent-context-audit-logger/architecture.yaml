@@ -1,0 +1,62 @@
+patterns:
+- name: MCP Tool Provider Pattern
+  description: Expose audit logging functionality as discrete MCP tools (log_context,
+    query_context, replay_context) that AI agents can invoke directly
+  scope:
+  - MCP server implementation
+  - Tool registration and handlers
+- name: Repository Pattern
+  description: Abstract database operations behind a repository interface to isolate
+    SQLite-specific logic and enable future storage backend changes
+  scope:
+  - Data access layer
+  - Context storage and retrieval
+- name: Structured Logging Pattern
+  description: Store context payloads as structured JSON with indexed metadata fields
+    for efficient querying while preserving full context fidelity
+  scope:
+  - Database schema
+  - Query implementation
+invariants:
+- Every logged context must include a unique ID, timestamp, and complete payload snapshot
+- Context payloads must never be modified after logging; all entries are immutable
+- Database writes must be atomic; partial context logs are never persisted
+- Query operations must never modify the audit log database
+- All timestamps must be stored in UTC with ISO 8601 format
+- Token counts must be calculated and stored at log time, never estimated during queries
+conventions:
+- Use snake_case for Python functions, variables, and database column names
+- Prefix all MCP tool names with 'audit_' (e.g., audit_log_context, audit_query_context)
+- Store all context payloads as JSON TEXT in SQLite for portability and queryability
+- Use type hints for all function signatures and dataclass definitions
+- Follow MCP SDK patterns for tool registration and error handling
+- Log all errors with structured context (timestamp, operation, error type) to stderr
+decisions:
+- id: D-1
+  title: Use SQLite with FTS5 for storage and search
+  decision: Store audit logs in a local SQLite database with FTS5 full-text search
+    extension
+  rationale: SQLite provides zero-configuration persistence with ACID guarantees,
+    FTS5 enables fast full-text search on code and prompts without external dependencies,
+    and the single-file database simplifies deployment and backup for MVP. Avoids
+    complexity of external databases while meeting performance requirements for 10,000+
+    entries.
+- id: D-2
+  title: Implement as MCP tools rather than transparent proxy
+  decision: Expose logging functionality as explicit MCP tools that agents or users
+    invoke, rather than intercepting API calls transparently
+  rationale: MCP tool approach is simpler to implement, avoids complex proxy setup,
+    and aligns with MCP's composability model. Users explicitly call audit_log_context
+    when they want logging, making behavior predictable. Transparent proxying would
+    require hooking into AI agent SDKs, creating fragility and compatibility issues
+    across different agents.
+- id: D-3
+  title: Store both metadata and full payload in single table
+  decision: Use a single contexts table with indexed metadata columns (timestamp,
+    file_path, token_count) and a JSON payload column, plus a separate FTS5 virtual
+    table for full-text search
+  rationale: Denormalized design simplifies queries and ensures atomic writes. Indexed
+    metadata columns enable fast filtering, while FTS5 virtual table provides efficient
+    full-text search on payload content. This hybrid approach balances query performance
+    with storage simplicity for MVP scope.
+contracts: []

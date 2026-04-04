@@ -1,0 +1,22 @@
+title: Build data binding UI for connecting elements to data sources
+approval: draft
+phase: planned
+priority: high
+description: Create a user interface for binding diagram elements to CSV/JSON data
+  sources. UI should allow users to select elements, choose data sources, map columns
+  to properties, and define conditional formatting rules (e.g., color elements red
+  if risk score > 7).
+acceptanceCriteria:
+- User can open a data binding panel from the toolbar
+- Panel displays list of uploaded data sources (CSV/JSON files)
+- User can select one or more diagram elements and choose a data source to bind
+- 'User can map data columns to element properties: text content, fill color, stroke
+  color'
+- User can define conditional formatting rules using simple expressions (e.g., 'if
+  risk_score > 7 then color = red')
+- Bindings are saved with the diagram and re-applied when diagram is loaded
+decomposition:
+  assignments: []
+dependencies:
+- Enable CSV data import with automatic element population
+source: discovered

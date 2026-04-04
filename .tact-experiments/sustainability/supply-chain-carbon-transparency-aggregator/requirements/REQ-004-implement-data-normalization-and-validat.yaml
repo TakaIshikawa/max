@@ -1,0 +1,23 @@
+title: Implement data normalization and validation pipeline
+approval: draft
+phase: planned
+priority: critical
+description: Transform diverse supplier submissions into standardized carbon intensity
+  metrics (kg CO2e per unit) following GHG Protocol. Flags anomalies for human review
+  to achieve goal G-4's data quality tracking and <10% manual review rate from goal
+  G-1.
+acceptanceCriteria:
+- Pipeline converts all emission values to kg CO2e (handles tonne CO2e conversion)
+- 'Calculates carbon intensity: emission_value / annual_spend_usd = kg CO2e per dollar
+  spent'
+- 'Flags submissions for review if: missing units, emission value >3 standard deviations
+  from category median, calculation method is ''estimated'' without source'
+- Stores raw submission in JSONB column and normalized metrics in structured columns
+  (emission_kg_co2e, intensity_kg_per_usd, quality_score)
+- 'Quality score (0-100) calculated based on: data completeness, calculation method,
+  outlier detection, date recency'
+decomposition:
+  assignments: []
+dependencies:
+- Build supplier portal for carbon data submission
+source: discovered

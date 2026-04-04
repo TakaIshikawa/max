@@ -1,0 +1,52 @@
+name: fintech-vuln-aggregator
+version: 0.1.0
+vision: A real-time vulnerability monitoring service that aggregates security advisories
+  from GitHub, vendor announcements, and CVE feeds for AI/ML infrastructure, providing
+  fintech security teams with early warnings before NVD listings appear and closing
+  the critical 2-day exploit window.
+goals:
+- id: G-1
+  description: Detect and alert on AI/ML framework vulnerabilities before NVD listings
+  successCriteria: 90% of GitHub security advisories for monitored frameworks are
+    ingested and alerted within 6 hours of publication, at least 24 hours before NVD
+    listing
+- id: G-2
+  description: Provide actionable risk scoring for vulnerability prioritization
+  successCriteria: Each vulnerability includes risk score based on CVSS, deployment
+    prevalence (download counts, GitHub stars), and exploit availability, with critical/high/medium/low
+    classification
+- id: G-3
+  description: Enable seamless integration with existing security workflows
+  successCriteria: Support REST API queries, webhook notifications, and at least 2
+    alert channels (Slack, PagerDuty) with JSON output compatible with OWASP Dependency-Track
+    format
+- id: G-4
+  description: Maintain comprehensive coverage of AI/ML infrastructure ecosystem
+  successCriteria: Monitor at least 15 critical AI/ML frameworks (MCP, LangChain,
+    LlamaIndex, OpenAI SDKs, Anthropic SDKs, Hugging Face libraries) and 3 vendor
+    security feeds
+constraints:
+- MVP must be deployable as a single Docker container or serverless function set
+- 'All external API calls must respect rate limits (GitHub GraphQL: 5000 points/hour)'
+- Vulnerability data must be deduplicated across sources (same CVE from GitHub and
+  NVD)
+- 'Alert fatigue prevention: no more than 1 notification per vulnerability per channel'
+- MVP scope limited to read-only monitoring (no automated patching or remediation)
+- Free tier GitHub API access only (no enterprise features required for MVP)
+- 'Polling intervals: GitHub advisories every 30 minutes, CVE feeds every 2 hours,
+  vendor feeds every 1 hour'
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - APScheduler
+  - SQLAlchemy
+  - Pydantic
+  - httpx
+  infrastructure:
+  - PostgreSQL 15+
+  - Docker
+  - AWS Lambda
+  - AWS RDS
+  - Terraform

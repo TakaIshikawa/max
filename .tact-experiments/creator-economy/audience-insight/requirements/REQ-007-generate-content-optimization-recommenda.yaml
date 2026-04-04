@@ -1,0 +1,19 @@
+title: Generate content optimization recommendations
+approval: draft
+phase: planned
+priority: medium
+description: Surface actionable insights such as common questions, trending topics
+  with high engagement, and misconceptions to address. This directly guides content
+  creation decisions.
+acceptanceCriteria:
+- System identifies top 5 most frequently asked questions from comments using NLP
+- System highlights topics with above-average engagement (likes, replies) as 'trending'
+- System detects recurring negative sentiment patterns and labels them as 'misconceptions
+  to address'
+- Recommendations displayed in dedicated 'Insights' section of dashboard
+- Each recommendation includes supporting evidence (sample comments, frequency count)
+decomposition:
+  assignments: []
+dependencies:
+- Create comment aggregation dashboard with sentiment visualization
+source: discovered

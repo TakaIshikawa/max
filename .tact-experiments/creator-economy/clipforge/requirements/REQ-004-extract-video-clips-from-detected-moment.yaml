@@ -1,0 +1,20 @@
+title: Extract video clips from detected moments
+approval: draft
+phase: planned
+priority: critical
+description: Use FFmpeg to extract video/audio segments based on detected moment timestamps.
+  Clips are extracted with padding (e.g., 1 second before/after) to ensure smooth
+  starts and ends. Extracted clips are stored as intermediate files for further processing.
+acceptanceCriteria:
+- Extract clips using FFmpeg with precise timestamp cutting (accurate to 100ms)
+- Add configurable padding before and after moment timestamps (default 1 second)
+- Preserve original video quality and codec during extraction (no re-encoding at this
+  stage)
+- Generate unique filename for each clip including source video ID and timestamp range
+- Store clip metadata (source_video_id, start_time, end_time, duration, file_path)
+  in database
+decomposition:
+  assignments: []
+dependencies:
+- Detect high-engagement moments using transcript and audio analysis
+source: discovered

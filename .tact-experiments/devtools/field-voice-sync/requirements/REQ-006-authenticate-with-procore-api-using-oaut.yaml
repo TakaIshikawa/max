@@ -1,0 +1,19 @@
+title: Authenticate with Procore API using OAuth 2.0
+approval: draft
+phase: planned
+priority: high
+description: Users must authenticate with their Procore account to enable API access
+  for syncing reports. OAuth tokens stored securely and refreshed automatically.
+acceptanceCriteria:
+- Settings screen includes 'Connect to Procore' button that launches OAuth web flow
+- OAuth flow redirects to Procore login, user grants permissions, app receives access_token
+  and refresh_token
+- Tokens stored in iOS Keychain (secure storage), not in SQLite or AsyncStorage
+- Access token automatically refreshed when expired (before API calls), using refresh_token
+- User can disconnect/reconnect Procore account from settings, which clears tokens
+  and pauses sync
+- App displays clear error message if OAuth fails or tokens are invalid
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

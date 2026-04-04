@@ -1,0 +1,20 @@
+title: Build CLI with validate command
+approval: draft
+phase: planned
+priority: critical
+description: Implement command-line interface that accepts configuration file paths,
+  runs policy validation, and outputs results with appropriate exit codes for CI/CD
+  integration.
+acceptanceCriteria:
+- CLI accepts --config flag with path to Bicep/IAM file or directory of files
+- Validate command exits with code 1 if critical violations found, 0 if compliant
+- Support --policy-bundle flag to specify which HIPAA role bundles to validate against
+- Output human-readable violation summary to stdout with color-coded severity levels
+- Provide --format flag to switch between text, JSON, and OSCAL output formats
+decomposition:
+  assignments: []
+dependencies:
+- Parse Azure Bicep role assignment configurations
+- Parse AWS IAM policy documents
+- Implement HIPAA least-privilege policy for PHI access
+source: discovered

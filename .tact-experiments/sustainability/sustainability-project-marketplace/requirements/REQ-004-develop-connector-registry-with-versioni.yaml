@@ -1,0 +1,23 @@
+title: Develop connector registry with versioning
+approval: draft
+phase: planned
+priority: critical
+description: Create database schema and API for registering connectors (npm/PyPI packages)
+  with metadata including target project, version, installation instructions, and
+  test status. Implement connector detail pages.
+acceptanceCriteria:
+- 'Prisma schema defines Connector model with fields: name, packageName, packageRegistry
+  (npm/pypi), version, projectId (foreign key), installationCommand, documentationUrl,
+  testStatus (enum: passing/failing/untested)'
+- POST /api/v1/connectors endpoint (authenticated) allows registering new connectors
+  with validation
+- GET /api/v1/connectors?projectId=X returns all connectors for a project
+- Connector detail page at /connectors/[id] shows installation instructions, usage
+  examples, and version history
+- At least 5 sample connectors registered for popular projects (e.g., electricitymaps,
+  carbon-intensity-api)
+decomposition:
+  assignments: []
+dependencies:
+- Implement project discovery database with CSRD metadata
+source: discovered

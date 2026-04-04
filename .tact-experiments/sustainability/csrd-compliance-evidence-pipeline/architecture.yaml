@@ -1,0 +1,79 @@
+patterns:
+- name: Data Pipeline Architecture
+  description: Apache Airflow orchestrates scheduled data collection jobs (DAGs) that
+    execute connector tasks, validate data quality, compute confidence scores, and
+    populate evidence repository. Each connector is a reusable Python operator.
+  scope:
+  - backend/pipelines
+  - backend/connectors
+- name: Append-Only Audit Log
+  description: All evidence items, review actions, and data modifications are recorded
+    as immutable events in append-only PostgreSQL tables with cryptographic hashing
+    to ensure tamper-proof audit trails.
+  scope:
+  - backend/audit
+  - database/schema
+- name: Human-in-the-Loop Review Queue
+  description: Evidence items with confidence scores below threshold are automatically
+    routed to review queue. Compliance users approve/reject with comments. Approved
+    items become available for report generation.
+  scope:
+  - frontend/review-queue
+  - backend/api/review
+- name: Template-Based Report Generation
+  description: CSRD reports generated from Jinja2 templates that reference evidence
+    items by ID, embed data lineage metadata, and render to PDF via WeasyPrint. Templates
+    versioned to track regulatory changes.
+  scope:
+  - backend/reporting
+  - templates
+invariants:
+- Evidence items are immutable once created; modifications create new versions with
+  audit trail linking to original
+- All API operations that modify data must create corresponding audit log entries
+  in the same database transaction
+- Confidence scores must be deterministic and reproducible given the same input data
+- Evidence items cannot be included in reports until approved by authorized reviewer
+- Data source credentials must be encrypted at rest using AES-256 and never logged
+  or exposed in API responses
+- Audit log entries must include timestamp, user ID, action type, and cryptographic
+  hash of previous entry
+- Report generation must fail if any referenced evidence item is missing or has been
+  rejected
+conventions:
+- 'Python: Follow PEP 8, use type hints, organize as backend/{domain}/modules'
+- 'TypeScript: Strict mode enabled, functional components with hooks, organize as
+  frontend/src/{feature}/components'
+- 'API endpoints: RESTful naming (/api/v1/{resource}), use HTTP verbs correctly, return
+  consistent error format'
+- 'Database: Snake_case table/column names, use UUIDs for primary keys, prefix audit
+  tables with ''audit_'''
+- 'Airflow DAGs: Named as ''{source_type}_{frequency}_sync'' (e.g., ''carbon_api_daily_sync'')'
+- 'Git: Conventional commits (feat:, fix:, docs:), branch naming: {type}/{ticket-id}-{description}'
+- 'Testing: Pytest for backend (>80% coverage), Jest/React Testing Library for frontend,
+  integration tests for connectors'
+decisions:
+- id: D-1
+  title: Use Apache Airflow for pipeline orchestration
+  decision: Adopt Apache Airflow as core orchestration engine with custom operators
+    for each connector type
+  rationale: Airflow provides battle-tested scheduling, retry logic, dependency management,
+    and monitoring UI out-of-the-box. Its operator pattern allows building reusable
+    connector components. Avoids building custom job scheduler from scratch.
+- id: D-2
+  title: Rule-based confidence scoring instead of ML models
+  decision: 'Implement confidence scoring using weighted heuristics (completeness:
+    40%, freshness: 30%, format: 30%) with configurable thresholds'
+  rationale: MVP scope requires fast iteration. Rule-based scoring (data completeness
+    %, freshness in days, format validation) is deterministic, explainable to auditors,
+    and requires no training data. ML models add complexity and training overhead
+    without validated accuracy improvement for initial launch.
+- id: D-3
+  title: Monolithic API with domain-driven modules
+  decision: Build single FastAPI application organized into domain modules, with potential
+    to extract services post-MVP if scaling requires
+  rationale: Microservices add deployment complexity and inter-service communication
+    overhead. Single FastAPI application with modular domain structure (connectors,
+    evidence, review, reporting) provides clear boundaries while simplifying development
+    and deployment for MVP.
+contracts: []

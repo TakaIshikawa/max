@@ -1,0 +1,21 @@
+title: Implement merchant code-based ESG categorization strategy
+approval: draft
+phase: planned
+priority: high
+description: Build MerchantCodeStrategy that maps merchant category codes (MCC) to
+  ESG taxonomy categories using predefined ruleset. Provides fast, deterministic categorization
+  for common transaction types without AI costs.
+acceptanceCriteria:
+- MerchantCodeStrategy loads MCC-to-ESG mapping table from configuration file (JSON/YAML)
+  with at least 50 common merchant categories mapped to ESG categories
+- 'Successfully categorize transactions with MCCs: 4900 (utilities/energy) → Environmental,
+  8299 (schools/education) → Social, 6011 (financial institutions) → Governance'
+- Strategy returns confidence score of 0.9 for exact MCC matches, 0.0 for unmapped
+  codes
+- Categorization completes in <10ms per transaction for batch of 100 transactions
+- Unit tests verify correct category assignment for 20+ MCC codes across all ESG types
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema for transactions and ESG taxonomy
+source: discovered

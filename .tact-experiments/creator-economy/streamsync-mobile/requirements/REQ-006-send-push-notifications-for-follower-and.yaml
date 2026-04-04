@@ -1,0 +1,24 @@
+title: Send push notifications for follower and donation alerts
+approval: draft
+phase: planned
+priority: high
+description: Integrate Firebase Cloud Messaging to deliver push notifications when
+  users receive new followers or donations on Twitch or YouTube. Notifications must
+  arrive within 5 seconds of event occurrence and respect user preferences for alert
+  types.
+acceptanceCriteria:
+- User receives push notification within 5 seconds when new follower event occurs
+  on Twitch or YouTube
+- User receives push notification within 5 seconds when donation/super chat event
+  occurs
+- Notification includes platform name, event type, and relevant details (follower
+  username, donation amount)
+- User can configure notification preferences (enable/disable by event type and platform)
+  in settings
+- Notifications are delivered even when app is in background or closed
+- Tapping notification opens app to relevant section (chat feed or analytics dashboard)
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authentication for Twitch and YouTube
+source: discovered

@@ -1,0 +1,19 @@
+title: Track payment application status lifecycle
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to update payment status through lifecycle stages
+  (submitted, approved, paid, disputed) with timestamps to maintain audit trail and
+  calculate payment velocity.
+acceptanceCriteria:
+- 'User can update payment status via dropdown: draft, submitted, approved, paid,
+  disputed'
+- Each status change records timestamp and previous status
+- User can view status history timeline for each payment application
+- Status transitions enforce valid state machine (cannot go from paid back to submitted)
+- Dashboard shows count of applications by status across all GCs
+decomposition:
+  assignments: []
+dependencies:
+- Create payment applications with retention tracking
+source: discovered

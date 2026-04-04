@@ -1,0 +1,88 @@
+patterns:
+- name: Offline-First Architecture
+  description: Local-first data storage with Redux Persist ensures stream notes, user
+    preferences, and cached chat history are available offline. Background sync reconciles
+    local changes with backend when connectivity is restored.
+  scope:
+  - mobile app state management
+  - stream notes feature
+  - user settings
+- name: Event-Driven Real-Time Communication
+  description: WebSocket connections to platform APIs (Twitch IRC, YouTube Live Chat
+    API) with event handlers for incoming chat messages, alerts, and stream events.
+    Redux actions dispatched on each event to update UI reactively.
+  scope:
+  - chat aggregation
+  - alert notifications
+  - live analytics
+- name: API Gateway Pattern
+  description: Node.js/Express backend serves as unified API gateway for platform
+    integrations, handling OAuth flows, WebSocket management, and RTMP restreaming
+    coordination. Mobile app communicates only with gateway, not directly with platform
+    APIs.
+  scope:
+  - backend services
+  - authentication
+  - platform API integration
+- name: Repository Pattern
+  description: Abstract data access through repository interfaces for user data, stream
+    notes, and chat messages. Enables swapping between local storage (offline) and
+    remote API (online) transparently.
+  scope:
+  - data layer
+  - offline sync
+  - persistence
+invariants:
+- All chat messages must retain platform identification (Twitch/YouTube) throughout
+  the aggregation pipeline
+- Stream notes must never be lost due to network failures; local storage is source
+  of truth until successful sync
+- OAuth tokens must be stored securely using platform-specific secure storage (iOS
+  Keychain, Android Keystore)
+- WebSocket reconnection logic must implement exponential backoff to prevent API rate
+  limit violations
+- User must be authenticated with at least one platform (Twitch or YouTube) before
+  accessing chat aggregation or go-live features
+- Push notifications must be opt-in and respect user-configured alert preferences
+- All timestamps must be stored in UTC and converted to user's local timezone for
+  display
+conventions:
+- Use TypeScript strict mode for all React Native and Node.js code
+- Redux actions follow Flux Standard Action format with type, payload, error, and
+  meta fields
+- 'Component naming: PascalCase for React components, camelCase for functions and
+  variables'
+- 'API endpoints follow RESTful conventions: /api/v1/{resource}/{action}'
+- WebSocket event names use SCREAMING_SNAKE_CASE (e.g., CHAT_MESSAGE_RECEIVED, FOLLOWER_ALERT)
+- 'Environment variables prefixed by context: TWITCH_, YOUTUBE_, FIREBASE_, DATABASE_'
+- Git commits follow Conventional Commits specification (feat:, fix:, docs:, etc.)
+- All async operations use async/await syntax rather than promise chains
+- Error boundaries wrap all major feature components to prevent full app crashes
+decisions:
+- id: AD-1
+  title: Use Restream API for Multi-Platform Streaming Instead of Custom RTMP Server
+  decision: Integrate with Restream API for RTMP restreaming functionality in MVP
+  rationale: 'Building and maintaining a custom NGINX-RTMP server adds significant
+    infrastructure complexity and operational overhead for MVP. Restream API provides
+    battle-tested multi-platform streaming with existing platform integrations, allowing
+    focus on mobile UX and chat aggregation. Trade-off: introduces third-party dependency
+    and potential cost, but dramatically reduces time-to-market and technical risk.'
+- id: AD-2
+  title: Defer TikTok Live Integration to Post-MVP
+  decision: MVP supports Twitch and YouTube Live only; TikTok Live integration deferred
+    pending API access approval
+  rationale: TikTok Live API access is restricted and requires special partnership
+    approval, creating uncertainty in timeline and feasibility. Twitch and YouTube
+    Live represent the majority of desktop streaming use cases and have well-documented
+    public APIs. Starting with 2 platforms validates core value proposition while
+    reducing integration complexity and regulatory risk (TikTok bans in some regions).
+- id: AD-3
+  title: Implement Read-Only Chat Aggregation in MVP
+  decision: Chat aggregation is read-only in MVP; message sending capability deferred
+    to future iteration
+  rationale: Sending messages to multiple platforms requires complex rate limiting,
+    moderation logic, and handling platform-specific message formatting (emotes, mentions,
+    character limits). Read-only chat aggregation delivers 80% of value (monitoring
+    all audiences) with 20% of complexity. Streamers can still respond via native
+    platform apps when needed.
+contracts: []

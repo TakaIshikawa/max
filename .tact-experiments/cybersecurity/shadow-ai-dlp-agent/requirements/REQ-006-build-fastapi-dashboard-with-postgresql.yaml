@@ -1,0 +1,22 @@
+title: Build FastAPI dashboard with PostgreSQL backend
+approval: draft
+phase: planned
+priority: high
+description: Create centralized dashboard API that receives log events from agents,
+  stores them in PostgreSQL, and provides query endpoints for security team. Implement
+  authentication with API keys, event ingestion endpoint, and read-only query endpoints
+  for filtering by time range, agent ID, entity type, and action.
+acceptanceCriteria:
+- Dashboard exposes POST /api/v1/events endpoint that validates and stores events
+  in PostgreSQL with <100ms p95 latency
+- GET /api/v1/events endpoint supports filtering by timestamp, agent_id, entity_type,
+  action with pagination (50 events per page)
+- API key authentication middleware validates keys against database and returns 401
+  for invalid keys
+- Database schema includes indexes on timestamp and agent_id for query performance
+- Dashboard starts via docker-compose with PostgreSQL, FastAPI, and migrations applied
+  automatically
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

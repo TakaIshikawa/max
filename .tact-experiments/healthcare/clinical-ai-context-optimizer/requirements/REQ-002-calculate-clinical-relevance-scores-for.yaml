@@ -1,0 +1,22 @@
+title: Calculate clinical relevance scores for FHIR resources
+approval: draft
+phase: planned
+priority: critical
+description: 'Assign relevance scores (0.0-1.0) to each FHIR resource based on clinical
+  priority rules: resource type weighting, clinical status (active vs resolved), recency
+  (exponential decay), and presence of critical codes. Scores determine ordering and
+  inclusion in compressed output.'
+acceptanceCriteria:
+- Active Conditions receive base score of 0.9, resolved/inactive receive 0.3
+- Active MedicationRequests receive base score of 0.85
+- Recent Encounters (last 30 days) receive 0.8, with exponential decay for older encounters
+- 'Recency multiplier applied: resources from last 7 days get 1.0x, 8-30 days get
+  0.8x, 31-90 days get 0.5x, older get 0.2x'
+- Critical diagnosis codes (e.g., SNOMED CT codes for diabetes, hypertension, cancer)
+  receive +0.1 bonus
+- Relevance scores are deterministic - same resource always produces same score
+decomposition:
+  assignments: []
+dependencies:
+- Ingest patient context from FHIR R4 endpoints
+source: discovered

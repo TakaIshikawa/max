@@ -1,0 +1,20 @@
+title: Implement user registration and role-based onboarding
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to register accounts and select their role (podcaster
+  or collaborator) during onboarding. Collaborators must specify their role type (editor,
+  co-host, cover artist) and podcasters must provide basic show information. This
+  establishes the foundation for the two-sided marketplace.
+acceptanceCriteria:
+- Registration form collects email, password, and user role (podcaster/collaborator)
+- Collaborators see additional step to select role type (editor/co-host/artist) with
+  single-select radio buttons
+- Podcasters see additional step to enter podcast name, genre (dropdown), and description
+  (textarea)
+- Successful registration redirects to role-appropriate dashboard
+- User role is immutable after account creation
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

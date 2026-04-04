@@ -1,0 +1,73 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Context optimization implemented as a multi-stage pipeline: FHIR Ingestion
+    → Clinical Relevance Scoring → Entity Extraction → Ontology Compression → Bundle
+    Generation. Each stage is independently testable and can be enhanced without affecting
+    others.'
+  scope:
+  - context_optimizer
+  - pipeline_stages
+- name: FHIR Resource Adapter Pattern
+  description: Each FHIR resource type (Condition, MedicationRequest, etc.) has a
+    dedicated adapter that knows how to extract clinical entities, calculate relevance
+    scores, and compress content using medical ontologies. New resource types can
+    be added by implementing the ResourceAdapter interface.
+  scope:
+  - fhir_adapters
+  - resource_processors
+- name: Strategy Pattern for Compression
+  description: Different compression strategies (ontology-based, NLP summarization,
+    temporal filtering) are implemented as pluggable strategies. The optimizer selects
+    and combines strategies based on resource type and target token budget.
+  scope:
+  - compression_strategies
+  - context_optimizer
+invariants:
+- All patient identifiers (Patient.id, MRN) must be preserved in output bundles to
+  maintain referential integrity for downstream AI tools
+- FHIR resource references (e.g., Condition.subject, MedicationRequest.subject) must
+  remain valid after compression
+- Temporal ordering of clinical events must be preserved - newer resources always
+  have higher timestamps than older ones in output bundles
+- Compressed context bundles must validate against FHIR R4 Bundle schema
+- Clinical codes (SNOMED CT, LOINC, RxNorm) must never be modified or removed during
+  compression - only narrative text may be compressed
+- Relevance scores must be deterministic - same input data always produces same scores
+  and output ordering
+conventions:
+- FHIR resource types use PascalCase matching HL7 specification (Condition, MedicationRequest)
+- 'Module names use snake_case: fhir_client, context_optimizer, relevance_scorer'
+- All clinical terminology lookups log the code system used (SNOMED CT, RxNorm, LOINC)
+  for audit trails
+- Relevance scores are floats between 0.0 and 1.0, stored in Bundle.entry.search.score
+- Token counting uses tiktoken with cl100k_base encoding (OpenAI standard) for consistency
+- All timestamps use ISO 8601 format with timezone information
+- Configuration uses environment variables with CLINICAL_CONTEXT_ prefix
+decisions:
+- id: D-1
+  title: Use rule-based relevance scoring instead of ML models for MVP
+  decision: Implement clinical relevance scoring using configurable rules (active
+    status, recency, resource type priority) rather than trained ML models
+  rationale: Rule-based scoring is deterministic, explainable to clinical users, and
+    doesn't require training data or model management. Clinical priorities (active
+    diagnoses > resolved, recent encounters > old) are well-established and can be
+    encoded as heuristics. This reduces MVP complexity while still achieving the core
+    value proposition. ML-based scoring can be added later as an enhancement.
+- id: D-2
+  title: Embed ontology databases locally rather than use external APIs
+  decision: Package UMLS, SNOMED CT, and RxNorm subsets as local SQLite databases
+    within the Docker container
+  rationale: Ensures zero external network calls to maintain HIPAA compliance and
+    on-premise processing guarantee. Eliminates API rate limits and latency. Increases
+    container size (~500MB) but acceptable for on-premise deployment. Use subset of
+    terminologies focused on common clinical codes to manage size.
+- id: D-3
+  title: Output FHIR Bundles with embedded relevance metadata
+  decision: Use FHIR Bundle resource with type='collection' and embed relevance scores
+    in Bundle.entry.search.score field, maintaining full FHIR compliance
+  rationale: Ensures output is standards-compliant and can be consumed by any FHIR-aware
+    system. The search.score field is standard FHIR and semantically appropriate for
+    relevance ranking. Avoids proprietary formats that would limit interoperability.
+    AI documentation tools can use scores to prioritize context or ignore them if
+    not needed.
+contracts: []

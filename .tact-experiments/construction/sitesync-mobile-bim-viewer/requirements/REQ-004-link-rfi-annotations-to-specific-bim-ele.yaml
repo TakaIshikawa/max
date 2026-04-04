@@ -1,0 +1,22 @@
+title: Link RFI annotations to specific BIM elements
+approval: draft
+phase: planned
+priority: high
+description: When creating an RFI, users must be able to select a specific BIM element
+  in the 3D viewer to associate the RFI with that element's GlobalId, enabling precise
+  traceability between field issues and design model.
+acceptanceCriteria:
+- User can tap 'Link to Model' button in RFI creation flow to enter element selection
+  mode in 3D viewer
+- Tapping a BIM element in selection mode captures its IFC GlobalId and element type
+  (e.g., 'IfcBeam', 'IfcWall')
+- RFI draft displays linked element information (type, ID, location description) with
+  option to change or remove link
+- Linked element is highlighted in 3D viewer when viewing the RFI draft
+- RFI can be created without linking to a BIM element if issue is not element-specific
+decomposition:
+  assignments: []
+dependencies:
+- Render 3D BIM models with touch-based navigation
+- Create RFI drafts with photo attachments offline
+source: discovered

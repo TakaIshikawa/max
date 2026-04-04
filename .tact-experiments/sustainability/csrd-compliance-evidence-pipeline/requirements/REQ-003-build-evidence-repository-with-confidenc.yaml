@@ -1,0 +1,23 @@
+title: Build evidence repository with confidence scoring
+approval: draft
+phase: planned
+priority: critical
+description: Central storage for all evidence items with computed confidence scores.
+  Scores flag low-quality data for human review. Repository provides query interface
+  for filtering by source, date range, metric type, and confidence threshold.
+acceptanceCriteria:
+- 'PostgreSQL schema stores evidence items with fields: id, source_id, metric_type,
+  value, unit, measurement_date, confidence_score, status (pending/approved/rejected),
+  metadata JSON'
+- 'Confidence score calculated using weighted heuristics: completeness (40%), freshness
+  (30% - decays if >90 days old), format validation (30% - checks unit consistency)'
+- API endpoint returns paginated evidence list with filters for source, date range,
+  metric_type, min_confidence_score
+- Evidence items with confidence <70% automatically marked as 'pending' and routed
+  to review queue
+- Audit log entry created for each evidence item creation with hash chain linking
+  to previous entry
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

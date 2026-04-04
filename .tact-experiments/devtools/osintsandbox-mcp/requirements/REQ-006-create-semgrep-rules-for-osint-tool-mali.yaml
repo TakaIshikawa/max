@@ -1,0 +1,22 @@
+title: Create semgrep rules for OSINT tool malicious patterns
+approval: draft
+phase: planned
+priority: high
+description: Develop custom semgrep rules that detect patterns specific to malicious
+  OSINT tools, beyond generic security issues. Improves vetting accuracy for this
+  domain.
+acceptanceCriteria:
+- Rules detect obfuscated imports (base64-encoded module names, dynamic __import__
+  calls)
+- Rules flag suspicious setup.py behavior (network calls during installation, file
+  operations outside package directory)
+- Rules identify credential harvesting patterns (reading ~/.aws/credentials, ~/.ssh/*,
+  environment variable access for API keys)
+- Rules detect anti-analysis techniques (debugger detection, VM detection, time-based
+  evasion)
+- At least 5 custom rules created and integrated into vet_package analysis pipeline
+decomposition:
+  assignments: []
+dependencies:
+- Implement package vetting MCP tool
+source: discovered

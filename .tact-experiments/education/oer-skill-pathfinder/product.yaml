@@ -1,0 +1,56 @@
+name: oer-skill-pathfinder
+version: 0.1.0
+vision: A corporate training platform that transforms free Open Educational Resources
+  into structured, role-specific learning paths with verifiable credentials, reducing
+  training costs while building portable employee skills.
+goals:
+- id: G-1
+  description: Enable companies to create and deploy role-based learning paths using
+    curated OER content
+  successCriteria: Platform supports creation of at least 5 distinct job role learning
+    paths (e.g., Junior Developer, Data Analyst, DevOps Engineer) with minimum 10
+    OER resources per path, and allows assignment to employees within 2 weeks of onboarding
+- id: G-2
+  description: Track employee learning progress across multiple OER sources with unified
+    dashboard
+  successCriteria: System accurately tracks completion status for GitHub-based exercises
+    (via commit/PR activity) and MOOC content (via xAPI/LTI), displaying real-time
+    progress metrics with 95% accuracy
+- id: G-3
+  description: Issue verifiable Open Badges that employees can share across professional
+    platforms
+  successCriteria: Employees earn Open Badges 3.0 compliant credentials upon path
+    completion, verifiable via public URL, and exportable to LinkedIn and digital
+    wallets within 24 hours of achievement
+- id: G-4
+  description: Demonstrate measurable cost savings compared to traditional vendor
+    training programs
+  successCriteria: Platform delivers learning paths with total cost per employee under
+    $50 (vs. $500+ for vendor certifications), with employee satisfaction scores averaging
+    4.0/5.0 or higher
+constraints:
+- MVP scope limited to GitHub-based OER resources and one MOOC platform integration
+  (edX) to reduce integration complexity
+- Open Badges issued via Badgr API only (no custom blockchain anchoring in MVP) to
+  accelerate time-to-market
+- Skill mapping uses predefined competency templates for 5 initial job roles rather
+  than full LLM-based extraction to control costs
+- No HRIS/LMS integrations in MVP; focus on standalone platform with CSV import/export
+  for employee data
+- Progress tracking limited to GitHub API (commits, PRs) and basic xAPI events from
+  edX; no custom SCORM/LTI authoring
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - Node.js
+  - Express
+  - React
+  - FastAPI
+  - LangChain
+  infrastructure:
+  - PostgreSQL
+  - Redis
+  - Docker
+  - GitHub Actions

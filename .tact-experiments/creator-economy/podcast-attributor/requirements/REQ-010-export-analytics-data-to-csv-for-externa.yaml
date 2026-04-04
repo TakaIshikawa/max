@@ -1,0 +1,20 @@
+title: Export analytics data to CSV for external analysis
+approval: draft
+phase: planned
+priority: low
+description: Allow users to export raw and aggregated analytics data as CSV files
+  for integration with spreadsheets, Notion, or other tools. This supports composability
+  and gives creators flexibility in how they analyze data.
+acceptanceCriteria:
+- 'Export functionality generates CSV with columns: date, episode_title, platform,
+  downloads, source, referrer'
+- User can select date range and platform filters before exporting
+- CSV file is generated server-side and provided as downloadable link
+- Export includes both raw records and daily aggregations based on user selection
+- Large exports (>10,000 records) are processed asynchronously with email delivery
+  of download link
+decomposition:
+  assignments: []
+dependencies:
+- Create unified analytics dashboard displaying aggregated download metrics
+source: discovered

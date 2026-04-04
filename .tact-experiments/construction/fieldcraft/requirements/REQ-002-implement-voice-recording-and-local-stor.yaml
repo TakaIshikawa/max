@@ -1,0 +1,18 @@
+title: Implement voice recording and local storage
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to record up to 60-second voice notes describing techniques.
+  Audio must be stored locally in a format compatible with Whisper API. Voice notes
+  are optional but encouraged for capturing tacit knowledge.
+acceptanceCriteria:
+- User can start/stop recording with clear visual feedback of recording state and
+  elapsed time
+- Recording automatically stops at 60 seconds with user notification
+- Audio stored locally in .m4a or .wav format compatible with Whisper API
+- User can play back recording before saving technique entry
+- App handles microphone permissions gracefully with clear error messages if denied
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

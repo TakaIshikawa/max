@@ -1,0 +1,45 @@
+name: bidguard
+version: 0.1.0
+vision: A mobile-first estimating tool that prevents catastrophic bid errors for residential
+  contractors by validating estimates against historical cost data and flagging anomalies
+  before submission.
+goals:
+- id: G-1
+  description: Prevent critical estimating errors that eliminate project profit
+  successCriteria: Flag 100% of formula errors, missing line items, and cost anomalies
+    >30% deviation from regional benchmarks before bid submission
+- id: G-2
+  description: Reduce bid preparation time through guided templates
+  successCriteria: Contractors complete estimates in <2 hours vs 4-8 hours with spreadsheets,
+    measured via time-to-export metrics
+- id: G-3
+  description: Provide offline-capable mobile experience for on-site estimating
+  successCriteria: PWA loads and functions fully offline, syncs estimates when connectivity
+    restored, <3 second initial load time
+- id: G-4
+  description: Enable seamless integration with existing contractor workflows
+  successCriteria: Export estimates to PDF and QuickBooks-compatible CSV format with
+    100% data fidelity
+constraints:
+- MVP excludes building permit API integration—uses seeded regional cost data only
+- 'AI validation limited to 3 project types: roof framing, room additions, kitchen
+  remodels'
+- No user authentication in MVP—estimates stored locally in browser only
+- QuickBooks integration via CSV export only (no OAuth API integration)
+- Single region support (US Pacific Northwest) for cost benchmarking data
+- Maximum 50 line items per estimate to control complexity
+- Offline storage limited to 10 draft estimates per device
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - React 18
+  - Tailwind CSS
+  - FastAPI
+  - Workbox (PWA)
+  infrastructure:
+  - PostgreSQL 15
+  - Redis (caching)
+  - OpenAI GPT-4 API
+  - Vercel/Railway (deployment)

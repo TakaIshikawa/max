@@ -1,0 +1,25 @@
+title: Build deadline detection agent
+approval: draft
+phase: planned
+priority: critical
+description: Develop a LangChain agent that analyzes employee certification data to
+  identify upcoming recertification deadlines based on expiration dates and configured
+  notification windows (30, 14, 7 days before expiration). This agent is the core
+  intelligence for proactive compliance management.
+acceptanceCriteria:
+- Agent queries certification database and identifies all certifications expiring
+  within next 90 days
+- Calculates notification trigger dates (30, 14, 7 days before expiration) for each
+  certification
+- Filters out certifications where employee has already completed recertification
+- Creates notification tasks with employee ID, certification name, deadline, and urgency
+  level
+- Logs all deadline calculations with input data (expiration date, current date, notification
+  windows) for audit trail
+- Processes 500 employee records with 5 certifications each in under 60 seconds
+decomposition:
+  assignments: []
+dependencies:
+- Implement xAPI LMS integration adapter
+- Implement SCORM LMS integration adapter
+source: discovered

@@ -1,0 +1,20 @@
+title: Transcribe uploaded content with word-level timestamps
+approval: draft
+phase: planned
+priority: critical
+description: Generate accurate transcripts with word-level timing information using
+  Whisper. Transcripts enable moment detection and caption generation. Processing
+  happens asynchronously via Celery task queue.
+acceptanceCriteria:
+- Transcribe audio track using OpenAI Whisper API or local model
+- Produce JSON output with word-level timestamps (start_time, end_time, word, confidence)
+- Achieve >95% transcription accuracy on clear audio (validated with sample podcast
+  episodes)
+- Update job status to 'transcribing' when task starts and 'transcribed' when complete
+- Handle transcription failures gracefully with retry logic (max 3 retries) and error
+  logging
+decomposition:
+  assignments: []
+dependencies:
+- Upload and validate video/audio files
+source: discovered

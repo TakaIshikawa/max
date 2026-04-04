@@ -1,0 +1,20 @@
+title: Display report history with sync status indicators
+approval: draft
+phase: planned
+priority: medium
+description: Users can view list of all created reports (both local and synced) with
+  sync status indicators, date, template type, and weather summary. Tapping a report
+  opens detail view with full report content, photos, and PDF download link.
+acceptanceCriteria:
+- Report list displays all reports in reverse chronological order (newest first)
+- Each report shows date, template type, weather summary, and sync status icon (pending/synced/failed)
+- User can tap report to view full detail (work performed, weather, photos, PDF download)
+- User can filter report list by date range and template type
+- Report list loads within 2 seconds for up to 500 reports
+- Pull-to-refresh triggers sync queue to upload pending reports
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline-first report creation with sync queue
+- Generate PDF reports with embedded photos and weather data
+source: discovered

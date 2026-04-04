@@ -1,0 +1,68 @@
+patterns:
+- name: Event-Driven Testing Pipeline
+  description: Model release monitoring triggers automated test workflows. Hugging
+    Face API polling detects new models, enqueues test jobs, executes containerized
+    tests, and stores results in database.
+  scope:
+  - monitoring
+  - testing
+  - orchestration
+- name: Isolated Test Environments
+  description: Each llama.cpp version runs in separate Docker container with fixed
+    dependencies. Tests execute in ephemeral containers to prevent state pollution
+    between runs.
+  scope:
+  - testing
+  - infrastructure
+- name: MCP Tool-Based Query Interface
+  description: Compatibility data exposed through MCP tools (check_compatibility,
+    list_tested_models, get_test_results) rather than direct database access. Enables
+    integration with AI agents and MCP clients.
+  scope:
+  - api
+  - mcp_server
+invariants:
+- Every test result must include llama.cpp version, model identifier, test timestamp,
+  and pass/fail status
+- 'Test environments must be reproducible: same model + same llama.cpp version always
+  uses identical container configuration'
+- 'Database must never store partial test results: tests either complete fully or
+  are marked as failed'
+- MCP tools must validate input parameters (model names, versions) before querying
+  database to prevent injection attacks
+- Compatibility matrix queries must return results even if no tests exist (with explicit
+  'untested' status)
+conventions:
+- 'Model identifiers use Hugging Face format: ''organization/model-name'''
+- llama.cpp versions referenced by git tag or commit SHA (e.g., 'b1234', 'v0.0.1')
+- 'Test result status enum: ''passed'', ''failed'', ''error'', ''untested'''
+- All timestamps stored in UTC with ISO 8601 format
+- 'MCP tool names use snake_case: check_compatibility, list_tested_models'
+- Docker images tagged as 'llamacpp-test:{version}' for consistency
+- Database tables prefixed with 'compat_' (compat_tests, compat_models, compat_results)
+decisions:
+- id: D-1
+  title: Use MCP Server Architecture Instead of Standalone REST API
+  decision: Implement as MCP server with tool-based interface rather than traditional
+    REST API
+  rationale: MCP provides standardized protocol for AI agent integration, which is
+    the primary use case. MCP clients can discover tools automatically, and the protocol
+    handles authentication/transport. REST API can be added later if needed, but MCP-first
+    aligns with composability goals and target users (agent harness systems).
+- id: D-2
+  title: Test Against Baseline Transformers Output for Correctness Validation
+  decision: Compare llama.cpp inference output against Hugging Face transformers library
+    output using same prompt and model weights
+  rationale: Transformers library is the reference implementation for most models.
+    Comparing outputs (using metrics like token-level accuracy or embedding similarity)
+    provides objective correctness validation. Catches quantization issues, KV cache
+    bugs, or implementation divergence that pure performance tests would miss.
+- id: D-3
+  title: Store Full Test Metadata in PostgreSQL Rather Than File-Based Storage
+  decision: Use PostgreSQL with structured schema for test results, models, and compatibility
+    matrix
+  rationale: Enables complex queries (e.g., 'all models compatible with llama.cpp
+    v0.0.1'), supports concurrent writes from test workers, provides ACID guarantees
+    for test result integrity, and simplifies MCP tool implementation. File-based
+    storage (JSON) would require custom indexing and concurrency handling.
+contracts: []

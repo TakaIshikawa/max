@@ -1,0 +1,20 @@
+title: Enable CSV data import with automatic element population
+approval: draft
+phase: planned
+priority: critical
+description: Allow users to upload CSV files containing ESG data (e.g., supplier names,
+  risk scores, emission values) and map CSV columns to diagram element properties.
+  Elements should automatically populate with data and update when CSV is re-uploaded,
+  supporting data-driven diagram creation.
+acceptanceCriteria:
+- User can upload a CSV file through a file input dialog
+- System parses CSV and displays column headers for mapping to element properties
+  (text, color, size)
+- User can select diagram elements and bind them to CSV rows using a unique identifier
+- Element text and color update automatically based on mapped CSV data
+- When CSV is re-uploaded with updated values, bound elements refresh to reflect new
+  data
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

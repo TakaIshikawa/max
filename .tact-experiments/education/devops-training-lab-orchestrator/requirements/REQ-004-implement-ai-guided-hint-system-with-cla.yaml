@@ -1,0 +1,22 @@
+title: Implement AI-guided hint system with Claude integration
+approval: draft
+phase: planned
+priority: high
+description: Provide contextual hints to users based on current scenario state, previous
+  commands, and decision tree logic. Uses Claude API for natural language generation
+  while following expert-authored guidance paths.
+acceptanceCriteria:
+- Decision tree parser loads scenario YAML and builds state machine
+- Hint API endpoint accepts session ID and returns contextual guidance within 3 seconds
+- Claude API called with scenario context, user history, and hint template to generate
+  natural language
+- 'Hints escalate in specificity: first hint is general direction, subsequent hints
+  more explicit'
+- System tracks hint usage count per scenario for performance scoring
+- Fallback to template-based hints if Claude API unavailable
+decomposition:
+  assignments: []
+dependencies:
+- Implement PTY-enabled shell session handler
+- Create three pre-built incident response scenarios
+source: discovered

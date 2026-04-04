@@ -1,0 +1,18 @@
+title: Generate OSCAL compliance reports
+approval: draft
+phase: planned
+priority: high
+description: Transform OPA policy evaluation results into OSCAL Assessment Results
+  format with findings, observations, and remediation recommendations.
+acceptanceCriteria:
+- Output valid OSCAL AR JSON conforming to v1.0.4 schema
+- Map each policy violation to an OSCAL finding with control-id referencing HIPAA
+  Security Rule section
+- Include file path, line number, and violation description in finding observations
+- Assign risk severity levels (high, moderate, low) based on policy violation criticality
+- Embed remediation suggestions as related-observations with implementation guidance
+decomposition:
+  assignments: []
+dependencies:
+- Implement HIPAA least-privilege policy for PHI access
+source: discovered

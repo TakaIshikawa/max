@@ -1,0 +1,24 @@
+title: Generate security scorecard report
+approval: draft
+phase: planned
+priority: critical
+description: Aggregate all test results into a structured JSON report with pass/fail
+  status, security score (percentage of passed tests), and remediation guidance for
+  each failure. Support both JSON output for CI/CD and human-readable HTML report.
+acceptanceCriteria:
+- JSON report includes schema version, timestamp, application identifier, and array
+  of test results
+- Each test result includes test_id, title, status (PASS/FAIL/SKIP/ERROR), and remediation_url
+- Security score is calculated as (passed_tests / total_tests) * 100
+- HTML report renders scorecard with color-coded results and expandable remediation
+  sections
+- CLI exits with code 0 if all critical tests pass, code 1 if any critical test fails
+decomposition:
+  assignments: []
+dependencies:
+- Validate PKCE implementation correctness
+- Validate state parameter security
+- Detect insecure token storage in web applications
+- Test authorization code replay attack prevention
+- Validate redirect URI security
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement context query tool with filtering
+approval: draft
+phase: planned
+priority: high
+description: Create an audit_query_context MCP tool that allows searching and filtering
+  logged contexts by timestamp range, file path pattern, token count range, and full-text
+  search on payload content. Must return results efficiently for databases with 10,000+
+  entries.
+acceptanceCriteria:
+- 'audit_query_context tool accepts optional parameters: start_time, end_time, file_path_pattern,
+  min_tokens, max_tokens, search_text, limit (default 100)'
+- Queries return results in <500ms for databases with 10,000 entries on typical development
+  hardware
+- Results include context ID, timestamp, file_path, token_count, and truncated payload
+  preview (first 500 chars)
+- Full-text search uses FTS5 MATCH syntax for efficient searching
+- Results ordered by timestamp descending (most recent first)
+decomposition:
+  assignments: []
+dependencies:
+- Create SQLite database schema with FTS5 support
+source: discovered

@@ -1,0 +1,21 @@
+title: Send alerts via Slack and PagerDuty for new vulnerabilities
+approval: draft
+phase: planned
+priority: high
+description: Implement notification adapters for Slack and PagerDuty that send alerts
+  when new vulnerabilities are detected for subscribed frameworks. Include vulnerability
+  details, risk score, affected versions, and remediation links. Prevent duplicate
+  notifications per vulnerability-channel combination.
+acceptanceCriteria:
+- Slack adapter posts formatted messages to configured webhook URL with vulnerability
+  summary, risk score, and links
+- PagerDuty adapter creates incidents via Events API v2 with severity mapping (critical/high
+  → high urgency)
+- Alert deduplication ensures each vulnerability is notified only once per channel
+- Notification preferences support severity thresholds (e.g., only critical/high)
+- Failed notifications are logged and retried up to 3 times with exponential backoff
+decomposition:
+  assignments: []
+dependencies:
+- Calculate risk scores based on CVSS, prevalence, and exploitability
+source: discovered

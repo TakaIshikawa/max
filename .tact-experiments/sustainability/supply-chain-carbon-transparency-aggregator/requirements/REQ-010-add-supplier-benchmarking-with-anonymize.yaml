@@ -1,0 +1,22 @@
+title: Add supplier benchmarking with anonymized industry averages
+approval: draft
+phase: planned
+priority: low
+description: Provide anonymized carbon intensity benchmarks by product category to
+  help buyers assess supplier performance against industry peers. Supports procurement
+  decision-making and creates network effects as more data accumulates.
+acceptanceCriteria:
+- 'System calculates category-level statistics: median, 25th percentile, 75th percentile
+  carbon intensity across all organizations'
+- 'Supplier scorecard displays benchmark comparison: ''This supplier is 15% below
+  industry median for Electronics Manufacturing'''
+- Benchmarks only shown when category has ≥10 suppliers across ≥3 organizations to
+  preserve anonymity
+- Admin dashboard shows how buyer's supplier portfolio compares to industry averages
+- Benchmark data refreshed weekly via background job
+decomposition:
+  assignments: []
+dependencies:
+- Implement data normalization and validation pipeline
+- Generate CS3D compliance reports with supplier scorecards
+source: discovered

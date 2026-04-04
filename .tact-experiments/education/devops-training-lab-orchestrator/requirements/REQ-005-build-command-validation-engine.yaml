@@ -1,0 +1,21 @@
+title: Build command validation engine
+approval: draft
+phase: planned
+priority: critical
+description: Validate user-executed commands against scenario requirements to track
+  progress and determine scenario completion. Must handle command variations (different
+  flags, equivalent commands) while ensuring learning objectives met.
+acceptanceCriteria:
+- Validation rules defined per scenario step with regex patterns and exit code checks
+- Engine compares executed command against current step requirements within 1 second
+- Supports command equivalence (e.g., 'kubectl get pods' vs 'kubectl get po')
+- Validates output patterns when command correctness depends on results (e.g., finding
+  specific log entry)
+- Returns validation result (pass/fail), progress percentage, and next step guidance
+- Incorrect commands decrement score but don't block progression after 2 attempts
+decomposition:
+  assignments: []
+dependencies:
+- Implement PTY-enabled shell session handler
+- Create three pre-built incident response scenarios
+source: discovered

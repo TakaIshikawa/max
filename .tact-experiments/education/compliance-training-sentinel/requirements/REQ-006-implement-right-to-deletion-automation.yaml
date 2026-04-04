@@ -1,0 +1,22 @@
+title: Implement right-to-deletion automation
+approval: draft
+phase: planned
+priority: high
+description: Build automated workflow to handle GDPR Article 17 deletion requests,
+  ensuring complete removal of employee personal data across all system components
+  within 30 days. Includes cascading deletion and verification.
+acceptanceCriteria:
+- Provides employee-facing deletion request form with identity verification
+- 'Deletion process removes employee data from: employees table, certifications, notifications,
+  consent records, audit logs containing PII'
+- Executes all deletions within database transaction to ensure atomicity
+- Retains anonymized compliance statistics (e.g., certification completion counts)
+  after deletion
+- Sends deletion confirmation email to employee within 24 hours
+- Generates deletion certificate with timestamp and data categories removed for audit
+  purposes
+decomposition:
+  assignments: []
+dependencies:
+- Implement GDPR consent management system
+source: discovered

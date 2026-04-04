@@ -1,0 +1,19 @@
+title: Implement model monitoring service that polls Hugging Face for new GGUF releases
+approval: draft
+phase: planned
+priority: critical
+description: Scheduled task that queries Hugging Face API every 6 hours for new GGUF
+  model uploads matching target model list (initially top 20 instruction-tuned models).
+  Enqueues testing jobs for newly detected model versions. Required to achieve automated
+  compatibility detection without manual intervention.
+acceptanceCriteria:
+- Service detects new GGUF model upload within 6 hours of publication on Hugging Face
+- Only models in configured watchlist trigger test jobs (no spurious testing of unrelated
+  models)
+- Duplicate test jobs are prevented when same model version detected across multiple
+  polling cycles
+- Service logs model detection events with timestamps and enqueued job IDs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,23 @@
+title: Calculate risk scores based on CVSS, prevalence, and exploitability
+approval: draft
+phase: planned
+priority: critical
+description: Implement risk scoring algorithm that combines CVSS base score, deployment
+  prevalence (npm download counts, GitHub stars, PyPI downloads), and exploit availability
+  (ExploitDB, GitHub PoCs). Classify vulnerabilities as critical/high/medium/low.
+  Recalculate scores when new data becomes available.
+acceptanceCriteria:
+- 'Risk score formula: (CVSS * 0.4) + (prevalence_score * 0.3) + (exploit_score *
+  0.3), normalized to 0-10 scale'
+- Prevalence score derived from npm weekly downloads or PyPI monthly downloads with
+  logarithmic scaling
+- Exploit availability checked via ExploitDB API and GitHub code search for PoC repositories
+- 'Classification thresholds: critical (9-10), high (7-8.9), medium (4-6.9), low (0-3.9)'
+- Scores are recalculated when CVSS data, download counts, or exploit availability
+  changes
+decomposition:
+  assignments: []
+dependencies:
+- Ingest GitHub security advisories for AI/ML frameworks
+- Aggregate CVE feeds from NVD and vendor databases
+source: discovered

@@ -1,0 +1,20 @@
+title: Package for PyPI distribution and Docker deployment
+approval: draft
+phase: planned
+priority: medium
+description: Create distributable Python package with setup.py/pyproject.toml for
+  PyPI and Dockerfile for containerized CI/CD execution. Enables easy installation
+  and integration into existing security pipelines.
+acceptanceCriteria:
+- Publish package to PyPI with name 'fintech-oauth-validator' installable via pip
+- Include entry point 'oauth-validator' command available after pip install
+- Create Dockerfile with Python 3.11 base image and all dependencies installed
+- Docker image size under 200MB with multi-stage build optimization
+- Include README with installation instructions, usage examples, and CI/CD integration
+  snippets for GitHub Actions and GitLab CI
+decomposition:
+  assignments: []
+dependencies:
+- Create CLI interface with CI/CD integration support
+- Generate JSON security reports with CWE and MITRE ATT&CK mappings
+source: discovered

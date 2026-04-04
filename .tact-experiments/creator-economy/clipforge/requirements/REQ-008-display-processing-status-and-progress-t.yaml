@@ -1,0 +1,20 @@
+title: Display processing status and progress tracking
+approval: draft
+phase: planned
+priority: high
+description: Provide real-time feedback on video processing pipeline status. Users
+  can see which stage each job is in (uploading, transcribing, detecting moments,
+  extracting clips, generating captions, formatting). Progress bars show completion
+  percentage for long-running tasks.
+acceptanceCriteria:
+- 'Display job status for each uploaded video: queued, transcribing, detecting_moments,
+  extracting_clips, generating_captions, formatting, completed, failed'
+- Show progress percentage for transcription and clip extraction tasks
+- Update status in real-time using polling (every 2 seconds) or WebSocket connection
+- Display error messages with actionable guidance when jobs fail
+- Allow users to view list of all jobs with filtering by status
+decomposition:
+  assignments: []
+dependencies:
+- Upload and validate video/audio files
+source: discovered

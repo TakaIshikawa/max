@@ -1,0 +1,72 @@
+patterns:
+- name: Policy-as-Code Engine
+  description: Use OPA as the core policy evaluation engine with Rego policies encoding
+    HIPAA requirements. Configuration parsers transform IaC files into normalized
+    JSON input for OPA evaluation.
+  scope:
+  - policy engine
+  - configuration parsers
+  - validation orchestration
+- name: Plugin Architecture for Parsers
+  description: Each configuration format (Bicep, Terraform, AWS IAM) has a dedicated
+    parser that implements a common ConfigurationParser interface, enabling extensibility
+    for future formats.
+  scope:
+  - parsers
+  - input processing
+- name: Severity-Based Violation Reporting
+  description: Policy violations are categorized by severity (critical, high, medium,
+    low) based on HIPAA risk impact. Critical violations block deployment; lower severities
+    generate warnings.
+  scope:
+  - policy evaluation
+  - reporting
+  - CI/CD integration
+invariants:
+- All policy evaluations must be deterministic and produce identical results for identical
+  inputs
+- Policy library YAML files must validate against a strict schema before being loaded
+  into OPA
+- CLI must never modify input configuration files; all operations are read-only
+- Violation reports must include exact line numbers and file paths for remediation
+- All PHI-related role assignments must be explicitly validated; implicit allow is
+  forbidden
+- Policy evaluation must complete without network I/O to ensure reproducibility in
+  air-gapped environments
+conventions:
+- 'Policy files named using pattern: hipaa_<domain>_<rule>.rego (e.g., hipaa_rbac_least_privilege.rego)'
+- Role bundle definitions stored as YAML in policies/bundles/ directory
+- 'Parser packages follow naming: internal/parsers/<format>parser (e.g., internal/parsers/bicepparser)'
+- All exported functions and types include godoc comments with examples
+- 'Error messages follow format: [SEVERITY] <PolicyID>: <Description> (File: <path>,
+  Line: <number>)'
+- Test files include both unit tests and golden file tests for policy evaluation
+- 'CLI commands use verb-noun structure: validate config, generate report, list policies'
+decisions:
+- id: D-1
+  title: Use OPA/Rego for policy engine instead of custom DSL
+  decision: Adopt Open Policy Agent with Rego policies
+  rationale: OPA is industry-standard for policy-as-code with mature tooling, testing
+    frameworks, and community support. Rego's declarative syntax is well-suited for
+    expressing HIPAA compliance rules. Avoids reinventing policy evaluation logic
+    and enables reuse of existing OPA integrations in CI/CD pipelines. Alternative
+    custom DSL would require significant development effort and lack ecosystem support.
+- id: D-2
+  title: Defer Epic/Cerner parsers to post-MVP, focus on cloud IaC
+  decision: MVP validates only Azure Bicep and AWS IAM configurations
+  rationale: Cloud infrastructure role assignments are well-documented, use standard
+    formats (JSON, HCL), and represent the highest-credibility pain point from validation.
+    Epic Chronicles XML and Cerner security classes require reverse-engineering proprietary
+    formats with high maintenance burden and vendor lock-in risk. Cloud-first approach
+    delivers immediate value to organizations with mature IaC practices while keeping
+    MVP scope achievable in 1-3 sessions.
+- id: D-3
+  title: Output compliance reports in OSCAL format
+  decision: Generate validation results as OSCAL Assessment Results (AR) documents
+  rationale: OSCAL is NIST-standardized format for security/compliance assessments,
+    enabling interoperability with GRC tools and audit workflows. Provides structured
+    machine-readable format for violation tracking and remediation evidence. Alternative
+    custom JSON format would limit integration potential and require documentation
+    effort. OSCAL AR schema naturally maps to policy violation reporting with controls,
+    findings, and observations.
+contracts: []

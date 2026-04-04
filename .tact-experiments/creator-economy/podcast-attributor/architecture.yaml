@@ -1,0 +1,78 @@
+patterns:
+- name: ETL Pipeline Pattern
+  description: Extract data from multiple podcast platform APIs, transform into normalized
+    schema with common fields (episode_id, downloads, timestamp, source), and load
+    into PostgreSQL with time-series optimizations
+  scope:
+  - backend
+  - data-processing
+- name: OAuth Integration Pattern
+  description: Standardized OAuth 2.0 flow for each platform integration with token
+    refresh, error handling, and credential storage in encrypted format
+  scope:
+  - authentication
+  - integrations
+- name: Repository Pattern
+  description: Abstract data access layer separating business logic from database
+    queries, with separate repositories for analytics, platforms, and users
+  scope:
+  - backend
+  - data-access
+- name: API-First Design
+  description: Backend exposes RESTful API endpoints consumed by React frontend, enabling
+    future third-party integrations and mobile clients
+  scope:
+  - backend
+  - frontend
+  - api
+invariants:
+- All download metrics must include timestamp, episode identifier, and platform source—incomplete
+  records are logged but not displayed
+- OAuth tokens must be encrypted at rest and refreshed before expiration; expired
+  tokens trigger re-authentication flow
+- Anomaly detection flags are advisory only and never modify or filter raw download
+  data
+- All API responses must include rate limit headers and respect platform-specific
+  throttling requirements
+- User credentials for podcast platforms are never logged or exposed in API responses
+- Time-series data aggregations must preserve timezone information and display in
+  creator's local timezone
+conventions:
+- Use kebab-case for API endpoints (/api/analytics/download-trends)
+- Use camelCase for JavaScript/TypeScript variables and functions
+- Use snake_case for database table and column names
+- Prefix environment variables with PODCAST_ATTRIBUTOR_ (e.g., PODCAST_ATTRIBUTOR_ANCHOR_CLIENT_ID)
+- All timestamps stored in UTC; convert to local timezone only in presentation layer
+- API error responses follow JSON:API error format with status, title, and detail
+  fields
+- Component files use PascalCase and match component name (AnalyticsDashboard.tsx)
+- Database migrations numbered sequentially with descriptive names (001_create_analytics_table.sql)
+decisions:
+- id: D-1
+  title: Use PostgreSQL over time-series database for analytics storage
+  decision: Store analytics data in PostgreSQL with composite indexes on (podcast_id,
+    timestamp) and (episode_id, timestamp)
+  rationale: While specialized time-series databases (InfluxDB, TimescaleDB) offer
+    better performance for high-frequency data, podcast download data updates infrequently
+    (daily/hourly). PostgreSQL with proper indexing on timestamp columns provides
+    sufficient query performance for MVP while reducing operational complexity and
+    infrastructure costs. TimescaleDB extension can be added later if needed.
+- id: D-2
+  title: Implement statistical anomaly detection instead of ML-based forecasting
+  decision: Use z-score threshold (>2 standard deviations) on rolling 7-day average
+    to flag traffic anomalies
+  rationale: Prophet and similar ML libraries require significant training data, computational
+    resources, and tuning. For MVP, z-score analysis on 7-day moving averages provides
+    80% of the value with 20% of the complexity. This approach works immediately with
+    limited historical data and has no external dependencies beyond basic math libraries.
+- id: D-3
+  title: Prioritize Anchor and Buzzsprout APIs for initial integrations
+  decision: Build OAuth integrations for Anchor and Buzzsprout in MVP; design platform
+    adapter interface to add Libsyn, Spotify for Podcasters, and Apple Podcasts Connect
+    in future iterations
+  rationale: Anchor has the largest market share among indie podcasters (free tier,
+    Spotify integration) and well-documented API. Buzzsprout is the second most popular
+    paid platform with stable OAuth implementation. This covers ~40% of the podcast
+    hosting market and provides diverse data sources (free vs. paid platform) to validate
+    the aggregation architecture.
+contracts: []

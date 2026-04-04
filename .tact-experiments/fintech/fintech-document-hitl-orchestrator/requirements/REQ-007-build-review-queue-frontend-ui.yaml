@@ -1,0 +1,22 @@
+title: Build review queue frontend UI
+approval: draft
+phase: planned
+priority: high
+description: Create React-based review queue interface where compliance officers can
+  view pending documents, see extracted fields with confidence scores, validate/correct
+  fields, and approve/reject documents.
+acceptanceCriteria:
+- Review queue page displays table of pending documents with upload date, document
+  type, and lowest confidence score
+- Document detail view shows document image viewer and extracted fields with confidence
+  indicators (red <0.6, yellow 0.6-0.8, green >0.8)
+- Editable form fields allow correcting extracted values with visual diff showing
+  original vs corrected
+- Approve/Reject buttons submit review decision via API and show success confirmation
+- Real-time validation prevents submitting review without correcting all low-confidence
+  fields (<0.6)
+decomposition:
+  assignments: []
+dependencies:
+- Build review queue API endpoints
+source: discovered

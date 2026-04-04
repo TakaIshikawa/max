@@ -1,0 +1,21 @@
+title: Configure data retention policies
+approval: draft
+phase: planned
+priority: medium
+description: Implement automated deletion of raw logs after 90 days, while preserving
+  aggregated metrics for 2 years and compliance reports indefinitely. Provide configuration
+  interface for retention periods per data type.
+acceptanceCriteria:
+- Create Celery scheduled task that runs daily to delete Elasticsearch log events
+  older than 90 days
+- Preserve aggregated daily metrics (vendor access counts, unique employees accessed)
+  in PostgreSQL summary table for 2 years
+- Exempt compliance_reports table from deletion (indefinite retention)
+- 'Store retention policies in configuration table: {data_type, retention_days} with
+  defaults: logs=90, metrics=730, reports=null'
+- Log all deletion operations with count of records deleted and date range
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and normalize LMS access logs from multiple formats
+source: discovered

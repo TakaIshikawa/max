@@ -1,0 +1,72 @@
+patterns:
+- name: Plugin-based Scanner Architecture
+  description: Core scanner orchestrates multiple specialized scanner plugins (DependencyScanner,
+    KedroScanner, JupyterScanner, FastAPIScanner). Each plugin implements a common
+    ScannerPlugin interface with scan() method returning Finding objects. This allows
+    independent development and testing of ML-specific detection logic.
+  scope:
+  - scanner engine
+  - plugin system
+  - finding aggregation
+- name: Vulnerability Rule Engine
+  description: Separate vulnerability definitions (YAML/JSON rules) from detection
+    logic. Rules define patterns (e.g., 'Kedro <0.18.14 with DataCatalog usage'),
+    severity, CWE mappings, and remediation guidance. Scanner plugins match code patterns
+    against rules to generate findings.
+  scope:
+  - vulnerability database
+  - rule matching
+  - finding generation
+- name: Multi-format Reporter Pattern
+  description: Finding objects are format-agnostic. Reporter classes (JSONReporter,
+    SARIFReporter, HTMLReporter) transform findings into output formats. Enables easy
+    addition of new output formats without changing scanner logic.
+  scope:
+  - output generation
+  - report formatting
+  - CI/CD integration
+invariants:
+- 'All findings MUST include: vulnerability ID, severity (critical/high/medium/low),
+  file location, description, and remediation guidance'
+- Scanner MUST never modify scanned files or directories—read-only operations only
+- 'Exit code MUST be non-zero if any findings meet or exceed configured severity threshold
+  (default: high)'
+- SARIF output MUST conform to SARIF 2.1.0 schema for GitHub Security integration
+  compatibility
+- Vulnerability rules MUST include CVE IDs or CWE IDs where applicable for traceability
+conventions:
+- Use snake_case for Python functions, variables, and module names
+- Scanner plugins named with 'Scanner' suffix (e.g., KedroScanner, JupyterScanner)
+- 'Finding severity levels: CRITICAL, HIGH, MEDIUM, LOW (uppercase constants)'
+- Vulnerability rule files stored in YAML format under rules/ directory, organized
+  by category (dependencies.yaml, kedro.yaml, fastapi.yaml)
+- 'CLI commands follow pattern: mlscan [command] [options] <target_path>'
+- Test files mirror source structure with _test.py suffix
+decisions:
+- id: D-1
+  title: Use AST parsing instead of regex for Python code analysis
+  decision: Implement scanner plugins using Python's ast module to parse Python files
+    into abstract syntax trees rather than regex pattern matching
+  rationale: AST parsing provides reliable detection of code patterns (e.g., identifying
+    FastAPI route decorators, Kedro DataCatalog.load() calls) without false positives
+    from comments or strings. Enables accurate line number reporting for findings.
+    More maintainable than fragile regex patterns as detection rules grow.
+- id: D-2
+  title: Embed curated vulnerability database rather than fetching external CVE feeds
+  decision: Ship scanner with embedded YAML rule files for ML-specific vulnerabilities,
+    manually curated from CVE databases and security advisories
+  rationale: MVP scope focuses on high-signal ML-specific threats (Kedro path traversal,
+    python-multipart ReDoS, pickle deserialization) rather than comprehensive CVE
+    coverage. Embedded rules eliminate runtime dependencies on external APIs, ensure
+    consistent results, and allow offline scanning. Avoids complexity of Trivy database
+    integration for MVP while maintaining extensibility for future updates.
+- id: D-3
+  title: Prioritize SARIF output for CI/CD integration over custom formats
+  decision: Implement SARIF 2.1.0 as primary structured output format, with JSON as
+    simplified alternative and HTML for human review
+  rationale: SARIF is the industry standard for static analysis tool output, natively
+    supported by GitHub Security tab, VS Code, and other security platforms. Ensures
+    composability with existing security workflows without custom integrations. JSON
+    provides lightweight option for teams without SARIF tooling. HTML serves ad-hoc
+    manual reviews.
+contracts: []

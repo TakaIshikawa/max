@@ -1,0 +1,19 @@
+title: Add JSON data source support alongside CSV
+approval: draft
+phase: planned
+priority: medium
+description: Extend data import to support JSON files in addition to CSV, enabling
+  integration with more complex ESG data structures from carbon accounting tools.
+  JSON support allows nested data and richer metadata.
+acceptanceCriteria:
+- User can upload JSON files through the same file input dialog as CSV
+- System parses JSON and displays top-level keys for mapping to element properties
+- User can navigate nested JSON structures using dot notation (e.g., 'supplier.risk_score')
+- JSON data bindings work identically to CSV bindings for element population
+- System handles JSON arrays by allowing users to select specific array indices or
+  iterate over arrays
+decomposition:
+  assignments: []
+dependencies:
+- Enable CSV data import with automatic element population
+source: discovered

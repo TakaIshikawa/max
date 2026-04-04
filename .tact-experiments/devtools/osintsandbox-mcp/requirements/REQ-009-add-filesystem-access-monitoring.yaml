@@ -1,0 +1,21 @@
+title: Add filesystem access monitoring
+approval: draft
+phase: planned
+priority: low
+description: Monitor and log file operations within container to detect suspicious
+  behavior like reading sensitive files or writing to unexpected locations. Complements
+  network monitoring for comprehensive behavioral analysis.
+acceptanceCriteria:
+- Use inotify or auditd in container to log file read/write/execute operations
+- 'Flag suspicious file access: reads to /etc/passwd, /etc/shadow, writes outside
+  /tmp or /output'
+- File access log included in execution log with timestamp, operation (read/write/execute),
+  path, and process
+- Minimal performance impact (<10% overhead on file-intensive tools)
+- 'At least 2 suspicious file operation categories detected: SENSITIVE_FILE_READ,
+  UNEXPECTED_WRITE_LOCATION'
+decomposition:
+  assignments: []
+dependencies:
+- Implement isolated tool execution MCP tool
+source: discovered

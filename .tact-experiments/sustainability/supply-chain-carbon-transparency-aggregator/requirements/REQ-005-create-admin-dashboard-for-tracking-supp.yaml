@@ -1,0 +1,24 @@
+title: Create admin dashboard for tracking supplier engagement
+approval: draft
+phase: planned
+priority: high
+description: Provide buyers with real-time visibility into data collection progress,
+  response rates, and data quality issues. Supports goal G-4 by displaying metrics
+  and flagging 100% of inconsistencies for review.
+acceptanceCriteria:
+- 'Dashboard displays: total suppliers invited, response rate %, average response
+  time, data completeness score'
+- 'Supplier table shows: name, status, submission date, quality score, flagged issues,
+  with filters by status/category'
+- 'Flagged submissions highlighted in red with issue description (e.g., ''Missing
+  units'', ''Outlier value: 450 kg CO2e/$ vs category avg 12'')'
+- Admin can click flagged submission to view raw data, edit normalized values, and
+  mark as 'reviewed' with notes
+- Email reminder button sends follow-up to non-responding suppliers (max 2 reminders
+  per request cycle)
+decomposition:
+  assignments: []
+dependencies:
+- Implement supplier data request workflow with email automation
+- Implement data normalization and validation pipeline
+source: discovered

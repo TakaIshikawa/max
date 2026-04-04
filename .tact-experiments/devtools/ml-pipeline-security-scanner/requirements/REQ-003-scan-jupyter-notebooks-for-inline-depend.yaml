@@ -1,0 +1,19 @@
+title: Scan Jupyter notebooks for inline dependency installations and code patterns
+approval: draft
+phase: planned
+priority: high
+description: Parse .ipynb files to detect pip install commands in code cells and analyze
+  Python code for unsafe patterns (pickle.load, eval). Jupyter notebooks are common
+  in ML workflows but often overlooked by security scanners.
+acceptanceCriteria:
+- Parse .ipynb JSON structure to extract code cells using nbformat library
+- Detect pip/conda install commands in cells and extract package names/versions
+- Identify usage of unsafe deserialization functions (pickle.load, joblib.load, torch.load)
+  with line numbers
+- Generate findings for notebooks with severity based on pattern type (e.g., HIGH
+  for pickle.load without validation)
+decomposition:
+  assignments: []
+dependencies:
+- Parse dependency files to extract ML library versions
+source: discovered

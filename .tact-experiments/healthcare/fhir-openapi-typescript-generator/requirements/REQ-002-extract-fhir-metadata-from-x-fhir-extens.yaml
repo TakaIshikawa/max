@@ -1,0 +1,20 @@
+title: Extract FHIR metadata from x-fhir-* extensions
+approval: draft
+phase: planned
+priority: critical
+description: For each FHIR resource schema, extract metadata from x-fhir-* extensions
+  including examples (x-fhir-examples), human-readable labels (x-fhir-label or description),
+  and terminology bindings (x-fhir-valueSet). This metadata will be embedded in generated
+  Zod schemas.
+acceptanceCriteria:
+- Extractor captures x-fhir-examples as array of example resource instances
+- Extractor captures x-fhir-label or falls back to description field for human-readable
+  labels
+- Extractor captures x-fhir-valueSet URLs for coded fields (e.g., Observation.status)
+- Extractor produces structured metadata IR (intermediate representation) with resourceType,
+  profileUrl, fields array containing {name, label, valueSet, examples}
+decomposition:
+  assignments: []
+dependencies:
+- Parse OpenAPI spec and extract FHIR resource schemas
+source: discovered

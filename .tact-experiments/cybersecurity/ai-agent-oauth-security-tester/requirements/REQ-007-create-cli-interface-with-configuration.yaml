@@ -1,0 +1,20 @@
+title: Create CLI interface with configuration support
+approval: draft
+phase: planned
+priority: high
+description: Build a Click-based CLI that accepts target configuration via YAML files
+  and command-line arguments, executes test suite, and outputs reports in specified
+  formats.
+acceptanceCriteria:
+- Implement 'scan' command accepting --config (YAML file), --target (OAuth server
+  URL), --output-dir flags
+- Load OAuth client configuration (client_id, client_secret, redirect_uri, scopes)
+  from YAML
+- 'Support --format flag with options: sarif, json, markdown, all (default: all)'
+- Display real-time progress with test execution status and vulnerability count
+- Exit with code 1 if critical/high vulnerabilities found, 0 otherwise (for CI/CD
+  integration)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

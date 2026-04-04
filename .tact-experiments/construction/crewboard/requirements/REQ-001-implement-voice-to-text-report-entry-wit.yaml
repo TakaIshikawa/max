@@ -1,0 +1,21 @@
+title: Implement voice-to-text report entry with Whisper API
+approval: draft
+phase: planned
+priority: critical
+description: Field supervisors record daily report summary via voice (up to 5 minutes).
+  Audio is transcribed using OpenAI Whisper API with fallback to device-native speech-to-text
+  when offline. Transcription appears in editable text field for review before submission.
+acceptanceCriteria:
+- User can tap 'Record' button to start audio recording and 'Stop' to end recording
+  (max 5 minutes)
+- Audio file is stored locally and queued for Whisper API transcription when connectivity
+  available
+- Transcribed text appears in editable text field within 10 seconds of recording completion
+  (when online)
+- When offline, device-native speech-to-text provides immediate transcription with
+  Whisper re-transcription queued for sync
+- User can edit transcribed text before submitting report
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

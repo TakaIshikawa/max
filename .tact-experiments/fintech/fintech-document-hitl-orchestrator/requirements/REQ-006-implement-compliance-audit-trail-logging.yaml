@@ -1,0 +1,20 @@
+title: Implement compliance audit trail logging
+approval: draft
+phase: planned
+priority: critical
+description: Create immutable audit event logging system that records all document
+  state changes, extraction results, and human decisions with timestamps and user
+  attribution. Required for regulatory compliance.
+acceptanceCriteria:
+- 'AuditEvent model with fields: id, timestamp, event_type, document_id, user_id,
+  before_state, after_state, metadata'
+- 'Audit events created for: document_uploaded, extraction_completed, review_submitted,
+  status_changed'
+- Audit events table has no UPDATE or DELETE permissions - insert-only
+- GET /api/v1/documents/{id}/audit-trail endpoint returns chronological audit events
+  for document
+- All audit events include user_id (or 'system' for automated events) and UTC timestamps
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

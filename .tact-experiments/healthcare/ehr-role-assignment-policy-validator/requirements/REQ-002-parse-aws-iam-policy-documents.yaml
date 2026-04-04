@@ -1,0 +1,17 @@
+title: Parse AWS IAM policy documents
+approval: draft
+phase: planned
+priority: critical
+description: Extract IAM policies, roles, and attached policy ARNs from AWS IAM JSON
+  configurations. Enables validation of AWS access controls for FHIR stores and PHI-containing
+  S3 buckets.
+acceptanceCriteria:
+- Parse IAM policy documents in JSON format with Statement arrays
+- Extract Effect, Action, Resource, and Condition fields from each statement
+- Identify IAM roles and their attached managed/inline policies
+- Normalize policy documents into consistent JSON structure for OPA input
+- Detect and report malformed JSON with descriptive error messages
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement document upload API endpoint
+approval: draft
+phase: planned
+priority: critical
+description: Create REST API endpoint to accept document uploads (PDF/PNG/JPG) with
+  metadata (document_type, user_id) and initiate async extraction processing. This
+  is the entry point for all document processing workflows.
+acceptanceCriteria:
+- POST /api/v1/documents endpoint accepts multipart/form-data with file and metadata
+- Validates file size (<10MB) and format (PDF, PNG, JPG) and returns 400 error for
+  invalid uploads
+- Uploads file to S3 and creates document record in PostgreSQL with status='uploaded'
+- Triggers Celery task for extraction and returns 202 Accepted with document_id and
+  status URL
+- Creates audit event for document upload with timestamp and user_id
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

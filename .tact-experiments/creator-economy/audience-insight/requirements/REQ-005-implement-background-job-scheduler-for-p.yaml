@@ -1,0 +1,20 @@
+title: Implement background job scheduler for periodic comment fetching
+approval: draft
+phase: planned
+priority: high
+description: Create a job queue system using Redis that fetches new comments every
+  6 hours for all connected accounts and triggers NLP analysis. This keeps data fresh
+  without requiring manual refreshes.
+acceptanceCriteria:
+- Scheduled job runs every 6 hours and fetches new comments for all connected platforms
+- Job enqueues NLP analysis tasks for newly fetched comments
+- Job respects API rate limits and pauses when quotas exhausted
+- Job logs success/failure and stores last sync timestamp per platform connection
+- User can manually trigger immediate sync from dashboard
+decomposition:
+  assignments: []
+dependencies:
+- Implement YouTube OAuth authentication and comment fetching
+- Implement TikTok or Instagram OAuth authentication and comment fetching
+- Build NLP microservice for sentiment analysis and topic extraction
+source: discovered

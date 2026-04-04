@@ -1,0 +1,24 @@
+title: Validate and sanitize LLM-structured data before Procore sync
+approval: draft
+phase: planned
+priority: medium
+description: Structured JSON from LLM must be validated against Procore Daily Log
+  schema before sync attempt. Invalid data should trigger user review rather than
+  failed API calls.
+acceptanceCriteria:
+- Zod schema defined matching Procore Daily Log required fields (date, weather, crew_count,
+  work_description)
+- LLM output parsed and validated against schema before saving to database
+- If validation fails, report marked with 'needs_review' flag and user notified to
+  manually edit fields
+- Report detail screen shows validation errors (e.g., 'Missing crew count') with inline
+  edit fields
+- User can manually correct invalid fields and re-trigger sync
+- Sanitization removes potentially problematic characters from text fields (e.g.,
+  null bytes, control characters)
+decomposition:
+  assignments: []
+dependencies:
+- Convert transcript to structured daily report JSON using LLM
+- Implement sync queue with automatic Procore API submission
+source: discovered

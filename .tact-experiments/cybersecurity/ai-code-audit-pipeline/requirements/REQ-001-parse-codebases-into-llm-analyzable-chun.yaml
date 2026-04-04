@@ -1,0 +1,19 @@
+title: Parse codebases into LLM-analyzable chunks using tree-sitter
+approval: draft
+phase: planned
+priority: critical
+description: Ingest a codebase directory, parse files using tree-sitter grammars for
+  Python/JavaScript/C/C++, and chunk code into function-level or class-level segments
+  that fit within LLM token limits. This enables granular vulnerability analysis without
+  losing code context.
+acceptanceCriteria:
+- Successfully parse Python, JavaScript, and C/C++ files into AST using tree-sitter
+- Chunk code at function/method boundaries with maximum 6000 tokens per chunk (leaving
+  2K buffer for prompts)
+- Preserve file path, line number ranges, and parent scope context for each chunk
+- 'Handle parsing errors gracefully: log unparseable files and continue processing'
+- Output chunk metadata (file, lines, language, token count) for debugging
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

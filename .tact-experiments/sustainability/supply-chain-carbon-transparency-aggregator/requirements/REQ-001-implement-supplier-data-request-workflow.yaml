@@ -1,0 +1,20 @@
+title: Implement supplier data request workflow with email automation
+approval: draft
+phase: planned
+priority: critical
+description: Enable buyers to upload supplier lists (CSV with name, email, product
+  category, annual spend) and send automated data request emails with unique portal
+  access links. Supports goal G-1 by automating outreach to 50+ suppliers and tracking
+  response rates.
+acceptanceCriteria:
+- 'Buyer can upload CSV with columns: supplier_name, email, product_category, annual_spend_usd'
+- System generates unique tokenized URL (256-bit) for each supplier with 90-day expiration
+- Automated email sent via SendGrid includes personalized supplier name, buyer company,
+  portal link, and submission deadline
+- 'Admin dashboard displays supplier list with status: pending, submitted, expired,
+  bounced'
+- Email bounce handling updates supplier status and logs error reason
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

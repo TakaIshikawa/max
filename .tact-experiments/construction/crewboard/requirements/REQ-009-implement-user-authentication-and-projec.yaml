@@ -1,0 +1,18 @@
+title: Implement user authentication and project assignment
+approval: draft
+phase: planned
+priority: high
+description: Users authenticate with email/password and are assigned to a single project
+  (MVP constraint). User profile includes name, role (supervisor/foreman), and project
+  details (name, address, lat/lng).
+acceptanceCriteria:
+- User can register with email, password, name, and role
+- User can log in with email and password
+- User profile includes project assignment (name, address, lat/lng)
+- Project lat/lng is used for weather API calls
+- Authentication token is stored securely on device and included in all API requests
+- User can log out and clear local data
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

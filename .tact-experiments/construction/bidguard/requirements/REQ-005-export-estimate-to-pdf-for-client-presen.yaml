@@ -1,0 +1,22 @@
+title: Export estimate to PDF for client presentation
+approval: draft
+phase: planned
+priority: high
+description: Generate professional PDF document containing estimate details, line
+  item breakdown, totals, and contractor branding. Enables contractors to present
+  bids to clients without revealing internal cost structure. PDF generation happens
+  client-side to work offline.
+acceptanceCriteria:
+- Export button generates PDF within 3 seconds for estimates up to 50 line items
+- PDF includes header with contractor name, project name, date, and estimate number
+- Line items grouped by category (materials, labor, equipment) with subtotals
+- Excluded items appear in separate 'Optional Items' section, not in main total
+- PDF footer shows grand total, tax (if applicable), and payment terms placeholder
+- 'Generated PDF downloads with filename format: EstimateName_YYYYMMDD.pdf'
+- PDF generation works offline using browser-based rendering (no server dependency)
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+- Require explicit confirmation for excluded line items
+source: discovered

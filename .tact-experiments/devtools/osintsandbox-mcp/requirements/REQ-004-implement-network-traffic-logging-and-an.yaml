@@ -1,0 +1,25 @@
+title: Implement network traffic logging and analysis
+approval: draft
+phase: planned
+priority: high
+description: Capture and analyze all HTTP/HTTPS traffic from tool execution containers
+  to detect suspicious behavior like data exfiltration, unexpected API calls, or credential
+  transmission. Provides visibility into tool network activity.
+acceptanceCriteria:
+- mitmproxy captures all HTTP/HTTPS requests and responses from container
+- Logs written to host filesystem in JSON format with timestamp, method, URL, headers,
+  request_body, response_code, response_body
+- 'Analyzer detects suspicious patterns: POST requests with >1KB bodies to non-tool-related
+  domains, authorization headers to unexpected services, requests to IP addresses
+  instead of domains'
+- 'Flags at least 3 categories of suspicious behavior: UNEXPECTED_NETWORK (requests
+  to domains not in tool''s documented API list), CREDENTIAL_TRANSMISSION (authorization
+  headers or API keys in requests), DATA_EXFILTRATION (large POST bodies to non-whitelisted
+  endpoints)'
+- Network log accessible via get_network_log tool that accepts execution_id and returns
+  parsed traffic with suspicious_flags
+decomposition:
+  assignments: []
+dependencies:
+- Implement isolated tool execution MCP tool
+source: discovered

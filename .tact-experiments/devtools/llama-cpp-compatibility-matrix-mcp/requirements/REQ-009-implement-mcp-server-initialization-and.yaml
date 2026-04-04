@@ -1,0 +1,20 @@
+title: Implement MCP server initialization and tool registration
+approval: draft
+phase: planned
+priority: critical
+description: Create MCP server application that initializes database connection, registers
+  tools (check_compatibility, list_tested_models), and handles stdio transport for
+  MCP clients.
+acceptanceCriteria:
+- Server implements MCP protocol using mcp Python SDK
+- Registers tools with proper schemas defining parameters and return types
+- Establishes PostgreSQL connection pool on startup
+- Handles graceful shutdown (closes DB connections, completes in-flight requests)
+- Logs tool invocations with parameters and execution time
+- Includes health check endpoint for monitoring
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP tool for compatibility queries
+- Implement MCP tool for listing tested models
+source: discovered

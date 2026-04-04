@@ -1,0 +1,19 @@
+title: Implement CLI with configuration options
+approval: draft
+phase: planned
+priority: high
+description: Create Commander.js-based CLI with options for input spec, output directory,
+  vendor selection, and resource filtering. CLI must provide clear error messages
+  and help documentation.
+acceptanceCriteria:
+- 'CLI supports flags: --input <path>, --output <dir>, --vendor <name>, --resources
+  <list>'
+- CLI displays help text with --help flag showing all options and examples
+- CLI validates input file exists and is valid OpenAPI spec before generation
+- CLI outputs summary of generated files (count of schemas, factories, types) on success
+- CLI exits with code 0 on success, non-zero on errors with descriptive error messages
+decomposition:
+  assignments: []
+dependencies:
+- Parse OpenAPI spec and extract FHIR resource schemas
+source: discovered

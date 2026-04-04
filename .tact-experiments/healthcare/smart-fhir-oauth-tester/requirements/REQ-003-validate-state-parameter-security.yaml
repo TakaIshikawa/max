@@ -1,0 +1,19 @@
+title: Validate state parameter security
+approval: draft
+phase: planned
+priority: critical
+description: Verify that the application generates cryptographically random state
+  parameters, validates them on callback, and never reuses state values across authorization
+  requests. This prevents CSRF attacks on the OAuth flow.
+acceptanceCriteria:
+- Test SEC-010 fails if state parameter has less than 128 bits of entropy
+- Test SEC-011 fails if the same state value is used in multiple /authorize requests
+- Test SEC-012 fails if the application accepts a callback with a state value it never
+  generated
+- Test SEC-013 passes if application rejects callback when state parameter is missing
+- State parameter uniqueness is validated across 10 consecutive authorization flows
+decomposition:
+  assignments: []
+dependencies:
+- Implement SMART App Launch mock authorization server
+source: discovered

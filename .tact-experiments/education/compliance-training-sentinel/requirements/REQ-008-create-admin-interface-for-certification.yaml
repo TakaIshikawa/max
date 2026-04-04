@@ -1,0 +1,22 @@
+title: Create admin interface for certification requirement configuration
+approval: draft
+phase: planned
+priority: high
+description: Build web-based admin interface allowing HR teams to define role-based
+  certification requirements, set validity periods, and configure notification schedules
+  without HRIS integration. Replaces manual spreadsheet tracking.
+acceptanceCriteria:
+- 'Admin can create certification definitions with: name, description, validity period
+  (months), required roles'
+- Admin can assign certifications to employee roles (e.g., 'Healthcare Provider' requires
+  'HIPAA Training')
+- 'Admin can configure notification windows (default: 30, 14, 7 days) per certification
+  type'
+- Interface displays current certification assignments with employee count per role
+- Supports bulk import of certification requirements from CSV file
+- Changes to certification requirements trigger recalculation of affected employee
+  deadlines
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

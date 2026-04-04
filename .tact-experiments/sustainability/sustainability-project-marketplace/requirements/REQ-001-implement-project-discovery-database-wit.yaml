@@ -1,0 +1,22 @@
+title: Implement project discovery database with CSRD metadata
+approval: draft
+phase: planned
+priority: critical
+description: Create PostgreSQL schema and Prisma models for sustainability projects
+  with enhanced metadata including API availability, CSRD applicability tags, integration
+  difficulty ratings, and data schema information. Seed database with top 100 projects
+  from OpenSustain.tech.
+acceptanceCriteria:
+- 'Prisma schema defines Project model with fields: name, description, repositoryUrl,
+  apiAvailable (boolean), apiDocumentationUrl, csrdTags (array), integrationDifficulty
+  (enum: easy/medium/hard), dataSchemaUrl, lastUpdated'
+- Database seeded with 100 projects including at least 20 with API availability marked
+  true
+- Migration scripts create tables with proper indexes on csrdTags and integrationDifficulty
+  for query performance
+- Each project has at least one CSRD tag from predefined taxonomy (Scope1, Scope2,
+  Scope3, EnergyMonitoring, SupplyChain, WaterUsage, WasteManagement, NotApplicable)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

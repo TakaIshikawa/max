@@ -1,0 +1,22 @@
+title: Create three pre-built incident response scenarios
+approval: draft
+phase: planned
+priority: high
+description: Develop scenario definitions for service failure, database lock, and
+  security alert incidents with step-by-step runbooks, validation criteria, and hint
+  decision trees. Provides concrete training content for MVP.
+acceptanceCriteria:
+- Each scenario defined as YAML with initial state, required steps, and success conditions
+- 'Scenario 1 (service failure): nginx pod crash requiring log analysis and restart'
+- 'Scenario 2 (database lock): PostgreSQL deadlock requiring query identification
+  and termination'
+- 'Scenario 3 (security alert): unauthorized SSH attempt requiring log review and
+  firewall update'
+- Each scenario includes 5-8 validation checkpoints with expected command patterns
+- Terraform modules provision scenario-specific infrastructure (broken services, locked
+  DB, etc.)
+decomposition:
+  assignments: []
+dependencies:
+- Provision isolated Kubernetes lab environments on demand
+source: discovered

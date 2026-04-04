@@ -1,0 +1,22 @@
+title: Enable one-tap multi-platform go-live via Restream API
+approval: draft
+phase: planned
+priority: critical
+description: Integrate with Restream API to allow users to start streams simultaneously
+  on Twitch and YouTube with a single action. Users configure stream title, description,
+  and category once, and the app initiates streaming on all connected platforms. This
+  addresses the core pain point of manual multi-platform setup.
+acceptanceCriteria:
+- User can configure stream title, description, and category in a single form
+- Tapping 'Go Live' button initiates streams on all connected platforms (Twitch and
+  YouTube) within 60 seconds
+- User receives confirmation when each platform stream starts successfully
+- Error handling displays specific platform failures (e.g., 'YouTube stream failed
+  to start') without blocking other platforms
+- Stream configuration is saved and pre-populated for next session
+- User can end all streams simultaneously with 'End Stream' button
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authentication for Twitch and YouTube
+source: discovered

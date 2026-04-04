@@ -1,0 +1,18 @@
+title: Implement PTY-enabled shell session handler
+approval: draft
+phase: planned
+priority: critical
+description: Core capability to capture interactive shell I/O (SSH sessions, database
+  CLIs, kubectl exec) and maintain pseudo-terminal state for realistic command-line
+  interactions. Required for AI agent to understand context and provide guidance.
+acceptanceCriteria:
+- Python pty module creates pseudo-terminal for user shell sessions
+- All stdin/stdout/stderr captured with timestamps and session ID
+- Interactive prompts (password inputs, yes/no confirmations) handled correctly
+- Terminal control sequences (colors, cursor movement) preserved in output
+- Session history stored in PostgreSQL with command, output, exit code, and timing
+decomposition:
+  assignments: []
+dependencies:
+- Provision isolated Kubernetes lab environments on demand
+source: discovered

@@ -1,0 +1,71 @@
+patterns:
+- name: Sandbox Orchestrator
+  description: Central orchestrator manages lifecycle of vetting, container provisioning,
+    execution monitoring, and cleanup. Ensures consistent security controls across
+    all tool executions.
+  scope:
+  - Container management
+  - Execution workflow
+  - Resource cleanup
+- name: Defense in Depth
+  description: 'Multiple security layers: static analysis before execution, network
+    isolation during execution, behavioral monitoring throughout, and safe result
+    extraction. Failure in one layer doesn''t compromise overall security.'
+  scope:
+  - Vetting pipeline
+  - Container isolation
+  - Network monitoring
+  - Result extraction
+- name: Immutable Execution Context
+  description: Each tool execution creates a fresh, isolated container from base image.
+    No state persists between executions to prevent cross-contamination.
+  scope:
+  - Container lifecycle
+  - Filesystem isolation
+  - Network configuration
+invariants:
+- Tool execution containers MUST never have direct access to host filesystem (only
+  mounted volumes for input/output)
+- All outbound network traffic from containers MUST be proxied through monitoring
+  layer
+- Vetting analysis MUST complete before any tool installation or execution is permitted
+- Container cleanup MUST occur after every execution, regardless of success or failure
+- Credentials and secrets MUST never be passed directly to containers (only scoped,
+  temporary tokens)
+- Execution logs MUST be written to host before container termination
+conventions:
+- 'MCP tool names use snake_case: vet_package, execute_tool, get_execution_logs'
+- 'Container names follow pattern: osintsandbox-{tool_name}-{timestamp}'
+- Risk scores normalized to 0.0-1.0 scale (0.0 = highest risk, 1.0 = lowest risk)
+- All timestamps in ISO 8601 format with UTC timezone
+- 'Suspicious behavior categories use uppercase constants: CREDENTIAL_ACCESS, UNEXPECTED_NETWORK,
+  SUSPICIOUS_FILE_OPS'
+- Python code follows PEP 8, type hints required for all public functions
+- 'Docker images tagged with format: osintsandbox/base:{python_version}'
+decisions:
+- id: D-1
+  title: Use mitmproxy for network monitoring instead of iptables logging
+  decision: Implement network monitoring using mitmproxy as transparent proxy for
+    container traffic
+  rationale: 'mitmproxy provides HTTP/HTTPS request/response inspection with minimal
+    configuration, while iptables only logs connection metadata. For OSINT tools that
+    primarily make API calls, seeing full request bodies and headers is critical for
+    detecting data exfiltration. Trade-off: adds complexity and slight performance
+    overhead, but detection capability justifies cost for security-focused MVP.'
+- id: D-2
+  title: Static analysis runs on host, not in container
+  decision: Download package source to temporary host directory, run Bandit/semgrep
+    analysis on host, then delete source before container creation
+  rationale: Running static analysis on host allows use of existing security tools
+    without bundling them in container images. Reduces container image size and attack
+    surface. Temporary directory isolation provides sufficient security for read-only
+    analysis. If package is malicious, it never executes on host—only analyzed statically.
+- id: D-3
+  title: Synchronous execution model for MVP
+  decision: MCP tools block until container execution completes and results are extracted
+  rationale: Asynchronous execution with job queuing adds significant complexity (job
+    tracking, status polling, result storage). For MVP targeting 1-5 person security
+    teams, synchronous execution is acceptable—OSINT tool runs typically complete
+    in seconds to minutes. Can add async support post-MVP if long-running tools become
+    common use case.
+contracts: []

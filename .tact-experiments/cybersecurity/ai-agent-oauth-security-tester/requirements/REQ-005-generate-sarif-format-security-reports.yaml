@@ -1,0 +1,20 @@
+title: Generate SARIF format security reports
+approval: draft
+phase: planned
+priority: high
+description: Produce SARIF 2.1.0 compliant reports containing vulnerability findings
+  with locations, severity levels, and remediation guidance for GitHub Security tab
+  integration.
+acceptanceCriteria:
+- Output valid SARIF 2.1.0 JSON with runs, results, and tool metadata
+- Map vulnerability severity to SARIF levels (error=critical/high, warning=medium,
+  note=low)
+- Include ruleId, message, locations (URI, line if applicable), and help text with
+  remediation
+- Embed MITRE ATT&CK technique IDs in result.properties.tags
+- Validate SARIF output against official JSON schema before writing to file
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based vulnerability rule engine
+source: discovered

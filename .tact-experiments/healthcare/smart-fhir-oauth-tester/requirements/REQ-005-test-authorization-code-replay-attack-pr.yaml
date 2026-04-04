@@ -1,0 +1,20 @@
+title: Test authorization code replay attack prevention
+approval: draft
+phase: planned
+priority: high
+description: Verify that authorization codes are single-use and cannot be replayed.
+  Attempt to exchange the same authorization code twice at the /token endpoint and
+  ensure the second attempt fails.
+acceptanceCriteria:
+- Test SEC-030 successfully exchanges authorization code for tokens on first attempt
+- Test SEC-031 fails if second attempt to exchange same authorization code succeeds
+- Test SEC-032 verifies that mock server returns 400 Bad Request on replayed code
+- Test SEC-033 confirms that original tokens are revoked if replay is detected (per
+  OAuth 2.0 spec)
+- Replay attempt occurs within 60 seconds of original exchange to test time-based
+  protections
+decomposition:
+  assignments: []
+dependencies:
+- Implement SMART App Launch mock authorization server
+source: discovered

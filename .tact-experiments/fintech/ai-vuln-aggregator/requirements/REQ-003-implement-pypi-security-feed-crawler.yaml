@@ -1,0 +1,19 @@
+title: Implement PyPI security feed crawler
+approval: draft
+phase: planned
+priority: high
+description: Build a crawler that monitors PyPI's JSON API and OSV database for Python
+  package vulnerabilities. Must fetch advisories hourly and extract vulnerability
+  metadata.
+acceptanceCriteria:
+- Crawler queries OSV API (https://osv.dev/v1/query) for Python ecosystem vulnerabilities
+  modified in last 24 hours
+- 'Extracts: OSV ID, package name, affected versions, fixed versions, severity score,
+  and associated CVEs'
+- Maps OSV severity to CVSS base score when CVSS data not directly available
+- Stores source='pypi' to distinguish from GitHub/npm sources during correlation
+- Completes full fetch cycle in <5 minutes to avoid blocking other crawlers
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

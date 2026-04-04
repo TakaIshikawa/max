@@ -1,0 +1,52 @@
+name: podcast-attributor
+version: 0.1.0
+vision: A unified podcast analytics dashboard that aggregates multi-platform download
+  data with source attribution and anomaly detection, enabling creators to understand
+  traffic patterns and replicate successful content strategies.
+goals:
+- id: G-1
+  description: Aggregate podcast analytics from at least 2 hosting platforms into
+    a unified dashboard
+  successCriteria: Successfully authenticate and fetch download data from Anchor API
+    and one additional platform (Buzzsprout or Libsyn), displaying normalized metrics
+    in a single view within 5 seconds
+- id: G-2
+  description: Provide source attribution for podcast traffic to identify discovery
+    channels
+  successCriteria: Track and display referrer sources for at least 70% of downloads,
+    categorizing them into direct, social, search, and platform recommendation buckets
+- id: G-3
+  description: Detect and flag anomalous traffic patterns to distinguish organic growth
+    from bot traffic
+  successCriteria: Identify traffic spikes exceeding 2 standard deviations from 7-day
+    moving average and flag them with confidence scores, achieving <10% false positive
+    rate on test data
+- id: G-4
+  description: Reduce time spent reviewing analytics across multiple platforms
+  successCriteria: Enable creators to review all key metrics (downloads, sources,
+    anomalies) in under 5 minutes compared to 30+ minutes across native dashboards
+constraints:
+- MVP limited to 2 hosting platform integrations (Anchor + one other) to reduce OAuth
+  complexity
+- Anomaly detection uses simple statistical methods (z-score, moving averages) instead
+  of ML models like Prophet to minimize dependencies
+- No real-time streaming analytics—data refreshes every 6-24 hours based on platform
+  API rate limits
+- UTM tracking requires manual link generation by creators; no automatic injection
+  into RSS feeds
+- Single-user mode only; no team collaboration or multi-podcast management in MVP
+- Read-only integrations; no ability to modify podcast metadata or settings through
+  the dashboard
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - Node.js
+  - Express
+  - React
+  - Recharts
+  infrastructure:
+  - PostgreSQL
+  - Redis
+  - OAuth 2.0

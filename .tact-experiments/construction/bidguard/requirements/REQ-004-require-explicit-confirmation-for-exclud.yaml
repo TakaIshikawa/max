@@ -1,0 +1,20 @@
+title: Require explicit confirmation for excluded line items
+approval: draft
+phase: planned
+priority: high
+description: When users mark line items as excluded from estimate total (e.g., optional
+  upgrades, allowances), system requires confirmation dialog and logs exclusion reason.
+  Prevents accidental omissions that cause underbidding.
+acceptanceCriteria:
+- Checkbox UI element allows marking line items as 'excluded from total'
+- Confirmation dialog appears asking 'Exclude [item description] from estimate total?'
+  with Confirm/Cancel buttons
+- User must enter text reason for exclusion (minimum 10 characters) before confirming
+- Excluded items display with strikethrough styling and gray background
+- Exclusion reason appears in tooltip on hover and in exported PDF notes section
+- Estimate total recalculates immediately upon exclusion confirmation
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

@@ -1,0 +1,23 @@
+title: Display report list with sync status indicators
+approval: draft
+phase: planned
+priority: high
+description: Home screen shows list of all created reports with visual indicators
+  for sync status (pending, syncing, completed, failed). Users can tap to view details
+  or retry failed syncs.
+acceptanceCriteria:
+- Report list displays reports in reverse chronological order (newest first)
+- 'Each list item shows: report date, work description preview (first 50 chars), sync
+  status icon, photo count'
+- 'Status icons: gray clock (pending), blue spinner (syncing), green checkmark (completed),
+  red exclamation (failed)'
+- Tapping report navigates to detail screen showing full transcript, structured fields,
+  and photos
+- Pull-to-refresh triggers manual sync attempt for all pending/failed reports
+- 'Empty state message displayed when no reports exist: ''No reports yet. Tap + to
+  create your first report.'''
+decomposition:
+  assignments: []
+dependencies:
+- Store reports locally in SQLite with offline persistence
+source: discovered

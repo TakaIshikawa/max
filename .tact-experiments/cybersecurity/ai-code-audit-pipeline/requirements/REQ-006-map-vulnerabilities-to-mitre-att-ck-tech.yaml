@@ -1,0 +1,20 @@
+title: Map vulnerabilities to MITRE ATT&CK techniques
+approval: draft
+phase: planned
+priority: medium
+description: Enrich findings with MITRE ATT&CK technique IDs to align with detection
+  engineering workflows and threat intelligence platforms. Mappings help security
+  teams understand attack context.
+acceptanceCriteria:
+- Create CWE-to-ATT&CK mapping table for 20 common techniques (e.g., CWE-89 → T1190
+  Exploit Public-Facing Application, CWE-269 → T1068 Exploitation for Privilege Escalation)
+- Include ATT&CK technique ID, name, and tactic in each finding
+- Validate all technique IDs against official MITRE ATT&CK matrix (v14)
+- 'Handle unmapped CWEs gracefully: log warning and omit ATT&CK field rather than
+  fail'
+- At least 80% of detected vulnerabilities have valid ATT&CK mappings
+decomposition:
+  assignments: []
+dependencies:
+- Calculate severity scores using CVSS-like heuristics
+source: discovered

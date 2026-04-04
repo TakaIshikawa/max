@@ -1,0 +1,18 @@
+title: Implement package prevalence data collection
+approval: draft
+phase: planned
+priority: high
+description: Build service to fetch deployment prevalence metrics (npm weekly downloads,
+  GitHub stars) for affected packages. This data feeds into risk scoring algorithm.
+acceptanceCriteria:
+- Fetches npm weekly download counts from npm registry API for JavaScript packages
+- Fetches GitHub stars from GitHub API for packages with linked repositories
+- Stores prevalence data with timestamp to track freshness (data older than 7 days
+  marked stale)
+- Handles packages without prevalence data gracefully (defaults to LOW prevalence
+  in risk scoring)
+- Caches prevalence data for 24 hours to minimize API calls
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,17 @@
+title: Implement user authentication and session management
+approval: draft
+phase: planned
+priority: high
+description: Secure user authentication with session management to track individual
+  progress and prevent unauthorized lab access. Required for multi-user deployment
+  and compliance tracking.
+acceptanceCriteria:
+- JWT-based authentication with email/password login
+- Session tokens expire after 24 hours with refresh token support
+- 'User roles: learner (access labs), admin (view all progress, manage scenarios)'
+- Lab environments tied to authenticated user - cannot access others' sessions
+- 'Rate limiting: max 3 concurrent sessions per user, max 10 scenario starts per hour'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

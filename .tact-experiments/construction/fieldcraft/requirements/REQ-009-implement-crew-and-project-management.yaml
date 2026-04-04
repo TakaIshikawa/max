@@ -1,0 +1,18 @@
+title: Implement crew and project management
+approval: draft
+phase: planned
+priority: medium
+description: Simple CRUD interface for managing list of projects and crews that appear
+  in technique entry form dropdowns. Data syncs across devices for organization-wide
+  consistency.
+acceptanceCriteria:
+- Settings screen with tabs for Projects and Crews
+- Add/edit/archive projects with fields for name and optional description
+- Add/edit/archive crews with fields for crew name and optional lead contact
+- Archived projects/crews hidden from entry form dropdowns but preserved in historical
+  entries
+- Changes sync to backend and propagate to other devices within 5 minutes of connectivity
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

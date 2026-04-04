@@ -1,0 +1,19 @@
+title: Add health check and observability endpoints
+approval: draft
+phase: planned
+priority: low
+description: Provide endpoints for monitoring service health, event ingestion rates,
+  and detection engine status to support operational visibility.
+acceptanceCriteria:
+- GET /health endpoint returns 200 OK with JSON showing database connectivity, last
+  event received timestamp, and active rules count
+- GET /metrics endpoint returns Prometheus-compatible metrics for events_received_total,
+  alerts_generated_total, rule_execution_duration_seconds
+- 'Metrics broken down by labels: event_source (infisical/trivy), severity, technique_id'
+- Health check fails (503 Service Unavailable) if database unreachable or no events
+  received in last 24 hours (configurable threshold)
+- Docker health check configured to poll /health endpoint every 30 seconds
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

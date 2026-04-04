@@ -1,0 +1,52 @@
+name: fintech-document-hitl-orchestrator
+version: 0.1.0
+vision: An open-source Human-in-the-Loop orchestration platform for AI-powered fintech
+  document processing that provides compliance-grade review workflows, audit trails,
+  and continuous model improvement through validated feedback loops.
+goals:
+- id: G-1
+  description: Enable compliant AI document extraction with human oversight for high-risk
+    fintech use cases
+  successCriteria: System processes documents through AI extraction, routes low-confidence
+    results (<80% confidence) to human review queue, and logs all decisions with timestamps
+    and user IDs in immutable audit trail
+- id: G-2
+  description: Provide extensible integration with multiple AI extraction services
+  successCriteria: Successfully extract fields from at least 2 different AI services
+    (AWS Textract and OpenAI Vision) using adapter pattern, with <500ms overhead per
+    document
+- id: G-3
+  description: Deliver intuitive review queue UI for compliance officers to validate
+    extractions
+  successCriteria: Compliance officers can view document images, validate/correct
+    extracted fields, and approve/reject documents with average review time <2 minutes
+    per document
+- id: G-4
+  description: Build feedback loop foundation for model improvement
+  successCriteria: System captures all human corrections to extracted fields and stores
+    them in structured format for future model retraining (actual retraining pipeline
+    out of MVP scope)
+constraints:
+- MVP supports only 2 AI extraction services (AWS Textract, OpenAI Vision) - no Google
+  Document AI initially
+- 'MVP supports only 1 document type (KYC identity documents: passports, driver licenses)
+  - no bank statements or invoices'
+- ML retraining pipeline is out of scope for MVP - only data collection for future
+  retraining
+- Single-tenant deployment only - no multi-tenancy or user organization management
+- Review queue UI is standalone web app - iframe embedding deferred to post-MVP
+- 'Maximum document size: 10MB, supported formats: PDF, PNG, JPG'
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - React 18
+  - Celery
+  - SQLAlchemy
+  infrastructure:
+  - PostgreSQL 15
+  - Redis 7
+  - Docker Compose
+  - AWS S3 (document storage)

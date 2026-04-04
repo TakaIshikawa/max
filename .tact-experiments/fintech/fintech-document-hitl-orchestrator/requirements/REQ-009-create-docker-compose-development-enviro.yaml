@@ -1,0 +1,20 @@
+title: Create Docker Compose development environment
+approval: draft
+phase: planned
+priority: high
+description: Provide Docker Compose configuration for local development with all services
+  (FastAPI, PostgreSQL, Redis, Celery workers, React dev server, MinIO for S3-compatible
+  storage).
+acceptanceCriteria:
+- 'docker-compose.yml defines services: api, worker, postgres, redis, minio, frontend'
+- Single 'docker-compose up' command starts all services with proper networking and
+  volume mounts
+- PostgreSQL migrations run automatically on container startup using Alembic
+- Environment variables configured via .env file with sensible defaults for local
+  dev
+- README.md includes setup instructions and verification steps to confirm all services
+  running
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

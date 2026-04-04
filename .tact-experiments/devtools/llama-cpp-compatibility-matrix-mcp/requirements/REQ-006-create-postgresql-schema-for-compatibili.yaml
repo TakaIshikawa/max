@@ -1,0 +1,20 @@
+title: Create PostgreSQL schema for compatibility matrix
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement database schema to store models, llama.cpp versions,
+  test executions, and results. Schema must support efficient queries for MCP tools
+  and prevent duplicate tests.
+acceptanceCriteria:
+- 'Schema includes tables: compat_models (id, hf_identifier, family, created_at),
+  compat_llamacpp_versions (id, version_tag, commit_sha), compat_tests (id, model_id,
+  version_id, status, started_at, completed_at), compat_results (test_id, latency_ms,
+  memory_mb, accuracy_pct, passed)'
+- Unique constraint on (model_id, version_id) in compat_tests prevents duplicate tests
+- Indexes on model_id, version_id, status, completed_at for query performance
+- Foreign key constraints ensure referential integrity
+- Migration script creates schema and seeds initial llama.cpp versions
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

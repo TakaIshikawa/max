@@ -1,0 +1,19 @@
+title: Create Docker Compose development environment
+approval: draft
+phase: planned
+priority: medium
+description: Provide Docker Compose configuration with PostgreSQL, MySQL, MongoDB,
+  and the LMS bridge application for local development. Include sample data seeds
+  and environment variable templates.
+acceptanceCriteria:
+- docker-compose.yml defines services for PostgreSQL, MySQL, MongoDB, and lms-bridge
+  app
+- Database services include initialization scripts with sample schema and seed data
+  (10 users, 5 courses, 20 enrollments)
+- .env.example template documents all required environment variables with descriptions
+- '''docker-compose up'' starts all services and runs database migrations automatically'
+- README includes quick start guide for running application locally with Docker
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

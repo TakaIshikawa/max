@@ -1,0 +1,21 @@
+title: Create collaborator search and filtering interface
+approval: draft
+phase: planned
+priority: critical
+description: Podcasters must be able to search and filter collaborators by role type,
+  genre, style tags, and availability. Search results display portfolio previews with
+  in-platform audio playback for editors/co-hosts and image galleries for artists.
+  This is the core discovery experience.
+acceptanceCriteria:
+- Search page includes filters for role type (editor/co-host/artist), genre (multi-select),
+  and availability status
+- Results display collaborator cards with profile photo, bio snippet, hourly rate,
+  and portfolio sample count
+- Clicking a card opens detailed portfolio view with all samples and full bio
+- Audio samples play in-browser using Howler.js player with play/pause/seek controls
+- Results paginate at 20 per page with infinite scroll or pagination controls
+decomposition:
+  assignments: []
+dependencies:
+- Build collaborator portfolio creation and management
+source: discovered

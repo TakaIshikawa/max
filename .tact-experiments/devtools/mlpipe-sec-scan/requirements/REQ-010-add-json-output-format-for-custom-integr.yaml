@@ -1,0 +1,20 @@
+title: Add JSON output format for custom integrations
+approval: draft
+phase: planned
+priority: low
+description: Provide simple JSON output format (non-SARIF) with flat findings array
+  for teams that want to build custom integrations or dashboards. Should be more concise
+  than SARIF for human readability.
+acceptanceCriteria:
+- 'Flag ''--format json'' outputs valid JSON with top-level keys: metadata, findings,
+  summary'
+- 'Each finding object includes: id, severity, title, description, file, line, cwe,
+  cve, remediation'
+- 'Metadata includes: scanner_version, scan_timestamp, target_path, project_types_detected'
+- 'Summary includes: total_findings, counts_by_severity (critical, high, medium, low)'
+- JSON output is pretty-printed with 2-space indentation for readability
+decomposition:
+  assignments: []
+dependencies:
+- Generate SARIF 2.1.0 compliant output
+source: discovered

@@ -1,0 +1,19 @@
+title: Add MySQL adapter support
+approval: draft
+phase: planned
+priority: medium
+description: Extend Prisma adapter to support MySQL in addition to PostgreSQL. Ensure
+  all integration tests pass against MySQL 8.0+ with identical behavior to PostgreSQL
+  adapter.
+acceptanceCriteria:
+- PrismaAdapter detects MySQL connection string and configures Prisma client accordingly
+- All repository integration tests pass against MySQL 8.0 test database
+- Schema migrations work correctly for MySQL (AUTO_INCREMENT, datetime handling)
+- Performance benchmarks show <100ms latency difference between PostgreSQL and MySQL
+  for standard queries
+- Docker Compose configuration includes MySQL service for local development
+decomposition:
+  assignments: []
+dependencies:
+- Implement database adapter interface with PostgreSQL and MongoDB support
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement basic Slack/Teams webhook alerting
+approval: draft
+phase: planned
+priority: medium
+description: Send critical/high severity alerts to configured Slack or Teams webhook
+  for real-time notification of security teams.
+acceptanceCriteria:
+- Configuration accepts OSPM_SLACK_WEBHOOK_URL or OSPM_TEAMS_WEBHOOK_URL environment
+  variable
+- 'Alerts with severity critical or high trigger webhook POST with formatted message
+  including: alert title, MITRE technique, severity, timestamp, and dashboard link'
+- Webhook delivery failures are logged but do not block alert generation
+- Rate limiting prevents more than 10 webhook notifications per minute to avoid alert
+  storms
+- Webhook feature is optional; service operates normally if no webhook URL configured
+decomposition:
+  assignments: []
+dependencies:
+- Build Sigma rule engine with pySigma integration
+source: discovered

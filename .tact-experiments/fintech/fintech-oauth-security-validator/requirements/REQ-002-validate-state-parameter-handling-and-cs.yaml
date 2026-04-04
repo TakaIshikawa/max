@@ -1,0 +1,19 @@
+title: Validate state parameter handling and CSRF protection
+approval: draft
+phase: planned
+priority: critical
+description: Test state parameter generation, validation, and anti-CSRF properties
+  across authorization flows. Detects missing state parameters, state reuse vulnerabilities,
+  and insufficient entropy that could enable authorization code interception attacks.
+acceptanceCriteria:
+- Verify authorization request includes state parameter with minimum 128-bit entropy
+- Confirm server returns identical state value in authorization callback
+- Detect if server accepts authorization callback without state parameter validation
+- Flag finding with CWE-352 (Cross-Site Request Forgery) and MITRE ATT&CK T1539 (Steal
+  Web Session Cookie) when state validation fails
+- Test state parameter reuse by sending duplicate authorization requests and verify
+  server rejects reused state values
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

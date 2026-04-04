@@ -1,0 +1,21 @@
+title: Implement database adapter interface with PostgreSQL and MongoDB support
+approval: draft
+phase: planned
+priority: critical
+description: Create IDatabaseAdapter interface defining CRUD operations for users,
+  courses, and enrollments. Implement PrismaAdapter for PostgreSQL and MongooseAdapter
+  for MongoDB with identical behavior. This is the foundation for database abstraction.
+acceptanceCriteria:
+- 'IDatabaseAdapter interface defines methods: createUser, getUserById, updateUser,
+  deleteUser, createEnrollment, getEnrollmentsByUser, updateEnrollmentStatus'
+- PrismaAdapter successfully executes all interface methods against PostgreSQL test
+  database
+- MongooseAdapter successfully executes all interface methods against MongoDB test
+  database
+- Integration tests verify identical results from both adapters for same input data
+  (100 users, 10 courses, 50 enrollments)
+- Adapter selection is configurable via DATABASE_TYPE environment variable
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

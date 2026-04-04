@@ -1,0 +1,22 @@
+title: Package library for npm distribution with TypeScript definitions
+approval: draft
+phase: planned
+priority: high
+description: Configure build pipeline to compile TypeScript to JavaScript with source
+  maps and type definitions. Set up package.json with correct entry points, peer dependencies,
+  and metadata. Ensure tree-shaking support and minimal bundle size for consuming
+  applications.
+acceptanceCriteria:
+- package.json configured with main (CommonJS), module (ESM), and types entry points
+- Build outputs .js, .d.ts, and .js.map files to dist/ directory
+- Peer dependencies declared for provider SDKs (fintecture-client, gocardless-nodejs)
+  to avoid version conflicts
+- Package published to npm with scoped name @open-banking-adapter/core and version
+  0.1.0
+- README includes installation instructions, quickstart example, and link to full
+  documentation
+decomposition:
+  assignments: []
+dependencies:
+- Create OpenBankingAdapter facade as primary SDK entry point
+source: discovered

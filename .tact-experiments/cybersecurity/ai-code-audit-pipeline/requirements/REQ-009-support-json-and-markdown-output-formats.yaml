@@ -1,0 +1,21 @@
+title: Support JSON and Markdown output formats as SARIF alternatives
+approval: draft
+phase: planned
+priority: medium
+description: Provide JSON (for programmatic access) and Markdown (for human readability)
+  output formats as alternatives to SARIF. Enables custom integrations and manual
+  review workflows.
+acceptanceCriteria:
+- 'JSON format: array of finding objects with all fields (file, lines, cwe, description,
+  severity, attack_mapping, remediation)'
+- 'Markdown format: hierarchical report with summary table, findings grouped by severity,
+  code snippets with syntax highlighting'
+- Format selected via --format flag; default to SARIF if not specified
+- All three formats generated from same internal Finding model (no data loss across
+  formats)
+- JSON validates against custom schema defined in schema/finding.json
+decomposition:
+  assignments: []
+dependencies:
+- Generate SARIF 2.1.0 format vulnerability reports
+source: discovered

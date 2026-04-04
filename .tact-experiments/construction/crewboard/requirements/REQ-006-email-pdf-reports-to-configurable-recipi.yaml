@@ -1,0 +1,19 @@
+title: Email PDF reports to configurable recipient list
+approval: draft
+phase: planned
+priority: high
+description: After PDF generation, send email with PDF attachment to configurable
+  recipient list (owners, architects, project managers). Email includes report summary
+  in body and PDF as attachment.
+acceptanceCriteria:
+- User can configure email recipient list in app settings (up to 10 recipients)
+- Email is sent automatically after PDF generation completes
+- Email subject line includes project name and report date
+- Email body includes summary (date, weather, work performed summary)
+- PDF is attached to email
+- Email delivery status is tracked and visible to user (sent/failed)
+decomposition:
+  assignments: []
+dependencies:
+- Generate PDF reports with embedded photos and weather data
+source: discovered

@@ -1,0 +1,19 @@
+title: Create sustainability icon library for diagram elements
+approval: draft
+phase: planned
+priority: medium
+description: Provide a library of sustainability-specific icons (factory, truck, ship,
+  solar panel, wind turbine, etc.) that users can insert into diagrams. Icons should
+  be SVG-based, scalable, and styleable to match diagram aesthetics.
+acceptanceCriteria:
+- Icon library panel displays at least 15 sustainability-related icons organized by
+  category (transport, energy, facilities)
+- User can drag icons from library onto canvas
+- Icons are inserted as Excalidraw image elements and can be resized, rotated, and
+  styled
+- Icons are SVG format for crisp rendering at any scale
+- Icons are included in PDF exports with proper embedding
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,22 @@
+title: Parse Terraform plan JSON and extract FHIR store resources
+approval: draft
+phase: planned
+priority: critical
+description: CLI tool must parse Terraform plan JSON output (from terraform show -json)
+  and extract all google_healthcare_fhir_store resource definitions with their complete
+  configuration attributes. This is the foundation for all validation logic.
+acceptanceCriteria:
+- Successfully parse valid Terraform plan JSON files up to 10MB in size
+- Extract all google_healthcare_fhir_store resources with attributes including name,
+  dataset, version, enable_update_create, disable_referential_integrity, and nested
+  blocks
+- Handle Terraform plans with zero FHIR stores without errors (exit cleanly with no
+  violations)
+- Return structured resource objects containing resource address, type, and configuration
+  map
+- Provide clear error messages for malformed JSON or unsupported Terraform plan schema
+  versions
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

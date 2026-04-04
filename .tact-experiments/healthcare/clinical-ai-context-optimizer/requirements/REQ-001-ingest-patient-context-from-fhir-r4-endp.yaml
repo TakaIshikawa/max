@@ -1,0 +1,21 @@
+title: Ingest patient context from FHIR R4 endpoints
+approval: draft
+phase: planned
+priority: critical
+description: Retrieve patient clinical data from FHIR R4 servers using fhirclient
+  library. Support fetching Condition, MedicationRequest, Encounter, Observation,
+  DiagnosticReport, and Patient resources for a given patient ID. Handle pagination
+  for large result sets.
+acceptanceCriteria:
+- Successfully connects to FHIR R4 server using configurable base URL and retrieves
+  Patient resource by ID
+- Fetches all Condition resources for patient with status filtering (active, recurrence,
+  relapse)
+- Retrieves MedicationRequest resources with status=active and intent=order
+- Fetches Encounters from last 90 days ordered by date descending
+- Handles FHIR Bundle pagination to retrieve all matching resources
+- Logs all FHIR API requests with resource type, count, and response time
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

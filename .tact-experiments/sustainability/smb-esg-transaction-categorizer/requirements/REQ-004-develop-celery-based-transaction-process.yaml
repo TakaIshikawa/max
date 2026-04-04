@@ -1,0 +1,26 @@
+title: Develop Celery-based transaction processing pipeline
+approval: draft
+phase: planned
+priority: high
+description: Implement asynchronous pipeline for transaction ingestion, normalization,
+  categorization, and enrichment using Celery tasks. Must handle failures gracefully
+  with retry logic and dead-letter queue.
+acceptanceCriteria:
+- 'Celery tasks defined: sync_transactions(account_id), categorize_transaction(transaction_id),
+  enrich_with_supplier_data(transaction_id), generate_report(account_id, period)'
+- 'Pipeline orchestration: sync_transactions triggers categorize_transaction for each
+  new transaction; categorize_transaction chains to enrich_with_supplier_data if supplier
+  detected'
+- 'Retry logic configured: max 3 retries with exponential backoff (2^retry_count minutes);
+  failed tasks after max retries sent to dead_letter_queue for manual investigation'
+- 'Task status tracking: Celery results stored in Redis with task_id, status (pending|success|failure),
+  progress percentage, error message if failed'
+- 'Integration test: sync 50 transactions from sandbox account, verify all reach ''categorized''
+  status within 2 minutes with <5% failure rate'
+decomposition:
+  assignments: []
+dependencies:
+- Implement unified Open Banking provider abstraction layer
+- Build ESG transaction categorization engine with ML and rules
+- Create PostgreSQL schema with audit-first data model
+source: discovered

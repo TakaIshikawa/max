@@ -1,0 +1,21 @@
+title: Implement npm security feed crawler
+approval: draft
+phase: planned
+priority: critical
+description: Build a crawler that monitors npm's public security advisories endpoint
+  for JavaScript package vulnerabilities. Must fetch advisories hourly, parse JSON
+  responses, and normalize data to match internal vulnerability schema.
+acceptanceCriteria:
+- Crawler fetches from npm security advisories API endpoint (https://registry.npmjs.org/-/npm/v1/security/advisories/bulk)
+  every hour
+- 'Parses JSON response and extracts: advisory ID, package name, vulnerable versions,
+  patched versions, severity, and CVE if available'
+- Normalizes severity levels (critical/high/moderate/low) to CVSS score ranges for
+  consistency with GitHub data
+- Handles HTTP errors (429, 503) with retry logic and logs failures without crashing
+  scheduler
+- Deduplicates advisories already present in database based on advisory ID
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

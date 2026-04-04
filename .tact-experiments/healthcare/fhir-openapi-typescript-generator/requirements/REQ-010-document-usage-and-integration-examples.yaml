@@ -1,0 +1,17 @@
+title: Document usage and integration examples
+approval: draft
+phase: planned
+priority: medium
+description: Create README with installation instructions, CLI usage examples, and
+  code samples showing how to use generated schemas and factories in tests and application
+  code.
+acceptanceCriteria:
+- README includes installation via npm/yarn
+- README shows CLI usage examples for HAPI FHIR and one cloud provider
+- 'README includes code examples: using Zod schemas for validation, using factories
+  in Jest tests, accessing FHIR metadata from .meta()'
+- README documents supported FHIR resources and vendor-specific extension formats
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

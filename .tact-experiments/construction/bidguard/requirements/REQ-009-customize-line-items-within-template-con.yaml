@@ -1,0 +1,20 @@
+title: Customize line items within template constraints
+approval: draft
+phase: planned
+priority: medium
+description: Users can add custom line items, modify quantities and unit costs, and
+  adjust descriptions while maintaining template structure. Allows flexibility for
+  project-specific variations without losing validation benefits.
+acceptanceCriteria:
+- Add Line Item button inserts new row with empty fields in selected category
+- Inline editing allows modifying description, quantity, unit, and unit cost fields
+- 'Unit dropdown includes options: hours, days, sqft, linear ft, each, lump sum'
+- Delete line item button removes row after confirmation (cannot delete template-required
+  items)
+- Modified line items marked with asterisk icon to indicate deviation from template
+- Custom line items included in all validation checks and export formats
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

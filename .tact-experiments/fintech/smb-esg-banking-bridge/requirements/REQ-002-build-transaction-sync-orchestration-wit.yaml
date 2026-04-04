@@ -1,0 +1,24 @@
+title: Build transaction sync orchestration with provider fallback
+approval: draft
+phase: planned
+priority: critical
+description: Implement SyncService that orchestrates transaction retrieval across
+  multiple banking providers with automatic failover when primary provider fails.
+  Ensures DORA-compliant resilience and avoids vendor lock-in.
+acceptanceCriteria:
+- SyncService attempts transaction sync with primary provider (Fintecture), falls
+  back to secondary provider (GoCardless) if primary returns authentication error
+  or 3+ consecutive timeouts
+- Circuit breaker opens after 5 consecutive failures from any provider, preventing
+  further calls for 60 seconds
+- Successfully sync 100 test transactions from Fintecture sandbox account with <5
+  second total latency
+- When Fintecture returns 500 error, SyncService automatically retries with GoCardless
+  and completes sync within 10 seconds
+- Sync operations are idempotent - running sync twice with same date range does not
+  create duplicate transaction records
+decomposition:
+  assignments: []
+dependencies:
+- Implement unified banking provider adapter interface
+source: discovered

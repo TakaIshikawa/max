@@ -1,0 +1,21 @@
+title: Identify and display high-value commenters
+approval: draft
+phase: planned
+priority: medium
+description: Analyze commenter engagement patterns to surface super fans (frequent
+  positive comments), potential collaborators (high-quality constructive feedback),
+  and critics. This helps creators prioritize community engagement.
+acceptanceCriteria:
+- System calculates engagement score per commenter based on comment frequency, sentiment,
+  and length
+- 'Dashboard displays top 10 commenters with metrics: total comments, average sentiment,
+  engagement score'
+- Commenters are categorized as 'Super Fan', 'Collaborator', or 'Critic' based on
+  heuristics
+- User can click commenter to view all their comments across platforms
+- Leaderboard updates after each comment sync job
+decomposition:
+  assignments: []
+dependencies:
+- Create comment aggregation dashboard with sentiment visualization
+source: discovered

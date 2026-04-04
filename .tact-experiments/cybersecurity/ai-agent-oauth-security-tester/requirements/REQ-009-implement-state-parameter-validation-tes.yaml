@@ -1,0 +1,17 @@
+title: Implement state parameter validation tests
+approval: draft
+phase: planned
+priority: high
+description: Verify state parameter is properly generated, transmitted, and validated
+  to prevent CSRF attacks on the OAuth flow, including uniqueness and entropy checks.
+acceptanceCriteria:
+- Flag as CRITICAL if state parameter is missing from authorization request
+- Flag as CRITICAL if state parameter in callback does not match original value
+- Validate state parameter has sufficient entropy (minimum 128 bits randomness)
+- Test for state parameter reuse across multiple authorization attempts
+- Map findings to OWASP OAuth Security Cheat Sheet section on CSRF protection
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authorization code flow simulator
+source: discovered

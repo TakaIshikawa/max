@@ -1,0 +1,17 @@
+title: Parse dependency files to extract ML library versions
+approval: draft
+phase: planned
+priority: critical
+description: Extract Python dependencies and versions from requirements.txt, poetry.lock,
+  and Pipfile.lock files to identify vulnerable ML libraries. This is foundational
+  for detecting known CVEs in the dependency tree.
+acceptanceCriteria:
+- Successfully parse requirements.txt with pinned versions (package==1.2.3), version
+  ranges (package>=1.0), and git URLs
+- Extract package names and exact versions from poetry.lock [package] sections
+- Handle missing or malformed dependency files gracefully with warning messages
+- Return structured list of dependencies with name, version, and source file location
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,21 @@
+title: Create HTML report with human-readable vulnerability summaries
+approval: draft
+phase: planned
+priority: medium
+description: Generate standalone HTML report for manual security reviews and stakeholder
+  communication. Complements machine-readable SARIF/JSON for teams without security
+  platform integration.
+acceptanceCriteria:
+- Render HTML using Jinja2 template with findings grouped by severity level
+- 'Include vulnerability details: file path, line number, description, CVE/CWE ID,
+  remediation steps'
+- Display summary dashboard with total findings count and severity breakdown
+- Output self-contained HTML file with embedded CSS (no external dependencies)
+decomposition:
+  assignments: []
+dependencies:
+- Detect vulnerable ML library versions from curated rule database
+- Scan Jupyter notebooks for inline dependency installations and code patterns
+- Analyze Kedro pipeline code for dataset loading vulnerabilities
+- Detect FastAPI route vulnerabilities in model serving code
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement report templates for common work types
+approval: draft
+phase: planned
+priority: medium
+description: Provide pre-configured templates for common report types (concrete pour,
+  framing, electrical rough-in) with template-specific fields and prompts. Templates
+  reduce data entry time and ensure consistent reporting across projects.
+acceptanceCriteria:
+- User can select report template when creating new report (concrete-pour, framing,
+  electrical-rough-in, general)
+- Each template includes template-specific fields (e.g., concrete pour includes 'concrete
+  supplier', 'slump test', 'pour start/end time')
+- Template fields are included in voice-to-text prompts to guide user recording
+- Template-specific fields are included in generated PDF reports
+- User can switch templates before submitting report without losing entered data
+decomposition:
+  assignments: []
+dependencies:
+- Implement voice-to-text report entry with Whisper API
+source: discovered

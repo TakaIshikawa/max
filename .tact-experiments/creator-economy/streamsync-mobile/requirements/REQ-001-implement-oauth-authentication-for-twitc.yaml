@@ -1,0 +1,20 @@
+title: Implement OAuth authentication for Twitch and YouTube
+approval: draft
+phase: planned
+priority: critical
+description: Users must authenticate with Twitch and YouTube accounts using OAuth
+  2.0 to enable platform API access for chat, streaming, and alerts. Tokens must be
+  securely stored and refreshed automatically. This is foundational for all platform
+  integrations.
+acceptanceCriteria:
+- User can initiate OAuth flow for Twitch and YouTube from mobile app
+- Access tokens and refresh tokens are stored in platform-specific secure storage
+  (iOS Keychain, Android Keystore)
+- Token refresh occurs automatically when access token expires, without requiring
+  user re-authentication
+- User can view connected platforms and disconnect/revoke access from settings screen
+- Authentication state persists across app restarts
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

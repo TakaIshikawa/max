@@ -1,0 +1,25 @@
+title: Create webhook endpoint for Akaunting transaction sync
+approval: draft
+phase: planned
+priority: high
+description: Build REST API endpoint that accepts webhook subscriptions from Akaunting
+  and pushes categorized transactions in Akaunting-compatible format. Enables real-time
+  transaction sync to accounting platform.
+acceptanceCriteria:
+- 'POST /webhooks/akaunting/transactions endpoint accepts JSON payload with: accountingSystemUrl,
+  authToken, accountMappings (bank account ID → Akaunting account ID)'
+- Endpoint validates webhook payload using Zod schema, returns 400 for invalid requests
+  with detailed error messages
+- Successfully push 100 categorized transactions to Akaunting test instance with ESG
+  category stored in custom transaction field
+- Webhook delivery implements retry logic (3 attempts with exponential backoff) for
+  Akaunting API failures
+- 'Delivery tracking table stores: webhookId, transactionId, status (pending/delivered/failed),
+  attempts, lastAttemptAt for observability'
+- 'Integration test verifies end-to-end flow: sync transactions → categorize → push
+  to Akaunting within 10 seconds'
+decomposition:
+  assignments: []
+dependencies:
+- Build categorization engine with strategy chain execution
+source: discovered

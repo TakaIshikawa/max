@@ -1,0 +1,20 @@
+title: Create schema mapping configuration system
+approval: draft
+phase: planned
+priority: high
+description: Implement YAML-based schema mapping configuration allowing administrators
+  to define how HRIS fields map to LMS user fields. Include validation using Zod schemas
+  and transformation functions for common cases (name concatenation, email normalization).
+acceptanceCriteria:
+- Schema mapping YAML file defines field mappings (e.g., workEmail -> email, employeeId
+  -> external_id)
+- Configuration loader validates mapping file against Zod schema at application startup
+- FieldMapper class applies transformations defined in config (lowercase email, trim
+  whitespace, concatenate first/last name)
+- Invalid mapping configuration causes application to fail startup with descriptive
+  error message
+- Example mapping files provided for BambooHR, Workday, and generic HRIS
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

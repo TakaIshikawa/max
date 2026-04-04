@@ -1,0 +1,22 @@
+title: Add configuration for database location and retention
+approval: draft
+phase: planned
+priority: medium
+description: Implement configuration mechanism to allow users to specify database
+  file location and optional retention policies (e.g., auto-delete contexts older
+  than N days). Configuration should be read from environment variables or a config
+  file.
+acceptanceCriteria:
+- 'Database file location configurable via AUDIT_DB_PATH environment variable (default:
+  ./audit_logs.db)'
+- Optional retention period configurable via AUDIT_RETENTION_DAYS environment variable
+- If retention configured, contexts older than retention period are automatically
+  deleted on server startup
+- Configuration validation on server startup with clear error messages for invalid
+  values
+- README documents all configuration options with examples
+decomposition:
+  assignments: []
+dependencies:
+- Implement repository layer for database operations
+source: discovered

@@ -1,0 +1,25 @@
+title: Convert transcript to structured daily report JSON using LLM
+approval: draft
+phase: planned
+priority: high
+description: When online, send voice transcript to OpenAI API to extract structured
+  fields matching Procore Daily Log schema (date, weather, crew_count, equipment_used,
+  work_completed, safety_notes). Store structured JSON for sync.
+acceptanceCriteria:
+- System detects online connectivity and automatically triggers LLM structuring for
+  reports with 'pending' status
+- OpenAI API call includes system prompt with Procore Daily Log schema and example
+  output format
+- LLM response parsed into JSON and validated against Zod schema before saving to
+  database
+- If LLM call fails (network error, API error), report remains in 'pending' status
+  for retry, raw transcript preserved
+- 'Structured JSON includes all required Procore fields: date, weather_condition,
+  crew_count, work_description, equipment_list'
+- User can view both raw transcript and structured fields in report detail screen
+decomposition:
+  assignments: []
+dependencies:
+- Record voice notes with offline speech-to-text transcription
+- Store reports locally in SQLite with offline persistence
+source: discovered

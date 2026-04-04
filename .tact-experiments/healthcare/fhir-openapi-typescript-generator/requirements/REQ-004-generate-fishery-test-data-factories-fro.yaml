@@ -1,0 +1,19 @@
+title: Generate Fishery test data factories from FHIR examples
+approval: draft
+phase: planned
+priority: high
+description: Create Fishery factory functions for each FHIR resource type using x-fhir-examples
+  as default values. Factories must produce objects that pass Zod validation and support
+  builder pattern for test customization.
+acceptanceCriteria:
+- Generated factory function (e.g., buildPatient) uses Fishery's define() with FHIR
+  example as default values
+- Factory-generated objects pass corresponding Zod schema validation
+- Factories support .build() and .build({overrides}) for test customization
+- Output written to factories/ directory with .generated.ts suffix
+- Factories import and reference corresponding Zod schemas for runtime validation
+decomposition:
+  assignments: []
+dependencies:
+- Generate Zod schemas with embedded FHIR metadata
+source: discovered

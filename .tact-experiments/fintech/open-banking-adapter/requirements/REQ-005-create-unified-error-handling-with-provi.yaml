@@ -1,0 +1,22 @@
+title: Create unified error handling with provider context
+approval: draft
+phase: planned
+priority: high
+description: Define AdapterError class hierarchy that wraps provider-specific errors
+  with standardized error types. Errors must include provider context, original error
+  details, and retry guidance. Supports fallback orchestrator decision-making (which
+  errors trigger fallback vs. propagate to caller).
+acceptanceCriteria:
+- 'AdapterError base class with fields: errorType, message, provider, originalError,
+  isRetryable, timestamp'
+- 'Specialized error types: AuthenticationError, RateLimitError, ProviderUnavailableError,
+  ValidationError, UnknownError'
+- Error factory methods in each adapter map provider-specific error codes to standardized
+  error types
+- Sensitive data (credentials, tokens) automatically redacted from error messages
+  and logs
+- Error serialization to JSON includes all context fields for debugging
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

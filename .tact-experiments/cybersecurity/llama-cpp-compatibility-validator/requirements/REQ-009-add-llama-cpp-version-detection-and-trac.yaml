@@ -1,0 +1,22 @@
+title: Add llama.cpp version detection and tracking
+approval: draft
+phase: planned
+priority: medium
+description: Automated system that monitors llama.cpp GitHub releases and triggers
+  re-testing of known models against new versions. Ensures compatibility matrix stays
+  current as llama.cpp evolves.
+acceptanceCriteria:
+- Service polls llama.cpp GitHub releases API every 12 hours for new tags
+- New version detection triggers build of llama.cpp from source with version hash
+  recorded
+- System enqueues test jobs for all previously tested models against new llama.cpp
+  version
+- Version tracking table stores llama.cpp version, git commit hash, build timestamp,
+  binary checksum
+- Dashboard displays llama.cpp version release dates alongside compatibility results
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema for storing compatibility test results
+- Implement Celery task queue for asynchronous test execution
+source: discovered

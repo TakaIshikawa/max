@@ -1,0 +1,18 @@
+title: Implement sentiment shift detection and alerts
+approval: draft
+phase: planned
+priority: low
+description: 'Track sentiment changes between consecutive content pieces and flag
+  significant drops (20%+ decrease) that may indicate audience dissatisfaction. Deferred
+  to post-MVP: email/webhook alerts.'
+acceptanceCriteria:
+- System calculates average sentiment per content piece (video/post)
+- System compares sentiment between consecutive pieces and calculates percentage change
+- Dashboard highlights content pieces with 20%+ sentiment drop in red
+- Sentiment trend indicator (up/down arrow) shown next to each content piece
+- User can view detailed sentiment breakdown (positive/neutral/negative comment counts)
+decomposition:
+  assignments: []
+dependencies:
+- Create comment aggregation dashboard with sentiment visualization
+source: discovered

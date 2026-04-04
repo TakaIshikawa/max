@@ -1,0 +1,20 @@
+title: Validate redirect URI security
+approval: draft
+phase: planned
+priority: high
+description: Test that the application registers specific redirect URIs and that the
+  authorization server properly validates them. Detect open redirector vulnerabilities
+  where attacker-controlled redirect_uri values are accepted.
+acceptanceCriteria:
+- Test SEC-040 fails if application accepts /authorize with redirect_uri not matching
+  registered value
+- Test SEC-041 fails if redirect_uri uses http:// instead of https:// (except localhost)
+- Test SEC-042 fails if redirect_uri contains wildcard or overly broad patterns
+- Test SEC-043 passes if exact string matching is used for redirect_uri validation
+- Test configuration allows specifying registered redirect URIs for the application
+  under test
+decomposition:
+  assignments: []
+dependencies:
+- Implement SMART App Launch mock authorization server
+source: discovered

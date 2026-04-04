@@ -1,0 +1,16 @@
+title: Create and manage general contractor profiles
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to add GC profiles with company name, contact information,
+  and default payment terms (net 30, 60, 90 days) to track payments across multiple
+  contractors.
+acceptanceCriteria:
+- User can create GC profile with name, email, phone, and payment terms (days)
+- User can edit existing GC profiles and update payment terms
+- User can view list of all GCs with summary of active projects and outstanding payments
+- GC profiles persist offline and sync when connectivity restored
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

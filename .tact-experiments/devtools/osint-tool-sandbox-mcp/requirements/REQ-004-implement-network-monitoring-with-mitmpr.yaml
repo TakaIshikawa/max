@@ -1,0 +1,23 @@
+title: Implement network monitoring with mitmproxy and activity logging
+approval: draft
+phase: planned
+priority: high
+description: Deploy mitmproxy as transparent proxy that intercepts container traffic,
+  logs all HTTP/HTTPS/DNS requests to audit_network table, and flags suspicious patterns
+  (known credential endpoints, unusual domains, large payloads). Proxy must start
+  before container execution and capture complete session.
+acceptanceCriteria:
+- mitmproxy starts in transparent mode and listens on dedicated port before container
+  launch
+- 'All HTTP/HTTPS requests logged to audit_network with: execution_id, timestamp,
+  method, url, status_code, request_size, response_size'
+- 'DNS queries logged with: execution_id, timestamp, query_domain, resolved_ips'
+- 'Flagging logic detects: requests to pastebin.com/githubusercontent.com/discord.com,
+  POST requests >1MB, requests to IPs instead of domains'
+- Proxy shutdown waits for container termination and flushes all logs to database
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with tool installation and execution endpoints
+- Create Docker container images with network proxy configuration
+source: discovered

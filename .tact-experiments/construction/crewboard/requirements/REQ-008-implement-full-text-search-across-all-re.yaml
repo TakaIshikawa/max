@@ -1,0 +1,20 @@
+title: Implement full-text search across all reports
+approval: draft
+phase: planned
+priority: medium
+description: Users can search all submitted reports by text content, weather conditions,
+  date range, and template type. Search results are ranked by relevance and displayed
+  with report summary and date.
+acceptanceCriteria:
+- User can enter search query in search bar to search across all report text fields
+- Search supports filtering by date range, weather conditions, and template type
+- Search results are returned within 2 seconds and ranked by relevance
+- Search results display report summary (date, template type, first 100 characters
+  of work performed)
+- User can tap search result to view full report details
+- Search index updates within 30 seconds of report submission
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline-first report creation with sync queue
+source: discovered

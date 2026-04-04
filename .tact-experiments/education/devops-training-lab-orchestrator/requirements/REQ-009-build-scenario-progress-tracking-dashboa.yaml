@@ -1,0 +1,20 @@
+title: Build scenario progress tracking dashboard
+approval: draft
+phase: planned
+priority: medium
+description: Admin and user dashboard showing training progress across scenarios,
+  performance metrics, and completion status. Supports compliance reporting and identifies
+  knowledge gaps.
+acceptanceCriteria:
+- 'User view shows: scenarios attempted, completion rate, average score, time spent
+  per scenario'
+- 'Admin view aggregates metrics across all users: completion rates, common failure
+  points, average hints used'
+- Filterable by date range, scenario type, and user/team
+- Export functionality for compliance reports (CSV/PDF) with completion certificates
+- 'Visualizations: progress over time, score distribution, scenario difficulty ranking'
+decomposition:
+  assignments: []
+dependencies:
+- Generate and export xAPI statements for training events
+source: discovered

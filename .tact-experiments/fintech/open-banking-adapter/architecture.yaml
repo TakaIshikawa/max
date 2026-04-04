@@ -1,0 +1,77 @@
+patterns:
+- name: Adapter Pattern
+  description: Each open banking provider has a dedicated adapter class implementing
+    common interfaces (IAccountProvider, ITransactionProvider, IPaymentProvider).
+    Adapters translate provider-specific SDK calls and data models to unified domain
+    models.
+  scope:
+  - Provider adapters
+  - Core interfaces
+  - Data model transformation
+- name: Circuit Breaker Pattern
+  description: Fallback orchestrator wraps provider calls with circuit breaker logic.
+    Tracks failure rates, implements exponential backoff, and automatically switches
+    to fallback provider when thresholds are exceeded. Prevents cascading failures.
+  scope:
+  - Fallback orchestrator
+  - Provider health monitoring
+  - Error handling
+- name: Strategy Pattern
+  description: Provider selection strategy can be configured (primary-fallback, round-robin,
+    health-based). Allows runtime switching of provider selection logic without changing
+    core adapter code.
+  scope:
+  - Provider selection
+  - Configuration
+  - Orchestration layer
+invariants:
+- All provider adapters must implement the same TypeScript interfaces—no provider-specific
+  methods exposed in public API
+- Provider failures must never throw unhandled exceptions—all errors wrapped in standardized
+  error types with provider context
+- Data models returned by adapters must be provider-agnostic—no provider-specific
+  fields in core domain models (Account, Transaction, Payment)
+- Circuit breaker state transitions must be thread-safe and atomic—no race conditions
+  in fallback logic
+- Provider credentials must never be logged or exposed in error messages—all sensitive
+  data redacted from logs
+conventions:
+- Use PascalCase for class names, camelCase for methods and variables, UPPER_SNAKE_CASE
+  for constants
+- Prefix all interfaces with 'I' (IAccountProvider, ITransactionProvider)
+- 'Provider adapter classes named with pattern: {Provider}Adapter (FintectureAdapter,
+  GoCardlessAdapter)'
+- All async methods return Promise<Result<T, AdapterError>> for explicit error handling
+- Use TSDoc comments for all public APIs with @param, @returns, @throws, and @example
+  tags
+- 'Error classes follow naming pattern: {ErrorType}Error (ProviderError, FallbackError,
+  ConfigurationError)'
+- Test files colocated with source files using .test.ts suffix
+decisions:
+- id: D-1
+  title: Use Result type instead of throwing exceptions for provider errors
+  decision: All provider adapter methods return Result<T, AdapterError> type instead
+    of throwing exceptions for expected errors (rate limits, authentication failures,
+    provider downtime).
+  rationale: Explicit error handling forces consuming applications to handle provider
+    failures gracefully. Enables fallback orchestrator to distinguish between recoverable
+    errors (switch provider) and unrecoverable errors (propagate to caller). Aligns
+    with functional programming best practices and improves type safety.
+- id: D-2
+  title: Implement circuit breaker at orchestrator level, not within individual adapters
+  decision: Circuit breaker logic lives in the FallbackOrchestrator class that wraps
+    provider adapters, rather than embedding circuit breaker logic in each adapter
+    implementation.
+  rationale: Centralizing circuit breaker logic ensures consistent fallback behavior
+    across all providers. Simplifies adapter implementations—they only need to translate
+    provider-specific calls. Allows circuit breaker configuration (thresholds, timeouts)
+    to be managed in one place. Easier to test and maintain.
+- id: D-3
+  title: Depend on official provider SDKs rather than direct HTTP calls
+  decision: Adapters use official provider SDKs (fintecture-client, gocardless-nodejs)
+    as dependencies rather than implementing direct HTTP API calls.
+  rationale: 'Leverages provider-maintained authentication, request signing, and error
+    handling logic. Reduces maintenance burden—provider SDK updates handle API versioning.
+    Faster MVP development by reusing existing SDK functionality. Trade-off: adds
+    dependency weight, but acceptable for library targeting Node.js environments.'
+contracts: []

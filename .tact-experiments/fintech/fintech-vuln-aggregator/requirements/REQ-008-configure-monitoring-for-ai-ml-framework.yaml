@@ -1,0 +1,20 @@
+title: Configure monitoring for AI/ML framework list without code changes
+approval: draft
+phase: planned
+priority: medium
+description: 'Store monitored framework list in database or configuration file (not
+  hardcoded). Support adding/removing frameworks via API or admin interface. Include
+  framework metadata: package name, ecosystem (pip/npm), GitHub repository, vendor.'
+acceptanceCriteria:
+- 'Frameworks stored in PostgreSQL table with columns: name, package_name, ecosystem,
+  github_repo, vendor'
+- POST /api/v1/frameworks endpoint adds new framework to monitoring list
+- DELETE /api/v1/frameworks/{id} removes framework from monitoring
+- Framework list is loaded from database at polling job startup (no code deployment
+  required)
+- MVP includes pre-seeded list of 15+ critical AI/ML frameworks (MCP, LangChain, LlamaIndex,
+  OpenAI, Anthropic, Hugging Face libraries)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

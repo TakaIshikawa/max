@@ -1,0 +1,20 @@
+title: Implement project type detection
+approval: draft
+phase: planned
+priority: medium
+description: Auto-detect ML project type (Kedro, generic Python, Jupyter-only) based
+  on directory structure and files present. Adjust scanning strategy and configuration
+  checks based on detected type. Display detected type in scan output.
+acceptanceCriteria:
+- Detects Kedro project when pyproject.toml contains [tool.kedro] or kedro_cli.py
+  exists
+- Detects Jupyter project when directory contains .ipynb files but no Python package
+  structure
+- Detects FastAPI project when any .py file imports 'from fastapi import'
+- Displays detected project type(s) in scan summary (projects can match multiple types)
+- Enables Kedro-specific config scanner only when Kedro project detected
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI interface with scan command
+source: discovered

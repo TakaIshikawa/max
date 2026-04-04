@@ -1,0 +1,18 @@
+title: Provide example GitHub Actions workflow for automated scanning
+approval: draft
+phase: planned
+priority: medium
+description: Include reference GitHub Actions workflow file that runs scanner on pull
+  requests and uploads SARIF results to GitHub Security tab. Demonstrates CI/CD integration
+  and accelerates adoption.
+acceptanceCriteria:
+- YAML workflow file runs scanner on pull_request and push events
+- Workflow uploads SARIF output using github/codeql-action/upload-sarif action
+- Workflow fails (exit 1) if critical or high severity findings detected
+- Include README documentation explaining how to add workflow to repositories
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI with configurable severity thresholds and output formats
+- Generate SARIF 2.1.0 formatted output for CI/CD integration
+source: discovered

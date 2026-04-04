@@ -1,0 +1,26 @@
+title: Implement sync queue with automatic Procore API submission
+approval: draft
+phase: planned
+priority: critical
+description: Background process monitors connectivity and syncs queued reports to
+  Procore Daily Log API in chronological order. Handles retries with exponential backoff
+  for transient failures.
+acceptanceCriteria:
+- Sync queue processes reports in order of created_at timestamp (oldest first)
+- When connectivity detected, sync engine POSTs structured JSON to Procore Daily Log
+  API endpoint
+- Successful sync (HTTP 200/201) updates report sync_status to 'completed' and stores
+  Procore-returned ID
+- Failed sync (HTTP 4xx/5xx or network error) increments retry_count and schedules
+  retry with exponential backoff (1min, 5min, 15min, 1hr)
+- Photos uploaded to Procore after report submission succeeds, linked to Procore daily
+  log ID
+- User can view sync status in report list (pending icon, in-progress spinner, completed
+  checkmark, failed error icon)
+- Manual 'Retry Sync' button available for failed reports
+decomposition:
+  assignments: []
+dependencies:
+- Store reports locally in SQLite with offline persistence
+- Convert transcript to structured daily report JSON using LLM
+source: discovered

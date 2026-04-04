@@ -1,0 +1,20 @@
+title: Implement tool registry with risk scores
+approval: draft
+phase: planned
+priority: medium
+description: Maintain local registry of previously vetted tools with cached risk scores
+  and vetting results. Reduces redundant analysis and provides quick reference for
+  commonly used tools.
+acceptanceCriteria:
+- SQLite database stores package_name, version, risk_score, vetting_date, findings_summary
+- vet_package checks registry before performing analysis; if package/version exists
+  and vetting <7 days old, returns cached result
+- list_vetted_tools MCP tool returns all registry entries, sortable by risk_score
+- Registry entries include last_used timestamp updated on each execute_tool call
+- 'Support for manual override: security team can mark packages as approved/blocked
+  regardless of automated score'
+decomposition:
+  assignments: []
+dependencies:
+- Implement package vetting MCP tool
+source: discovered

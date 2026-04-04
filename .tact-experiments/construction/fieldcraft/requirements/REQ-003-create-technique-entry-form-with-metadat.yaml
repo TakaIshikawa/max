@@ -1,0 +1,20 @@
+title: Create technique entry form with metadata
+approval: draft
+phase: planned
+priority: critical
+description: Provide form for users to create technique entries with photos, voice
+  notes, manual tags, project name, and crew identifier. Form must work entirely offline
+  with local validation.
+acceptanceCriteria:
+- Form includes fields for project name, crew name, manual tags (multi-select), and
+  optional text description
+- Form validates that at least one photo is attached before allowing save
+- Saved entries are stored in local SQLite database with pending sync status
+- Form shows clear success feedback and returns to main list view after save
+- User can save entry as draft and return to edit later before syncing
+decomposition:
+  assignments: []
+dependencies:
+- Implement photo capture and local storage
+- Implement voice recording and local storage
+source: discovered

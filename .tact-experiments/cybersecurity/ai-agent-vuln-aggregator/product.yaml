@@ -1,0 +1,56 @@
+name: ai-agent-vuln-aggregator
+version: 0.1.0
+vision: A real-time vulnerability monitoring service that aggregates AI/ML infrastructure
+  security advisories from upstream sources (GitHub, PyPI, vendor feeds) before NVD
+  listings appear, closing the critical 2-day exploit window for security teams managing
+  AI agent deployments.
+goals:
+- id: G-1
+  description: Reduce mean time to vulnerability awareness for AI/ML infrastructure
+    from 48+ hours (NVD delay) to under 4 hours from upstream disclosure
+  successCriteria: System detects and alerts on 90%+ of AI/ML vulnerabilities within
+    4 hours of GitHub Security Advisory or vendor announcement publication, measured
+    against manual audit of upstream sources
+- id: G-2
+  description: Aggregate vulnerabilities from minimum 5 critical upstream sources
+    into a unified, queryable database
+  successCriteria: Successfully ingests and normalizes vulnerability data from GitHub
+    Security Advisories API, PyPI security feed, npm advisories, and at least 2 vendor-specific
+    feeds (Anthropic/OpenAI/Hugging Face) with 95%+ uptime on scheduled scrapes
+- id: G-3
+  description: Provide actionable vulnerability notifications through multiple channels
+    to support diverse team workflows
+  successCriteria: Supports Slack, email (SMTP), and webhook notifications with configurable
+    filters; delivers notifications within 5 minutes of vulnerability ingestion; 100%
+    delivery success rate for valid configurations
+- id: G-4
+  description: Enable self-service vulnerability querying and browsing through API
+    and web interface
+  successCriteria: REST API supports filtering by package name, severity, date range,
+    and affected versions with <500ms p95 response time; web dashboard displays vulnerabilities
+    with search and filter capabilities
+constraints:
+- 'MVP focuses on 5 core upstream sources: GitHub Security Advisories, PyPI, npm,
+  and 2 vendor feeds (Anthropic/Hugging Face)'
+- No custom CVE scoring - use upstream CVSS scores when available, default to 'unknown'
+  severity otherwise
+- Self-hosted deployment only for MVP - no managed cloud service infrastructure
+- Scraper intervals limited to 15-minute minimum to respect API rate limits
+- Web dashboard is read-only - no vulnerability editing or custom annotations in MVP
+- Authentication limited to API key-based access - no OAuth/SSO in MVP
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - SQL
+  frameworks:
+  - FastAPI
+  - React 18
+  - Tailwind CSS
+  - SQLAlchemy
+  - Celery
+  infrastructure:
+  - PostgreSQL 15
+  - Redis
+  - Docker Compose
+  - Nginx

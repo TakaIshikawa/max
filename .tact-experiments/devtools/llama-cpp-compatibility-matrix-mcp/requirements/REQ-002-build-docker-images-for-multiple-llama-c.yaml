@@ -1,0 +1,17 @@
+title: Build Docker images for multiple llama.cpp versions
+approval: draft
+phase: planned
+priority: critical
+description: Create reproducible Docker images containing llama.cpp binaries for latest
+  stable, previous stable, and main branch. Images must include all dependencies for
+  running inference tests.
+acceptanceCriteria:
+- Dockerfile builds llama.cpp from source for specified git tag/commit
+- Images include Python bindings (llama-cpp-python) matching llama.cpp version
+- Each image tagged with llama.cpp version identifier (e.g., llamacpp-test:b1234)
+- Images can execute inference with GGUF models mounted as volumes
+- Build process automated via script accepting version parameter
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

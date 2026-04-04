@@ -1,0 +1,22 @@
+title: Containerize application for on-premise deployment
+approval: draft
+phase: planned
+priority: high
+description: Create production-ready Docker container with all dependencies, models,
+  and ontology databases. Support configuration via environment variables. Ensure
+  no external network calls except to configured FHIR server.
+acceptanceCriteria:
+- Dockerfile builds successfully and produces image under 2GB
+- Container includes Python 3.10, spaCy, scispaCy models, and ontology databases
+- 'Accepts configuration via environment variables: FHIR_SERVER_URL, TOKEN_LIMIT,
+  LOG_LEVEL'
+- Exposes FastAPI service on configurable port (default 8000)
+- Container starts and serves /health endpoint within 15 seconds
+- No outbound network calls except to FHIR_SERVER_URL - verified via network monitoring
+- Includes docker-compose.yml for easy local deployment
+decomposition:
+  assignments: []
+dependencies:
+- Package ontology databases for local deployment
+- Provide REST API for context optimization requests
+source: discovered

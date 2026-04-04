@@ -1,0 +1,19 @@
+title: Implement OAuth authentication for Anchor API
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to securely connect their Anchor account using OAuth 2.0
+  flow. This is the foundation for fetching podcast analytics data from Anchor's hosting
+  platform, which is the primary integration for MVP.
+acceptanceCriteria:
+- User can initiate OAuth flow by clicking 'Connect Anchor Account' button
+- Application redirects to Anchor authorization page with correct client_id and scopes
+- OAuth callback handler exchanges authorization code for access token and refresh
+  token
+- Tokens are encrypted using AES-256 and stored in database with user association
+- Token refresh logic automatically renews access tokens before expiration without
+  user intervention
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

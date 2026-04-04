@@ -1,0 +1,66 @@
+patterns:
+- name: Multi-Tenant Marketplace Architecture
+  description: Separate user types (podcasters, collaborators) with role-based access
+    control, shared core models (User, Profile, Portfolio), and type-specific features
+    (podcaster dashboard vs collaborator portfolio management)
+  scope:
+  - app/models
+  - app/controllers
+  - app/policies
+- name: Service Objects for Business Logic
+  description: Extract complex operations (matching algorithm, escrow creation, payment
+    distribution) into dedicated service objects to keep controllers thin and logic
+    testable
+  scope:
+  - app/services
+- name: Active Storage with S3 Backend
+  description: Use Rails Active Storage for file uploads with S3 backend for audio
+    samples, cover art, and profile images, with direct uploads to reduce server load
+  scope:
+  - app/models
+  - config/storage.yml
+- name: RESTful API with JSON Responses
+  description: Rails API endpoints return JSON for React frontend consumption, following
+    REST conventions with versioned endpoints (/api/v1/)
+  scope:
+  - app/controllers/api
+invariants:
+- All revenue-sharing agreements must have splits that sum to exactly 100%
+- Portfolio samples must be approved/published before appearing in search results
+- Escrow funds must be held until both parties confirm project milestone completion
+- User roles (podcaster/collaborator) are immutable once set during onboarding
+- All file uploads must be virus-scanned before storage confirmation
+- Payment distributions can only occur to verified Stripe Connect accounts
+conventions:
+- Use snake_case for Ruby variables, methods, and file names
+- Use PascalCase for React components and component file names
+- Prefix service objects with verb (CreateEscrowAgreement, CalculateCompatibilityScore)
+- Database tables use plural names, models use singular
+- 'API endpoints follow pattern: /api/v1/resource_name (plural)'
+- Test files mirror source structure with _test.rb or .test.jsx suffix
+- Environment variables prefixed by service (STRIPE_, AWS_, DATABASE_)
+decisions:
+- id: D-1
+  title: Use Stripe Connect for revenue-sharing escrow
+  decision: Implement payment infrastructure using Stripe Connect with Express accounts
+    for collaborators and escrow-style holding periods
+  rationale: Stripe Connect provides built-in support for marketplace payment splits,
+    handles tax reporting (1099s), and offers escrow-like functionality through transfer
+    delays. Alternative (building custom escrow) would require payment processor integration,
+    legal compliance, and financial auditing that's out of scope for MVP.
+- id: D-2
+  title: Collaborative filtering for compatibility matching
+  decision: Use collaborative filtering based on genre tags, style preferences, and
+    past collaboration ratings rather than ML-based recommendation engine
+  rationale: Collaborative filtering provides good-enough matching with minimal training
+    data (critical for cold-start problem) and is explainable to users. ML-based approaches
+    require significant historical data and add complexity without proven value at
+    MVP stage.
+- id: D-3
+  title: Monolithic Rails app with React frontend
+  decision: Build as single Rails application serving React frontend via Webpacker/esbuild
+    rather than separate API and SPA deployments
+  rationale: Reduces deployment complexity, simplifies authentication (session-based),
+    and allows faster iteration. Can extract to separate services later if scaling
+    requires it. Avoids CORS complexity and API versioning overhead in early stages.
+contracts: []

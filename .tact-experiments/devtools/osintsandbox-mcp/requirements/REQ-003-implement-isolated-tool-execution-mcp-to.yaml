@@ -1,0 +1,21 @@
+title: Implement isolated tool execution MCP tool
+approval: draft
+phase: planned
+priority: critical
+description: Provide execute_tool that creates container from base image, installs
+  specified package, runs tool command with arguments, monitors execution, and returns
+  results. Core functionality enabling safe execution of untrusted tools.
+acceptanceCriteria:
+- Tool accepts package_name, version, command, and arguments parameters
+- Creates Docker container from osintsandbox/base image with unique name (osintsandbox-{package}-{timestamp})
+- Installs package using pip in container without network access to PyPI mirrors (package
+  must be pre-downloaded)
+- Mounts /output volume for result extraction, no other host filesystem access
+- Executes tool command with timeout (default 300 seconds), captures stdout/stderr
+- Returns execution results including stdout, stderr, exit_code, and network_log_path
+- Removes container after execution completes, even if execution fails or times out
+decomposition:
+  assignments: []
+dependencies:
+- Build base container image with monitoring infrastructure
+source: discovered

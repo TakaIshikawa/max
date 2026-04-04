@@ -1,0 +1,54 @@
+name: sitesync-mobile-bim-viewer
+version: 0.1.0
+vision: Enable field crews to access BIM models offline on mobile devices, annotate
+  conflicts with photos and voice notes, and create RFIs that sync automatically when
+  connectivity returns, reducing resolution time from days to hours.
+goals:
+- id: G-1
+  description: Enable offline BIM model viewing on mobile devices for field crews
+    without specialized training
+  successCriteria: Field crew members can download, view, and navigate IFC models
+    offline within 5 minutes of first app launch, with 90% of users requiring no additional
+    training beyond initial onboarding
+- id: G-2
+  description: Reduce RFI creation and submission time through in-app markup and automatic
+    sync
+  successCriteria: Field crews can create and submit RFIs with photo/voice annotations
+    in under 3 minutes, compared to 30+ minutes for traditional email/text-based workflows
+- id: G-3
+  description: Ensure reliable offline-first operation in low-connectivity job site
+    environments
+  successCriteria: App remains fully functional for model viewing and RFI creation
+    with zero connectivity, with automatic background sync completing within 2 minutes
+    of connectivity restoration
+- id: G-4
+  description: Integrate seamlessly with existing project management workflows
+  successCriteria: RFIs created in SiteSync appear in Procore or Buildertrend within
+    5 minutes of sync, with all photos, annotations, and BIM element references intact
+constraints:
+- MVP supports only IFC 2x3 and IFC4 formats (most common BIM exchange formats)
+- Initial release targets iOS and Android tablets (7+ inch screens) only, not phones
+- BIM model size limited to 100MB per file to ensure reasonable download and rendering
+  performance
+- MVP integrates with Procore API only (Buildertrend and BIM 360 deferred to post-MVP)
+- Voice annotations use device native speech-to-text initially (Whisper API integration
+  deferred)
+- Maximum 5 concurrent RFI drafts per user to manage local storage constraints
+- Geolocation metadata requires device GPS; no fallback for indoor positioning
+- Photo attachments limited to 5 per RFI with 10MB max per photo
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Expo
+  - Three.js
+  - IFC.js
+  - Express.js
+  - Node.js
+  infrastructure:
+  - PostgreSQL
+  - AWS S3
+  - IndexedDB
+  - Redis (for job queues)

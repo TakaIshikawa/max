@@ -1,0 +1,20 @@
+title: Implement automatic lab environment cleanup
+approval: draft
+phase: planned
+priority: high
+description: Automatically destroy lab environments after session timeout or explicit
+  termination to control infrastructure costs and prevent resource leaks. Critical
+  for MVP cost management with 5 concurrent environment limit.
+acceptanceCriteria:
+- Background worker checks for environments exceeding 60-minute timeout every 5 minutes
+- Terraform destroy executed for timed-out or terminated sessions
+- All associated resources (namespaces, volumes, secrets) removed within 5 minutes
+- Cleanup failures logged and retried up to 3 times before manual intervention flag
+- Users receive 5-minute warning before timeout with option to extend once (+30 min)
+- 'Cleanup metrics tracked: total environments destroyed, cleanup duration, failure
+  rate'
+decomposition:
+  assignments: []
+dependencies:
+- Provision isolated Kubernetes lab environments on demand
+source: discovered

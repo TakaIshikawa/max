@@ -1,0 +1,19 @@
+title: Implement MCP tool for listing tested models
+approval: draft
+phase: planned
+priority: high
+description: Expose list_tested_models MCP tool that returns all models tested with
+  specified llama.cpp version, including compatibility status. Supports filtering
+  by model family and status.
+acceptanceCriteria:
+- 'Tool accepts parameters: llamacpp_version (optional), model_family (optional),
+  status_filter (optional: passed/failed/all)'
+- Returns list of models with name, version, status, test_date
+- Results sorted by test_date descending (most recent first)
+- Supports pagination with limit/offset parameters
+- Returns empty list (not error) if no matches found
+decomposition:
+  assignments: []
+dependencies:
+- Execute automated compatibility tests in isolated containers
+source: discovered

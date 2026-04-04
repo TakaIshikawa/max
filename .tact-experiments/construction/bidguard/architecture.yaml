@@ -1,0 +1,84 @@
+patterns:
+- name: Offline-First Architecture
+  description: Service workers cache app shell and estimate data. IndexedDB stores
+    draft estimates. Background sync queues validation requests when offline, processes
+    when online.
+  scope:
+  - frontend
+  - data-sync
+- name: Template-Driven Estimation
+  description: Pre-built project templates define required line items, typical cost
+    ratios, and validation rules. Users customize templates rather than building from
+    scratch.
+  scope:
+  - estimation-engine
+  - templates
+- name: Multi-Layer Validation Pipeline
+  description: Client-side validation (formula errors, required fields) runs immediately.
+    Server-side AI validation (anomaly detection) runs on-demand before export. Explicit
+    user confirmation required for flagged items.
+  scope:
+  - validation
+  - backend-api
+- name: Command Query Responsibility Segregation (CQRS)
+  description: Separate read models for cost benchmarks (optimized for range queries)
+    and write models for estimate creation (optimized for transactional updates).
+  scope:
+  - backend
+  - database
+invariants:
+- All cost calculations must use Decimal type (never floating point) to prevent rounding
+  errors
+- Estimate totals must be recalculated from line items on every modification—never
+  stored as cached values
+- AI validation requests must include estimate context (project type, region, square
+  footage) for accurate benchmarking
+- Line items marked as excluded must require explicit user confirmation and log reason
+  for exclusion
+- Exported PDFs and CSVs must contain identical numerical values—no format-specific
+  rounding
+- Service worker must never cache validation API responses—always fetch fresh for
+  anomaly detection
+- Template modifications must not mutate original template definitions—create new
+  versions instead
+conventions:
+- Use kebab-case for file names, PascalCase for React components, camelCase for functions/variables
+- Prefix validation rule functions with 'validate' (e.g., validateLaborRatio, validateUnitConsistency)
+- Store monetary values as integer cents in database, convert to decimal dollars in
+  presentation layer
+- 'Name API endpoints with resource nouns: /estimates, /templates, /validations (not
+  /createEstimate)'
+- Use TypeScript strict mode—no implicit any types allowed
+- 'Organize React components by feature domain: /estimates, /templates, /validation,
+  /export'
+- Suffix custom hooks with 'use' prefix (e.g., useEstimateCalculator, useOfflineSync)
+- Write acceptance tests in Given-When-Then format using Playwright for critical paths
+decisions:
+- id: D-1
+  title: Progressive Web App over Native Mobile Apps
+  decision: Build as PWA using React and Workbox instead of native iOS/Android apps
+  rationale: Eliminates app store friction and approval delays. Enables instant updates
+    without user action. Single codebase reduces development time by 60%. Service
+    workers provide offline capability comparable to native apps. Target users (small
+    contractors) access via mobile browser regularly and are comfortable with web
+    interfaces.
+- id: D-2
+  title: GPT-4 for Validation Messages over Rule-Based System
+  decision: Use GPT-4 API to generate natural language validation messages instead
+    of hardcoded templates
+  rationale: Provides context-aware explanations that help contractors understand
+    why estimates are flagged (e.g., 'Roof framing labor for 500 sq ft typically costs
+    $8-12K in Seattle, your estimate shows $2K'). Reduces maintenance burden of managing
+    hundreds of validation message templates. Enables future expansion to conversational
+    assistance without architecture changes. Cost acceptable for MVP (<$0.10 per validation
+    request).
+- id: D-3
+  title: Seeded Regional Data over Live Building Permit APIs
+  decision: Use manually curated regional cost benchmarks for MVP instead of integrating
+    county building permit APIs
+  rationale: Building permit APIs vary widely by county (different schemas, auth methods,
+    rate limits). Integration would consume 40-60 hours of MVP development time. Seeded
+    data from contractor surveys and public sources provides sufficient accuracy for
+    validation. Allows focus on core estimation and validation UX. API integration
+    deferred to post-MVP based on user feedback on benchmark accuracy.
+contracts: []

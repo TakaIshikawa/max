@@ -1,0 +1,22 @@
+title: Create centralized logging to dashboard API
+approval: draft
+phase: planned
+priority: high
+description: Implement agent-side logging client that sends policy violation events
+  to centralized FastAPI dashboard over HTTPS. Events include timestamp, agent ID,
+  endpoint, detected entity types, action taken, and rule IDs. Support batching to
+  reduce network overhead. Implement retry logic with exponential backoff for failed
+  transmissions.
+acceptanceCriteria:
+- Agent sends log events to dashboard /api/v1/events endpoint with API key authentication
+- Events are batched in 10-second windows or when 50 events accumulate (whichever
+  comes first)
+- Failed transmissions retry up to 3 times with exponential backoff (1s, 2s, 4s)
+- Agent continues operating normally if dashboard is unreachable (logs queued locally
+  up to 1000 events)
+- Log transmission adds <5ms overhead to request processing
+decomposition:
+  assignments: []
+dependencies:
+- Implement block, redact, and alert enforcement modes
+source: discovered

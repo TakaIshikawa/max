@@ -1,0 +1,24 @@
+title: Create connector configuration admin interface
+approval: draft
+phase: planned
+priority: medium
+description: 'Admin UI for configuring data source connectors: setting up API credentials,
+  defining field mappings, scheduling sync frequency, and testing connections. Enables
+  non-technical users to onboard new data sources without code changes.'
+acceptanceCriteria:
+- 'Form-based UI for creating connectors with fields: name, type (CSV/API/Database),
+  credentials (encrypted on save), sync schedule (cron expression)'
+- Field mapping interface allows drag-and-drop or dropdown selection to map source
+  fields to internal evidence schema
+- Test connection button validates credentials and fetches sample data to preview
+  mapping results
+- Connector list view shows status (active/inactive), last sync timestamp, success/failure
+  count, and edit/delete actions
+- Changes to connector configuration create audit log entries and trigger Airflow
+  DAG redeployment
+decomposition:
+  assignments: []
+dependencies:
+- Implement CSV evidence upload connector
+- Implement REST API connector with OAuth2 authentication
+source: discovered

@@ -1,0 +1,54 @@
+name: csrd-compliance-evidence-pipeline
+version: 0.1.0
+vision: An automated compliance orchestration platform that aggregates sustainability
+  evidence from multiple data sources into CSRD-ready audit packages with human-in-the-loop
+  validation, reducing report preparation time from 40+ hours to 8-10 hours while
+  ensuring audit readiness.
+goals:
+- id: G-1
+  description: Automate evidence collection from multiple sustainability data sources
+  successCriteria: Successfully ingest data from at least 3 different source types
+    (CSV upload, REST API, database connection) and aggregate into unified evidence
+    repository with 95%+ data integrity
+- id: G-2
+  description: Enable human validation of aggregated evidence with quality scoring
+  successCriteria: Implement review queue where compliance teams can approve/reject
+    evidence items, with confidence scores flagging items below 70% threshold for
+    mandatory review
+- id: G-3
+  description: Generate CSRD-compliant audit packages with provenance tracking
+  successCriteria: Export PDF reports containing evidence references, data lineage,
+    and immutable audit trails showing all review actions with timestamps and user
+    attribution
+- id: G-4
+  description: Provide visibility into compliance readiness status
+  successCriteria: Dashboard displays real-time data completeness percentage across
+    CSRD reporting categories, with alerts for missing evidence and approaching deadlines
+constraints:
+- 'MVP limited to 3 connector types: CSV upload, REST API with OAuth2, PostgreSQL
+  database connection'
+- Confidence scoring uses rule-based heuristics (completeness, freshness, format validation)
+  rather than ML models to reduce complexity
+- CSRD report generation supports single template covering core environmental metrics
+  (Scope 1/2 emissions, energy consumption, waste)
+- Single-tenant deployment only (no multi-tenancy) to simplify data isolation
+- Manual connector configuration via admin UI (no auto-discovery of data sources)
+- Evidence files limited to 100MB per item, 10GB total storage per organization
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - SQL
+  frameworks:
+  - FastAPI
+  - Apache Airflow
+  - Next.js 14
+  - React 18
+  - Recharts
+  - Jinja2
+  - WeasyPrint
+  infrastructure:
+  - PostgreSQL 15
+  - Docker
+  - S3-compatible storage
+  - Redis (Airflow backend)

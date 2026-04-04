@@ -1,0 +1,19 @@
+title: Implement LLM provider abstraction with OpenAI and Anthropic support
+approval: draft
+phase: planned
+priority: critical
+description: Create a provider-agnostic interface for LLM interactions with concrete
+  implementations for OpenAI GPT-4 and Anthropic Claude. This allows users to select
+  LLM backend based on cost, speed, and privacy requirements.
+acceptanceCriteria:
+- Define abstract LLMProvider interface with analyze_code() method
+- Implement LLMOpenAI using openai Python SDK with GPT-4 model
+- Implement LLMClaude using anthropic Python SDK with Claude 3 model
+- Support provider selection via --llm-provider CLI flag (openai|anthropic)
+- Handle API errors (rate limits, timeouts, invalid keys) with exponential backoff
+  retry (max 3 attempts)
+- Log token usage per request for cost tracking
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

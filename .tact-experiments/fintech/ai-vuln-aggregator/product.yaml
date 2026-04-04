@@ -1,0 +1,48 @@
+name: ai-vuln-aggregator
+version: 0.1.0
+vision: A real-time vulnerability monitoring service that aggregates upstream security
+  advisories for AI/ML infrastructure before NVD publication, enabling SMB security
+  teams to patch critical AI agent vulnerabilities within hours instead of days.
+goals:
+- id: G-1
+  description: Close the vulnerability disclosure gap for AI infrastructure by detecting
+    threats before NVD publication
+  successCriteria: 90% of AI/ML package vulnerabilities detected within 4 hours of
+    GitHub Security Advisory publication, at least 24 hours before NVD listing
+- id: G-2
+  description: Provide actionable vulnerability intelligence with accurate risk scoring
+    for AI agent deployments
+  successCriteria: Risk scores correlate with deployment prevalence (npm downloads,
+    GitHub stars) and include exploit availability status for 100% of detected vulnerabilities
+- id: G-3
+  description: Enable integration with existing security workflows without requiring
+    tool replacement
+  successCriteria: REST API supports vulnerability queries by package name and CVE,
+    with webhook delivery achieving <5 second latency for critical alerts
+- id: G-4
+  description: Focus coverage on AI agent infrastructure components most relevant
+    to fintech deployments
+  successCriteria: Monitor at least 50 high-priority AI/ML packages including MCP
+    servers, LLM SDKs (LangChain, LlamaIndex), RAG frameworks, and model serving platforms
+constraints:
+- MVP focuses on GitHub Security Advisories and npm/PyPI security feeds only; vendor
+  RSS and blog crawling deferred to post-MVP
+- Alert delivery limited to webhooks and email; Slack/PagerDuty integrations deferred
+- Risk scoring uses static formula (CVSS + prevalence + exploit status); ML-based
+  scoring out of scope
+- Self-hosted deployment only; SaaS offering deferred to post-MVP
+- No authentication/authorization for MVP; single-tenant deployment assumed
+- Crawler execution limited to 1-hour intervals to minimize API rate limiting
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - Scrapy
+  - SQLAlchemy
+  - Pydantic
+  infrastructure:
+  - PostgreSQL 15+
+  - Docker
+  - Redis (task queue)
+  - GitHub Actions (scheduled crawlers)

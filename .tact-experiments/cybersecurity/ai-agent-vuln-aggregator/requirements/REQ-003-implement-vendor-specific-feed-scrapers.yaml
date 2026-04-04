@@ -1,0 +1,20 @@
+title: Implement vendor-specific feed scrapers
+approval: draft
+phase: planned
+priority: high
+description: Create scrapers for at least 2 AI/ML vendor announcement channels (Anthropic
+  security page, Hugging Face security advisories, or OpenAI changelog) to capture
+  platform-specific vulnerabilities not published to public databases.
+acceptanceCriteria:
+- Implements scrapers for 2 vendor sources using RSS/Atom parsing or HTML scraping
+  with BeautifulSoup
+- Extracts vulnerability descriptions, affected versions, publication dates, and remediation
+  guidance
+- Normalizes vendor-specific severity language ('important', 'moderate') to standard
+  severity levels
+- Runs vendor scrapers every 60 minutes to respect rate limits
+- Stores original vendor URL in vulnerability record for reference
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

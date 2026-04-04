@@ -1,0 +1,22 @@
+title: Implement CLI with scan command and configuration options
+approval: draft
+phase: planned
+priority: critical
+description: Provide a command-line interface for running code audits with configurable
+  options for LLM provider, output format, and target directory. CLI is the primary
+  user interaction method for MVP.
+acceptanceCriteria:
+- Implement 'audit-pipeline scan <directory>' command using Click framework
+- 'Support flags: --llm-provider (openai|anthropic), --format (sarif|json|markdown),
+  --output <file>, --verbose'
+- Load API keys from environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY) or
+  config file
+- 'Display progress indicators: files parsed, chunks analyzed, findings detected'
+- Exit with code 0 on success, non-zero on errors (missing API key, invalid directory,
+  LLM failures)
+- Generate help text with --help flag documenting all options
+decomposition:
+  assignments: []
+dependencies:
+- Generate SARIF 2.1.0 format vulnerability reports
+source: discovered

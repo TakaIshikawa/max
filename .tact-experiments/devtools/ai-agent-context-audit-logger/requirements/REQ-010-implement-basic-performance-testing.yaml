@@ -1,0 +1,21 @@
+title: Implement basic performance testing
+approval: draft
+phase: planned
+priority: low
+description: Create a simple performance test script that validates query performance
+  with 10,000+ logged contexts and ensures logging overhead stays below 100ms per
+  request. This ensures the system meets the performance goals defined in G-1 and
+  G-2.
+acceptanceCriteria:
+- Test script generates 10,000 synthetic context logs with realistic payload sizes
+- 'Script measures and reports average log_context operation time (target: <100ms)'
+- 'Script measures and reports query_context operation time with various filters (target:
+  <500ms)'
+- Test results documented in README or separate PERFORMANCE.md file
+- Script can be run as part of manual testing before releases
+decomposition:
+  assignments: []
+dependencies:
+- Implement context query tool with filtering
+- Implement MCP server with context logging tool
+source: discovered

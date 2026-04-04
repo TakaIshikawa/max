@@ -1,0 +1,21 @@
+title: Build Docker-based connector testing sandbox
+approval: draft
+phase: planned
+priority: high
+description: Create Docker Compose environment for validating connectors before registry
+  publication. Provide CLI tool for developers to test connectors locally against
+  sample data.
+acceptanceCriteria:
+- 'Docker Compose file defines services: postgres (test database), redis (caching),
+  test-runner (Python/Node.js environment)'
+- CLI tool (npx @sustainability-marketplace/test-connector) runs connector tests in
+  isolated Docker environment
+- 'Test suite validates: connector installation, API authentication, data fetching,
+  schema validation, error handling'
+- Test results include pass/fail status, execution time, and detailed error logs
+- Documentation provides guide for writing connector tests following standard template
+decomposition:
+  assignments: []
+dependencies:
+- Develop connector registry with versioning
+source: discovered

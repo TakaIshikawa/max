@@ -1,0 +1,22 @@
+title: Create RFI drafts with photo attachments offline
+approval: draft
+phase: planned
+priority: critical
+description: Field crews must be able to create RFI drafts with descriptive text and
+  attach photos captured from device camera, all while offline. RFI drafts persist
+  locally until connectivity allows sync.
+acceptanceCriteria:
+- User can create new RFI draft with title, description, and priority level (low/medium/high/critical)
+  without network connectivity
+- User can capture up to 5 photos per RFI using device camera with automatic compression
+  to max 10MB per photo
+- Each photo automatically captures and stores EXIF metadata (GPS coordinates, timestamp)
+  at time of capture
+- RFI drafts are immediately persisted to IndexedDB and survive app crashes or device
+  restarts
+- User can view list of draft RFIs with status indicators (DRAFT, QUEUED, SYNCING,
+  SUBMITTED, FAILED)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

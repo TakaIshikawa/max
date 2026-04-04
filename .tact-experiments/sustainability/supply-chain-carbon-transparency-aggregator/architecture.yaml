@@ -1,0 +1,86 @@
+patterns:
+- name: Supplier Portal Pattern
+  description: Public-facing supplier data submission portal with unique tokenized
+    URLs for each supplier request, enabling passwordless access while maintaining
+    data isolation and audit trails
+  scope:
+  - supplier-portal
+  - authentication
+  - data-submission
+- name: Calculator Integration Adapter Pattern
+  description: Abstraction layer for integrating heterogeneous open-source carbon
+    calculators with standardized input/output interfaces, allowing pluggable calculator
+    modules without core system changes
+  scope:
+  - calculation-engine
+  - calculator-adapters
+  - api-integration
+- name: Data Normalization Pipeline Pattern
+  description: Multi-stage validation and transformation pipeline that ingests diverse
+    supplier data formats, applies GHG Protocol standardization rules, flags anomalies,
+    and outputs normalized carbon intensity metrics
+  scope:
+  - data-ingestion
+  - validation
+  - normalization
+  - quality-checks
+- name: Report Generation Template Pattern
+  description: PDF report generation using reusable templates with dynamic data binding
+    for CS3D compliance sections, supplier scorecards, and emission visualizations
+  scope:
+  - reporting
+  - pdf-generation
+  - templates
+invariants:
+- All supplier carbon data must include units (kg CO2e, tonnes CO2e) and scope boundaries
+  - submissions without units are rejected
+- Supplier portal access tokens are single-use per data request cycle and expire after
+  90 days
+- Carbon intensity calculations must follow GHG Protocol standards - no custom emission
+  factor modifications without audit trail
+- All data modifications (admin edits, supplier updates) must be logged with timestamp,
+  user ID, and change reason for CS3D audit requirements
+- Supplier data is isolated by buyer organization - no cross-organization data access
+  except for anonymized benchmarking
+- Email automation must respect opt-out requests within 24 hours to maintain GDPR
+  compliance
+conventions:
+- Use kebab-case for file names and route paths (e.g., supplier-portal.tsx, /api/carbon-data)
+- Prefix database table names with domain context (e.g., supplier_responses, carbon_calculations,
+  buyer_organizations)
+- 'API endpoints follow RESTful conventions: /api/v1/{resource}/{id}/{action}'
+- React components use PascalCase with domain prefixes (e.g., SupplierDataForm, CarbonIntensityChart)
+- 'Environment variables prefixed by service: DATABASE_URL, SENDGRID_API_KEY, CALCULATOR_SERVICE_URL'
+- All carbon values stored in kg CO2e in database - unit conversion handled at presentation
+  layer
+- Use ISO 8601 for dates, ISO 4217 for currencies in supplier data schema
+- Error messages distinguish user-facing (friendly) from system logs (detailed with
+  stack traces)
+decisions:
+- id: D-1
+  title: Tokenized Supplier Portal Access vs User Accounts
+  decision: Use unique tokenized URLs for supplier access instead of requiring supplier
+    user account creation
+  rationale: SMB suppliers resist creating accounts on yet another platform. Tokenized
+    links reduce friction (no password management), enable immediate access from email,
+    and maintain security through cryptographically secure tokens with expiration.
+    Aligns with goal of 60% response rate by minimizing barriers.
+- id: D-2
+  title: Python Microservice for Calculator Integration vs Node.js Monolith
+  decision: Implement calculator integration layer as separate Python FastAPI microservice,
+    not within Next.js backend
+  rationale: Open-source carbon calculators predominantly use Python (pandas, numpy
+    ecosystems). Separate microservice allows leveraging existing Python libraries,
+    isolates calculation logic for independent scaling, and enables calculator updates
+    without redeploying main application. Communicates via REST API with main Next.js
+    app.
+- id: D-3
+  title: Normalized Schema Storage vs Raw Data Preservation
+  decision: Store both raw supplier submissions (JSONB) and normalized carbon intensity
+    metrics (structured columns) in PostgreSQL
+  rationale: 'CS3D audit requirements demand preservation of original supplier data
+    for traceability. Dual storage enables: (1) querying/aggregating normalized data
+    efficiently for reports; (2) auditing original submissions when disputes arise;
+    (3) re-running normalization logic on raw data when validation rules improve.
+    JSONB provides schema flexibility for diverse supplier formats.'
+contracts: []

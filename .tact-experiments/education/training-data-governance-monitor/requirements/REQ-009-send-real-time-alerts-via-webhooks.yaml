@@ -1,0 +1,23 @@
+title: Send real-time alerts via webhooks
+approval: draft
+phase: planned
+priority: low
+description: When anomaly is detected, send HTTP POST to configured webhook URLs with
+  alert payload (vendor name, alert type, severity, timestamp). Support webhook configuration
+  per alert type and retry logic for failed deliveries.
+acceptanceCriteria:
+- 'Store webhook configurations in PostgreSQL: {id, url, alert_types: [], enabled:
+  boolean, secret_token}'
+- When alert is created, trigger Celery task to POST alert JSON to all matching webhook
+  URLs
+- Include HMAC signature in X-Signature header using webhook secret_token for verification
+- 'Implement exponential backoff retry: 3 attempts with 1min, 5min, 15min delays for
+  failed webhook calls'
+- Log webhook delivery status (success/failure, response code, retry count) in webhook_deliveries
+  table
+decomposition:
+  assignments: []
+dependencies:
+- Detect bulk download anomalies
+- Detect unusual query pattern anomalies
+source: discovered

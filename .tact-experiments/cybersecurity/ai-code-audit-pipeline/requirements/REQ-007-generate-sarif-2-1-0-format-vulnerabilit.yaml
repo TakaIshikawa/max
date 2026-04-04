@@ -1,0 +1,19 @@
+title: Generate SARIF 2.1.0 format vulnerability reports
+approval: draft
+phase: planned
+priority: critical
+description: Output vulnerability findings in SARIF format for integration with GitHub
+  Security, IDEs, and SIEM platforms. SARIF is the primary output format for composability.
+acceptanceCriteria:
+- Generate valid SARIF 2.1.0 JSON conforming to official schema (https://docs.oasis-open.org/sarif/sarif/v2.1.0/)
+- 'Include required fields: runs, results, tool metadata (name, version)'
+- 'Each result contains: ruleId (CWE), message, locations (file, line range), level
+  (error/warning/note based on severity)'
+- Embed MITRE ATT&CK mappings in result properties
+- Validate output against SARIF schema using jsonschema library
+- SARIF file successfully imports into GitHub Security tab (manual test)
+decomposition:
+  assignments: []
+dependencies:
+- Map vulnerabilities to MITRE ATT&CK techniques
+source: discovered

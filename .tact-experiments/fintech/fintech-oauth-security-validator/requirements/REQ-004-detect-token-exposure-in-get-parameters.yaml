@@ -1,0 +1,21 @@
+title: Detect token exposure in GET parameters and audit logs
+approval: draft
+phase: planned
+priority: critical
+description: Scan OAuth flows for access tokens, refresh tokens, or authorization
+  codes transmitted via GET parameters, which creates exposure in browser history,
+  proxy logs, and server access logs. Validates Stripe Payment Element return_url
+  handling requirements.
+acceptanceCriteria:
+- Parse redirect URLs and detect access_token, refresh_token, or code in query parameters
+- Flag finding with CWE-598 and CVSS base score calculation when tokens found in GET
+  parameters
+- Verify authorization code flow uses POST for token exchange endpoint
+- Detect if error responses include sensitive data (client_secret, tokens) in redirect
+  URLs
+- Generate remediation guidance recommending fragment-based token delivery or POST-based
+  flows
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

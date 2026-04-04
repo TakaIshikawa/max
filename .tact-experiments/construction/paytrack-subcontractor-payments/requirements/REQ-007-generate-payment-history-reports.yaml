@@ -1,0 +1,20 @@
+title: Generate payment history reports
+approval: draft
+phase: planned
+priority: high
+description: Users must be able to export payment history reports for bank loan and
+  bonding applications, which require documentation of payment reliability and cash
+  flow patterns.
+acceptanceCriteria:
+- 'User can generate PDF report for selected date range (default: last 12 months)'
+- 'Report includes: total billed, total paid, total retained, total outstanding by
+  GC'
+- 'Report shows payment velocity: average days from submission to payment'
+- Report lists all payment applications with status, amounts, and dates in table format
+- PDF generated within 10 seconds for up to 200 payment applications
+- User can email report directly from app or save to device
+decomposition:
+  assignments: []
+dependencies:
+- Track payment application status lifecycle
+source: discovered

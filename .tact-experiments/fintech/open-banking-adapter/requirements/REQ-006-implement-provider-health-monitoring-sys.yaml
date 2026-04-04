@@ -1,0 +1,25 @@
+title: Implement provider health monitoring system
+approval: draft
+phase: planned
+priority: high
+description: Build HealthMonitor class that periodically checks provider availability
+  and response times. Health checks use lightweight API calls (e.g., list accounts
+  endpoint) and track success rate, latency, and last successful call timestamp. Health
+  data informs fallback orchestrator provider selection.
+acceptanceCriteria:
+- HealthMonitor runs configurable health checks every 60 seconds for each registered
+  provider
+- Health check uses minimal API call (getAccounts with limit=1) to verify provider
+  availability
+- 'Health metrics tracked: success rate (last 20 checks), average latency, last success
+  timestamp, current status (healthy/degraded/down)'
+- Health status exposed via getProviderHealth() method returning HealthStatus object
+  per provider
+- Health check failures do not trigger circuit breaker—only actual operation failures
+  trigger fallback
+decomposition:
+  assignments: []
+dependencies:
+- Build Fintecture provider adapter
+- Build GoCardless provider adapter
+source: discovered

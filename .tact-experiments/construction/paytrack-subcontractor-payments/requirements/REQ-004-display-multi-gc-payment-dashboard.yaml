@@ -1,0 +1,23 @@
+title: Display multi-GC payment dashboard
+approval: draft
+phase: planned
+priority: critical
+description: Users need a consolidated view of payment status across all GCs to quickly
+  identify overdue payments and cash flow issues without switching between multiple
+  screens.
+acceptanceCriteria:
+- 'Dashboard shows aggregate metrics: total outstanding, total retained, total paid
+  this month'
+- Dashboard displays list of payment applications sorted by submission date (newest
+  first)
+- User can filter by GC, status, and date range
+- 'Each payment application shows: GC name, project, amount, retention, status, days
+  outstanding'
+- Visual indicators for overdue payments (red badge if past payment terms)
+- Dashboard loads instantly from offline cache with sync indicator
+decomposition:
+  assignments: []
+dependencies:
+- Create payment applications with retention tracking
+- Track payment application status lifecycle
+source: discovered

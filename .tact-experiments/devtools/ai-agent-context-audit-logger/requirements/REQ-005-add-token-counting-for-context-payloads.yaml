@@ -1,0 +1,18 @@
+title: Add token counting for context payloads
+approval: draft
+phase: planned
+priority: high
+description: Implement accurate token counting for logged context payloads to enable
+  filtering by token count and provide visibility into context size. Token counts
+  must be calculated at log time and stored with each context entry.
+acceptanceCriteria:
+- Token counting uses tiktoken library with cl100k_base encoding (GPT-4/Claude compatible)
+- Token count includes all text in source_code, prompt, and metadata fields
+- Token count stored in token_count column and returned in query results
+- Token counting adds <50ms overhead to log_context operations
+- Graceful fallback to character-based estimation if tiktoken unavailable
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP server with context logging tool
+source: discovered

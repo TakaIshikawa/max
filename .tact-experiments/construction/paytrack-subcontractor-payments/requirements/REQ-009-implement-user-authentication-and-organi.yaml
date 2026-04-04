@@ -1,0 +1,19 @@
+title: Implement user authentication and organization management
+approval: draft
+phase: planned
+priority: critical
+description: Users must securely authenticate and data must be isolated by organization
+  (subcontractor company) to prevent unauthorized access and enable multi-user support
+  within same company.
+acceptanceCriteria:
+- User can register with email, password, and organization name
+- User can log in with email/password with JWT token authentication
+- All API requests include authentication token validated on server
+- Database queries filtered by organization_id to prevent cross-tenant data access
+- 'User can invite team members to same organization via email (deferred: email sending,
+  just generate invite code)'
+- Session persists across app restarts until explicit logout
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

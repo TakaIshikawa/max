@@ -1,0 +1,21 @@
+title: Implement HTTPS interception with mitmproxy
+approval: draft
+phase: planned
+priority: critical
+description: Set up mitmproxy-based transparent proxy that intercepts outbound HTTPS
+  requests to known LLM API endpoints (api.openai.com, api.anthropic.com, api.cohere.ai).
+  Generate and install CA certificate to system trust store. Configure system proxy
+  settings to route traffic through local proxy server (127.0.0.1:8080).
+acceptanceCriteria:
+- Agent generates unique CA certificate on first run and installs to macOS Keychain
+  or Linux ca-certificates
+- System proxy configuration (HTTP_PROXY, HTTPS_PROXY) automatically set on agent
+  startup and restored on shutdown
+- Intercepted requests to OpenAI/Anthropic/Cohere APIs are successfully decrypted
+  and re-encrypted without TLS errors
+- Non-LLM traffic passes through proxy without modification or logging
+- Agent startup completes in <5 seconds on macOS and Linux
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

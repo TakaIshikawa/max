@@ -1,0 +1,21 @@
+title: Create human-in-the-loop review queue interface
+approval: draft
+phase: planned
+priority: high
+description: React-based UI where compliance users review flagged evidence items,
+  view confidence score breakdown, approve/reject with comments, and track review
+  progress. Ensures audit readiness by validating data quality before report inclusion.
+acceptanceCriteria:
+- Review queue displays pending evidence items sorted by confidence score (lowest
+  first) with metric details and score breakdown
+- Users can approve/reject items with mandatory comment field explaining decision
+- Approval changes status to 'approved' and creates audit log entry; rejection marks
+  'rejected' and excludes from reports
+- Queue shows progress indicator (X of Y items reviewed) and filters by metric type,
+  source, date range
+- Bulk actions allow approving/rejecting multiple items with single comment
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence repository with confidence scoring
+source: discovered

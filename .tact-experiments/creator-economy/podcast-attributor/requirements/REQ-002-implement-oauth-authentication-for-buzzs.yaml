@@ -1,0 +1,20 @@
+title: Implement OAuth authentication for Buzzsprout API
+approval: draft
+phase: planned
+priority: critical
+description: Enable users to securely connect their Buzzsprout account using OAuth
+  2.0 flow. This provides the second platform integration required to demonstrate
+  multi-platform aggregation capabilities.
+acceptanceCriteria:
+- User can initiate OAuth flow by clicking 'Connect Buzzsprout Account' button
+- Application redirects to Buzzsprout authorization page with correct credentials
+  and scopes
+- OAuth callback handler exchanges authorization code for access token
+- Tokens are encrypted and stored with platform identifier to support multiple connected
+  accounts
+- Error handling displays user-friendly messages for authorization failures or API
+  unavailability
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

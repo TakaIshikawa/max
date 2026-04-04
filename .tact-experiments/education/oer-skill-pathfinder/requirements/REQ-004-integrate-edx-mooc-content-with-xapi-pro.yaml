@@ -1,0 +1,23 @@
+title: Integrate edX MOOC content with xAPI progress tracking
+approval: draft
+phase: planned
+priority: high
+description: Connect to edX platform to include MOOC courses in learning paths and
+  track completion via xAPI statements. Provides video-based learning complement to
+  GitHub project work. Requires edX LTI/xAPI integration setup.
+acceptanceCriteria:
+- Admin can search and add edX courses to learning paths via course ID or keyword
+  search
+- System receives xAPI statements from edX when employees complete videos, quizzes,
+  or full courses
+- xAPI statements are parsed and stored with actor (employee), verb (completed/passed),
+  object (course/module), and timestamp
+- Progress dashboard shows edX course completion alongside GitHub activity in unified
+  view
+- API endpoint POST /xapi/statements accepts and validates xAPI statements conforming
+  to xAPI 1.0.3 specification
+decomposition:
+  assignments: []
+dependencies:
+- Create learning path builder with role-based templates
+source: discovered

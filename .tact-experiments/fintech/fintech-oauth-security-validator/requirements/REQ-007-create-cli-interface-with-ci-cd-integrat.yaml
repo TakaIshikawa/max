@@ -1,0 +1,19 @@
+title: Create CLI interface with CI/CD integration support
+approval: draft
+phase: planned
+priority: high
+description: Build command-line interface using Click framework with options for target
+  URL, configuration files, output formats, and CI/CD-friendly exit codes. Supports
+  GitHub Actions and GitLab CI integration.
+acceptanceCriteria:
+- Accept required argument --target for OAuth server base URL
+- 'Support optional flags: --config (YAML path), --output (report file), --format
+  (json|junit), --fail-on (critical|high|medium)'
+- Return exit code 0 for pass, 1 for validation failures, 2 for configuration errors
+- Execute complete test suite in under 60 seconds for standard OAuth flows
+- Display progress bar and real-time finding count during execution
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based test scenario configuration loader
+source: discovered

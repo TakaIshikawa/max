@@ -1,0 +1,71 @@
+patterns:
+- name: Sandbox Orchestration Pattern
+  description: 'MCP server acts as orchestrator that coordinates pre-execution risk
+    analysis, containerized execution with network interception, and post-execution
+    reporting. Each tool execution follows a strict lifecycle: analyze → approve →
+    sandbox → monitor → report.'
+  scope:
+  - tool execution workflow
+  - container lifecycle management
+  - network monitoring coordination
+- name: Layered Security Pattern
+  description: 'Defense-in-depth approach with multiple isolation layers: container
+    filesystem isolation, network proxy interception, egress filtering, resource limits
+    (CPU/memory/time), and read-only mounted volumes for tool inputs.'
+  scope:
+  - container configuration
+  - network policies
+  - resource constraints
+- name: Audit-First Pattern
+  description: All operations (risk analysis, approvals, executions, network requests)
+    are logged to SQLite before execution proceeds. Failures in logging cause operation
+    abortion to ensure complete audit trail.
+  scope:
+  - logging infrastructure
+  - database transactions
+  - error handling
+invariants:
+- Containers MUST NOT have access to host network namespace or Docker socket
+- All network traffic from containers MUST pass through monitoring proxy
+- Tool execution MUST be preceded by risk assessment and approval record in audit
+  log
+- Containers MUST be destroyed after execution completes or timeout expires
+- Sensitive host paths (SSH keys, AWS credentials, /etc) MUST NEVER be mounted into
+  containers
+- Risk scores MUST be deterministic for same package version and timestamp
+- Audit log writes MUST be atomic and complete before execution proceeds
+conventions:
+- Use snake_case for Python functions, variables, and module names
+- Prefix MCP tool names with 'sandbox_' (e.g., sandbox_install, sandbox_execute)
+- 'Container names follow pattern: osint-sandbox-{tool_name}-{timestamp}'
+- Risk scores normalized to 0.0-1.0 scale (0.0 = highest risk, 1.0 = lowest risk)
+- All timestamps in UTC ISO 8601 format
+- Network activity logs use JSON Lines format for streaming analysis
+- 'Error messages include context: operation, tool_name, container_id, timestamp'
+- 'Database table names: audit_executions, audit_network, risk_assessments, approvals'
+decisions:
+- id: D-1
+  title: Use mitmproxy for network monitoring instead of iptables/tcpdump
+  decision: Implement HTTP/HTTPS interception using mitmproxy as transparent proxy
+  rationale: 'mitmproxy provides application-layer visibility (URLs, headers, payloads)
+    essential for detecting credential exfiltration and API abuse. iptables/tcpdump
+    only capture packet metadata. Trade-off: requires container network configuration
+    to route through proxy, but MVP scope limits to HTTP/DNS which mitmproxy handles
+    well. Raw packet analysis deferred to post-MVP.'
+- id: D-2
+  title: SQLite for audit storage instead of external database
+  decision: Use SQLite with WAL mode for all audit logs and risk assessments
+  rationale: 'Reduces deployment complexity (no external database required) and meets
+    MVP scale requirements (single-host, <1000 executions/day). WAL mode provides
+    concurrent read access for querying while writes occur. Trade-off: limits horizontal
+    scaling, but aligns with MVP constraint of single-host deployment. Migration path
+    to PostgreSQL exists for post-MVP if needed.'
+- id: D-3
+  title: Synchronous risk assessment before execution
+  decision: Block tool execution until risk assessment completes and approval is recorded
+  rationale: 'Prevents race conditions where high-risk tools execute before assessment
+    completes. Ensures audit trail integrity (assessment always precedes execution).
+    Trade-off: adds 10-30s latency to execution workflow, but acceptable for security-focused
+    use case where correctness trumps speed. Async assessment would require complex
+    state management for approval workflow.'
+contracts: []

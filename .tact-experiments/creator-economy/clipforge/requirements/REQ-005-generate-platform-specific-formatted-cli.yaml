@@ -1,0 +1,19 @@
+title: Generate platform-specific formatted clips
+approval: draft
+phase: planned
+priority: high
+description: Convert extracted clips to platform-specific formats with correct aspect
+  ratios, resolutions, and file sizes. Supports TikTok/Reels (9:16, 1080x1920), Instagram
+  Feed (1:1, 1080x1080), and YouTube Shorts (9:16, 1080x1920). Uses FFmpeg for resizing,
+  cropping, and encoding.
+acceptanceCriteria:
+- Generate 9:16 vertical clips (1080x1920) for TikTok and YouTube Shorts using center-crop
+- Generate 1:1 square clips (1080x1080) for Instagram Feed using center-crop
+- Encode clips with H.264 codec, AAC audio, and target bitrate of 5 Mbps for video
+- Ensure output file size is under 100MB for all platforms
+- Allow user to select which platform formats to generate (checkboxes in UI)
+decomposition:
+  assignments: []
+dependencies:
+- Extract video clips from detected moments
+source: discovered

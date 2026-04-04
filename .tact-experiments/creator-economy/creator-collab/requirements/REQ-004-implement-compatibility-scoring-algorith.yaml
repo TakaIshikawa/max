@@ -1,0 +1,20 @@
+title: Implement compatibility scoring algorithm
+approval: draft
+phase: planned
+priority: high
+description: Generate compatibility scores between podcasters and collaborators based
+  on genre overlap, style tag matching, and stated values alignment. Scores help podcasters
+  prioritize which collaborators to contact and improve match quality over time.
+acceptanceCriteria:
+- Service object calculates compatibility score (0-100) based on genre match (40%),
+  style tags overlap (40%), and values alignment (20%)
+- Search results display compatibility percentage badge on each collaborator card
+- Results can be sorted by 'Best Match' (compatibility score descending) or 'Newest'
+  (created_at descending)
+- Score calculation completes in under 200ms for result sets up to 100 collaborators
+- Algorithm is deterministic (same inputs always produce same score)
+decomposition:
+  assignments: []
+dependencies:
+- Create collaborator search and filtering interface
+source: discovered

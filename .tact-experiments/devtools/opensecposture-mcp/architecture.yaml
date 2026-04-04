@@ -1,0 +1,66 @@
+patterns:
+- name: Event-Driven Ingestion
+  description: Webhook receivers and file watchers push events into a central event
+    bus for asynchronous processing by detection engine
+  scope:
+  - Infisical webhook handler
+  - Trivy scan result watcher
+  - Event correlation engine
+- name: Rule-Based Detection Pipeline
+  description: Sigma rules are compiled to Python detection logic and applied to normalized
+    event streams, producing structured alerts
+  scope:
+  - pySigma rule loader
+  - Event normalization layer
+  - Alert generation service
+- name: Repository Pattern for Data Access
+  description: Abstract database operations behind repository interfaces to isolate
+    persistence logic from business logic
+  scope:
+  - Event storage
+  - Alert storage
+  - Rule configuration
+invariants:
+- All ingested events must be persisted to PostgreSQL before detection processing
+  to ensure audit trail
+- Every generated alert must include a MITRE ATT&CK technique ID and severity score
+- Sigma rules must validate successfully at startup; invalid rules cause service to
+  fail-fast with clear error messages
+- Webhook endpoints must validate HMAC signatures before processing Infisical events
+- Event correlation must be idempotent; reprocessing the same events produces identical
+  alerts
+conventions:
+- Use snake_case for Python functions, variables, and file names
+- Prefix all MCP tool names with 'security_' (e.g., security_get_alerts, security_query_events)
+- 'Store Sigma rules in YAML format under /rules directory with naming pattern: {technique_id}_{description}.yml'
+- Log all detection events at INFO level with structured JSON format including timestamp,
+  event_type, and correlation_id
+- 'API endpoints follow REST conventions: /api/v1/{resource} with standard HTTP verbs'
+- Environment variables prefixed with OSPM_ (OpenSecPosture MCP) for configuration
+decisions:
+- id: D-1
+  title: Use HTMX over React for Dashboard UI
+  decision: Build dashboard with HTMX and Alpine.js instead of React SPA
+  rationale: HTMX reduces frontend complexity and build tooling overhead, aligning
+    with the 'single-command deployment' goal. Security teams prioritize operational
+    simplicity over rich interactivity. Server-side rendering with HTMX templates
+    keeps the codebase in Python, reducing context switching for contributors familiar
+    with backend security tools.
+- id: D-2
+  title: File-Based Trivy Integration Over API Polling
+  decision: Ingest Trivy results via JSON file watching rather than polling Trivy
+    server API
+  rationale: Most small teams run Trivy as CLI in CI/CD pipelines, not as persistent
+    server. File watching supports the common workflow of 'trivy image -f json -o
+    scan.json' with minimal configuration. Avoids dependency on Trivy server deployment
+    and reduces attack surface by eliminating outbound API calls.
+- id: D-3
+  title: PostgreSQL for Event Storage and Correlation
+  decision: Use PostgreSQL with JSONB columns for event storage instead of time-series
+    database or Elasticsearch
+  rationale: PostgreSQL provides sufficient query performance for 1-5 person team
+    scale (thousands of events/day) while minimizing operational complexity. JSONB
+    columns support flexible event schemas from different sources (Infisical, Trivy)
+    without rigid schema migrations. Reduces docker-compose footprint compared to
+    Elasticsearch cluster.
+contracts: []

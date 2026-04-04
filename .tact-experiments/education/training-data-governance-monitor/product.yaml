@@ -1,0 +1,56 @@
+name: training-data-governance-monitor
+version: 0.1.0
+vision: A monitoring platform that provides visibility into third-party vendor access
+  to corporate LMS data, detects unauthorized data exfiltration, and automates compliance
+  reporting for GDPR and FERPA regulations.
+goals:
+- id: G-1
+  description: Provide complete visibility into third-party vendor data access patterns
+    across corporate LMS integrations
+  successCriteria: Successfully ingest and normalize access logs from at least 2 major
+    LMS platforms (e.g., Cornerstone, Workday Learning), identify all active third-party
+    integrations, and generate data flow diagrams showing vendor access to employee
+    PII within 24 hours of log ingestion
+- id: G-2
+  description: Detect and alert on anomalous data access patterns that indicate potential
+    unauthorized exfiltration
+  successCriteria: Implement statistical anomaly detection that flags bulk downloads
+    (>1000 records in single session), unusual query patterns (access to fields not
+    previously queried), and off-hours access with <5% false positive rate on test
+    dataset
+- id: G-3
+  description: Automate compliance reporting to reduce audit preparation time by 90%
+  successCriteria: Generate GDPR Article 30 records of processing activities and FERPA
+    audit documentation in under 5 minutes, covering all detected integrations with
+    complete data flow mapping and vendor contact information
+- id: G-4
+  description: Enable automated GDPR data subject access request (DSAR) workflows
+  successCriteria: Process DSAR requests to identify all third-party vendors with
+    access to specific employee data, generate complete access history report, and
+    provide deletion workflow tracking within 30 days (GDPR compliance timeline)
+constraints:
+- MVP focuses on log ingestion and analysis only - no direct LMS API integration for
+  data modification
+- 'Support exactly 2 log formats in MVP: ECS (Elastic Common Schema) and generic JSON
+  API audit logs'
+- Anomaly detection limited to statistical methods (z-score, moving averages) - no
+  ML model training in MVP
+- Compliance reports limited to GDPR Article 30 format - FERPA and CCPA templates
+  deferred to v0.2
+- Single-tenant deployment only - multi-tenancy deferred to post-MVP
+- Manual integration mapping in MVP - automated OAuth/API key discovery deferred to
+  v0.2
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - SQLAlchemy
+  - Celery
+  - Pandas
+  - scikit-learn
+  infrastructure:
+  - PostgreSQL 15+
+  - Elasticsearch 8+
+  - Redis
+  - Docker

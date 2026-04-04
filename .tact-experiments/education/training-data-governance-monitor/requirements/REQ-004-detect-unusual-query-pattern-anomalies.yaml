@@ -1,0 +1,22 @@
+title: Detect unusual query pattern anomalies
+approval: draft
+phase: planned
+priority: high
+description: Identify vendors accessing data fields they haven't queried in previous
+  30 days (baseline period). Flag as potential reconnaissance or scope creep. Generate
+  alert with vendor name, new fields accessed, and comparison to historical baseline.
+acceptanceCriteria:
+- 'Build baseline profile per vendor: set of data fields accessed in previous 30 days
+  from normalized logs'
+- Compare current day's accessed fields against baseline, identify fields in current
+  but not in baseline
+- Trigger alert when vendor accesses ≥3 new fields not in baseline profile
+- 'Store alert with fields: vendor_id, alert_type=''unusual_query'', new_fields_json,
+  baseline_period_start, baseline_period_end'
+- Update baseline profiles daily via Celery scheduled task
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and normalize LMS access logs from multiple formats
+- Maintain vendor and integration registry
+source: discovered

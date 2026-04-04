@@ -1,0 +1,49 @@
+name: clipforge
+version: 0.1.0
+vision: An AI-powered content repurposing engine that transforms long-form video/audio
+  into platform-optimized short clips, reducing manual editing time from hours to
+  minutes while maximizing multi-platform distribution for creators.
+goals:
+- id: G-1
+  description: Enable rapid content repurposing from long-form to short-form clips
+  successCriteria: Process a 60-minute video/audio file and generate 5+ platform-ready
+    clips in under 30 minutes
+- id: G-2
+  description: Automate platform-specific formatting and optimization
+  successCriteria: Generate clips with correct aspect ratios (9:16, 1:1, 16:9), duration
+    limits, and file sizes for TikTok, Instagram Reels, and YouTube Shorts without
+    manual intervention
+- id: G-3
+  description: Provide AI-driven moment detection to identify high-engagement segments
+  successCriteria: Detect and rank at least 10 potential clip moments per hour of
+    content based on transcript analysis and audio energy patterns
+- id: G-4
+  description: Generate accurate, styled captions for accessibility and engagement
+  successCriteria: Produce word-level accurate captions (>95% accuracy) with customizable
+    styling options for each generated clip
+constraints:
+- MVP limited to video/audio file uploads (no direct platform integrations for fetching
+  content)
+- Support only MP4, MOV, MP3, and WAV file formats for input
+- Maximum input file size of 2GB and duration of 3 hours
+- Export clips locally only (no direct posting to social platforms in MVP)
+- Use pre-trained AI models only (no custom model training)
+- Single-user mode (no multi-tenancy or team collaboration features)
+- Process one video at a time (no concurrent batch processing in MVP)
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - FastAPI
+  - React 18
+  - Tailwind CSS
+  - Celery
+  - Redis
+  infrastructure:
+  - FFmpeg
+  - OpenAI Whisper
+  - OpenAI GPT-4
+  - AWS S3 or local storage
+  - PostgreSQL

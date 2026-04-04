@@ -1,0 +1,22 @@
+title: Detect connectivity changes and trigger background sync
+approval: draft
+phase: planned
+priority: critical
+description: App must automatically detect when network connectivity is restored and
+  trigger background sync of queued RFI drafts to the backend, ensuring field data
+  reaches project management systems without manual intervention.
+acceptanceCriteria:
+- App uses NetInfo library to monitor connectivity state changes (offline -> online
+  transitions)
+- When connectivity is restored, sync queue automatically processes all DRAFT and
+  FAILED RFIs in background
+- Sync progress is visible to user with status updates (e.g., 'Syncing 3 of 5 RFIs')
+- Successfully synced RFIs transition to SUBMITTED state and are marked with sync
+  timestamp
+- Failed sync attempts (4xx/5xx errors) transition RFI to FAILED state with error
+  message and retry option
+decomposition:
+  assignments: []
+dependencies:
+- Create RFI drafts with photo attachments offline
+source: discovered

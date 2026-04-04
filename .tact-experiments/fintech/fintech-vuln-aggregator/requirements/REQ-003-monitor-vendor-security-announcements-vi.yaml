@@ -1,0 +1,20 @@
+title: Monitor vendor security announcements via RSS/Atom feeds
+approval: draft
+phase: planned
+priority: high
+description: Poll vendor security announcement feeds (Anthropic, OpenAI, Hugging Face)
+  every 1 hour. Parse announcements for vulnerability disclosures, extract affected
+  products/versions, and create vulnerability records. Link to existing CVE/GHSA records
+  when identifiers are present.
+acceptanceCriteria:
+- RSS/Atom feeds for at least 3 vendors (Anthropic, OpenAI, Hugging Face) are monitored
+- Announcements are parsed for vulnerability keywords (CVE, security update, patch,
+  vulnerability)
+- Extracted data includes affected product, version, severity (if available), and
+  announcement URL
+- Vendor announcements are linked to existing CVE/GHSA records when identifiers match
+- Polling job runs hourly with feed validation and error handling
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

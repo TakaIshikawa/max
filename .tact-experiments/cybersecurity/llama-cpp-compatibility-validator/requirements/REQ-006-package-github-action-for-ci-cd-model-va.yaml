@@ -1,0 +1,25 @@
+title: Package GitHub Action for CI/CD model validation
+approval: draft
+phase: planned
+priority: high
+description: Docker-based GitHub Action that validates a specified model works with
+  target llama.cpp version in CI pipeline. Enables developers to catch incompatibilities
+  before merging model updates.
+acceptanceCriteria:
+- 'Action accepts inputs: model_repo, quantization, llama_cpp_version, similarity_threshold
+  (default 0.85)'
+- Action pulls model from Hugging Face, runs inference test, and exits with code 0
+  (pass) or 1 (fail)
+- 'Action outputs: status, similarity_score, inference_time as GitHub Action outputs
+  for downstream steps'
+- Action completes validation of 7B parameter Q4_K_M model in <5 minutes on GitHub-hosted
+  runner
+- Action published to GitHub Marketplace with usage documentation and example workflow
+- Action logs include clear failure reasons (e.g., 'Similarity 0.62 below threshold
+  0.85')
+decomposition:
+  assignments: []
+dependencies:
+- Build inference testing pipeline that validates llama.cpp output against transformers
+  reference
+source: discovered

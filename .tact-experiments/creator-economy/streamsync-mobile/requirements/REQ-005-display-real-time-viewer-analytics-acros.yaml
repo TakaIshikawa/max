@@ -1,0 +1,22 @@
+title: Display real-time viewer analytics across platforms
+approval: draft
+phase: planned
+priority: high
+description: Show aggregated viewer count, chat activity rate, and peak concurrent
+  viewers from Twitch and YouTube in a real-time dashboard. Helps streamers understand
+  audience engagement across platforms during live streams.
+acceptanceCriteria:
+- Dashboard displays current viewer count for each platform (Twitch, YouTube) and
+  total aggregate count
+- Viewer counts update at least every 30 seconds while stream is live
+- Chat activity rate (messages per minute) is calculated and displayed for each platform
+- Peak concurrent viewer count is tracked and displayed for current stream session
+- Analytics reset when stream ends and new session begins
+- Historical analytics for completed streams are viewable in a separate 'Past Streams'
+  section
+decomposition:
+  assignments: []
+dependencies:
+- Aggregate chat messages from Twitch and YouTube Live into unified feed
+- Enable one-tap multi-platform go-live via Restream API
+source: discovered

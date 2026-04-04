@@ -1,0 +1,21 @@
+title: Generate styled captions for clips
+approval: draft
+phase: planned
+priority: high
+description: Create platform-optimized captions using GPT-4 based on clip transcripts.
+  Captions are formatted as SRT or VTT files with word-level timing. Supports customizable
+  styles like word-by-word highlighting, emoji insertion, and keyword emphasis.
+acceptanceCriteria:
+- Generate captions synchronized with clip audio using word-level timestamps from
+  transcript
+- Produce SRT and VTT format caption files
+- Use GPT-4 to enhance captions with platform-appropriate emojis and formatting (e.g.,
+  line breaks for readability)
+- Ensure caption timing accuracy within 200ms of audio
+- Store caption files linked to clip ID in database
+decomposition:
+  assignments: []
+dependencies:
+- Extract video clips from detected moments
+- Transcribe uploaded content with word-level timestamps
+source: discovered

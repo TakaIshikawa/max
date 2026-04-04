@@ -1,0 +1,21 @@
+title: Implement user profile and settings management
+approval: draft
+phase: planned
+priority: medium
+description: Users must be able to update their profiles (bio, photo, contact info),
+  manage notification preferences, and connect external accounts (Stripe for collaborators).
+  Provides personalization and account control.
+acceptanceCriteria:
+- Profile edit page allows updating bio, profile photo (5MB max), location, and website
+  URL
+- Podcasters can edit podcast details (name, genre, description) post-onboarding
+- Settings page includes email notification toggles for messages, project updates,
+  and payment events
+- Collaborators can connect/disconnect Stripe Connect account with status indicator
+  (connected/not connected)
+- Password change requires current password confirmation and minimum 8 character length
+decomposition:
+  assignments: []
+dependencies:
+- Implement user registration and role-based onboarding
+source: discovered

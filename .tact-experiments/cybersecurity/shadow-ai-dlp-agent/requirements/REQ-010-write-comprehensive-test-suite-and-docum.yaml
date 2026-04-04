@@ -1,0 +1,25 @@
+title: Write comprehensive test suite and documentation
+approval: draft
+phase: planned
+priority: high
+description: Develop pytest-based test suite covering policy engine, NER integration,
+  enforcement modes, and API endpoints. Include integration tests that simulate LLM
+  API requests with known PII payloads. Write README with installation instructions,
+  configuration guide, policy authoring examples, and troubleshooting section. Add
+  architecture diagram and deployment guide for security teams.
+acceptanceCriteria:
+- Test suite achieves 80%+ code coverage for policy engine, analyzer, and enforcement
+  modules
+- 'Integration tests validate end-to-end flow: intercept request, detect PII, apply
+  policy, log event'
+- README includes quick start guide that gets agent running in <10 minutes
+- Policy authoring guide documents YAML schema with 5+ example rules (email detection,
+  API key blocking, org name alerting)
+- Architecture diagram shows agent, proxy, dashboard, and external integrations (SIEM,
+  MDM)
+decomposition:
+  assignments: []
+dependencies:
+- Implement block, redact, and alert enforcement modes
+- Develop React dashboard UI for event visualization
+source: discovered

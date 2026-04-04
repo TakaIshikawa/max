@@ -1,0 +1,18 @@
+title: Preview and download generated clips
+approval: draft
+phase: planned
+priority: high
+description: Users can preview generated clips in the browser with embedded video
+  player. Clips are organized by source video and platform format. Users can download
+  individual clips or batch download all clips from a video as a ZIP file.
+acceptanceCriteria:
+- Display grid of generated clips grouped by source video
+- Each clip shows thumbnail, duration, platform format label, and download button
+- Clicking clip opens in-browser video player for preview
+- Download individual clips as MP4 files with descriptive filenames (e.g., 'clipforge_video123_moment1_tiktok.mp4')
+- Provide 'Download All' button to download all clips from a video as ZIP archive
+decomposition:
+  assignments: []
+dependencies:
+- Burn captions into video clips
+source: discovered

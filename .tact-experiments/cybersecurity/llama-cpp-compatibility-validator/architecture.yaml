@@ -1,0 +1,69 @@
+patterns:
+- name: Task Queue Pattern
+  description: Celery workers process model testing jobs asynchronously, allowing
+    parallel execution of tests across multiple model/quantization combinations without
+    blocking the API
+  scope:
+  - testing-pipeline
+  - orchestration-service
+- name: Repository Pattern
+  description: Database access abstracted through repository classes that encapsulate
+    query logic for compatibility results, enabling easy testing and potential database
+    migration
+  scope:
+  - api-service
+  - data-access-layer
+- name: Adapter Pattern
+  description: Runtime adapters (LlamaCppAdapter, TransformersAdapter) provide uniform
+    interface for running inference across different backends, isolating testing logic
+    from implementation details
+  scope:
+  - testing-pipeline
+  - inference-runners
+invariants:
+- All compatibility test results must be immutable once recorded (append-only database
+  writes)
+- Every test result must include exact version hashes for both llama.cpp and model
+  files to ensure reproducibility
+- API responses must never return cached data older than 48 hours without explicit
+  staleness indicators
+- Reference outputs from transformers library must be generated before llama.cpp tests
+  to ensure fair comparison baseline
+- Test failures must preserve full error logs and system state for debugging (stderr,
+  exit codes, memory snapshots)
+conventions:
+- 'Model identifiers use Hugging Face format: {org}/{model-name}@{commit-hash}'
+- 'Quantization formats follow llama.cpp naming: Q4_K_M, Q5_K_S, Q8_0'
+- 'Test result status enum: PASS, FAIL, ERROR, TIMEOUT (PASS = inference succeeded
+  with output similarity >0.85)'
+- API endpoints versioned as /v1/* to allow future breaking changes
+- Database migrations managed via Alembic with sequential numbering
+- All timestamps stored as UTC in ISO 8601 format
+- Environment variables prefixed with LCCV_ (Llama Cpp Compatibility Validator)
+decisions:
+- id: D-1
+  title: Use semantic similarity instead of exact output matching
+  decision: Compare llama.cpp outputs to transformers reference using sentence embeddings
+    (cosine similarity threshold 0.85) rather than exact string matching
+  rationale: Exact matching is too brittle for LLM outputs where minor token differences
+    don't indicate incompatibility. Semantic similarity allows for acceptable variations
+    in output while catching genuine failures like gibberish or truncated responses.
+    Threshold of 0.85 balances false positives vs false negatives based on preliminary
+    testing.
+- id: D-2
+  title: Store test results in relational database instead of flat files
+  decision: Use PostgreSQL with normalized schema (models, llama_cpp_versions, test_results
+    tables) rather than JSON files or document database
+  rationale: Compatibility queries require complex filtering (e.g., 'all passing models
+    for llama.cpp v1.2.3 with Q4_K_M quantization'). Relational model with indexes
+    provides fast query performance and enforces referential integrity. PostgreSQL
+    JSONB columns handle variable test metadata without sacrificing query capabilities.
+- id: D-3
+  title: Implement GitHub Action as Docker container action
+  decision: Package GitHub Action as Docker container with llama.cpp pre-built rather
+    than composite action with setup steps
+  rationale: Pre-built container ensures consistent llama.cpp build environment across
+    all CI runs, eliminating 'works on my machine' issues. Startup time penalty (~30s)
+    is acceptable for validation use case. Avoids complexity of supporting multiple
+    OS runners (Linux/macOS/Windows) in MVP.
+contracts: []

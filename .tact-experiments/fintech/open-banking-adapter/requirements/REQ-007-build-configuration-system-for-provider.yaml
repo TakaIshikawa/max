@@ -1,0 +1,22 @@
+title: Build configuration system for provider credentials and fallback strategy
+approval: draft
+phase: planned
+priority: high
+description: Create AdapterConfig class that accepts provider credentials, fallback
+  strategy (primary-fallback, round-robin), and circuit breaker thresholds. Configuration
+  validates required fields, supports environment variable injection, and provides
+  sensible defaults for optional settings.
+acceptanceCriteria:
+- 'AdapterConfig accepts provider credentials (Fintecture: app_id/app_secret, GoCardless:
+  secret_id/secret_key) via constructor or environment variables'
+- Configuration validates required fields and throws ConfigurationError if missing
+- 'Fallback strategy configurable: ''primary-fallback'' (default), ''round-robin'',
+  ''health-based'''
+- 'Circuit breaker thresholds configurable: failureThreshold (default 50%), timeout
+  (default 30s), halfOpenRequests (default 3)'
+- Configuration immutable after initialization—prevents runtime modification that
+  could break circuit breaker state
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,20 @@
+title: Build AWS Textract extraction adapter
+approval: draft
+phase: planned
+priority: critical
+description: Implement adapter for AWS Textract to extract identity document fields
+  (full_name, date_of_birth, document_number, expiry_date) with field-level confidence
+  scores. Textract is the primary extraction service for MVP.
+acceptanceCriteria:
+- TextractAdapter class implements BaseExtractor interface with extract() method
+- Calls AWS Textract AnalyzeID API with document from S3
+- 'Parses Textract response and extracts fields: full_name, date_of_birth, document_number,
+  expiry_date'
+- Returns confidence score (0.0-1.0) for each extracted field from Textract confidence
+  values
+- Handles Textract API errors and retries with exponential backoff (max 3 retries)
+decomposition:
+  assignments: []
+dependencies:
+- Implement document upload API endpoint
+source: discovered

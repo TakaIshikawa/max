@@ -1,0 +1,21 @@
+title: Generate PDF reports with embedded photos and weather data
+approval: draft
+phase: planned
+priority: high
+description: Backend service generates PDF reports including all report fields (date,
+  location, crew, work performed, weather, photos). PDFs are stored in S3 and available
+  for download or email distribution.
+acceptanceCriteria:
+- PDF generation triggered automatically when report is synced to backend
+- PDF includes report header (date, project, location, supervisor name)
+- PDF includes work performed section (voice-to-text transcription)
+- PDF includes weather section (temperature, precipitation, conditions)
+- PDF includes embedded photos in chronological order with captions
+- PDF is stored in S3 and download URL returned to mobile app
+- PDF generation completes within 30 seconds for reports with up to 10 photos
+decomposition:
+  assignments: []
+dependencies:
+- Support photo attachments with automatic compression
+- Automatically log weather conditions at report creation
+source: discovered

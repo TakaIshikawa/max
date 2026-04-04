@@ -1,0 +1,18 @@
+title: Detect overdue payments based on contract terms
+approval: draft
+phase: planned
+priority: high
+description: System must automatically identify overdue payments by comparing submission
+  date + payment terms to current date, enabling proactive follow-up before payments
+  become severely delinquent.
+acceptanceCriteria:
+- Hourly background job calculates days outstanding for all submitted/approved payments
+- Payment marked overdue if current_date > submission_date + payment_terms_days
+- Overdue payments flagged in database with days_overdue field
+- Dashboard and payment list show overdue indicator (days overdue count)
+- Job processes all active payments within 5 minutes for up to 1000 payment applications
+decomposition:
+  assignments: []
+dependencies:
+- Track payment application status lifecycle
+source: discovered

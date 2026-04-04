@@ -1,0 +1,24 @@
+title: Implement extraction orchestration service
+approval: draft
+phase: planned
+priority: critical
+description: Create service that orchestrates document extraction through configured
+  AI adapters, stores results, and routes documents to review queue based on confidence
+  thresholds. Core business logic for extraction workflow.
+acceptanceCriteria:
+- Celery task processes documents by calling configured extractor adapter (Textract
+  or OpenAI)
+- Stores extracted fields and confidence scores in hitl_extracted_fields table linked
+  to document
+- Updates document status to 'pending_review' if any field confidence < 0.8, otherwise
+  'approved'
+- Creates audit event for extraction completion with extractor name and confidence
+  scores
+- Handles extraction failures by updating document status to 'failed' and logging
+  error details
+decomposition:
+  assignments: []
+dependencies:
+- Build AWS Textract extraction adapter
+- Build OpenAI Vision extraction adapter
+source: discovered

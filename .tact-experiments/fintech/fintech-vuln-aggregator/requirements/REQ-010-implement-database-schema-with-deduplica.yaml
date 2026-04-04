@@ -1,0 +1,22 @@
+title: Implement database schema with deduplication and versioning
+approval: draft
+phase: planned
+priority: critical
+description: Design PostgreSQL schema with tables for vulnerabilities, frameworks,
+  advisories, alerts, and subscriptions. Include unique constraints for deduplication
+  (CVE ID, GHSA ID). Support vulnerability versioning (immutable records with update
+  timestamps).
+acceptanceCriteria:
+- 'Vulnerabilities table with columns: id, cve_id, ghsa_id, title, description, severity,
+  cvss_score, risk_score, published_at, ingested_at, metadata (JSONB)'
+- Unique constraint on (cve_id, ghsa_id) prevents duplicate vulnerability records
+- 'Frameworks table with columns: id, name, package_name, ecosystem, github_repo,
+  vendor'
+- 'Alerts table tracks notification history: vulnerability_id, channel, recipient,
+  sent_at, status'
+- 'Subscriptions table: framework_id, channel, recipient, severity_threshold'
+- Alembic migrations manage schema changes with version control
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

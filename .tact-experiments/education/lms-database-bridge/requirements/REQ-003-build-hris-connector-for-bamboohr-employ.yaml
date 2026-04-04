@@ -1,0 +1,21 @@
+title: Build HRIS connector for BambooHR employee synchronization
+approval: draft
+phase: planned
+priority: high
+description: Create BambooHRConnector implementing IHRISConnector interface to fetch
+  employee data via BambooHR API. Support both full sync and incremental updates.
+  Include MockHRISConnector for testing without API credentials.
+acceptanceCriteria:
+- BambooHRConnector authenticates with BambooHR API using API key from environment
+  variable
+- 'Connector fetches employee records with fields: id, firstName, lastName, workEmail,
+  department, jobTitle'
+- MockHRISConnector returns configurable test data from JSON file for integration
+  testing
+- HRISSyncService uses connector to sync employees to database via UserRepository.syncFromHRIS
+- Sync operation is idempotent - running twice produces same database state
+decomposition:
+  assignments: []
+dependencies:
+- Implement repository layer for user and enrollment management
+source: discovered

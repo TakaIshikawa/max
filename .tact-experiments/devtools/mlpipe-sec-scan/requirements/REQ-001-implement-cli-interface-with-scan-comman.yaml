@@ -1,0 +1,21 @@
+title: Implement CLI interface with scan command
+approval: draft
+phase: planned
+priority: critical
+description: Create a Click-based CLI that accepts a target directory path and orchestrates
+  all scanner plugins. Must support --format flag (sarif/json/html), --output flag
+  for file destination, and --severity-threshold for filtering findings. Exit with
+  code 1 if findings meet/exceed threshold, 0 otherwise.
+acceptanceCriteria:
+- Command 'mlpipe-sec-scan scan /path/to/project' executes without errors on valid
+  Python project
+- Flag '--format sarif' outputs valid SARIF 2.1.0 JSON to stdout
+- Flag '--severity-threshold high' causes exit code 1 when high/critical findings
+  exist, 0 otherwise
+- Flag '--output report.html' writes HTML report to specified file path
+- CLI displays progress indicators and summary statistics (files scanned, findings
+  count by severity) to stderr
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

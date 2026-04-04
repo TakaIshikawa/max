@@ -1,0 +1,51 @@
+name: crewboard
+version: 0.1.0
+vision: Replace handwritten construction daily reports with voice-to-text entries,
+  automatic weather logging, and photo attachments that sync to project management
+  systems, reducing report time from 30-60 minutes to 5-10 minutes while creating
+  a searchable archive.
+goals:
+- id: G-1
+  description: Reduce daily report completion time for field supervisors
+  successCriteria: Field supervisors complete daily reports in 5-10 minutes (down
+    from 30-60 minutes handwritten), measured by average time from report start to
+    submission
+- id: G-2
+  description: Create searchable archive of daily reports with automatic weather documentation
+  successCriteria: 100% of submitted reports include automatic weather data (temperature,
+    precipitation) and support full-text search across all report fields within 2
+    seconds
+- id: G-3
+  description: Enable offline report creation with reliable sync to project management
+    systems
+  successCriteria: Reports created offline sync successfully within 5 minutes of connectivity
+    restoration, with 99% successful sync rate to backend and PDF generation
+- id: G-4
+  description: Provide visual documentation through photo attachments
+  successCriteria: Users can attach up to 10 photos per report with automatic compression,
+    with photos viewable in report PDFs and searchable by metadata (date, location,
+    report type)
+constraints:
+- MVP excludes Procore/Buildertrend API integrations (focus on standalone PDF generation
+  and email distribution)
+- Offline-first architecture required to support job sites with intermittent cellular
+  connectivity
+- Photo uploads limited to 10 photos per report with maximum 5MB per photo after compression
+- Voice-to-text limited to 5-minute audio recordings per report section
+- MVP supports single project per user (no multi-project switching)
+- Weather data fetched only at report creation time (no historical weather lookups)
+- PDF generation uses server-side rendering (no client-side PDF creation)
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Node.js
+  - Express
+  - PostgreSQL
+  infrastructure:
+  - AWS S3
+  - OpenAI Whisper API
+  - OpenWeatherMap API
+  - SendGrid

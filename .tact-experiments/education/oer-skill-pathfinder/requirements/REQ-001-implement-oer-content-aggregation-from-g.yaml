@@ -1,0 +1,23 @@
+title: Implement OER content aggregation from GitHub repositories
+approval: draft
+phase: planned
+priority: critical
+description: Build content service that discovers, fetches, and catalogs GitHub repositories
+  containing educational content (TheAlgorithms repos, awesome lists, tutorial repos).
+  Must extract metadata (topics, README content, language, star count) and store in
+  searchable format. This is foundational for creating learning paths.
+acceptanceCriteria:
+- Service successfully fetches repository metadata via GitHub API v3 for at least
+  50 curated educational repositories
+- Extracted metadata includes repo name, description, topics, primary language, star
+  count, last updated date, and README content
+- Content is stored in PostgreSQL with full-text search enabled on description and
+  README fields
+- API endpoint GET /oer-resources returns paginated list of resources with filtering
+  by language and topic
+- Service handles GitHub API rate limits gracefully with exponential backoff and returns
+  429 status when rate limited
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

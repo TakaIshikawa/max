@@ -1,0 +1,19 @@
+title: Build base container image with monitoring infrastructure
+approval: draft
+phase: planned
+priority: critical
+description: Create Docker base image that includes Python runtime, mitmproxy for
+  network monitoring, and configuration for isolated execution. This image serves
+  as foundation for all tool executions and must be built before any tools can run.
+acceptanceCriteria:
+- Dockerfile creates image based on python:3.11-slim with mitmproxy installed
+- Image configured to route all outbound traffic through mitmproxy transparent proxy
+  on port 8080
+- Includes entrypoint script that starts mitmproxy in background, executes tool command,
+  captures logs, and writes to /output volume
+- Image size under 500MB to enable fast container startup
+- Successfully builds and tags as osintsandbox/base:3.11
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

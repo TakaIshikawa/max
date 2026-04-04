@@ -1,0 +1,21 @@
+title: Create SQLite audit database with execution and network activity tables
+approval: draft
+phase: planned
+priority: critical
+description: Design and initialize SQLite database with tables for audit_executions
+  (tool runs), audit_network (HTTP/DNS requests), risk_assessments (package scores),
+  and approvals (installation authorizations). Enable WAL mode for concurrent access
+  and create indexes for common queries.
+acceptanceCriteria:
+- 'Database schema created with tables: audit_executions, audit_network, risk_assessments,
+  approvals'
+- 'audit_executions table includes: id, tool_name, command, arguments, start_time,
+  end_time, exit_code, stdout, stderr, container_id'
+- 'audit_network table includes: id, execution_id (FK), timestamp, request_type (http/dns),
+  url/domain, method, status_code, flags'
+- WAL mode enabled (PRAGMA journal_mode=WAL) for concurrent reads during writes
+- 'Indexes created on: audit_executions.start_time, audit_network.execution_id, risk_assessments.package_name'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

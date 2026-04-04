@@ -1,0 +1,92 @@
+patterns:
+- name: Offline-First Architecture
+  description: All data operations (model viewing, RFI creation, annotations) work
+    without network connectivity. Local IndexedDB serves as source of truth, with
+    background sync queue managing eventual consistency with backend when connectivity
+    returns.
+  scope:
+  - mobile app
+  - data layer
+  - sync service
+- name: Repository Pattern with Sync Adapter
+  description: Abstract data access through repository interfaces that handle both
+    local (IndexedDB) and remote (API) data sources. Sync adapters detect connectivity
+    changes and reconcile local changes with server state using conflict resolution
+    strategies.
+  scope:
+  - data access layer
+  - sync engine
+- name: Command Pattern for RFI Operations
+  description: RFI creation, photo attachment, and annotation operations are encapsulated
+    as commands that can be queued, persisted, and replayed. Enables reliable offline
+    operation and automatic retry on sync failures.
+  scope:
+  - RFI module
+  - sync queue
+- name: Lazy Loading for 3D Models
+  description: IFC models are parsed and loaded incrementally by spatial hierarchy
+    (site > building > floor > elements). Only visible geometry is rendered to maintain
+    60fps on mobile devices, with detail levels adjusted based on zoom distance.
+  scope:
+  - 3D viewer
+  - IFC parser
+invariants:
+- RFI drafts must never be lost due to connectivity issues or app crashes (persist
+  to IndexedDB immediately on creation)
+- Photo metadata (timestamp, GPS coordinates, BIM element ID) must be immutable once
+  captured
+- 3D model rendering must maintain minimum 30fps on target devices (iPad 8th gen or
+  equivalent Android tablets)
+- Sync operations must be idempotent to handle network retries and duplicate submissions
+- User must be able to view downloaded models and create RFIs with zero network connectivity
+- BIM element IDs referenced in RFIs must match source IFC GlobalId to ensure traceability
+- All user data (models, RFIs, photos) must be encrypted at rest on device using platform
+  keychain
+conventions:
+- Use TypeScript strict mode for all application code with explicit return types
+- Follow Airbnb React/TypeScript style guide for component and file naming
+- Prefix async functions with 'async' or suffix with 'Async' for clarity
+- Use kebab-case for file names, PascalCase for components, camelCase for functions/variables
+- Organize code by feature modules (viewer/, rfi/, sync/, models/) not by type
+- 'All API responses use consistent envelope: { data, error, metadata }'
+- Database tables use snake_case, TypeScript interfaces use camelCase with mapping
+  layer
+- 'RFI states follow enum: DRAFT | QUEUED | SYNCING | SUBMITTED | FAILED'
+- Log all sync operations with correlation IDs for debugging offline/online transitions
+- Use React Native AsyncStorage only for app preferences; IndexedDB (via polyfill)
+  for structured data
+decisions:
+- id: D-1
+  title: Use IFC.js for client-side IFC parsing instead of server-side conversion
+  decision: Implement client-side IFC parsing with IFC.js, optimize with web workers
+    for background parsing, and show progressive loading UI during initial model load
+  rationale: 'Parsing IFC files directly on the mobile device enables true offline
+    operation without requiring server preprocessing. IFC.js is actively maintained,
+    supports IFC 2x3/4, and can run in React Native via WebAssembly. Trade-off: higher
+    initial load time (5-10s for 50MB model) vs. always-available offline access.
+    Server-side conversion would require connectivity for initial model access, defeating
+    the offline-first goal.'
+- id: D-2
+  title: Use IndexedDB (via react-native-indexeddb polyfill) instead of SQLite for
+    local storage
+  decision: Use IndexedDB with Dexie.js wrapper for cleaner API and automatic schema
+    migrations, with fallback to AsyncStorage for critical app state if IndexedDB
+    initialization fails
+  rationale: 'IndexedDB provides better support for storing large binary blobs (IFC
+    models, photos) and complex nested objects (RFI drafts with annotations) compared
+    to SQLite''s relational structure. Enables code sharing between potential web
+    version and mobile app. Trade-off: less mature React Native support vs. better
+    data model fit. SQLite would require complex serialization/deserialization for
+    nested RFI structures.'
+- id: D-3
+  title: Implement photo capture with native camera module instead of WebView-based
+    approach
+  decision: Use Expo Camera API for photo capture with automatic EXIF metadata extraction,
+    compress images to max 10MB using expo-image-manipulator, and store metadata separately
+    in IndexedDB linked to photo blob
+  rationale: 'React Native Camera or Expo Camera provides direct access to device
+    camera with full control over resolution, metadata (EXIF GPS, timestamp), and
+    compression. WebView-based capture has limited metadata access and poor performance
+    on Android. Trade-off: platform-specific code vs. reliable metadata capture. Accurate
+    GPS and timestamp metadata is critical for RFI traceability and analytics.'
+contracts: []

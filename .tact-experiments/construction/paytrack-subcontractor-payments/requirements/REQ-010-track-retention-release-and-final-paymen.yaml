@@ -1,0 +1,19 @@
+title: Track retention release and final payments
+approval: draft
+phase: planned
+priority: medium
+description: Users must be able to mark retention amounts as released and track final
+  payments when projects complete, as retention release is often delayed 30-60 days
+  after final invoice payment.
+acceptanceCriteria:
+- User can mark payment application retention as 'released' with release date
+- Dashboard shows total retained amounts pending release vs. released
+- User can create final payment entry that references original payment application
+- Payment history report separates retention amounts from regular payments
+- Retention release triggers optional SMS notification to user
+decomposition:
+  assignments: []
+dependencies:
+- Create payment applications with retention tracking
+- Track payment application status lifecycle
+source: discovered

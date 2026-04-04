@@ -1,0 +1,50 @@
+name: devops-training-lab-orchestrator
+version: 0.1.0
+vision: AI-assisted hands-on DevOps training platform that provisions isolated Kubernetes
+  environments with simulated production incidents, enabling employees to practice
+  incident response runbooks with real-time AI guidance through interactive shell
+  workflows.
+goals:
+- id: G-1
+  description: Enable realistic hands-on DevOps incident response training through
+    isolated lab environments
+  successCriteria: Users can provision a lab environment in under 2 minutes and execute
+    at least 3 pre-built incident scenarios (service failure, database lock, security
+    alert) with interactive shell access
+- id: G-2
+  description: Provide AI-guided assistance for runbook execution with step validation
+  successCriteria: AI agent provides contextual hints for each scenario step, validates
+    command execution correctness, and scores user performance with 90%+ accuracy
+    on validation checks
+- id: G-3
+  description: Track and report training progress for compliance requirements
+  successCriteria: System captures xAPI statements for all shell commands, scenario
+    completions, and performance metrics, exportable to standard Learning Record Stores
+- id: G-4
+  description: Demonstrate technical feasibility of PTY-enabled AI agent workflows
+  successCriteria: AI agent successfully handles interactive shell sessions (SSH,
+    database CLI, container exec) with pseudo-terminal support for at least 80% of
+    common DevOps commands
+constraints:
+- MVP limited to 3 pre-built incident scenarios (no custom scenario builder)
+- Single cloud provider support (AWS only for MVP)
+- PTY support implemented via subprocess wrapper around Claude API (not native API
+  feature)
+- Maximum 5 concurrent lab environments per deployment to control infrastructure costs
+- No LMS integration in MVP - standalone web application only
+- Session duration limited to 60 minutes with automatic cleanup
+- AI guidance uses predefined decision trees, not fully autonomous agent behavior
+techStack:
+  languages:
+  - Python
+  - Go
+  - TypeScript
+  frameworks:
+  - FastAPI
+  - React
+  - Terraform
+  infrastructure:
+  - Kubernetes
+  - Docker
+  - PostgreSQL
+  - Redis

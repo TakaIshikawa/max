@@ -1,0 +1,81 @@
+patterns:
+- name: Forked Foundation Pattern
+  description: Extend Excalidraw's open-source codebase rather than building from
+    scratch, maintaining compatibility with upstream updates while adding sustainability-specific
+    features in isolated modules
+  scope:
+  - frontend
+  - diagramming-core
+- name: Data Binding Layer
+  description: Implement reactive data binding using Zustand to connect diagram elements
+    to external data sources (CSV/JSON), enabling automatic updates when source data
+    changes
+  scope:
+  - state-management
+  - data-integration
+- name: Rich Text Composition
+  description: Integrate ProseMirror editor within Excalidraw text elements to support
+    inline formatting (colors, bold, italic) while maintaining Excalidraw's serialization
+    format
+  scope:
+  - text-editing
+  - frontend
+- name: Template Registry
+  description: Maintain a registry of pre-built sustainability diagram templates as
+    JSON schemas that can be instantiated and customized by users
+  scope:
+  - templates
+  - user-experience
+invariants:
+- All diagram data must remain serializable to JSON format compatible with Excalidraw's
+  schema to enable export/import
+- Rich text formatting must be stored within element metadata without breaking Excalidraw's
+  core rendering pipeline
+- Data bindings must be unidirectional (data source → diagram) to prevent accidental
+  data corruption
+- PDF/A exports must pass VeraPDF validation with zero errors before being presented
+  to users
+- All user data (diagrams, uploaded CSV/JSON files) must be stored locally or in user-controlled
+  storage - no third-party data transmission without explicit consent
+- Template modifications must not alter the original template definition - always
+  create copies for user customization
+conventions:
+- Use TypeScript strict mode for all new code with explicit type definitions
+- Follow Excalidraw's existing component structure and naming conventions for consistency
+- Prefix all custom sustainability features with 'Sustainability' namespace (e.g.,
+  SustainabilityTemplate, SustainabilityDataBinding)
+- Use kebab-case for file names, PascalCase for React components, camelCase for functions
+  and variables
+- Store all sustainability-specific assets (templates, icons) in /src/sustainability
+  directory
+- Write unit tests for all data binding and PDF export logic with minimum 80% coverage
+- Document all public APIs and data schemas using JSDoc comments
+decisions:
+- id: D-1
+  title: Fork Excalidraw instead of building custom diagramming engine
+  decision: Fork Excalidraw v0.17+ and extend with sustainability-specific features
+    in isolated modules to maintain upgrade path
+  rationale: Excalidraw provides a mature, well-tested diagramming foundation with
+    50k+ GitHub stars, saving 2-3 months of development time. Its MIT license permits
+    forking and commercial use. Building a diagramming engine from scratch would delay
+    MVP beyond the CSRD compliance deadline (summer 2025) and introduce significant
+    technical risk.
+- id: D-2
+  title: Use ProseMirror for rich text editing instead of native contentEditable
+  decision: Integrate ProseMirror editor for text elements with custom schema limiting
+    formatting to color, bold, italic, and underline
+  rationale: ProseMirror provides structured document editing with precise control
+    over formatting, undo/redo, and serialization. Native contentEditable is unreliable
+    across browsers and difficult to integrate with Excalidraw's canvas rendering.
+    ProseMirror's schema-based approach allows us to restrict formatting options to
+    colors and basic styles, preventing scope creep while maintaining data integrity.
+- id: D-3
+  title: Defer real-time collaboration to post-MVP
+  decision: MVP supports single-user editing with JSON export/import for sharing;
+    real-time collaboration deferred to v0.2.0
+  rationale: Implementing Y.js CRDT for real-time collaboration adds 3-4 weeks of
+    development complexity (conflict resolution, presence awareness, network synchronization).
+    For MVP, sustainability managers can collaborate asynchronously by exporting/importing
+    diagram files. This reduces build time from 2-3 months to 4-6 weeks, enabling
+    faster market validation.
+contracts: []

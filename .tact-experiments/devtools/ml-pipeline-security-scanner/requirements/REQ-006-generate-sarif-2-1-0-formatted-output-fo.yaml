@@ -1,0 +1,20 @@
+title: Generate SARIF 2.1.0 formatted output for CI/CD integration
+approval: draft
+phase: planned
+priority: critical
+description: Transform findings into SARIF format compatible with GitHub Security
+  tab and other security platforms. Essential for CI/CD composability and adoption
+  by security teams.
+acceptanceCriteria:
+- Output valid SARIF 2.1.0 JSON with runs, results, and rules sections
+- Map finding severity to SARIF level (critical/high=error, medium=warning, low=note)
+- Include file locations with URI, line numbers, and code snippets in results
+- Validate output against SARIF schema (can use online validator or library)
+decomposition:
+  assignments: []
+dependencies:
+- Detect vulnerable ML library versions from curated rule database
+- Scan Jupyter notebooks for inline dependency installations and code patterns
+- Analyze Kedro pipeline code for dataset loading vulnerabilities
+- Detect FastAPI route vulnerabilities in model serving code
+source: discovered

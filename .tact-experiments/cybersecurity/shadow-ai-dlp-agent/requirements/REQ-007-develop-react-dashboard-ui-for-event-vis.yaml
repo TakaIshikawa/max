@@ -1,0 +1,22 @@
+title: Develop React dashboard UI for event visualization
+approval: draft
+phase: planned
+priority: medium
+description: Build React-based web UI that displays policy violation events in real-time
+  table view. Support filtering by date range, agent, entity type, and action. Show
+  aggregated metrics (total violations, blocks, redactions, alerts) in summary cards.
+  Provide CSV export for compliance reporting.
+acceptanceCriteria:
+- 'Dashboard displays events in sortable table with columns: timestamp, agent, endpoint,
+  entity types, action, rule IDs'
+- Filter controls update table in <500ms when applied
+- Summary cards show total events, breakdown by action type, and top 5 agents by violation
+  count
+- CSV export button downloads filtered events with all fields
+- UI polls /api/v1/events every 5 seconds for new events and updates table without
+  full page refresh
+decomposition:
+  assignments: []
+dependencies:
+- Build FastAPI dashboard with PostgreSQL backend
+source: discovered

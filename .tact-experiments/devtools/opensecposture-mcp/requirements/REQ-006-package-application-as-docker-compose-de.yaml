@@ -1,0 +1,20 @@
+title: Package application as docker-compose deployment
+approval: draft
+phase: planned
+priority: critical
+description: Create docker-compose.yml with all required services (FastAPI app, PostgreSQL,
+  Nginx) and initialization scripts for single-command deployment.
+acceptanceCriteria:
+- docker-compose up -d starts all services with health checks passing within 2 minutes
+- PostgreSQL container initializes database schema from migrations on first run
+- FastAPI app container includes pre-configured Sigma rules in /rules directory
+- Nginx reverse proxy serves dashboard on port 80 and routes /api requests to FastAPI
+  backend
+- README.md includes configuration steps for Infisical webhook URL and Trivy scan
+  directory mounting
+- Environment variables for OSPM_INFISICAL_WEBHOOK_SECRET, OSPM_TRIVY_SCAN_DIR, and
+  OSPM_DATABASE_URL are documented with examples
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,24 @@
+title: Implement AWS CloudTrail audit log adapter
+approval: draft
+phase: planned
+priority: high
+description: Create adapter to query AWS CloudTrail for security-relevant events (IAM
+  changes, S3 bucket policy modifications, security group updates) and map to DORA
+  incident detection and configuration management controls. CloudTrail provides infrastructure
+  change audit trail for AWS-hosted financial services.
+acceptanceCriteria:
+- Adapter uses boto3 to query CloudTrail with configurable lookback period (default
+  24 hours)
+- 'Filters events to security-relevant categories: IAM, S3 bucket policies, VPC security
+  groups, KMS key usage'
+- 'Extracts event metadata: event name, user identity, source IP, timestamp, affected
+  resources'
+- Maps IAM changes to DORA-ICT-005 (access control), security group changes to DORA-ICT-004
+  (network security)
+- Supports AWS credential configuration via environment variables (AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY, AWS_REGION)
+- Handles pagination for large CloudTrail result sets (>1000 events)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

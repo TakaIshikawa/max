@@ -1,0 +1,22 @@
+title: Implement CLI with validate command
+approval: draft
+phase: planned
+priority: critical
+description: Create Cobra-based CLI tool with 'validate' command that accepts Terraform
+  plan JSON file path, runs validation, and outputs results in human-readable and
+  machine-readable formats.
+acceptanceCriteria:
+- 'Command syntax: fhir-tf-validator validate --plan=<path> with optional --format
+  flag (text|json)'
+- Exit code 0 when no violations, exit code 1 when violations detected, exit code
+  2 for errors
+- Text format output shows violations grouped by severity with resource addresses,
+  messages, and auto-fix snippets
+- JSON format output provides structured violation data for CI/CD integration
+- Support --policy-path flag to override default policies directory location
+decomposition:
+  assignments: []
+dependencies:
+- Parse Terraform plan JSON and extract FHIR store resources
+- Implement OPA policy engine integration
+source: discovered

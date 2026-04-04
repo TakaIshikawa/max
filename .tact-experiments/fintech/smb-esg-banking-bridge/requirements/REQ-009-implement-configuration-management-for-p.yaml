@@ -1,0 +1,22 @@
+title: Implement configuration management for provider credentials and settings
+approval: draft
+phase: planned
+priority: medium
+description: Build configuration system for managing open banking provider credentials,
+  AI API keys, webhook endpoints, and categorization settings using environment variables
+  and validation. Enables secure deployment without hardcoded secrets.
+acceptanceCriteria:
+- 'ConfigService loads configuration from environment variables: FINTECTURE_API_KEY,
+  FINTECTURE_APP_ID, GOCARD_ACCESS_TOKEN, OPENAI_API_KEY, DATABASE_URL'
+- Service validates required variables on startup, throws error with clear message
+  if any are missing
+- Configuration includes provider priority order (primary/secondary), categorization
+  confidence thresholds, sync lookback period (default 90 days)
+- Credentials are never logged or exposed in API responses - ConfigService redacts
+  sensitive values in toString() output
+- Docker Compose configuration demonstrates proper secret management using .env file
+  with example values
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

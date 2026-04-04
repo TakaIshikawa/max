@@ -1,0 +1,24 @@
+title: Implement package vetting MCP tool
+approval: draft
+phase: planned
+priority: critical
+description: Provide vet_package tool that accepts PyPI package name and version,
+  downloads source, performs static analysis for malicious patterns (eval usage, obfuscated
+  code, suspicious imports), analyzes dependency tree for known vulnerabilities, and
+  returns risk score with detailed findings. This is the first line of defense before
+  any tool execution.
+acceptanceCriteria:
+- Tool accepts package_name and optional version parameters, defaults to latest version
+  if not specified
+- Downloads package source from PyPI to isolated temporary directory on host
+- Runs Bandit security linter and semgrep with custom rules for OSINT-specific suspicious
+  patterns (credential harvesting, unexpected network calls in setup.py)
+- 'Calculates risk score (0.0-1.0) based on: number of high-severity findings, dependency
+  count, maintainer account age, and download statistics'
+- Returns JSON response with risk_score, findings list (severity, description, file,
+  line), dependency_count, and recommendation (safe/review/unsafe)
+- Cleans up temporary directory after analysis completes or fails
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

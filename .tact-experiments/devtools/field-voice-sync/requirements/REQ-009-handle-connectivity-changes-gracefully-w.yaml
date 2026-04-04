@@ -1,0 +1,20 @@
+title: Handle connectivity changes gracefully with background sync
+approval: draft
+phase: planned
+priority: medium
+description: App must detect when device transitions from offline to online and automatically
+  trigger sync process in background. User should not need to manually initiate sync.
+acceptanceCriteria:
+- App registers listener for network connectivity changes (NetInfo library)
+- When connectivity changes from offline to online, sync engine automatically starts
+  processing queue within 10 seconds
+- Sync continues in background even if user navigates away from app (using background
+  tasks)
+- User sees real-time sync status updates in report list as background sync progresses
+- If app is force-quit, sync resumes automatically next time app launches and connectivity
+  is available
+decomposition:
+  assignments: []
+dependencies:
+- Implement sync queue with automatic Procore API submission
+source: discovered

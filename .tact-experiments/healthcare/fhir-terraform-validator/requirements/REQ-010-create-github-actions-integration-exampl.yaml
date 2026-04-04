@@ -1,0 +1,19 @@
+title: Create GitHub Actions integration example
+approval: draft
+phase: planned
+priority: medium
+description: Provide documented GitHub Actions workflow example showing how to integrate
+  fhir-tf-validator into CI/CD pipeline for automated pre-deployment validation.
+acceptanceCriteria:
+- Workflow YAML runs on pull requests that modify .tf files in specified directories
+- Workflow executes terraform plan -out=plan.tfplan and terraform show -json plan.tfplan
+- Workflow runs fhir-tf-validator validate with JSON output format
+- Workflow fails (exits non-zero) when CRITICAL violations detected, posts violation
+  summary as PR comment
+- Documentation includes setup instructions for required GitHub secrets (GCP credentials
+  for terraform plan)
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI with validate command
+source: discovered

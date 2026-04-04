@@ -1,0 +1,21 @@
+title: Create example configuration and rule templates
+approval: draft
+phase: planned
+priority: medium
+description: Provide documented example YAML configurations for common AI agent platforms
+  and starter vulnerability rule templates to accelerate user onboarding and customization.
+acceptanceCriteria:
+- Include examples/config/ with sample OAuth configurations for 3+ platforms (generic,
+  MCP server, custom)
+- Provide examples/rules/ with 5+ commented rule templates covering different vulnerability
+  types
+- Document all configuration options in README with descriptions and default values
+- Include quickstart guide showing scan execution from configuration to report review
+- Provide rule authoring guide explaining condition syntax, severity assignment, and
+  MITRE mapping
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based vulnerability rule engine
+- Create CLI interface with configuration support
+source: discovered

@@ -1,0 +1,69 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Multi-stage code generation pipeline: OpenAPI parsing → FHIR metadata
+    extraction → Zod schema generation → factory generation → code emission. Each
+    stage operates on intermediate representations (IR) to enable independent testing
+    and extension.'
+  scope:
+  - OpenAPI parser
+  - metadata extractor
+  - schema generator
+  - factory generator
+  - code emitter
+- name: Template-Based Code Generation
+  description: Use Handlebars templates for generating TypeScript code to separate
+    logic from output format, enabling customization and maintainability.
+  scope:
+  - Zod schema templates
+  - factory function templates
+  - type definition templates
+- name: Plugin Architecture for Metadata Extractors
+  description: Support vendor-specific x-fhir-* extension formats through pluggable
+    metadata extractors (HAPI, Google, Azure, AWS), with a default extractor for standard
+    extensions.
+  scope:
+  - metadata extraction
+  - vendor-specific parsers
+invariants:
+- Generated code must always pass TypeScript compilation without errors
+- All generated Zod schemas must validate their corresponding OpenAPI examples without
+  modification
+- Metadata extraction must never mutate the source OpenAPI specification
+- Generated factory functions must produce objects that pass their corresponding Zod
+  validators
+- CLI must exit with non-zero status code on any generation error
+conventions:
+- Use kebab-case for package name and CLI command names
+- Use PascalCase for generated TypeScript types and Zod schemas (e.g., PatientSchema)
+- Use camelCase for generated factory functions (e.g., buildPatient)
+- Prefix FHIR metadata properties with 'fhir' in .meta() objects (e.g., fhirResourceType,
+  fhirProfileUrl)
+- 'Generate one file per FHIR resource type in output directory structure: types/,
+  schemas/, factories/'
+- Use .generated.ts suffix for all generated files to clearly mark them as auto-generated
+decisions:
+- id: D-1
+  title: Use Zod .meta() for FHIR-specific metadata instead of custom schema extensions
+  decision: Store FHIR metadata (resource type, profile URL, terminology bindings)
+    in Zod's built-in .meta() method rather than creating custom Zod schema extensions
+  rationale: Zod's .meta() is designed for attaching arbitrary metadata to schemas
+    and is already supported by ecosystem tools like zod-to-json-schema. Custom extensions
+    would require forking Zod or complex type augmentation, increasing maintenance
+    burden and breaking compatibility with Zod tooling.
+- id: D-2
+  title: Wrap openapi-typescript instead of building custom OpenAPI parser
+  decision: Use openapi-typescript as the base OpenAPI parser and extend it to extract
+    FHIR metadata, rather than building a parser from scratch
+  rationale: openapi-typescript is battle-tested, handles OpenAPI 3.x edge cases,
+    and is actively maintained. Building a custom parser would require months of work
+    to reach feature parity and would duplicate effort. Wrapping allows us to focus
+    on FHIR-specific value-add.
+- id: D-3
+  title: Generate Fishery factories instead of plain object builders
+  decision: Use Fishery library to generate test data factories with builder pattern
+    support, rather than simple factory functions returning plain objects
+  rationale: Fishery provides transient attributes, traits, and associations out-of-the-box,
+    which are essential for complex FHIR resources with nested references (e.g., Observation.subject
+    referencing Patient). Plain factory functions would require custom implementation
+    of these patterns, increasing code complexity.
+contracts: []

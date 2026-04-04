@@ -1,0 +1,21 @@
+title: Create DORA control library YAML configuration
+approval: draft
+phase: planned
+priority: critical
+description: Define YAML configuration file with 15 core DORA controls covering ICT
+  risk management, incident response, and third-party monitoring domains. Configuration
+  includes control metadata and evidence mapping rules that drive correlation engine.
+acceptanceCriteria:
+- 'YAML file config/dora_controls.yaml defines 15 controls with structure: id, domain,
+  title, description, evidence_mapping_rules'
+- 'Covers 3 domains: ICT Risk Management (6 controls), Incident Response (5 controls),
+  Third-Party Monitoring (4 controls)'
+- 'Mapping rules specify: source_adapter (trivy/infisical/aws), filter_conditions
+  (severity, event_type, resource_type)'
+- 'Example: DORA-ICT-003 maps to Trivy findings where severity in [CRITICAL, HIGH]'
+- YAML validates against JSON schema defined in backend/schemas/dora_control_schema.json
+- Documentation in config/README.md explains control structure and how to extend mappings
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

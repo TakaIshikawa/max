@@ -1,0 +1,21 @@
+title: Expose REST API for enrollment and completion tracking
+approval: draft
+phase: planned
+priority: critical
+description: Build Express REST API with endpoints for creating enrollments, updating
+  completion status, and querying user progress. Implement OAuth 2.0 bearer token
+  authentication and request validation using Zod schemas.
+acceptanceCriteria:
+- POST /api/v1/enrollments creates enrollment with validated user_id, course_id, enrolled_at
+- PATCH /api/v1/enrollments/:id/complete updates completion status with completed_at
+  timestamp
+- GET /api/v1/users/:id/enrollments returns all enrollments for user with course details
+- All endpoints require valid OAuth 2.0 bearer token in Authorization header
+- Invalid requests return RFC 7807 Problem Details JSON with appropriate HTTP status
+  codes
+- API documentation generated from OpenAPI 3.0 specification
+decomposition:
+  assignments: []
+dependencies:
+- Implement repository layer for user and enrollment management
+source: discovered

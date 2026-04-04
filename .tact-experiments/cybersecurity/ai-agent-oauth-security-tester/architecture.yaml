@@ -1,0 +1,80 @@
+patterns:
+- name: Test Orchestration Pattern
+  description: Pytest-based test discovery and execution with fixtures for OAuth flow
+    setup, parameterized tests for vulnerability scenarios, and custom markers for
+    test categorization (pkce, state, redirect, token)
+  scope:
+  - tests/
+  - src/orchestration/
+- name: Rule Engine Pattern
+  description: Declarative vulnerability detection rules defined in YAML with Pydantic
+    models for validation. Each rule specifies conditions, severity, MITRE ATT&CK
+    mapping, and remediation guidance. Rules are evaluated against captured OAuth
+    flow data
+  scope:
+  - src/rules/
+  - rules/
+- name: Reporter Pattern
+  description: Strategy pattern for multi-format report generation (JSON, Markdown,
+    SARIF). Each reporter implements a common interface and transforms vulnerability
+    findings into format-specific output
+  scope:
+  - src/reporters/
+- name: OAuth Flow Simulator
+  description: State machine pattern modeling OAuth authorization code + PKCE flow
+    with explicit state transitions (initiate → authorize → exchange → validate).
+    Captures all HTTP interactions for analysis
+  scope:
+  - src/oauth/
+invariants:
+- All HTTP requests must be logged with full headers and bodies for audit trail and
+  debugging
+- State parameters and PKCE verifiers must never be reused across test iterations
+- Vulnerability findings must include severity (critical/high/medium/low), evidence
+  (HTTP traces), and remediation guidance
+- Test execution must be idempotent; repeated runs against same target produce identical
+  results
+- No credentials or tokens from test runs may be persisted to disk without explicit
+  encryption
+- All MITRE ATT&CK and OWASP references must be validated against current versions
+  during build
+- Reports must be deterministic; same findings produce identical output for version
+  control diffing
+conventions:
+- Use snake_case for Python modules, functions, and variables; PascalCase for classes
+- Prefix test functions with test_ and vulnerability detection rules with rule_
+- HTTP client instances must use context managers (async with) for proper resource
+  cleanup
+- Pydantic models for all configuration, OAuth responses, and vulnerability findings
+- Pytest fixtures named after the resource they provide (oauth_config, test_client,
+  rule_engine)
+- CLI commands use kebab-case (oauth-tester scan, oauth-tester report)
+- 'Vulnerability IDs follow pattern: OAST-{CATEGORY}-{NUMBER} (e.g., OAST-PKCE-001)'
+- All async functions use httpx.AsyncClient; no mixing of sync/async HTTP libraries
+decisions:
+- id: D-1
+  title: Use httpx over requests for HTTP client
+  decision: Adopt httpx as the HTTP client library instead of requests
+  rationale: httpx provides async/await support for future parallel testing, HTTP/2
+    support for modern OAuth servers, and a requests-compatible API for easy adoption.
+    The async foundation enables future performance optimization without refactoring,
+    and httpx has better timeout/retry configuration needed for security testing scenarios
+- id: D-2
+  title: YAML-based rule definitions over hardcoded logic
+  decision: Define vulnerability detection rules in YAML files validated by Pydantic
+    schemas rather than hardcoding detection logic in Python
+  rationale: Enables security teams to customize and extend rules without code changes,
+    supports versioning of rule sets independently from application code, and allows
+    domain experts to contribute rules without Python expertise. Critical for healthcare
+    (SMART-on-FHIR) and other vertical-specific OAuth requirements mentioned in composability
+    goals
+- id: D-3
+  title: SARIF as primary structured output format
+  decision: Prioritize SARIF (Static Analysis Results Interchange Format) as the canonical
+    structured output, with JSON and Markdown as derived formats
+  rationale: SARIF is the industry standard for security findings with native GitHub
+    Security tab integration, supports rich metadata (locations, code flows, fixes),
+    and has broad SIEM/tool support. JSON and Markdown can be generated from SARIF
+    data model, avoiding duplicate formatting logic and ensuring consistency across
+    output formats
+contracts: []

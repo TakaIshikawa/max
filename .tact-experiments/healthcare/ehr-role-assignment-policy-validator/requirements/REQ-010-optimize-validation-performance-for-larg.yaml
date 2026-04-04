@@ -1,0 +1,17 @@
+title: Optimize validation performance for large configurations
+approval: draft
+phase: planned
+priority: medium
+description: Ensure validator processes large IaC files (1000+ lines, 100+ role assignments)
+  efficiently to meet CI/CD performance requirements.
+acceptanceCriteria:
+- Validate 1000-line Bicep file with 50 role assignments in under 3 seconds
+- Support concurrent parsing of multiple configuration files in a directory
+- Limit memory usage to under 100MB for typical validation workloads
+- Provide --verbose flag showing parsing and evaluation timing breakdown
+- Cache parsed OPA policies to avoid recompilation across multiple file validations
+decomposition:
+  assignments: []
+dependencies:
+- Build CLI with validate command
+source: discovered

@@ -1,0 +1,23 @@
+title: Generate JSON security reports with CWE and MITRE ATT&CK mappings
+approval: draft
+phase: planned
+priority: high
+description: Output structured JSON reports containing detected vulnerabilities, severity
+  ratings, CWE identifiers, MITRE ATT&CK technique IDs, and remediation guidance.
+  Enables integration with security dashboards like Defect Dojo and Faraday.
+acceptanceCriteria:
+- 'Generate JSON report with schema: findings[], summary{total, critical, high, medium,
+  low}, metadata{timestamp, target, version}'
+- Include CWE ID, MITRE ATT&CK technique ID, CVSS base score, and RFC section reference
+  for each finding
+- Redact all sensitive values (tokens, secrets, PKCE verifiers) in report output
+- Write report to stdout by default and to file path specified via --output flag
+- Include remediation guidance with code examples for each vulnerability type
+decomposition:
+  assignments: []
+dependencies:
+- Implement PKCE flow validation with verifier exposure detection
+- Validate state parameter handling and CSRF protection
+- Test Dynamic Client Registration with initial access token support
+- Detect token exposure in GET parameters and audit logs
+source: discovered

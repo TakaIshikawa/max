@@ -1,0 +1,25 @@
+title: Implement supplier carbon intensity lookup system
+approval: draft
+phase: planned
+priority: medium
+description: Create system for storing and looking up supplier carbon intensity data
+  to enable Scope 3 emissions calculations. MVP supports manual CSV upload; automated
+  integrations deferred.
+acceptanceCriteria:
+- 'Suppliers table schema: supplier_name (unique), carbon_intensity_kg_co2e (per currency
+  unit), industry_sector, data_source, last_updated, verification_status'
+- 'CSV upload endpoint POST /api/v1/suppliers/import accepts CSV with columns: supplier_name,
+  carbon_intensity, industry_sector, data_source; validates data types and ranges
+  (carbon_intensity > 0)'
+- 'Supplier matching algorithm: exact name match first, then fuzzy matching (Levenshtein
+  distance) with 85%+ similarity threshold, falls back to industry average if no match'
+- Industry average carbon intensities seeded for 10 common sectors (e.g., Transportation,
+  Manufacturing, Professional Services) based on EPA/DEFRA data
+- 'Supplier lookup integrated into transaction enrichment: enrich_with_supplier_data
+  task extracts supplier name from transaction description, queries suppliers table,
+  stores matched carbon_intensity in transaction record'
+decomposition:
+  assignments: []
+dependencies:
+- Create PostgreSQL schema with audit-first data model
+source: discovered

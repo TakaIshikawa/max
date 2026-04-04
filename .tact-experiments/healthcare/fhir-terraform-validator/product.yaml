@@ -1,0 +1,48 @@
+name: fhir-terraform-validator
+version: 0.1.0
+vision: A pre-deployment validation tool that enforces HIPAA-compliant FHIR infrastructure
+  configurations in Terraform plans, preventing compliance violations and manual post-deployment
+  fixes by validating against healthcare-specific policy rules before infrastructure
+  is deployed.
+goals:
+- id: G-1
+  description: Detect HIPAA compliance violations in FHIR infrastructure before deployment
+  successCriteria: Successfully identify 100% of missing audit logging, encryption,
+    and access control configurations in test Terraform plans for Google Cloud Healthcare
+    API FHIR stores
+- id: G-2
+  description: Integrate seamlessly into existing Terraform workflows
+  successCriteria: CLI tool can parse Terraform plan JSON output and complete validation
+    in under 5 seconds for plans with up to 50 resources, with exit codes compatible
+    with CI/CD pipelines
+- id: G-3
+  description: Provide actionable remediation guidance for detected violations
+  successCriteria: Generate valid HCL code snippets for auto-fix suggestions that
+    pass terraform validate for 90% of detected policy violations
+- id: G-4
+  description: Support extensible policy definitions for organization-specific requirements
+  successCriteria: Policy engine can load and validate against custom YAML policy
+    files without code changes, with at least 5 built-in HIPAA-focused policies for
+    MVP
+constraints:
+- MVP scope limited to Google Cloud Healthcare API FHIR stores only (Azure and AWS
+  support deferred)
+- 'Policy library focuses on 5 core HIPAA Security Rule requirements: audit logging,
+  encryption at rest, encryption in transit, IAM access controls, and US Core profile
+  validation config'
+- CLI tool only; web UI, Terraform Cloud native integration, and compliance dashboard
+  integration deferred to post-MVP
+- Validation operates on Terraform plan JSON output only; does not modify Terraform
+  state or interact with cloud provider APIs
+- Auto-fix suggestions generated as separate HCL snippets, not applied automatically
+  to source files
+techStack:
+  languages:
+  - Go
+  frameworks:
+  - Open Policy Agent (OPA)
+  - Cobra CLI framework
+  - go-hcl/hcl (HCL parser/generator)
+  infrastructure:
+  - GitHub Actions (for CI/CD integration example)
+  - Docker (for containerized CLI distribution)

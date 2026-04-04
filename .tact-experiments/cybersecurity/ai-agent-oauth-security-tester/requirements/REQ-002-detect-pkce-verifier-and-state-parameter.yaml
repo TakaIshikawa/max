@@ -1,0 +1,19 @@
+title: Detect PKCE verifier and state parameter confusion
+approval: draft
+phase: planned
+priority: critical
+description: Validate that state parameters and PKCE code_verifiers are generated
+  independently and never reused, detecting the CVE-2026-33579 vulnerability pattern
+  where state is incorrectly used as the PKCE verifier.
+acceptanceCriteria:
+- Flag as CRITICAL if state parameter value matches code_verifier value
+- Flag as HIGH if state or code_verifier are reused across multiple authorization
+  attempts
+- Verify code_challenge is SHA256 hash of code_verifier, not state parameter
+- Generate finding with MITRE ATT&CK mapping to T1550.001 (Application Access Token)
+- Include HTTP trace evidence showing parameter values in finding report
+decomposition:
+  assignments: []
+dependencies:
+- Implement OAuth authorization code flow simulator
+source: discovered

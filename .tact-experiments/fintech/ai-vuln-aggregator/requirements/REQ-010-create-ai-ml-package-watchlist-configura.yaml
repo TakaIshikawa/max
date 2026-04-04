@@ -1,0 +1,20 @@
+title: Create AI/ML package watchlist configuration
+approval: draft
+phase: planned
+priority: high
+description: Build configuration system to define priority AI/ML packages to monitor
+  (MCP servers, LLM SDKs, RAG frameworks). Crawler should prioritize these packages
+  for faster detection.
+acceptanceCriteria:
+- 'Supports JSON configuration file at config/watchlist.json with structure: {"packages":
+  [{"name": "langchain", "ecosystem": "pip", "priority": "high"}]}'
+- 'Watchlist includes at least 50 packages covering: LangChain, LlamaIndex, Transformers,
+  OpenAI SDK, Anthropic SDK, Haystack, ChromaDB, Pinecone, Weaviate, FastAPI, Gradio'
+- Crawler filters advisories to prioritize watchlist packages (processed first in
+  correlation queue)
+- API endpoint GET /api/v1/watchlist returns current monitored packages with metadata
+- Watchlist reloaded automatically when config file changes (no service restart required)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

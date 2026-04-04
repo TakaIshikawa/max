@@ -1,0 +1,22 @@
+title: Build searchable technique library view
+approval: draft
+phase: planned
+priority: high
+description: Main browsing interface showing all synced technique entries with filtering
+  by trade, project, crew, and date range. Must support both online and offline search
+  of locally cached entries.
+acceptanceCriteria:
+- List view shows technique cards with thumbnail photo, trade tags, project name,
+  and date
+- Filter controls for trade (multi-select), project (dropdown), crew (dropdown), date
+  range (picker)
+- Search applies to transcription text, manual tags, auto-tags, and project/crew names
+- Results update in real-time as filters change with smooth animations
+- Offline mode searches only locally synced entries with clear indicator of sync status
+- Tapping card opens detail view with full photos, transcription, and metadata
+decomposition:
+  assignments: []
+dependencies:
+- Implement AI voice transcription service
+- Implement AI photo auto-tagging service
+source: discovered

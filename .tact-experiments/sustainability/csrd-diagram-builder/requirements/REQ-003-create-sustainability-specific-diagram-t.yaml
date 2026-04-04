@@ -1,0 +1,22 @@
+title: Create sustainability-specific diagram templates
+approval: draft
+phase: planned
+priority: high
+description: 'Provide pre-built templates for common CSRD reporting diagrams: supply
+  chain map, Scope 1/2/3 emissions flow, and energy consumption diagram. Templates
+  should include placeholder elements, suggested layouts, and example data bindings
+  to accelerate diagram creation.'
+acceptanceCriteria:
+- Template library UI displays 3 templates with preview thumbnails and descriptions
+- User can select a template and instantiate it as a new diagram
+- Supply chain map template includes nodes for suppliers, manufacturers, distributors,
+  and customers with connecting arrows
+- Scope 1/2/3 emissions template includes categorized emission sources with flow arrows
+- Energy consumption template includes energy sources, consumption points, and flow
+  indicators
+- Templates include placeholder text that users can replace with their own data
+decomposition:
+  assignments: []
+dependencies:
+- Implement rich text formatting within diagram elements
+source: discovered

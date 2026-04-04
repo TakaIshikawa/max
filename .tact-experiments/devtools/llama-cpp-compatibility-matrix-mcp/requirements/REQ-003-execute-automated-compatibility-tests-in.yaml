@@ -1,0 +1,22 @@
+title: Execute automated compatibility tests in isolated containers
+approval: draft
+phase: planned
+priority: critical
+description: Run standardized test suite for each model+llama.cpp combination. Tests
+  measure inference latency, memory usage, and output correctness against transformers
+  baseline. Store results in database.
+acceptanceCriteria:
+- Test downloads GGUF model from Hugging Face, runs inference with fixed prompt (50
+  tokens)
+- Measures peak memory usage (RSS) and tokens/second throughput
+- Compares first 20 output tokens against transformers baseline, calculates token
+  accuracy percentage
+- Test marked 'passed' if accuracy ≥95%, latency <10s, memory <8GB; otherwise 'failed'
+- Results written to compat_results table with all metrics and pass/fail status
+- Failed tests include error logs for debugging
+decomposition:
+  assignments: []
+dependencies:
+- Build Docker images for multiple llama.cpp versions
+- Monitor Hugging Face for new GGUF model releases
+source: discovered

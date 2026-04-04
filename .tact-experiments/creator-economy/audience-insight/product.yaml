@@ -1,0 +1,54 @@
+name: audience-insight
+version: 0.1.0
+vision: A unified cross-platform comment analytics dashboard that aggregates audience
+  feedback from YouTube, TikTok, Instagram, and podcast platforms, using NLP to surface
+  sentiment trends, trending topics, and content optimization opportunities—replacing
+  manual comment reading with data-driven audience insights.
+goals:
+- id: G-1
+  description: Enable creators to connect at least 2 platform accounts and view aggregated
+    comments in a single dashboard
+  successCriteria: Successfully authenticate and fetch comments from YouTube and one
+    other platform (TikTok/Instagram/Apple Podcasts) within 60 seconds of OAuth flow
+    completion
+- id: G-2
+  description: Automatically extract sentiment and trending topics from aggregated
+    comments to reduce manual analysis time
+  successCriteria: Process 500+ comments and generate sentiment scores, topic clusters,
+    and top themes within 5 minutes, reducing creator research time from 2+ hours
+    to under 15 minutes per week
+- id: G-3
+  description: Identify high-value commenters and content optimization opportunities
+    to guide future content creation
+  successCriteria: Surface top 10 engaged commenters and at least 5 actionable content
+    suggestions (common questions, trending topics, misconceptions) per content piece
+    with 100+ comments
+- id: G-4
+  description: Track sentiment trends over time to detect shifts in audience perception
+  successCriteria: Display sentiment timeline visualization showing sentiment changes
+    across at least 10 content pieces, with alerts triggered when sentiment drops
+    by 20% or more between consecutive pieces
+constraints:
+- MVP supports YouTube Data API v3 and one additional platform (TikTok or Instagram)
+  only—Apple Podcasts and additional platforms deferred to post-MVP
+- Scraping fallback using Puppeteer is out of scope for MVP due to maintenance burden;
+  rely on API quotas and graceful degradation
+- NLP pipeline limited to pre-trained sentiment models (no custom training) to minimize
+  complexity
+- Real-time comment fetching deferred; MVP uses scheduled batch jobs every 6 hours
+- No email digest or webhook alerts in MVP—focus on dashboard-only experience
+- Authentication limited to OAuth 2.0 flows; no username/password accounts
+techStack:
+  languages:
+  - TypeScript
+  - Python
+  frameworks:
+  - Node.js
+  - Express
+  - React
+  - spaCy
+  infrastructure:
+  - PostgreSQL
+  - Redis
+  - OAuth 2.0
+  - REST APIs

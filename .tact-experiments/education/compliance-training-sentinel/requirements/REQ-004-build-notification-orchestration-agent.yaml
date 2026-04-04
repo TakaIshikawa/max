@@ -1,0 +1,20 @@
+title: Build notification orchestration agent
+approval: draft
+phase: planned
+priority: critical
+description: Develop a LangChain agent that generates personalized reminder emails
+  based on employee certification status, learning history, and deadline urgency.
+  Handles notification scheduling and delivery tracking to prevent duplicate sends.
+acceptanceCriteria:
+- Agent generates email content with employee name, certification name, expiration
+  date, and completion link
+- Adjusts email tone based on urgency (friendly reminder at 30 days, urgent at 7 days)
+- Checks notification history to prevent duplicate sends within 24-hour window
+- Queues emails via Celery task for asynchronous delivery
+- Records notification delivery status (sent, failed, bounced) with timestamp
+- Supports email template customization via admin interface
+decomposition:
+  assignments: []
+dependencies:
+- Build deadline detection agent
+source: discovered

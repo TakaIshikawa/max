@@ -1,0 +1,19 @@
+title: Implement PDF/A-2b export with embedded fonts
+approval: draft
+phase: planned
+priority: critical
+description: Export diagrams to PDF/A-2b format compliant with CSRD archival requirements.
+  PDF must include embedded fonts, color profiles, and metadata to pass VeraPDF validation.
+  This ensures regulatory compliance for long-term document preservation.
+acceptanceCriteria:
+- User can trigger PDF export from a menu option
+- Exported PDF conforms to PDF/A-2b standard (ISO 19005-2)
+- PDF includes embedded fonts for all text elements to ensure consistent rendering
+- PDF includes sRGB color profile for accurate color reproduction
+- Exported PDF passes VeraPDF validation with zero errors
+- PDF metadata includes creation date, author, and document title
+decomposition:
+  assignments: []
+dependencies:
+- Implement rich text formatting within diagram elements
+source: discovered

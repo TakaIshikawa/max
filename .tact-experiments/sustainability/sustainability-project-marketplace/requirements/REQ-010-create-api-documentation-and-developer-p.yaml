@@ -1,0 +1,23 @@
+title: Create API documentation and developer portal
+approval: draft
+phase: planned
+priority: medium
+description: Generate comprehensive API documentation using OpenAPI/Swagger specification.
+  Build developer portal with authentication guide, connector development tutorial,
+  and integration examples.
+acceptanceCriteria:
+- OpenAPI 3.0 specification documents all /api/v1/* endpoints with request/response
+  schemas
+- Interactive API documentation available at /docs using Swagger UI or similar
+- 'Developer portal at /developers includes: API authentication guide, connector SDK
+  templates (Python/Node.js), integration template format specification'
+- 'Code examples provided for common operations: searching projects, installing connectors,
+  submitting reviews'
+- Documentation includes rate limiting policy (100 requests/minute for unauthenticated,
+  1000 for authenticated)
+decomposition:
+  assignments: []
+dependencies:
+- Build search and filtering API for project discovery
+- Develop connector registry with versioning
+source: discovered

@@ -1,0 +1,74 @@
+patterns:
+- name: Queue-Based Processing
+  description: Use Celery with Redis as message broker for asynchronous video processing
+    tasks. Long-running operations (transcription, clip extraction, caption generation)
+    are queued and processed in background workers, allowing the API to remain responsive.
+  scope:
+  - backend
+  - video-processing
+  - task-management
+- name: Pipeline Architecture
+  description: 'Video repurposing follows a sequential pipeline: Upload → Transcription
+    → Moment Detection → Clip Extraction → Caption Generation → Format Conversion.
+    Each stage produces artifacts consumed by the next, enabling resumability and
+    debugging.'
+  scope:
+  - video-processing
+  - workflow
+- name: Repository Pattern
+  description: Abstract data access through repository interfaces for videos, clips,
+    transcripts, and jobs. Enables testing with in-memory implementations and future
+    storage backend changes.
+  scope:
+  - backend
+  - data-access
+invariants:
+- All video processing tasks must be idempotent - re-running the same task with the
+  same input produces identical output
+- Original uploaded content must never be modified - all processing operates on copies
+- Clip timestamps must always reference the original source video timeline, not processed
+  derivatives
+- Generated captions must maintain word-level timing synchronization with audio (max
+  200ms drift)
+- All file paths and URLs must be validated and sanitized to prevent directory traversal
+  attacks
+- Task status must be atomically updated in database before emitting status change
+  events
+- Exported clips must include metadata (source video ID, timestamp range, platform
+  target) in filename or sidecar file
+conventions:
+- Use snake_case for Python variables, functions, and file names
+- Use PascalCase for React components and TypeScript interfaces
+- Prefix all async Celery tasks with 'task_' (e.g., task_transcribe_video)
+- 'Name API endpoints with plural nouns: /api/videos, /api/clips, /api/jobs'
+- Store all timestamps in UTC and convert to user timezone only in frontend
+- 'Use HTTP status codes consistently: 200 (success), 201 (created), 202 (accepted/queued),
+  400 (validation error), 404 (not found), 500 (server error)'
+- Prefix environment variables with CLIPFORGE_ (e.g., CLIPFORGE_STORAGE_PATH)
+- Use TypeScript strict mode for all frontend code
+- Write unit tests alongside implementation files with .test.py or .test.tsx suffix
+decisions:
+- id: D-1
+  title: Use OpenAI Whisper for transcription instead of cloud speech APIs
+  decision: Integrate OpenAI Whisper (whisper-1 model via API or local large-v3 model)
+    for all transcription tasks
+  rationale: 'Whisper provides superior accuracy for diverse accents and audio quality,
+    runs locally to avoid per-minute API costs, and includes automatic language detection.
+    Trade-off: requires GPU for fast processing, but acceptable for MVP with CPU fallback.'
+- id: D-2
+  title: Defer computer vision speaker detection to post-MVP
+  decision: MVP uses fixed aspect ratio cropping (center-crop or top-center for talking
+    head videos). Add AI-powered framing in v0.2.0 after validating core workflow.
+  rationale: YOLO-based speaker detection and intelligent framing adds significant
+    complexity (model selection, training data, GPU requirements, edge cases). MVP
+    can use simpler center-crop or user-defined region of interest. This reduces initial
+    build time from 2-3 months to 3-4 weeks.
+- id: D-3
+  title: Store processed files locally with S3 as post-MVP enhancement
+  decision: Use local filesystem storage with configurable base path. Design storage
+    layer with interface to enable S3 backend in future versions.
+  rationale: Local filesystem storage simplifies MVP deployment (no cloud credentials,
+    no egress costs, easier debugging). S3 integration can be added later through
+    repository pattern abstraction without changing core logic. Acceptable for single-user
+    MVP with limited storage needs.
+contracts: []

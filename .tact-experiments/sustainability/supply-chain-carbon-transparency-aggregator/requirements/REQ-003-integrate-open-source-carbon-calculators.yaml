@@ -1,0 +1,24 @@
+title: Integrate open-source carbon calculators for supplier assistance
+approval: draft
+phase: planned
+priority: high
+description: Provide 5 industry-specific carbon calculators (manufacturing, transportation,
+  energy, agriculture, packaging) from OpenSustain.tech to help suppliers estimate
+  emissions. Achieves goal G-2 by enabling suppliers without data to complete submissions
+  in <15 minutes.
+acceptanceCriteria:
+- Python FastAPI microservice exposes /calculate endpoint accepting calculator_type
+  and input parameters
+- 'Integrated calculators: EPA WARM (waste), GLEC Framework (logistics), Ecoinvent
+  (manufacturing), CoolClimate (energy), custom packaging calculator'
+- Supplier selects calculator from dropdown based on product category, completes guided
+  form (e.g., material type, weight, distance)
+- Calculator returns emission value in kg CO2e with methodology reference and confidence
+  level (low/medium/high)
+- Calculated values auto-populate supplier submission form with 'estimated via calculator'
+  flag
+decomposition:
+  assignments: []
+dependencies:
+- Build supplier portal for carbon data submission
+source: discovered

@@ -1,0 +1,20 @@
+title: Implement OPA policy engine integration
+approval: draft
+phase: planned
+priority: critical
+description: Integrate Open Policy Agent to evaluate extracted FHIR resources against
+  Rego policies. The engine must load policies from filesystem, execute them against
+  resource data, and return structured violation results.
+acceptanceCriteria:
+- Load all .rego policy files from policies/gcp/ directory at startup
+- Execute policies against JSON representation of extracted FHIR store resources
+- Return violations with policy ID, severity, resource address, violation message,
+  and remediation hint
+- Complete policy evaluation for 50 resources in under 5 seconds
+- Handle policy syntax errors gracefully with clear error messages indicating which
+  policy file failed
+decomposition:
+  assignments: []
+dependencies:
+- Parse Terraform plan JSON and extract FHIR store resources
+source: discovered

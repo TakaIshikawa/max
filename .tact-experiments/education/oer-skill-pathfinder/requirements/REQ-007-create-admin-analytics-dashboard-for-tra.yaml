@@ -1,0 +1,24 @@
+title: Create admin analytics dashboard for training managers
+approval: draft
+phase: planned
+priority: medium
+description: Build analytics interface for HR/training managers to monitor team learning
+  progress, identify skill gaps, and measure training ROI. Supports data-driven training
+  decisions and demonstrates platform value to stakeholders.
+acceptanceCriteria:
+- 'Dashboard shows aggregate metrics: total employees enrolled, average completion
+  rate, total badges issued, cost savings vs. vendor training'
+- Team view displays progress for all employees in department with filtering by role,
+  learning path, and completion status
+- Skill gap analysis identifies competencies with lowest completion rates and recommends
+  focus areas
+- Export functionality generates CSV reports with employee progress data for integration
+  with HRIS systems
+- Dashboard includes cost comparison calculator showing savings (OER platform cost
+  vs. estimated vendor certification costs)
+decomposition:
+  assignments: []
+dependencies:
+- Build GitHub activity tracking for project-based learning progress
+- Integrate edX MOOC content with xAPI progress tracking
+source: discovered

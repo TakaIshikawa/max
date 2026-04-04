@@ -1,0 +1,45 @@
+name: mlpipe-sec-scan
+version: 0.1.0
+vision: A security scanner purpose-built for ML/data pipeline environments that detects
+  data-engineering-specific vulnerabilities and attack surfaces that generic dependency
+  scanners miss, extending security coverage to the ML/data science stack.
+goals:
+- id: G-1
+  description: Detect ML-specific vulnerabilities in Python data pipeline environments
+  successCriteria: Successfully identify at least 3 categories of ML-specific vulnerabilities
+    (vulnerable dependencies, dangerous patterns, configuration issues) across Jupyter
+    notebooks, Kedro projects, and FastAPI model servers with <5% false positive rate
+- id: G-2
+  description: Provide actionable remediation guidance for data science teams
+  successCriteria: Generate reports with CVSS scores, specific vulnerability descriptions,
+    and remediation steps in both JSON/SARIF (for CI/CD) and HTML (for human review)
+    formats
+- id: G-3
+  description: Integrate seamlessly into existing ML development workflows
+  successCriteria: Support CLI execution with exit codes for CI/CD blocking, complete
+    scan of a typical Kedro project in <30 seconds, and install via pip with zero
+    manual configuration required
+- id: G-4
+  description: Extend coverage beyond generic security scanners
+  successCriteria: Detect at least 5 ML-specific attack patterns (pickle deserialization,
+    unvalidated dataset paths, exposed inference endpoints, etc.) that tools like
+    Bandit and Safety don't flag by default
+constraints:
+- MVP focuses on local filesystem scanning only (no remote repository cloning)
+- Supports Python-based ML pipelines only (Jupyter, Kedro, MLflow, FastAPI)
+- Dependency scanning limited to pip/PyPI packages (no conda environments in MVP)
+- Static analysis only - no dynamic runtime monitoring or active exploitation
+- ML-specific vulnerability database maintained as static YAML file (no external API
+  dependencies)
+- Reports generated locally - no cloud upload or centralized dashboard in MVP
+techStack:
+  languages:
+  - Python 3.9+
+  frameworks:
+  - Click (CLI)
+  - Bandit (static analysis)
+  - pip-audit (dependency scanning)
+  - Jinja2 (report templating)
+  infrastructure:
+  - PyPI package distribution
+  - GitHub Actions for CI/CD testing

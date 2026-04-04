@@ -1,0 +1,22 @@
+title: Calculate severity scores using CVSS-like heuristics
+approval: draft
+phase: planned
+priority: high
+description: Assign numeric severity scores (0-10) to each vulnerability finding based
+  on exploitability, impact, and code context. Scores enable prioritization of remediation
+  efforts.
+acceptanceCriteria:
+- 'Implement scoring function considering: CWE base severity, code reachability (public
+  API vs internal), data sensitivity (hardcoded secrets, PII handling)'
+- 'Map CWE categories to base severity: Critical (9-10), High (7-8), Medium (4-6),
+  Low (1-3)'
+- Increase score by 1-2 points if vulnerability is in public-facing API or authentication
+  code
+- 'Scores are deterministic: same vulnerability characteristics always produce same
+  score'
+- Output severity as both numeric (0-10) and categorical (Critical/High/Medium/Low)
+decomposition:
+  assignments: []
+dependencies:
+- Deduplicate vulnerability findings using embedding similarity
+source: discovered

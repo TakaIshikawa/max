@@ -1,0 +1,51 @@
+name: compliance-training-sentinel
+version: 0.1.0
+vision: An AI-powered compliance training automation platform that eliminates manual
+  deadline tracking by intelligently monitoring certification status across LMS platforms,
+  sending personalized reminders, and generating audit-ready reports with built-in
+  GDPR/FERPA compliance.
+goals:
+- id: G-1
+  description: Automate compliance deadline detection and notification across multiple
+    LMS platforms
+  successCriteria: System successfully detects upcoming certification deadlines from
+    at least 2 LMS platforms and sends automated reminders 30, 14, and 7 days before
+    expiration with 95%+ delivery rate
+- id: G-2
+  description: Generate audit-ready compliance reports for regulatory requirements
+  successCriteria: System produces exportable compliance reports showing certification
+    status, completion dates, and gaps for all employees within 30 seconds, formatted
+    for SOC 2 and ISO 27001 audits
+- id: G-3
+  description: Ensure GDPR/FERPA-compliant data handling with employee consent management
+  successCriteria: System implements consent tracking, data minimization, and right-to-deletion
+    automation with 100% compliance to GDPR Article 17 deletion requests within 30
+    days
+- id: G-4
+  description: Reduce HR administrative overhead for compliance training management
+  successCriteria: HR teams report 60%+ reduction in time spent on manual deadline
+    tracking and reminder sending within first 90 days of deployment
+constraints:
+- MVP supports maximum 2 LMS integrations (xAPI and SCORM-based)
+- Notification channels limited to email only for MVP (Slack/Teams deferred)
+- Role-based certification requirements configured manually via admin interface (no
+  HRIS integration in MVP)
+- Audit reports support SOC 2 and ISO 27001 formats only (healthcare/financial templates
+  deferred)
+- Maximum 500 employees per organization for MVP performance validation
+- PTY-enabled bash tools and SIEM integration deferred to post-MVP
+- Multi-agent architecture simplified to 3 core agents (deadline, notification, audit)
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - LangChain
+  - FastAPI
+  - SQLAlchemy
+  - Celery
+  - Pydantic
+  infrastructure:
+  - PostgreSQL 15+
+  - Redis
+  - Docker
+  - REST API

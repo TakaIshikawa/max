@@ -1,0 +1,19 @@
+title: Implement repository layer for database operations
+approval: draft
+phase: planned
+priority: medium
+description: Create a repository class that abstracts all SQLite database operations
+  (insert, query, retrieve) behind a clean interface. This isolates database-specific
+  logic and makes the codebase more maintainable and testable.
+acceptanceCriteria:
+- 'ContextRepository class provides methods: log_context(), query_contexts(), get_context_by_id()'
+- All database operations use parameterized queries to prevent SQL injection
+- Repository handles database connection lifecycle (open, close, error handling)
+- Database writes use transactions to ensure atomicity
+- Repository raises custom exceptions (ContextNotFoundError, DatabaseError) for error
+  cases
+decomposition:
+  assignments: []
+dependencies:
+- Create SQLite database schema with FTS5 support
+source: discovered

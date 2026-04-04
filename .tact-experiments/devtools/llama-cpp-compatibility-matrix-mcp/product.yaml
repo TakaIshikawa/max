@@ -1,0 +1,49 @@
+name: llama-cpp-compatibility-matrix-mcp
+version: 0.1.0
+vision: An MCP server that automatically validates llama.cpp compatibility with newly
+  released models, providing a queryable compatibility matrix to prevent production
+  failures and enable informed model adoption decisions for local LLM deployments.
+goals:
+- id: G-1
+  description: Detect and test new model releases against llama.cpp within 24 hours
+    of publication
+  successCriteria: 90% of new models from top 5 model families (Llama, Gemma, Mistral,
+    Qwen, Phi) are tested within 24 hours of Hugging Face release
+- id: G-2
+  description: Provide queryable compatibility data via MCP tools for programmatic
+    access
+  successCriteria: MCP server exposes tools to query compatibility by model name/version
+    and llama.cpp version, returning structured results in <500ms
+- id: G-3
+  description: Validate model compatibility using objective benchmarks
+  successCriteria: Each test produces quantitative metrics (inference latency, memory
+    usage, output correctness score) with pass/fail determination based on configurable
+    thresholds
+- id: G-4
+  description: Enable CI/CD integration for pre-deployment validation
+  successCriteria: Provide GitHub Action that validates specific model+llama.cpp combinations
+    and fails builds if compatibility issues detected
+constraints:
+- MVP tests only GGUF-format models (no conversion from other formats)
+- 'Initial support limited to 3 llama.cpp versions: latest stable, previous stable,
+  and main branch'
+- Test suite limited to 5 major model families (Llama, Gemma, Mistral, Qwen, Phi)
+  to control scope
+- Automated testing runs on single hardware configuration (CPU-only, 16GB RAM) for
+  consistency
+- No GPU testing in MVP to reduce infrastructure complexity
+- Compatibility checks limited to inference correctness and basic performance metrics
+  (no fine-tuning validation)
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - FastAPI
+  - MCP Python SDK
+  - pytest
+  - huggingface_hub
+  - SQLAlchemy
+  infrastructure:
+  - Docker
+  - PostgreSQL
+  - GitHub Actions

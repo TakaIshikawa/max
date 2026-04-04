@@ -1,0 +1,20 @@
+title: Implement context replay tool
+approval: draft
+phase: planned
+priority: high
+description: Create an audit_replay_context MCP tool that retrieves the complete logged
+  context for a given context ID, enabling users to reproduce AI agent behavior by
+  accessing the exact inputs that were used in a previous request.
+acceptanceCriteria:
+- audit_replay_context tool accepts a context_id parameter and returns the full context
+  payload
+- 'Returned payload includes all original fields: source_code, prompt, file_path,
+  metadata, timestamp, token_count'
+- Tool returns clear error message if context_id does not exist
+- Payload returned as structured JSON matching the original log_context input format
+- Retrieval completes in <100ms for any single context
+decomposition:
+  assignments: []
+dependencies:
+- Create SQLite database schema with FTS5 support
+source: discovered

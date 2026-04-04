@@ -1,0 +1,75 @@
+patterns:
+- name: Adapter Pattern for AI Services
+  description: Abstract AI extraction services behind a common interface (BaseExtractor)
+    with service-specific adapters (TextractAdapter, OpenAIVisionAdapter) to enable
+    adding new services without modifying core orchestration logic
+  scope:
+  - backend/extractors
+  - backend/services/extraction_service.py
+- name: Task Queue Pattern for Async Processing
+  description: Use Celery task queue with Redis broker to handle long-running document
+    extraction jobs asynchronously, preventing API timeouts and enabling horizontal
+    scaling of workers
+  scope:
+  - backend/tasks
+  - backend/workers
+- name: Event Sourcing for Audit Trail
+  description: Store all document state changes and human decisions as immutable events
+    in audit_events table with timestamps, user IDs, and before/after field values
+    to meet compliance requirements
+  scope:
+  - backend/models/audit_event.py
+  - backend/services/audit_service.py
+- name: Repository Pattern for Data Access
+  description: Encapsulate database operations behind repository classes to separate
+    business logic from data access and enable easier testing with mocked repositories
+  scope:
+  - backend/repositories
+invariants:
+- Every document extraction must have a corresponding audit trail entry with timestamp
+  and initiating user/system
+- Audit events are immutable - no updates or deletes allowed, only inserts
+- Confidence scores must be between 0.0 and 1.0 for all extracted fields
+- Documents in 'pending_review' status must have at least one field with confidence
+  < 0.8
+- Human review decisions must include user ID and cannot be submitted by system/automated
+  processes
+- 'Document state transitions must follow valid flow: uploaded → processing → pending_review/approved
+  → approved/rejected'
+- All API responses containing extracted PII must be logged for compliance audit
+conventions:
+- Use snake_case for Python variables, functions, and file names
+- Use PascalCase for Python class names
+- Use kebab-case for API endpoint paths
+- 'Prefix all database tables with app namespace: ''hitl_documents'', ''hitl_audit_events'''
+- All async Celery tasks must have @task decorator with name parameter and retry logic
+- API endpoints return RFC 7807 Problem Details for errors
+- All timestamps stored in UTC using PostgreSQL timestamptz
+- Environment variables prefixed with HITL_ (e.g., HITL_DATABASE_URL)
+- React components use functional components with TypeScript interfaces for props
+- Frontend API calls use React Query for caching and state management
+decisions:
+- id: D-1
+  title: Use Celery + Redis for async task processing instead of AWS SQS/Lambda
+  decision: Implement async document processing using Celery workers with Redis as
+    message broker
+  rationale: Celery provides open-source, self-hosted async processing that avoids
+    vendor lock-in and keeps all infrastructure in Docker Compose for local development.
+    Redis is already required for Celery broker, avoiding additional infrastructure.
+    This aligns with open-source positioning and simplifies MVP deployment.
+- id: D-2
+  title: Store documents in S3-compatible storage instead of PostgreSQL BYTEA
+  decision: Store document files in S3 with metadata and object keys in PostgreSQL
+  rationale: Document files (PDFs, images) can be large (up to 10MB) and storing them
+    in PostgreSQL would bloat the database and slow down queries. S3-compatible storage
+    (AWS S3 or MinIO for local dev) provides cost-effective object storage with presigned
+    URLs for secure access. PostgreSQL stores only metadata and S3 object keys.
+- id: D-3
+  title: Implement confidence scoring at field level, not document level
+  decision: Each extracted field has individual confidence score; route to review
+    queue if ANY field < 0.8 confidence
+  rationale: Different fields in the same document can have varying extraction quality
+    (e.g., name is clear but DOB is smudged). Field-level confidence allows surgical
+    human review of only problematic fields rather than re-reviewing entire documents.
+    This reduces reviewer burden and improves efficiency.
+contracts: []

@@ -1,0 +1,22 @@
+title: Add webhook notifications for evidence updates
+approval: draft
+phase: planned
+priority: low
+description: Send webhook notifications to external systems (audit platforms, BI tools)
+  when evidence items are approved or reports are generated. Enables real-time integration
+  with downstream compliance workflows.
+acceptanceCriteria:
+- Admin UI allows configuring webhook URLs and event types (evidence_approved, evidence_rejected,
+  report_generated)
+- Webhook payload includes event type, timestamp, entity ID, and relevant metadata
+  (evidence details or report URL)
+- System retries failed webhook deliveries up to 3 times with exponential backoff
+- Webhook delivery history logged with status (success/failure) and response code
+  visible in admin UI
+- Webhooks signed with HMAC-SHA256 using shared secret for recipient verification
+decomposition:
+  assignments: []
+dependencies:
+- Build evidence repository with confidence scoring
+- Generate CSRD-compliant PDF reports with evidence references
+source: discovered

@@ -1,0 +1,20 @@
+title: Support custom policy loading from YAML definitions
+approval: draft
+phase: planned
+priority: medium
+description: Enable users to define custom validation policies in YAML format that
+  get compiled to Rego, allowing organization-specific rules without writing Rego
+  code.
+acceptanceCriteria:
+- 'YAML policy schema supports: id, severity, resource_type, required_attributes,
+  forbidden_attributes, description, remediation'
+- Load YAML policies from policies/custom/ directory alongside built-in Rego policies
+- Convert YAML policies to Rego rules at runtime and evaluate alongside built-in policies
+- YAML policy validation errors reported clearly with line numbers and schema violations
+- Include example custom YAML policy in documentation showing organization-specific
+  FHIR version requirement
+decomposition:
+  assignments: []
+dependencies:
+- Implement OPA policy engine integration
+source: discovered

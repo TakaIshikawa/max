@@ -1,0 +1,20 @@
+title: Implement GDPR consent management system
+approval: draft
+phase: planned
+priority: high
+description: Build consent tracking and management functionality to ensure all employee
+  data processing complies with GDPR Article 6 (lawful basis) and Article 7 (consent
+  conditions). Includes consent capture, withdrawal, and audit logging.
+acceptanceCriteria:
+- System presents consent form to employees on first login with clear purpose description
+- 'Stores consent records with: employee ID, consent timestamp, purpose, consent version,
+  IP address'
+- Provides employee self-service portal to view and withdraw consent
+- Blocks all data processing operations (LMS sync, notifications) for employees without
+  active consent
+- Logs all consent changes (granted, withdrawn) with immutable audit trail
+- Supports consent expiration and re-consent workflow after 12 months
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

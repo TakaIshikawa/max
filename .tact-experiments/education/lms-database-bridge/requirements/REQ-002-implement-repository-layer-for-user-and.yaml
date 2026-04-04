@@ -1,0 +1,21 @@
+title: Implement repository layer for user and enrollment management
+approval: draft
+phase: planned
+priority: critical
+description: Build UserRepository and EnrollmentRepository classes that use IDatabaseAdapter
+  to perform business logic operations. Repositories enforce invariants (unique emails,
+  referential integrity) and provide high-level API for application layer.
+acceptanceCriteria:
+- UserRepository.createUser validates email uniqueness across all database backends
+- UserRepository.syncFromHRIS updates existing users or creates new ones based on
+  external_id
+- EnrollmentRepository.enroll validates user_id and course_id exist before creating
+  enrollment
+- EnrollmentRepository.markComplete enforces completed_at >= enrolled_at constraint
+- All repository methods return consistent domain objects (User, Enrollment) regardless
+  of underlying database
+decomposition:
+  assignments: []
+dependencies:
+- Implement database adapter interface with PostgreSQL and MongoDB support
+source: discovered

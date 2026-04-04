@@ -1,0 +1,66 @@
+patterns:
+- name: Offline-First Architecture
+  description: Local-first data storage using SQLite/WatermelonDB with background
+    sync to server. All CRUD operations work offline with conflict resolution on sync.
+  scope:
+  - mobile-app
+  - data-sync
+- name: Event Sourcing for Payment Status
+  description: Payment application status changes stored as immutable events (submitted,
+    approved, paid, disputed) enabling audit trails and payment velocity analytics.
+  scope:
+  - backend
+  - database
+- name: Job Queue for Notifications
+  description: Background workers process overdue payment detection and SMS notifications
+    via Redis-backed job queue (Bull/BullMQ) to handle failures and retries.
+  scope:
+  - backend
+  - notifications
+invariants:
+- Payment application amounts must always equal line items sum + change orders - retention
+  amount
+- Retention percentage must be between 0-100% and cannot exceed invoice amount
+- 'Payment status transitions must follow valid state machine: draft → submitted →
+  approved → paid (or disputed at any stage)'
+- All monetary amounts stored as integers (cents) to avoid floating-point precision
+  errors
+- User can only access payment data for their own organization - no cross-tenant data
+  leakage
+- Offline changes must sync in chronological order to prevent data inconsistencies
+- SMS notifications must never send duplicate alerts for the same overdue payment
+  within 24 hours
+conventions:
+- Use TypeScript strict mode for all frontend and backend code
+- 'API endpoints follow RESTful conventions: /api/v1/{resource} with standard HTTP
+  verbs'
+- Database tables use snake_case naming; TypeScript/JavaScript uses camelCase
+- All dates stored in UTC; timezone conversion handled at presentation layer
+- 'Currency amounts stored as integer cents with currency code (e.g., amount_cents,
+  currency: ''USD'')'
+- React Native components use functional components with hooks (no class components)
+- Error responses follow JSON:API error format with status, title, and detail fields
+- Git commits follow Conventional Commits spec (feat:, fix:, docs:, etc.)
+decisions:
+- id: D-1
+  title: Use Expo for React Native development
+  decision: Build mobile app using Expo managed workflow instead of bare React Native
+  rationale: 'Expo provides faster development with over-the-air updates, simplified
+    build process, and built-in offline storage (expo-sqlite). Trade-off: limited
+    native module access, but MVP doesn''t require custom native code. Can eject to
+    bare workflow later if needed.'
+- id: D-2
+  title: Defer third-party integrations to post-MVP
+  decision: MVP requires manual data entry for payment applications; Procore/Buildertrend/QuickBooks
+    integrations deferred
+  rationale: Integrations add 4-6 weeks development time and require enterprise partnerships.
+    Manual entry validates core value proposition (tracking + alerts) faster. Integration
+    APIs can be added incrementally based on user demand without architectural changes.
+- id: D-3
+  title: Use scheduled jobs for overdue payment detection
+  decision: Run hourly cron job to detect overdue payments rather than real-time calculation
+    on every request
+  rationale: Payment terms are typically 30-90 days; hourly detection provides sufficient
+    timeliness while reducing database load. Job queue pattern enables retry logic
+    for failed SMS notifications and scales better than real-time checks.
+contracts: []

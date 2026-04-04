@@ -1,0 +1,17 @@
+title: Implement TikTok or Instagram OAuth authentication and comment fetching
+approval: draft
+phase: planned
+priority: critical
+description: Add support for one additional platform (TikTok or Instagram) to demonstrate
+  cross-platform aggregation. TikTok preferred due to simpler API structure for MVP.
+acceptanceCriteria:
+- User can authenticate with TikTok or Instagram via OAuth 2.0
+- System fetches comments from user's videos/posts using platform API
+- Comments are normalized into the same schema as YouTube comments
+- Platform connection status displayed in dashboard (connected/disconnected)
+- User can disconnect platform and revoke access
+decomposition:
+  assignments: []
+dependencies:
+- Implement YouTube OAuth authentication and comment fetching
+source: discovered

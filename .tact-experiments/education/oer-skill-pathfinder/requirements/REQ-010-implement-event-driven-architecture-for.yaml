@@ -1,0 +1,24 @@
+title: Implement event-driven architecture for progress tracking
+approval: draft
+phase: planned
+priority: high
+description: Build Redis-based event bus to handle asynchronous processing of learning
+  events (GitHub commits, xAPI statements, badge issuance). Ensures system scalability
+  and decouples services. Critical for handling high-volume activity tracking.
+acceptanceCriteria:
+- 'Redis Pub/Sub channels created for event types: github.commit, xapi.statement,
+  badge.issued, path.completed'
+- GitHub tracking service publishes events when new commits/PRs detected; xAPI service
+  publishes on statement receipt
+- Progress service subscribes to events and updates user progress records within 5
+  seconds of event publication
+- Badge service subscribes to path.completed events and triggers Badgr API call to
+  issue badge
+- Event handlers implement idempotency to prevent duplicate processing; events include
+  unique ID and timestamp
+decomposition:
+  assignments: []
+dependencies:
+- Build GitHub activity tracking for project-based learning progress
+- Integrate edX MOOC content with xAPI progress tracking
+source: discovered

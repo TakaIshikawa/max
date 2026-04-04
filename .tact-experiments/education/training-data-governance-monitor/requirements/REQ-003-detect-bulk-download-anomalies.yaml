@@ -1,0 +1,24 @@
+title: Detect bulk download anomalies
+approval: draft
+phase: planned
+priority: high
+description: Identify sessions where a vendor accesses >1000 employee records in single
+  session or >5000 records in 24-hour window. Generate alert with vendor name, record
+  count, time window, and list of affected employee IDs.
+acceptanceCriteria:
+- Query Elasticsearch for log events grouped by vendor_id and session_id, sum record_count
+  field
+- Trigger alert when session record_count exceeds 1000 or 24-hour rolling window exceeds
+  5000
+- 'Store alerts in PostgreSQL alerts table with fields: id, vendor_id, alert_type=''bulk_download'',
+  severity=''high'', record_count, affected_employee_ids, detected_at'
+- 'Include complete audit trail in alert: triggering log event IDs, detection rule
+  parameters'
+- Expose alerts via GET /api/v1/alerts endpoint with filtering by vendor_id, date
+  range, severity
+decomposition:
+  assignments: []
+dependencies:
+- Ingest and normalize LMS access logs from multiple formats
+- Maintain vendor and integration registry
+source: discovered

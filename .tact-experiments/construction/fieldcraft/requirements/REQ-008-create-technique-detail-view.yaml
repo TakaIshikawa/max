@@ -1,0 +1,18 @@
+title: Create technique detail view
+approval: draft
+phase: planned
+priority: medium
+description: Full-screen view showing all details of a technique entry including photo
+  gallery, voice transcription, tags, project/crew info, and timestamp. Supports playback
+  of original audio recording.
+acceptanceCriteria:
+- Photo gallery with swipe navigation and pinch-to-zoom
+- Transcription text displayed with option to play original audio recording
+- All tags (manual and auto) displayed with visual distinction
+- Project name, crew name, and timestamp prominently displayed
+- Share button to export entry as PDF or image with text overlay
+decomposition:
+  assignments: []
+dependencies:
+- Build searchable technique library view
+source: discovered

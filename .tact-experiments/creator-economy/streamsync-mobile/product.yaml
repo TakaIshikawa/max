@@ -1,0 +1,55 @@
+name: streamsync-mobile
+version: 0.1.0
+vision: A mobile-first streaming companion that aggregates multi-platform chat, enables
+  offline-capable stream management, and provides one-tap multi-platform go-live for
+  live streamers on Twitch, YouTube Live, and TikTok Live.
+goals:
+- id: G-1
+  description: Enable streamers to monitor and respond to chat from Twitch, YouTube
+    Live, and TikTok Live in a unified mobile interface
+  successCriteria: Successfully aggregate and display chat messages from at least
+    2 platforms with <2 second latency, with platform identification tags visible
+    on each message
+- id: G-2
+  description: Provide offline-first stream preparation tools that work without connectivity
+    and sync when network is restored
+  successCriteria: Stream notes (talking points, sponsor mentions) are readable and
+    editable offline, with automatic background sync completing within 30 seconds
+    of connectivity restoration
+- id: G-3
+  description: Simplify multi-platform streaming setup from manual configuration to
+    one-tap go-live
+  successCriteria: Authenticated users can initiate simultaneous streams on 2+ platforms
+    with a single action, reducing setup time from 15+ minutes to <60 seconds
+- id: G-4
+  description: Deliver real-time cross-platform alerts for key streaming events on
+    mobile devices
+  successCriteria: Push notifications for followers, donations, and raids arrive within
+    5 seconds of event occurrence, with 95%+ delivery rate across all integrated platforms
+constraints:
+- MVP limited to Twitch and YouTube Live integration (TikTok Live deferred due to
+  API access restrictions)
+- Multi-platform streaming uses third-party RTMP restreaming service (Restream API)
+  rather than custom NGINX-RTMP infrastructure
+- Chat aggregation is read-only in MVP; sending messages to platforms is out of scope
+- Mobile app targets iOS and Android via React Native; no web interface in MVP
+- Offline-first architecture must support degraded functionality when network is unavailable,
+  with automatic sync on reconnection
+- MVP supports up to 2 simultaneous platform connections to manage API rate limits
+  and complexity
+techStack:
+  languages:
+  - TypeScript
+  - JavaScript
+  frameworks:
+  - React Native
+  - Redux
+  - Redux Persist
+  - Express.js
+  - Node.js
+  infrastructure:
+  - Firebase Cloud Messaging
+  - PostgreSQL
+  - Redis
+  - WebSocket
+  - OAuth 2.0

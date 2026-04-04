@@ -1,0 +1,20 @@
+title: Create PostgreSQL schema for storing compatibility test results
+approval: draft
+phase: planned
+priority: critical
+description: Database schema that stores models, llama.cpp versions, and test results
+  with proper indexing for fast compatibility queries. Foundation for both API and
+  dashboard.
+acceptanceCriteria:
+- 'Schema includes tables: models (hf_repo, commit_hash, quantization), llama_cpp_versions
+  (version, git_hash), test_results (model_id, version_id, status, similarity_score,
+  tested_at, logs)'
+- Foreign key constraints enforce referential integrity between test_results and models/versions
+- Indexes created on test_results(model_id, version_id, status) for fast compatibility
+  lookups
+- Alembic migration script creates schema from scratch on fresh database
+- Test data insertion achieves >1000 records/second for batch imports
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,22 @@
+title: Generate FHIR-compliant context bundles with relevance metadata
+approval: draft
+phase: planned
+priority: critical
+description: Package compressed resources into FHIR Bundle (type='collection') ordered
+  by relevance score descending. Embed relevance scores in Bundle.entry.search.score.
+  Include Patient resource and top-N most relevant resources that fit within target
+  token budget (4000-8000 tokens).
+acceptanceCriteria:
+- Outputs valid FHIR R4 Bundle resource with type='collection'
+- Bundle.entry elements ordered by relevance score descending (highest first)
+- Each Bundle.entry.search.score contains the calculated relevance score
+- Bundle.entry.resource contains the compressed FHIR resource
+- Total bundle size stays within configurable token limit (default 6000 tokens)
+- Bundle validates against FHIR R4 schema using fhirclient validator
+- Bundle includes Bundle.timestamp with generation time
+decomposition:
+  assignments: []
+dependencies:
+- Compress context using ontology-aware techniques
+- Calculate clinical relevance scores for FHIR resources
+source: discovered

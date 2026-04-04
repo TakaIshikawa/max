@@ -1,0 +1,19 @@
+title: Implement offline-first report creation with sync queue
+approval: draft
+phase: planned
+priority: critical
+description: Reports can be created and saved locally when offline. Background sync
+  queue uploads reports to backend when connectivity is restored. Sync status is visible
+  to user with pending/synced/failed indicators.
+acceptanceCriteria:
+- User can create and save reports when device is offline
+- Reports are stored in local SQLite database with sync status (pending/synced/failed)
+- When connectivity is restored, pending reports are automatically synced to backend
+  within 5 minutes
+- Sync status is visible in report list with icons for pending/synced/failed
+- Failed syncs can be manually retried by user
+- Reports are never deleted from local storage until confirmed synced to backend
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

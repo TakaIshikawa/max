@@ -1,0 +1,17 @@
+title: Monitor Hugging Face for new GGUF model releases
+approval: draft
+phase: planned
+priority: critical
+description: Continuously poll Hugging Face API to detect newly published GGUF models
+  from supported families (Llama, Gemma, Mistral, Qwen, Phi). When new model detected,
+  enqueue for compatibility testing.
+acceptanceCriteria:
+- Polling runs every 6 hours and queries Hugging Face API for models with 'gguf' tag
+- New models from supported families are added to compat_models table with 'pending'
+  status
+- Duplicate detection prevents re-testing same model version
+- Monitoring logs include timestamp, models discovered, and any API errors
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

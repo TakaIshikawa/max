@@ -1,0 +1,52 @@
+name: smb-esg-banking-bridge
+version: 0.1.0
+vision: An open-source open banking integration layer that automates bank transaction
+  imports with ESG categorization for SMB accounting platforms, providing multi-provider
+  fallback and CSRD-compliant sustainability reporting without enterprise tooling
+  budgets.
+goals:
+- id: G-1
+  description: Enable automated bank transaction synchronization with multi-provider
+    fallback resilience
+  successCriteria: Successfully import transactions from at least 2 open banking providers
+    (Fintecture and GoCardless) with automatic failover when primary provider returns
+    errors, achieving <5 second sync latency for 100 transactions
+- id: G-2
+  description: Deliver AI-powered ESG transaction categorization aligned with EU Taxonomy
+    Regulation
+  successCriteria: Categorize 80%+ of transactions into ESG taxonomy categories (environmental,
+    social, governance) with 70%+ accuracy validated against manually tagged test
+    dataset of 500 transactions
+- id: G-3
+  description: Provide webhook-based integration for open-source accounting platforms
+  successCriteria: Successfully sync categorized transactions to Akaunting via webhook
+    with <10 second end-to-end latency, supporting batch imports of 500+ transactions
+    without data loss
+- id: G-4
+  description: Generate CSRD-compliant sustainability reports from categorized transaction
+    data
+  successCriteria: Export sustainability reports in CSV/JSON format containing required
+    CSRD metrics (Scope 3 emissions proxies, supplier diversity spend, renewable energy
+    purchases) covering 90%+ of categorized transactions
+constraints:
+- 'MVP supports only 2 open banking providers: Fintecture and GoCardless (no Plaid/FDX
+  initially)'
+- ESG categorization limited to EU Taxonomy Regulation categories (environmental,
+  social, governance) without custom taxonomy support
+- Single accounting platform integration (Akaunting only) for MVP validation
+- AI categorization uses OpenAI API only (no Anthropic/local models) to reduce complexity
+- No user authentication/multi-tenancy in MVP - single organization deployment model
+- Read-only bank access (account information only, no payment initiation)
+- Transaction history limited to 90 days lookback on initial sync
+techStack:
+  languages:
+  - TypeScript
+  - Node.js
+  frameworks:
+  - Express.js
+  - TypeORM
+  - Zod
+  infrastructure:
+  - PostgreSQL
+  - Docker
+  - Redis

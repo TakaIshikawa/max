@@ -1,0 +1,25 @@
+title: Create Docker deployment configuration with health checks
+approval: draft
+phase: planned
+priority: medium
+description: Package application as Docker container with multi-stage build, health
+  check endpoints, and docker-compose setup for local development and production deployment.
+  Ensures consistent deployment across environments.
+acceptanceCriteria:
+- 'Dockerfile uses multi-stage build: build stage with TypeScript compilation, runtime
+  stage with Node.js 20 Alpine image'
+- Container exposes port 3000 with Express server serving REST API and health check
+  endpoint GET /health
+- 'Health check endpoint returns 200 with JSON: {status: ''healthy'', database: ''connected'',
+  providers: [''fintecture'', ''goCardless'']} when all dependencies available'
+- 'docker-compose.yml defines services: app, postgres, redis with proper networking
+  and volume mounts for data persistence'
+- Successfully start application stack with 'docker-compose up', verify health check
+  returns 200, and execute transaction sync via API
+- README includes deployment instructions with environment variable configuration
+  and example .env file
+decomposition:
+  assignments: []
+dependencies:
+- Implement configuration management for provider credentials and settings
+source: discovered

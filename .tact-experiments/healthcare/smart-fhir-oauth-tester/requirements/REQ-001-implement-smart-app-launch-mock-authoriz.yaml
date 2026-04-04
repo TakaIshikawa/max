@@ -1,0 +1,23 @@
+title: Implement SMART App Launch mock authorization server
+approval: draft
+phase: planned
+priority: critical
+description: Create a fully functional OAuth 2.0 authorization server that implements
+  SMART App Launch IG v2.0.0 endpoints (/.well-known/smart-configuration, /authorize,
+  /token) with PKCE support. This server acts as the test fixture that applications
+  under test will authenticate against.
+acceptanceCriteria:
+- GET /.well-known/smart-configuration returns valid SMART configuration JSON with
+  authorization_endpoint, token_endpoint, and code_challenge_methods_supported
+- GET /authorize accepts client_id, redirect_uri, scope, state, code_challenge, and
+  code_challenge_method parameters
+- POST /token validates authorization_code grant type with PKCE code_verifier and
+  returns access_token and refresh_token
+- Server supports FHIR-specific scopes (patient/*.read, user/*.read, launch/patient)
+  and includes them in token response
+- Authorization server runs in Docker container and exposes endpoints on configurable
+  port
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

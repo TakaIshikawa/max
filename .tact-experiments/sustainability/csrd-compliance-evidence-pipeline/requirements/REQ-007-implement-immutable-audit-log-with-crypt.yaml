@@ -1,0 +1,22 @@
+title: Implement immutable audit log with cryptographic verification
+approval: draft
+phase: planned
+priority: critical
+description: Append-only audit log recording all system events (evidence creation,
+  reviews, report generation) with cryptographic hash chain. Enables tamper-proof
+  audit trails required for regulatory compliance and external auditor verification.
+acceptanceCriteria:
+- 'PostgreSQL audit_log table with columns: id, timestamp, user_id, action_type, entity_id,
+  entity_type, changes JSON, previous_hash, current_hash'
+- Each entry's current_hash computed as SHA-256(previous_hash + timestamp + user_id
+  + action_type + changes JSON)
+- API endpoint verifies audit log integrity by recomputing hash chain and detecting
+  tampering
+- All evidence modifications, review actions, and report generations create audit
+  entries in same transaction as primary operation
+- Audit log export API returns JSON or CSV for external auditor review with hash verification
+  instructions
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

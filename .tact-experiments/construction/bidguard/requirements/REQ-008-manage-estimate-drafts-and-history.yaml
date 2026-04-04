@@ -1,0 +1,20 @@
+title: Manage estimate drafts and history
+approval: draft
+phase: planned
+priority: medium
+description: Users can save multiple draft estimates, view list of recent estimates,
+  duplicate existing estimates for similar projects, and delete old drafts. Supports
+  contractors who bid on multiple projects simultaneously.
+acceptanceCriteria:
+- Estimates list view displays up to 10 most recent drafts with project name, date
+  modified, and total cost
+- Each estimate card shows status badge (Draft, Validated, Exported)
+- Duplicate button creates copy of estimate with '_Copy' suffix and current date
+- Delete button shows confirmation dialog before removing estimate from IndexedDB
+- Search/filter input allows finding estimates by project name (client-side filtering)
+- Estimates sorted by last modified date, most recent first
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+source: discovered

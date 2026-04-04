@@ -1,0 +1,22 @@
+title: Implement CSV evidence upload connector
+approval: draft
+phase: planned
+priority: critical
+description: Allow users to upload CSV files containing sustainability data (emissions,
+  energy consumption, waste metrics). Parse CSV, validate schema, extract evidence
+  items, and store with metadata. This is the simplest connector type and unblocks
+  manual data entry workflows.
+acceptanceCriteria:
+- API endpoint accepts CSV file upload with configurable column mapping (e.g., 'date'
+  column maps to 'measurement_date')
+- Parser validates required fields (date, metric_type, value, unit) and rejects files
+  with >10% invalid rows
+- Each CSV row creates an evidence item with source metadata (filename, upload timestamp,
+  uploader user ID)
+- Confidence score computed based on completeness (100% if all fields present, -10%
+  per missing optional field)
+- Upload history displayed in UI showing filename, row count, success/failure status
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

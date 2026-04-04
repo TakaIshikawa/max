@@ -1,0 +1,17 @@
+title: Build NLP microservice for sentiment analysis and topic extraction
+approval: draft
+phase: planned
+priority: critical
+description: Create a Python microservice using spaCy or Hugging Face transformers
+  to analyze comment text and extract sentiment scores and key topics/entities. This
+  powers the core analytics value proposition.
+acceptanceCriteria:
+- Microservice exposes POST /analyze endpoint accepting array of comment texts
+- Returns sentiment score (-1.0 to 1.0) for each comment using pre-trained model
+- Extracts top 5-10 topics/entities per batch of comments using NER or keyword extraction
+- Processes 500 comments in under 5 minutes
+- Handles errors gracefully and returns partial results if some comments fail
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

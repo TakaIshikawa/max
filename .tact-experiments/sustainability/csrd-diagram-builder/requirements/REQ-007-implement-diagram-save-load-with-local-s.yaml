@@ -1,0 +1,20 @@
+title: Implement diagram save/load with local storage
+approval: draft
+phase: planned
+priority: high
+description: Enable users to save diagrams locally and reload them in future sessions.
+  Diagrams should be stored in browser localStorage or as downloadable JSON files,
+  preserving all element data, formatting, and data bindings.
+acceptanceCriteria:
+- User can save current diagram to browser localStorage with a user-defined name
+- User can load previously saved diagrams from a list in localStorage
+- User can export diagram as a JSON file for backup or sharing
+- User can import diagram from a JSON file
+- All element properties, rich text formatting, and data bindings are preserved across
+  save/load cycles
+decomposition:
+  assignments: []
+dependencies:
+- Implement rich text formatting within diagram elements
+- Enable CSV data import with automatic element population
+source: discovered

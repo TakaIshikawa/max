@@ -1,0 +1,23 @@
+title: Implement block, redact, and alert enforcement modes
+approval: draft
+phase: planned
+priority: critical
+description: Add enforcement logic that applies policy actions based on rule evaluation
+  results. Block mode returns 403 Forbidden to client and prevents API call. Redact
+  mode replaces detected entities with placeholder tokens ([REDACTED_EMAIL], [REDACTED_SSN])
+  and forwards modified request. Alert mode logs violation but allows original request
+  through unchanged.
+acceptanceCriteria:
+- Block mode returns HTTP 403 with JSON body explaining policy violation and matched
+  rule ID
+- Redact mode replaces all detected entities with deterministic placeholders (same
+  entity always gets same token within session)
+- Alert mode forwards original request with <10ms added latency
+- All enforcement actions generate structured log events with timestamp, endpoint,
+  action, rule IDs, and entity types (no actual PII)
+- Enforcement mode is configurable per rule in YAML policy files
+decomposition:
+  assignments: []
+dependencies:
+- Build policy engine with YAML-based rule definitions
+source: discovered

@@ -1,0 +1,45 @@
+name: ai-agent-context-audit-logger
+version: 0.1.0
+vision: A Model Context Protocol (MCP) server that captures, stores, and makes queryable
+  the complete context sent to AI coding agents for every code generation request,
+  enabling compliance auditing and debugging of AI agent behavior in regulated development
+  environments.
+goals:
+- id: G-1
+  description: Capture complete context payloads from AI coding agent interactions
+  successCriteria: Successfully log 100% of intercepted AI agent requests including
+    source code, prompts, retrieval results, and model responses with <100ms overhead
+    per request
+- id: G-2
+  description: Enable fast querying and filtering of audit logs for compliance and
+    debugging
+  successCriteria: Support full-text search queries returning results in <500ms for
+    databases with 10,000+ logged contexts, with filters for timestamp, file path,
+    token count, and outcome
+- id: G-3
+  description: Provide context replay capability for debugging AI agent decisions
+  successCriteria: Allow users to retrieve and replay any logged context with all
+    original parameters intact, enabling reproduction of AI agent outputs
+- id: G-4
+  description: Integrate seamlessly into existing AI coding agent workflows via MCP
+  successCriteria: Function as a standard MCP server compatible with Claude Desktop
+    and other MCP clients without requiring changes to user workflows
+constraints:
+- MVP scope limited to logging and querying; no real-time alerting or policy enforcement
+- Storage limited to local SQLite database; no distributed storage or cloud sync in
+  MVP
+- Interception via MCP tools only; no proxy-based interception in MVP
+- Support for text-based context only; binary files and images excluded from MVP
+- Single-user local deployment only; no multi-tenant or authentication features in
+  MVP
+- Maximum context payload size of 10MB per log entry to prevent storage bloat
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - MCP Python SDK
+  - SQLite with FTS5 extension
+  - asyncio for async operations
+  infrastructure:
+  - Local SQLite database
+  - MCP stdio transport

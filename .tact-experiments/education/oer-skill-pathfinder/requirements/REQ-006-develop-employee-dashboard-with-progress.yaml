@@ -1,0 +1,24 @@
+title: Develop employee dashboard with progress visualization
+approval: draft
+phase: planned
+priority: high
+description: Build React-based frontend dashboard where employees view assigned learning
+  paths, track progress, and access OER resources. Must provide clear visibility into
+  completion status and next steps. Primary user interface for learners.
+acceptanceCriteria:
+- Dashboard displays all assigned learning paths with completion percentage, estimated
+  time remaining, and next recommended module
+- Each learning path shows module-level breakdown with status indicators (not started,
+  in progress, completed)
+- Clicking on OER resource opens link in new tab and marks resource as 'accessed'
+  in tracking system
+- Progress charts visualize completion over time using line graph and competency radar
+  chart showing skill development
+- Dashboard loads in under 2 seconds and updates progress metrics in real-time when
+  new GitHub commits or xAPI events are detected
+decomposition:
+  assignments: []
+dependencies:
+- Build GitHub activity tracking for project-based learning progress
+- Integrate edX MOOC content with xAPI progress tracking
+source: discovered

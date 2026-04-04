@@ -1,0 +1,18 @@
+title: Parse Azure Bicep role assignment configurations
+approval: draft
+phase: planned
+priority: critical
+description: Extract role assignments from Azure Bicep files to identify principal
+  IDs, role definition IDs, and resource scopes. Required to validate Azure RBAC configurations
+  against HIPAA policies.
+acceptanceCriteria:
+- Successfully parse valid Bicep files containing Microsoft.Authorization/roleAssignments
+  resources
+- Extract principalId, roleDefinitionId, and scope properties from each role assignment
+- Handle Bicep variables and parameters by resolving references to literal values
+- Return structured JSON representation of role assignments for OPA evaluation
+- Report parsing errors with file path and line number for invalid Bicep syntax
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

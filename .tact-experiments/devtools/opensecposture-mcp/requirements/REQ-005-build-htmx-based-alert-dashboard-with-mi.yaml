@@ -1,0 +1,21 @@
+title: Build HTMX-based alert dashboard with MITRE ATT&CK context
+approval: draft
+phase: planned
+priority: high
+description: Create web interface for viewing, filtering, and triaging security alerts
+  with MITRE ATT&CK technique details and remediation guidance.
+acceptanceCriteria:
+- 'Dashboard displays alerts in reverse chronological order with columns: timestamp,
+  severity, MITRE technique, description, status (new/acknowledged/dismissed)'
+- Clicking alert expands detail view showing matched events, raw event data, MITRE
+  ATT&CK description from embedded knowledge base, and suggested remediation steps
+- Filter controls for severity (critical/high/medium/low), MITRE technique ID, and
+  date range
+- Acknowledge and Dismiss buttons update alert status via HTMX POST requests without
+  page reload
+- Dashboard auto-refreshes every 30 seconds using HTMX polling to show new alerts
+decomposition:
+  assignments: []
+dependencies:
+- Build Sigma rule engine with pySigma integration
+source: discovered

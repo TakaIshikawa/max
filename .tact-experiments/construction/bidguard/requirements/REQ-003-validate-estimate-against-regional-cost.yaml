@@ -1,0 +1,26 @@
+title: Validate estimate against regional cost benchmarks
+approval: draft
+phase: planned
+priority: critical
+description: Server-side validation compares estimate totals and key cost ratios (material-to-labor,
+  cost-per-sqft) against regional benchmarks. Uses GPT-4 to generate natural language
+  explanations of anomalies. Helps contractors catch errors like the $13K labor miscalculation
+  before bid submission.
+acceptanceCriteria:
+- API endpoint accepts estimate data (line items, project type, region, sqft) and
+  returns validation results
+- Flag total cost if >30% deviation from regional benchmark for project type and size
+- Flag material-to-labor ratio if outside typical range (e.g., 0.6-1.4 for framing
+  projects)
+- Flag cost-per-sqft if >25% deviation from regional average
+- GPT-4 generates explanation message including specific numbers (e.g., 'Your labor
+  cost of $2K is 75% below typical range of $8-12K for 500 sqft roof framing in Seattle')
+- Validation results display in modal with warning icon, flagged items highlighted
+  in yellow
+- User must explicitly acknowledge each warning before proceeding to export
+decomposition:
+  assignments: []
+dependencies:
+- Create estimate from project template
+- Detect and flag formula errors in calculations
+source: discovered

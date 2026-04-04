@@ -1,0 +1,22 @@
+title: Implement notification dispatcher and channel handlers
+approval: draft
+phase: planned
+priority: high
+description: Build notification system that triggers alerts when new vulnerabilities
+  are ingested, supporting Slack, email (SMTP), and generic webhooks.
+acceptanceCriteria:
+- NotificationDispatcher observes new vulnerability creation and triggers configured
+  notification channels asynchronously via Celery
+- Implements SlackNotificationHandler using Slack SDK to post formatted messages to
+  configured webhook URL
+- Implements EmailNotificationHandler using SMTP to send HTML-formatted vulnerability
+  alerts
+- Implements WebhookNotificationHandler to POST JSON payload to configured URLs
+- 'Notification configurations stored in ''notification_configs'' table with fields:
+  channel_type, enabled, config (JSONB for channel-specific settings), severity_filter'
+- Failed notifications logged with retry up to 3 attempts with exponential backoff
+decomposition:
+  assignments: []
+dependencies:
+- Build vulnerability database schema and repository layer
+source: discovered

@@ -1,0 +1,48 @@
+name: smart-fhir-oauth-tester
+version: 0.1.0
+vision: An automated security testing framework that validates SMART-on-FHIR OAuth
+  implementations against security best practices, preventing PHI exposure from authentication
+  vulnerabilities before production deployment.
+goals:
+- id: G-1
+  description: Detect critical OAuth security vulnerabilities in SMART-on-FHIR implementations
+  successCriteria: Successfully identify PKCE verifier leakage, state parameter reuse,
+    insecure token storage, and authorization code replay attacks with 100% accuracy
+    in test scenarios
+- id: G-2
+  description: Provide actionable security feedback for developers
+  successCriteria: Generate security scorecard with pass/fail results and remediation
+    links for each test, with average developer remediation time under 2 hours per
+    identified issue
+- id: G-3
+  description: Enable CI/CD integration for continuous security testing
+  successCriteria: CLI tool executes complete test suite in under 5 minutes and returns
+    non-zero exit code on security failures, compatible with GitHub Actions and GitLab
+    CI
+- id: G-4
+  description: Support both web and native SMART-on-FHIR applications
+  successCriteria: Successfully test token storage security for web apps using browser
+    automation and provide instrumentation hooks for native mobile apps
+constraints:
+- MVP focuses on web application testing only; mobile app instrumentation (Frida)
+  is out of scope
+- Mock FHIR server provides minimal SMART App Launch endpoints only, not full FHIR
+  resource API
+- Initial release supports SMART App Launch standalone launch flow; EHR launch flow
+  is deferred to v0.2
+- Test suite covers OAuth 2.0 security best practices from RFC 8252 and SMART App
+  Launch IG v2.0.0
+- No persistent storage; all test results are ephemeral and output as JSON reports
+- Web UI is minimal/read-only for viewing test results; interactive testing happens
+  via CLI
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - Authlib
+  - FastAPI
+  - Playwright
+  - pytest
+  infrastructure:
+  - Docker
+  - Docker Compose

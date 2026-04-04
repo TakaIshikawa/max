@@ -1,0 +1,20 @@
+title: Implement API authentication with API keys
+approval: draft
+phase: planned
+priority: medium
+description: Add API key-based authentication to protect evidence collection, report
+  generation, and dashboard endpoints. Authentication prevents unauthorized access
+  to sensitive compliance data.
+acceptanceCriteria:
+- 'API keys stored in database table api_keys with columns: key_hash (bcrypt), name,
+  created_at, last_used_at, is_active'
+- FastAPI dependency validates X-API-Key header against hashed keys in database
+- Unauthorized requests (missing/invalid key) return 401 with JSON error message
+- CLI command python -m backend.cli create-api-key --name <name> generates new key
+  and prints to stdout
+- All endpoints except GET /health require valid API key
+- API key usage logged to audit trail with timestamp and endpoint accessed
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,86 @@
+patterns:
+- name: Scheduled Scraper Pattern
+  description: Independent scraper modules for each upstream source (GitHub, PyPI,
+    npm, vendor feeds) run on configurable intervals via Celery Beat. Each scraper
+    implements a common interface (fetch, parse, normalize) and emits standardized
+    vulnerability objects to the database layer.
+  scope:
+  - backend/scrapers
+  - backend/tasks
+- name: Repository Pattern
+  description: Database access abstracted through repository classes that encapsulate
+    query logic. VulnerabilityRepository handles CRUD operations, deduplication, and
+    full-text search. Enables swapping storage implementations without affecting business
+    logic.
+  scope:
+  - backend/repositories
+  - backend/models
+- name: Observer Pattern for Notifications
+  description: When new vulnerabilities are persisted, a notification dispatcher triggers
+    registered notification handlers (Slack, email, webhook). Each handler implements
+    a common NotificationChannel interface and processes notifications asynchronously
+    via Celery tasks.
+  scope:
+  - backend/notifications
+  - backend/tasks
+- name: API Gateway Pattern
+  description: FastAPI serves as the single entry point for all client interactions.
+    Routes delegate to service layer for business logic. Includes request validation,
+    rate limiting, API key authentication, and standardized error responses.
+  scope:
+  - backend/api
+  - backend/middleware
+invariants:
+- Every vulnerability record must have a unique identifier (source + source_id combination)
+  to prevent duplicates across scraper runs
+- 'Vulnerability severity must be one of: critical, high, medium, low, unknown - never
+  null'
+- All timestamps must be stored in UTC and include timezone information
+- Scraper failures must never crash the application - errors are logged and retried
+  on next interval
+- Notification delivery failures must be logged but not block vulnerability ingestion
+- API responses must always include pagination metadata when returning lists
+- Database migrations must be reversible and tested before deployment
+conventions:
+- Python code follows PEP 8 with Black formatter (line length 100)
+- All async functions use 'async def' prefix; synchronous database operations use
+  SQLAlchemy sessions
+- Environment variables prefixed with 'VULN_AGG_' (e.g., VULN_AGG_DATABASE_URL)
+- API endpoints versioned under /api/v1/ namespace
+- Scraper modules named {source}_scraper.py (e.g., github_scraper.py, pypi_scraper.py)
+- Database models use singular nouns (Vulnerability, NotificationConfig), tables use
+  plural (vulnerabilities, notification_configs)
+- React components use PascalCase, hooks use camelCase with 'use' prefix
+- All dates displayed in ISO 8601 format in API responses
+- Logging uses structured JSON format with correlation IDs for request tracing
+decisions:
+- id: D-1
+  title: Use Celery with Redis for asynchronous task processing
+  decision: Implement scraper scheduling and notification delivery using Celery Beat
+    and Celery workers backed by Redis as the message broker
+  rationale: Scrapers must run on independent schedules (GitHub every 15min, vendor
+    feeds hourly) without blocking API requests. Celery provides robust scheduling,
+    retry logic, and task monitoring. Redis offers low-latency message queuing with
+    minimal operational overhead for self-hosted deployments. Alternative (APScheduler)
+    lacks distributed task support needed for future horizontal scaling.
+- id: D-2
+  title: Normalize all vulnerabilities to a unified schema at ingestion time
+  decision: Transform upstream vulnerability data (GitHub GHSA format, PyPI JSON,
+    vendor-specific formats) into a single internal schema during scraping, before
+    database persistence
+  rationale: 'Upstream sources use incompatible schemas (GitHub uses GHSA IDs, PyPI
+    uses PEP 440 version specifiers, vendors use custom formats). Normalizing at ingestion
+    simplifies API queries, notification templates, and UI rendering. Trade-off: loses
+    some source-specific metadata, but MVP prioritizes consistency over completeness.
+    Original source data stored in JSONB ''raw_data'' field for future enrichment.'
+- id: D-3
+  title: PostgreSQL full-text search instead of dedicated search engine
+  decision: Use PostgreSQL's built-in full-text search (tsvector/tsquery) for vulnerability
+    search and filtering rather than Elasticsearch or similar
+  rationale: MVP scope expects <10k vulnerabilities in database (AI/ML ecosystem is
+    smaller than general software). PostgreSQL full-text search handles this scale
+    with <500ms query times and eliminates operational complexity of running a separate
+    search cluster. GIN indexes on tsvector columns provide adequate performance.
+    If dataset grows beyond 100k records or requires fuzzy matching, can migrate to
+    pgvector or Elasticsearch in post-MVP iterations.
+contracts: []

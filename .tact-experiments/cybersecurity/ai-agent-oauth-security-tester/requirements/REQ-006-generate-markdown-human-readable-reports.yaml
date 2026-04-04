@@ -1,0 +1,18 @@
+title: Generate Markdown human-readable reports
+approval: draft
+phase: planned
+priority: medium
+description: Create formatted Markdown reports with executive summary, vulnerability
+  details, evidence snippets, and remediation steps for security team review and documentation.
+acceptanceCriteria:
+- Include summary section with total vulnerabilities by severity (critical/high/medium/low
+  counts)
+- Group findings by vulnerability category (PKCE, State, Redirect, Token)
+- Display HTTP request/response evidence as formatted code blocks for each finding
+- Link to MITRE ATT&CK techniques and OWASP OAuth Security Cheat Sheet sections
+- Generate table of contents with anchor links for findings navigation
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based vulnerability rule engine
+source: discovered

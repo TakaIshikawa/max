@@ -1,0 +1,23 @@
+title: Create unified analytics dashboard displaying aggregated download metrics
+approval: draft
+phase: planned
+priority: high
+description: Build React-based dashboard that visualizes download trends, episode
+  performance, and platform breakdown. This is the primary user interface for reviewing
+  podcast analytics in a single view.
+acceptanceCriteria:
+- Dashboard displays total downloads across all connected platforms with 7-day, 30-day,
+  and all-time views
+- Line chart shows daily download trends over selected time period using Recharts
+  library
+- Episode performance table lists all episodes sorted by total downloads with platform
+  breakdown
+- Platform distribution pie chart shows percentage of downloads from each connected
+  platform
+- Dashboard loads and renders all visualizations within 5 seconds for datasets up
+  to 10,000 records
+decomposition:
+  assignments: []
+dependencies:
+- Build ETL pipeline to fetch and normalize download data from connected platforms
+source: discovered

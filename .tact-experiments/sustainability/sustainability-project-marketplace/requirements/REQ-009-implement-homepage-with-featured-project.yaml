@@ -1,0 +1,20 @@
+title: Implement homepage with featured projects and search
+approval: draft
+phase: planned
+priority: high
+description: Design and build landing page showcasing platform value proposition,
+  featured projects by CSRD category, quick search, and getting started guide. Optimize
+  for SEO and performance.
+acceptanceCriteria:
+- Homepage displays hero section with value proposition and search bar
+- Featured projects section shows 3-4 categories (Carbon Accounting, Energy Monitoring,
+  Supply Chain) with 3 projects each
+- Search bar provides autocomplete suggestions using project names and tags
+- Page loads in under 2 seconds with Lighthouse performance score >90
+- Getting started section links to documentation for browsing projects, installing
+  connectors, and using templates
+decomposition:
+  assignments: []
+dependencies:
+- Build search and filtering API for project discovery
+source: discovered

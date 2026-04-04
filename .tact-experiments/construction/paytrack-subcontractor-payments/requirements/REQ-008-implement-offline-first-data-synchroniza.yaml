@@ -1,0 +1,20 @@
+title: Implement offline-first data synchronization
+approval: draft
+phase: planned
+priority: critical
+description: Mobile app must function fully offline for field use, with automatic
+  background sync when connectivity restored to prevent data loss and enable use on
+  job sites with poor connectivity.
+acceptanceCriteria:
+- All payment applications, GC profiles, and status changes saved to local SQLite
+  database
+- User can create, read, update payment data with zero latency when offline
+- App displays sync status indicator (synced, syncing, offline)
+- Background sync triggers automatically when app regains connectivity
+- 'Conflict resolution: server timestamp wins for same-record updates'
+- Sync queue processes changes in chronological order to maintain data consistency
+- User sees error notification if sync fails after 3 retry attempts
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

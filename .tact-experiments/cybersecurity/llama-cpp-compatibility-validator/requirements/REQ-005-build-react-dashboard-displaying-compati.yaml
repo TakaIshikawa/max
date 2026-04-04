@@ -1,0 +1,22 @@
+title: Build React dashboard displaying compatibility matrix
+approval: draft
+phase: planned
+priority: high
+description: Web interface that visualizes compatibility data in filterable table
+  format. Provides human-readable access to test results for developers evaluating
+  model options.
+acceptanceCriteria:
+- Dashboard displays table with models as rows, llama.cpp versions as columns, cells
+  showing PASS/FAIL status
+- 'Color coding: green for PASS, red for FAIL, yellow for ERROR, gray for untested
+  combinations'
+- Filters allow selection by quantization format (Q4_K_M, Q5_K_S, Q8_0)
+- Clicking cell shows detail modal with similarity score, test timestamp, and error
+  logs if failed
+- Dashboard loads and renders 100+ test results in <2 seconds
+- Mobile-responsive layout works on screens down to 768px width
+decomposition:
+  assignments: []
+dependencies:
+- Implement FastAPI JSON API with compatibility query endpoints
+source: discovered

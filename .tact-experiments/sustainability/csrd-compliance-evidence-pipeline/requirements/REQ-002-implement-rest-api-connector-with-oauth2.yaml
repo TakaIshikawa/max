@@ -1,0 +1,24 @@
+title: Implement REST API connector with OAuth2 authentication
+approval: draft
+phase: planned
+priority: critical
+description: Connect to external sustainability tools via REST APIs using OAuth2 for
+  authentication. Fetch data on schedule, transform to internal evidence format, and
+  store. Enables integration with carbon accounting platforms and energy monitoring
+  APIs.
+acceptanceCriteria:
+- Admin UI allows configuring API endpoint URL, OAuth2 credentials (client ID/secret),
+  and field mapping
+- Connector performs OAuth2 authorization code flow and securely stores refresh tokens
+  encrypted in database
+- Airflow DAG executes API requests on configured schedule (daily/weekly), handles
+  pagination, and retries on transient failures (3 attempts with exponential backoff)
+- API responses transformed to evidence items using JSONPath expressions for field
+  extraction
+- Connector logs errors (rate limits, auth failures, schema mismatches) visible in
+  Airflow UI and admin dashboard
+decomposition:
+  assignments: []
+dependencies:
+- Implement CSV evidence upload connector
+source: discovered

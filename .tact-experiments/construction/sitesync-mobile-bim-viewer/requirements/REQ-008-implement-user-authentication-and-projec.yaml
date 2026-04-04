@@ -1,0 +1,19 @@
+title: Implement user authentication and project access control
+approval: draft
+phase: planned
+priority: high
+description: Users must authenticate with email/password to access the app, and only
+  see BIM models and RFIs for projects they are assigned to, ensuring data security
+  and multi-project support.
+acceptanceCriteria:
+- User can register and login with email/password using JWT-based authentication
+- Backend validates user credentials and returns JWT token with user ID and assigned
+  project IDs
+- App stores JWT securely in device keychain and includes it in all API requests
+- Project list view shows only projects user is assigned to, filtered by backend based
+  on JWT claims
+- User can logout, which clears JWT and optionally deletes locally cached models/RFIs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

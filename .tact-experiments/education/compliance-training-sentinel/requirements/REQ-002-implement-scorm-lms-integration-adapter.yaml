@@ -1,0 +1,20 @@
+title: Implement SCORM LMS integration adapter
+approval: draft
+phase: planned
+priority: critical
+description: Create an LMS integration adapter for SCORM-based learning platforms
+  to retrieve course completion and certification tracking data. This covers legacy
+  LMS platforms that use SCORM 1.2 or 2004 standards.
+acceptanceCriteria:
+- Adapter connects to SCORM LMS API using provided credentials
+- 'Retrieves completion data including: learner ID, course ID, completion status,
+  completion date, score'
+- Maps SCORM completion status (completed, incomplete, passed, failed) to internal
+  certification states
+- Handles missing expiration dates by applying default validity periods from certification
+  configuration
+- Implements connection pooling and timeout handling (30 second timeout per request)
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

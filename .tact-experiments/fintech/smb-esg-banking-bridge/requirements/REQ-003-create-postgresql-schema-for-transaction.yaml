@@ -1,0 +1,22 @@
+title: Create PostgreSQL schema for transactions and ESG taxonomy
+approval: draft
+phase: planned
+priority: critical
+description: Design and implement database schema to store imported transactions,
+  EU Taxonomy-aligned ESG categories, and transaction-to-category mappings with audit
+  trail. Foundation for categorization and reporting features.
+acceptanceCriteria:
+- 'Transactions table stores: id, externalId, accountId, date, amount, currency, description,
+  merchantName, merchantCategory, createdAt with proper indexes on date and accountId'
+- 'ESGCategories table implements EU Taxonomy structure with: id, code, name, type
+  (environmental/social/governance), parentCategoryId for hierarchical categories'
+- 'TransactionCategories junction table stores: transactionId, categoryId, confidence,
+  strategy (merchant_code/ai_description/rule_based), createdAt for audit trail'
+- 'Schema enforces constraint: each transaction must have exactly one primary category
+  (isPrimary flag)'
+- TypeORM entities and migrations successfully create schema in PostgreSQL 14+ with
+  proper foreign key constraints
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered
