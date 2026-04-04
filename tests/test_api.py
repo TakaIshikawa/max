@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,6 +13,14 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
+from max.types.tact_spec import (
+    TactArchitecture,
+    TactGoal,
+    TactProduct,
+    TactRequirement,
+    TactSpec,
+    TactTechStack,
+)
 
 
 @pytest.fixture
@@ -120,6 +130,93 @@ def seeded_client(seeded_db):
     return TestClient(app)
 
 
+@pytest.fixture
+def seeded_db_with_spec(seeded_db):
+    """DB pre-populated with test data including a TactSpec."""
+    store = Store(db_path=seeded_db, wal_mode=True)
+    spec = TactSpec(
+        buildable_unit_id="bu-api001",
+        product=TactProduct(
+            name="test-product",
+            vision="A test product",
+            goals=[TactGoal(id="G-1", description="Test goal", success_criteria="Passes")],
+            tech_stack=TactTechStack(languages=["Python"], frameworks=["FastAPI"]),
+        ),
+        architecture=TactArchitecture(
+            invariants=["Tests must pass"],
+            conventions=["snake_case"],
+        ),
+        requirements=[
+            TactRequirement(
+                title="Core feature",
+                priority="critical",
+                description="Implement core",
+                acceptance_criteria=["It works"],
+            ),
+        ],
+    )
+    store.insert_tact_spec(spec)
+    store.close()
+    return seeded_db
+
+
+@pytest.fixture
+def spec_client(seeded_db_with_spec):
+    from max.server.dependencies import get_store
+
+    app = create_app()
+
+    def override():
+        store = Store(db_path=seeded_db_with_spec, wal_mode=True)
+        try:
+            yield store
+        finally:
+            store.close()
+
+    app.dependency_overrides[get_store] = override
+    return TestClient(app)
+
+
+@pytest.fixture
+def multi_idea_db(db_path):
+    """DB with multiple ideas in different statuses for filter testing."""
+    store = Store(db_path=db_path, wal_mode=True)
+
+    for i, status in enumerate(["draft", "evaluated", "approved"], start=1):
+        unit = BuildableUnit(
+            id=f"bu-multi{i:03d}",
+            title=f"Idea {status}",
+            one_liner=f"A {status} idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Problem",
+            solution="Solution",
+            value_proposition="Value",
+            status=status,
+        )
+        store.insert_buildable_unit(unit)
+
+    store.close()
+    return db_path
+
+
+@pytest.fixture
+def multi_idea_client(multi_idea_db):
+    from max.server.dependencies import get_store
+
+    app = create_app()
+
+    def override():
+        store = Store(db_path=multi_idea_db, wal_mode=True)
+        try:
+            yield store
+        finally:
+            store.close()
+
+    app.dependency_overrides[get_store] = override
+    return TestClient(app)
+
+
 # ── Signal endpoints ────────────────────────────────────────────────
 
 
@@ -161,6 +258,48 @@ def test_list_signals_seeded(seeded_client):
     assert resp.json()[0]["id"] == "sig-api001"
 
 
+def test_signal_response_schema(seeded_client):
+    """Verify response contains all SignalResponse fields."""
+    resp = seeded_client.get("/api/v1/signals")
+    data = resp.json()[0]
+    expected_keys = {
+        "id", "source_type", "source_adapter", "title", "content",
+        "url", "author", "published_at", "fetched_at", "tags",
+        "credibility", "metadata",
+    }
+    assert set(data.keys()) == expected_keys
+    assert data["source_type"] == "forum"
+    assert data["source_adapter"] == "test"
+    assert isinstance(data["tags"], list)
+    assert isinstance(data["credibility"], float)
+
+
+def test_create_signal_full_fields(client):
+    """Verify all optional fields are returned when provided."""
+    resp = client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Full Signal",
+            "content": "Full content",
+            "url": "https://example.com/full",
+            "source_type": "registry",
+            "source_adapter": "npm",
+            "author": "tester",
+            "tags": ["a", "b"],
+            "credibility": 0.9,
+            "metadata": {"key": "value"},
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["source_type"] == "registry"
+    assert data["source_adapter"] == "npm"
+    assert data["author"] == "tester"
+    assert data["tags"] == ["a", "b"]
+    assert data["credibility"] == 0.9
+    assert data["metadata"]["key"] == "value"
+
+
 # ── Insight endpoints ───────────────────────────────────────────────
 
 
@@ -182,6 +321,54 @@ def test_create_insight(client):
     data = resp.json()
     assert data["title"] == "New Insight"
     assert data["id"].startswith("ins-")
+
+
+def test_list_insights_seeded(seeded_client):
+    resp = seeded_client.get("/api/v1/insights")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "ins-api001"
+    assert data[0]["title"] == "Test Insight"
+
+
+def test_insight_response_schema(seeded_client):
+    """Verify response contains all InsightResponse fields."""
+    resp = seeded_client.get("/api/v1/insights")
+    data = resp.json()[0]
+    expected_keys = {
+        "id", "category", "title", "summary", "evidence",
+        "confidence", "domains", "implications", "time_horizon",
+        "created_at",
+    }
+    assert set(data.keys()) == expected_keys
+    assert data["category"] == "gap"
+    assert data["confidence"] == 0.8
+    assert data["domains"] == ["testing"]
+    assert isinstance(data["created_at"], str)
+
+
+def test_create_insight_full_fields(client):
+    """Create insight with all fields and verify response."""
+    resp = client.post(
+        "/api/v1/insights",
+        json={
+            "category": "trend",
+            "title": "Full Insight",
+            "summary": "Full summary",
+            "evidence": ["sig-1", "sig-2"],
+            "confidence": 0.95,
+            "domains": ["ai", "devtools"],
+            "implications": ["Big impact"],
+            "time_horizon": "medium_term",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["category"] == "trend"
+    assert data["evidence"] == ["sig-1", "sig-2"]
+    assert data["confidence"] == 0.95
+    assert data["time_horizon"] == "medium_term"
 
 
 # ── Idea endpoints ──────────────────────────────────────────────────
@@ -210,6 +397,25 @@ def test_list_ideas_filter_min_score(seeded_client):
     resp = seeded_client.get("/api/v1/ideas?min_score=50")
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+
+
+def test_list_ideas_filter_status(multi_idea_client):
+    """Filter ideas by status query parameter."""
+    resp = multi_idea_client.get("/api/v1/ideas?status=draft")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["status"] == "draft"
+
+    resp = multi_idea_client.get("/api/v1/ideas?status=evaluated")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["status"] == "evaluated"
+
+    resp = multi_idea_client.get("/api/v1/ideas?status=nonexistent")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 0
 
 
 def test_get_idea(seeded_client):
@@ -249,6 +455,24 @@ def test_create_idea(client):
 
 def test_get_spec_not_found(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/spec")
+    assert resp.status_code == 404
+
+
+def test_get_spec_exists(spec_client):
+    """Verify spec is returned when one exists."""
+    resp = spec_client.get("/api/v1/ideas/bu-api001/spec")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["buildable_unit_id"] == "bu-api001"
+    assert data["product"]["name"] == "test-product"
+    assert data["product"]["vision"] == "A test product"
+    assert len(data["requirements"]) == 1
+    assert data["requirements"][0]["title"] == "Core feature"
+
+
+def test_get_spec_idea_not_found(client):
+    """Verify 404 when the idea itself doesn't exist."""
+    resp = client.get("/api/v1/ideas/nonexistent/spec")
     assert resp.status_code == 404
 
 
@@ -303,6 +527,36 @@ def test_similar_empty(client):
     )
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_similar_with_results(client):
+    """Mock SemanticIndex to return similarity results."""
+    mock_results = [("sig-001", 0.95), ("sig-002", 0.87)]
+
+    with patch("max.embeddings.engine.SemanticIndex") as MockIndex:
+        MockIndex.return_value.find_similar.return_value = mock_results
+
+        resp = client.post(
+            "/api/v1/similar",
+            json={
+                "text": "MCP server testing",
+                "entity_type": "signal",
+                "threshold": 0.8,
+                "limit": 5,
+            },
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    assert data[0]["entity_id"] == "sig-001"
+    assert data[0]["score"] == 0.95
+    assert data[1]["entity_id"] == "sig-002"
+    assert data[1]["score"] == 0.87
+
+    MockIndex.return_value.find_similar.assert_called_once_with(
+        "MCP server testing", "signal", threshold=0.8, limit=5,
+    )
 
 
 # ── Schedule endpoints ──────────────────────────────────────────────
