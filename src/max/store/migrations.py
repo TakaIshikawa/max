@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -114,7 +114,8 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     gaps_detected INTEGER NOT NULL DEFAULT 0,
     avg_idea_score REAL NOT NULL DEFAULT 0.0,
     fetch_allocation TEXT NOT NULL DEFAULT '{}',
-    token_usage TEXT NOT NULL DEFAULT '{}'
+    token_usage TEXT NOT NULL DEFAULT '{}',
+    adapter_metrics TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS embeddings (
@@ -171,6 +172,16 @@ def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
+    """Add adapter_metrics column to pipeline_runs table."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()}
+    if "adapter_metrics" not in columns:
+        conn.execute(
+            "ALTER TABLE pipeline_runs ADD COLUMN adapter_metrics TEXT NOT NULL DEFAULT '{}'"
+        )
+        conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -191,6 +202,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 4:
         _migrate_v3_to_v4(conn)
+
+    if current < 5:
+        _migrate_v4_to_v5(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

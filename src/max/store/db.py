@@ -416,7 +416,8 @@ class Store:
                ideas_evaluated = ?, specs_generated = ?,
                clusters_found = ?, gaps_detected = ?,
                avg_idea_score = ?,
-               fetch_allocation = ?, token_usage = ?
+               fetch_allocation = ?, token_usage = ?,
+               adapter_metrics = ?
                WHERE id = ?""",
             (
                 _now_iso(),
@@ -431,6 +432,7 @@ class Store:
                 metrics.get("avg_idea_score", 0.0),
                 json.dumps(metrics.get("fetch_allocation", {})),
                 json.dumps(metrics.get("token_usage", {})),
+                json.dumps(metrics.get("adapter_metrics", {})),
                 run_id,
             ),
         )
@@ -459,6 +461,7 @@ class Store:
                 "avg_idea_score": row["avg_idea_score"],
                 "fetch_allocation": json.loads(row["fetch_allocation"]),
                 "token_usage": json.loads(row["token_usage"]),
+                "adapter_metrics": json.loads(row["adapter_metrics"]),
             }
             for row in rows
         ]
