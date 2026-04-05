@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from max.store.db import Store
+from max.types.trends import TrendPoint
 
 
 @dataclass
@@ -142,3 +145,83 @@ def format_retrospective_for_ideation(
     )
 
     return "\n".join(lines)
+
+
+def detect_trends(
+    store: Store,
+    *,
+    window: int = 5,
+) -> list[TrendPoint]:
+    """Detect approval rate trends over sliding windows of pipeline runs.
+
+    Groups pipeline runs into windows of *window* runs each and computes
+    per-window metrics from feedback recorded during each window's time range.
+
+    Returns an empty list when there are fewer runs than *window*.
+    """
+    runs = store.get_pipeline_runs(limit=1000)
+    if len(runs) < window:
+        return []
+
+    # Runs come newest-first; reverse to chronological order.
+    runs = list(reversed(runs))
+
+    points: list[TrendPoint] = []
+    prev_rate: float | None = None
+
+    for i in range(0, len(runs) - window + 1, window):
+        chunk = runs[i : i + window]
+        window_start = datetime.fromisoformat(chunk[0]["started_at"])
+        window_end = datetime.fromisoformat(
+            chunk[-1]["completed_at"] or chunk[-1]["started_at"]
+        )
+
+        # Query feedback recorded within this window's time range.
+        rows = store.conn.execute(
+            """SELECT f.outcome, e.overall_score
+               FROM feedback f
+               LEFT JOIN evaluations e
+                 ON f.buildable_unit_id = e.buildable_unit_id
+               WHERE f.created_at >= ? AND f.created_at <= ?""",
+            (chunk[0]["started_at"], chunk[-1]["completed_at"] or chunk[-1]["started_at"]),
+        ).fetchall()
+
+        total = len(rows)
+        if total == 0:
+            approval_rate = 0.0
+            avg_score = 0.0
+        else:
+            approved = sum(
+                1 for r in rows if r["outcome"] in ("approved", "published")
+            )
+            approval_rate = approved / total
+            scores = [r["overall_score"] for r in rows if r["overall_score"]]
+            avg_score = sum(scores) / len(scores) if scores else 0.0
+
+        signal_count = sum(c["signals_fetched"] for c in chunk)
+
+        # Determine trend direction.
+        if prev_rate is None:
+            direction: str = "stable"
+        else:
+            delta = approval_rate - prev_rate
+            if delta > 0.05:
+                direction = "improving"
+            elif delta < -0.05:
+                direction = "declining"
+            else:
+                direction = "stable"
+
+        points.append(
+            TrendPoint(
+                window_start=window_start,
+                window_end=window_end,
+                approval_rate=approval_rate,
+                avg_score=avg_score,
+                signal_count=signal_count,
+                trend_direction=direction,
+            )
+        )
+        prev_rate = approval_rate
+
+    return points
