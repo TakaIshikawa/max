@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +56,9 @@ class PipelineResult:
     avg_insight_confidence: float = 0.0
     avg_idea_score: float = 0.0
     token_usage: dict[str, int] = field(default_factory=dict)
+
+    # Per-adapter fetch metrics
+    adapter_metrics: dict[str, dict] = field(default_factory=dict)
 
     # Meta-intelligence metrics
     clusters_found: int = 0
@@ -126,11 +130,12 @@ def run_pipeline(
 
     try:
         # 1. Fetch signals
-        signals, fetch_alloc = _fetch_all_signals(
+        signals, fetch_alloc, adapter_metrics = _fetch_all_signals(
             signal_limit=signal_limit, store=store, source_configs=source_configs,
         )
         result.signals_fetched = len(signals)
         result.fetch_allocation = fetch_alloc
+        result.adapter_metrics = adapter_metrics
 
         # 1.1 Annotate signal roles (problem / solution / market)
         annotate_signals(signals)
@@ -282,6 +287,7 @@ def run_pipeline(
             avg_idea_score=result.avg_idea_score,
             fetch_allocation=result.fetch_allocation,
             token_usage=result.token_usage,
+            adapter_metrics=result.adapter_metrics,
         )
         store.close()
 
@@ -344,16 +350,17 @@ def _fetch_all_signals(
     signal_limit: int = 30,
     store: Store | None = None,
     source_configs: list | None = None,
-) -> tuple[list[Signal], dict[str, int]]:
+) -> tuple[list[Signal], dict[str, int], dict[str, dict]]:
     """Fetch signals from all registered adapters with optional adaptive allocation.
 
     When *source_configs* is provided, only the configured (and enabled) adapters
     are instantiated with their per-adapter params.
 
-    Returns (signals, allocation_used).
+    Returns (signals, allocation_used, adapter_metrics).
     """
     adapters = get_all_adapters(source_configs)
     all_signals: list[Signal] = []
+    adapter_metrics: dict[str, dict] = {}
 
     if store:
         from max.pipeline.fetch_strategy import compute_fetch_allocation
@@ -366,10 +373,25 @@ def _fetch_all_signals(
 
     for adapter in adapters:
         limit = allocation.get(adapter.name, 5)
+        t0 = time.monotonic()
         try:
             signals = asyncio.run(adapter.fetch(limit=limit))
+            duration_ms = int((time.monotonic() - t0) * 1000)
             all_signals.extend(signals)
+            adapter_metrics[adapter.name] = {
+                "status": "ok",
+                "signal_count": len(signals),
+                "error_message": None,
+                "duration_ms": duration_ms,
+            }
         except Exception as e:
-            print(f"  Warning: {adapter.name} fetch failed: {e}")
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            logger.warning("%s fetch failed: %s", adapter.name, e)
+            adapter_metrics[adapter.name] = {
+                "status": "error",
+                "signal_count": 0,
+                "error_message": str(e),
+                "duration_ms": duration_ms,
+            }
 
-    return all_signals, allocation
+    return all_signals, allocation, adapter_metrics

@@ -535,7 +535,7 @@ def test_pipeline_meta_intelligence_features(tmp_path: Path) -> None:
     ]
 
     with (
-        patch("max.pipeline.runner._fetch_all_signals", return_value=(mock_signals, {"mock": 5})),
+        patch("max.pipeline.runner._fetch_all_signals", return_value=(mock_signals, {"mock": 5}, {})),
         patch("max.llm.client.get_client"),
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
@@ -948,7 +948,7 @@ def test_profile_from_yaml_loads_and_runs(tmp_path: Path) -> None:
     ]
 
     with (
-        patch("max.pipeline.runner._fetch_all_signals", return_value=(mock_signals, {"mock": 1})),
+        patch("max.pipeline.runner._fetch_all_signals", return_value=(mock_signals, {"mock": 1}, {})),
         patch("max.llm.client.get_client"),
         patch("max.synthesis.engine.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
