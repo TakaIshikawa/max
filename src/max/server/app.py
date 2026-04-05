@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
                     "ideation_mode": cfg["ideation_mode"],
                 },
             )
+            app.state.started_at = time.monotonic()
             app.state.scheduler = scheduler
             set_scheduler_ref(scheduler)
             await scheduler.start()

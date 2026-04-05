@@ -37,6 +37,10 @@ class Store:
     def close(self) -> None:
         self.conn.close()
 
+    def get_schema_version(self) -> int:
+        row = self.conn.execute("SELECT version FROM schema_version").fetchone()
+        return row[0] if row else 0
+
     # ── Signals ──────────────────────────────────────────────────────
 
     def insert_signal(self, signal: Signal) -> Signal:
