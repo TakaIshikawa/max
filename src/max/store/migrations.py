@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -119,6 +119,21 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     adapter_metrics TEXT NOT NULL DEFAULT '{}'
 );
 
+CREATE TABLE IF NOT EXISTS pipeline_run_domains (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES pipeline_runs(id),
+    domain TEXT NOT NULL,
+    signals_fetched INTEGER DEFAULT 0,
+    insights_generated INTEGER DEFAULT 0,
+    ideas_generated INTEGER DEFAULT 0,
+    ideas_evaluated INTEGER DEFAULT 0,
+    avg_score REAL DEFAULT 0.0,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prd_run_id ON pipeline_run_domains(run_id);
+CREATE INDEX IF NOT EXISTS idx_prd_domain ON pipeline_run_domains(domain);
+
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT NOT NULL,
     entity_type TEXT NOT NULL,
@@ -193,6 +208,30 @@ def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v6_to_v7(conn: sqlite3.Connection) -> None:
+    """Add pipeline_run_domains table for per-domain stats tracking."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_run_domains (
+            id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES pipeline_runs(id),
+            domain TEXT NOT NULL,
+            signals_fetched INTEGER DEFAULT 0,
+            insights_generated INTEGER DEFAULT 0,
+            ideas_generated INTEGER DEFAULT 0,
+            ideas_evaluated INTEGER DEFAULT 0,
+            avg_score REAL DEFAULT 0.0,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_prd_run_id ON pipeline_run_domains(run_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_prd_domain ON pipeline_run_domains(domain)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -219,6 +258,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 6:
         _migrate_v5_to_v6(conn)
+
+    if current < 7:
+        _migrate_v6_to_v7(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

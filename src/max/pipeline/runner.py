@@ -275,6 +275,33 @@ def run_pipeline(
         # Token usage
         result.token_usage = token_tracker.summary()
 
+        # Record per-domain stats
+        domain_stats: dict[str, dict] = {}
+        for unit, evaluation in evaluated:
+            d = unit.domain or ""
+            if d not in domain_stats:
+                domain_stats[d] = {
+                    "signals_fetched": 0,
+                    "insights_generated": 0,
+                    "ideas_generated": 0,
+                    "ideas_evaluated": 0,
+                    "total_score": 0.0,
+                }
+            domain_stats[d]["ideas_generated"] += 1
+            domain_stats[d]["ideas_evaluated"] += 1
+            domain_stats[d]["total_score"] += evaluation.overall_score
+
+        # Attribute insight counts to domains via their buildable units
+        for unit in units:
+            d = unit.domain or ""
+            if d in domain_stats:
+                domain_stats[d]["insights_generated"] = len(unit.inspiring_insights)
+
+        for d, stats in domain_stats.items():
+            count = stats["ideas_evaluated"]
+            stats["avg_score"] = stats.pop("total_score") / count if count > 0 else 0.0
+            store.insert_pipeline_run_domain(run_id, d, stats)
+
     finally:
         store.update_pipeline_run(
             run_id,

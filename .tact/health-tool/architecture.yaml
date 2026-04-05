@@ -1,0 +1,9 @@
+patterns: []
+invariants: []
+conventions: []
+decisions:
+- id: ADR-1
+  title: D
+  decision: D
+  rationale: R
+contracts: []
