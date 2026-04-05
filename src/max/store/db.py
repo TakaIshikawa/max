@@ -233,9 +233,9 @@ class Store:
             """INSERT INTO buildable_units
                (id, title, one_liner, category, ideation_mode, problem, solution,
                 target_users, value_proposition, inspiring_insights, evidence_signals,
-                tech_approach, suggested_stack, composability_notes, status,
+                tech_approach, suggested_stack, composability_notes, status, domain,
                 created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 unit.id,
                 unit.title,
@@ -252,6 +252,7 @@ class Store:
                 json.dumps(unit.suggested_stack),
                 unit.composability_notes,
                 unit.status,
+                unit.domain,
                 unit.created_at.isoformat(),
                 unit.updated_at.isoformat(),
             ),
@@ -266,13 +267,19 @@ class Store:
         return _row_to_buildable_unit(row) if row else None
 
     def get_buildable_units(
-        self, *, limit: int = 100, status: str | None = None
+        self, *, limit: int = 100, status: str | None = None, domain: str | None = None,
     ) -> list[BuildableUnit]:
         query = "SELECT * FROM buildable_units"
+        conditions: list[str] = []
         params: list = []
         if status:
-            query += " WHERE status = ?"
+            conditions.append("status = ?")
             params.append(status)
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
 
@@ -611,6 +618,7 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         suggested_stack=json.loads(row["suggested_stack"]),
         composability_notes=row["composability_notes"],
         status=row["status"],
+        domain=row["domain"] if "domain" in row.keys() else "",
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

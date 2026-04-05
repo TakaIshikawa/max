@@ -111,14 +111,15 @@ def profiles() -> None:
 
 @main.command()
 @click.option("--status", type=str, default=None, help="Filter by status")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain (e.g. 'healthcare', 'fintech')")
 @click.option("--limit", type=int, default=20, help="Max results")
-def ideas(status: str | None, limit: int) -> None:
+def ideas(status: str | None, domain: str | None, limit: int) -> None:
     """List generated ideas with scores."""
     from max.store.db import Store
 
     store = Store()
     try:
-        units = store.get_buildable_units(limit=limit, status=status)
+        units = store.get_buildable_units(limit=limit, status=status, domain=domain)
         if not units:
             click.echo("No ideas found.")
             return
@@ -127,7 +128,8 @@ def ideas(status: str | None, limit: int) -> None:
             evaluation = store.get_evaluation(unit.id)
             score = evaluation.overall_score if evaluation else 0.0
             rec = evaluation.recommendation if evaluation else "-"
-            click.echo(f"  {score:5.1f}  [{unit.status:10s}]  {unit.title}  ({rec})  {unit.id}")
+            domain_label = f"[{unit.domain}]" if unit.domain else ""
+            click.echo(f"  {score:5.1f}  [{unit.status:10s}]  {domain_label:16s}  {unit.title}  ({rec})  {unit.id}")
     finally:
         store.close()
 
@@ -308,6 +310,112 @@ def backfill_roles() -> None:
         for role, count in sorted(roles.items(), key=lambda x: -x[1]):
             click.echo(f"  {role:10s} {count}")
         click.echo("Done.")
+    finally:
+        store.close()
+
+
+@main.command()
+def summary() -> None:
+    """Show cross-domain summary of all ideas."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        all_units = store.get_buildable_units(limit=10000)
+        if not all_units:
+            click.echo("No ideas found.")
+            return
+
+        # Group by domain
+        by_domain: dict[str, list] = {}
+        for unit in all_units:
+            d = unit.domain or "(unassigned)"
+            by_domain.setdefault(d, [])
+            ev = store.get_evaluation(unit.id)
+            by_domain[d].append((unit, ev))
+
+        click.echo(f"{'Domain':<20s} {'Ideas':>5s} {'Eval':>5s} {'Avg':>6s} {'Top':>6s} {'Yes':>4s} {'Maybe':>5s} {'No':>4s}  {'Top idea'}")
+        click.echo("-" * 110)
+
+        grand_total = 0
+        grand_evaluated = 0
+        grand_scores: list[float] = []
+
+        for domain in sorted(by_domain.keys()):
+            entries = by_domain[domain]
+            total = len(entries)
+            scores = [ev.overall_score for _, ev in entries if ev]
+            evaluated = len(scores)
+            avg = sum(scores) / len(scores) if scores else 0.0
+            top = max(scores) if scores else 0.0
+            yes_count = sum(1 for _, ev in entries if ev and ev.recommendation == "yes")
+            maybe_count = sum(1 for _, ev in entries if ev and ev.recommendation == "maybe")
+            no_count = sum(1 for _, ev in entries if ev and ev.recommendation == "no")
+
+            # Find top idea
+            best = max(entries, key=lambda x: x[1].overall_score if x[1] else 0.0)
+            best_title = best[0].title[:40]
+
+            click.echo(
+                f"{domain:<20s} {total:>5d} {evaluated:>5d} {avg:>6.1f} {top:>6.1f} {yes_count:>4d} {maybe_count:>5d} {no_count:>4d}  {best_title}"
+            )
+
+            grand_total += total
+            grand_evaluated += evaluated
+            grand_scores.extend(scores)
+
+        click.echo("-" * 110)
+        grand_avg = sum(grand_scores) / len(grand_scores) if grand_scores else 0.0
+        grand_top = max(grand_scores) if grand_scores else 0.0
+        click.echo(f"{'TOTAL':<20s} {grand_total:>5d} {grand_evaluated:>5d} {grand_avg:>6.1f} {grand_top:>6.1f}")
+    finally:
+        store.close()
+
+
+@main.command()
+def backfill_domains() -> None:
+    """Backfill domain on buildable units using pipeline run timestamps."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        # Get pipeline runs with profile info
+        runs = store.get_pipeline_runs(limit=200)
+        runs_with_profile = [
+            r for r in runs
+            if r["ideas_generated"] > 0 and r["config"].get("profile")
+        ]
+
+        if not runs_with_profile:
+            click.echo("No pipeline runs with profile info found.")
+            return
+
+        updated = 0
+        for run in runs_with_profile:
+            profile = run["config"]["profile"]
+            started = run["started_at"]
+            completed = run["completed_at"] or "9999-12-31"
+
+            # Find BUs created during this run's window that have no domain set
+            rows = store.conn.execute(
+                """UPDATE buildable_units
+                   SET domain = ?
+                   WHERE domain = '' AND created_at >= ? AND created_at <= ?""",
+                (profile, started, completed),
+            )
+            count = rows.rowcount
+            if count > 0:
+                updated += count
+                click.echo(f"  {profile:20s}  {count} ideas updated")
+
+        store.conn.commit()
+
+        # Check for remaining unassigned
+        remaining = store.conn.execute(
+            "SELECT COUNT(*) FROM buildable_units WHERE domain = ''"
+        ).fetchone()[0]
+
+        click.echo(f"\nBackfilled {updated} ideas. {remaining} remain unassigned.")
     finally:
         store.close()
 

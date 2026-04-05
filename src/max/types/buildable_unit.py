@@ -46,6 +46,9 @@ class BuildableUnit(BaseModel):
     suggested_stack: dict = Field(default_factory=dict)
     composability_notes: str = ""
 
+    # Domain (profile name that generated this unit)
+    domain: str = ""
+
     # Status
     status: str = "draft"  # draft | evaluated | approved | published | rejected
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS buildable_units (
     suggested_stack TEXT NOT NULL DEFAULT '{}',
     composability_notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft',
+    domain TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -182,6 +183,16 @@ def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
+    """Add domain column to buildable_units table."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(buildable_units)").fetchall()}
+    if "domain" not in columns:
+        conn.execute(
+            "ALTER TABLE buildable_units ADD COLUMN domain TEXT NOT NULL DEFAULT ''"
+        )
+        conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -205,6 +216,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 5:
         _migrate_v4_to_v5(conn)
+
+    if current < 6:
+        _migrate_v5_to_v6(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

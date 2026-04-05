@@ -71,6 +71,7 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
         title=unit.title,
         one_liner=unit.one_liner,
         category=unit.category,
+        domain=unit.domain,
         status=unit.status,
         target_users=unit.target_users,
         score=evaluation.overall_score if evaluation else None,
@@ -108,6 +109,7 @@ def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
         title=unit.title,
         one_liner=unit.one_liner,
         category=unit.category,
+        domain=unit.domain,
         ideation_mode=unit.ideation_mode.value if hasattr(unit.ideation_mode, "value") else unit.ideation_mode,
         problem=unit.problem,
         solution=unit.solution,
@@ -192,10 +194,11 @@ def list_ideas(
     limit: int = 20,
     status: str | None = None,
     category: str | None = None,
+    domain: str | None = None,
     min_score: float | None = None,
     store: Store = Depends(get_store),
 ):
-    units = store.get_buildable_units(limit=limit, status=status)
+    units = store.get_buildable_units(limit=limit, status=status, domain=domain)
 
     results: list[IdeaSummaryResponse] = []
     for unit in units:

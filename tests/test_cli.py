@@ -342,7 +342,7 @@ class TestIdeasCommand:
 
         runner.invoke(main, ["ideas", "--status", "approved"])
 
-        store.get_buildable_units.assert_called_once_with(limit=20, status="approved")
+        store.get_buildable_units.assert_called_once_with(limit=20, status="approved", domain=None)
 
     @patch("max.store.db.Store")
     def test_ideas_limit(self, MockStore, runner: CliRunner) -> None:
@@ -351,7 +351,7 @@ class TestIdeasCommand:
 
         runner.invoke(main, ["ideas", "--limit", "5"])
 
-        store.get_buildable_units.assert_called_once_with(limit=5, status=None)
+        store.get_buildable_units.assert_called_once_with(limit=5, status=None, domain=None)
 
 
 # ── inspect command ────────────────────────────────────────────────

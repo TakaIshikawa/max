@@ -223,7 +223,9 @@ def run_pipeline(
         dedup = dedup_buildable_units(units, semantic_index)
         units = dedup.kept
         result.ideas_duplicates_skipped = dedup.duplicates
+        domain_name = domain.name if domain else ""
         for unit in units:
+            unit.domain = domain_name
             store.insert_buildable_unit(unit)
         result.ideas_generated = len(units)
 

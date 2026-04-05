@@ -123,6 +123,7 @@ class IdeaSummaryResponse(BaseModel):
     title: str
     one_liner: str
     category: str
+    domain: str = ""
     status: str
     target_users: str
     score: float | None = None
@@ -134,6 +135,7 @@ class IdeaDetailResponse(BaseModel):
     title: str
     one_liner: str
     category: str
+    domain: str = ""
     ideation_mode: str
     problem: str
     solution: str

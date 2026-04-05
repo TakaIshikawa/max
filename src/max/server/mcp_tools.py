@@ -47,6 +47,7 @@ def _get_store() -> Store:
 def search_ideas(
     query: str | None = None,
     category: str | None = None,
+    domain: str | None = None,
     min_score: float | None = None,
     limit: int = 10,
 ) -> list[dict]:
@@ -55,11 +56,12 @@ def search_ideas(
     Returns a list of ideas with their scores and recommendations.
     Use query to filter by title/description keywords.
     Use category to filter by type (mcp_server, cli_tool, library, etc).
+    Use domain to filter by pipeline profile domain (e.g. 'healthcare', 'fintech').
     Use min_score to only get ideas above a certain evaluation score.
     """
     store = _get_store()
     try:
-        units = store.get_buildable_units(limit=limit * 3)
+        units = store.get_buildable_units(limit=limit * 3, domain=domain)
         results = []
         for unit in units:
             if category and unit.category != category:
@@ -74,6 +76,7 @@ def search_ideas(
                 "title": unit.title,
                 "one_liner": unit.one_liner,
                 "category": unit.category,
+                "domain": unit.domain,
                 "status": unit.status,
                 "target_users": unit.target_users,
                 "score": evaluation.overall_score if evaluation else None,
@@ -102,6 +105,7 @@ def get_idea(id: str) -> dict:
             "title": unit.title,
             "one_liner": unit.one_liner,
             "category": unit.category,
+            "domain": unit.domain,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,
@@ -334,6 +338,7 @@ def ideas_list() -> str:
                 "title": unit.title,
                 "one_liner": unit.one_liner,
                 "category": unit.category,
+                "domain": unit.domain,
                 "status": unit.status,
                 "score": ev.overall_score if ev else None,
                 "recommendation": ev.recommendation if ev else None,
@@ -356,6 +361,7 @@ def idea_detail(idea_id: str) -> str:
             "title": unit.title,
             "one_liner": unit.one_liner,
             "category": unit.category,
+            "domain": unit.domain,
             "problem": unit.problem,
             "solution": unit.solution,
             "target_users": unit.target_users,
