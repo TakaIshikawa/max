@@ -198,6 +198,9 @@ class ScheduleStatusResponse(BaseModel):
     next_run_at: str | None = None
     run_count: int
     last_error: str | None = None
+    last_error_at: str | None = None
+    failure_streak: int = 0
+    max_consecutive_failures: int = 3
     last_result: PipelineResultSummary | None = None
     pipeline_config: dict
 
@@ -209,4 +212,5 @@ class ScheduleUpdateRequest(BaseModel):
     min_score: float | None = None
     weight_profile: str | None = None
     ideation_mode: str | None = None
+    max_consecutive_failures: int | None = None
     trigger_now: bool = False

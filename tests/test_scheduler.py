@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -38,6 +39,9 @@ def test_scheduler_init():
     assert scheduler.run_count == 0
     assert scheduler.last_run_at is None
     assert scheduler.last_result is None
+    assert scheduler._failure_streak == 0
+    assert scheduler.max_consecutive_failures == 3
+    assert scheduler.last_error_at is None
 
 
 def test_scheduler_status():
@@ -49,6 +53,9 @@ def test_scheduler_status():
     assert status["run_count"] == 0
     assert status["last_run_at"] is None
     assert status["last_result"] is None
+    assert status["failure_streak"] == 0
+    assert status["max_consecutive_failures"] == 3
+    assert status["last_error_at"] is None
 
 
 def test_scheduler_update():
@@ -96,16 +103,21 @@ async def test_scheduler_run_once_failure():
     assert result is None
     assert scheduler.run_count == 0
     assert scheduler.last_error == "API down"
+    assert scheduler.last_error_at is not None
+    assert scheduler._failure_streak == 1
 
 
 @pytest.mark.asyncio
 async def test_scheduler_run_once_skips_if_running():
     scheduler = Scheduler(interval_seconds=60, enabled=True)
-    scheduler._running = True
+    # Acquire the lock to simulate an in-progress run
+    await scheduler._lock.acquire()
 
     result = await scheduler.run_once()
     assert result is None
     assert scheduler.run_count == 0
+
+    scheduler._lock.release()
 
 
 @pytest.mark.asyncio
@@ -136,3 +148,135 @@ async def test_scheduler_status_after_run(mock_pipeline_result):
     assert status["last_result"]["signals_fetched"] == 10
     assert status["last_result"]["ideas_generated"] == 2
     assert status["pipeline_config"]["signal_limit"] == 30
+    assert status["failure_streak"] == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_run_prevention(mock_pipeline_result):
+    """Second trigger is skipped while first run is in-progress."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+    started = asyncio.Event()
+    proceed = asyncio.Event()
+
+    original_run_pipeline = None
+
+    def slow_pipeline(**kwargs):
+        started.set()
+        # Block until the test signals to proceed (run in thread, so use
+        # a threading event wrapped via asyncio).
+        import threading
+
+        barrier = threading.Event()
+        # Stash on scheduler so the test can release it
+        scheduler._test_barrier = barrier
+        barrier.wait(timeout=5)
+        return mock_pipeline_result
+
+    with patch("max.server.scheduler.run_pipeline", side_effect=slow_pipeline):
+        # Start the first run (will block inside slow_pipeline)
+        task1 = asyncio.create_task(scheduler.run_once())
+
+        # Wait until slow_pipeline is actually executing
+        await asyncio.sleep(0.05)
+
+        # Attempt a second concurrent run — should be skipped
+        result2 = await scheduler.run_once()
+        assert result2 is None
+
+        # Release the first run
+        scheduler._test_barrier.set()
+        result1 = await task1
+
+    assert result1 is not None
+    assert scheduler.run_count == 1
+
+
+@pytest.mark.asyncio
+async def test_error_tracking_after_failure():
+    """Failed pipeline run stores error message and timestamp."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=ValueError("bad config"),
+    ):
+        await scheduler.run_once()
+
+    assert scheduler.last_error == "bad config"
+    assert scheduler.last_error_at is not None
+    assert scheduler._failure_streak == 1
+    status = scheduler.status()
+    assert status["last_error"] == "bad config"
+    assert status["last_error_at"] is not None
+    assert status["failure_streak"] == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_pause_after_max_consecutive_failures():
+    """Scheduler disables itself after N consecutive failures."""
+    scheduler = Scheduler(
+        interval_seconds=60, enabled=True, max_consecutive_failures=2
+    )
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("fail"),
+    ):
+        await scheduler.run_once()  # failure 1
+        assert scheduler.enabled is True
+        assert scheduler._failure_streak == 1
+
+        await scheduler.run_once()  # failure 2 — triggers pause
+        assert scheduler.enabled is False
+        assert scheduler._failure_streak == 2
+
+
+@pytest.mark.asyncio
+async def test_failure_streak_resets_on_success(mock_pipeline_result):
+    """Successful run resets the failure streak to zero."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("fail"),
+    ):
+        await scheduler.run_once()
+        await scheduler.run_once()
+
+    assert scheduler._failure_streak == 2
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        return_value=mock_pipeline_result,
+    ):
+        await scheduler.run_once()
+
+    assert scheduler._failure_streak == 0
+    assert scheduler.run_count == 1
+
+
+@pytest.mark.asyncio
+async def test_status_shows_run_count_and_failure_streak(mock_pipeline_result):
+    """Status endpoint exposes run_count and failure_streak."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        return_value=mock_pipeline_result,
+    ):
+        await scheduler.run_once()
+        await scheduler.run_once()
+
+    status = scheduler.status()
+    assert status["run_count"] == 2
+    assert status["failure_streak"] == 0
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("oops"),
+    ):
+        await scheduler.run_once()
+
+    status = scheduler.status()
+    assert status["run_count"] == 2
+    assert status["failure_streak"] == 1
