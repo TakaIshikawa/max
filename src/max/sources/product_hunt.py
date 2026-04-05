@@ -7,7 +7,7 @@ import os
 
 import httpx
 
-from max.sources.base import SourceAdapter
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -84,16 +84,18 @@ class ProductHuntAdapter(SourceAdapter):
                     break
 
                 try:
-                    resp = await client.post(
+                    resp = await fetch_with_retry(
                         PH_GRAPHQL,
+                        client,
+                        adapter_name=self.name,
+                        method="POST",
                         json={
                             "query": GRAPHQL_QUERY,
                             "variables": {"topic": topic_slug, "first": per_topic},
                         },
                     )
-                    resp.raise_for_status()
                     data = resp.json()
-                except Exception:
+                except AdapterFetchError:
                     logger.warning(
                         "Product Hunt query failed for topic: %s",
                         topic_slug,

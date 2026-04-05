@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 import httpx
 
-from max.sources.base import SourceAdapter
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_SUBREDDITS = [
     "programming",
@@ -49,13 +52,17 @@ class RedditAdapter(SourceAdapter):
                 if len(signals) >= limit:
                     break
                 try:
-                    resp = await client.get(
+                    resp = await fetch_with_retry(
                         f"https://www.reddit.com/r/{subreddit}/hot.json",
+                        client,
+                        adapter_name=self.name,
                         params={"limit": per_sub},
                     )
-                    resp.raise_for_status()
                     data = resp.json()
-                except Exception:
+                except AdapterFetchError:
+                    logger.warning(
+                        "Reddit fetch failed for r/%s", subreddit, exc_info=True,
+                    )
                     continue
 
                 for child in data.get("data", {}).get("children", []):

@@ -43,24 +43,24 @@ async def test_hackernews_fetch_parses_stories() -> None:
 
     mock_responses = {
         "topstories.json": MagicMock(
+            status_code=200,
             json=lambda: [101, 102, 103],
-            raise_for_status=lambda: None,
         ),
         "item/101.json": MagicMock(
+            status_code=200,
             json=lambda: _mock_hn_item(101, "Show HN: AI Agent Testing Framework"),
-            raise_for_status=lambda: None,
         ),
         "item/102.json": MagicMock(
+            status_code=200,
             json=lambda: _mock_hn_item(102, "MCP Server Security Audit Results", score=400),
-            raise_for_status=lambda: None,
         ),
         "item/103.json": MagicMock(
+            status_code=200,
             json=lambda: _mock_hn_item(103, "Rust Package Manager Update"),
-            raise_for_status=lambda: None,
         ),
     }
 
-    async def mock_get(url: str) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in mock_responses.items():
             if url.endswith(key):
                 return resp
@@ -68,7 +68,7 @@ async def test_hackernews_fetch_parses_stories() -> None:
 
     with patch("max.sources.hackernews.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
@@ -93,16 +93,16 @@ async def test_hackernews_skips_non_story_items() -> None:
 
     mock_responses = {
         "topstories.json": MagicMock(
+            status_code=200,
             json=lambda: [201],
-            raise_for_status=lambda: None,
         ),
         "item/201.json": MagicMock(
+            status_code=200,
             json=lambda: {"id": 201, "type": "comment", "text": "just a comment"},
-            raise_for_status=lambda: None,
         ),
     }
 
-    async def mock_get(url: str) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in mock_responses.items():
             if url.endswith(key):
                 return resp
@@ -110,7 +110,7 @@ async def test_hackernews_skips_non_story_items() -> None:
 
     with patch("max.sources.hackernews.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
@@ -559,15 +559,15 @@ MOCK_ADVISORIES = [
 async def test_security_fetch_parses_and_skips_withdrawn() -> None:
     adapter = SecurityAdvisoriesAdapter()
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: MOCK_ADVISORIES,
-            raise_for_status=lambda: None,
         )
 
     with patch("max.sources.security_advisories.httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_cls.return_value = mock_client
@@ -596,15 +596,15 @@ async def test_security_cvss_credibility() -> None:
     """CVSS score maps to credibility correctly."""
     adapter = SecurityAdvisoriesAdapter()
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: MOCK_ADVISORIES,
-            raise_for_status=lambda: None,
         )
 
     with patch("max.sources.security_advisories.httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_cls.return_value = mock_client
@@ -621,15 +621,15 @@ async def test_security_ecosystem_tags() -> None:
     """Ecosystem maps to language tags."""
     adapter = SecurityAdvisoriesAdapter()
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: MOCK_ADVISORIES[:1],  # just the pip one
-            raise_for_status=lambda: None,
         )
 
     with patch("max.sources.security_advisories.httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_cls.return_value = mock_client
@@ -707,16 +707,16 @@ async def test_product_hunt_no_token_returns_empty() -> None:
 async def test_product_hunt_fetch_parses_posts() -> None:
     adapter = ProductHuntAdapter()
 
-    async def mock_post(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: MOCK_PH_RESPONSE,
-            raise_for_status=lambda: None,
         )
 
     with patch.dict("os.environ", {"PRODUCT_HUNT_TOKEN": "test-token"}), \
          patch("max.sources.product_hunt.httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
-        mock_client.post = mock_post
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_cls.return_value = mock_client
@@ -743,16 +743,16 @@ async def test_product_hunt_deduplicates_across_topics() -> None:
     adapter = ProductHuntAdapter()
 
     # Both topic queries return same posts
-    async def mock_post(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: MOCK_PH_RESPONSE,
-            raise_for_status=lambda: None,
         )
 
     with patch.dict("os.environ", {"PRODUCT_HUNT_TOKEN": "test-token"}), \
          patch("max.sources.product_hunt.httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
-        mock_client.post = mock_post
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_cls.return_value = mock_client
