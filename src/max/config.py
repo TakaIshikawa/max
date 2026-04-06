@@ -68,6 +68,14 @@ MAX_PROFILE: str = os.getenv("MAX_PROFILE", "")  # pipeline profile name (e.g. "
 MAX_ADAPTERS: str = os.getenv("MAX_ADAPTERS", "all")  # comma-separated or "all"
 MAX_ADAPTERS_EXCLUDE: str = os.getenv("MAX_ADAPTERS_EXCLUDE", "")  # comma-separated
 
+# CORS
+MAX_CORS_ORIGINS: str = os.getenv("MAX_CORS_ORIGINS", "")  # comma-separated allowed origins
+MAX_CORS_ALLOW_CREDENTIALS: bool = os.getenv("MAX_CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+CORS_ORIGINS: list[str] = [
+    origin.strip() for origin in MAX_CORS_ORIGINS.split(",") if origin.strip()
+]
+
 
 def validate_config() -> list[str]:
     """Check current config values and return a list of warning strings."""
