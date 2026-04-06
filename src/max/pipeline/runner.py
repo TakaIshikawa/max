@@ -22,6 +22,7 @@ from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.llm.client import token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
 from max.publisher.file_writer import write_tact_spec
+from max.sources.base import AdapterCircuitOpenError
 from max.sources.registry import get_all_adapters
 from max.spec.generator import generate_spec
 from max.store.db import Store
@@ -411,6 +412,19 @@ def _fetch_all_signals(
                 "status": "ok",
                 "signal_count": len(signals),
                 "error_message": None,
+                "duration_ms": duration_ms,
+            }
+        except AdapterCircuitOpenError as e:
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            logger.info(
+                "%s circuit breaker open, skipping (retry in %.0fs)",
+                adapter.name,
+                e.retry_after,
+            )
+            adapter_metrics[adapter.name] = {
+                "status": "circuit_open",
+                "signal_count": 0,
+                "error_message": str(e),
                 "duration_ms": duration_ms,
             }
         except Exception as e:
