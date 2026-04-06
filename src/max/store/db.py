@@ -75,10 +75,10 @@ class Store:
         return signal
 
     def get_signals(self, *, limit: int = 100, source_type: str | None = None) -> list[Signal]:
-        query = "SELECT * FROM signals"
+        query = "SELECT * FROM signals WHERE archived_at IS NULL"
         params: list = []
         if source_type:
-            query += " WHERE source_type = ?"
+            query += " AND source_type = ?"
             params.append(source_type)
         query += " ORDER BY fetched_at DESC LIMIT ?"
         params.append(limit)
@@ -87,12 +87,14 @@ class Store:
         return [_row_to_signal(row) for row in rows]
 
     def count_signals(self) -> int:
-        return self.conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        return self.conn.execute("SELECT COUNT(*) FROM signals WHERE archived_at IS NULL").fetchone()[0]
 
     def get_unsynthesized_signals(self, *, limit: int = 100) -> list[Signal]:
         """Get signals that have not yet been synthesized."""
         rows = self.conn.execute(
-            "SELECT * FROM signals WHERE synthesized_at IS NULL ORDER BY fetched_at DESC LIMIT ?",
+            """SELECT * FROM signals
+               WHERE synthesized_at IS NULL AND archived_at IS NULL
+               ORDER BY fetched_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
         return [_row_to_signal(row) for row in rows]
@@ -126,7 +128,9 @@ class Store:
     def get_signals_by_role(self, role: str, *, limit: int = 100) -> list[Signal]:
         """Get signals filtered by signal_role."""
         rows = self.conn.execute(
-            "SELECT * FROM signals WHERE signal_role = ? ORDER BY fetched_at DESC LIMIT ?",
+            """SELECT * FROM signals
+               WHERE signal_role = ? AND archived_at IS NULL
+               ORDER BY fetched_at DESC LIMIT ?""",
             (role, limit),
         ).fetchall()
         return [_row_to_signal(row) for row in rows]
@@ -137,7 +141,9 @@ class Store:
         Returns dict[adapter_name, {total_signals, insight_hit_rate, idea_hit_rate}].
         """
         rows = self.conn.execute(
-            "SELECT source_adapter, COUNT(*) as cnt FROM signals GROUP BY source_adapter"
+            """SELECT source_adapter, COUNT(*) as cnt
+               FROM signals WHERE archived_at IS NULL
+               GROUP BY source_adapter"""
         ).fetchall()
         stats: dict[str, dict] = {}
         for row in rows:
@@ -217,7 +223,9 @@ class Store:
 
     def get_insights(self, *, limit: int = 100) -> list[Insight]:
         rows = self.conn.execute(
-            "SELECT * FROM insights ORDER BY created_at DESC LIMIT ?", (limit,)
+            """SELECT * FROM insights WHERE archived_at IS NULL
+               ORDER BY created_at DESC LIMIT ?""",
+            (limit,)
         ).fetchall()
         return [_row_to_insight(row) for row in rows]
 
@@ -487,7 +495,8 @@ class Store:
     def get_pipeline_runs(self, *, limit: int = 20) -> list[dict]:
         """Get recent pipeline runs."""
         rows = self.conn.execute(
-            "SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT ?",
+            """SELECT * FROM pipeline_runs WHERE archived_at IS NULL
+               ORDER BY started_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
         return [
@@ -671,6 +680,149 @@ class Store:
             stats["approval_rate"] = stats["approved"] / total if total > 0 else 0.0
 
         return adapter_stats
+
+    # ── Data Retention ───────────────────────────────────────────────────
+
+    def archive_old_records(self, days: int = 90) -> dict[str, int]:
+        """Archive old records by setting archived_at timestamp.
+
+        - Signals: Only if synthesized (synthesized_at IS NOT NULL) and older than `days`
+        - Insights: Only if all referencing buildable_units are terminal (rejected/abandoned)
+        - Pipeline runs: All older than `days`
+
+        Returns counts of archived records per table.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        now = _now_iso()
+
+        # Archive old synthesized signals
+        cursor = self.conn.execute(
+            """UPDATE signals
+               SET archived_at = ?
+               WHERE archived_at IS NULL
+               AND synthesized_at IS NOT NULL
+               AND fetched_at < ?""",
+            (now, cutoff),
+        )
+        signals_archived = cursor.rowcount
+
+        # Archive insights where all referencing buildable_units are terminal
+        # First, get all insights that are old enough
+        old_insights = self.conn.execute(
+            """SELECT id, evidence FROM insights
+               WHERE archived_at IS NULL AND created_at < ?""",
+            (cutoff,),
+        ).fetchall()
+
+        # Check which have all terminal units
+        archivable_insight_ids = []
+        for row in old_insights:
+            insight_id = row[0]
+            evidence = json.loads(row[1])  # list of signal IDs referenced
+
+            # Find buildable_units that reference this insight
+            units = self.conn.execute(
+                """SELECT status FROM buildable_units
+                   WHERE inspiring_insights LIKE ?""",
+                (f'%"{insight_id}"%',),
+            ).fetchall()
+
+            # If no units reference it, or all are terminal, archive it
+            if not units or all(u[0] in ("rejected", "abandoned") for u in units):
+                archivable_insight_ids.append(insight_id)
+
+        insights_archived = 0
+        if archivable_insight_ids:
+            placeholders = ",".join("?" for _ in archivable_insight_ids)
+            self.conn.execute(
+                f"UPDATE insights SET archived_at = ? WHERE id IN ({placeholders})",
+                [now] + archivable_insight_ids,
+            )
+            insights_archived = len(archivable_insight_ids)
+
+        # Archive old pipeline runs
+        cursor = self.conn.execute(
+            """UPDATE pipeline_runs
+               SET archived_at = ?
+               WHERE archived_at IS NULL
+               AND started_at < ?""",
+            (now, cutoff),
+        )
+        runs_archived = cursor.rowcount
+
+        self.conn.commit()
+
+        return {
+            "signals_archived": signals_archived,
+            "insights_archived": insights_archived,
+            "runs_archived": runs_archived,
+        }
+
+    def purge_archived(self, before_days: int = 180) -> dict[str, int]:
+        """Permanently delete records archived more than `before_days` ago.
+
+        Returns counts of deleted records per table.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=before_days)).isoformat()
+
+        # Delete old archived signals
+        cursor = self.conn.execute(
+            """DELETE FROM signals
+               WHERE archived_at IS NOT NULL
+               AND archived_at < ?""",
+            (cutoff,),
+        )
+        signals_deleted = cursor.rowcount
+
+        # Delete old archived insights
+        cursor = self.conn.execute(
+            """DELETE FROM insights
+               WHERE archived_at IS NOT NULL
+               AND archived_at < ?""",
+            (cutoff,),
+        )
+        insights_deleted = cursor.rowcount
+
+        # Delete old archived pipeline runs
+        cursor = self.conn.execute(
+            """DELETE FROM pipeline_runs
+               WHERE archived_at IS NOT NULL
+               AND archived_at < ?""",
+            (cutoff,),
+        )
+        runs_deleted = cursor.rowcount
+
+        self.conn.commit()
+
+        return {
+            "signals_deleted": signals_deleted,
+            "insights_deleted": insights_deleted,
+            "runs_deleted": runs_deleted,
+        }
+
+    def retention_stats(self) -> dict:
+        """Get counts of total, active, and archived records per table."""
+        stats = {}
+
+        for table in ["signals", "insights", "pipeline_runs"]:
+            total = self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            active = self.conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE archived_at IS NULL"
+            ).fetchone()[0]
+            archived = self.conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE archived_at IS NOT NULL"
+            ).fetchone()[0]
+            stats[table] = {
+                "total": total,
+                "active": active,
+                "archived": archived,
+            }
+
+        return stats
 
 
 # ── Row conversion helpers ───────────────────────────────────────────
