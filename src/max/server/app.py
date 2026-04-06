@@ -9,8 +9,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from max import config
 from max.server.api import router
 from max.server.mcp_tools import create_mcp_server, set_scheduler_ref
+from max.server.rate_limit import RateLimitMiddleware
 from max.server.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
@@ -63,6 +65,14 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Add rate limiting middleware if enabled
+    if config.MAX_RATE_LIMIT_ENABLED:
+        app.add_middleware(
+            RateLimitMiddleware,
+            rpm=config.MAX_RATE_LIMIT_RPM,
+            excluded_paths={"/api/v1/health", "/mcp"},
+        )
 
     app.include_router(router, prefix="/api/v1")
     app.mount("/mcp", mcp_app)

@@ -68,6 +68,11 @@ MAX_PROFILE: str = os.getenv("MAX_PROFILE", "")  # pipeline profile name (e.g. "
 MAX_ADAPTERS: str = os.getenv("MAX_ADAPTERS", "all")  # comma-separated or "all"
 MAX_ADAPTERS_EXCLUDE: str = os.getenv("MAX_ADAPTERS_EXCLUDE", "")  # comma-separated
 
+# Rate Limiting
+MAX_RATE_LIMIT_ENABLED: bool = os.getenv("MAX_RATE_LIMIT_ENABLED", "true").lower() == "true"
+MAX_RATE_LIMIT_RPM: int = _parse_int("MAX_RATE_LIMIT_RPM", 60)  # requests per minute (global)
+MAX_RATE_LIMIT_EXPENSIVE_RPM: int = _parse_int("MAX_RATE_LIMIT_EXPENSIVE_RPM", 5)  # for LLM endpoints
+
 
 def validate_config() -> list[str]:
     """Check current config values and return a list of warning strings."""
