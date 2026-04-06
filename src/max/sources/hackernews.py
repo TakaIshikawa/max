@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 import httpx
 
-from max.sources.base import SourceAdapter
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
+
+logger = logging.getLogger(__name__)
 
 HN_API = "https://hacker-news.firebaseio.com/v0"
 
@@ -32,13 +35,19 @@ class HackerNewsAdapter(SourceAdapter):
         fetch_count = limit * 3 if keywords else limit
 
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{HN_API}/topstories.json")
-            resp.raise_for_status()
+            resp = await fetch_with_retry(
+                f"{HN_API}/topstories.json", client, adapter_name=self.name,
+            )
             story_ids = resp.json()[:fetch_count]
 
             signals: list[Signal] = []
             for story_id in story_ids:
-                item_resp = await client.get(f"{HN_API}/item/{story_id}.json")
+                try:
+                    item_resp = await fetch_with_retry(
+                        f"{HN_API}/item/{story_id}.json", client, adapter_name=self.name,
+                    )
+                except AdapterFetchError:
+                    continue
                 item = item_resp.json()
                 if not item or item.get("type") != "story":
                     continue

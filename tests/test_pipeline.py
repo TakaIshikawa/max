@@ -156,23 +156,23 @@ def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
 
     # Mock HTTP for source adapters
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1, 2], raise_for_status=lambda: None),
-        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Agent Framework"), raise_for_status=lambda: None),
-        "item/2.json": MagicMock(json=lambda: _mock_hn_item(2, "MCP Security Audit"), raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1, 2], status_code=200),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Agent Framework"), status_code=200),
+        "item/2.json": MagicMock(json=lambda: _mock_hn_item(2, "MCP Security Audit"), status_code=200),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": [{"package": {"name": "test-mcp", "description": "test", "version": "1.0.0"}, "searchScore": 50000}]},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -312,22 +312,22 @@ def test_pipeline_with_feedback_adapts_weights(tmp_path: Path) -> None:
 
     # Mock HTTP
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
-        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1], status_code=200),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), status_code=200),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": []},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -367,22 +367,22 @@ def test_pipeline_ideation_receives_existing_ideas(tmp_path: Path) -> None:
 
     # Mock HTTP
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
-        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1], status_code=200),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), status_code=200),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": []},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -415,22 +415,22 @@ def test_pipeline_evaluation_receives_evidence(tmp_path: Path) -> None:
 
     # Mock HTTP
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
-        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1], status_code=200),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Framework"), status_code=200),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": []},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -718,25 +718,25 @@ def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
     profile = _make_healthcare_profile(str(output_dir))
 
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1], status_code=200),
         "item/1.json": MagicMock(
             json=lambda: _mock_hn_item(1, "EHR Interoperability Framework"),
-            raise_for_status=lambda: None,
+            status_code=200,
         ),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": [{"package": {"name": "fhir-client", "description": "FHIR R4 client", "version": "2.0.0"}, "searchScore": 40000}]},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -823,21 +823,21 @@ def test_profile_source_configs_control_adapters(tmp_path: Path) -> None:
     )
 
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1], raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1], status_code=200),
         "item/1.json": MagicMock(
             json=lambda: _mock_hn_item(1, "Test Framework"),
-            raise_for_status=lambda: None,
+            status_code=200,
         ),
     }
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         raise AssertionError(f"Unexpected URL fetch: {url} — npm adapter should be disabled")
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -867,23 +867,23 @@ def test_no_profile_matches_default_behavior(tmp_path: Path) -> None:
     output_dir = tmp_path / ".tact"
 
     hn_responses = {
-        "topstories.json": MagicMock(json=lambda: [1, 2], raise_for_status=lambda: None),
-        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Agent Framework"), raise_for_status=lambda: None),
-        "item/2.json": MagicMock(json=lambda: _mock_hn_item(2, "MCP Security Audit"), raise_for_status=lambda: None),
+        "topstories.json": MagicMock(json=lambda: [1, 2], status_code=200),
+        "item/1.json": MagicMock(json=lambda: _mock_hn_item(1, "AI Agent Framework"), status_code=200),
+        "item/2.json": MagicMock(json=lambda: _mock_hn_item(2, "MCP Security Audit"), status_code=200),
     }
     npm_response = MagicMock(
         json=lambda: {"objects": [{"package": {"name": "test-mcp", "description": "test", "version": "1.0.0"}, "searchScore": 50000}]},
-        raise_for_status=lambda: None,
+        status_code=200,
     )
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         for key, resp in hn_responses.items():
             if url.endswith(key):
                 return resp
         return npm_response
 
     mock_client = AsyncMock()
-    mock_client.get = mock_get
+    mock_client.request = mock_request
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 

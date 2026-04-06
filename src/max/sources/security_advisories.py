@@ -8,7 +8,7 @@ from datetime import datetime
 
 import httpx
 
-from max.sources.base import SourceAdapter
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -54,8 +54,10 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
                         break
 
                     try:
-                        resp = await client.get(
+                        resp = await fetch_with_retry(
                             f"{GITHUB_API}/advisories",
+                            client,
+                            adapter_name=self.name,
                             params={
                                 "ecosystem": ecosystem,
                                 "severity": severity,
@@ -64,9 +66,8 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
                                 "per_page": per_query,
                             },
                         )
-                        resp.raise_for_status()
                         advisories = resp.json()
-                    except Exception:
+                    except AdapterFetchError:
                         logger.warning(
                             "Failed to fetch advisories for %s/%s",
                             ecosystem,

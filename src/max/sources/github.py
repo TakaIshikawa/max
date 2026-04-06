@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from max.sources.base import SourceAdapter
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
+
+logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
 
@@ -46,8 +49,10 @@ class GitHubAdapter(SourceAdapter):
                 if len(signals) >= limit:
                     break
                 try:
-                    resp = await client.get(
+                    resp = await fetch_with_retry(
                         f"{GITHUB_API}/search/repositories",
+                        client,
+                        adapter_name=self.name,
                         params={
                             "q": f"topic:{topic} pushed:>{since}",
                             "sort": "stars",
@@ -55,9 +60,11 @@ class GitHubAdapter(SourceAdapter):
                             "per_page": per_topic,
                         },
                     )
-                    resp.raise_for_status()
                     data = resp.json()
-                except Exception:
+                except AdapterFetchError:
+                    logger.warning(
+                        "GitHub search failed for topic: %s", topic, exc_info=True,
+                    )
                     continue
 
                 for repo in data.get("items", []):
