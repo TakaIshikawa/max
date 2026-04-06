@@ -28,6 +28,7 @@ EXPECTED_TABLES = {
     "feedback",
     "pipeline_runs",
     "embeddings",
+    "pipeline_run_domains",
 }
 
 
@@ -425,7 +426,7 @@ class TestSchemaVersion:
     def test_fresh_db_version(self) -> None:
         conn = sqlite3.connect(":memory:")
         ensure_schema(conn)
-        assert _get_schema_version(conn) == 6
+        assert _get_schema_version(conn) == 7
         conn.close()
 
     def test_v1_migrated_to_current(self) -> None:
