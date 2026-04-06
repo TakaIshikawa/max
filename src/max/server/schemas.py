@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -16,7 +18,7 @@ class SignalCreate(BaseModel):
     source_adapter: str = "api"
     author: str | None = None
     tags: list[str] = Field(default_factory=list)
-    credibility: float = 0.5
+    credibility: float = Field(default=0.5, ge=0.0, le=1.0)
     metadata: dict = Field(default_factory=dict)
 
 
@@ -25,7 +27,7 @@ class InsightCreate(BaseModel):
     title: str
     summary: str
     evidence: list[str] = Field(default_factory=list)
-    confidence: float = 0.5
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
     domains: list[str] = Field(default_factory=list)
     implications: list[str] = Field(default_factory=list)
     time_horizon: str = "near_term"
@@ -34,10 +36,10 @@ class InsightCreate(BaseModel):
 class IdeaCreate(BaseModel):
     title: str
     one_liner: str
-    category: str = "application"
+    category: str = Field(default="application", min_length=1)
     problem: str
     solution: str
-    target_users: str = "both"
+    target_users: Literal["humans", "agents", "both"] = "both"
     value_proposition: str
     tech_approach: str = ""
     suggested_stack: dict = Field(default_factory=dict)
@@ -45,23 +47,25 @@ class IdeaCreate(BaseModel):
 
 
 class FeedbackCreate(BaseModel):
-    outcome: str  # approved | rejected | published | abandoned
+    outcome: Literal["approved", "rejected", "published", "abandoned"]
     reason: str = ""
 
 
 class PipelineRunRequest(BaseModel):
-    signal_limit: int = 30
-    min_score: float = 50.0
-    weight_profile: str = "default"
-    ideation_mode: str = "direct"
+    signal_limit: int = Field(default=30, ge=1, le=500)
+    min_score: float = Field(default=50.0, ge=0.0, le=100.0)
+    weight_profile: Literal[
+        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
+    ] = "default"
+    ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
     output_dir: str | None = None
 
 
 class SimilarityRequest(BaseModel):
     text: str
     entity_type: str
-    threshold: float = 0.8
-    limit: int = 5
+    threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    limit: int = Field(default=5, ge=1, le=100)
 
 
 # ── Response models ─────────────────────────────────────────────────
@@ -204,11 +208,13 @@ class ScheduleStatusResponse(BaseModel):
 
 class ScheduleUpdateRequest(BaseModel):
     enabled: bool | None = None
-    interval_seconds: int | None = None
-    signal_limit: int | None = None
-    min_score: float | None = None
-    weight_profile: str | None = None
-    ideation_mode: str | None = None
+    interval_seconds: int | None = Field(default=None, ge=60)
+    signal_limit: int | None = Field(default=None, ge=1, le=500)
+    min_score: float | None = Field(default=None, ge=0.0, le=100.0)
+    weight_profile: Literal[
+        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
+    ] | None = None
+    ideation_mode: Literal["direct", "refinement", "cross_domain"] | None = None
     trigger_now: bool = False
 
 
