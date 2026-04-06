@@ -390,6 +390,41 @@ class Store:
         )
         self.conn.commit()
 
+    def get_feedback_log(self, *, limit: int = 50) -> list[dict]:
+        """Get recent feedback records with unit details for display."""
+        rows = self.conn.execute(
+            """SELECT f.buildable_unit_id, f.outcome, f.reason, f.created_at,
+                      bu.title, bu.domain, bu.category,
+                      e.overall_score, e.recommendation
+               FROM feedback f
+               JOIN buildable_units bu ON f.buildable_unit_id = bu.id
+               LEFT JOIN evaluations e ON f.buildable_unit_id = e.buildable_unit_id
+               ORDER BY f.created_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "unit_id": row["buildable_unit_id"],
+                "outcome": row["outcome"],
+                "reason": row["reason"],
+                "created_at": row["created_at"],
+                "title": row["title"],
+                "domain": row["domain"],
+                "category": row["category"],
+                "score": row["overall_score"],
+                "recommendation": row["recommendation"],
+            }
+            for row in rows
+        ]
+
+    def has_feedback(self, unit_id: str) -> bool:
+        """Check if a buildable unit already has feedback."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM feedback WHERE buildable_unit_id = ?",
+            (unit_id,),
+        ).fetchone()
+        return row[0] > 0
+
     def get_feedback_outcomes(self) -> list[dict]:
         """Get all feedback records formatted for weight adaptation."""
         rows = self.conn.execute(

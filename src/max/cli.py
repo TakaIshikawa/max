@@ -249,6 +249,185 @@ def feedback(unit_id: str, outcome: str, reason: str) -> None:
 
 
 @main.command()
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
+@click.option("--limit", type=int, default=20, help="Max ideas to review")
+def review(domain: str | None, min_score: float, limit: int) -> None:
+    """Interactively review ideas: approve, reject, or skip."""
+    from max.evaluation.weights import adapt_weights as do_adapt, get_weights
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit * 3, domain=domain)
+        if not units:
+            click.echo("No ideas found.")
+            return
+
+        # Build review queue: evaluated, no feedback yet, sorted by score desc
+        queue = []
+        for unit in units:
+            ev = store.get_evaluation(unit.id)
+            if not ev:
+                continue
+            if ev.overall_score < min_score:
+                continue
+            if store.has_feedback(unit.id):
+                continue
+            queue.append((unit, ev))
+
+        queue.sort(key=lambda x: x[1].overall_score, reverse=True)
+        queue = queue[:limit]
+
+        if not queue:
+            click.echo("No ideas pending review (all have feedback or don't meet criteria).")
+            return
+
+        click.echo(f"Review queue: {len(queue)} ideas")
+        if domain:
+            click.echo(f"  Domain: {domain}")
+        if min_score > 0:
+            click.echo(f"  Min score: {min_score}")
+        click.echo()
+
+        approved = 0
+        rejected = 0
+        skipped = 0
+
+        for i, (unit, ev) in enumerate(queue, 1):
+            # Compact card
+            click.echo(f"--- [{i}/{len(queue)}] {'─' * 60}")
+            click.echo(f"  {ev.overall_score:5.1f}  ({ev.recommendation})  [{unit.domain}] {unit.category}")
+            click.echo(f"  {unit.title}")
+            click.echo(f"  {unit.one_liner}")
+            click.echo()
+            click.echo(f"  Problem:  {unit.problem[:120]}")
+            click.echo(f"  Solution: {unit.solution[:120]}")
+            click.echo()
+
+            # Top 3 dimensions (highest value)
+            dims = [
+                ("pain", ev.pain_severity.value),
+                ("scale", ev.addressable_scale.value),
+                ("effort", ev.build_effort.value),
+                ("compose", ev.composability.value),
+                ("compete", ev.competitive_density.value),
+                ("timing", ev.timing_fit.value),
+                ("compound", ev.compounding_value.value),
+            ]
+            dims.sort(key=lambda x: x[1], reverse=True)
+            top3 = "  ".join(f"{name}={val:.0f}" for name, val in dims[:3])
+            bot2 = "  ".join(f"{name}={val:.0f}" for name, val in dims[-2:])
+            click.echo(f"  Strongest: {top3}    Weakest: {bot2}")
+            click.echo()
+
+            # Prompt
+            while True:
+                choice = click.prompt(
+                    "  [a]pprove  [r]eject  [s]kip  [d]etail  [q]uit",
+                    type=str,
+                    default="s",
+                ).strip().lower()
+
+                if choice in ("a", "approve"):
+                    reason = click.prompt("  Reason (optional)", default="", show_default=False)
+                    store.insert_feedback(unit.id, "approved", reason)
+                    store.update_buildable_unit_status(unit.id, "approved")
+                    approved += 1
+                    click.echo("  -> approved")
+                    break
+                elif choice in ("r", "reject"):
+                    reason = click.prompt("  Reason (optional)", default="", show_default=False)
+                    store.insert_feedback(unit.id, "rejected", reason)
+                    store.update_buildable_unit_status(unit.id, "rejected")
+                    rejected += 1
+                    click.echo("  -> rejected")
+                    break
+                elif choice in ("s", "skip"):
+                    skipped += 1
+                    break
+                elif choice in ("d", "detail"):
+                    click.echo()
+                    click.echo(f"  Value Prop:  {unit.value_proposition}")
+                    click.echo(f"  Tech:        {unit.tech_approach[:150]}")
+                    click.echo(f"  Target:      {unit.target_users}")
+                    click.echo()
+                    if ev.strengths:
+                        for s in ev.strengths:
+                            click.echo(f"  + {s}")
+                    if ev.weaknesses:
+                        for w in ev.weaknesses:
+                            click.echo(f"  - {w}")
+                    click.echo()
+                    # Loop back to prompt
+                elif choice in ("q", "quit"):
+                    click.echo()
+                    break
+                else:
+                    click.echo("  Invalid choice. Use a/r/s/d/q.")
+
+            if choice in ("q", "quit"):
+                break
+            click.echo()
+
+        # Summary
+        click.echo()
+        click.echo(f"Review complete: {approved} approved, {rejected} rejected, {skipped} skipped")
+
+        # Auto-adapt weights if we have enough feedback diversity
+        if approved > 0 and rejected > 0:
+            outcomes = store.get_feedback_outcomes()
+            success_count = sum(1 for o in outcomes if o.get("success"))
+            failure_count = len(outcomes) - success_count
+            if success_count > 0 and failure_count > 0:
+                base = get_weights("default")
+                adapted = do_adapt(outcomes, base)
+                click.echo()
+                click.echo(f"Weight adaptation ({len(outcomes)} total feedback):")
+                for dim, weight in adapted.items():
+                    base_w = base.get(dim, 0)
+                    delta = weight - base_w
+                    if abs(delta) > 0.001:
+                        marker = "+" if delta > 0 else ""
+                        click.echo(f"  {dim:22s}  {weight:.4f}  ({marker}{delta:.4f})")
+                click.echo("  (weights auto-apply on next pipeline run)")
+        elif approved > 0 or rejected > 0:
+            total_outcomes = store.get_feedback_outcomes()
+            click.echo(f"\n{len(total_outcomes)} total feedback records. Need both approved + rejected for weight adaptation.")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.option("--limit", type=int, default=20, help="Max records to show")
+def feedback_log(limit: int) -> None:
+    """Show recent feedback history."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        records = store.get_feedback_log(limit=limit)
+        if not records:
+            click.echo("No feedback recorded yet.")
+            return
+
+        click.echo(f"{'Outcome':<10s} {'Score':>5s} {'Domain':<16s} {'Title':<50s} {'Reason'}")
+        click.echo("-" * 110)
+        for r in records:
+            score = f"{r['score']:.1f}" if r["score"] else "  -"
+            domain = f"[{r['domain']}]" if r["domain"] else ""
+            reason = r["reason"][:30] if r["reason"] else ""
+            click.echo(f"{r['outcome']:<10s} {score:>5s} {domain:<16s} {r['title'][:50]:<50s} {reason}")
+
+        # Summary counts
+        approved = sum(1 for r in records if r["outcome"] in ("approved", "published"))
+        rejected = sum(1 for r in records if r["outcome"] in ("rejected", "abandoned"))
+        click.echo(f"\n{len(records)} records: {approved} approved, {rejected} rejected")
+    finally:
+        store.close()
+
+
+@main.command()
 @click.option("--base-profile", type=str, default="default", help="Base weight profile to adapt from")
 @click.option("--save", type=click.Path(), default=None, help="Save adapted weights to file")
 def adapt_weights(base_profile: str, save: str | None) -> None:
