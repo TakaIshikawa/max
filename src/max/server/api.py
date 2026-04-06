@@ -437,6 +437,7 @@ async def update_schedule(body: ScheduleUpdateRequest, request: Request):
         min_score=body.min_score,
         weight_profile=body.weight_profile,
         ideation_mode=body.ideation_mode,
+        max_consecutive_failures=body.max_consecutive_failures,
     )
     if body.trigger_now:
         asyncio.ensure_future(scheduler.run_once())
