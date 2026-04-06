@@ -373,6 +373,51 @@ def summary() -> None:
 
 
 @main.command()
+@click.option("--windows", type=int, default=5, help="Number of trend windows to display")
+@click.option("--window-size", type=int, default=5, help="Pipeline runs per window")
+def trends(windows: int, window_size: int) -> None:
+    """Show approval rate trends over recent pipeline runs."""
+    from max.analysis.retrospective import detect_trends
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        points = detect_trends(store, window=window_size)
+        if not points:
+            click.echo("Not enough pipeline runs to compute trends.")
+            return
+
+        # Show the last N windows.
+        display = points[-windows:]
+
+        click.echo(f"{'Window':<6s}  {'Start':>19s}  {'End':>19s}  {'Approval':>8s}  {'Avg Score':>9s}  {'Signals':>7s}  {'Trend'}")
+        click.echo("-" * 90)
+
+        for i, pt in enumerate(display, 1):
+            start_str = pt.window_start.strftime("%Y-%m-%d %H:%M")
+            end_str = pt.window_end.strftime("%Y-%m-%d %H:%M")
+            click.echo(
+                f"{i:<6d}  {start_str:>19s}  {end_str:>19s}"
+                f"  {pt.approval_rate:>7.1%}  {pt.avg_score:>9.1f}  {pt.signal_count:>7d}  {pt.trend_direction}"
+            )
+
+        click.echo("-" * 90)
+        if len(display) >= 2:
+            first = display[0].approval_rate
+            last = display[-1].approval_rate
+            overall_delta = last - first
+            if overall_delta > 0.05:
+                summary_label = "improving"
+            elif overall_delta < -0.05:
+                summary_label = "declining"
+            else:
+                summary_label = "stable"
+            click.echo(f"Overall: {summary_label} ({overall_delta:+.1%} over {len(display)} windows)")
+    finally:
+        store.close()
+
+
+@main.command()
 def backfill_domains() -> None:
     """Backfill domain on buildable units using pipeline run timestamps."""
     from max.store.db import Store
