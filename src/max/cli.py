@@ -74,8 +74,12 @@ def run(
     click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
     click.echo(f"Specs generated:    {result.specs_generated}")
     if result.token_usage:
-        total = result.token_usage.get("total", 0)
-        click.echo(f"Token usage:        {total:,} (in: {result.token_usage.get('total_input', 0):,}, out: {result.token_usage.get('total_output', 0):,})")
+        total_input = result.token_usage.get("total_input", 0)
+        total_output = result.token_usage.get("total_output", 0)
+        cost = result.estimated_cost_usd
+        click.echo(f"Token usage:        {total_input:,}in / {total_output:,}out (~${cost:.4f})")
+    if result.budget_exceeded:
+        click.echo("⚠️  Budget exceeded - pipeline stopped early with partial results")
     click.echo()
 
     if result.top_ideas:

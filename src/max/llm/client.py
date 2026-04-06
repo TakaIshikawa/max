@@ -15,12 +15,28 @@ T = TypeVar("T", bound=BaseModel)
 _client: anthropic.Anthropic | None = None
 
 
+# Approximate pricing per 1K tokens in USD (as of Jan 2025)
+# Update these values when Anthropic changes pricing
+MODEL_PRICING = {
+    "claude-opus-4-6": {"input_per_1k": 0.015, "output_per_1k": 0.075},
+    "claude-sonnet-4-5-20250929": {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-sonnet-3-5-20241022": {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-haiku-4-5-20251001": {"input_per_1k": 0.001, "output_per_1k": 0.005},
+}
+
+
+class BudgetExceededError(Exception):
+    """Raised when token or cost budget is exceeded during a pipeline run."""
+    pass
+
+
 @dataclass
 class TokenTracker:
-    """Tracks token usage across LLM calls by stage label."""
+    """Tracks token usage and cost across LLM calls by stage label."""
 
     usage: dict[str, int] = field(default_factory=lambda: {"input": 0, "output": 0})
     by_stage: dict[str, dict[str, int]] = field(default_factory=dict)
+    model: str = MODEL
 
     def record(self, stage: str, input_tokens: int, output_tokens: int) -> None:
         self.usage["input"] += input_tokens
@@ -37,11 +53,49 @@ class TokenTracker:
     def total(self) -> int:
         return self.usage["input"] + self.usage["output"]
 
-    def summary(self) -> dict[str, int]:
+    def estimated_cost_usd(self) -> float:
+        """Calculate estimated cost in USD based on current usage."""
+        pricing = MODEL_PRICING.get(self.model)
+        if not pricing:
+            # Fallback to Opus pricing if model not found
+            pricing = MODEL_PRICING["claude-opus-4-6"]
+
+        input_cost = (self.usage["input"] / 1000) * pricing["input_per_1k"]
+        output_cost = (self.usage["output"] / 1000) * pricing["output_per_1k"]
+        return input_cost + output_cost
+
+    def cost_by_stage(self) -> dict[str, float]:
+        """Calculate cost breakdown by stage."""
+        pricing = MODEL_PRICING.get(self.model)
+        if not pricing:
+            pricing = MODEL_PRICING["claude-opus-4-6"]
+
+        costs = {}
+        for stage, counts in self.by_stage.items():
+            input_cost = (counts["input"] / 1000) * pricing["input_per_1k"]
+            output_cost = (counts["output"] / 1000) * pricing["output_per_1k"]
+            costs[stage] = input_cost + output_cost
+        return costs
+
+    def budget_remaining(self, budget: float) -> float:
+        """Return remaining budget in USD. Negative if over budget."""
+        if budget <= 0:
+            return float("inf")
+        return budget - self.estimated_cost_usd()
+
+    def is_over_budget(self, budget: float) -> bool:
+        """Check if current cost exceeds the budget."""
+        if budget <= 0:
+            return False
+        return self.estimated_cost_usd() > budget
+
+    def summary(self) -> dict:
         return {
             "total_input": self.usage["input"],
             "total_output": self.usage["output"],
             "total": self.total(),
+            "estimated_cost_usd": self.estimated_cost_usd(),
+            "cost_by_stage": self.cost_by_stage(),
             **{
                 f"{stage}_input": counts["input"]
                 for stage, counts in self.by_stage.items()
@@ -76,7 +130,10 @@ def structured_call(
     """Call Opus and parse the response into a Pydantic model.
 
     Uses tool_use to enforce structured JSON output matching the schema.
+    Raises BudgetExceededError if token or cost budget is exceeded.
     """
+    from max.config import MAX_COST_BUDGET, MAX_TOKEN_BUDGET
+
     client = get_client()
     schema = output_type.model_json_schema()
 
@@ -103,6 +160,17 @@ def structured_call(
             response.usage.output_tokens,
         )
 
+        # Check budget after recording tokens
+        if MAX_TOKEN_BUDGET > 0 and token_tracker.total() > MAX_TOKEN_BUDGET:
+            raise BudgetExceededError(
+                f"Token budget exceeded: {token_tracker.total()} > {MAX_TOKEN_BUDGET}"
+            )
+        if token_tracker.is_over_budget(MAX_COST_BUDGET):
+            cost = token_tracker.estimated_cost_usd()
+            raise BudgetExceededError(
+                f"Cost budget exceeded: ${cost:.4f} > ${MAX_COST_BUDGET:.4f}"
+            )
+
     for block in response.content:
         if block.type == "tool_use":
             return output_type.model_validate(block.input)
@@ -119,7 +187,12 @@ def text_call(
     temperature: float = 0.7,
     stage: str = "",
 ) -> str:
-    """Call Opus and return plain text response."""
+    """Call Opus and return plain text response.
+
+    Raises BudgetExceededError if token or cost budget is exceeded.
+    """
+    from max.config import MAX_COST_BUDGET, MAX_TOKEN_BUDGET
+
     client = get_client()
 
     response = client.messages.create(
@@ -136,6 +209,17 @@ def text_call(
             response.usage.input_tokens,
             response.usage.output_tokens,
         )
+
+        # Check budget after recording tokens
+        if MAX_TOKEN_BUDGET > 0 and token_tracker.total() > MAX_TOKEN_BUDGET:
+            raise BudgetExceededError(
+                f"Token budget exceeded: {token_tracker.total()} > {MAX_TOKEN_BUDGET}"
+            )
+        if token_tracker.is_over_budget(MAX_COST_BUDGET):
+            cost = token_tracker.estimated_cost_usd()
+            raise BudgetExceededError(
+                f"Cost budget exceeded: ${cost:.4f} > ${MAX_COST_BUDGET:.4f}"
+            )
 
     return response.content[0].text
 

@@ -49,6 +49,10 @@ DB_PATH: str = os.getenv("MAX_DB_PATH", str(get_project_root() / "max.db"))
 MODEL: str = os.getenv("MAX_MODEL", "claude-opus-4-6")
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
+# Budget controls (0 = unlimited)
+MAX_TOKEN_BUDGET: int = _parse_int("MAX_TOKEN_BUDGET", 0)  # Total tokens per pipeline run
+MAX_COST_BUDGET: float = _parse_float("MAX_COST_BUDGET", 0.0)  # Max USD per pipeline run
+
 # Server
 MAX_HOST: str = os.getenv("MAX_HOST", "0.0.0.0")
 MAX_PORT: int = _parse_int("MAX_PORT", 8000)

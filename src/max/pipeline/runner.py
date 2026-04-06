@@ -19,7 +19,7 @@ from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
 from max.evaluation.weights import get_adapted_weights
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
-from max.llm.client import token_tracker
+from max.llm.client import BudgetExceededError, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
 from max.publisher.file_writer import write_tact_spec
 from max.sources.registry import get_all_adapters
@@ -72,6 +72,11 @@ class PipelineResult:
 
     # Profile info
     profile_name: str = ""
+
+    # Budget tracking
+    estimated_cost_usd: float = 0.0
+    cost_by_stage: dict[str, float] = field(default_factory=dict)
+    budget_exceeded: bool = False
 
 
 def run_pipeline(
@@ -272,9 +277,6 @@ def run_pipeline(
             )[:5]
         ]
 
-        # Token usage
-        result.token_usage = token_tracker.summary()
-
         # Record per-domain stats
         domain_stats: dict[str, dict] = {}
         for unit, evaluation in evaluated:
@@ -302,7 +304,16 @@ def run_pipeline(
             stats["avg_score"] = stats.pop("total_score") / count if count > 0 else 0.0
             store.insert_pipeline_run_domain(run_id, d, stats)
 
+    except BudgetExceededError as e:
+        logger.warning("Budget exceeded during pipeline: %s", e)
+        result.budget_exceeded = True
+        # Partial results are preserved and will be recorded in finally block
+
     finally:
+        # Populate cost metrics from token tracker
+        result.token_usage = token_tracker.summary()
+        result.estimated_cost_usd = token_tracker.estimated_cost_usd()
+        result.cost_by_stage = token_tracker.cost_by_stage()
         store.update_pipeline_run(
             run_id,
             signals_fetched=result.signals_fetched,
