@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import sqlite3
 import uuid
@@ -22,6 +23,22 @@ def _now_iso() -> str:
 
 def _gen_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
+
+
+def _encode_cursor(timestamp: str, entity_id: str) -> str:
+    """Encode (timestamp, id) as base64 cursor."""
+    cursor_data = f"{timestamp}|{entity_id}"
+    return base64.b64encode(cursor_data.encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[str, str]:
+    """Decode base64 cursor to (timestamp, id)."""
+    try:
+        cursor_data = base64.b64decode(cursor.encode()).decode()
+        timestamp, entity_id = cursor_data.split("|", 1)
+        return timestamp, entity_id
+    except Exception:
+        raise ValueError("Invalid cursor format")
 
 
 class Store:
@@ -86,8 +103,55 @@ class Store:
         rows = self.conn.execute(query, params).fetchall()
         return [_row_to_signal(row) for row in rows]
 
-    def count_signals(self) -> int:
-        return self.conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+    def get_signals_paginated(
+        self, *, cursor: str | None = None, limit: int = 20, source_type: str | None = None
+    ) -> tuple[list[Signal], str | None]:
+        """Get signals with cursor-based pagination.
+
+        Returns (signals, next_cursor). Cursor is None if no more results.
+        """
+        query = "SELECT * FROM signals"
+        params: list = []
+        conditions: list[str] = []
+
+        if source_type:
+            conditions.append("source_type = ?")
+            params.append(source_type)
+
+        if cursor:
+            cursor_timestamp, cursor_id = _decode_cursor(cursor)
+            conditions.append("(fetched_at, id) < (?, ?)")
+            params.extend([cursor_timestamp, cursor_id])
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY fetched_at DESC, id DESC LIMIT ?"
+        params.append(limit + 1)  # Fetch one extra to determine if there are more results
+
+        rows = self.conn.execute(query, params).fetchall()
+        signals = [_row_to_signal(row) for row in rows]
+
+        # Check if there are more results
+        has_more = len(signals) > limit
+        if has_more:
+            signals = signals[:limit]
+
+        # Generate next cursor from the last item
+        next_cursor = None
+        if has_more and signals:
+            last_signal = signals[-1]
+            next_cursor = _encode_cursor(last_signal.fetched_at.isoformat(), last_signal.id)
+
+        return signals, next_cursor
+
+    def count_signals(self, *, source_type: str | None = None) -> int:
+        query = "SELECT COUNT(*) FROM signals"
+        params: list = []
+        if source_type:
+            query += " WHERE source_type = ?"
+            params.append(source_type)
+        return self.conn.execute(query, params).fetchone()[0]
 
     def get_unsynthesized_signals(self, *, limit: int = 100) -> list[Signal]:
         """Get signals that have not yet been synthesized."""
@@ -221,12 +285,47 @@ class Store:
         ).fetchall()
         return [_row_to_insight(row) for row in rows]
 
+    def get_insights_paginated(
+        self, *, cursor: str | None = None, limit: int = 20
+    ) -> tuple[list[Insight], str | None]:
+        """Get insights with cursor-based pagination.
+
+        Returns (insights, next_cursor). Cursor is None if no more results.
+        """
+        query = "SELECT * FROM insights"
+        params: list = []
+
+        if cursor:
+            cursor_timestamp, cursor_id = _decode_cursor(cursor)
+            query += " WHERE (created_at, id) < (?, ?)"
+            params.extend([cursor_timestamp, cursor_id])
+
+        query += " ORDER BY created_at DESC, id DESC LIMIT ?"
+        params.append(limit + 1)
+
+        rows = self.conn.execute(query, params).fetchall()
+        insights = [_row_to_insight(row) for row in rows]
+
+        has_more = len(insights) > limit
+        if has_more:
+            insights = insights[:limit]
+
+        next_cursor = None
+        if has_more and insights:
+            last_insight = insights[-1]
+            next_cursor = _encode_cursor(last_insight.created_at.isoformat(), last_insight.id)
+
+        return insights, next_cursor
+
     def get_insight(self, insight_id: str) -> Insight | None:
         """Get a single insight by ID."""
         row = self.conn.execute(
             "SELECT * FROM insights WHERE id = ?", (insight_id,)
         ).fetchone()
         return _row_to_insight(row) if row else None
+
+    def count_insights(self) -> int:
+        return self.conn.execute("SELECT COUNT(*) FROM insights").fetchone()[0]
 
     # ── BuildableUnits ───────────────────────────────────────────────
 
@@ -290,12 +389,73 @@ class Store:
         rows = self.conn.execute(query, params).fetchall()
         return [_row_to_buildable_unit(row) for row in rows]
 
+    def get_buildable_units_paginated(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+        status: str | None = None,
+        domain: str | None = None,
+    ) -> tuple[list[BuildableUnit], str | None]:
+        """Get buildable units with cursor-based pagination.
+
+        Returns (units, next_cursor). Cursor is None if no more results.
+        """
+        query = "SELECT * FROM buildable_units"
+        conditions: list[str] = []
+        params: list = []
+
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if cursor:
+            cursor_timestamp, cursor_id = _decode_cursor(cursor)
+            conditions.append("(updated_at, id) < (?, ?)")
+            params.extend([cursor_timestamp, cursor_id])
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY updated_at DESC, id DESC LIMIT ?"
+        params.append(limit + 1)
+
+        rows = self.conn.execute(query, params).fetchall()
+        units = [_row_to_buildable_unit(row) for row in rows]
+
+        has_more = len(units) > limit
+        if has_more:
+            units = units[:limit]
+
+        next_cursor = None
+        if has_more and units:
+            last_unit = units[-1]
+            next_cursor = _encode_cursor(last_unit.updated_at.isoformat(), last_unit.id)
+
+        return units, next_cursor
+
     def update_buildable_unit_status(self, unit_id: str, status: str) -> None:
         self.conn.execute(
             "UPDATE buildable_units SET status = ?, updated_at = ? WHERE id = ?",
             (status, _now_iso(), unit_id),
         )
         self.conn.commit()
+
+    def count_buildable_units(self, *, status: str | None = None, domain: str | None = None) -> int:
+        query = "SELECT COUNT(*) FROM buildable_units"
+        conditions: list[str] = []
+        params: list = []
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        return self.conn.execute(query, params).fetchone()[0]
 
     # ── Evaluations ──────────────────────────────────────────────────
 

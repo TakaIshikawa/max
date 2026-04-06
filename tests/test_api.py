@@ -223,7 +223,10 @@ def multi_idea_client(multi_idea_db):
 def test_list_signals_empty(client):
     resp = client.get("/api/v1/signals")
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert data["items"] == []
+    assert data["pagination"]["has_more"] is False
+    assert data["pagination"]["total_count"] == 0
 
 
 def test_create_signal(client):
@@ -248,20 +251,27 @@ def test_list_signals_after_create(client):
     )
     resp = client.get("/api/v1/signals")
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["pagination"]["total_count"] == 1
 
 
 def test_list_signals_seeded(seeded_client):
     resp = seeded_client.get("/api/v1/signals")
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
-    assert resp.json()[0]["id"] == "sig-api001"
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == "sig-api001"
+    assert data["pagination"]["total_count"] == 1
 
 
 def test_signal_response_schema(seeded_client):
     """Verify response contains all SignalResponse fields."""
     resp = seeded_client.get("/api/v1/signals")
-    data = resp.json()[0]
+    response_data = resp.json()
+    assert "items" in response_data
+    assert "pagination" in response_data
+    data = response_data["items"][0]
     expected_keys = {
         "id", "source_type", "source_adapter", "title", "content",
         "url", "author", "published_at", "fetched_at", "tags",
@@ -306,7 +316,10 @@ def test_create_signal_full_fields(client):
 def test_list_insights_empty(client):
     resp = client.get("/api/v1/insights")
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert data["items"] == []
+    assert data["pagination"]["has_more"] is False
+    assert data["pagination"]["total_count"] == 0
 
 
 def test_create_insight(client):
@@ -326,16 +339,20 @@ def test_create_insight(client):
 def test_list_insights_seeded(seeded_client):
     resp = seeded_client.get("/api/v1/insights")
     assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["id"] == "ins-api001"
-    assert data[0]["title"] == "Test Insight"
+    response_data = resp.json()
+    assert len(response_data["items"]) == 1
+    assert response_data["items"][0]["id"] == "ins-api001"
+    assert response_data["items"][0]["title"] == "Test Insight"
+    assert response_data["pagination"]["total_count"] == 1
 
 
 def test_insight_response_schema(seeded_client):
     """Verify response contains all InsightResponse fields."""
     resp = seeded_client.get("/api/v1/insights")
-    data = resp.json()[0]
+    response_data = resp.json()
+    assert "items" in response_data
+    assert "pagination" in response_data
+    data = response_data["items"][0]
     expected_keys = {
         "id", "category", "title", "summary", "evidence",
         "confidence", "domains", "implications", "time_horizon",
@@ -377,45 +394,49 @@ def test_create_insight_full_fields(client):
 def test_list_ideas_empty(client):
     resp = client.get("/api/v1/ideas")
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert data["items"] == []
+    assert data["pagination"]["has_more"] is False
+    assert data["pagination"]["total_count"] == 0
 
 
 def test_list_ideas_seeded(seeded_client):
     resp = seeded_client.get("/api/v1/ideas")
     assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["id"] == "bu-api001"
-    assert data[0]["score"] == 78.0
+    response_data = resp.json()
+    assert len(response_data["items"]) == 1
+    assert response_data["items"][0]["id"] == "bu-api001"
+    assert response_data["items"][0]["score"] == 78.0
+    assert response_data["pagination"]["total_count"] == 1
 
 
 def test_list_ideas_filter_min_score(seeded_client):
     resp = seeded_client.get("/api/v1/ideas?min_score=90")
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert len(resp.json()["items"]) == 0
 
     resp = seeded_client.get("/api/v1/ideas?min_score=50")
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
+    assert len(resp.json()["items"]) == 1
 
 
 def test_list_ideas_filter_status(multi_idea_client):
     """Filter ideas by status query parameter."""
     resp = multi_idea_client.get("/api/v1/ideas?status=draft")
     assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["status"] == "draft"
+    response_data = resp.json()
+    assert len(response_data["items"]) == 1
+    assert response_data["items"][0]["status"] == "draft"
 
     resp = multi_idea_client.get("/api/v1/ideas?status=evaluated")
     assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["status"] == "evaluated"
+    response_data = resp.json()
+    assert len(response_data["items"]) == 1
+    assert response_data["items"][0]["status"] == "evaluated"
 
     resp = multi_idea_client.get("/api/v1/ideas?status=nonexistent")
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert len(resp.json()["items"]) == 0
 
 
 def test_get_idea(seeded_client):
