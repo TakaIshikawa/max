@@ -1,0 +1,13 @@
+name: health-tool
+version: 0.1.0
+vision: Health tool vision
+goals:
+- id: G-1
+  description: Goal
+  successCriteria: Criteria
+constraints: []
+techStack:
+  languages:
+  - Python
+  frameworks: []
+  infrastructure: []

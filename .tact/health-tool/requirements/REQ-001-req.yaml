@@ -1,0 +1,11 @@
+title: Req
+approval: draft
+phase: planned
+priority: critical
+description: Desc
+acceptanceCriteria:
+- AC
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

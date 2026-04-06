@@ -477,6 +477,78 @@ class Store:
             for row in rows
         ]
 
+    # ── Pipeline Run Domains ────────────────────────────────────────────
+
+    def insert_pipeline_run_domain(self, run_id: str, domain: str, stats: dict) -> None:
+        """Record per-domain stats for a pipeline run."""
+        row_id = _gen_id("prd")
+        self.conn.execute(
+            """INSERT INTO pipeline_run_domains
+               (id, run_id, domain, signals_fetched, insights_generated,
+                ideas_generated, ideas_evaluated, avg_score, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row_id,
+                run_id,
+                domain,
+                stats.get("signals_fetched", 0),
+                stats.get("insights_generated", 0),
+                stats.get("ideas_generated", 0),
+                stats.get("ideas_evaluated", 0),
+                stats.get("avg_score", 0.0),
+                _now_iso(),
+            ),
+        )
+        self.conn.commit()
+
+    def get_pipeline_run_domains(self, run_id: str) -> list[dict]:
+        """Get all per-domain stats for a pipeline run."""
+        rows = self.conn.execute(
+            "SELECT * FROM pipeline_run_domains WHERE run_id = ? ORDER BY domain",
+            (run_id,),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "run_id": row["run_id"],
+                "domain": row["domain"],
+                "signals_fetched": row["signals_fetched"],
+                "insights_generated": row["insights_generated"],
+                "ideas_generated": row["ideas_generated"],
+                "ideas_evaluated": row["ideas_evaluated"],
+                "avg_score": row["avg_score"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def get_domain_performance(self, domain: str, *, limit: int = 10) -> list[dict]:
+        """Get recent pipeline run stats for a specific domain (newest first)."""
+        rows = self.conn.execute(
+            """SELECT prd.*, pr.started_at as run_started_at
+               FROM pipeline_run_domains prd
+               JOIN pipeline_runs pr ON prd.run_id = pr.id
+               WHERE prd.domain = ?
+               ORDER BY pr.started_at DESC
+               LIMIT ?""",
+            (domain, limit),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "run_id": row["run_id"],
+                "domain": row["domain"],
+                "signals_fetched": row["signals_fetched"],
+                "insights_generated": row["insights_generated"],
+                "ideas_generated": row["ideas_generated"],
+                "ideas_evaluated": row["ideas_evaluated"],
+                "avg_score": row["avg_score"],
+                "created_at": row["created_at"],
+                "run_started_at": row["run_started_at"],
+            }
+            for row in rows
+        ]
+
     # ── Attribution ───────────────────────────────────────────────────
 
     def get_feedback_with_attribution(self, *, limit: int = 100) -> list[dict]:
