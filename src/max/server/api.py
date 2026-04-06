@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -10,12 +11,14 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from max.server.dependencies import get_store
 from max.server.schemas import (
     FeedbackCreate,
+    HealthResponse,
     IdeaCreate,
     IdeaDetailResponse,
     IdeaSummaryResponse,
     InsightCreate,
     InsightResponse,
     PipelineResultResponse,
+    PipelineRunHistoryResponse,
     PipelineRunRequest,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
@@ -28,6 +31,51 @@ from max.server.schemas import (
 from max.store.db import Store
 
 router = APIRouter()
+
+
+# ── Health ──────────────────────────────────────────────────────────
+
+
+@router.get("/health", response_model=HealthResponse)
+def health_check(request: Request, store: Store = Depends(get_store)):
+    try:
+        store.count_signals()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    version = store.get_schema_version() if db_ok else 0
+    started_at = getattr(request.app.state, "started_at", None)
+    uptime = time.monotonic() - started_at if started_at is not None else 0.0
+
+    return HealthResponse(
+        status="healthy" if db_ok else "degraded",
+        database=db_ok,
+        version=version,
+        uptime_seconds=uptime,
+    )
+
+
+# ── Pipeline Run History ────────────────────────────────────────────
+
+
+@router.get("/pipeline/runs", response_model=list[PipelineRunHistoryResponse])
+def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)):
+    runs = store.get_pipeline_runs(limit=limit)
+    return [
+        PipelineRunHistoryResponse(
+            id=r["id"],
+            started_at=r["started_at"],
+            finished_at=r["completed_at"],
+            signals_fetched=r["signals_fetched"],
+            insights_generated=r["insights_generated"],
+            ideas_generated=r["ideas_generated"],
+            ideas_evaluated=r["ideas_evaluated"],
+            specs_generated=r["specs_generated"],
+            status="completed" if r["completed_at"] else "running",
+        )
+        for r in runs
+    ]
 
 
 # ── Helpers ─────────────────────────────────────────────────────────

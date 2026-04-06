@@ -210,3 +210,22 @@ class ScheduleUpdateRequest(BaseModel):
     weight_profile: str | None = None
     ideation_mode: str | None = None
     trigger_now: bool = False
+
+
+class HealthResponse(BaseModel):
+    status: str
+    database: bool
+    version: int
+    uptime_seconds: float
+
+
+class PipelineRunHistoryResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None
+    signals_fetched: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    specs_generated: int
+    status: str

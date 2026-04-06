@@ -612,3 +612,82 @@ def test_update_schedule_interval(schedule_client):
     )
     assert resp.status_code == 200
     assert resp.json()["interval_seconds"] == 3600
+
+
+# ── Health endpoint ──────────────────────────────────────────────────
+
+
+def test_health_returns_healthy(client):
+    resp = client.get("/api/v1/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "healthy"
+    assert data["database"] is True
+    assert isinstance(data["version"], int)
+    assert data["version"] > 0
+    assert isinstance(data["uptime_seconds"], float)
+
+
+# ── Pipeline run history endpoint ────────────────────────────────────
+
+
+@pytest.fixture
+def pipeline_runs_db(db_path):
+    """DB pre-populated with pipeline run records."""
+    store = Store(db_path=db_path, wal_mode=True)
+    for i in range(1, 8):
+        run_id = f"run-{i:03d}"
+        store.insert_pipeline_run(run_id, {"signal_limit": 30})
+        if i <= 5:
+            store.update_pipeline_run(
+                run_id,
+                signals_fetched=i * 10,
+                insights_generated=i * 2,
+                ideas_generated=i,
+                ideas_evaluated=i,
+                specs_generated=0,
+            )
+    store.close()
+    return db_path
+
+
+@pytest.fixture
+def pipeline_runs_client(pipeline_runs_db):
+    from max.server.dependencies import get_store
+
+    app = create_app()
+
+    def override():
+        store = Store(db_path=pipeline_runs_db, wal_mode=True)
+        try:
+            yield store
+        finally:
+            store.close()
+
+    app.dependency_overrides[get_store] = override
+    return TestClient(app)
+
+
+def test_list_pipeline_runs(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/pipeline/runs")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) == 7
+    for run in data:
+        assert "id" in run
+        assert "started_at" in run
+        assert "status" in run
+
+
+def test_list_pipeline_runs_limit(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/pipeline/runs?limit=5")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 5
+
+
+def test_list_pipeline_runs_empty(client):
+    resp = client.get("/api/v1/pipeline/runs")
+    assert resp.status_code == 200
+    assert resp.json() == []
