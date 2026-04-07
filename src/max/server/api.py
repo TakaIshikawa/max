@@ -178,14 +178,35 @@ def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
 # ── Signals ─────────────────────────────────────────────────────────
 
 
-@router.get("/signals", response_model=list[SignalResponse])
+@router.get("/signals")
 def list_signals(
-    limit: int = 50,
+    cursor: str | None = None,
+    limit: int = 20,
     source_type: str | None = None,
     store: Store = Depends(get_store),
 ):
-    signals = store.get_signals(limit=limit, source_type=source_type)
-    return [_signal_to_response(s) for s in signals]
+    from max.server.schemas import PaginatedResponse, PaginationMeta
+
+    # Clamp limit to max 100
+    limit = min(limit, 100)
+
+    try:
+        signals, next_cursor = store.get_signals_paginated(
+            cursor=cursor, limit=limit, source_type=source_type
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    total_count = store.count_signals(source_type=source_type)
+
+    return PaginatedResponse[SignalResponse](
+        items=[_signal_to_response(s) for s in signals],
+        pagination=PaginationMeta(
+            next_cursor=next_cursor,
+            has_more=next_cursor is not None,
+            total_count=total_count,
+        ),
+    )
 
 
 @router.post("/signals", response_model=SignalResponse, status_code=201)
@@ -210,10 +231,32 @@ def create_signal(body: SignalCreate, store: Store = Depends(get_store)):
 # ── Insights ────────────────────────────────────────────────────────
 
 
-@router.get("/insights", response_model=list[InsightResponse])
-def list_insights(limit: int = 50, store: Store = Depends(get_store)):
-    insights = store.get_insights(limit=limit)
-    return [_insight_to_response(i) for i in insights]
+@router.get("/insights")
+def list_insights(
+    cursor: str | None = None,
+    limit: int = 20,
+    store: Store = Depends(get_store),
+):
+    from max.server.schemas import PaginatedResponse, PaginationMeta
+
+    # Clamp limit to max 100
+    limit = min(limit, 100)
+
+    try:
+        insights, next_cursor = store.get_insights_paginated(cursor=cursor, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    total_count = store.count_insights()
+
+    return PaginatedResponse[InsightResponse](
+        items=[_insight_to_response(i) for i in insights],
+        pagination=PaginationMeta(
+            next_cursor=next_cursor,
+            has_more=next_cursor is not None,
+            total_count=total_count,
+        ),
+    )
 
 
 @router.post("/insights", response_model=InsightResponse, status_code=201)
@@ -237,8 +280,9 @@ def create_insight(body: InsightCreate, store: Store = Depends(get_store)):
 # ── Ideas ───────────────────────────────────────────────────────────
 
 
-@router.get("/ideas", response_model=list[IdeaSummaryResponse])
+@router.get("/ideas")
 def list_ideas(
+    cursor: str | None = None,
     limit: int = 20,
     status: str | None = None,
     category: str | None = None,
@@ -246,8 +290,20 @@ def list_ideas(
     min_score: float | None = None,
     store: Store = Depends(get_store),
 ):
-    units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+    from max.server.schemas import PaginatedResponse, PaginationMeta
 
+    # Clamp limit to max 100
+    limit = min(limit, 100)
+
+    # Get paginated units from DB (with status/domain filters)
+    try:
+        units, next_cursor = store.get_buildable_units_paginated(
+            cursor=cursor, limit=limit, status=status, domain=domain
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Apply additional in-memory filters (category, min_score)
     results: list[IdeaSummaryResponse] = []
     for unit in units:
         if category and (unit.category) != category:
@@ -257,7 +313,16 @@ def list_ideas(
             continue
         results.append(_unit_summary(unit, evaluation))
 
-    return results
+    total_count = store.count_buildable_units(status=status, domain=domain)
+
+    return PaginatedResponse[IdeaSummaryResponse](
+        items=results,
+        pagination=PaginationMeta(
+            next_cursor=next_cursor,
+            has_more=next_cursor is not None,
+            total_count=total_count,
+        ),
+    )
 
 
 @router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)

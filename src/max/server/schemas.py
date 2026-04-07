@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
+
+T = TypeVar("T")
 
 
 # ── Request models ──────────────────────────────────────────────────
@@ -68,7 +70,23 @@ class SimilarityRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=100)
 
 
+class PaginationParams(BaseModel):
+    cursor: str | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+
+
 # ── Response models ─────────────────────────────────────────────────
+
+
+class PaginationMeta(BaseModel):
+    next_cursor: str | None
+    has_more: bool
+    total_count: int
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    pagination: PaginationMeta
 
 
 class SignalResponse(BaseModel):
