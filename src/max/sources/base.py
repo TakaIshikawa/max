@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
 
 import httpx
 
@@ -14,6 +17,84 @@ logger = logging.getLogger(__name__)
 
 # Status codes that trigger a retry.
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+class CircuitState(Enum):
+    """Circuit breaker states."""
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, skip calls
+    HALF_OPEN = "half_open"  # Testing recovery
+
+
+@dataclass
+class CircuitBreaker:
+    """Circuit breaker to prevent repeated calls to failing adapters.
+
+    Tracks consecutive failures and opens the circuit after a threshold,
+    preventing wasted HTTP calls to consistently unavailable services.
+    """
+
+    failure_threshold: int = 3
+    recovery_timeout: float = 300.0  # 5 minutes
+    state: CircuitState = field(default=CircuitState.CLOSED)
+    failure_count: int = 0
+    last_failure_at: float | None = None
+
+    def record_success(self) -> None:
+        """Record a successful request, resetting the circuit to CLOSED."""
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.last_failure_at = None
+
+    def record_failure(self) -> None:
+        """Record a failed request, potentially opening the circuit."""
+        self.failure_count += 1
+        self.last_failure_at = time.monotonic()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+
+    def can_execute(self) -> bool:
+        """Check if execution is allowed.
+
+        Returns True if CLOSED, or if OPEN and recovery_timeout has elapsed
+        (transitions to HALF_OPEN for testing).
+        """
+        if self.state == CircuitState.CLOSED:
+            return True
+
+        if self.state == CircuitState.HALF_OPEN:
+            return True
+
+        # state == OPEN
+        if self.last_failure_at is None:
+            return True
+
+        elapsed = time.monotonic() - self.last_failure_at
+        if elapsed >= self.recovery_timeout:
+            self.state = CircuitState.HALF_OPEN
+            return True
+
+        return False
+
+    def retry_after(self) -> float:
+        """Return seconds until circuit may be retried (for OPEN state)."""
+        if self.last_failure_at is None:
+            return 0.0
+        elapsed = time.monotonic() - self.last_failure_at
+        return max(0.0, self.recovery_timeout - elapsed)
+
+
+# Module-level circuit breaker registry keyed by adapter name
+_circuit_breakers: dict[str, CircuitBreaker] = {}
+
+
+def get_circuit_breaker(adapter_name: str) -> CircuitBreaker:
+    """Get or create a circuit breaker for the given adapter."""
+    if adapter_name not in _circuit_breakers:
+        _circuit_breakers[adapter_name] = CircuitBreaker()
+    return _circuit_breakers[adapter_name]
 
 
 class AdapterFetchError(Exception):
@@ -35,6 +116,21 @@ class AdapterRateLimitError(AdapterFetchError):
         super().__init__(adapter_name, 429, url)
 
 
+class AdapterCircuitOpenError(Exception):
+    """Raised when an adapter's circuit breaker is open.
+
+    Indicates the adapter has failed repeatedly and is temporarily disabled
+    to prevent wasted HTTP calls.
+    """
+
+    def __init__(self, adapter_name: str, retry_after: float) -> None:
+        self.adapter_name = adapter_name
+        self.retry_after = retry_after
+        super().__init__(
+            f"{adapter_name}: circuit breaker open, retry in {retry_after:.0f}s"
+        )
+
+
 async def fetch_with_retry(
     url: str,
     client: httpx.AsyncClient,
@@ -50,40 +146,60 @@ async def fetch_with_retry(
     Retries on HTTP 429 (rate-limit) and 5xx status codes using exponential
     backoff.  Raises immediately on non-retryable client errors (4xx except 429).
 
+    Uses a circuit breaker to prevent repeated calls to failing adapters.
+    After consecutive failures, the circuit opens and blocks requests for a
+    recovery period.
+
     Returns the successful ``httpx.Response``.
     """
+    circuit_breaker = get_circuit_breaker(adapter_name)
+
+    # Check circuit breaker before attempting request
+    if not circuit_breaker.can_execute():
+        retry_after = circuit_breaker.retry_after()
+        raise AdapterCircuitOpenError(adapter_name, retry_after)
+
     last_response: httpx.Response | None = None
 
-    for attempt in range(max_retries + 1):
-        response = await client.request(method, url, **request_kwargs)
-        status = response.status_code
+    try:
+        for attempt in range(max_retries + 1):
+            response = await client.request(method, url, **request_kwargs)
+            status = response.status_code
 
-        if status < 400:
-            return response
+            if status < 400:
+                circuit_breaker.record_success()
+                return response
 
-        if status not in _RETRYABLE_STATUS_CODES:
-            raise AdapterFetchError(adapter_name, status, url)
+            if status not in _RETRYABLE_STATUS_CODES:
+                circuit_breaker.record_failure()
+                raise AdapterFetchError(adapter_name, status, url)
 
-        last_response = response
+            last_response = response
 
-        if attempt < max_retries:
-            delay = backoff_base * (2 ** attempt)
-            logger.warning(
-                "%s: HTTP %d from %s — retrying in %.1fs (attempt %d/%d)",
-                adapter_name,
-                status,
-                url,
-                delay,
-                attempt + 1,
-                max_retries,
-            )
-            await asyncio.sleep(delay)
+            if attempt < max_retries:
+                delay = backoff_base * (2 ** attempt)
+                logger.warning(
+                    "%s: HTTP %d from %s — retrying in %.1fs (attempt %d/%d)",
+                    adapter_name,
+                    status,
+                    url,
+                    delay,
+                    attempt + 1,
+                    max_retries,
+                )
+                await asyncio.sleep(delay)
 
-    # All retries exhausted.
-    assert last_response is not None
-    if last_response.status_code == 429:
-        raise AdapterRateLimitError(adapter_name, url)
-    raise AdapterFetchError(adapter_name, last_response.status_code, url)
+        # All retries exhausted.
+        assert last_response is not None
+        circuit_breaker.record_failure()
+        if last_response.status_code == 429:
+            raise AdapterRateLimitError(adapter_name, url)
+        raise AdapterFetchError(adapter_name, last_response.status_code, url)
+
+    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+        # Network errors, timeouts, etc.
+        circuit_breaker.record_failure()
+        raise
 
 
 class SourceAdapter(ABC):

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import max.sources.base
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -19,6 +20,14 @@ from max.types.tact_spec import (
     TactSpec,
     TactTechStack,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_circuit_breakers():
+    """Reset circuit breakers before each test to ensure isolation."""
+    max.sources.base._circuit_breakers.clear()
+    yield
+    max.sources.base._circuit_breakers.clear()
 
 
 @pytest.fixture
