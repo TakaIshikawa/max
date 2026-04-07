@@ -7,7 +7,8 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from max import config
 from max.server.api import router
@@ -72,6 +73,28 @@ def create_app() -> FastAPI:
             RateLimitMiddleware,
             rpm=config.MAX_RATE_LIMIT_RPM,
             excluded_paths={"/api/v1/health", "/mcp"},
+        )
+
+    # Add security headers middleware
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if request.method != "GET":
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    # Add CORS middleware if origins are configured
+    if config.CORS_ORIGINS:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=config.CORS_ORIGINS,
+            allow_credentials=config.MAX_CORS_ALLOW_CREDENTIALS,
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
+            allow_headers=["*"],
         )
 
     app.include_router(router, prefix="/api/v1")

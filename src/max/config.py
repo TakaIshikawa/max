@@ -80,6 +80,14 @@ MAX_RATE_LIMIT_ENABLED: bool = os.getenv("MAX_RATE_LIMIT_ENABLED", "true").lower
 MAX_RATE_LIMIT_RPM: int = _parse_int("MAX_RATE_LIMIT_RPM", 60)  # requests per minute (global)
 MAX_RATE_LIMIT_EXPENSIVE_RPM: int = _parse_int("MAX_RATE_LIMIT_EXPENSIVE_RPM", 5)  # for LLM endpoints
 
+# CORS
+MAX_CORS_ORIGINS: str = os.getenv("MAX_CORS_ORIGINS", "")  # comma-separated allowed origins
+MAX_CORS_ALLOW_CREDENTIALS: bool = os.getenv("MAX_CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+CORS_ORIGINS: list[str] = [
+    origin.strip() for origin in MAX_CORS_ORIGINS.split(",") if origin.strip()
+]
+
 
 def validate_config() -> list[str]:
     """Check current config values and return a list of warning strings."""
