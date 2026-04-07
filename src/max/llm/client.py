@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass, field
-from typing import TypeVar
+from typing import Callable, TypeVar
 
 import anthropic
 from pydantic import BaseModel
 
 from max.config import ANTHROPIC_API_KEY, MODEL
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -117,6 +121,79 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 
+def _call_with_retry(
+    call_fn: Callable[[], T],
+    *,
+    max_attempts: int = 3,
+    base_delay: float = 1.0,
+    backoff_factor: float = 2.0,
+) -> T:
+    """Wrap an Anthropic API call with retry logic for transient failures.
+
+    Retries on:
+    - anthropic.RateLimitError (429)
+    - anthropic.InternalServerError (500/529)
+    - anthropic.APIConnectionError (network errors)
+
+    Does NOT retry on:
+    - anthropic.BadRequestError (400)
+    - anthropic.AuthenticationError (401)
+    - anthropic.PermissionDeniedError (403)
+
+    Args:
+        call_fn: Function that makes the API call
+        max_attempts: Maximum number of attempts (default 3)
+        base_delay: Initial delay in seconds (default 1.0)
+        backoff_factor: Exponential backoff multiplier (default 2.0)
+
+    Returns:
+        The successful API response
+
+    Raises:
+        The original exception if all retries are exhausted
+    """
+    last_exception: Exception | None = None
+
+    for attempt in range(max_attempts):
+        try:
+            return call_fn()
+        except (
+            anthropic.RateLimitError,
+            anthropic.InternalServerError,
+            anthropic.APIConnectionError,
+        ) as e:
+            last_exception = e
+            error_type = type(e).__name__
+
+            if attempt < max_attempts - 1:
+                delay = base_delay * (backoff_factor**attempt)
+                logger.warning(
+                    "LLM API call failed with %s — retrying in %.1fs (attempt %d/%d)",
+                    error_type,
+                    delay,
+                    attempt + 1,
+                    max_attempts,
+                )
+                time.sleep(delay)
+            else:
+                logger.warning(
+                    "LLM API call failed with %s — exhausted all %d retries",
+                    error_type,
+                    max_attempts,
+                )
+        except (
+            anthropic.BadRequestError,
+            anthropic.AuthenticationError,
+            anthropic.PermissionDeniedError,
+        ):
+            # Non-retryable errors - fail immediately
+            raise
+
+    # All retries exhausted, re-raise the last exception
+    assert last_exception is not None
+    raise last_exception
+
+
 def structured_call(
     system: str,
     prompt: str,
@@ -137,21 +214,24 @@ def structured_call(
     client = get_client()
     schema = output_type.model_json_schema()
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
-        tools=[
-            {
-                "name": "structured_output",
-                "description": f"Return the result as a {output_type.__name__}",
-                "input_schema": schema,
-            }
-        ],
-        tool_choice={"type": "tool", "name": "structured_output"},
-    )
+    def _make_call():
+        return client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+            tools=[
+                {
+                    "name": "structured_output",
+                    "description": f"Return the result as a {output_type.__name__}",
+                    "input_schema": schema,
+                }
+            ],
+            tool_choice={"type": "tool", "name": "structured_output"},
+        )
+
+    response = _call_with_retry(_make_call)
 
     if stage and hasattr(response, "usage"):
         token_tracker.record(
@@ -195,13 +275,16 @@ def text_call(
 
     client = get_client()
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    def _make_call():
+        return client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+    response = _call_with_retry(_make_call)
 
     if stage and hasattr(response, "usage"):
         token_tracker.record(
