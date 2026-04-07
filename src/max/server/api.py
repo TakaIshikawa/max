@@ -8,7 +8,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
+from max import config
 from max.server.dependencies import get_store
+from max.server.rate_limit import rate_limit
 from max.server.schemas import (
     FeedbackCreate,
     HealthResponse,
@@ -406,7 +408,11 @@ def create_feedback(
 # ── Pipeline ────────────────────────────────────────────────────────
 
 
-@router.post("/pipeline/run", response_model=PipelineResultResponse)
+@router.post(
+    "/pipeline/run",
+    response_model=PipelineResultResponse,
+    dependencies=[Depends(rate_limit(config.MAX_RATE_LIMIT_EXPENSIVE_RPM))],
+)
 async def run_pipeline_endpoint(body: PipelineRunRequest):
     from max.pipeline.runner import run_pipeline
 
