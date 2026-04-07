@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS signals (
     credibility REAL NOT NULL DEFAULT 0.5,
     metadata TEXT NOT NULL DEFAULT '{}',
     synthesized_at TEXT DEFAULT NULL,
-    signal_role TEXT NOT NULL DEFAULT ''
+    signal_role TEXT NOT NULL DEFAULT '',
+    archived_at TEXT DEFAULT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_signals_url ON signals(url);
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS insights (
     domains TEXT NOT NULL DEFAULT '[]',
     implications TEXT NOT NULL DEFAULT '[]',
     time_horizon TEXT NOT NULL DEFAULT 'near_term',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    archived_at TEXT DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS buildable_units (
@@ -116,7 +118,8 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     avg_idea_score REAL NOT NULL DEFAULT 0.0,
     fetch_allocation TEXT NOT NULL DEFAULT '{}',
     token_usage TEXT NOT NULL DEFAULT '{}',
-    adapter_metrics TEXT NOT NULL DEFAULT '{}'
+    adapter_metrics TEXT NOT NULL DEFAULT '{}',
+    archived_at TEXT DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS pipeline_run_domains (
@@ -232,6 +235,29 @@ def _migrate_v6_to_v7(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v7_to_v8(conn: sqlite3.Connection) -> None:
+    """Add archived_at columns and indices for data retention."""
+    # Add archived_at to signals
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(signals)").fetchall()}
+    if "archived_at" not in columns:
+        conn.execute("ALTER TABLE signals ADD COLUMN archived_at TEXT DEFAULT NULL")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_archived_at ON signals(archived_at)")
+
+    # Add archived_at to insights
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(insights)").fetchall()}
+    if "archived_at" not in columns:
+        conn.execute("ALTER TABLE insights ADD COLUMN archived_at TEXT DEFAULT NULL")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_insights_archived_at ON insights(archived_at)")
+
+    # Add archived_at to pipeline_runs
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()}
+    if "archived_at" not in columns:
+        conn.execute("ALTER TABLE pipeline_runs ADD COLUMN archived_at TEXT DEFAULT NULL")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pipeline_runs_archived_at ON pipeline_runs(archived_at)")
+
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -239,6 +265,10 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("SELECT COUNT(*) FROM schema_version")
     if cursor.fetchone()[0] == 0:
         conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+        # Create archived_at indices for fresh DB
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_archived_at ON signals(archived_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_insights_archived_at ON insights(archived_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pipeline_runs_archived_at ON pipeline_runs(archived_at)")
         conn.commit()
         return
 
@@ -262,6 +292,16 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     if current < 7:
         _migrate_v6_to_v7(conn)
 
+    if current < 8:
+        _migrate_v7_to_v8(conn)
+
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
         conn.commit()
+
+    # Create archived_at indices (safe to run multiple times due to IF NOT EXISTS)
+    # These are separate from SCHEMA_SQL to avoid errors during migration when columns don't exist yet
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_archived_at ON signals(archived_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_insights_archived_at ON insights(archived_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_pipeline_runs_archived_at ON pipeline_runs(archived_at)")
+    conn.commit()

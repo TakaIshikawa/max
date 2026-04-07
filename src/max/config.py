@@ -72,6 +72,9 @@ MAX_PROFILE: str = os.getenv("MAX_PROFILE", "")  # pipeline profile name (e.g. "
 MAX_ADAPTERS: str = os.getenv("MAX_ADAPTERS", "all")  # comma-separated or "all"
 MAX_ADAPTERS_EXCLUDE: str = os.getenv("MAX_ADAPTERS_EXCLUDE", "")  # comma-separated
 
+# Retention
+MAX_RETENTION_DAYS: int = _parse_int("MAX_RETENTION_DAYS", 90)  # days before archival
+
 
 def validate_config() -> list[str]:
     """Check current config values and return a list of warning strings."""

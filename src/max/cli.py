@@ -649,6 +649,127 @@ def backfill_domains() -> None:
 
 
 @main.command()
+@click.option("--days", type=int, default=None, help="Days before archival (default: MAX_RETENTION_DAYS or 90)")
+@click.option("--purge", is_flag=True, help="Also purge archived records older than 180 days")
+@click.option("--purge-days", type=int, default=180, help="Days before purging archived records (default: 180)")
+@click.option("--dry-run", is_flag=True, help="Show what would be archived/purged without modifying data")
+def archive(days: int | None, purge: bool, purge_days: int, dry_run: bool) -> None:
+    """Archive old records and optionally purge archived data."""
+    from max.config import MAX_RETENTION_DAYS
+    from max.store.db import Store
+
+    archive_days = days if days is not None else MAX_RETENTION_DAYS
+
+    store = Store()
+    try:
+        if dry_run:
+            click.echo(f"DRY RUN: Showing what would be affected (--days={archive_days})")
+            click.echo()
+
+            # Show current stats
+            stats = store.retention_stats()
+            click.echo("Current retention status:")
+            for table, counts in stats.items():
+                click.echo(
+                    f"  {table:20s}  total: {counts['total']:6d}  "
+                    f"active: {counts['active']:6d}  archived: {counts['archived']:6d}"
+                )
+            click.echo()
+
+            # Estimate what would be archived
+            from datetime import datetime, timedelta, timezone
+
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=archive_days)).isoformat()
+
+            # Count synthesized signals older than cutoff
+            sig_count = store.conn.execute(
+                """SELECT COUNT(*) FROM signals
+                   WHERE archived_at IS NULL
+                   AND synthesized_at IS NOT NULL
+                   AND fetched_at < ?""",
+                (cutoff,),
+            ).fetchone()[0]
+
+            # Count old pipeline runs
+            run_count = store.conn.execute(
+                """SELECT COUNT(*) FROM pipeline_runs
+                   WHERE archived_at IS NULL AND started_at < ?""",
+                (cutoff,),
+            ).fetchone()[0]
+
+            # Count archivable insights (simplified estimate)
+            ins_count = store.conn.execute(
+                """SELECT COUNT(*) FROM insights
+                   WHERE archived_at IS NULL AND created_at < ?""",
+                (cutoff,),
+            ).fetchone()[0]
+
+            click.echo(f"Would archive (records older than {archive_days} days):")
+            click.echo(f"  signals:       {sig_count:6d} (synthesized only)")
+            click.echo(f"  insights:      {ins_count:6d} (estimate, actual may be less)")
+            click.echo(f"  pipeline_runs: {run_count:6d}")
+            click.echo()
+
+            if purge:
+                purge_cutoff = (
+                    datetime.now(timezone.utc) - timedelta(days=purge_days)
+                ).isoformat()
+
+                sig_del = store.conn.execute(
+                    """SELECT COUNT(*) FROM signals
+                       WHERE archived_at IS NOT NULL AND archived_at < ?""",
+                    (purge_cutoff,),
+                ).fetchone()[0]
+
+                ins_del = store.conn.execute(
+                    """SELECT COUNT(*) FROM insights
+                       WHERE archived_at IS NOT NULL AND archived_at < ?""",
+                    (purge_cutoff,),
+                ).fetchone()[0]
+
+                run_del = store.conn.execute(
+                    """SELECT COUNT(*) FROM pipeline_runs
+                       WHERE archived_at IS NOT NULL AND archived_at < ?""",
+                    (purge_cutoff,),
+                ).fetchone()[0]
+
+                click.echo(f"Would purge (archived > {purge_days} days ago):")
+                click.echo(f"  signals:       {sig_del:6d}")
+                click.echo(f"  insights:      {ins_del:6d}")
+                click.echo(f"  pipeline_runs: {run_del:6d}")
+
+            click.echo("\nRun without --dry-run to apply changes.")
+            return
+
+        # Actual archival
+        click.echo(f"Archiving records older than {archive_days} days...")
+        result = store.archive_old_records(days=archive_days)
+        click.echo(f"  signals:       {result['signals_archived']:6d} archived")
+        click.echo(f"  insights:      {result['insights_archived']:6d} archived")
+        click.echo(f"  pipeline_runs: {result['runs_archived']:6d} archived")
+        click.echo()
+
+        if purge:
+            click.echo(f"Purging archived records older than {purge_days} days...")
+            purge_result = store.purge_archived(before_days=purge_days)
+            click.echo(f"  signals:       {purge_result['signals_deleted']:6d} deleted")
+            click.echo(f"  insights:      {purge_result['insights_deleted']:6d} deleted")
+            click.echo(f"  pipeline_runs: {purge_result['runs_deleted']:6d} deleted")
+            click.echo()
+
+        # Show final stats
+        stats = store.retention_stats()
+        click.echo("Retention status after changes:")
+        for table, counts in stats.items():
+            click.echo(
+                f"  {table:20s}  total: {counts['total']:6d}  "
+                f"active: {counts['active']:6d}  archived: {counts['archived']:6d}"
+            )
+    finally:
+        store.close()
+
+
+@main.command()
 @click.argument("unit_id")
 @click.option("--tact-url", type=str, default="http://localhost:4800/api/v1", help="Tact daemon URL")
 def push(unit_id: str, tact_url: str) -> None:

@@ -14,6 +14,8 @@ from max.store.migrations import (
     _migrate_v3_to_v4,
     _migrate_v4_to_v5,
     _migrate_v5_to_v6,
+    _migrate_v6_to_v7,
+    _migrate_v7_to_v8,
     ensure_schema,
 )
 from max.store.db import Store
@@ -284,11 +286,11 @@ class TestIncrementalMigrations:
         conn.close()
 
 
-# ── 3. Full migration path: v1 → v6 via ensure_schema ───────────────
+# ── 3. Full migration path: v1 → v8 via ensure_schema ───────────────
 
 
 class TestFullMigrationPath:
-    def test_v1_to_v6_via_ensure_schema(self) -> None:
+    def test_v1_to_v8_via_ensure_schema(self) -> None:
         conn = _create_v1_db()
         assert _get_schema_version(conn) == 1
         ensure_schema(conn)
@@ -307,6 +309,12 @@ class TestFullMigrationPath:
         assert "domain" in _get_columns(conn, "buildable_units")
         # v6 also creates embeddings table via SCHEMA_SQL executescript
         assert "embeddings" in _get_tables(conn)
+        # v7 addition
+        assert "pipeline_run_domains" in _get_tables(conn)
+        # v8 addition
+        assert "archived_at" in _get_columns(conn, "signals")
+        assert "archived_at" in _get_columns(conn, "insights")
+        assert "archived_at" in _get_columns(conn, "pipeline_runs")
         conn.close()
 
     def test_v1_data_survives_migration(self) -> None:
@@ -426,7 +434,7 @@ class TestSchemaVersion:
     def test_fresh_db_version(self) -> None:
         conn = sqlite3.connect(":memory:")
         ensure_schema(conn)
-        assert _get_schema_version(conn) == 7
+        assert _get_schema_version(conn) == 8
         conn.close()
 
     def test_v1_migrated_to_current(self) -> None:
