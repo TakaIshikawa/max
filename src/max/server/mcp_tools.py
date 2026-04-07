@@ -59,8 +59,7 @@ def search_ideas(
     Use domain to filter by pipeline profile domain (e.g. 'healthcare', 'fintech').
     Use min_score to only get ideas above a certain evaluation score.
     """
-    store = _get_store()
-    try:
+    with _get_store() as store:
         units = store.get_buildable_units(limit=limit * 3, domain=domain)
         results = []
         for unit in units:
@@ -85,8 +84,6 @@ def search_ideas(
             if len(results) >= limit:
                 break
         return results
-    finally:
-        store.close()
 
 
 def get_idea(id: str) -> dict:
@@ -94,8 +91,7 @@ def get_idea(id: str) -> dict:
 
     Returns the full idea with problem/solution, evaluation scores, strengths/weaknesses.
     """
-    store = _get_store()
-    try:
+    with _get_store() as store:
         unit = store.get_buildable_unit(id)
         if not unit:
             return {"error": f"Idea not found: {id}"}
@@ -128,8 +124,6 @@ def get_idea(id: str) -> dict:
                 },
             }
         return result
-    finally:
-        store.close()
 
 
 def get_spec(id: str) -> dict:
@@ -137,14 +131,11 @@ def get_spec(id: str) -> dict:
 
     Returns the full spec JSON that can be consumed by tact or similar build orchestrators.
     """
-    store = _get_store()
-    try:
+    with _get_store() as store:
         spec = store.get_tact_spec(id)
         if not spec:
             return {"error": f"No spec for idea: {id}"}
         return spec.model_dump(by_alias=True)
-    finally:
-        store.close()
 
 
 def contribute_signal(
@@ -161,8 +152,7 @@ def contribute_signal(
     """
     from max.types.signal import Signal
 
-    store = _get_store()
-    try:
+    with _get_store() as store:
         signal = Signal(
             source_type=source_type,
             source_adapter="mcp",
@@ -173,8 +163,6 @@ def contribute_signal(
         )
         signal = store.insert_signal(signal)
         return {"id": signal.id, "title": signal.title, "status": "created"}
-    finally:
-        store.close()
 
 
 def contribute_idea(
@@ -192,8 +180,7 @@ def contribute_idea(
     """
     from max.types.buildable_unit import BuildableUnit
 
-    store = _get_store()
-    try:
+    with _get_store() as store:
         unit = BuildableUnit(
             title=title,
             one_liner=one_liner or title,
@@ -204,8 +191,6 @@ def contribute_idea(
         )
         unit = store.insert_buildable_unit(unit)
         return {"id": unit.id, "title": unit.title, "status": "draft"}
-    finally:
-        store.close()
 
 
 def evaluate_idea(id: str) -> dict:
@@ -217,8 +202,7 @@ def evaluate_idea(id: str) -> dict:
     """
     from max.evaluation.engine import evaluate
 
-    store = _get_store()
-    try:
+    with _get_store() as store:
         unit = store.get_buildable_unit(id)
         if not unit:
             return {"error": f"Idea not found: {id}"}
@@ -232,8 +216,6 @@ def evaluate_idea(id: str) -> dict:
             "strengths": evaluation.strengths,
             "weaknesses": evaluation.weaknesses,
         }
-    finally:
-        store.close()
 
 
 def find_similar(
@@ -249,13 +231,10 @@ def find_similar(
     """
     from max.embeddings.engine import SemanticIndex
 
-    store = _get_store()
-    try:
+    with _get_store() as store:
         index = SemanticIndex(store)
         results = index.find_similar(text, entity_type, threshold=threshold, limit=limit)
         return [{"entity_id": eid, "score": score} for eid, score in results]
-    finally:
-        store.close()
 
 
 def get_stats() -> dict:
@@ -263,8 +242,7 @@ def get_stats() -> dict:
 
     Returns counts of signals, insights, ideas, and average scores.
     """
-    store = _get_store()
-    try:
+    with _get_store() as store:
         signals_count = store.count_signals()
         insights = store.get_insights(limit=10000)
         all_units = store.get_buildable_units(limit=10000)
@@ -285,8 +263,6 @@ def get_stats() -> dict:
             "published_count": published_count,
             "avg_score": sum(scores) / len(scores) if scores else None,
         }
-    finally:
-        store.close()
 
 
 # ── Schedule tools ──────────────────────────────────────────────────
@@ -327,8 +303,7 @@ def set_schedule(
 
 def ideas_list() -> str:
     """Browse top ideas from the max idea engine."""
-    store = _get_store()
-    try:
+    with _get_store() as store:
         units = store.get_buildable_units(limit=20)
         items = []
         for unit in units:
@@ -344,14 +319,11 @@ def ideas_list() -> str:
                 "recommendation": ev.recommendation if ev else None,
             })
         return json.dumps(items, indent=2)
-    finally:
-        store.close()
 
 
 def idea_detail(idea_id: str) -> str:
     """Get details of a specific idea."""
-    store = _get_store()
-    try:
+    with _get_store() as store:
         unit = store.get_buildable_unit(idea_id)
         if not unit:
             return json.dumps({"error": f"Not found: {idea_id}"})
@@ -372,20 +344,15 @@ def idea_detail(idea_id: str) -> str:
             result["score"] = evaluation.overall_score
             result["recommendation"] = evaluation.recommendation
         return json.dumps(result, indent=2)
-    finally:
-        store.close()
 
 
 def spec_detail(idea_id: str) -> str:
     """Get the tact-compatible spec for an idea."""
-    store = _get_store()
-    try:
+    with _get_store() as store:
         spec = store.get_tact_spec(idea_id)
         if not spec:
             return json.dumps({"error": f"No spec: {idea_id}"})
         return spec.model_dump_json(by_alias=True, indent=2)
-    finally:
-        store.close()
 
 
 # ── MCP server factory ─────────────────────────────────────────────

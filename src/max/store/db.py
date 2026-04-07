@@ -34,8 +34,61 @@ class Store:
             self.conn.execute("PRAGMA journal_mode=WAL")
         ensure_schema(self.conn)
 
+    def __enter__(self) -> Store:
+        """Enter context manager - returns self."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """Exit context manager - close connection and don't suppress exceptions."""
+        self.close()
+        return False  # Don't suppress exceptions
+
     def close(self) -> None:
         self.conn.close()
+
+    def _commit(self) -> None:
+        """Commit unless we're in a transaction context."""
+        if not getattr(self, "_in_transaction", False):
+            self.conn.commit()
+
+    def transaction(self):
+        """Context manager for atomic transactions.
+
+        Usage:
+            with store.transaction():
+                store.insert_signal(signal)
+                store.update_buildable_unit_status(unit_id, "evaluated")
+
+        Commits on success, rolls back on exception.
+
+        Note: This temporarily disables auto-commit behavior of Store methods.
+        All commits within the transaction block are deferred until the transaction completes.
+        """
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _transaction():
+            # Mark that we're in a transaction to prevent auto-commits
+            # We'll use a flag to track this
+            was_in_transaction = getattr(self, "_in_transaction", False)
+            self._in_transaction = True
+
+            # Save current isolation level and start transaction
+            old_isolation = self.conn.isolation_level
+            self.conn.isolation_level = None  # autocommit mode off
+
+            try:
+                self.conn.execute("BEGIN")
+                yield
+                self.conn.commit()
+            except Exception:
+                self.conn.rollback()
+                raise
+            finally:
+                self.conn.isolation_level = old_isolation
+                self._in_transaction = was_in_transaction
+
+        return _transaction()
 
     def get_schema_version(self) -> int:
         row = self.conn.execute("SELECT version FROM schema_version").fetchone()
@@ -69,7 +122,7 @@ class Store:
                     signal.metadata.get("signal_role", ""),
                 ),
             )
-            self.conn.commit()
+            self._commit()
         except sqlite3.IntegrityError:
             pass  # duplicate URL — skip
         return signal
@@ -108,7 +161,7 @@ class Store:
             "UPDATE signals SET synthesized_at = ? WHERE id = ?",
             [(now, sid) for sid in signal_ids],
         )
-        self.conn.commit()
+        self._commit()
 
     def get_signal(self, signal_id: str) -> Signal | None:
         """Get a single signal by ID."""
@@ -123,7 +176,7 @@ class Store:
             "UPDATE signals SET signal_role = ? WHERE id = ?",
             (role, signal_id),
         )
-        self.conn.commit()
+        self._commit()
 
     def get_signals_by_role(self, role: str, *, limit: int = 100) -> list[Signal]:
         """Get signals filtered by signal_role."""
@@ -218,7 +271,7 @@ class Store:
                 insight.created_at.isoformat(),
             ),
         )
-        self.conn.commit()
+        self._commit()
         return insight
 
     def get_insights(self, *, limit: int = 100) -> list[Insight]:
@@ -269,7 +322,7 @@ class Store:
                 unit.updated_at.isoformat(),
             ),
         )
-        self.conn.commit()
+        self._commit()
         return unit
 
     def get_buildable_unit(self, unit_id: str) -> BuildableUnit | None:
@@ -303,7 +356,7 @@ class Store:
             "UPDATE buildable_units SET status = ?, updated_at = ? WHERE id = ?",
             (status, _now_iso(), unit_id),
         )
-        self.conn.commit()
+        self._commit()
 
     # ── Evaluations ──────────────────────────────────────────────────
 
@@ -331,7 +384,7 @@ class Store:
                 json.dumps(evaluation.weights_used),
             ),
         )
-        self.conn.commit()
+        self._commit()
         return evaluation
 
     def get_evaluation(self, unit_id: str) -> UtilityEvaluation | None:
@@ -353,7 +406,7 @@ class Store:
                 _now_iso(),
             ),
         )
-        self.conn.commit()
+        self._commit()
         return spec
 
     def get_tact_spec(self, unit_id: str) -> TactSpec | None:
@@ -396,7 +449,7 @@ class Store:
                VALUES (?, ?, ?, ?, ?)""",
             (unit_id, outcome, reason, json.dumps(dimension_values), _now_iso()),
         )
-        self.conn.commit()
+        self._commit()
 
     def get_feedback_log(self, *, limit: int = 50) -> list[dict]:
         """Get recent feedback records with unit details for display."""
@@ -458,7 +511,7 @@ class Store:
             "INSERT INTO pipeline_runs (id, started_at, config) VALUES (?, ?, ?)",
             (run_id, _now_iso(), json.dumps(config)),
         )
-        self.conn.commit()
+        self._commit()
 
     def update_pipeline_run(self, run_id: str, **metrics: object) -> None:
         """Update a pipeline run with completion metrics."""
@@ -490,7 +543,7 @@ class Store:
                 run_id,
             ),
         )
-        self.conn.commit()
+        self._commit()
 
     def get_pipeline_runs(self, *, limit: int = 20) -> list[dict]:
         """Get recent pipeline runs."""
@@ -543,7 +596,7 @@ class Store:
                 _now_iso(),
             ),
         )
-        self.conn.commit()
+        self._commit()
 
     def get_pipeline_run_domains(self, run_id: str) -> list[dict]:
         """Get all per-domain stats for a pipeline run."""
@@ -752,7 +805,7 @@ class Store:
         )
         runs_archived = cursor.rowcount
 
-        self.conn.commit()
+        self._commit()
 
         return {
             "signals_archived": signals_archived,
@@ -796,7 +849,7 @@ class Store:
         )
         runs_deleted = cursor.rowcount
 
-        self.conn.commit()
+        self._commit()
 
         return {
             "signals_deleted": signals_deleted,
