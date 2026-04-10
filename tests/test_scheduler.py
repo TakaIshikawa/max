@@ -78,6 +78,108 @@ def test_scheduler_update_partial():
     assert scheduler.interval_seconds == 60  # unchanged
 
 
+def test_status_initial_state():
+    """Comprehensive status check for a new scheduler with all fields."""
+    scheduler = Scheduler(
+        interval_seconds=7200,
+        enabled=True,
+        pipeline_kwargs={"signal_limit": 25, "min_score": 60.0},
+        max_consecutive_failures=5,
+    )
+    status = scheduler.status()
+
+    assert status["enabled"] is True
+    assert status["interval_seconds"] == 7200
+    assert status["running"] is False
+    assert status["last_run_at"] is None
+    assert status["next_run_at"] is None
+    assert status["run_count"] == 0
+    assert status["last_error"] is None
+    assert status["last_error_at"] is None
+    assert status["failure_streak"] == 0
+    assert status["max_consecutive_failures"] == 5
+    assert status["last_result"] is None
+    assert status["pipeline_config"] == {"signal_limit": 25, "min_score": 60.0}
+
+
+def test_update_enabled():
+    """Test toggling enabled flag via update()."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+    assert scheduler.enabled is True
+
+    scheduler.update(enabled=False)
+    assert scheduler.enabled is False
+
+    scheduler.update(enabled=True)
+    assert scheduler.enabled is True
+
+
+def test_update_interval():
+    """Test updating interval_seconds via update()."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+    assert scheduler.interval_seconds == 60
+
+    scheduler.update(interval_seconds=3600)
+    assert scheduler.interval_seconds == 3600
+
+
+def test_update_pipeline_kwargs():
+    """Test updating pipeline configuration parameters."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        pipeline_kwargs={"signal_limit": 30},
+    )
+    assert scheduler.pipeline_kwargs == {"signal_limit": 30}
+
+    scheduler.update(signal_limit=50, min_score=70.0)
+    assert scheduler.pipeline_kwargs["signal_limit"] == 50
+    assert scheduler.pipeline_kwargs["min_score"] == 70.0
+
+
+def test_update_max_consecutive_failures():
+    """Test updating max_consecutive_failures via update()."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+    assert scheduler.max_consecutive_failures == 3
+
+    scheduler.update(max_consecutive_failures=5)
+    assert scheduler.max_consecutive_failures == 5
+
+
+def test_update_partial_does_not_reset_others():
+    """Partial update preserves unchanged fields."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        pipeline_kwargs={"signal_limit": 30, "min_score": 50.0},
+        max_consecutive_failures=3,
+    )
+
+    scheduler.update(enabled=False)
+
+    assert scheduler.enabled is False
+    assert scheduler.interval_seconds == 60
+    assert scheduler.pipeline_kwargs == {"signal_limit": 30, "min_score": 50.0}
+    assert scheduler.max_consecutive_failures == 3
+
+
+def test_update_all_pipeline_kwargs():
+    """Test updating all supported pipeline kwargs."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+
+    scheduler.update(
+        signal_limit=100,
+        min_score=75.0,
+        weight_profile="balanced",
+        ideation_mode="creative",
+    )
+
+    assert scheduler.pipeline_kwargs["signal_limit"] == 100
+    assert scheduler.pipeline_kwargs["min_score"] == 75.0
+    assert scheduler.pipeline_kwargs["weight_profile"] == "balanced"
+    assert scheduler.pipeline_kwargs["ideation_mode"] == "creative"
+
+
 @pytest.mark.asyncio
 async def test_scheduler_run_once(mock_pipeline_result):
     scheduler = Scheduler(interval_seconds=60, enabled=True)
