@@ -44,12 +44,36 @@ def _simple_embed(text: str, vocab_size: int = 256) -> list[float]:
     return vec
 
 
+def _resolve_voyage_api_key() -> str | None:
+    """Resolve Voyage API key: env var first, then vault."""
+    import os
+
+    key = os.environ.get("VOYAGE_API_KEY")
+    if key:
+        return key
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["vault", "get", "voyage/api_key"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
 def _try_voyage_embed(texts: list[str]) -> list[list[float]] | None:
     """Try to use Voyage AI embeddings. Returns None if unavailable."""
     try:
         import voyageai  # type: ignore[import-untyped]
 
-        client = voyageai.Client()
+        api_key = _resolve_voyage_api_key()
+        if not api_key:
+            return None
+        client = voyageai.Client(api_key=api_key)
         result = client.embed(texts, model="voyage-3-lite")
         return result.embeddings
     except Exception:
