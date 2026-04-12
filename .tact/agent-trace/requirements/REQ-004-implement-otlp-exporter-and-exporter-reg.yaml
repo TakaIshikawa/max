@@ -1,0 +1,22 @@
+title: Implement OTLP exporter and exporter registry
+approval: draft
+phase: planned
+priority: critical
+description: Create an exporter registry that allows multiple trace exporters to be
+  active simultaneously. Implement the OTLP exporter (both gRPC and HTTP/protobuf
+  variants) using the standard opentelemetry-exporter-otlp package. Exporters are
+  configured via AgentTraceConfig or environment variables. The registry supports
+  registering custom exporters.
+acceptanceCriteria:
+- OTLP HTTP exporter successfully sends spans to a local OTLP collector endpoint (tested
+  with a mock HTTP server)
+- OTLP gRPC exporter is configurable as an alternative transport
+- Multiple exporters can be active simultaneously (e.g., OTLP + SQLite)
+- Exporter endpoint is configurable via AGENT_TRACE_EXPORT_ENDPOINT environment variable
+- Exporter failures are logged but do not raise exceptions or affect the instrumented
+  code's execution
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span types and tracer
+source: discovered

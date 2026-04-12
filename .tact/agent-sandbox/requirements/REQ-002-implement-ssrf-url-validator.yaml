@@ -1,0 +1,21 @@
+title: Implement SSRF URL validator
+approval: draft
+phase: planned
+priority: critical
+description: Create a validator function that resolves URLs to IP addresses and rejects
+  destinations pointing to internal networks, loopback, link-local, or cloud metadata
+  endpoints. This blocks the SSRF attack class.
+acceptanceCriteria:
+- Resolves hostnames to IP addresses using socket.getaddrinfo before validation (not
+  relying on the target library's resolution)
+- Blocks all RFC 1918 private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16),
+  loopback (127.0.0.0/8), and link-local (169.254.0.0/16)
+- Blocks IPv6 loopback (::1), IPv4-mapped IPv6 addresses (::ffff:127.0.0.1), and IPv6
+  link-local (fe80::/10)
+- Blocks cloud metadata endpoints (169.254.169.254) including decimal IP (2852039166),
+  octal (0251.0376.0251.0376), and hex (0xa9fea9fe) representations
+- Allows legitimate external URLs (https://api.example.com) without false positives
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

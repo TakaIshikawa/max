@@ -1,0 +1,20 @@
+title: Implement terminal reporter with rich human-readable output
+approval: draft
+phase: planned
+priority: high
+description: Build a terminal reporter that prints a clear, colored summary of analysis
+  results including per-file scores, individual findings with source context, and
+  an overall pass/fail verdict. Designed for developer ergonomics in local development.
+acceptanceCriteria:
+- Each finding prints the file path, line number, severity, rule ID, message, and
+  suggestion
+- Findings are grouped by file with per-file score summaries
+- A run summary at the end shows total files analyzed, total findings by severity,
+  overall scores, and pass/fail status
+- Output uses ANSI colors when stdout is a TTY and plain text otherwise
+- The --quiet flag suppresses individual findings and shows only the summary
+decomposition:
+  assignments: []
+dependencies:
+- Implement per-file scoring and threshold evaluation
+source: discovered

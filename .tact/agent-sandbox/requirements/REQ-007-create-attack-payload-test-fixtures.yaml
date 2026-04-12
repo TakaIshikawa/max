@@ -1,0 +1,24 @@
+title: Create attack payload test fixtures
+approval: draft
+phase: planned
+priority: high
+description: Build a comprehensive suite of attack payload fixtures covering all targeted
+  vulnerability classes, stored as YAML files. These fixtures serve both as the library's
+  own test suite and as the foundation for the pytest plugin.
+acceptanceCriteria:
+- Path traversal fixture file contains at least 20 payloads including basic (../),
+  encoded (%2e%2e%2f), double-encoded, Unicode normalization, and OS-specific (..\)
+  variants
+- CRLF injection fixture file contains at least 10 payloads including raw (\r\n),
+  encoded (%0d%0a), and protocol-specific (FTP command injection) variants
+- SSRF fixture file contains at least 15 payloads including private IPs, loopback,
+  metadata endpoints, decimal/octal/hex IP encoding, IPv6 variants, and DNS rebinding
+  representations
+- Null byte fixture file contains at least 5 payloads including raw (\x00), encoded
+  (%00), and combined with path traversal
+- 'Each payload entry includes: input string, expected_result (block/allow), attack_class,
+  and description'
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

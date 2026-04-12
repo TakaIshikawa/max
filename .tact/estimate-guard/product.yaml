@@ -1,0 +1,62 @@
+name: estimate-guard
+version: 0.1.0
+vision: A mobile-first bid validation tool that catches costly estimation errors—missing
+  line items, formula bugs, and out-of-range costs—before residential contractors
+  submit money-losing proposals, delivering commercial-grade validation at a price
+  point that works for small crews.
+goals:
+- id: G-1
+  description: Enable contractors to import existing Excel/CSV estimates and receive
+    automated formula auditing that detects cells excluded from totals, broken references,
+    and unit mismatches.
+  successCriteria: A contractor can import a spreadsheet with a known formula error
+    (e.g., rows excluded from a SUM range) and the system flags the error with a specific,
+    actionable explanation within 5 seconds of import.
+- id: G-2
+  description: Provide benchmark-based cost validation that compares line-item costs
+    against historical residential construction data, flagging outliers with confidence
+    scores.
+  successCriteria: Each line item in a validated estimate receives a confidence score
+    (0-100) and items deviating more than 30% from benchmark ranges are flagged with
+    contextual explanations referencing the expected range.
+- id: G-3
+  description: Detect missing scope items by comparing estimates against project-type
+    templates for common residential work (kitchens, roofing, decks, additions, bathrooms).
+  successCriteria: When a user selects a project type, the system identifies at least
+    80% of intentionally omitted standard line items from a curated scope checklist
+    and presents them as suggestions.
+- id: G-4
+  description: Deliver a mobile-first experience with offline capability so contractors
+    can validate bids on job sites without reliable internet.
+  successCriteria: Core validation features (formula audit, benchmark comparison against
+    cached data, missing item detection) function fully offline; data syncs automatically
+    when connectivity is restored.
+constraints:
+- MVP targets iOS and Android via Expo managed workflow — no native module ejection
+- Benchmark data for MVP is seeded from curated static datasets (RSMeans residential
+  subset, manually cleaned public permit data for 5 major US metro areas) — no live
+  data ingestion pipeline
+- AI-powered natural language explanations (Claude API) require network connectivity;
+  offline mode uses pre-generated template explanations
+- MVP supports only English and US-based cost data (USD, US building codes and trade
+  categories)
+- No user-to-user data sharing or community contribution features in MVP — benchmark
+  data is read-only from seeded dataset
+- Spreadsheet import limited to .xlsx, .xls, and .csv formats; no Google Sheets API
+  integration in MVP
+- Authentication via Supabase Auth (email/password + magic link); no SSO or OAuth
+  providers in MVP
+- 'Maximum estimate size: 500 line items per project to keep local validation performant
+  on mid-range devices'
+techStack:
+  languages:
+  - TypeScript
+  - SQL
+  frameworks:
+  - React Native
+  - Expo
+  - WatermelonDB (SQLite)
+  - SheetJS
+  infrastructure:
+  - Supabase (PostgreSQL + Auth + Edge Functions)
+  - Claude API (AI explanations)

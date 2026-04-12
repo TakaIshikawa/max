@@ -1,0 +1,64 @@
+name: agent-sandbox
+version: 0.1.0
+vision: A drop-in Python security middleware that intercepts, validates, and sandboxes
+  all file operations, network protocol commands, and artifact handling performed
+  by AI agents — eliminating injection, SSRF, and arbitrary file write vulnerability
+  classes with a single library import and declarative YAML policy files.
+goals:
+- id: G-1
+  description: Provide robust path sanitization that blocks CRLF injection, path traversal,
+    null byte, and Unicode normalization attacks across all intercepted file system
+    operations.
+  successCriteria: 100% of a curated attack payload suite (minimum 50 vectors covering
+    CRLF, null byte, ../, and Unicode normalization) is detected and blocked before
+    reaching the underlying file system or protocol library.
+- id: G-2
+  description: Provide URL and network destination validation that prevents SSRF attacks
+    through webhook callbacks, API endpoints, and protocol connections initiated by
+    agents.
+  successCriteria: All RFC 1918 private ranges, loopback addresses, link-local addresses
+    (169.254.x.x), and cloud metadata endpoints are blocked by default, with zero
+    false negatives against a test suite of at least 30 SSRF bypass techniques (DNS
+    rebinding representations, IPv6 mappings, decimal/octal IP encoding).
+- id: G-3
+  description: Enable declarative, per-agent-role security policies via YAML configuration
+    files that define allowed paths, network destinations, and operation types.
+  successCriteria: A user can define a YAML policy file that restricts an agent role
+    to specific directory prefixes, allowed URL domains, and operation types (read/write/execute),
+    and the policy engine enforces all constraints with schema validation errors for
+    malformed configs.
+- id: G-4
+  description: Achieve zero-friction adoption by providing a transparent interception
+    layer that requires minimal code changes to integrate with existing agent frameworks.
+  successCriteria: Integration with a target agent framework requires no more than
+    3 lines of code (import, configure, activate), and all intercepted operations
+    are transparent — existing application logic does not need modification beyond
+    the activation call.
+constraints:
+- MVP targets Python only — Node.js and other runtimes are out of scope
+- MVP intercepts only stdlib modules (os, os.path, shutil, ftplib, urllib) and optionally
+  requests — boto3 and paramiko interception deferred to post-MVP
+- Monkey-patching is scoped to explicit activation (context manager or explicit call)
+  — no global import hooks that modify behavior at import time without consent
+- Policy engine supports flat YAML configs only — no nested inheritance, no remote
+  policy fetching in MVP
+- No runtime performance overhead target beyond 'negligible for I/O-bound operations'
+  — formal benchmarking is post-MVP
+- Library must have zero required dependencies beyond Python stdlib for the core module;
+  PyYAML and jsonschema are optional dependencies for the policy engine
+- No GUI, no CLI tool, no daemon process — this is a pure library
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - PyYAML — YAML policy file parsing
+  - jsonschema — policy file schema validation
+  - ipaddress (stdlib) — IP range validation for SSRF protection
+  - functools (stdlib) — wraps-based monkey-patching
+  - importlib (stdlib) — import hook machinery
+  - pytest — test framework and plugin host
+  - unicodedata (stdlib) — Unicode normalization attack detection
+  infrastructure:
+  - pytest for testing and plugin distribution
+  - setuptools/pyproject.toml for packaging
+  - GitHub Actions for CI

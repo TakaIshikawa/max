@@ -1,0 +1,25 @@
+title: Implement core span types and tracer
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the foundational OpenTelemetry tracer wrapper that produces three
+  custom span types: AgentDecision (captures reasoning/choice metadata), ToolInvocation
+  (captures tool name, input hash, output hash, latency), and ContextWindow (captures
+  token counts and context assembly metadata). Each span type has a defined set of
+  semantic attributes under the agent_trace.* namespace.'
+acceptanceCriteria:
+- 'AgentDecision spans include attributes: agent_trace.decision.reasoning (string,
+  redacted by default), agent_trace.decision.choice (string), agent_trace.decision.alternatives_count
+  (int)'
+- 'ToolInvocation spans include attributes: agent_trace.tool.name (string), agent_trace.tool.input_hash
+  (string), agent_trace.tool.output_hash (string), agent_trace.tool.latency_ms (float)'
+- 'ContextWindow spans include attributes: agent_trace.context.tokens_used (int),
+  agent_trace.context.tokens_limit (int), agent_trace.context.truncated (bool)'
+- All three span types nest correctly in a parent-child hierarchy and share the same
+  trace_id
+- Unit tests verify span creation, attribute population, and hierarchy for each span
+  type
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

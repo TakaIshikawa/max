@@ -1,0 +1,24 @@
+title: Seed benchmark dataset for five US metro areas
+approval: draft
+phase: planned
+priority: high
+description: Curate and seed the initial benchmark dataset covering residential construction
+  costs for 5 major US metro areas (e.g., Dallas, Atlanta, Denver, Phoenix, Chicago).
+  Data sourced from publicly available building permit records and published cost
+  guides. This dataset is the foundation for benchmark comparison accuracy.
+acceptanceCriteria:
+- Benchmark data covers at least 50 common residential line item categories (e.g.,
+  framing labor, roofing materials, electrical rough-in, plumbing fixtures) across
+  5 metro areas
+- 'Each benchmark entry includes: trade category, unit, low/median/high cost range,
+  geographic region, and data source attribution'
+- Data is versioned with a schema version number and a dataset version identifier
+- Benchmark data is bundled with the app binary for immediate offline availability
+  on first launch
+- A Supabase Edge Function endpoint exists to serve updated benchmark data for periodic
+  sync to devices
+decomposition:
+  assignments: []
+dependencies:
+- Create local estimate data model and persistence layer
+source: discovered

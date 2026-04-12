@@ -1,0 +1,99 @@
+patterns:
+- name: Interceptor / Proxy Pattern
+  description: Core file system and network calls are intercepted via wrapper functions
+    that validate inputs against security rules before delegating to the original
+    implementation. Each interceptor is a thin validation layer that either passes
+    through to the real function or raises a SecurityViolationError. Interceptors
+    are registered in a central registry and activated/deactivated atomically.
+  scope:
+  - agent_sandbox/interceptors/
+  - agent_sandbox/core.py
+- name: Policy Engine Pattern
+  description: A declarative policy engine reads YAML configuration files, validates
+    them against a JSON Schema, and produces an immutable PolicyContext object. All
+    interceptors query the PolicyContext to determine whether an operation is allowed
+    for the current agent role. Policies are evaluated as allowlists — anything not
+    explicitly permitted is denied.
+  scope:
+  - agent_sandbox/policy/
+- name: Validator Chain Pattern
+  description: Input sanitization is implemented as a chain of composable validator
+    functions. Each validator checks for one attack class (CRLF, path traversal, null
+    bytes, Unicode normalization, SSRF). Validators are pure functions that take an
+    input string and return a ValidationResult (pass/fail with reason). The chain
+    is configured per-interceptor based on the operation type.
+  scope:
+  - agent_sandbox/validators/
+- name: Context Manager Activation
+  description: The sandbox is activated via a Python context manager (`with AgentSandbox(policy=...)
+    as sandbox:`) that patches target functions on entry and restores originals on
+    exit. This ensures sandboxing is explicit, scoped, and safe for concurrent use
+    in test environments.
+  scope:
+  - agent_sandbox/core.py
+  - agent_sandbox/sandbox.py
+invariants:
+- All file path inputs MUST be validated for CRLF sequences (\r, \n), null bytes (\x00),
+  and path traversal sequences (../, ..\ and encoded variants) before reaching any
+  underlying I/O function — no bypass path may exist.
+- All URL/network destination inputs MUST be resolved to IP addresses and checked
+  against the blocked IP range list before any connection is initiated — DNS resolution
+  must happen within the sandbox, not delegated to the target library.
+- The sandbox MUST never silently modify user input — it either passes the original
+  input through unchanged or raises a SecurityViolationError with a descriptive message.
+  No silent sanitization/rewriting.
+- Deactivating the sandbox MUST fully restore all original functions — no residual
+  patches may remain after the context manager exits or deactivate() is called.
+- Policy evaluation MUST default to deny — if no policy is loaded or a policy does
+  not explicitly allow an operation, the operation is blocked.
+- SecurityViolationError exceptions MUST include the violation type, the offending
+  input (truncated to 200 chars), and the policy rule that triggered the block — sufficient
+  for debugging without leaking sensitive data.
+conventions:
+- All modules use snake_case naming; classes use PascalCase; constants use UPPER_SNAKE_CASE
+- All public API functions and classes have Google-style docstrings with Args, Returns,
+  and Raises sections
+- 'All validators are pure functions with signature `def validate_xxx(input: str)
+  -> ValidationResult`'
+- All interceptors are registered via a `@register_interceptor(target='module.function')`
+  decorator
+- 'Test files mirror source structure: `tests/test_validators/test_path.py` for `agent_sandbox/validators/path.py`'
+- Attack payload test fixtures are stored in `tests/fixtures/payloads/` as YAML files
+  organized by attack class
+- Policy YAML files use the `.sandbox.yml` extension by convention
+- All exceptions inherit from `AgentSandboxError` base class; security violations
+  use `SecurityViolationError(AgentSandboxError)`
+- Type hints are required on all public function signatures; mypy strict mode compatibility
+  is a goal
+decisions:
+- id: D-1
+  title: Explicit activation via context manager instead of global import hooks
+  decision: The sandbox is activated explicitly via `with AgentSandbox(policy):` context
+    manager or `sandbox.activate()`/`sandbox.deactivate()` calls, rather than automatic
+    activation on import or via sys.meta_path import hooks.
+  rationale: Global import hooks are fragile, conflict with other tools (debuggers,
+    profilers, other monkey-patchers), and violate the principle of least surprise.
+    Explicit activation gives users control over scope, makes testing predictable,
+    avoids the 'spooky action at a distance' anti-pattern flagged in the evaluation,
+    and ensures the library can coexist with other runtime tools. The context manager
+    pattern also provides guaranteed cleanup.
+- id: D-2
+  title: Deny-by-default policy model with allowlist semantics
+  decision: All operations are denied unless explicitly permitted by a loaded policy.
+    When no policy is loaded, a built-in restrictive default policy applies that allows
+    only read operations to the current working directory.
+  rationale: Security tools must fail closed. An allowlist model means new attack
+    vectors are blocked by default without policy updates. This is the standard approach
+    in firewall and capability-based security systems. It also forces users to think
+    about what their agents actually need access to, promoting least-privilege configurations.
+- id: D-3
+  title: Raise exceptions instead of silent sanitization
+  decision: When a security violation is detected, the sandbox raises a SecurityViolationError
+    rather than silently sanitizing or rewriting the input.
+  rationale: Silent sanitization can change application semantics in unexpected ways
+    (e.g., stripping ../ from a legitimate path that contains those characters in
+    a filename). Raising exceptions makes violations visible, debuggable, and loggable.
+    Agent frameworks can catch these exceptions and implement their own recovery logic
+    (retry with different input, escalate to human, etc.). This also makes the library's
+    behavior fully testable — you can assert that specific inputs raise specific exceptions.
+contracts: []

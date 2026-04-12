@@ -1,0 +1,83 @@
+patterns:
+- name: Offline-First with Sync Queue
+  description: All data is written to WatermelonDB (SQLite) first and treated as the
+    source of truth on the device. A background sync queue pushes created/updated
+    records to Supabase when connectivity is detected. Conflicts are resolved with
+    last-write-wins using server timestamps.
+  scope:
+  - mobile app
+  - data layer
+- name: Feature-Based Module Structure
+  description: Mobile app code is organized by feature (capture, knowledge-base, profile,
+    sync) rather than by layer. Each feature module contains its own screens, components,
+    hooks, and WatermelonDB model definitions.
+  scope:
+  - mobile app
+- name: API Route Handlers for Dashboard
+  description: Next.js admin dashboard uses API route handlers to query Supabase PostgreSQL
+    directly via the Supabase JS client, with server components for data fetching
+    and client components only for interactive elements.
+  scope:
+  - admin dashboard
+- name: Event-Driven Sync
+  description: Network state changes trigger sync events. The sync engine listens
+    for connectivity restoration and processes the queue in FIFO order. Photo uploads
+    use resumable uploads to Supabase Storage.
+  scope:
+  - mobile app
+  - sync layer
+invariants:
+- Every entry MUST have at least one photo, a transcription (even if empty string
+  from skipped voice note), and at least one trade tag before it can be saved
+- Photos MUST be compressed to ≤5MB on-device before being written to local storage
+  or uploaded
+- All timestamps MUST be stored in UTC ISO 8601 format
+- WatermelonDB local records MUST never be deleted — only soft-deleted with a deleted_at
+  timestamp to ensure sync consistency
+- The sync queue MUST process entries in creation order (FIFO) and MUST NOT skip failed
+  entries — retry with exponential backoff
+- Subcontractor quality scores MUST be computed server-side from raw entry data —
+  never cached or editable by users
+- Voice transcription MUST run on-device — audio data MUST NOT be sent to any external
+  transcription service
+conventions:
+- 'File naming: kebab-case for files and directories (e.g., capture-screen.tsx, sync-engine.ts)'
+- 'Component naming: PascalCase React components, one component per file'
+- 'Hook naming: use- prefix (e.g., useOfflineSync, useCaptureFlow)'
+- 'WatermelonDB models: singular PascalCase class names (Entry, Project, Tag) with
+  snake_case column names'
+- 'Database tables in Supabase: plural snake_case (entries, projects, tags)'
+- All async operations use async/await — no raw Promise chains
+- 'Error handling: every async function wraps in try/catch with structured error logging'
+- TypeScript strict mode enabled — no 'any' types except in third-party library bridges
+- Tailwind CSS (via NativeWind) for mobile styling, Tailwind CSS for admin dashboard
+- Environment variables prefixed with EXPO_PUBLIC_ for mobile, NEXT_PUBLIC_ for dashboard
+decisions:
+- id: D-1
+  title: WatermelonDB over raw SQLite or Realm for offline storage
+  decision: Use WatermelonDB built on SQLite as the offline-first database for the
+    React Native app.
+  rationale: WatermelonDB provides lazy-loading, observable queries, and a built-in
+    sync protocol designed for offline-first apps. It handles the complexity of sync
+    conflict resolution and incremental pulls/pushes that would require significant
+    custom code with raw SQLite. Realm was rejected due to heavier binary size and
+    vendor lock-in concerns.
+- id: D-2
+  title: On-device Whisper via whisper.cpp for voice transcription
+  decision: Run OpenAI Whisper 'base' model on-device using whisper.cpp compiled for
+    iOS via a React Native native module bridge.
+  rationale: Construction sites frequently lack reliable internet connectivity. On-device
+    transcription ensures the core capture flow (photo + voice note + tags) works
+    entirely offline. The 'base' model balances transcription accuracy with mobile
+    memory/CPU constraints (~150MB model size). This is a key differentiator over
+    cloud-dependent alternatives.
+- id: D-3
+  title: Supabase as unified backend over custom API server
+  decision: Use Supabase for authentication, PostgreSQL database, file storage (S3-compatible),
+    and real-time subscriptions — avoiding a custom Express/Fastify API server.
+  rationale: Supabase provides Row Level Security policies for authorization, built-in
+    auth, S3-compatible storage with resumable uploads, and pg_trgm full-text search
+    — all required for MVP. This eliminates the need to build and deploy a custom
+    API server, reducing MVP scope significantly. The Supabase JS client works in
+    both React Native and Next.js environments.
+contracts: []

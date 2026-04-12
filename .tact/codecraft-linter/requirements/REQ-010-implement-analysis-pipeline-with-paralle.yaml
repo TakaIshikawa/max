@@ -1,0 +1,23 @@
+title: Implement analysis pipeline with parallel file processing
+approval: draft
+phase: planned
+priority: medium
+description: Build the orchestration layer that discovers files, distributes them
+  across threads for parallel analysis, collects results, and feeds them to the scoring
+  and reporting stages. Use rayon for data-parallel file processing to meet the performance
+  goal.
+acceptanceCriteria:
+- Files are discovered recursively from input paths, filtered by language extension
+  and inclusion/exclusion globs
+- Multiple files are analyzed in parallel using rayon's thread pool
+- Analysis of a 500-file Python project completes in under 1 second on a 4-core machine
+- Progress is reported to stderr when running in terminal mode (e.g., 'Analyzing 142
+  files...')
+- Errors in individual file analysis do not halt processing of remaining files
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI entry point with argument parsing and configuration loading
+- Implement tree-sitter Python parsing module
+- Implement per-file scoring and threshold evaluation
+source: discovered

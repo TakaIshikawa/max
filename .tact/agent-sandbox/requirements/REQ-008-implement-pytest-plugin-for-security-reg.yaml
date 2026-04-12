@@ -1,0 +1,21 @@
+title: Implement pytest plugin for security regression testing
+approval: draft
+phase: planned
+priority: medium
+description: Create a pytest plugin that agent framework developers can install to
+  automatically run security regression tests against their agent workflows. The plugin
+  provides fixtures for activating the sandbox and loading attack payloads.
+acceptanceCriteria:
+- Provides a `sandbox` pytest fixture that yields an activated AgentSandbox instance
+  with a configurable policy
+- Provides an `attack_payloads` pytest fixture that loads and parametrizes test cases
+  from the attack payload YAML files
+- Plugin is discoverable via pytest's entry_points mechanism (registered in pyproject.toml)
+- Includes a `@pytest.mark.security` marker for selectively running security tests
+- Documentation docstrings explain usage for each fixture
+decomposition:
+  assignments: []
+dependencies:
+- Implement sandbox context manager and activation API
+- Create attack payload test fixtures
+source: discovered

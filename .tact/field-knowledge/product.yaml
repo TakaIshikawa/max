@@ -1,0 +1,53 @@
+name: field-knowledge
+version: 0.1.0
+vision: A mobile-first app that lets construction field crews capture quality craftsmanship
+  through photos and voice notes, building a searchable institutional knowledge base
+  that doubles as objective subcontractor performance data for general contractors.
+goals:
+- id: G-1
+  description: Enable field crews to document quality work in under 60 seconds with
+    photo, voice note, and tags — even without network connectivity.
+  successCriteria: A user can capture a photo, record a 30-second voice note that
+    is transcribed on-device, apply trade/skill tags, and save the entry while in
+    airplane mode, with the entire flow completing in under 60 seconds.
+- id: G-2
+  description: Build a searchable knowledge base organized by trade, technique, and
+    project that grows with every entry.
+  successCriteria: Users can search entries by trade tag, skill type, keyword in transcription
+    text, and project — returning relevant results within 2 seconds from a dataset
+    of 1,000+ entries.
+- id: G-3
+  description: Provide GCs with aggregated subcontractor quality scores derived from
+    documented entries.
+  successCriteria: An admin dashboard displays a quality score per subcontractor computed
+    from entry count, recency, and tag diversity, and allows export of a PDF quality
+    report for any subcontractor.
+- id: G-4
+  description: Ensure all captured data syncs reliably from offline-first mobile clients
+    to the cloud backend.
+  successCriteria: Entries created offline (including photos and transcriptions) sync
+    to the backend within 30 seconds of connectivity restoration with zero data loss
+    across 100 consecutive sync cycles.
+constraints:
+- MVP targets iOS only (Android deferred to v0.2) to reduce cross-platform testing
+  surface
+- On-device Whisper uses the 'tiny' or 'base' model to fit mobile memory constraints
+- No Procore/Buildertrend integration in MVP — projects are manually created
+- No computer vision or AI-powered quality assessment in MVP
+- Maximum photo size is 5MB (compressed on-device before storage)
+- MVP supports English-language voice transcription only
+- Admin dashboard is read-only analytics and curation — no mobile admin features
+- Authentication uses Supabase Auth with email/password (no SSO in MVP)
+techStack:
+  languages:
+  - TypeScript
+  - SQL
+  frameworks:
+  - React Native (Expo)
+  - Next.js 14
+  - WatermelonDB
+  - whisper.cpp (via react-native bridge)
+  infrastructure:
+  - Supabase (PostgreSQL + Auth + Storage)
+  - Expo EAS Build
+  - Vercel (admin dashboard hosting)

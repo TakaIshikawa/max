@@ -1,0 +1,24 @@
+title: Implement per-file scoring and threshold evaluation
+approval: draft
+phase: planned
+priority: high
+description: Aggregate findings from all analyzers into per-file scores across the
+  three dimensions (idiomatic 0-100, complexity 0-100, conciseness 0-100). Compute
+  a weighted overall score. Evaluate scores against configured thresholds and determine
+  pass/fail status for each file and the overall run.
+acceptanceCriteria:
+- Each file receives three dimension scores from 0-100 where 100 means no issues found
+- Dimension weights are configurable in codecraft.toml with defaults of idiomatic=0.4,
+  complexity=0.35, conciseness=0.25
+- A file fails if any individual dimension score falls below its configured minimum
+  threshold
+- The overall run fails (non-zero exit) if any file fails its thresholds
+- Score computation is deterministic and documented so users can understand and predict
+  scores
+decomposition:
+  assignments: []
+dependencies:
+- Implement complexity analyzer with cyclomatic and cognitive complexity metrics
+- Implement idiomatic pattern analyzer with rule-as-data engine
+- Implement conciseness analyzer for detectable simplification patterns
+source: discovered

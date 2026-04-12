@@ -1,0 +1,19 @@
+title: Implement offline-first data persistence with WatermelonDB
+approval: draft
+phase: planned
+priority: critical
+description: All app data (entries, projects, subcontractors, tags) is stored in WatermelonDB
+  on the device. The database schema supports the full entry model including photos
+  (stored as local file paths), transcriptions, tags (many-to-many), and sync metadata
+  (created_at, updated_at, synced_at, deleted_at).
+acceptanceCriteria:
+- WatermelonDB schema defines models for Entry, Project, Subcontractor, Tag, and EntryTag
+  (join table)
+- All CRUD operations on entries work without network connectivity
+- Soft delete is implemented via deleted_at timestamp — no hard deletes
+- Observable queries update the UI reactively when underlying data changes
+- Database migrations are versioned and run automatically on app launch
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

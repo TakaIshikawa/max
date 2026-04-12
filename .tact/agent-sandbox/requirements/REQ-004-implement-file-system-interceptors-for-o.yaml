@@ -1,0 +1,24 @@
+title: Implement file system interceptors for os and shutil
+approval: draft
+phase: planned
+priority: critical
+description: Create interceptor wrappers for critical os and shutil functions (os.open,
+  os.rename, os.remove, os.makedirs, shutil.copy, shutil.copy2, shutil.move, shutil.rmtree)
+  that validate all path arguments through the validator chain and policy engine before
+  delegating to the original function.
+acceptanceCriteria:
+- Wraps os.open, os.rename, os.remove, os.makedirs, shutil.copy, shutil.copy2, shutil.move,
+  and shutil.rmtree
+- All path arguments are passed through the path traversal validator before the original
+  function is called
+- All path arguments are checked against the active PolicyContext for the current
+  agent role
+- Original function signatures, return types, and docstrings are preserved via functools.wraps
+- Raises SecurityViolationError with violation details when validation fails — the
+  original function is never called
+decomposition:
+  assignments: []
+dependencies:
+- Implement path traversal validator
+- Implement YAML policy engine with schema validation
+source: discovered

@@ -1,0 +1,59 @@
+name: agent-trace
+version: 0.1.0
+vision: A lightweight, framework-agnostic Python instrumentation library that wraps
+  AI agent decision chains, tool invocations, and context windows with OpenTelemetry-compatible
+  traces — enabling teams to instantly distinguish agent logic errors from tool bugs
+  from security violations in production agent workflows.
+goals:
+- id: G-1
+  description: Provide structured OpenTelemetry traces for AI agent workflows that
+    capture decision chains, tool invocations, and error classifications out of the
+    box.
+  successCriteria: A developer can instrument a simple agent workflow and see a full
+    trace with AgentDecision, ToolInvocation, and error classification spans exported
+    to an OTLP-compatible backend within 10 minutes of installation.
+- id: G-2
+  description: Classify errors automatically into a taxonomy of agent_logic_error,
+    tool_failure, security_violation, and timeout so teams can triage agent failures
+    without manual log analysis.
+  successCriteria: Given a set of 10 synthetic agent failure scenarios covering all
+    4 error types, the rule engine correctly classifies at least 9 out of 10 with
+    no false security_violation positives.
+- id: G-3
+  description: Ship a local CLI trace viewer for development-time debugging so developers
+    can inspect agent traces without deploying external infrastructure.
+  successCriteria: Running `agent-trace view` renders a trace waterfall in the terminal
+    showing span hierarchy, durations, error classifications, and token costs for
+    the most recent recorded trace.
+- id: G-4
+  description: Provide a clean adapter interface and at least one reference adapter
+    (LangChain) to prove framework integration is feasible and low-friction.
+  successCriteria: A LangChain user can add agent-trace instrumentation to an existing
+    agent with no more than 3 lines of code change and zero modifications to their
+    existing tool definitions.
+constraints:
+- MVP is Python-only; TypeScript dual-publish is deferred to post-MVP.
+- MVP ships one framework adapter (LangChain) plus a generic decorator-based API;
+  CrewAI, MCP, and Hermes adapters are post-MVP.
+- No proprietary backend — all trace export goes through standard OTLP protocol.
+- Library must add less than 50ms p99 overhead per instrumented tool call.
+- No monkey-patching in the core library; adapters use explicit wrapping or callback
+  hooks to avoid fragility.
+- Token cost tracking in MVP is limited to OpenAI-compatible response headers; other
+  providers are post-MVP.
+- The local CLI viewer stores traces in a local SQLite file and is intended for development
+  use only, not production.
+- 'Minimum dependency footprint: core library depends only on opentelemetry-sdk, opentelemetry-api,
+  and pydantic.'
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - OpenTelemetry SDK (opentelemetry-sdk, opentelemetry-api)
+  - Textual (TUI trace viewer)
+  - Pydantic (configuration and span data models)
+  - pytest (testing)
+  infrastructure:
+  - OTLP exporter (gRPC and HTTP)
+  - Local SQLite trace store (for CLI viewer)
+  - GitHub Actions (CI/CD)

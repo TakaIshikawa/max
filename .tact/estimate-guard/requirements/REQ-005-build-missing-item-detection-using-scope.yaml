@@ -1,0 +1,24 @@
+title: Build missing item detection using scope templates
+approval: draft
+phase: planned
+priority: high
+description: Implement a template matching system that compares an estimate's line
+  items against curated scope checklists for common residential project types (kitchen
+  remodel, bathroom remodel, roofing, deck, addition). Identifies standard items that
+  are absent from the estimate and suggests them to the user.
+acceptanceCriteria:
+- 'MVP includes curated scope templates for at least 5 project types: kitchen remodel,
+  bathroom remodel, roofing replacement, deck build, and room addition'
+- Each template contains 15-40 standard line items with category, typical inclusion
+  rate (e.g., 'permit fees' present in 95% of estimates), and notes
+- Missing item detection uses fuzzy text matching (not exact string match) to map
+  estimate line items to template items, handling common abbreviations and synonyms
+- Results are ranked by inclusion rate so the most commonly expected missing items
+  appear first
+- User can dismiss suggested items as 'intentionally excluded' and the system remembers
+  this preference for future validations of the same project
+decomposition:
+  assignments: []
+dependencies:
+- Create local estimate data model and persistence layer
+source: discovered

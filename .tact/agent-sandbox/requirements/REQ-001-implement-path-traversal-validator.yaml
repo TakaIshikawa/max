@@ -1,0 +1,23 @@
+title: Implement path traversal validator
+approval: draft
+phase: planned
+priority: critical
+description: Create a validator function that detects and rejects file path inputs
+  containing path traversal sequences. This is the most fundamental security primitive
+  in the library, blocking the arbitrary file write attack class.
+acceptanceCriteria:
+- Detects and rejects paths containing `../` and `..\` sequences, including URL-encoded
+  variants (`%2e%2e%2f`, `%2e%2e/`, `..%2f`, `..%5c`)
+- Detects and rejects paths containing null bytes (`\x00`, `%00`)
+- Detects and rejects paths containing CRLF sequences (`\r`, `\n`, `\r\n`, `%0d`,
+  `%0a`)
+- Detects Unicode normalization attacks where characters like `\u2025` (two dot leader)
+  or fullwidth variants normalize to `..`
+- Returns a ValidationResult with violation_type, offending_input (truncated), and
+  human-readable reason on failure
+- Passes through legitimate paths containing dots, hyphens, underscores, and Unicode
+  filenames without false positives
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

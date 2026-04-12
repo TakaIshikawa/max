@@ -1,0 +1,24 @@
+title: Implement LangChain framework adapter
+approval: draft
+phase: planned
+priority: high
+description: Build an adapter for LangChain that automatically instruments tool invocations
+  and agent decision steps. The adapter provides a TracedTool wrapper class and a
+  wrap_tools() utility that takes a list of LangChain BaseTool instances and returns
+  instrumented versions. It also provides a TracedAgentExecutor that wraps AgentExecutor
+  to capture decision spans. Integration requires no changes to existing tool implementations.
+acceptanceCriteria:
+- wrap_tools() accepts a list of LangChain BaseTool instances and returns wrapped
+  versions that emit ToolInvocation spans
+- TracedAgentExecutor wraps a LangChain AgentExecutor and emits AgentDecision spans
+  for each agent step
+- Instrumented tools preserve the original tool's name, description, and schema
+- A LangChain agent can be instrumented with 3 or fewer lines of code change
+- Integration test with a mock LangChain agent produces a complete trace with decision
+  and tool spans
+decomposition:
+  assignments: []
+dependencies:
+- Build developer-facing instrumentation API
+- Implement error classification rule engine
+source: discovered

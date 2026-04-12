@@ -1,0 +1,19 @@
+title: Implement tree-sitter Python parsing module
+approval: draft
+phase: planned
+priority: critical
+description: Create a parsing module that takes a file path or source string, parses
+  it into a tree-sitter AST, and exposes the tree for downstream analyzers. Handle
+  encoding issues, large files, and parse errors gracefully.
+acceptanceCriteria:
+- Valid Python files are parsed into a tree-sitter Tree object with no errors
+- Files with syntax errors are parsed with tree-sitter's error recovery and a warning
+  is emitted listing the error node locations
+- Non-UTF-8 files produce a descriptive warning and are skipped without crashing
+- Files larger than a configurable limit (default 1MB) are skipped with a warning
+- The parser exposes the concrete syntax tree and supports running tree-sitter queries
+  against it
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

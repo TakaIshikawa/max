@@ -1,0 +1,23 @@
+title: Implement network interceptors for urllib and ftplib
+approval: draft
+phase: planned
+priority: high
+description: Create interceptor wrappers for urllib.request.urlopen, urllib.request.Request,
+  and ftplib.FTP connection/file transfer methods that validate URLs and remote paths
+  through the SSRF validator and path validator respectively.
+acceptanceCriteria:
+- Wraps urllib.request.urlopen and urllib.request.Request to validate destination
+  URLs through the SSRF validator
+- Wraps ftplib.FTP.storbinary, ftplib.FTP.storlines, ftplib.FTP.retrbinary, and ftplib.FTP.retrlines
+  to validate remote file paths through the path traversal validator
+- Wraps ftplib.FTP.connect to validate the host/port against the SSRF validator
+- All interceptors check the active PolicyContext before delegating to the original
+  function
+- Raises SecurityViolationError with violation details when validation fails
+decomposition:
+  assignments: []
+dependencies:
+- Implement SSRF URL validator
+- Implement path traversal validator
+- Implement YAML policy engine with schema validation
+source: discovered

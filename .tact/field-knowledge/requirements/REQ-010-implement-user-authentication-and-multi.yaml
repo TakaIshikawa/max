@@ -1,0 +1,20 @@
+title: Implement user authentication and multi-user support
+approval: draft
+phase: planned
+priority: high
+description: Users sign up and log in via email/password using Supabase Auth. Each
+  entry is associated with the creating user. Row Level Security policies ensure users
+  within the same organization can view each other's entries but only edit their own.
+  Organization/team grouping is supported.
+acceptanceCriteria:
+- User can sign up with email and password and receive a confirmation email
+- User can log in and is persisted across app restarts via secure token storage
+- Each entry is stamped with the creating user's ID
+- 'Supabase RLS policies enforce: users can read all entries in their organization,
+  but only update/delete their own entries'
+- An organization model groups users — new users can join an existing organization
+  via invite code
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

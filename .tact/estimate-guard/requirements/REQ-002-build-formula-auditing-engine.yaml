@@ -1,0 +1,24 @@
+title: Build formula auditing engine
+approval: draft
+phase: planned
+priority: critical
+description: 'Create a formula auditor that walks the cell dependency graph from imported
+  spreadsheets to detect: (1) cells excluded from SUM/total ranges, (2) broken or
+  circular references, (3) unit mismatches (e.g., hours multiplied by daily rates).
+  This directly addresses the core $13K error scenario where labor rows were excluded
+  from a total formula.'
+acceptanceCriteria:
+- Detects when a numeric cell in a contiguous column is excluded from an adjacent
+  SUM range (e.g., SUM(A1:A10) when A11:A15 also contain cost values) and flags it
+  as a 'potential excluded range' issue
+- Detects circular references and reports the cycle path
+- Detects unit mismatch patterns where quantity units (hours, days, sqft) are inconsistent
+  with rate units in the same row based on header/label analysis
+- 'Each detected issue includes: severity (error, warning, info), affected cell references,
+  a structured description of the problem, and a suggested fix'
+- Formula auditor runs entirely on-device with no network dependency
+decomposition:
+  assignments: []
+dependencies:
+- Implement spreadsheet import and parsing engine
+source: discovered

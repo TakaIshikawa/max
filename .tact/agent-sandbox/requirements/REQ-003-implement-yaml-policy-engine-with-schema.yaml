@@ -1,0 +1,22 @@
+title: Implement YAML policy engine with schema validation
+approval: draft
+phase: planned
+priority: critical
+description: Create a policy engine that loads YAML configuration files, validates
+  them against a JSON Schema, and produces immutable PolicyContext objects that interceptors
+  query at runtime. This enables declarative, per-role security configuration.
+acceptanceCriteria:
+- 'Loads a YAML file and validates it against a JSON Schema that defines: roles (list),
+  each with allowed_paths (list of glob patterns), allowed_urls (list of domain patterns),
+  and allowed_operations (list of read/write/execute/connect)'
+- Rejects malformed YAML with a PolicyValidationError that includes the specific schema
+  violation
+- 'Produces an immutable PolicyContext object with methods: `is_path_allowed(role,
+  path) -> bool`, `is_url_allowed(role, url) -> bool`, `is_operation_allowed(role,
+  op_type) -> bool`'
+- When no policy is loaded, a default deny-all policy is active that blocks all operations
+- Policy files are loaded once and cached — no file I/O on every operation check
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

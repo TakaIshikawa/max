@@ -1,0 +1,23 @@
+title: Implement optional requests library interceptor
+approval: draft
+phase: planned
+priority: medium
+description: Create an optional interceptor for the requests library (requests.get,
+  requests.post, requests.put, requests.delete, requests.request, requests.Session.request)
+  that validates URLs through the SSRF validator. This interceptor is only activated
+  if requests is installed.
+acceptanceCriteria:
+- Interceptor is only registered if `import requests` succeeds — no hard dependency
+  on requests
+- Wraps requests.get, requests.post, requests.put, requests.delete, and requests.Session.request
+- All URL arguments are validated through the SSRF validator and checked against the
+  active PolicyContext
+- If requests is not installed, the sandbox activates without error and simply skips
+  this interceptor
+- Raises SecurityViolationError with violation details when a blocked URL is requested
+decomposition:
+  assignments: []
+dependencies:
+- Implement SSRF URL validator
+- Implement sandbox context manager and activation API
+source: discovered

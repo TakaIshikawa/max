@@ -1,0 +1,24 @@
+title: Implement sandbox context manager and activation API
+approval: draft
+phase: planned
+priority: critical
+description: Create the AgentSandbox class that serves as the main entry point. It
+  accepts a policy (file path or PolicyContext), manages interceptor registration/activation,
+  and provides a context manager interface for scoped sandboxing.
+acceptanceCriteria:
+- 'AgentSandbox can be used as a context manager: `with AgentSandbox(policy=''policy.sandbox.yml''):`
+  patches all registered interceptors on __enter__ and restores all originals on __exit__'
+- AgentSandbox exposes activate() and deactivate() methods for non-context-manager
+  usage
+- After deactivate() or context manager exit, all original functions are fully restored
+  with no residual patches
+- Accepts a `role` parameter that sets the active agent role for policy evaluation
+  within the sandbox scope
+- Raises AgentSandboxError if activated while already active (no nested activation
+  without explicit support)
+decomposition:
+  assignments: []
+dependencies:
+- Implement file system interceptors for os and shutil
+- Implement network interceptors for urllib and ftplib
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement CLI entry point with argument parsing and configuration loading
+approval: draft
+phase: planned
+priority: critical
+description: Build the main CLI binary using clap that accepts file/directory paths,
+  output format selection, configuration file path, and threshold overrides. Load
+  and merge configuration from codecraft.toml (project root, then user-specified path)
+  with CLI flag overrides. Provide sensible defaults so the tool works with zero configuration.
+acceptanceCriteria:
+- Running `codecraft-linter analyze src/` scans all .py files recursively in the directory
+- Running `codecraft-linter analyze file.py` scans a single file
+- The --config flag loads a custom TOML configuration file and merges it with defaults
+- The --format flag accepts 'terminal', 'json', and 'sarif' values, defaulting to
+  'terminal'
+- Running with --help prints usage documentation for all commands and flags
+- Missing or invalid configuration files produce clear error messages and exit with
+  code 2
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

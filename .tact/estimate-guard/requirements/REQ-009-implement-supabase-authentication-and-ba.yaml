@@ -1,0 +1,21 @@
+title: Implement Supabase authentication and background sync
+approval: draft
+phase: planned
+priority: medium
+description: Set up Supabase Auth for user accounts (email/password and magic link)
+  and implement WatermelonDB sync with the Supabase PostgreSQL backend. Estimates
+  and validation results sync in the background when online, enabling multi-device
+  access and data backup.
+acceptanceCriteria:
+- User can sign up and log in with email/password or magic link via Supabase Auth
+- All local estimates, line items, and validation results sync to Supabase PostgreSQL
+  when the device is online
+- Sync runs automatically in the background without blocking the UI
+- Conflict resolution follows last-write-wins strategy with server timestamps
+- App is fully functional (create, edit, validate estimates) without signing in —
+  account creation is optional and can be deferred
+decomposition:
+  assignments: []
+dependencies:
+- Create local estimate data model and persistence layer
+source: discovered

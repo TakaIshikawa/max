@@ -1,0 +1,57 @@
+name: codecraft-linter
+version: 0.1.0
+vision: A Rust-powered CLI quality gate that scores code against language-idiomatic
+  patterns, complexity budgets, and conciseness heuristics — catching bloated, non-idiomatic
+  AI-generated code before it reaches human reviewers.
+goals:
+- id: G-1
+  description: Deliver a fast, single-binary CLI that analyzes Python source files
+    against idiomatic patterns, complexity metrics, and conciseness heuristics, producing
+    actionable quality reports.
+  successCriteria: CLI analyzes a 10,000-line Python codebase in under 2 seconds on
+    commodity hardware and produces a structured report covering all three scoring
+    dimensions (idiomatic, complexity, conciseness).
+- id: G-2
+  description: Provide configurable complexity budgets and idiomatic pattern rules
+    so teams can tune thresholds and add organization-specific standards.
+  successCriteria: Users can define per-file cyclomatic complexity limits, nesting
+    depth limits, and enable/disable individual idiomatic rules via a TOML configuration
+    file, with sensible defaults that work out of the box.
+- id: G-3
+  description: Integrate seamlessly into existing developer workflows via CI-compatible
+    output formats and exit codes.
+  successCriteria: CLI exits with non-zero code when quality thresholds are violated,
+    outputs SARIF and JSON formats consumable by GitHub Code Scanning, and can run
+    as a pre-commit hook or CI step with zero additional dependencies beyond the binary.
+- id: G-4
+  description: Establish an extensible pattern database architecture that supports
+    community-contributed and per-language idiomatic rules.
+  successCriteria: Pattern rules are defined in standalone TOML files organized by
+    language, each rule has a unique ID, severity, description, and tree-sitter query,
+    and new rules can be added without recompiling the binary.
+constraints:
+- MVP supports Python only — additional languages (TypeScript, Go, Rust) deferred
+  to post-MVP to contain scope
+- No AI/LLM integration in MVP — all analysis is deterministic AST-based pattern matching
+  and metric computation
+- Conciseness analysis in MVP is limited to a curated set of detectable simplification
+  patterns (e.g., loop-to-comprehension, unnecessary wrapper functions) rather than
+  general-purpose 'could this be simpler' reasoning
+- Pattern database ships as embedded TOML files in the binary with an override directory
+  for user-defined rules — no network fetching or package registry in MVP
+- Single-file and directory scanning only — git diff-based analysis (AI-authored code
+  detection) is deferred to post-MVP
+- Must compile to a single static binary with no runtime dependencies
+techStack:
+  languages:
+  - Rust
+  frameworks:
+  - tree-sitter
+  - tree-sitter-python
+  - clap (CLI argument parsing)
+  - serde (serialization)
+  - toml (config parsing)
+  infrastructure:
+  - GitHub Actions (CI/CD for the tool itself)
+  - cargo (build system)
+  - pre-commit (hook integration)

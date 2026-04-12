@@ -1,0 +1,22 @@
+title: Implement configuration system with Pydantic model
+approval: draft
+phase: planned
+priority: high
+description: 'Create the AgentTraceConfig Pydantic model that centralizes all library
+  configuration: exporter settings (endpoint, protocol, headers), error classification
+  rules, token pricing, data redaction settings, SQLite path, and retention period.
+  Configuration can be provided programmatically, via a YAML/TOML file, or via AGENT_TRACE_*
+  environment variables (env vars take highest precedence).'
+acceptanceCriteria:
+- AgentTraceConfig validates all fields with Pydantic and provides sensible defaults
+  for every field
+- Environment variables with AGENT_TRACE_ prefix override corresponding config fields
+- Config can be loaded from a pyproject.toml [tool.agent-trace] section
+- Invalid configuration raises a clear, actionable error message at initialization
+  time (not at first span creation)
+- Default configuration (zero-config) enables SQLite local exporter and default error
+  classification rules
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,102 @@
+patterns:
+- name: Offline-First with Background Sync
+  description: All data is written to local SQLite (via WatermelonDB) first. A sync
+    engine reconciles local changes with the Supabase backend when connectivity is
+    available. The UI always reads from the local database, ensuring instant responsiveness
+    regardless of network state.
+  scope:
+  - mobile app
+  - data layer
+  - sync engine
+- name: Validation Pipeline
+  description: 'Estimate validation is structured as a sequential pipeline of independent
+    validation stages: (1) Formula Audit → (2) Benchmark Comparison → (3) Missing
+    Item Detection → (4) Confidence Scoring. Each stage produces typed validation
+    results that are aggregated into a final report. Stages can run independently
+    and in parallel where no data dependency exists.'
+  scope:
+  - validation engine
+  - formula auditor
+  - benchmark engine
+  - missing item detector
+  - confidence scorer
+- name: Repository Pattern for Data Access
+  description: All database operations are abstracted behind repository interfaces
+    (EstimateRepository, BenchmarkRepository, TemplateRepository). This decouples
+    business logic from WatermelonDB specifics and enables straightforward testing
+    with in-memory implementations.
+  scope:
+  - data layer
+  - repositories
+- name: Feature-Based Module Structure
+  description: Code is organized by feature domain (estimates, validation, benchmarks,
+    templates, settings) rather than by technical layer. Each feature module contains
+    its own screens, components, hooks, services, and types.
+  scope:
+  - project structure
+  - all modules
+invariants:
+- Every estimate must be persisted locally before any validation runs — validation
+  never operates on transient in-memory-only data
+- Validation results are deterministic for the same input data and benchmark dataset
+  version — no randomness in scoring
+- Confidence scores are always in the range [0, 100] and are computed from explicit,
+  auditable rules — never from opaque AI output alone
+- The formula auditor must never modify the user's original data — it is read-only
+  and produces annotations
+- Benchmark data is versioned; every validation result records the benchmark dataset
+  version used so results are reproducible
+- All monetary values are stored as integers in cents (USD) to avoid floating-point
+  precision errors
+- Offline mode must provide the same validation results as online mode for the same
+  cached benchmark data — no degraded accuracy
+conventions:
+- TypeScript strict mode enabled; no `any` types except in SheetJS interop boundary
+  where explicit casting is documented
+- 'File naming: kebab-case for files and directories (e.g., `formula-auditor.ts`,
+  `estimate-repository.ts`)'
+- 'Component naming: PascalCase React components, one component per file, co-located
+  styles'
+- 'Hook naming: `use` prefix (e.g., `useEstimateValidation`, `useBenchmarkLookup`)'
+- All async operations return typed Result<T, E> objects instead of throwing exceptions
+  — errors are values
+- Database schema changes managed via WatermelonDB migrations with sequential version
+  numbers
+- All validation rules are defined as declarative configuration objects, not inline
+  logic, to enable easy addition of new rules
+- Test files co-located with source files using `.test.ts` / `.test.tsx` suffix
+- Environment variables prefixed with `EXPO_PUBLIC_` for client-accessible values;
+  secrets stored in Supabase Edge Function environment only
+- Commit messages follow Conventional Commits format (feat:, fix:, refactor:, test:,
+  docs:)
+decisions:
+- id: D-1
+  title: WatermelonDB over raw SQLite or Realm for local storage
+  decision: Use WatermelonDB as the local database layer on top of SQLite.
+  rationale: WatermelonDB provides lazy-loading, observable queries for React Native,
+    and a built-in sync protocol compatible with PostgreSQL backends. This avoids
+    building a custom sync engine from scratch while maintaining offline-first guarantees.
+    Realm was rejected due to vendor lock-in and heavier binary size. Raw SQLite was
+    rejected because it lacks reactive query support needed for real-time UI updates
+    during validation.
+- id: D-2
+  title: Client-side validation engine rather than server-side
+  decision: Run the entire validation pipeline (formula audit, benchmark comparison,
+    missing item detection, confidence scoring) on-device rather than on the server.
+  rationale: Contractors frequently work on job sites with poor connectivity. Running
+    validation locally ensures the core value proposition works offline. Benchmark
+    data is synced to the device periodically (small dataset for MVP — ~5MB for 5
+    metro areas). The Claude API is used only for generating natural language explanations
+    of already-computed validation results, making it an enhancement rather than a
+    dependency.
+- id: D-3
+  title: Supabase as backend platform over custom Node.js server
+  decision: Use Supabase for authentication, PostgreSQL hosting, Edge Functions, and
+    sync infrastructure.
+  rationale: Supabase provides auth, database, and serverless functions in a single
+    platform with a generous free tier, dramatically reducing backend development
+    time for MVP. Edge Functions handle Claude API proxying (keeping API keys server-side)
+    and benchmark data distribution. This avoids provisioning and managing a custom
+    server while maintaining the ability to migrate to a self-hosted solution later
+    since Supabase is open source.
+contracts: []

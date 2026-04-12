@@ -1,0 +1,18 @@
+title: Implement trade and skill tag taxonomy with tagging UI
+approval: draft
+phase: planned
+priority: critical
+description: The app ships with a pre-loaded tag taxonomy based on CSI MasterFormat
+  divisions for trade categorization (e.g., Division 03 Concrete, Division 26 Electrical)
+  and common skill types per trade (e.g., corner fit, waterproofing, conduit bending).
+  Users select tags from a searchable, hierarchical picker. Custom tags can be added.
+acceptanceCriteria:
+- App ships with at least 16 CSI MasterFormat trade divisions pre-loaded
+- Each trade division includes at least 5 pre-loaded skill type tags
+- User can search tags by name with results filtering as they type
+- User can create a custom tag if no existing tag matches
+- At least one trade tag must be selected before an entry can be saved
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

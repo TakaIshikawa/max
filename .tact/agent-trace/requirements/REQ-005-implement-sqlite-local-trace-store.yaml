@@ -1,0 +1,22 @@
+title: Implement SQLite local trace store
+approval: draft
+phase: planned
+priority: high
+description: Build a local SQLite exporter that persists traces to ~/.agent-trace/traces.db
+  for use by the CLI viewer. The store captures complete span data including attributes,
+  hierarchy, timestamps, and error classifications. It supports querying traces by
+  time range, error class, and trace ID. Automatic cleanup removes traces older than
+  a configurable retention period (default 7 days).
+acceptanceCriteria:
+- Spans are written to SQLite with all attributes, parent-child relationships, and
+  timestamps preserved
+- Querying by trace_id returns all spans in the trace with correct hierarchy
+- Querying by error_class returns all spans matching the given classification
+- Traces older than the retention period are automatically pruned on write
+- Concurrent reads (from the TUI viewer) do not block writes (from the instrumented
+  process)
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span types and tracer
+source: discovered

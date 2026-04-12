@@ -1,0 +1,23 @@
+title: Implement spreadsheet import and parsing engine
+approval: draft
+phase: planned
+priority: critical
+description: Build a spreadsheet import module that accepts .xlsx, .xls, and .csv
+  files, parses them using SheetJS, and extracts cell values, formulas, cell references,
+  and structural metadata (headers, row/column relationships) into a normalized internal
+  estimate data model. This is the entry point for all validation and must handle
+  real-world messy spreadsheets from contractors.
+acceptanceCriteria:
+- User can select and import .xlsx, .xls, and .csv files from device storage via a
+  file picker
+- Parser extracts raw cell values, formula strings, cell types (number, text, formula,
+  empty), and cell references for every non-empty cell
+- Parser correctly identifies header rows and maps columns to semantic fields (description,
+  quantity, unit, unit cost, total) using heuristic matching on common header labels
+- Import of a 200-row spreadsheet completes in under 3 seconds on a mid-range device
+- Malformed or password-protected files produce a user-friendly error message without
+  crashing the app
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,27 @@
+title: Implement idiomatic pattern analyzer with rule-as-data engine
+approval: draft
+phase: planned
+priority: critical
+description: Build an analyzer that loads idiomatic rule definitions from TOML files,
+  compiles their tree-sitter queries, and runs them against parsed ASTs. Each rule
+  match produces a finding with the rule's message and suggestion. Ship with an initial
+  set of 10+ Python idiomatic rules.
+acceptanceCriteria:
+- 'Rules are loaded from TOML files containing: id, name, severity, message, suggestion,
+  and a tree-sitter query string'
+- The engine correctly matches tree-sitter queries against Python ASTs and produces
+  findings at the matched node locations
+- 'At least 10 built-in Python rules ship covering: range(len()) anti-pattern, manual
+  dict construction vs comprehension, type() instead of isinstance(), bare except,
+  mutable default arguments, unnecessary list() around generator, manual string concatenation
+  in loop, redundant else after return, open() without context manager, and manual
+  key-existence check vs dict.get()'
+- User-defined rule files in a configurable directory are loaded and override built-in
+  rules with matching IDs
+- Invalid rule files (bad TOML, invalid query syntax) produce warnings and are skipped
+  without crashing
+decomposition:
+  assignments: []
+dependencies:
+- Implement tree-sitter Python parsing module
+source: discovered

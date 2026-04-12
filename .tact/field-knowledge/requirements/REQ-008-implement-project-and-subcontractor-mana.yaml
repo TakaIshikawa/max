@@ -1,0 +1,22 @@
+title: Implement project and subcontractor management
+approval: draft
+phase: planned
+priority: high
+description: Users can create and manage projects (name, address, start date) and
+  subcontractors (company name, trade specialty, contact info). These entities are
+  referenced when creating entries and are used for filtering and quality score aggregation.
+acceptanceCriteria:
+- User can create a new project with name (required), address (optional), and start
+  date (optional)
+- User can create a new subcontractor with company name (required), primary trade
+  (required), and contact email (optional)
+- Projects and subcontractors are available in dropdown selectors during the entry
+  capture flow
+- Projects and subcontractors sync to Supabase via the same sync engine as entries
+- User can view a list of all projects and all subcontractors with entry counts per
+  each
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline-first data persistence with WatermelonDB
+source: discovered

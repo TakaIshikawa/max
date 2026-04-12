@@ -1,0 +1,19 @@
+title: Implement on-device voice-to-text transcription
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to record a voice note (up to 60 seconds) describing
+  the technique or quality detail. The audio is transcribed on-device using the Whisper
+  base model via whisper.cpp. Transcription works fully offline. The raw audio is
+  stored alongside the transcription text.
+acceptanceCriteria:
+- User can record a voice note up to 60 seconds in length
+- Recording is transcribed on-device using Whisper base model without network connectivity
+- Transcription completes within 15 seconds of recording completion on an iPhone 12
+  or newer
+- Both the raw audio file and transcription text are persisted to WatermelonDB
+- User can review and manually edit the transcription text before saving the entry
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

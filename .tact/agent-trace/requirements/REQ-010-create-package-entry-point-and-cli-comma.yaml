@@ -1,0 +1,22 @@
+title: Create package entry point and CLI commands
+approval: draft
+phase: planned
+priority: medium
+description: 'Set up the Python package with pyproject.toml, define the `agent-trace`
+  CLI entry point, and implement subcommands: `agent-trace view` (launches TUI viewer),
+  `agent-trace traces` (lists recent traces as a table), and `agent-trace config`
+  (prints resolved configuration). The CLI uses click or typer for argument parsing.'
+acceptanceCriteria:
+- '`pip install agent-trace` installs the package and makes the `agent-trace` CLI
+  available'
+- '`agent-trace view` launches the Textual TUI viewer'
+- '`agent-trace traces` prints a table of recent traces with columns: trace_id, timestamp,
+  span_count, error_count, total_cost'
+- '`agent-trace config` prints the resolved configuration showing defaults and overrides'
+- '`agent-trace --version` prints the package version from pyproject.toml'
+decomposition:
+  assignments: []
+dependencies:
+- Implement configuration system with Pydantic model
+- Build CLI trace viewer with Textual TUI
+source: discovered

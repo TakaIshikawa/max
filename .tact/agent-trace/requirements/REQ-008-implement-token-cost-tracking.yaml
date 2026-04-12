@@ -1,0 +1,23 @@
+title: Implement token cost tracking
+approval: draft
+phase: planned
+priority: medium
+description: Add token cost tracking that hooks into LLM provider responses to extract
+  token usage (prompt_tokens, completion_tokens, total_tokens) and compute estimated
+  USD cost based on configurable per-model pricing. Token data is attached to the
+  nearest parent span as agent_trace.cost.* attributes. MVP supports OpenAI-compatible
+  response formats.
+acceptanceCriteria:
+- Token counts (prompt, completion, total) are extracted from OpenAI-compatible response
+  objects and set as span attributes
+- USD cost is computed using a configurable price-per-token map with sensible defaults
+  for GPT-4o and GPT-4o-mini
+- A trace-level summary aggregates total tokens and total cost across all spans in
+  the trace
+- When token data is unavailable, attributes default to 0 (not null/missing)
+- Unit tests verify extraction from mock OpenAI response objects and cost calculation
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span types and tracer
+source: discovered

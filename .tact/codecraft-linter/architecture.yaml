@@ -1,0 +1,85 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Analysis flows through a sequential pipeline: Parse (tree-sitter AST)
+    → Analyze (run all analyzers in parallel per file) → Score (aggregate metrics)
+    → Report (format output). Each stage has a clean interface boundary enabling independent
+    testing and future extension.'
+  scope:
+  - src/pipeline/
+  - src/main.rs
+- name: Strategy Pattern for Analyzers
+  description: Each analysis dimension (idiomatic, complexity, conciseness) is implemented
+    as a trait (Analyzer) with a common interface. New analyzers can be registered
+    without modifying the pipeline. Each analyzer receives an AST and returns a vec
+    of Findings.
+  scope:
+  - src/analyzers/
+- name: Rule-as-Data Pattern
+  description: Idiomatic and conciseness rules are defined as data (TOML files containing
+    tree-sitter queries, severity, messages) rather than compiled code. The rule engine
+    loads and executes these declarative rules at runtime, enabling extensibility
+    without recompilation.
+  scope:
+  - src/rules/
+  - rules/
+- name: Reporter Abstraction
+  description: Output formatting is abstracted behind a Reporter trait with implementations
+    for terminal (human-readable), JSON, and SARIF. The pipeline produces a language-agnostic
+    AnalysisReport struct that reporters consume independently.
+  scope:
+  - src/reporters/
+invariants:
+- Every finding must reference a specific file path, line number, and column — no
+  findings without source locations
+- The CLI must always exit 0 when no threshold violations occur and non-zero when
+  any configured threshold is exceeded — exit codes are the contract for CI integration
+- 'All analysis is deterministic: the same input files and configuration must always
+  produce the same output, byte-for-byte'
+- Tree-sitter parsing failures must never crash the process — unparseable files are
+  reported as warnings and skipped
+- User-defined rules in the override directory take precedence over built-in rules
+  with the same ID
+- No finding may be emitted without a human-readable message explaining what is wrong
+  and how to fix it
+conventions:
+- Rust 2021 edition, stable toolchain only — no nightly features
+- 'Module structure mirrors the pipeline: src/parse/, src/analyzers/, src/rules/,
+  src/reporters/, src/config/'
+- All public functions and types have doc comments with examples where non-trivial
+- Error handling uses thiserror for library errors and anyhow in main.rs — no unwrap()
+  in library code
+- Test files live alongside source in tests/ subdirectories per module, plus integration
+  tests in tests/ at crate root
+- 'Rule TOML files follow the naming convention: rules/{language}/{category}/{rule-id}.toml'
+- 'CLI arguments follow GNU conventions: --config, --format, --output, --threshold-complexity,
+  etc.'
+- All structs that cross module boundaries derive Serialize and Deserialize
+decisions:
+- id: D-1
+  title: Use tree-sitter for AST parsing instead of language-native parsers
+  decision: All source code parsing uses tree-sitter with language-specific grammars.
+    We do not invoke Python's ast module, TypeScript's compiler API, or any language-native
+    parser.
+  rationale: Tree-sitter provides a uniform AST interface across all languages, runs
+    in-process without requiring language runtimes to be installed, and supports the
+    S-expression query language needed for the rule-as-data pattern. This is critical
+    for the single-binary constraint and for multi-language extensibility post-MVP.
+- id: D-2
+  title: TOML for configuration and rule definitions over YAML
+  decision: Both the user configuration file (codecraft.toml) and the rule definition
+    files use TOML format.
+  rationale: TOML is the Rust ecosystem standard (Cargo.toml), has excellent serde
+    support, is less error-prone than YAML (no implicit type coercion), and aligns
+    with the target audience of developers who already work with Rust/Go tooling.
+    Keeps the dependency tree smaller than adding a YAML parser.
+- id: D-3
+  title: Compute all three scores per-file and aggregate to a per-run summary
+  decision: Each file receives an independent idiomatic score (0-100), complexity
+    score (0-100), and conciseness score (0-100). The per-run report aggregates these
+    into weighted averages with configurable weights. Threshold violations are evaluated
+    at the per-file level.
+  rationale: Per-file scoring enables actionable feedback (developers fix specific
+    files), supports incremental adoption (teams can exclude legacy files), and maps
+    cleanly to CI workflows where you want to fail on specific violations rather than
+    aggregate drift. Per-run aggregation provides dashboard-friendly trending data.
+contracts: []

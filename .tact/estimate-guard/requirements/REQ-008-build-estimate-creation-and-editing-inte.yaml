@@ -1,0 +1,22 @@
+title: Build estimate creation and editing interface
+approval: draft
+phase: planned
+priority: high
+description: Provide a simple mobile-native interface for creating new estimates from
+  scratch using built-in templates, and for editing imported estimates. Contractors
+  who don't use spreadsheets need a way to build estimates directly in the app.
+acceptanceCriteria:
+- User can create a new estimate by selecting a project type and starting from a pre-populated
+  scope template
+- 'Line items support fields: description, quantity, unit, unit cost, and computed
+  total (quantity × unit cost)'
+- User can add, remove, reorder, and edit line items with inline editing on mobile
+- Estimate auto-saves to local storage on every change with no explicit save button
+  required
+- User can trigger validation on any estimate (imported or manually created) from
+  the estimate detail screen
+decomposition:
+  assignments: []
+dependencies:
+- Create local estimate data model and persistence layer
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement background sync engine with Supabase
+approval: draft
+phase: planned
+priority: high
+description: A sync engine detects network connectivity changes and pushes locally
+  created/updated entries (including photos) to Supabase. Photos upload to Supabase
+  Storage with resumable uploads. Sync processes entries in FIFO order with exponential
+  backoff on failure. Sync status is visible to the user.
+acceptanceCriteria:
+- Sync triggers automatically when network connectivity is restored
+- Entries sync in creation order (FIFO) — failed entries retry with exponential backoff
+  (max 5 retries)
+- Photos upload to Supabase Storage and the remote URL is stored on the entry record
+- A sync status indicator shows pending count, syncing state, and last successful
+  sync time
+- After sync, entries created on other devices by the same user are pulled to the
+  local database
+decomposition:
+  assignments: []
+dependencies:
+- Implement offline-first data persistence with WatermelonDB
+source: discovered

@@ -1,0 +1,22 @@
+title: Implement benchmark comparison engine
+approval: draft
+phase: planned
+priority: high
+description: Build a benchmark comparison module that evaluates each line item against
+  locally cached historical cost data. Compares material-to-labor ratios, cost-per-square-foot,
+  and trade-specific rates. Flags items that deviate significantly from expected ranges
+  for the selected project type and geographic region.
+acceptanceCriteria:
+- Each line item is compared against benchmark ranges for its trade category (e.g.,
+  framing labor, roofing materials) and geographic region
+- Items deviating more than 30% below or 50% above the benchmark median are flagged
+  as outliers with the expected range displayed
+- Material-to-labor ratio for the overall estimate is computed and compared against
+  typical ratios for the selected project type
+- Benchmark comparison runs entirely on locally cached data with no network dependency
+- Benchmark dataset version is recorded with each validation result for reproducibility
+decomposition:
+  assignments: []
+dependencies:
+- Create local estimate data model and persistence layer
+source: discovered

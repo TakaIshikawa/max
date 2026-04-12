@@ -1,0 +1,21 @@
+title: Implement configuration file schema and validation
+approval: draft
+phase: planned
+priority: medium
+description: Define and implement the codecraft.toml configuration schema covering
+  threshold settings, rule enable/disable, file inclusion/exclusion globs, dimension
+  weights, and custom rule directories. Validate configuration on load with clear
+  error messages for invalid values.
+acceptanceCriteria:
+- A codecraft.toml in the project root is auto-detected and loaded
+- File inclusion/exclusion patterns support glob syntax (e.g., exclude = ['tests/**',
+  'migrations/**'])
+- Individual rules can be disabled by ID (e.g., disabled_rules = ['PY-RANGE-LEN'])
+- All threshold values are validated (e.g., scores must be 0-100, weights must sum
+  to 1.0)
+- Running `codecraft-linter init` generates a commented codecraft.toml with all defaults
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI entry point with argument parsing and configuration loading
+source: discovered

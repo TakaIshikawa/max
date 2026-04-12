@@ -1,0 +1,17 @@
+title: Implement photo capture with metadata extraction
+approval: draft
+phase: planned
+priority: critical
+description: Users must be able to take a photo or select from their camera roll.
+  The app extracts EXIF metadata (GPS coordinates, timestamp, device info) automatically
+  and stores it alongside the photo. Photos are compressed to ≤5MB before local storage.
+acceptanceCriteria:
+- User can take a new photo using the device camera from within the app
+- User can select an existing photo from the device camera roll
+- EXIF GPS coordinates and timestamp are extracted and stored with the entry if available
+- Photos exceeding 5MB are automatically compressed to ≤5MB before saving
+- Photo and metadata are persisted to WatermelonDB and available immediately for viewing
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

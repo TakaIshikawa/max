@@ -1,0 +1,22 @@
+title: Implement complexity analyzer with cyclomatic and cognitive complexity metrics
+approval: draft
+phase: planned
+priority: critical
+description: Build an analyzer that computes per-function cyclomatic complexity, cognitive
+  complexity (SonarQube-compatible), and nesting depth from the tree-sitter AST. Emit
+  findings when any metric exceeds the configured threshold for a function or file.
+acceptanceCriteria:
+- Cyclomatic complexity is computed correctly for Python functions containing if/elif/else,
+  for, while, try/except, and boolean operators
+- Cognitive complexity increments for nesting depth and structural complexity following
+  SonarQube's published specification
+- Maximum nesting depth is tracked per function and per file
+- 'A finding is emitted for each function exceeding the configured cyclomatic complexity
+  threshold (default: 10)'
+- 'A finding is emitted for each function exceeding the configured cognitive complexity
+  threshold (default: 15)'
+decomposition:
+  assignments: []
+dependencies:
+- Implement tree-sitter Python parsing module
+source: discovered

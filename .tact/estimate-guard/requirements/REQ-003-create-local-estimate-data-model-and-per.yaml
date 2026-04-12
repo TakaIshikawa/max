@@ -1,0 +1,20 @@
+title: Create local estimate data model and persistence layer
+approval: draft
+phase: planned
+priority: critical
+description: Define the WatermelonDB schema and repository layer for estimates, line
+  items, validation results, and benchmark data. All data is stored locally first
+  and synced to Supabase when online. This is the foundation for offline-first operation.
+acceptanceCriteria:
+- 'WatermelonDB schema includes tables for: projects, estimates, line_items, validation_results,
+  benchmark_data, and scope_templates'
+- All monetary values are stored as integers in cents
+- Estimate and line item records include created_at, updated_at, and synced_at timestamps
+- Repository layer exposes typed CRUD operations for each entity with observable queries
+  for React Native UI binding
+- Database migrations are versioned and can upgrade from any prior schema version
+  without data loss
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

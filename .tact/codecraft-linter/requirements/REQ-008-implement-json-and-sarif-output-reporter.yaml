@@ -1,0 +1,22 @@
+title: Implement JSON and SARIF output reporters
+approval: draft
+phase: planned
+priority: high
+description: Build reporters that output analysis results in machine-readable JSON
+  and SARIF 2.1.0 formats for CI integration, GitHub Code Scanning, and custom tooling
+  consumption.
+acceptanceCriteria:
+- JSON output contains all findings, per-file scores, and run summary in a documented
+  schema
+- SARIF output conforms to the SARIF 2.1.0 specification and includes tool information,
+  rules, and results
+- SARIF output is accepted by GitHub Code Scanning when uploaded via the sarif-upload
+  action
+- The --output flag writes to a file instead of stdout; without it, output goes to
+  stdout
+- Both formats include the codecraft-linter version and analysis timestamp
+decomposition:
+  assignments: []
+dependencies:
+- Implement per-file scoring and threshold evaluation
+source: discovered

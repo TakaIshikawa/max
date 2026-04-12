@@ -1,0 +1,24 @@
+title: Build CLI trace viewer with Textual TUI
+approval: draft
+phase: planned
+priority: high
+description: Create a terminal-based trace viewer invoked via `agent-trace view` that
+  reads from the local SQLite store and renders a trace waterfall. The viewer shows
+  span hierarchy as an indented tree, span durations as horizontal bars, error classifications
+  with color coding (red for security_violation, orange for tool_failure, yellow for
+  agent_logic_error, gray for timeout), and token cost summaries. Supports navigating
+  between traces and drilling into span details.
+acceptanceCriteria:
+- '`agent-trace view` launches a Textual TUI that displays the most recent trace from
+  the SQLite store'
+- Trace waterfall shows spans as an indented tree with duration bars proportional
+  to elapsed time
+- 'Error classifications are color-coded: red (security_violation), orange (tool_failure),
+  yellow (agent_logic_error), gray (timeout)'
+- Selecting a span shows its full attributes in a detail panel
+- Arrow keys navigate between traces (previous/next by timestamp)
+decomposition:
+  assignments: []
+dependencies:
+- Implement SQLite local trace store
+source: discovered

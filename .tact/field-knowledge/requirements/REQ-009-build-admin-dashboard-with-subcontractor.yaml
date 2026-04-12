@@ -1,0 +1,24 @@
+title: Build admin dashboard with subcontractor quality scores
+approval: draft
+phase: planned
+priority: medium
+description: A Next.js web dashboard for GC administrators to view all synced entries,
+  browse the knowledge base, see aggregated subcontractor quality scores, curate entries
+  into training collections, and export subcontractor quality reports as PDF. Quality
+  scores are computed from entry count, recency weighting, and tag diversity per subcontractor.
+acceptanceCriteria:
+- Dashboard authenticates via Supabase Auth and restricts access to users with an
+  admin role
+- Dashboard displays a sortable table of all subcontractors with computed quality
+  scores
+- 'Quality score formula weights: entry count (40%), recency of entries (35%), and
+  tag diversity across skill types (25%)'
+- Admin can select entries and add them to named training collections
+- Admin can export a subcontractor quality report as a downloadable PDF containing
+  score breakdown, entry count, recent entries with photos, and date range
+decomposition:
+  assignments: []
+dependencies:
+- Implement background sync engine with Supabase
+- Implement project and subcontractor management
+source: discovered

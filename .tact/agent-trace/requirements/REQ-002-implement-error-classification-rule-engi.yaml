@@ -1,0 +1,24 @@
+title: Implement error classification rule engine
+approval: draft
+phase: planned
+priority: critical
+description: 'Build a configurable rule engine that classifies exceptions and error
+  conditions into one of four categories: agent_logic_error, tool_failure, security_violation,
+  or timeout. The engine evaluates a prioritized list of classification rules against
+  the exception type, HTTP status code, exit code, and configurable regex patterns.
+  Users can register custom rules. The classified error type is set as the agent_trace.error.class
+  span attribute.'
+acceptanceCriteria:
+- 'Default rules correctly classify: TimeoutError → timeout, HTTP 4xx/5xx from tool
+  calls → tool_failure, file system access outside allowed paths → security_violation,
+  and unhandled ValueError/assertion from agent logic → agent_logic_error'
+- Custom rules can be registered via config and take priority over defaults
+- When no rule matches, the error is classified as tool_failure (safe default) with
+  a warning log
+- Classification adds less than 1ms overhead per error event
+- Unit tests cover all 4 error types plus custom rule registration and priority ordering
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span types and tracer
+source: discovered

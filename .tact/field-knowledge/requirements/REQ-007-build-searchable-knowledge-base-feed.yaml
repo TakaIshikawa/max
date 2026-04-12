@@ -1,0 +1,25 @@
+title: Build searchable knowledge base feed
+approval: draft
+phase: planned
+priority: high
+description: The main screen of the app displays a scrollable feed of all entries,
+  filterable by trade tag, skill type, subcontractor, and project. Full-text search
+  across transcription text is supported locally via WatermelonDB queries. Each entry
+  card shows the photo thumbnail, transcription excerpt, tags, subcontractor name,
+  and timestamp.
+acceptanceCriteria:
+- Feed displays entries in reverse chronological order with infinite scroll pagination
+  (20 entries per page)
+- User can filter entries by trade tag, skill type, project, and subcontractor — filters
+  are combinable
+- User can search entries by keyword against transcription text with results appearing
+  within 500ms
+- 'Each entry card displays: photo thumbnail, first 100 characters of transcription,
+  trade tags, subcontractor name, and relative timestamp'
+- Tapping an entry card opens a detail view with full photo, complete transcription,
+  all tags, and metadata
+decomposition:
+  assignments: []
+dependencies:
+- Build the entry capture flow combining photo, voice, and tags
+source: discovered

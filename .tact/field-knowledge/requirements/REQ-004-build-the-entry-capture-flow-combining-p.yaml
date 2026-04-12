@@ -1,0 +1,23 @@
+title: Build the entry capture flow combining photo, voice, and tags
+approval: draft
+phase: planned
+priority: critical
+description: 'A unified capture flow guides the user through: (1) take/select photo,
+  (2) record optional voice note, (3) select trade and skill tags, (4) optionally
+  assign project, crew/subcontractor, and project phase, (5) save. The entire flow
+  must be completable in under 60 seconds and work fully offline.'
+acceptanceCriteria:
+- 'The capture flow presents steps in order: photo → voice note → tags → optional
+  metadata → save'
+- User can skip the voice note step (transcription stored as empty string)
+- User can assign an entry to an existing project and subcontractor from dropdown
+  lists
+- Entry is saved to WatermelonDB and immediately appears in the knowledge base feed
+- The complete capture flow is functional with no network connectivity (airplane mode)
+decomposition:
+  assignments: []
+dependencies:
+- Implement photo capture with metadata extraction
+- Implement on-device voice-to-text transcription
+- Implement trade and skill tag taxonomy with tagging UI
+source: discovered

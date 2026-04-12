@@ -1,0 +1,26 @@
+title: Compute and display per-item and overall confidence scores
+approval: draft
+phase: planned
+priority: high
+description: Aggregate results from formula auditing, benchmark comparison, and missing
+  item detection into a per-line-item confidence score (0-100) and an overall bid
+  confidence score. The scoring algorithm must be transparent and deterministic so
+  contractors understand and trust the output.
+acceptanceCriteria:
+- 'Each line item receives a confidence score from 0-100 based on weighted factors:
+  formula integrity (40%), benchmark alignment (40%), and completeness (20%)'
+- Overall bid confidence score is a weighted average of line item scores adjusted
+  by the number and severity of missing scope items
+- Score breakdowns are visible to the user showing exactly which factors contributed
+  to each score
+- 'Scores are deterministic: the same estimate with the same benchmark data version
+  always produces the same scores'
+- Items with confidence scores below 50 are visually highlighted in red; 50-75 in
+  yellow; above 75 in green
+decomposition:
+  assignments: []
+dependencies:
+- Build formula auditing engine
+- Implement benchmark comparison engine
+- Build missing item detection using scope templates
+source: discovered

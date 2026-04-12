@@ -1,0 +1,22 @@
+title: Implement SecurityViolationError with structured context
+approval: draft
+phase: planned
+priority: high
+description: Create the exception hierarchy rooted at AgentSandboxError, with SecurityViolationError
+  carrying structured violation context that is useful for logging, debugging, and
+  integration with observability tools.
+acceptanceCriteria:
+- AgentSandboxError is the base exception; SecurityViolationError and PolicyValidationError
+  inherit from it
+- 'SecurityViolationError carries: violation_type (enum: PATH_TRAVERSAL, CRLF_INJECTION,
+  NULL_BYTE, SSRF, POLICY_DENIED), offending_input (truncated to 200 chars), rule_description
+  (human-readable), and timestamp'
+- str() representation of SecurityViolationError produces a clear, single-line summary
+  suitable for log output
+- to_dict() method returns a JSON-serializable dictionary for structured logging integration
+- offending_input is always truncated and never includes more than 200 characters
+  to prevent log injection
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

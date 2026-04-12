@@ -1,0 +1,25 @@
+title: Build developer-facing instrumentation API
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the public API surface that developers use to instrument their
+  agent code. This includes: @trace_tool decorator for wrapping tool functions, @trace_decision
+  decorator for wrapping decision functions, trace_tool_call() and trace_decision()
+  context managers for inline use, and an AgentTracer class for manual span management.
+  The API must be minimal (importable from agent_trace directly) and must not require
+  OpenTelemetry knowledge from the user.'
+acceptanceCriteria:
+- '@trace_tool decorator wraps a function and automatically creates a ToolInvocation
+  span with input/output hashes and latency'
+- '@trace_decision decorator wraps a function and creates an AgentDecision span, accepting
+  an optional ''reasoning'' parameter'
+- Context managers trace_tool_call(name) and trace_decision(choice) work for inline
+  instrumentation without decorators
+- All API entry points are importable from `from agent_trace import ...`
+- Integration test demonstrates instrumenting a 3-step agent workflow (decide → call
+  tool → decide) and producing a valid trace with correct span hierarchy
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span types and tracer
+source: discovered

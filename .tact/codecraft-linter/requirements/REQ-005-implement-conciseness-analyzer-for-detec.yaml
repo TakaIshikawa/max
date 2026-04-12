@@ -1,0 +1,22 @@
+title: Implement conciseness analyzer for detectable simplification patterns
+approval: draft
+phase: planned
+priority: high
+description: Build an analyzer that detects code patterns which could be expressed
+  more concisely using language features. Uses tree-sitter queries to find verbose
+  patterns and suggests idiomatic alternatives. This is a curated, conservative set
+  of high-confidence simplifications — not a general 'make it shorter' tool.
+acceptanceCriteria:
+- Detects for-loops that append to a list and suggests list comprehension
+- Detects if/else blocks that assign to the same variable and suggests conditional
+  expression
+- Detects unnecessary wrapper functions that only call another function with the same
+  arguments
+- Detects redundant type conversions (e.g., str() on a string literal, list() on a
+  list literal)
+- Each finding includes a human-readable suggestion showing the concise alternative
+decomposition:
+  assignments: []
+dependencies:
+- Implement tree-sitter Python parsing module
+source: discovered
