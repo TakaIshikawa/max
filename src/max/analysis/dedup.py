@@ -45,7 +45,7 @@ def _idea_text(unit: BuildableUnit) -> str:
 def cluster_ideas(
     ideas: list[tuple[BuildableUnit, UtilityEvaluation | None]],
     *,
-    similarity_threshold: float = 0.72,
+    similarity_threshold: float = 0.85,
     max_clusters: int = 200,
 ) -> list[IdeaCluster]:
     """Cluster ideas by semantic similarity.

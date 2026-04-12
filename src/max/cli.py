@@ -335,7 +335,7 @@ def triage(domain: str | None, approve_threshold: float, reject_threshold: float
 
 
 @main.command()
-@click.option("--threshold", type=float, default=0.72, help="Similarity threshold for clustering (default: 0.72)")
+@click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--dry-run", is_flag=True, help="Show duplicates without marking them")
 @click.option("--limit", type=int, default=500, help="Max ideas to consider")
@@ -415,7 +415,7 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
 @click.option("--limit", type=int, default=50, help="Max ideas to review")
-@click.option("--threshold", type=float, default=0.72, help="Similarity threshold for clustering (default: 0.72)")
+@click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
 def review(domain: str | None, min_score: float, limit: int, threshold: float) -> None:
     """Interactively review ideas in clusters.
 
