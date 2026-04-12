@@ -611,8 +611,8 @@ def _display_idea_card(
     click.echo(f"{pad}{unit.title}")
     click.echo(f"{pad}{unit.one_liner}")
     click.echo()
-    click.echo(f"{pad}Problem:  {unit.problem[:120]}")
-    click.echo(f"{pad}Solution: {unit.solution[:120]}")
+    click.echo(f"{pad}Problem:  {unit.problem}")
+    click.echo(f"{pad}Solution: {unit.solution}")
 
     if ev:
         dims = [
@@ -657,7 +657,7 @@ def _single_review_prompt(store, unit: BuildableUnit, ev: UtilityEvaluation | No
         elif choice in ("d", "detail"):
             click.echo()
             click.echo(f"  Value Prop:  {unit.value_proposition}")
-            click.echo(f"  Tech:        {unit.tech_approach[:150]}")
+            click.echo(f"  Tech:        {unit.tech_approach}")
             click.echo(f"  Target:      {unit.target_users}")
             click.echo()
             if ev and ev.strengths:
