@@ -22,6 +22,8 @@ class IdeationMode(StrEnum):
     DIRECT = "direct"
     REFINEMENT = "refinement"
     CROSS_DOMAIN = "cross_domain"
+    SYNTHESIS = "synthesis"
+    CROSS_SYNTHESIS = "cross_synthesis"
 
 
 class BuildableUnit(BaseModel):
@@ -40,6 +42,7 @@ class BuildableUnit(BaseModel):
     # Traceability
     inspiring_insights: list[str] = Field(default_factory=list)  # Insight IDs
     evidence_signals: list[str] = Field(default_factory=list)  # Signal IDs (transitive)
+    source_idea_ids: list[str] = Field(default_factory=list)  # BuildableUnit IDs merged into this
 
     # Technical sketch
     tech_approach: str = ""

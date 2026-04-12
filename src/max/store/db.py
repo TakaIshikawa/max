@@ -398,8 +398,8 @@ class Store:
                (id, title, one_liner, category, ideation_mode, problem, solution,
                 target_users, value_proposition, inspiring_insights, evidence_signals,
                 tech_approach, suggested_stack, composability_notes, status, domain,
-                created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                source_idea_ids, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 unit.id,
                 unit.title,
@@ -417,6 +417,7 @@ class Store:
                 unit.composability_notes,
                 unit.status,
                 unit.domain,
+                json.dumps(unit.source_idea_ids),
                 unit.created_at.isoformat(),
                 unit.updated_at.isoformat(),
             ),
@@ -1157,6 +1158,7 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         status=row["status"],
         domain=row["domain"] if "domain" in row.keys() else "",
         prior_art_status=row["prior_art_status"] if "prior_art_status" in row.keys() else "unchecked",
+        source_idea_ids=json.loads(row["source_idea_ids"]) if "source_idea_ids" in row.keys() else [],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

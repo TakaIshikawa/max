@@ -411,6 +411,112 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
         store.close()
 
 
+@main.command()
+@click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--cross-cluster", is_flag=True, help="Also find and merge complementary ideas across clusters (more LLM calls)")
+@click.option("--max-cross-groups", type=int, default=5, help="Maximum cross-cluster groups to synthesize (default: 5)")
+@click.option("--dry-run", is_flag=True, help="Show clusters without LLM calls")
+@click.option("--limit", type=int, default=500, help="Max ideas to consider")
+def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cross_groups: int, dry_run: bool, limit: int) -> None:
+    """Synthesize clustered ideas into superior combined ideas.
+
+    For each cluster with multiple similar ideas, uses LLM to merge them
+    into one superior idea. With --cross-cluster, also identifies complementary
+    ideas across clusters and merges those.
+
+    Cadence: dedup -> synthesize -> prior-art -> review
+    """
+    from max.analysis.dedup import cluster_ideas
+    from max.analysis.synthesize_ideas import run_synthesis
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, domain=domain)
+        # Only consider evaluated ideas that aren't rejected/duplicate/synthesized
+        active = [
+            u for u in units
+            if u.status not in ("rejected", "duplicate", "synthesized")
+        ]
+
+        if not active:
+            click.echo("No ideas to synthesize.")
+            return
+
+        # Build (unit, eval) pairs
+        pairs = []
+        for u in active:
+            ev = store.get_evaluation(u.id)
+            if ev:
+                pairs.append((u, ev))
+
+        if not pairs:
+            click.echo("No evaluated ideas to synthesize.")
+            return
+
+        clusters = cluster_ideas(pairs, similarity_threshold=threshold)
+        multi_clusters = [c for c in clusters if c.size > 1]
+
+        if not multi_clusters and not cross_cluster:
+            click.echo(f"No multi-member clusters found at threshold {threshold}. Nothing to synthesize.")
+            return
+
+        click.echo(f"Found {len(multi_clusters)} multi-member clusters ({sum(c.size for c in multi_clusters)} ideas).")
+
+        if dry_run:
+            for i, cluster in enumerate(multi_clusters, 1):
+                click.echo(f"\n  Cluster {i} ({cluster.size} ideas):")
+                for unit, ev in cluster.members:
+                    score = ev.overall_score if ev else 0.0
+                    click.echo(f"    {score:5.1f}  [{unit.domain}] {unit.title}")
+            if cross_cluster:
+                singletons = [c.representative for c in clusters if c.size == 1]
+                click.echo(f"\n  Cross-cluster: would analyze {len(singletons)} singletons for complementary groups")
+            click.echo("\nDry run — no LLM calls made.")
+            return
+
+        click.echo("Synthesizing...")
+        result = run_synthesis(
+            clusters,
+            cross_cluster=cross_cluster,
+            max_cross_groups=max_cross_groups,
+        )
+
+        # Store intra-cluster synthesized ideas and update source statuses
+        for new_unit in result.intra_synthesized:
+            stored = store.insert_buildable_unit(new_unit)
+            click.echo(f"\n  Synthesized: \"{stored.title}\"")
+            for src_id in new_unit.source_idea_ids:
+                src_unit = store.get_buildable_unit(src_id)
+                src_title = src_unit.title[:40] if src_unit else src_id
+                ev = store.get_evaluation(src_id)
+                score = ev.overall_score if ev else 0.0
+                click.echo(f"    <- {score:5.1f}  {src_title}")
+                store.insert_feedback(src_id, "synthesized", f"merged into {stored.id}")
+                store.update_buildable_unit_status(src_id, "synthesized")
+
+        # Store cross-cluster synthesized ideas
+        for new_unit in result.cross_synthesized:
+            stored = store.insert_buildable_unit(new_unit)
+            click.echo(f"\n  Cross-synthesized: \"{stored.title}\"")
+            for src_id in new_unit.source_idea_ids:
+                src_unit = store.get_buildable_unit(src_id)
+                src_title = src_unit.title[:40] if src_unit else src_id
+                click.echo(f"    <- {src_title}")
+                store.insert_feedback(src_id, "synthesized", f"cross-merged into {stored.id}")
+                store.update_buildable_unit_status(src_id, "synthesized")
+
+        total = len(result.intra_synthesized) + len(result.cross_synthesized)
+        click.echo(f"\nSummary: {total} synthesized ideas from {len(result.source_idea_ids)} source ideas")
+        if result.intra_synthesized:
+            click.echo(f"  Intra-cluster: {len(result.intra_synthesized)}")
+        if result.cross_synthesized:
+            click.echo(f"  Cross-cluster: {len(result.cross_synthesized)} (from {result.complementary_groups_found} groups)")
+    finally:
+        store.close()
+
+
 @main.command(name="prior-art")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--limit", type=int, default=80, help="Max ideas to check")
