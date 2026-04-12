@@ -518,6 +518,67 @@ class Store:
             query += " WHERE " + " AND ".join(conditions)
         return self.conn.execute(query, params).fetchone()[0]
 
+    # ── Prior Art ───────────────────────────────────────────────────
+
+    def insert_prior_art_match(self, unit_id: str, match: dict) -> str:
+        match_id = _gen_id("pa")
+        self.conn.execute(
+            """INSERT INTO prior_art_matches
+               (id, buildable_unit_id, source, title, url, description,
+                relevance_score, match_signals, search_query, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                match_id,
+                unit_id,
+                match["source"],
+                match["title"],
+                match["url"],
+                match.get("description", ""),
+                match.get("relevance_score", 0.0),
+                json.dumps(match.get("match_signals", {})),
+                match.get("search_query", ""),
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return match_id
+
+    def get_prior_art_matches(self, unit_id: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT * FROM prior_art_matches WHERE buildable_unit_id = ? ORDER BY relevance_score DESC",
+            (unit_id,),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "buildable_unit_id": row["buildable_unit_id"],
+                "source": row["source"],
+                "title": row["title"],
+                "url": row["url"],
+                "description": row["description"],
+                "relevance_score": row["relevance_score"],
+                "match_signals": json.loads(row["match_signals"]),
+                "search_query": row["search_query"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def update_prior_art_status(self, unit_id: str, status: str) -> None:
+        self.conn.execute(
+            "UPDATE buildable_units SET prior_art_status = ?, updated_at = ? WHERE id = ?",
+            (status, _now_iso(), unit_id),
+        )
+        self._commit()
+
+    def delete_prior_art_matches(self, unit_id: str) -> int:
+        cursor = self.conn.execute(
+            "DELETE FROM prior_art_matches WHERE buildable_unit_id = ?",
+            (unit_id,),
+        )
+        self._commit()
+        return cursor.rowcount
+
     # ── Evaluations ──────────────────────────────────────────────────
 
     def insert_evaluation(self, evaluation: UtilityEvaluation) -> UtilityEvaluation:
@@ -1095,6 +1156,7 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         composability_notes=row["composability_notes"],
         status=row["status"],
         domain=row["domain"] if "domain" in row.keys() else "",
+        prior_art_status=row["prior_art_status"] if "prior_art_status" in row.keys() else "unchecked",
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

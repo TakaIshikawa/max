@@ -49,6 +49,9 @@ class BuildableUnit(BaseModel):
     # Domain (profile name that generated this unit)
     domain: str = ""
 
+    # Prior art check status
+    prior_art_status: str = "unchecked"  # unchecked | clear | weak_match | strong_match
+
     # Status
     status: str = "draft"  # draft | evaluated | approved | published | rejected
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

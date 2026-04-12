@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS buildable_units (
     composability_notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft',
     domain TEXT NOT NULL DEFAULT '',
+    prior_art_status TEXT NOT NULL DEFAULT 'unchecked',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -136,6 +137,22 @@ CREATE TABLE IF NOT EXISTS pipeline_run_domains (
 
 CREATE INDEX IF NOT EXISTS idx_prd_run_id ON pipeline_run_domains(run_id);
 CREATE INDEX IF NOT EXISTS idx_prd_domain ON pipeline_run_domains(domain);
+
+CREATE TABLE IF NOT EXISTS prior_art_matches (
+    id TEXT PRIMARY KEY,
+    buildable_unit_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    relevance_score REAL NOT NULL DEFAULT 0.0,
+    match_signals TEXT NOT NULL DEFAULT '{}',
+    search_query TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prior_art_bu_id ON prior_art_matches(buildable_unit_id);
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT NOT NULL,
@@ -258,6 +275,34 @@ def _migrate_v7_to_v8(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v8_to_v9(conn: sqlite3.Connection) -> None:
+    """Add prior_art_matches table and prior_art_status column."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS prior_art_matches (
+            id TEXT PRIMARY KEY,
+            buildable_unit_id TEXT NOT NULL,
+            source TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            relevance_score REAL NOT NULL DEFAULT 0.0,
+            match_signals TEXT NOT NULL DEFAULT '{}',
+            search_query TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_prior_art_bu_id ON prior_art_matches(buildable_unit_id)"
+    )
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(buildable_units)").fetchall()}
+    if "prior_art_status" not in columns:
+        conn.execute(
+            "ALTER TABLE buildable_units ADD COLUMN prior_art_status TEXT NOT NULL DEFAULT 'unchecked'"
+        )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -294,6 +339,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 8:
         _migrate_v7_to_v8(conn)
+
+    if current < 9:
+        _migrate_v8_to_v9(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

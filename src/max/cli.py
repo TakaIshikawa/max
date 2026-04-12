@@ -411,6 +411,117 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
         store.close()
 
 
+@main.command(name="prior-art")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--limit", type=int, default=80, help="Max ideas to check")
+@click.option("--re-scan", is_flag=True, help="Re-check ideas that already have results")
+@click.option("--auto-reject", is_flag=True, help="Auto-reject ideas with strong matches")
+@click.option("--dry-run", is_flag=True, help="Show queries without making API calls")
+def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, dry_run: bool) -> None:
+    """Check for existing implementations matching generated ideas.
+
+    Searches GitHub, npm, PyPI, and Product Hunt for prior art.
+    Results are stored and surfaced during `max review`.
+    """
+    from max.analysis.prior_art import (
+        build_search_queries,
+        check_prior_art,
+        select_sources,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        # Get ideas to check
+        units = store.get_buildable_units(limit=limit, domain=domain)
+        if not re_scan:
+            units = [u for u in units if u.prior_art_status == "unchecked"]
+
+        # Filter to evaluated/approved (not rejected/duplicate)
+        units = [u for u in units if u.status not in ("rejected", "duplicate")]
+
+        if not units:
+            click.echo("No ideas to check.")
+            return
+
+        click.echo(f"Checking prior art for {len(units)} ideas...")
+
+        if dry_run:
+            for unit in units:
+                queries = build_search_queries(unit)
+                sources = select_sources(unit)
+                click.echo(f"\n  {unit.title}")
+                click.echo(f"    Sources: {', '.join(sources)}")
+                for q in queries:
+                    click.echo(f"    Query: {q}")
+            click.echo(f"\nDry run — {len(units)} ideas would be checked.")
+            return
+
+        # Clear old matches if re-scanning
+        if re_scan:
+            for unit in units:
+                store.delete_prior_art_matches(unit.id)
+
+        results = check_prior_art(units, dry_run=False)
+
+        strong_count = 0
+        weak_count = 0
+        clear_count = 0
+
+        for result in results:
+            unit = next(u for u in units if u.id == result.buildable_unit_id)
+
+            # Store matches
+            for match in result.matches:
+                store.insert_prior_art_match(unit.id, {
+                    "source": match.source,
+                    "title": match.title,
+                    "url": match.url,
+                    "description": match.description,
+                    "relevance_score": match.relevance_score,
+                    "match_signals": match.match_signals,
+                    "search_query": match.search_query,
+                })
+
+            # Update status
+            store.update_prior_art_status(unit.id, result.status)
+
+            if result.status == "strong_match":
+                strong_count += 1
+                click.echo(f"\n  [!!] {unit.title}")
+                for m in result.matches[:3]:
+                    signals = ""
+                    if m.source == "github":
+                        signals = f"({m.match_signals.get('stars', 0)} stars)"
+                    elif m.source == "npm":
+                        signals = ""
+                    elif m.source == "product_hunt":
+                        signals = f"({m.match_signals.get('votes', 0)} votes)"
+                    click.echo(
+                        f"       {m.relevance_score:.2f}  {m.source:<13} {m.title} {signals}"
+                    )
+                    click.echo(f"       {m.url}")
+
+                if auto_reject:
+                    store.insert_feedback(unit.id, "rejected", "auto-rejected: strong prior art match")
+                    store.update_buildable_unit_status(unit.id, "rejected")
+                    click.echo("       -> auto-rejected")
+
+            elif result.status == "weak_match":
+                weak_count += 1
+                click.echo(f"  [~]  {unit.title}  ({len(result.matches)} weak matches)")
+
+            else:
+                clear_count += 1
+
+        click.echo(f"\nResults: {strong_count} strong, {weak_count} weak, {clear_count} clear")
+
+        if auto_reject and strong_count:
+            click.echo(f"Auto-rejected {strong_count} ideas with strong prior art matches.")
+    finally:
+        store.close()
+
+
 @main.command()
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
@@ -607,7 +718,12 @@ def _display_idea_card(
     pad = " " * indent
     score = ev.overall_score if ev else 0.0
     rec = ev.recommendation if ev else "-"
-    click.echo(f"{pad}{score:5.1f}  ({rec})  [{unit.domain}] {unit.category}")
+    pa_tag = ""
+    if unit.prior_art_status == "strong_match":
+        pa_tag = " [!!]"
+    elif unit.prior_art_status == "weak_match":
+        pa_tag = " [~]"
+    click.echo(f"{pad}{score:5.1f}  ({rec})  [{unit.domain}] {unit.category}{pa_tag}")
     click.echo(f"{pad}{unit.title}")
     click.echo(f"{pad}{unit.one_liner}")
     click.echo()
@@ -666,6 +782,15 @@ def _single_review_prompt(store, unit: BuildableUnit, ev: UtilityEvaluation | No
             if ev and ev.weaknesses:
                 for w in ev.weaknesses:
                     click.echo(f"  - {w}")
+            # Show prior art matches if any
+            if unit.prior_art_status in ("strong_match", "weak_match"):
+                pa_matches = store.get_prior_art_matches(unit.id)
+                if pa_matches:
+                    label = "!!" if unit.prior_art_status == "strong_match" else "~"
+                    click.echo(f"  Prior Art [{label}]:")
+                    for m in pa_matches[:5]:
+                        click.echo(f"    {m['relevance_score']:.2f}  {m['source']:<13} {m['title']}")
+                        click.echo(f"    {m['url']}")
             click.echo()
             # Loop back to prompt
         elif choice in ("q", "quit"):
