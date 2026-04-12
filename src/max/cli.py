@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+
+if TYPE_CHECKING:
+    from max.types.buildable_unit import BuildableUnit
+    from max.types.evaluation import UtilityEvaluation
 
 
 
@@ -254,10 +259,171 @@ def feedback(unit_id: str, outcome: str, reason: str) -> None:
 
 @main.command()
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--approve-threshold", type=float, default=68.0, help="Auto-approve score threshold (default: 68)")
+@click.option("--reject-threshold", type=float, default=50.0, help="Auto-reject score threshold (default: 50)")
+@click.option("--dry-run", is_flag=True, help="Show what would be triaged without applying changes")
+@click.option("--limit", type=int, default=500, help="Max ideas to consider")
+def triage(domain: str | None, approve_threshold: float, reject_threshold: float, dry_run: bool, limit: int) -> None:
+    """Auto-approve/reject ideas by score thresholds.
+
+    Default thresholds: auto-approve >= 68 with rec=yes, auto-reject < 50 or rec=no.
+    Remaining ideas are left for human review.
+    """
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, domain=domain)
+        if not units:
+            click.echo("No ideas found.")
+            return
+
+        auto_approved = []
+        auto_rejected = []
+        pending = []
+
+        for unit in units:
+            ev = store.get_evaluation(unit.id)
+            if not ev:
+                continue
+            if store.has_feedback(unit.id):
+                continue
+
+            if ev.overall_score >= approve_threshold and ev.recommendation == "yes":
+                auto_approved.append((unit, ev))
+            elif ev.overall_score < reject_threshold or ev.recommendation == "no":
+                auto_rejected.append((unit, ev))
+            else:
+                pending.append((unit, ev))
+
+        if not auto_approved and not auto_rejected:
+            click.echo("No ideas matched triage thresholds.")
+            click.echo(f"  {len(pending)} ideas remain for manual review.")
+            return
+
+        # Display results
+        if auto_approved:
+            click.echo(f"Auto-approve ({len(auto_approved)} ideas, score >= {approve_threshold} + rec=yes):")
+            for unit, ev in auto_approved:
+                domain_label = f"[{unit.domain}]" if unit.domain else ""
+                click.echo(f"  {ev.overall_score:5.1f}  {domain_label:16s}  {unit.title}")
+
+        if auto_rejected:
+            click.echo(f"Auto-reject ({len(auto_rejected)} ideas, score < {reject_threshold} or rec=no):")
+            for unit, ev in auto_rejected:
+                domain_label = f"[{unit.domain}]" if unit.domain else ""
+                click.echo(f"  {ev.overall_score:5.1f}  {domain_label:16s}  {unit.title}")
+
+        click.echo(f"\nPending manual review: {len(pending)} ideas")
+
+        if dry_run:
+            click.echo("\nDRY RUN: No changes applied.")
+            return
+
+        # Apply triage
+        for unit, ev in auto_approved:
+            store.insert_feedback(unit.id, "approved", "auto-triage: score >= threshold + rec=yes")
+            store.update_buildable_unit_status(unit.id, "approved")
+        for unit, ev in auto_rejected:
+            reason = f"auto-triage: score={ev.overall_score:.1f}, rec={ev.recommendation}"
+            store.insert_feedback(unit.id, "rejected", reason)
+            store.update_buildable_unit_status(unit.id, "rejected")
+
+        click.echo(f"\nApplied: {len(auto_approved)} approved, {len(auto_rejected)} rejected")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.option("--threshold", type=float, default=0.72, help="Similarity threshold for clustering (default: 0.72)")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--dry-run", is_flag=True, help="Show duplicates without marking them")
+@click.option("--limit", type=int, default=500, help="Max ideas to consider")
+def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> None:
+    """Find and mark duplicate ideas across domains.
+
+    Clusters ideas by semantic similarity. Within each cluster, keeps the
+    highest-scored idea and marks others as duplicates.
+    """
+    from max.analysis.dedup import cluster_ideas
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, domain=domain)
+        if not units:
+            click.echo("No ideas found.")
+            return
+
+        # Build (unit, eval) pairs — only evaluated, non-duplicate ideas
+        ideas = []
+        for unit in units:
+            if unit.status == "duplicate":
+                continue
+            ev = store.get_evaluation(unit.id)
+            if not ev:
+                continue
+            ideas.append((unit, ev))
+
+        if not ideas:
+            click.echo("No evaluated ideas to cluster.")
+            return
+
+        clusters = cluster_ideas(ideas, similarity_threshold=threshold)
+
+        # Filter to clusters with >1 member (actual duplicates)
+        dup_clusters = [c for c in clusters if c.size > 1]
+
+        if not dup_clusters:
+            click.echo(f"No duplicates found at threshold {threshold}.")
+            click.echo(f"  {len(clusters)} unique ideas across {len(ideas)} evaluated.")
+            return
+
+        total_dups = sum(len(c.duplicates) for c in dup_clusters)
+        click.echo(f"Found {len(dup_clusters)} clusters with {total_dups} duplicates:\n")
+
+        for i, cluster in enumerate(dup_clusters, 1):
+            rep = cluster.representative
+            rep_ev = cluster.representative_eval
+            rep_score = rep_ev.overall_score if rep_ev else 0.0
+            click.echo(f"  Cluster {i} ({cluster.size} ideas, domains: {', '.join(sorted(cluster.domains))})")
+            click.echo(f"    KEEP: {rep_score:5.1f}  [{rep.domain}]  {rep.title}")
+            for unit, ev in cluster.duplicates:
+                score = ev.overall_score if ev else 0.0
+                click.echo(f"    DUP:  {score:5.1f}  [{unit.domain}]  {unit.title}")
+            click.echo()
+
+        if dry_run:
+            click.echo("DRY RUN: No changes applied.")
+            return
+
+        # Mark duplicates
+        marked = 0
+        for cluster in dup_clusters:
+            for unit, ev in cluster.duplicates:
+                reason = f"duplicate of {cluster.representative.id} ({cluster.representative.title[:50]})"
+                store.insert_feedback(unit.id, "rejected", f"auto-dedup: {reason}")
+                store.update_buildable_unit_status(unit.id, "duplicate")
+                marked += 1
+
+        click.echo(f"Marked {marked} ideas as duplicate.")
+    finally:
+        store.close()
+
+
+@main.command()
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
-@click.option("--limit", type=int, default=20, help="Max ideas to review")
-def review(domain: str | None, min_score: float, limit: int) -> None:
-    """Interactively review ideas: approve, reject, or skip."""
+@click.option("--limit", type=int, default=50, help="Max ideas to review")
+@click.option("--threshold", type=float, default=0.72, help="Similarity threshold for clustering (default: 0.72)")
+def review(domain: str | None, min_score: float, limit: int, threshold: float) -> None:
+    """Interactively review ideas in clusters.
+
+    Similar ideas are grouped together for batch review. For each cluster:
+    [a] approve best idea, reject rest  [A] approve all in cluster
+    [r] reject entire cluster  [p] pick individually  [s] skip  [q] quit
+    """
+    from max.analysis.dedup import cluster_ideas
     from max.evaluation.weights import adapt_weights as do_adapt, get_weights
     from max.store.db import Store
 
@@ -287,91 +453,123 @@ def review(domain: str | None, min_score: float, limit: int) -> None:
             click.echo("No ideas pending review (all have feedback or don't meet criteria).")
             return
 
-        click.echo(f"Review queue: {len(queue)} ideas")
+        # Cluster similar ideas for batch review
+        clusters = cluster_ideas(queue, similarity_threshold=threshold)
+
+        multi = [c for c in clusters if c.size > 1]
+        singles = [c for c in clusters if c.size == 1]
+
+        click.echo(f"Review queue: {len(queue)} ideas in {len(clusters)} clusters")
+        click.echo(f"  {len(multi)} clusters with similar ideas, {len(singles)} individual ideas")
         if domain:
             click.echo(f"  Domain: {domain}")
-        if min_score > 0:
-            click.echo(f"  Min score: {min_score}")
         click.echo()
 
         approved = 0
         rejected = 0
         skipped = 0
+        quit_review = False
 
-        for i, (unit, ev) in enumerate(queue, 1):
-            # Compact card
-            click.echo(f"--- [{i}/{len(queue)}] {'─' * 60}")
-            click.echo(f"  {ev.overall_score:5.1f}  ({ev.recommendation})  [{unit.domain}] {unit.category}")
-            click.echo(f"  {unit.title}")
-            click.echo(f"  {unit.one_liner}")
-            click.echo()
-            click.echo(f"  Problem:  {unit.problem[:120]}")
-            click.echo(f"  Solution: {unit.solution[:120]}")
-            click.echo()
-
-            # Top 3 dimensions (highest value)
-            dims = [
-                ("pain", ev.pain_severity.value),
-                ("scale", ev.addressable_scale.value),
-                ("effort", ev.build_effort.value),
-                ("compose", ev.composability.value),
-                ("compete", ev.competitive_density.value),
-                ("timing", ev.timing_fit.value),
-                ("compound", ev.compounding_value.value),
-            ]
-            dims.sort(key=lambda x: x[1], reverse=True)
-            top3 = "  ".join(f"{name}={val:.0f}" for name, val in dims[:3])
-            bot2 = "  ".join(f"{name}={val:.0f}" for name, val in dims[-2:])
-            click.echo(f"  Strongest: {top3}    Weakest: {bot2}")
-            click.echo()
-
-            # Prompt
-            while True:
-                choice = click.prompt(
-                    "  [a]pprove  [r]eject  [s]kip  [d]etail  [q]uit",
-                    type=str,
-                    default="s",
-                ).strip().lower()
-
-                if choice in ("a", "approve"):
-                    reason = click.prompt("  Reason (optional)", default="", show_default=False)
-                    store.insert_feedback(unit.id, "approved", reason)
-                    store.update_buildable_unit_status(unit.id, "approved")
-                    approved += 1
-                    click.echo("  -> approved")
-                    break
-                elif choice in ("r", "reject"):
-                    reason = click.prompt("  Reason (optional)", default="", show_default=False)
-                    store.insert_feedback(unit.id, "rejected", reason)
-                    store.update_buildable_unit_status(unit.id, "rejected")
-                    rejected += 1
-                    click.echo("  -> rejected")
-                    break
-                elif choice in ("s", "skip"):
-                    skipped += 1
-                    break
-                elif choice in ("d", "detail"):
-                    click.echo()
-                    click.echo(f"  Value Prop:  {unit.value_proposition}")
-                    click.echo(f"  Tech:        {unit.tech_approach[:150]}")
-                    click.echo(f"  Target:      {unit.target_users}")
-                    click.echo()
-                    if ev.strengths:
-                        for s in ev.strengths:
-                            click.echo(f"  + {s}")
-                    if ev.weaknesses:
-                        for w in ev.weaknesses:
-                            click.echo(f"  - {w}")
-                    click.echo()
-                    # Loop back to prompt
-                elif choice in ("q", "quit"):
-                    click.echo()
-                    break
-                else:
-                    click.echo("  Invalid choice. Use a/r/s/d/q.")
-
-            if choice in ("q", "quit"):
+        for ci, cluster in enumerate(clusters, 1):
+            if quit_review:
                 break
+
+            rep = cluster.representative
+            rep_ev = cluster.representative_eval
+
+            if cluster.size == 1:
+                # Single idea — standard review
+                click.echo(f"--- [{ci}/{len(clusters)}] {'─' * 60}")
+                _display_idea_card(rep, rep_ev)
+
+                choice = _single_review_prompt(store, rep, rep_ev)
+                if choice == "approved":
+                    approved += 1
+                elif choice == "rejected":
+                    rejected += 1
+                elif choice == "quit":
+                    quit_review = True
+                else:
+                    skipped += 1
+            else:
+                # Cluster — batch review
+                click.echo(f"=== Cluster [{ci}/{len(clusters)}] ({cluster.size} similar ideas) {'═' * 40}")
+                click.echo(f"  Domains: {', '.join(sorted(cluster.domains))}")
+                click.echo()
+
+                # Show representative (best)
+                click.echo("  BEST:")
+                _display_idea_card(rep, rep_ev, indent=4)
+
+                # Show other members
+                for unit, ev in cluster.duplicates:
+                    score = ev.overall_score if ev else 0.0
+                    rec = ev.recommendation if ev else "-"
+                    click.echo(f"    also: {score:5.1f} ({rec})  [{unit.domain}]  {unit.title}")
+
+                click.echo()
+
+                while True:
+                    choice = click.prompt(
+                        "  [a]pprove best, reject rest  [A]pprove all  [r]eject all  [p]ick individually  [s]kip  [q]uit",
+                        type=str,
+                        default="s",
+                    ).strip()
+
+                    if choice == "a":
+                        # Approve best, reject rest
+                        reason = click.prompt("  Reason (optional)", default="", show_default=False)
+                        store.insert_feedback(rep.id, "approved", reason)
+                        store.update_buildable_unit_status(rep.id, "approved")
+                        approved += 1
+                        for unit, ev in cluster.duplicates:
+                            store.insert_feedback(unit.id, "rejected", f"cluster-review: kept {rep.id}")
+                            store.update_buildable_unit_status(unit.id, "rejected")
+                            rejected += 1
+                        click.echo(f"  -> approved best, rejected {len(cluster.duplicates)} others")
+                        break
+                    elif choice == "A":
+                        # Approve all in cluster
+                        reason = click.prompt("  Reason (optional)", default="", show_default=False)
+                        for unit, ev in cluster.members:
+                            store.insert_feedback(unit.id, "approved", reason)
+                            store.update_buildable_unit_status(unit.id, "approved")
+                            approved += 1
+                        click.echo(f"  -> approved all {cluster.size} ideas")
+                        break
+                    elif choice in ("r", "R"):
+                        reason = click.prompt("  Reason (optional)", default="", show_default=False)
+                        for unit, ev in cluster.members:
+                            store.insert_feedback(unit.id, "rejected", reason)
+                            store.update_buildable_unit_status(unit.id, "rejected")
+                            rejected += 1
+                        click.echo(f"  -> rejected all {cluster.size} ideas")
+                        break
+                    elif choice in ("p", "P"):
+                        # Fall back to individual review for each member
+                        for unit, ev in cluster.members:
+                            click.echo()
+                            _display_idea_card(unit, ev)
+                            result = _single_review_prompt(store, unit, ev)
+                            if result == "approved":
+                                approved += 1
+                            elif result == "rejected":
+                                rejected += 1
+                            elif result == "quit":
+                                quit_review = True
+                                break
+                            else:
+                                skipped += 1
+                        break
+                    elif choice in ("s", "S"):
+                        skipped += cluster.size
+                        break
+                    elif choice in ("q", "Q"):
+                        quit_review = True
+                        break
+                    else:
+                        click.echo("  Invalid choice. Use a/A/r/p/s/q.")
+
             click.echo()
 
         # Summary
@@ -400,6 +598,80 @@ def review(domain: str | None, min_score: float, limit: int) -> None:
             click.echo(f"\n{len(total_outcomes)} total feedback records. Need both approved + rejected for weight adaptation.")
     finally:
         store.close()
+
+
+def _display_idea_card(
+    unit: BuildableUnit, ev: UtilityEvaluation | None, *, indent: int = 2
+) -> None:
+    """Display a compact idea card for review."""
+    pad = " " * indent
+    score = ev.overall_score if ev else 0.0
+    rec = ev.recommendation if ev else "-"
+    click.echo(f"{pad}{score:5.1f}  ({rec})  [{unit.domain}] {unit.category}")
+    click.echo(f"{pad}{unit.title}")
+    click.echo(f"{pad}{unit.one_liner}")
+    click.echo()
+    click.echo(f"{pad}Problem:  {unit.problem[:120]}")
+    click.echo(f"{pad}Solution: {unit.solution[:120]}")
+
+    if ev:
+        dims = [
+            ("pain", ev.pain_severity.value),
+            ("scale", ev.addressable_scale.value),
+            ("effort", ev.build_effort.value),
+            ("compose", ev.composability.value),
+            ("compete", ev.competitive_density.value),
+            ("timing", ev.timing_fit.value),
+            ("compound", ev.compounding_value.value),
+        ]
+        dims.sort(key=lambda x: x[1], reverse=True)
+        top3 = "  ".join(f"{name}={val:.0f}" for name, val in dims[:3])
+        bot2 = "  ".join(f"{name}={val:.0f}" for name, val in dims[-2:])
+        click.echo(f"{pad}Strongest: {top3}    Weakest: {bot2}")
+    click.echo()
+
+
+def _single_review_prompt(store, unit: BuildableUnit, ev: UtilityEvaluation | None) -> str:
+    """Run single-idea review prompt. Returns 'approved', 'rejected', 'skipped', or 'quit'."""
+    while True:
+        choice = click.prompt(
+            "  [a]pprove  [r]eject  [s]kip  [d]etail  [q]uit",
+            type=str,
+            default="s",
+        ).strip().lower()
+
+        if choice in ("a", "approve"):
+            reason = click.prompt("  Reason (optional)", default="", show_default=False)
+            store.insert_feedback(unit.id, "approved", reason)
+            store.update_buildable_unit_status(unit.id, "approved")
+            click.echo("  -> approved")
+            return "approved"
+        elif choice in ("r", "reject"):
+            reason = click.prompt("  Reason (optional)", default="", show_default=False)
+            store.insert_feedback(unit.id, "rejected", reason)
+            store.update_buildable_unit_status(unit.id, "rejected")
+            click.echo("  -> rejected")
+            return "rejected"
+        elif choice in ("s", "skip"):
+            return "skipped"
+        elif choice in ("d", "detail"):
+            click.echo()
+            click.echo(f"  Value Prop:  {unit.value_proposition}")
+            click.echo(f"  Tech:        {unit.tech_approach[:150]}")
+            click.echo(f"  Target:      {unit.target_users}")
+            click.echo()
+            if ev and ev.strengths:
+                for s in ev.strengths:
+                    click.echo(f"  + {s}")
+            if ev and ev.weaknesses:
+                for w in ev.weaknesses:
+                    click.echo(f"  - {w}")
+            click.echo()
+            # Loop back to prompt
+        elif choice in ("q", "quit"):
+            return "quit"
+        else:
+            click.echo("  Invalid choice. Use a/r/s/d/q.")
 
 
 @main.command()

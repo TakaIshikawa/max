@@ -12,6 +12,8 @@ from max import config
 from max.server.dependencies import get_store
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
+    DimensionScoreResponse,
+    EvaluationResponse,
     FeedbackCreate,
     HealthResponse,
     IdeaCreate,
@@ -19,6 +21,8 @@ from max.server.schemas import (
     IdeaSummaryResponse,
     InsightCreate,
     InsightResponse,
+    PaginatedResponse,
+    PaginationMeta,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
@@ -31,6 +35,10 @@ from max.server.schemas import (
     StatsResponse,
 )
 from max.store.db import Store
+from max.types.buildable_unit import BuildableUnit
+from max.types.evaluation import UtilityEvaluation
+from max.types.insight import Insight
+from max.types.signal import Signal
 
 router = APIRouter()
 
@@ -39,7 +47,7 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
-def health_check(request: Request, store: Store = Depends(get_store)):
+def health_check(request: Request, store: Store = Depends(get_store)) -> HealthResponse:
     try:
         store.count_signals()
         db_ok = True
@@ -62,7 +70,7 @@ def health_check(request: Request, store: Store = Depends(get_store)):
 
 
 @router.get("/pipeline/runs", response_model=list[PipelineRunHistoryResponse])
-def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)):
+def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> list[PipelineRunHistoryResponse]:
     runs = store.get_pipeline_runs(limit=limit)
     return [
         PipelineRunHistoryResponse(
@@ -83,7 +91,7 @@ def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)):
 # ── Helpers ─────────────────────────────────────────────────────────
 
 
-def _signal_to_response(sig) -> SignalResponse:
+def _signal_to_response(sig: Signal) -> SignalResponse:
     return SignalResponse(
         id=sig.id,
         source_type=sig.source_type.value if hasattr(sig.source_type, "value") else sig.source_type,
@@ -100,7 +108,7 @@ def _signal_to_response(sig) -> SignalResponse:
     )
 
 
-def _insight_to_response(ins) -> InsightResponse:
+def _insight_to_response(ins: Insight) -> InsightResponse:
     return InsightResponse(
         id=ins.id,
         category=ins.category.value if hasattr(ins.category, "value") else ins.category,
@@ -129,10 +137,8 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
     )
 
 
-def _evaluation_to_response(ev):
-    from max.server.schemas import DimensionScoreResponse, EvaluationResponse
-
-    def dim(d):
+def _evaluation_to_response(ev: UtilityEvaluation) -> EvaluationResponse:
+    def dim(d) -> DimensionScoreResponse:
         return DimensionScoreResponse(value=d.value, confidence=d.confidence, reasoning=d.reasoning)
 
     return EvaluationResponse(
@@ -186,9 +192,7 @@ def list_signals(
     limit: int = 20,
     source_type: str | None = None,
     store: Store = Depends(get_store),
-):
-    from max.server.schemas import PaginatedResponse, PaginationMeta
-
+) -> PaginatedResponse[SignalResponse]:
     # Clamp limit to max 100
     limit = min(limit, 100)
 
@@ -212,9 +216,7 @@ def list_signals(
 
 
 @router.post("/signals", response_model=SignalResponse, status_code=201)
-def create_signal(body: SignalCreate, store: Store = Depends(get_store)):
-    from max.types.signal import Signal
-
+def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> SignalResponse:
     signal = Signal(
         source_type=body.source_type,
         source_adapter=body.source_adapter,
@@ -238,9 +240,7 @@ def list_insights(
     cursor: str | None = None,
     limit: int = 20,
     store: Store = Depends(get_store),
-):
-    from max.server.schemas import PaginatedResponse, PaginationMeta
-
+) -> PaginatedResponse[InsightResponse]:
     # Clamp limit to max 100
     limit = min(limit, 100)
 
@@ -262,9 +262,7 @@ def list_insights(
 
 
 @router.post("/insights", response_model=InsightResponse, status_code=201)
-def create_insight(body: InsightCreate, store: Store = Depends(get_store)):
-    from max.types.insight import Insight
-
+def create_insight(body: InsightCreate, store: Store = Depends(get_store)) -> InsightResponse:
     insight = Insight(
         category=body.category,
         title=body.title,
@@ -291,9 +289,7 @@ def list_ideas(
     domain: str | None = None,
     min_score: float | None = None,
     store: Store = Depends(get_store),
-):
-    from max.server.schemas import PaginatedResponse, PaginationMeta
-
+) -> PaginatedResponse[IdeaSummaryResponse]:
     # Clamp limit to max 100
     limit = min(limit, 100)
 
@@ -328,7 +324,7 @@ def list_ideas(
 
 
 @router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)
-def get_idea(idea_id: str, store: Store = Depends(get_store)):
+def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -337,7 +333,7 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)):
 
 
 @router.get("/ideas/{idea_id}/spec")
-def get_idea_spec(idea_id: str, store: Store = Depends(get_store)):
+def get_idea_spec(idea_id: str, store: Store = Depends(get_store)) -> dict:
     spec = store.get_tact_spec(idea_id)
     if not spec:
         raise HTTPException(status_code=404, detail=f"No spec for idea: {idea_id}")
@@ -365,9 +361,7 @@ def create_idea(
     body: IdeaCreate,
     background_tasks: BackgroundTasks,
     store: Store = Depends(get_store),
-):
-    from max.types.buildable_unit import BuildableUnit
-
+) -> IdeaDetailResponse:
     unit = BuildableUnit(
         title=body.title,
         one_liner=body.one_liner,
@@ -395,7 +389,7 @@ def create_feedback(
     idea_id: str,
     body: FeedbackCreate,
     store: Store = Depends(get_store),
-):
+) -> dict:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -413,7 +407,7 @@ def create_feedback(
     response_model=PipelineResultResponse,
     dependencies=[Depends(rate_limit(config.MAX_RATE_LIMIT_EXPENSIVE_RPM))],
 )
-async def run_pipeline_endpoint(body: PipelineRunRequest):
+async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultResponse:
     from max.pipeline.runner import run_pipeline
 
     output_dir = Path(body.output_dir) if body.output_dir else None
@@ -443,7 +437,7 @@ async def run_pipeline_endpoint(body: PipelineRunRequest):
 
 
 @router.get("/stats", response_model=StatsResponse)
-def get_stats(store: Store = Depends(get_store)):
+def get_stats(store: Store = Depends(get_store)) -> StatsResponse:
     signals_count = store.count_signals()
 
     insights = store.get_insights(limit=10000)
@@ -476,7 +470,7 @@ def get_stats(store: Store = Depends(get_store)):
 
 
 @router.post("/similar", response_model=list[SimilarityResult])
-def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)):
+def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)) -> list[SimilarityResult]:
     from max.embeddings.engine import SemanticIndex
 
     index = SemanticIndex(store)
@@ -493,13 +487,13 @@ def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)):
 
 
 @router.get("/schedule", response_model=ScheduleStatusResponse)
-def get_schedule(request: Request):
+def get_schedule(request: Request) -> ScheduleStatusResponse:
     scheduler = request.app.state.scheduler
     return scheduler.status()
 
 
 @router.post("/schedule", response_model=ScheduleStatusResponse)
-async def update_schedule(body: ScheduleUpdateRequest, request: Request):
+async def update_schedule(body: ScheduleUpdateRequest, request: Request) -> ScheduleStatusResponse:
     scheduler = request.app.state.scheduler
     scheduler.update(
         enabled=body.enabled,
