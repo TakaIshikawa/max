@@ -441,7 +441,10 @@ async def check_prior_art_batch(
 
     # Resolve GitHub token once
     gh_token = _resolve_github_token()
-    headers: dict[str, str] = {"Accept": "application/vnd.github+json"}
+    headers: dict[str, str] = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "max-idea-engine/0.1.0",
+    }
     if gh_token:
         headers["Authorization"] = f"Bearer {gh_token}"
 

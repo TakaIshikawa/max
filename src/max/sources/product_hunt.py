@@ -65,6 +65,17 @@ class ProductHuntAdapter(SourceAdapter):
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         token = os.environ.get("PRODUCT_HUNT_TOKEN")
         if not token:
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["vault", "get", "product_hunt/token"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    token = result.stdout.strip()
+            except Exception:
+                pass
+        if not token:
             logger.warning("PRODUCT_HUNT_TOKEN not set — skipping Product Hunt adapter")
             return []
 
