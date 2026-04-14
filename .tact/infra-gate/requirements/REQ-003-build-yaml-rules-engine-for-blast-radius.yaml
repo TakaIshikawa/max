@@ -1,0 +1,21 @@
+title: Build YAML rules engine for blast-radius classification
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement a rules engine that loads classification rules from YAML files
+  and assigns a blast-radius tier (tier-1: read-only, tier-2: config-change, tier-3:
+  destructive) to each tool call based on tool name patterns and parameter conditions.
+  Unmatched calls default to tier-3.'
+acceptanceCriteria:
+- Rules are loaded from a YAML file with a documented schema including version, rules
+  array with tool name glob patterns, optional parameter conditions, and tier assignment
+- A tool call matching a tier-1 rule is classified as read-only; tier-2 as config-change;
+  tier-3 as destructive
+- Tool name matching supports glob patterns (e.g., 'vm_list_*' matches 'vm_list_all')
+- A tool call matching no rule is classified as tier-3 (destructive) by default
+- Malformed YAML or invalid rule schema causes a startup error with a descriptive
+  message
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

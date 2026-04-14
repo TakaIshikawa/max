@@ -1,0 +1,24 @@
+title: Implement JSON file policy store
+approval: draft
+phase: planned
+priority: critical
+description: Build the built-in policy store that loads authorization policies from
+  a JSON file. Policies define which principals can perform which actions at which
+  blast-radius tiers. The store supports async reload from disk to pick up policy
+  changes without restart.
+acceptanceCriteria:
+- 'JsonPolicyStore implements the PolicyStore protocol with methods: evaluate(action_request,
+  tier) → PolicyResult, reload() → None.'
+- 'Policy JSON schema supports rules with: principal (str or glob), action (str or
+  glob), tier (READ | MUTATE | DESTRUCTIVE), effect (PERMIT | DENY), conditions (optional
+  dict).'
+- evaluate() returns PERMIT only if at least one PERMIT rule matches AND no DENY rule
+  matches (deny-overrides combining).
+- evaluate() returns DENY with reason string if no rules match (default-deny).
+- reload() re-reads the JSON file from disk and atomically replaces the in-memory
+  policy set.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+source: discovered

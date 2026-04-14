@@ -1,0 +1,115 @@
+patterns:
+- name: Middleware Chain
+  description: Authorization is implemented as an async middleware that wraps the
+    agent's action dispatch. The middleware receives an ActionRequest, runs it through
+    the authorization pipeline (classify → evaluate → check JIT grant → decide), and
+    either forwards the action to the next handler or raises an AuthorizationDenied
+    error. This pattern allows non-invasive integration with any agent framework that
+    has a callable tool-dispatch layer.
+  scope:
+  - agent_authz/middleware.py
+  - agent_authz/pipeline.py
+- name: Adapter Pattern for Policy Stores
+  description: Policy evaluation is abstracted behind a PolicyStore protocol (Python
+    Protocol class). The built-in JSON policy store and the OPA adapter both implement
+    this protocol. Users can provide custom adapters for Cedar, enterprise IAM, or
+    any other policy backend. The adapter is injected at middleware construction time.
+  scope:
+  - agent_authz/policy/
+  - agent_authz/policy/json_store.py
+  - agent_authz/policy/opa_adapter.py
+- name: Grant Registry (In-Memory State Machine)
+  description: 'JIT privilege grants are managed by an in-memory GrantRegistry that
+    tracks active grants with TTL countdown and operation-count decrement. Each grant
+    has a lifecycle: ACTIVE → EXPIRED | EXHAUSTED | REVOKED. The registry is checked
+    on every action evaluation and runs a background async task to expire TTL-based
+    grants promptly.'
+  scope:
+  - agent_authz/grants/registry.py
+  - agent_authz/grants/models.py
+- name: Action Classifier
+  description: Every action is classified into a blast-radius tier (READ, MUTATE,
+    DESTRUCTIVE) before policy evaluation. Classification uses a configurable mapping
+    (action pattern → tier) with a default-deny fallback (unclassified actions are
+    treated as DESTRUCTIVE). Classification result is attached to the action context
+    and used by the policy evaluator and audit emitter.
+  scope:
+  - agent_authz/classification.py
+- name: Event Emitter for Audit
+  description: 'Every authorization decision (permit or deny) emits a structured AuthzEvent
+    through a pluggable emitter interface. The built-in emitters are: structured JSON
+    logger (stdout/file) and OpenTelemetry span emitter (optional). Emitters are non-blocking
+    and must never cause an authorization decision to fail.'
+  scope:
+  - agent_authz/audit/
+  - agent_authz/audit/emitter.py
+  - agent_authz/audit/otel.py
+invariants:
+- Every agent action MUST pass through the authorization middleware before execution;
+  there is no bypass path.
+- An action with no matching policy rule MUST be denied (default-deny).
+- An unclassified action (no blast-radius tier mapping) MUST be treated as DESTRUCTIVE
+  tier.
+- An expired or exhausted JIT grant MUST NOT authorize any action, even if the policy
+  store would permit it independently.
+- Policy evaluation MUST use the current policy state, never a cached version older
+  than the configured heartbeat interval.
+- Audit events MUST be emitted for every authorization decision (permit and deny)
+  — audit emission failures MUST NOT block or alter the authorization decision.
+- The GrantRegistry MUST be the single source of truth for JIT grant state; no external
+  cache or duplicate state.
+conventions:
+- All public modules use __all__ exports explicitly.
+- All data models are Pydantic BaseModel subclasses with strict mode enabled.
+- Async functions are preferred everywhere; synchronous wrappers (sync_*) are provided
+  only at the top-level public API.
+- 'Module structure: agent_authz/ is the top-level package; sub-packages are policy/,
+  grants/, audit/.'
+- Errors use a custom exception hierarchy rooted at AgentAuthzError; AuthorizationDenied,
+  GrantExpired, PolicyEvaluationError are subclasses.
+- All configuration is via a single AuthzConfig Pydantic model passed at middleware
+  construction; no global state or singletons.
+- Tests use pytest with pytest-asyncio; each module has a corresponding test_<module>.py
+  file.
+- Type annotations are mandatory on all public functions and class attributes.
+- 'Naming: snake_case for functions/variables, PascalCase for classes, UPPER_SNAKE_CASE
+  for constants and enum members.'
+- Docstrings follow Google style on all public classes and functions.
+decisions:
+- id: D-1
+  title: In-process policy evaluation with polling reload instead of external policy
+    engine requirement
+  decision: The MVP evaluates policies in-process using a built-in JSON policy engine.
+    Policy files are reloaded from disk at the configured heartbeat interval via an
+    async polling loop. OPA integration is provided as an optional adapter that makes
+    HTTP calls to a running OPA instance.
+  rationale: Requiring OPA or another external policy engine would dramatically increase
+    setup friction for early adopters. An in-process JSON policy store lets developers
+    start with zero infrastructure. The adapter pattern ensures OPA/Cedar can be swapped
+    in without code changes when deployments mature. Polling is simpler and more reliable
+    than webhooks for MVP; webhook support can be added later.
+- id: D-2
+  title: Default-deny with blast-radius tier escalation rather than role-based access
+    control
+  decision: The authorization model is action-centric, not role-centric. Every action
+    is classified by blast-radius tier, and policies grant permissions to specific
+    actions or action patterns at specific tiers. There is no built-in role concept;
+    role-to-permission mapping is handled by the policy store or an upstream adapter.
+  rationale: AI agent sessions don't map cleanly to traditional RBAC — an agent may
+    need temporary access to a destructive operation for a single task, then lose
+    it. Action-centric authorization with JIT grants is a better primitive. Role mapping
+    can be layered on top via policy store configuration or a future RoleBridge integration,
+    keeping the core library focused on the authorization decision itself.
+- id: D-3
+  title: Generic middleware interface instead of framework-specific adapters in MVP
+  decision: 'The library exposes an AuthzMiddleware class with a single async method:
+    authorize(action_request) → AuthzDecision. Framework-specific adapters (LangChain,
+    CrewAI, MCP client) are NOT included in MVP. Instead, integration examples are
+    provided in documentation showing how to wrap the middleware in each framework''s
+    tool-call hook.'
+  rationale: Agent frameworks are evolving rapidly and their plugin/middleware APIs
+    are unstable. Building adapters now creates maintenance burden and couples the
+    library to specific framework versions. A clean, generic interface is more durable
+    and lets the community contribute adapters. The middleware's async callable signature
+    is simple enough that wrapping it in any framework takes 5-10 lines of code.
+contracts: []

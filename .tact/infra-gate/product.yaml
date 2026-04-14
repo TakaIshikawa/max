@@ -1,0 +1,62 @@
+name: infra-gate
+version: 0.1.0
+vision: A blast-radius-aware policy proxy library that sits between MCP clients and
+  infrastructure MCP servers, enforcing graduated safety policies (read/plan-apply/block)
+  on every tool call — bringing Terraform-style plan/apply safety to AI-driven infrastructure
+  management without requiring changes to existing servers or clients.
+goals:
+- id: G-1
+  description: Transparently proxy MCP traffic between a client and one or more infrastructure
+    MCP servers, intercepting every tool call for policy evaluation without requiring
+    modifications to either side.
+  successCriteria: An unmodified MCP client can connect to infra-gate, which forwards
+    all tool calls to a real MCP server; all responses are returned faithfully; the
+    client cannot distinguish the proxy from the real server for read-only operations.
+- id: G-2
+  description: Classify every intercepted tool call into one of three blast-radius
+    tiers (read-only, configuration-change, destructive) using a configurable YAML
+    rules engine.
+  successCriteria: Given a YAML ruleset, the classifier correctly assigns tier labels
+    to at least 95% of tool calls in a test suite covering VMware-style operations
+    (list VMs, update config, delete VM, remove datastore).
+- id: G-3
+  description: 'Enforce graduated policies per tier: auto-approve reads with logging,
+    require explicit approval for config changes, and mandate human-in-the-loop confirmation
+    for destructive operations.'
+  successCriteria: Tier-1 calls execute immediately with an audit log entry; tier-2
+    calls block until an approval is received via the configured channel; tier-3 calls
+    block and present a blast-radius summary before requiring confirmation; unauthorized
+    calls are rejected with a clear error.
+- id: G-4
+  description: Produce a complete, structured audit log of every proxied operation
+    including classification, policy decision, approval chain, and outcome.
+  successCriteria: Every tool call (approved or denied) produces a JSON audit log
+    entry containing timestamp, tool name, parameters, assigned tier, policy decision,
+    approver identity (if applicable), and execution result or error.
+constraints:
+- MVP targets Python only — TypeScript port is post-MVP
+- MVP supports MCP stdio transport only; SSE/HTTP transport is post-MVP
+- No actual infrastructure MCP servers are required for development — all testing
+  uses mock MCP servers
+- Approval channels in MVP are limited to CLI interactive prompt and a simple webhook
+  callback — ServiceNow/Jira/Slack integrations are post-MVP
+- Dry-run/plan mode in MVP only shows the classified tier and parameter summary —
+  actual state-diff preview requires server-side support and is post-MVP
+- Pre-built rulesets for VMware/Juniper/ZTE are illustrative examples only, not production-validated
+- Rollback/snapshot functionality is out of scope for MVP
+- The proxy handles one upstream MCP server per instance in MVP — multi-server fan-out
+  is post-MVP
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - MCP Python SDK (mcp)
+  - PyYAML
+  - httpx
+  - Pydantic
+  - pytest
+  - click (CLI)
+  infrastructure:
+  - Runs as a local proxy process or sidecar container
+  - SQLite for local audit log persistence
+  - 'Optional: Docker for containerized deployment'

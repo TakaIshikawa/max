@@ -1,0 +1,27 @@
+title: Implement integration test suite with mock MCP server
+approval: draft
+phase: planned
+priority: high
+description: 'Build a mock MCP server that simulates infrastructure operations (list
+  VMs, delete VM, update config) and a comprehensive integration test suite that validates
+  the full proxy pipeline end-to-end: classification, policy enforcement, approval
+  flow, forwarding, and audit logging.'
+acceptanceCriteria:
+- A mock MCP server exposes at least 6 tools spanning all three tiers (2 read-only,
+  2 config-change, 2 destructive)
+- Integration tests verify that tier-1 calls pass through without approval and produce
+  audit logs
+- Integration tests verify that tier-2 calls with require-review policy block until
+  approval and that auto-approve policy lets them through
+- Integration tests verify that tier-3 calls always block until approval and that
+  denial returns a structured error
+- Integration tests verify that unclassified tool calls (no matching rule) are treated
+  as tier-3
+decomposition:
+  assignments: []
+dependencies:
+- Implement tool call forwarding through the proxy
+- Build YAML rules engine for blast-radius classification
+- Implement policy evaluation engine with per-tier enforcement
+- Implement structured audit logging for all proxied operations
+source: discovered

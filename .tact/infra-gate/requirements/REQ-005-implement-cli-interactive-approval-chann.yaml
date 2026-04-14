@@ -1,0 +1,22 @@
+title: Implement CLI interactive approval channel
+approval: draft
+phase: planned
+priority: high
+description: Build an approval strategy that presents pending tool calls to a human
+  operator via CLI prompt. The prompt displays the tool name, parameters, classified
+  tier, and a blast-radius summary, then waits for explicit approve/deny input.
+acceptanceCriteria:
+- 'When a tool call requires approval, the CLI displays: tool name, full parameters,
+  assigned tier, and a human-readable summary'
+- The operator can type 'approve' or 'deny' to resolve the pending call
+- An approved call is forwarded to the upstream server and the response returned to
+  the client
+- A denied call returns a structured error to the client indicating the call was rejected
+  by policy
+- The prompt includes a configurable timeout (default 300 seconds) after which the
+  call is auto-denied
+decomposition:
+  assignments: []
+dependencies:
+- Implement policy evaluation engine with per-tier enforcement
+source: discovered

@@ -1,0 +1,19 @@
+title: Implement MCP proxy server that transparently relays tool listings from upstream
+approval: draft
+phase: planned
+priority: critical
+description: Build the core proxy that connects to an upstream MCP server as a client,
+  fetches its tool listings, and re-exposes them through its own MCP server interface.
+  The client connecting to the proxy should see the exact same tools as if connecting
+  directly to the upstream server.
+acceptanceCriteria:
+- Proxy starts and connects to an upstream MCP server via stdio transport
+- Proxy exposes an MCP server interface that clients can connect to via stdio
+- Client calling list_tools on the proxy receives the same tool names, descriptions,
+  and input schemas as the upstream server
+- If the upstream server is unavailable at startup, the proxy exits with a clear error
+  message
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

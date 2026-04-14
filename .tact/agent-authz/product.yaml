@@ -1,0 +1,55 @@
+name: agent-authz
+version: 0.1.0
+vision: A per-action, real-time authorization library for AI agent sessions that eliminates
+  stale permission caches by evaluating every agent action against a live policy store,
+  enforcing just-in-time privilege grants with automatic revocation and blast-radius
+  classification.
+goals:
+- id: G-1
+  description: Provide a middleware layer that intercepts every agent tool call and
+    evaluates it against a live policy store before allowing execution, ensuring zero
+    stale-permission windows.
+  successCriteria: 100% of tool calls routed through the middleware are evaluated
+    against current policy state; no action executes with permissions older than the
+    configured heartbeat interval.
+- id: G-2
+  description: Implement just-in-time (JIT) scoped privilege grants with automatic
+    expiration based on TTL and operation-count limits.
+  successCriteria: JIT grants can be created with TTL (seconds) and max-operation-count;
+    grants are automatically revoked when either limit is reached; expired grants
+    reject actions within 100ms of expiration.
+- id: G-3
+  description: Classify every agent action into blast-radius tiers (read, mutate,
+    destructive) and enforce tier-appropriate authorization requirements.
+  successCriteria: All registered actions are assigned a blast-radius tier; destructive-tier
+    actions require explicit JIT grants; tier classification is configurable per-deployment.
+- id: G-4
+  description: Emit structured audit events for every authorization decision to enable
+    compliance and forensic analysis.
+  successCriteria: Every permit/deny decision produces a structured log entry containing
+    action, principal, policy result, tier, timestamp, and grant metadata; logs are
+    emittable to stdout, file, or OpenTelemetry collector.
+constraints:
+- MVP is Python-only; TypeScript port is post-MVP.
+- MVP ships with a built-in JSON file policy store; OPA adapter is included but OPA
+  is not a required dependency.
+- No external database or cache dependency — all state is in-process memory with optional
+  file persistence.
+- Must be fully async-native (asyncio) to avoid blocking agent event loops.
+- No framework-specific adapters in MVP (no LangChain/CrewAI); expose a generic middleware
+  interface that any framework can wrap.
+- MVP does not implement webhook-based policy push; uses polling-based policy reload
+  only.
+- Library must have zero required dependencies beyond Python stdlib and Pydantic.
+- All public APIs must be type-annotated and Pydantic-validated.
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - asyncio
+  - Pydantic v2
+  - OpenTelemetry SDK (optional dependency)
+  infrastructure:
+  - PyPI (distribution)
+  - JSON file policy store (built-in)
+  - OPA/Rego (adapter, optional)

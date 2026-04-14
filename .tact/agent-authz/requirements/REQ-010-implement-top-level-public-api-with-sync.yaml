@@ -1,0 +1,23 @@
+title: Implement top-level public API with sync wrappers and convenience constructors
+approval: draft
+phase: planned
+priority: high
+description: Provide the top-level package API that users import and use. Includes
+  a convenience factory function to construct a fully-configured AuthzMiddleware from
+  a config dict or file path, plus synchronous wrappers for the async authorize()
+  method for use in non-async codebases.
+acceptanceCriteria:
+- 'agent_authz.create_middleware(config: dict | str) returns a fully configured AuthzMiddleware;
+  if config is a string, it is treated as a file path to a JSON config file.'
+- agent_authz.authorize_sync(middleware, action_request) is a synchronous wrapper
+  that runs the async authorize() in a new event loop.
+- 'The package __init__.py exports: create_middleware, AuthzMiddleware, ActionRequest,
+  AuthzDecision, BlastRadiusTier, GrantRegistry, AuthorizationDenied.'
+- A minimal working example (create middleware from JSON config, authorize an action)
+  requires no more than 8 lines of user code.
+decomposition:
+  assignments: []
+dependencies:
+- Implement authorization pipeline and middleware entry point
+- Implement custom exception hierarchy and error handling
+source: discovered

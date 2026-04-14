@@ -1,0 +1,24 @@
+title: Implement JIT grant registry with TTL and operation-count limits
+approval: draft
+phase: planned
+priority: critical
+description: Build the in-memory GrantRegistry that manages just-in-time privilege
+  grants. Each grant authorizes a specific principal to perform specific actions for
+  a limited time (TTL) or number of operations. Grants transition through lifecycle
+  states and are automatically invalidated when limits are reached.
+acceptanceCriteria:
+- GrantRegistry supports create_grant(principal, action_pattern, ttl_seconds, max_operations)
+  → Grant with a unique grant_id.
+- check_grant(principal, action_name) returns the matching active Grant or None; a
+  match decrements the grant's remaining operation count.
+- A grant with ttl_seconds transitions to EXPIRED state after the TTL elapses; subsequent
+  check_grant calls do not match it.
+- A grant with max_operations transitions to EXHAUSTED state when remaining_operations
+  reaches 0.
+- revoke_grant(grant_id) immediately transitions a grant to REVOKED state.
+- list_grants(principal) returns all grants (active and inactive) for audit purposes.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+source: discovered

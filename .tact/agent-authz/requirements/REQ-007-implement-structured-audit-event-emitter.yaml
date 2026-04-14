@@ -1,0 +1,22 @@
+title: Implement structured audit event emitter
+approval: draft
+phase: planned
+priority: high
+description: Build the audit subsystem that emits structured events for every authorization
+  decision. Provides a pluggable emitter interface with a built-in JSON logger implementation.
+  Audit emission must never block or fail the authorization path.
+acceptanceCriteria:
+- 'AuditEmitter protocol defines emit(event: AuthzEvent) → None.'
+- 'AuthzEvent model contains: decision (AuthzDecision), timestamp, principal, action_name,
+  tier, matched_policy, matched_grant, session_id.'
+- JsonLogEmitter implements AuditEmitter and writes one JSON line per event to a configurable
+  output (stdout or file path).
+- If the emitter raises an exception, the error is logged but the authorization decision
+  is not affected.
+- The AuthzMiddleware automatically emits an AuthzEvent after every authorize() call.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+- Implement authorization pipeline and middleware entry point
+source: discovered

@@ -1,0 +1,28 @@
+title: Implement authorization pipeline and middleware entry point
+approval: draft
+phase: planned
+priority: critical
+description: 'Build the AuthzMiddleware class that orchestrates the full authorization
+  pipeline: classify action → evaluate policy → check JIT grants → produce decision.
+  This is the primary public API surface that users interact with.'
+acceptanceCriteria:
+- AuthzMiddleware is constructed with AuthzConfig, a PolicyStore instance, an ActionClassifier,
+  and a GrantRegistry.
+- 'authorize(action_request: ActionRequest) → AuthzDecision runs the full pipeline:
+  (1) classify action tier, (2) evaluate policy store, (3) if policy denies, check
+  for active JIT grant that overrides, (4) return final decision.'
+- A DESTRUCTIVE-tier action requires BOTH a matching policy PERMIT AND an active JIT
+  grant to be authorized.
+- A READ-tier action requires only a matching policy PERMIT (no JIT grant needed).
+- A MUTATE-tier action requires a matching policy PERMIT (JIT grant optional but can
+  override a DENY).
+- authorize() completes in under 10ms for in-process policy evaluation (no network
+  calls).
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+- Implement action blast-radius classifier
+- Implement JSON file policy store
+- Implement JIT grant registry with TTL and operation-count limits
+source: discovered

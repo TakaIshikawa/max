@@ -1,0 +1,19 @@
+title: Implement tool call forwarding through the proxy
+approval: draft
+phase: planned
+priority: critical
+description: When a client invokes a tool through the proxy, the proxy forwards the
+  call to the upstream server and returns the response. Without any policy pipeline
+  active, the proxy should be a transparent pass-through for all tool calls.
+acceptanceCriteria:
+- A tool call made through the proxy returns the same result as calling the upstream
+  server directly
+- Tool call arguments are forwarded without modification
+- Tool call responses (including errors from the upstream server) are relayed without
+  modification
+- Multiple sequential tool calls work correctly without state corruption
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP proxy server that transparently relays tool listings from upstream
+source: discovered

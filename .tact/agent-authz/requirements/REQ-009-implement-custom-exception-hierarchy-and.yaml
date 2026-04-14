@@ -1,0 +1,21 @@
+title: Implement custom exception hierarchy and error handling
+approval: draft
+phase: planned
+priority: medium
+description: Define the library's exception hierarchy so that consumers can catch
+  specific authorization errors and handle them appropriately. All exceptions carry
+  structured context for debugging.
+acceptanceCriteria:
+- AgentAuthzError is the base exception class with message and context dict attributes.
+- AuthorizationDenied(AgentAuthzError) includes the AuthzDecision that caused the
+  denial.
+- GrantExpired(AgentAuthzError) includes the grant_id and expiration reason (TTL,
+  exhausted, revoked).
+- PolicyEvaluationError(AgentAuthzError) includes the policy store type and underlying
+  error.
+- All exceptions are importable from agent_authz.exceptions.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+source: discovered

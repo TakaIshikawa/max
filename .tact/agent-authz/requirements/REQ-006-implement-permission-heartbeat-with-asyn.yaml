@@ -1,0 +1,21 @@
+title: Implement permission heartbeat with async policy reload
+approval: draft
+phase: planned
+priority: high
+description: Build the background async task that periodically reloads the policy
+  store and re-evaluates active sessions. This ensures that permission changes propagate
+  within the configured heartbeat interval, eliminating stale-permission windows.
+acceptanceCriteria:
+- PermissionHeartbeat starts an asyncio background task that calls policy_store.reload()
+  at the configured heartbeat_interval_seconds.
+- After each reload, the heartbeat emits a 'policy_reloaded' event with a timestamp
+  and policy version/hash.
+- The heartbeat task can be started and stopped via start() and stop() async methods.
+- If policy_store.reload() raises an exception, the heartbeat logs the error and continues
+  running (does not crash).
+- The heartbeat interval is configurable between 1 second and 3600 seconds.
+decomposition:
+  assignments: []
+dependencies:
+- Implement JSON file policy store
+source: discovered

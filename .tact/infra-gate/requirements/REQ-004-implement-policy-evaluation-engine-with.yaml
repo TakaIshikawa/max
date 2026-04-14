@@ -1,0 +1,19 @@
+title: Implement policy evaluation engine with per-tier enforcement
+approval: draft
+phase: planned
+priority: critical
+description: 'Build the policy engine that takes a classified tool call and enforces
+  the appropriate policy: tier-1 auto-approves, tier-2 requires approval (configurable
+  to auto-approve or require review), tier-3 always requires mandatory approval. The
+  engine produces a policy decision (approve, deny, pending-approval) for each call.'
+acceptanceCriteria:
+- Tier-1 (read-only) calls are auto-approved and forwarded immediately
+- Tier-2 (config-change) calls are held pending approval when policy is set to 'require-review'
+- Tier-2 calls are auto-approved when policy is set to 'auto-approve'
+- Tier-3 (destructive) calls always require approval regardless of policy configuration
+- Denied calls return a structured MCP error to the client with the tier and reason
+decomposition:
+  assignments: []
+dependencies:
+- Build YAML rules engine for blast-radius classification
+source: discovered

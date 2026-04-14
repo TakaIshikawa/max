@@ -1,0 +1,96 @@
+patterns:
+- name: MCP Proxy (Man-in-the-Middle)
+  description: infra-gate presents itself as an MCP server to the client and acts
+    as an MCP client to the upstream infrastructure server. All tool calls pass through
+    the proxy's policy pipeline before being forwarded. The proxy faithfully relays
+    capabilities, tool listings, and responses so it is transparent to both sides.
+  scope:
+  - proxy server
+  - proxy client
+  - transport layer
+- name: Pipeline / Chain of Responsibility
+  description: 'Each intercepted tool call passes through a sequential pipeline: (1)
+    classify → (2) evaluate policy → (3) request approval if needed → (4) execute
+    or reject → (5) audit log. Each stage is a discrete, testable component. Stages
+    can short-circuit the pipeline (e.g., policy rejection skips execution).'
+  scope:
+  - classifier
+  - policy engine
+  - approval gate
+  - executor
+  - audit logger
+- name: Rules Engine with External Configuration
+  description: Blast-radius classification is driven by YAML rule files loaded at
+    startup. Rules map tool name patterns and parameter conditions to tiers. This
+    separates policy from code and allows users to extend or override rules without
+    modifying the library.
+  scope:
+  - classifier
+  - rule loader
+  - YAML config
+- name: Strategy Pattern for Approval Channels
+  description: The approval gate uses a strategy interface so different approval mechanisms
+    (CLI prompt, webhook, future Slack/ServiceNow) can be plugged in without changing
+    the pipeline. MVP ships with CLI and webhook strategies.
+  scope:
+  - approval gate
+  - approval strategies
+invariants:
+- Every tool call that passes through the proxy MUST produce an audit log entry, regardless
+  of whether it was approved, denied, or errored
+- A tool call classified as tier-3 (destructive) MUST NEVER be forwarded to the upstream
+  server without explicit human approval — there is no auto-approve policy for tier-3
+- The proxy MUST NOT modify tool call parameters or response payloads — it is a transparent
+  interceptor, not a transformer
+- If the rules engine cannot classify a tool call (no matching rule), it MUST default
+  to the highest restriction tier (tier-3 / destructive) — fail-closed, not fail-open
+- The proxy MUST faithfully relay the upstream server's tool listing and capabilities
+  — it must not hide, add, or rename tools
+- YAML rule files MUST be validated at load time — malformed rules must cause a startup
+  failure with a clear error, never silent degradation
+conventions:
+- 'Python package uses src layout: src/infra_gate/'
+- All public interfaces use Pydantic models for validation and serialization
+- 'Module naming: snake_case for all modules and packages'
+- 'Class naming: PascalCase; function/method naming: snake_case'
+- Type hints required on all public function signatures
+- 'Tests mirror source structure: tests/test_<module>.py'
+- YAML rule files use a documented schema with version field for forward compatibility
+- Audit log entries are JSON-lines format, one entry per line
+- All async code uses asyncio — no threading for I/O operations
+- Error messages include the tool name and tier classification for debuggability
+- CLI commands use click with --verbose and --config flags as standard options
+decisions:
+- id: D-1
+  title: MCP proxy implemented as paired server+client, not protocol-level middleware
+  decision: infra-gate runs as a full MCP server (facing the client) and a full MCP
+    client (facing the upstream server). Tool listings are fetched from upstream at
+    startup and re-exposed to the client. Tool calls are intercepted at the server
+    handler level, run through the policy pipeline, and then forwarded via the client.
+  rationale: This approach uses the MCP SDK's standard server and client abstractions
+    rather than requiring low-level protocol manipulation. It is more maintainable,
+    testable, and compatible with future MCP protocol versions. The tradeoff is a
+    small latency overhead per call, which is acceptable for infrastructure operations
+    that are inherently slow.
+- id: D-2
+  title: YAML-based rules engine over code-based policy
+  decision: Blast-radius classification rules are defined in YAML files with a strict
+    schema (tool name glob patterns, parameter conditions, tier assignment). No Python
+    code is needed to define rules. A built-in rule validator runs at load time.
+  rationale: Infrastructure teams need to customize policies without writing code.
+    YAML is the lingua franca of infrastructure configuration (Ansible, Kubernetes,
+    CloudFormation). A declarative format also makes rules auditable and version-controllable.
+    The tradeoff is reduced expressiveness vs. a code-based policy engine, but the
+    MVP scope (pattern matching + parameter conditions) covers the vast majority of
+    use cases.
+- id: D-3
+  title: Fail-closed default classification
+  decision: Any tool call that does not match an explicit rule is classified as tier-3
+    (destructive) and requires mandatory human approval. There is no 'unclassified'
+    tier.
+  rationale: For infrastructure safety, false negatives (allowing a destructive operation
+    through) are catastrophically worse than false positives (requiring unnecessary
+    approval). Fail-closed ensures that missing rules cause inconvenience, not outages.
+    Users are incentivized to write complete rulesets to reduce friction, which improves
+    overall safety posture.
+contracts: []

@@ -1,0 +1,23 @@
+title: Implement webhook approval channel
+approval: draft
+phase: planned
+priority: medium
+description: Build an approval strategy that sends pending tool calls to a configured
+  webhook URL and waits for a callback to approve or deny. This enables integration
+  with external approval systems.
+acceptanceCriteria:
+- When a tool call requires approval, an HTTP POST is sent to the configured webhook
+  URL with a JSON payload containing tool name, parameters, tier, and a unique request
+  ID
+- The proxy exposes a callback endpoint that accepts approve/deny responses keyed
+  by request ID
+- An approved callback causes the tool call to be forwarded; a denied callback returns
+  an error to the client
+- If no callback is received within a configurable timeout, the call is auto-denied
+- Webhook delivery failures are logged and the call is auto-denied with an error indicating
+  the approval system was unreachable
+decomposition:
+  assignments: []
+dependencies:
+- Implement policy evaluation engine with per-tier enforcement
+source: discovered

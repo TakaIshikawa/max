@@ -1,0 +1,23 @@
+title: Build CLI entry point for starting and configuring the proxy
+approval: draft
+phase: planned
+priority: high
+description: Implement a CLI interface using click that allows users to start the
+  proxy with configuration for upstream server command, rules file path, approval
+  channel, audit log path, and policy defaults.
+acceptanceCriteria:
+- Running 'infra-gate start --upstream "command args" --rules rules.yaml' starts the
+  proxy and connects to the upstream server
+- The --approval-channel flag accepts 'cli' or 'webhook' with 'cli' as default
+- The --webhook-url flag configures the webhook endpoint when approval channel is
+  'webhook'
+- The --tier2-policy flag accepts 'auto-approve' or 'require-review' with 'require-review'
+  as default
+- Running 'infra-gate validate --rules rules.yaml' validates a rules file and reports
+  errors without starting the proxy
+decomposition:
+  assignments: []
+dependencies:
+- Implement MCP proxy server that transparently relays tool listings from upstream
+- Build YAML rules engine for blast-radius classification
+source: discovered

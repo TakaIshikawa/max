@@ -1,0 +1,20 @@
+title: Ship example YAML rulesets for common infrastructure operations
+approval: draft
+phase: planned
+priority: medium
+description: Provide illustrative YAML rule files covering common infrastructure MCP
+  server operations (VMware-style VM lifecycle, network configuration, storage management).
+  These serve as both documentation and starting points for users to customize.
+acceptanceCriteria:
+- 'An example ruleset for VMware-style operations classifies: list/get operations
+  as tier-1, update/configure operations as tier-2, delete/destroy operations as tier-3'
+- 'An example ruleset for network operations classifies: show/status operations as
+  tier-1, interface configuration as tier-2, firewall rule changes and ACL modifications
+  as tier-3'
+- Each example ruleset includes inline comments explaining the classification rationale
+- All example rulesets pass the rules engine schema validator without errors
+decomposition:
+  assignments: []
+dependencies:
+- Build YAML rules engine for blast-radius classification
+source: discovered

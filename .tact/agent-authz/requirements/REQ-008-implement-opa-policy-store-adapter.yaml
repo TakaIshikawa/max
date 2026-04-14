@@ -1,0 +1,21 @@
+title: Implement OPA policy store adapter
+approval: draft
+phase: planned
+priority: medium
+description: Build an adapter that implements the PolicyStore protocol by making HTTP
+  calls to a running Open Policy Agent instance. This enables enterprises with existing
+  OPA deployments to use their Rego policies for agent authorization without migration.
+acceptanceCriteria:
+- OpaPolicyStore implements the PolicyStore protocol and is constructed with an OPA
+  base URL and policy path.
+- evaluate() sends a POST request to OPA's Data API with the action request as input
+  and interprets the response as PERMIT or DENY.
+- The adapter uses httpx.AsyncClient for non-blocking HTTP calls.
+- If OPA is unreachable, evaluate() returns DENY with reason 'policy_engine_unavailable'
+  (fail-closed).
+- reload() is a no-op for OPA (OPA manages its own policy lifecycle).
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+source: discovered

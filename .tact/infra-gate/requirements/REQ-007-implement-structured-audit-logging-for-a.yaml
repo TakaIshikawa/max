@@ -1,0 +1,23 @@
+title: Implement structured audit logging for all proxied operations
+approval: draft
+phase: planned
+priority: high
+description: 'Every tool call passing through the proxy must produce a structured
+  JSON audit log entry capturing the full lifecycle: classification, policy decision,
+  approval outcome, execution result, and timing. Logs are written to a JSON-lines
+  file and optionally to stdout.'
+acceptanceCriteria:
+- 'Every tool call (approved, denied, or errored) produces a JSON log entry with:
+  timestamp, tool name, parameters, classified tier, policy decision, approver identity
+  (if applicable), execution result or error, and duration in milliseconds'
+- Audit logs are written to a configurable file path in JSON-lines format (one JSON
+  object per line)
+- Audit log entries for denied calls include the denial reason
+- Log file is append-only and entries are flushed immediately (no buffering that could
+  lose entries on crash)
+- A --audit-log CLI flag configures the log file path; default is ./infra-gate-audit.jsonl
+decomposition:
+  assignments: []
+dependencies:
+- Implement tool call forwarding through the proxy
+source: discovered

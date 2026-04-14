@@ -1,0 +1,23 @@
+title: Implement core ActionRequest and AuthzDecision data models
+approval: draft
+phase: planned
+priority: critical
+description: 'Define the foundational Pydantic models that flow through the authorization
+  pipeline: ActionRequest (the incoming action to authorize), AuthzDecision (the permit/deny
+  result with metadata), AuthzConfig (library configuration), and supporting enums
+  (BlastRadiusTier, DecisionResult). These models are used by every other component.'
+acceptanceCriteria:
+- 'ActionRequest model accepts: action_name (str), principal (str), resource (optional
+  str), parameters (optional dict), session_id (str), timestamp (auto-generated datetime).'
+- 'AuthzDecision model contains: result (PERMIT | DENY), action_request (ref), tier
+  (BlastRadiusTier), matched_policy (optional str), matched_grant (optional str),
+  reason (str), evaluation_duration_ms (float).'
+- 'BlastRadiusTier enum has members: READ, MUTATE, DESTRUCTIVE.'
+- 'AuthzConfig model accepts: heartbeat_interval_seconds (int, default 30), default_tier
+  (BlastRadiusTier, default DESTRUCTIVE), policy_store_type (str, default ''json''),
+  policy_store_config (dict).'
+- All models use Pydantic strict mode and are fully type-annotated.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

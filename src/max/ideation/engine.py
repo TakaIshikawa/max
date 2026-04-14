@@ -26,12 +26,12 @@ class BuildableUnitOutput(BaseModel):
     """LLM output schema for a single idea."""
 
     title: str
-    one_liner: str
-    category: str
-    problem: str
-    solution: str
+    one_liner: str = ""
+    category: str = ""
+    problem: str = ""
+    solution: str = ""
     target_users: str = "both"
-    value_proposition: str
+    value_proposition: str = ""
     inspiring_insights: list[str] = Field(default_factory=list)
     tech_approach: str = ""
     suggested_stack: dict = Field(default_factory=dict)
@@ -94,6 +94,9 @@ def _parse_output(
     units: list[BuildableUnit] = []
 
     for out in result.ideas:
+        # Skip ideas missing essential fields
+        if not out.title or not out.problem or not out.solution:
+            continue
         # Accept any category string — profiles define valid categories per domain
         category = out.category or "application"
 

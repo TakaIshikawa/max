@@ -1,0 +1,22 @@
+title: Implement action blast-radius classifier
+approval: draft
+phase: planned
+priority: critical
+description: Build the ActionClassifier that maps action names to blast-radius tiers
+  (READ, MUTATE, DESTRUCTIVE). Uses a configurable mapping of glob patterns to tiers.
+  Unmatched actions default to DESTRUCTIVE tier per the default-deny invariant.
+acceptanceCriteria:
+- 'ActionClassifier accepts a list of ClassificationRule(pattern: str, tier: BlastRadiusTier)
+  at construction.'
+- 'classify(action_name: str) returns the BlastRadiusTier matching the first rule
+  whose glob pattern matches the action name.'
+- If no rule matches, classify() returns the configured default tier (DESTRUCTIVE
+  by default).
+- 'Glob patterns support wildcards: ''vm.*.read'' matches ''vm.snapshot.read''; ''*''
+  matches everything.'
+- Classification rules can be loaded from a JSON/dict configuration.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core ActionRequest and AuthzDecision data models
+source: discovered
