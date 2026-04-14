@@ -44,6 +44,17 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
 
         headers = {"Accept": "application/vnd.github+json"}
         token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["vault", "get", "github/token"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    token = result.stdout.strip()
+            except Exception:
+                pass
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
