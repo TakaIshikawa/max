@@ -1,0 +1,21 @@
+title: Implement core span attribute schema and constants
+approval: draft
+phase: planned
+priority: critical
+description: Define the complete set of agent-specific span attribute names, the error
+  classification taxonomy enum, and the span kind constants used throughout the library.
+  This module is the foundation that all other components reference.
+acceptanceCriteria:
+- An `AgentAttribute` class or module exposes all attribute name constants (agent.reasoning,
+  agent.alternatives, agent.confidence, agent.cost.tokens_input, agent.cost.tokens_output,
+  agent.cost.usd, agent.error.classification, agent.error.source, agent.tool.name,
+  agent.tool.input, agent.tool.output, agent.security.alert, agent.trace.version).
+- 'An `ErrorClassification` enum defines exactly four values: AGENT_LOGIC_ERROR, TOOL_FAILURE,
+  SECURITY_ANOMALY, RESOURCE_EXHAUSTION.'
+- A `SpanKind` enum or constants define DECISION, TOOL_CALL, LLM_CALL, AGENT_RUN span
+  types.
+- All constants are importable from `agenttrace.schema` and re-exported from `agenttrace`.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

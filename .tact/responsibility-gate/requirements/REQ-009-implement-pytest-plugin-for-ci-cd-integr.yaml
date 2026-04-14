@@ -1,0 +1,26 @@
+title: Implement pytest plugin for CI/CD integration
+approval: draft
+phase: planned
+priority: high
+description: Build a pytest plugin that registers a `responsibility_gate` marker and
+  fixture. Tests decorated with @pytest.mark.responsibility_gate automatically run
+  the assessment engine and fail the test if the report's overall_passed is False.
+  The plugin discovers configuration from the standard config file and supports pytest
+  CLI options for environment selection.
+acceptanceCriteria:
+- Plugin registers via the 'pytest11' entry point and is auto-discovered when responsibility-gate
+  is installed
+- A test using the `responsibility_report` fixture receives a ResponsibilityReport
+  object and can assert on individual metrics
+- pytest --responsibility-gate-env=production overrides the environment profile for
+  the test run
+- Failed responsibility checks appear as standard pytest test failures with the metric
+  name and score in the failure message
+- Plugin adds no overhead to test collection when no responsibility_gate markers are
+  present in the test suite
+decomposition:
+  assignments: []
+dependencies:
+- Implement the assessment engine that orchestrates assessors and produces reports
+- Implement configuration loading with environment profiles
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement CLI with check, init, and list commands
+approval: draft
+phase: planned
+priority: high
+description: Build the Click-based CLI that exposes the library's functionality as
+  command-line commands. This is the primary user interface for MVP.
+acceptanceCriteria:
+- '`featureguard check` loads the local config and registry, runs the check engine,
+  renders output, and exits with code 0 (clean), 1 (breaking), or 2 (error)'
+- '`featureguard init` generates a starter featureguard.yaml in the current directory
+  with commented examples of tool/feature declarations'
+- '`featureguard list --tools` prints all tools tracked in the registry; `featureguard
+  list --advisories` prints all advisories with their IDs and titles'
+- The --format flag supports 'rich' (default terminal output with colors), 'json'
+  (machine-readable), and 'plain' (no ANSI codes)
+- The --strict flag causes deprecation warnings to also trigger exit code 1
+decomposition:
+  assignments: []
+dependencies:
+- Build the check engine that matches declarations against advisories
+source: discovered

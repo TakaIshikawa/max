@@ -1,0 +1,23 @@
+title: Implement @trace_tool_call decorator for tool invocation spans
+approval: draft
+phase: planned
+priority: critical
+description: Create a decorator that wraps tool/function calls made by agents, capturing
+  tool name, inputs, outputs, duration, and cost metadata as span attributes. Must
+  support both sync and async functions.
+acceptanceCriteria:
+- '@trace_tool_call(name=...) creates a child span with agent.span_type=TOOL_CALL
+  and the tool name.'
+- Function arguments are captured as agent.tool.input attribute (serialized to JSON
+  string, truncated at 1024 chars by default).
+- Return value is captured as agent.tool.output attribute (serialized, truncated)
+  when content_capture is enabled.
+- Span duration is automatically recorded via OTel span timing.
+- If the function raises, the span records the exception, sets status to ERROR, and
+  re-raises without swallowing the error.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span attribute schema and constants
+- Implement configuration loading with layered defaults
+source: discovered

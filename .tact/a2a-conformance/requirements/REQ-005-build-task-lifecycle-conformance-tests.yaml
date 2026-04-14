@@ -1,0 +1,23 @@
+title: Build task lifecycle conformance tests
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the test_task_lifecycle.py test module covering the complete
+  task lifecycle: creation via tasks/send, status querying via tasks/get, and cancellation
+  via tasks/cancel. This is the core protocol flow.'
+acceptanceCriteria:
+- Test verifies tasks/send with valid params returns a Task object with a valid ID
+  and state in (submitted, working, completed)
+- Test verifies tasks/get with the returned task ID returns the same task with consistent
+  state
+- Test verifies tasks/cancel on a non-terminal task returns the task with state=canceled
+- Test verifies tasks/get with a non-existent task ID returns a JSON-RPC error with
+  the correct error code
+- Test verifies tasks/send with malformed params returns a JSON-RPC invalid params
+  error (-32602)
+decomposition:
+  assignments: []
+dependencies:
+- Implement A2A test client
+- Implement reference A2A server
+source: discovered

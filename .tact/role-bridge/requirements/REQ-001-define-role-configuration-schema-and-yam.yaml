@@ -1,0 +1,21 @@
+title: Define role configuration schema and YAML loader
+approval: draft
+phase: planned
+priority: critical
+description: Define the YAML schema for role-based permission configurations and implement
+  a loader that parses, validates, and compiles role definitions into an in-memory
+  structure. This is the foundation all other components depend on.
+acceptanceCriteria:
+- 'A Zod schema defines the complete role configuration structure: roles (name, description),
+  allowed tools (by name or glob pattern), and parameter constraints (enum values,
+  regex patterns) per tool per role'
+- The loader reads a .roles.yaml file and returns a typed RoleConfig object or throws
+  a RoleBridgeError with all validation failures listed
+- A sample configuration file demonstrates at least 3 roles (e.g., viewer, editor,
+  admin) with different tool access levels
+- Invalid YAML (missing required fields, wrong types, unknown properties) produces
+  specific, actionable error messages referencing the offending path
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

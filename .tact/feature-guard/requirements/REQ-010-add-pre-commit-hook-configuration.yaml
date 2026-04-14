@@ -1,0 +1,20 @@
+title: Add pre-commit hook configuration
+approval: draft
+phase: planned
+priority: medium
+description: Provide a pre-commit hook definition so developers can run featureguard
+  checks automatically before each commit, catching breaking changes early in the
+  development workflow.
+acceptanceCriteria:
+- A .pre-commit-hooks.yaml file exists at the package root defining a 'featureguard-check'
+  hook
+- The hook runs `featureguard check` and blocks the commit if breaking changes are
+  detected (exit code 1)
+- Documentation (README section) explains how to add the hook to a project's .pre-commit-config.yaml
+- The hook works with the pre-commit framework's standard installation and execution
+  flow
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI with check, init, and list commands
+source: discovered

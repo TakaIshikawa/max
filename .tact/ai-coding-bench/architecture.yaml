@@ -1,0 +1,91 @@
+patterns:
+- name: Task-as-Data
+  description: Each benchmark task is defined as a self-contained directory with a
+    YAML manifest (task.yaml) describing metadata, inputs, expected outputs, and evaluation
+    criteria, plus source files for the initial state, reference solution, and test
+    suite. The runner discovers and loads tasks purely from the filesystem with no
+    hard-coded task references.
+  scope:
+  - tasks/
+  - src/ai_coding_bench/task_loader.py
+- name: Pipeline Architecture
+  description: 'Evaluation follows a linear pipeline: Load Task → Execute in Container
+    → Collect Artifacts → Run Evaluators → Aggregate Scores → Emit JSON. Each stage
+    is a distinct module with a typed input/output contract, allowing evaluators to
+    be added or replaced independently.'
+  scope:
+  - src/ai_coding_bench/pipeline/
+  - src/ai_coding_bench/evaluators/
+- name: Evaluator Plugin Pattern
+  description: Each evaluation dimension (test correctness, style/idiom, complexity,
+    security) is implemented as an Evaluator class conforming to a shared interface
+    (evaluate(task, artifacts) -> EvaluationResult). New dimensions are added by implementing
+    the interface and registering in a manifest, with no changes to the pipeline core.
+  scope:
+  - src/ai_coding_bench/evaluators/
+- name: Container-per-Execution Isolation
+  description: Every task execution spins up a fresh Docker container from a per-language
+    base image, copies in the submission files, runs the task's test suite and evaluation
+    scripts, then extracts artifacts. The container runs with network disabled and
+    a read-only filesystem outside the project mount to enforce safety boundaries.
+  scope:
+  - src/ai_coding_bench/sandbox/
+invariants:
+- Task execution MUST always occur inside a Docker container — no code from a submission
+  is ever executed on the host.
+- 'Evaluation results MUST be deterministic: the same submission against the same
+  task version must produce identical JSON scores.'
+- The task.yaml schema is the single source of truth for task metadata; the runner
+  must reject any task directory missing a valid task.yaml.
+- No evaluator may have side effects beyond reading the collected artifacts and returning
+  an EvaluationResult — evaluators are pure functions over artifacts.
+- Container network access MUST be disabled by default; tasks requiring network (e.g.,
+  dependency installation) must explicitly declare it in task.yaml and the runner
+  must log a warning.
+- Score values MUST be normalized to 0.0–1.0 per dimension to ensure cross-task comparability.
+conventions:
+- Python code follows Ruff's default rule set with line length 100; all public functions
+  have type annotations and docstrings.
+- CLI commands use kebab-case (e.g., `ai-coding-bench run-task`, `ai-coding-bench
+  generate-leaderboard`).
+- Task directories are named with the pattern `{language}-{difficulty}-{slug}` (e.g.,
+  `python-easy-fizzbuzz`, `typescript-medium-api-refactor`).
+- All data classes use Python dataclasses with frozen=True for immutability; no mutable
+  global state.
+- YAML files use snake_case keys; JSON output files use snake_case keys.
+- Test files mirror source structure under `tests/` with `test_` prefix (e.g., `tests/test_task_loader.py`).
+- Docker images for task execution are tagged as `ai-coding-bench/{language}:latest`
+  and built from Dockerfiles in `docker/`.
+decisions:
+- id: D-1
+  title: Evaluate submitted outputs rather than orchestrating live AI tool calls
+  decision: The MVP accepts pre-generated code submissions (file diffs or complete
+    files) and evaluates them, rather than calling AI tool APIs directly during benchmark
+    runs.
+  rationale: Orchestrating live API calls introduces flakiness (rate limits, API changes,
+    cost), non-determinism (model temperature), and authentication complexity. Decoupling
+    generation from evaluation makes results reproducible, lets users benchmark any
+    tool including local/offline ones, and dramatically reduces MVP scope. Live tool
+    adapters can be added as a post-MVP layer on top of the same evaluation pipeline.
+- id: D-2
+  title: Use tree-sitter for cross-language AST-based style evaluation
+  decision: Idiomatic style checking uses tree-sitter to parse code into ASTs and
+    applies language-specific rule sets defined as pattern queries, rather than relying
+    solely on existing linters.
+  rationale: Existing linters (ESLint, Ruff) catch formatting and error-prone patterns
+    but don't measure idiomatic quality (e.g., preferring list comprehensions over
+    manual loops in Python, using optional chaining in TypeScript). Tree-sitter provides
+    a uniform AST interface across languages, enabling custom idiom rules that score
+    'how a senior developer would write it' — the key differentiator of this benchmark.
+    Linter results are still captured as a complementary signal.
+- id: D-3
+  title: Flat JSON files for result storage with no database
+  decision: All benchmark results are stored as individual JSON files in a `results/`
+    directory, one file per (tool, task, run) tuple, with the leaderboard generated
+    by aggregating these files.
+  rationale: A database adds deployment complexity and is unnecessary for the expected
+    data volume (hundreds to low thousands of result files). JSON files are human-readable,
+    trivially version-controllable, and can be shared/diffed. The leaderboard generator
+    simply glob-reads the directory. If scale demands it later, a SQLite layer can
+    be added without changing the JSON schema.
+contracts: []

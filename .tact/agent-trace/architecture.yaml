@@ -1,97 +1,103 @@
 patterns:
-- name: Span-per-semantic-unit
-  description: 'Each meaningful agent operation (decision point, tool invocation,
-    context window assembly) is represented as a distinct OpenTelemetry span with
-    a custom span kind and semantic attributes. Spans nest hierarchically: a workflow
-    span contains decision spans, which contain tool invocation spans.'
+- name: Decorator/Context Manager Instrumentation
+  description: Primary user-facing API uses Python decorators (@trace_decision, @trace_tool_call)
+    and context managers (with agent_span(...)) to create OpenTelemetry spans. Decorators
+    extract function metadata automatically; context managers allow manual attribute
+    setting. Both delegate to a shared span factory.
   scope:
-  - core/spans
-  - core/tracer
-- name: Adapter pattern with protocol interface
-  description: Framework integrations implement a FrameworkAdapter protocol that defines
-    hooks for tool_call_start, tool_call_end, decision_start, and decision_end. The
-    core tracer consumes these hooks generically, decoupling trace generation from
-    framework specifics.
+  - agenttrace.decorators
+  - agenttrace.context
+- name: Span Attribute Schema
+  description: All agent-specific data is stored as OpenTelemetry span attributes
+    following a namespaced schema (agent.reasoning, agent.alternatives, agent.confidence,
+    agent.cost.tokens, agent.cost.usd, agent.error.classification). This ensures queryability
+    across any OTel backend without custom storage.
   scope:
-  - adapters/
-  - core/tracer
-- name: Rule-engine error classifier
-  description: Error classification is handled by a pipeline of classification rules.
-    Each rule inspects the exception type, HTTP status code, exit code, or configurable
-    patterns and returns an ErrorClass enum or None (pass-through). Rules are evaluated
-    in priority order; first match wins. Users can register custom rules.
+  - agenttrace.attributes
+  - agenttrace.schema
+- name: Rule Engine for Classification
+  description: Error attribution and security detection use a lightweight rule engine
+    that matches span attributes and exception types against configurable rule sets.
+    Rules are loaded from YAML files and evaluated in priority order. Each rule produces
+    a classification label and optional metadata.
   scope:
-  - core/classifier
-- name: Exporter registry
-  description: Trace exporters are registered by name in a registry. The library ships
-    with OTLP and local-SQLite exporters. Users configure exporters via a declarative
-    config dict or environment variables. Multiple exporters can be active simultaneously
-    (e.g., OTLP to Jaeger + SQLite for local viewer).
+  - agenttrace.rules
+  - agenttrace.rules.error_attribution
+  - agenttrace.rules.security
+- name: Provider/Processor Pipeline
+  description: The library hooks into OpenTelemetry's SpanProcessor interface to inject
+    error classification and security detection as post-processing steps before export.
+    This keeps instrumentation code clean and ensures all spans are classified regardless
+    of how they were created.
   scope:
-  - exporters/
-- name: Context manager instrumentation
-  description: The primary developer-facing API uses Python context managers and decorators
-    (@trace_tool, @trace_decision) so instrumentation reads naturally alongside existing
-    agent code and requires minimal boilerplate.
+  - agenttrace.processors
+- name: Configuration Layering
+  description: 'Configuration follows a layered approach: sensible defaults → YAML
+    config file → environment variables → programmatic overrides. This allows zero-config
+    quick start while supporting production customization.'
   scope:
-  - core/api
+  - agenttrace.config
 invariants:
-- 'Every span MUST have an error_class attribute set to one of: agent_logic_error,
-  tool_failure, security_violation, timeout, or none. There is no unclassified error
-  state.'
-- The core library MUST NOT import any framework-specific module (langchain, crewai,
-  etc.) at the top level. Framework imports happen only inside adapter modules and
-  are guarded by try/except ImportError.
-- All spans MUST propagate the standard OpenTelemetry trace_id and span_id so they
-  are compatible with any OTLP-consuming backend without transformation.
-- Sensitive data (full LLM prompts, tool input values) MUST NOT be stored in span
-  attributes by default. Only hashes and metadata are recorded unless the user explicitly
-  opts in via configuration.
-- The instrumentation MUST NOT alter the return value, exception type, or control
-  flow of the wrapped function. It is purely observational.
-- Token cost attributes MUST be numeric (integer token counts, float USD cost) and
-  MUST default to 0 rather than null when cost data is unavailable.
+- Every span created by the library MUST include the `agent.trace.version` attribute
+  with the library version string.
+- The library MUST NOT raise exceptions that propagate to user code — all internal
+  errors are caught, logged via Python logging, and the original function executes
+  unimpeded.
+- Span attribute names MUST follow the namespaced schema (agent.* prefix) and MUST
+  NOT conflict with OpenTelemetry semantic conventions.
+- Full LLM prompt/response content MUST NOT be captured unless the user explicitly
+  opts in via configuration (`content_capture=True`).
+- Security detection rules MUST be loaded from YAML configuration only — no hardcoded
+  detection patterns in Python source.
+- The library MUST remain functional (no-op mode) when opentelemetry-sdk is not installed
+  — only opentelemetry-api is required at runtime.
+- Error classification MUST always produce exactly one primary classification from
+  the taxonomy enum — never null, never multiple.
 conventions:
-- 'Python package structure: agent_trace/ with subpackages core/, adapters/, exporters/,
-  viewer/.'
-- All public API functions and classes are re-exported from agent_trace/__init__.py.
-- 'Span attribute names use dot-separated namespaces: agent_trace.decision.reasoning,
-  agent_trace.tool.name, agent_trace.error.class, agent_trace.cost.tokens_total.'
-- Configuration uses a single AgentTraceConfig pydantic model; environment variables
-  override config fields with AGENT_TRACE_ prefix (e.g., AGENT_TRACE_EXPORT_ENDPOINT).
-- 'Tests are organized to mirror source: tests/core/, tests/adapters/, tests/exporters/,
-  tests/viewer/.'
-- All public functions have Google-style docstrings with Args, Returns, and Raises
-  sections.
-- Type hints are required on all public function signatures. Use typing.Protocol for
-  adapter interfaces.
-- Error messages include the span trace_id for correlation.
-- Version follows semver; the package version is defined in a single pyproject.toml
-  source of truth.
+- 'Module structure: `agenttrace/` top-level package with submodules for each concern
+  (decorators, context, rules, processors, config, attributes, schema).'
+- All public API functions and classes are exported from `agenttrace.__init__` for
+  convenient imports (`from agenttrace import trace_decision`).
+- Type hints required on all public API functions; use `typing` module for Python
+  3.10 compatibility.
+- Docstrings follow Google style on all public classes, methods, and functions.
+- 'Test files mirror source structure: `tests/test_decorators.py`, `tests/test_rules.py`,
+  etc.'
+- YAML config files use snake_case keys; all config keys are documented in a schema
+  file.
+- Constants and enum values use UPPER_SNAKE_CASE; class names use PascalCase; functions
+  and variables use snake_case.
+- 'Dependencies are managed via pyproject.toml with optional dependency groups: `[dev]`
+  for testing, `[otlp]` for OTLP exporter, `[all]` for everything.'
 decisions:
 - id: D-1
-  title: Explicit wrapping over monkey-patching for framework adapters
-  decision: Framework adapters use explicit wrapper classes and callback hooks rather
-    than monkey-patching internal framework methods.
-  rationale: Monkey-patching is fragile across framework version upgrades and makes
-    debugging difficult. Explicit wrapping is more verbose but predictable, testable,
-    and transparent. The LangChain adapter wraps BaseTool.invoke via a TracedTool
-    subclass or a wrap_tool() utility function. This trades automatic instrumentation
-    for reliability.
+  title: Use OpenTelemetry span attributes (not span events or logs) as primary data
+    carrier
+  decision: Agent-specific data (reasoning, alternatives, confidence, cost, error
+    classification) is stored as span attributes rather than span events or separate
+    log records.
+  rationale: Span attributes are queryable in all major OTel backends (Jaeger, Tempo,
+    Datadog) without additional configuration. Span events are less consistently supported
+    for filtering/aggregation. This maximizes out-of-the-box value across backends
+    and enables users to build alerts and dashboards using standard attribute queries.
 - id: D-2
-  title: Python-only MVP with TypeScript deferred
-  decision: The MVP ships as a Python-only package. TypeScript dual-publish is deferred
-    to a future version.
-  rationale: The dominant AI agent frameworks (LangChain, CrewAI, Hermes) are Python-first.
-    Shipping Python-only reduces scope by ~50%, avoids cross-language build complexity,
-    and lets us validate the trace schema and API design before committing to a second
-    language. TypeScript can reuse the same span schema when added later.
+  title: Implement error attribution as a SpanProcessor rather than inline in decorators
+  decision: Error classification and security detection run as custom OpenTelemetry
+    SpanProcessors that inspect spans on_end, rather than being embedded in the decorator/context
+    manager code.
+  rationale: This separates instrumentation concerns (capturing data) from analysis
+    concerns (classifying errors). It ensures classification runs on ALL spans including
+    those created by future framework integrations. It also allows users to disable
+    classification without changing instrumentation code, and makes the classification
+    pipeline testable in isolation.
 - id: D-3
-  title: SQLite as local trace store for CLI viewer
-  decision: The local CLI viewer persists traces to a SQLite database file (~/.agent-trace/traces.db)
-    rather than in-memory or flat files.
-  rationale: SQLite provides queryable storage with zero infrastructure, supports
-    concurrent reads for the TUI, and handles the trace volume expected in development
-    (hundreds to low thousands of spans). It also enables future features like trace
-    search and filtering without architectural changes.
+  title: Require only opentelemetry-api as a hard dependency; SDK and exporters are
+    optional
+  decision: The library declares opentelemetry-api as its only required dependency.
+    opentelemetry-sdk, exporters, and pyyaml are optional/peer dependencies. When
+    SDK is absent, all instrumentation becomes no-op via OTel's built-in no-op tracer.
+  rationale: This keeps the library extremely lightweight for production deployments
+    where the SDK may be configured separately. It follows the OpenTelemetry instrumentation
+    library best practice and avoids dependency conflicts in complex agent framework
+    environments. Users who want batteries-included can install `agent-trace[all]`.
 contracts: []

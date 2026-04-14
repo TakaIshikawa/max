@@ -1,0 +1,60 @@
+name: ai-coding-bench
+version: 0.1.0
+vision: An open benchmark suite that gives developers objective, reproducible comparisons
+  of AI coding tools across code quality, idiomatic correctness, resource consumption,
+  and safety properties — replacing marketing claims with data-driven evaluation.
+goals:
+- id: G-1
+  description: Establish a curated task suite that covers the most common AI coding
+    tool use cases across multiple languages and difficulty levels.
+  successCriteria: At least 15 benchmark tasks spanning 3 languages (Python, TypeScript,
+    Go), 3 difficulty tiers (simple edit, multi-file refactor, greenfield module),
+    and 2 task types (bug fix, feature implementation) — each with a reference solution
+    and automated test suite that passes.
+- id: G-2
+  description: Build automated evaluation harnesses that measure generated code on
+    quality, style, complexity, and correctness dimensions.
+  successCriteria: 'Evaluation pipeline produces a structured JSON score report for
+    any task submission covering: test pass rate (0-100%), cyclomatic complexity delta
+    vs reference, idiomatic style violation count via AST analysis, and at least one
+    security lint check — all runnable via a single CLI command.'
+- id: G-3
+  description: Enable safe, isolated execution of AI coding tool outputs with resource
+    and safety tracking.
+  successCriteria: Each task execution runs inside a Docker container with network
+    disabled by default; the harness captures wall-clock time, exit codes, and detects
+    file modifications outside the designated project directory with zero false negatives
+    on the included safety test cases.
+- id: G-4
+  description: Produce a transparent, reproducible leaderboard from benchmark runs.
+  successCriteria: CLI generates a static HTML leaderboard from JSON result files
+    that displays per-tool, per-task scores with overall rankings; re-running the
+    same inputs produces byte-identical JSON output.
+constraints:
+- MVP supports only Python and TypeScript tasks; Go and other languages are post-MVP.
+- MVP evaluates tool outputs submitted as file diffs or complete files — it does NOT
+  orchestrate live calls to AI tool APIs (adapter integration is post-MVP).
+- All task execution happens inside Docker containers; bare-metal execution is explicitly
+  unsupported.
+- The benchmark CLI must run on Linux and macOS; Windows support is not guaranteed
+  for MVP.
+- No database — all results are stored as flat JSON files in a results directory.
+- MVP targets 10-15 curated tasks; community contribution workflow is post-MVP.
+- Leaderboard is a static HTML file generated locally; no hosted web service for MVP.
+techStack:
+  languages:
+  - Python 3.11+
+  - TypeScript 5+
+  frameworks:
+  - Click (CLI framework)
+  - tree-sitter (AST analysis)
+  - pytest (test runner for task validation)
+  - radon (Python complexity metrics)
+  - Docker SDK for Python (docker-py)
+  - Jinja2 (leaderboard HTML generation)
+  - ESLint (TypeScript style evaluation)
+  - Ruff (Python style evaluation)
+  infrastructure:
+  - Docker (task isolation and execution sandboxing)
+  - GitHub Actions (CI for task validation and self-benchmarking)
+  - PyPI (CLI distribution as pip-installable package)

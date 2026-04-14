@@ -1,0 +1,23 @@
+title: Implement circuit breaker
+approval: draft
+phase: planned
+priority: high
+description: Create a CircuitBreaker class implementing the closed → open → half-open
+  state machine. It tracks consecutive limit violations and fast-rejects operations
+  when the breaker is open, reducing wasted resources on known-bad input sources.
+acceptanceCriteria:
+- CircuitBreaker starts in CLOSED state and transitions to OPEN after N consecutive
+  failures (configurable, default 3)
+- In OPEN state, all operations are immediately rejected with SafeIngestCircuitOpenError
+  without executing the wrapped function
+- After cooldown_seconds (configurable, default 60), breaker transitions to HALF_OPEN
+  and allows one probe operation
+- Successful probe in HALF_OPEN resets to CLOSED; failed probe returns to OPEN with
+  reset cooldown
+- All state transitions are thread-safe (using threading.Lock) and emit a structured
+  log entry
+decomposition:
+  assignments: []
+dependencies:
+- Implement SafeIngest exception hierarchy
+source: discovered

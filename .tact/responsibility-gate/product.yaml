@@ -1,0 +1,62 @@
+name: responsibility-gate
+version: 0.1.0
+vision: A Python library that turns responsible AI from a policy document into a measurable,
+  automatable deployment gate — providing standardized responsibility scoring (fairness,
+  robustness, safety, provenance, transparency) that integrates directly into CI/CD
+  pipelines as a pytest plugin, CLI tool, or GitHub Action.
+goals:
+- id: G-1
+  description: Provide a pluggable assessor framework with a standardized interface
+    that can evaluate AI models across multiple responsibility dimensions and produce
+    structured, machine-readable reports.
+  successCriteria: At least 3 built-in assessor categories (fairness, robustness,
+    safety) implement the ResponsibilityAssessor interface and produce MetricResult
+    objects that aggregate into a ResponsibilityReport with configurable pass/fail
+    thresholds.
+- id: G-2
+  description: Enable seamless CI/CD integration so responsibility checks run alongside
+    existing test suites and deployment pipelines without requiring new infrastructure.
+  successCriteria: Library can be invoked as a pytest plugin that fails the test suite
+    when thresholds are breached, and as a standalone CLI command that exits with
+    non-zero status on failure — both usable in any CI/CD system.
+- id: G-3
+  description: Support environment-specific threshold configuration so teams can enforce
+    stricter standards for production deployments while allowing relaxed thresholds
+    during development.
+  successCriteria: A YAML/TOML configuration file supports named environment profiles
+    (e.g., dev, staging, production) with per-metric thresholds, and the correct profile
+    is selectable at runtime via CLI flag or environment variable.
+- id: G-4
+  description: Establish an extensible plugin architecture that allows organizations
+    to add domain-specific assessors without modifying the core library.
+  successCriteria: Third-party assessors can be registered via Python entry points
+    or explicit registration API, discovered at runtime, and included in the standard
+    report generation pipeline without any changes to core library code.
+constraints:
+- MVP targets classification models only — text generation, embedding, and other model
+  types are deferred to post-MVP
+- No model training or fine-tuning — all assessments are inference-time statistical
+  tests on provided test datasets
+- No external API calls required at runtime — all built-in assessors operate locally
+  with bundled or user-provided test data
+- OpenTelemetry integration is deferred to post-MVP — focus on report generation and
+  CI/CD gating
+- MLflow and Weights & Biases integrations are deferred to post-MVP
+- Library must have zero required GPU dependencies — all assessments must run on CPU-only
+  CI runners
+- Configuration must be file-based (YAML or TOML) with sensible defaults so zero-config
+  usage is possible
+- Total assessment runtime for built-in assessors on a typical classification model
+  must stay under 60 seconds on a standard CI runner
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - pytest
+  - pydantic v2
+  - numpy
+  - scikit-learn
+  - click
+  infrastructure:
+  - PyPI (package distribution)
+  - GitHub Actions (CI/CD and example workflow)

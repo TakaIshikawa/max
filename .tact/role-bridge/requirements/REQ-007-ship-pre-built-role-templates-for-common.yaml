@@ -1,0 +1,20 @@
+title: Ship pre-built role templates for common workflows
+approval: draft
+phase: planned
+priority: medium
+description: Provide example role definition files for common cross-disciplinary scenarios
+  to accelerate adoption and demonstrate best practices. These serve as both documentation
+  and starting points.
+acceptanceCriteria:
+- 'At least 3 template files are included: github-collaboration.roles.yaml (viewer/designer/developer),
+  project-management.roles.yaml (viewer/manager/admin), and read-only-auditor.roles.yaml'
+- Each template includes inline YAML comments explaining the permission choices
+- All templates pass validation via the role-bridge validate CLI command
+- A README section documents each template's intended use case and how to customize
+  it
+decomposition:
+  assignments: []
+dependencies:
+- Define role configuration schema and YAML loader
+- Build CLI for dry-run permission testing
+source: discovered

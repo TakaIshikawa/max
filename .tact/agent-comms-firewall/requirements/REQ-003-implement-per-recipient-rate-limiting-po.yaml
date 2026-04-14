@@ -1,0 +1,22 @@
+title: Implement per-recipient rate limiting policy
+approval: draft
+phase: planned
+priority: critical
+description: Create a rate limiting policy stage that enforces configurable per-recipient
+  message limits using a sliding window algorithm. This is the primary defense against
+  message flooding.
+acceptanceCriteria:
+- 'RateLimitPolicy denies a message when the recipient has received >= N messages
+  in the configured time window (default: 10 messages per 3600 seconds)'
+- Rate limits are tracked per unique recipient address independently
+- Sliding window counter correctly expires old entries — a recipient at the limit
+  can send again after the oldest message ages out of the window
+- Rate limit configuration is per-policy-instance and overridable per-recipient via
+  PolicyConfig
+- Concurrent calls to evaluate() for the same recipient do not race past the limit
+  (verified by test with asyncio.gather)
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

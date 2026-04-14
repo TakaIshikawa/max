@@ -1,0 +1,23 @@
+title: Build the safety property evaluator
+approval: draft
+phase: planned
+priority: high
+description: 'Implement an evaluator that checks whether the submission''s execution
+  violated safety boundaries: unauthorized file access, unexpected network calls,
+  or modification of files outside the project scope.'
+acceptanceCriteria:
+- The evaluator checks the sandbox artifacts for files modified outside the project
+  directory and scores 0.0 if any are found, 1.0 otherwise.
+- The evaluator checks container logs for evidence of network access attempts when
+  network_required is false.
+- The evaluator produces a structured list of specific violations (file path, violation
+  type) in the result metadata for transparency.
+- The evaluator conforms to the standard Evaluator interface.
+- 'A pytest suite validates detection of: no violations (score 1.0), file written
+  outside project (score 0.0), and network access attempt (score 0.0).'
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+- Implement Docker-based task execution sandbox
+source: discovered

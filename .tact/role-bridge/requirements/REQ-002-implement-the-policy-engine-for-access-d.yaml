@@ -1,0 +1,23 @@
+title: Implement the policy engine for access decisions
+approval: draft
+phase: planned
+priority: critical
+description: Build a stateless policy engine that takes a role identifier, tool name,
+  and tool parameters, and returns an access decision (allow/deny with reason). This
+  is the core authorization logic.
+acceptanceCriteria:
+- 'PolicyEngine.evaluate(role, toolName, params) returns { allowed: boolean, reason?:
+  string } synchronously'
+- Tool access is denied if the tool name does not match any entry in the role's allowed
+  tools list (exact match or glob)
+- 'Parameter constraints are enforced: enum constraints reject values not in the allowed
+  set; regex constraints reject non-matching values'
+- If a role is not found in the configuration, the decision is deny with reason 'unknown
+  role'
+- 'Unit tests cover: allowed call, denied by tool name, denied by parameter constraint,
+  unknown role, glob pattern matching'
+decomposition:
+  assignments: []
+dependencies:
+- Define role configuration schema and YAML loader
+source: discovered

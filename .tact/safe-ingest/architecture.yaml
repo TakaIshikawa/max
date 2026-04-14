@@ -1,0 +1,100 @@
+patterns:
+- name: Wrapper/Decorator Pattern
+  description: Each protected library entry point (e.g., Image.open) is wrapped in
+    a function that measures resource consumption before, during, and after the call,
+    enforcing configured limits. Wrappers delegate to the original function and add
+    governance logic without modifying the underlying library.
+  scope:
+  - safe_ingest/wrappers/
+  - safe_ingest/pillow.py
+- name: Budget Allocator
+  description: A thread-local BudgetContext object tracks cumulative memory and time
+    consumption across multiple operations within a pipeline run. Operations check
+    remaining budget before executing and deduct consumed resources after completion.
+    Supports nested contexts with inherited or independent budgets.
+  scope:
+  - safe_ingest/budget.py
+  - safe_ingest/context.py
+- name: Circuit Breaker
+  description: A state machine (closed → open → half-open) that tracks consecutive
+    limit violations per wrapper type. When the failure threshold is reached, the
+    breaker opens and fast-rejects subsequent operations without executing them, reducing
+    wasted resources. After a cooldown, it transitions to half-open and allows a probe
+    operation.
+  scope:
+  - safe_ingest/circuit_breaker.py
+- name: Strategy/Policy Configuration
+  description: Resource limits and circuit breaker thresholds are defined as Policy
+    dataclasses that can be loaded from YAML files, environment variables, or constructed
+    programmatically. A layered resolution order (code > env vars > YAML > defaults)
+    allows flexible configuration.
+  scope:
+  - safe_ingest/config.py
+  - safe_ingest/policy.py
+- name: Observer/Telemetry Emitter
+  description: A pluggable telemetry interface emits structured events for every governance
+    decision. The default implementation uses OpenTelemetry spans when the SDK is
+    installed, falling back to Python logging. Consumers can register custom emitters.
+  scope:
+  - safe_ingest/telemetry.py
+invariants:
+- No wrapped operation may allocate more memory than its configured max_memory_delta_mb
+  limit — violations must raise SafeIngestMemoryError before the limit is exceeded
+  by more than 10%
+- No decompressed payload may exceed max_decompressed_bytes — the wrapper must check
+  decompressed size before full decompression when possible, or terminate mid-stream
+- Circuit breaker state transitions must be atomic and thread-safe — concurrent operations
+  must never corrupt breaker state
+- 'All governance rejections must produce a structured log entry containing: operation
+  type, configured limit, observed value, and rejection reason'
+- Default policy values must be safe — if no configuration is provided, the library
+  must still prevent the standard decompression bomb test vectors
+- The library must never silently swallow exceptions from the wrapped library — original
+  exceptions propagate unchanged when they are not resource-related
+- Budget context must be cleaned up even if an operation raises — all resource tracking
+  uses try/finally semantics
+conventions:
+- 'Module layout: safe_ingest/ as top-level package, with submodules for each concern
+  (budget.py, circuit_breaker.py, config.py, telemetry.py, policy.py, exceptions.py)
+  and a wrappers/ subpackage for per-library wrappers'
+- 'All public exceptions inherit from SafeIngestError base class; specific subclasses:
+  SafeIngestMemoryError, SafeIngestTimeoutError, SafeIngestCircuitOpenError, SafeIngestDecompressionError'
+- Configuration environment variables use the prefix SAFE_INGEST_ (e.g., SAFE_INGEST_MAX_MEMORY_DELTA_MB=512)
+- All public API functions and classes have Google-style docstrings with Args, Returns,
+  Raises sections
+- Type hints on all public and private function signatures; py.typed marker file included
+- 'Tests mirror source layout: tests/test_budget.py, tests/test_circuit_breaker.py,
+  tests/wrappers/test_pillow.py, etc.'
+- Use dataclasses (not dicts) for all configuration and policy objects
+- Logging uses the standard library logger named 'safe_ingest' — never print()
+- Semantic versioning; public API surface is explicitly defined in __all__ for each
+  module
+decisions:
+- id: D-1
+  title: Explicit import-swap wrappers instead of monkey-patching
+  decision: Users opt in by importing from safe_ingest.pillow instead of PIL. No automatic
+    monkey-patching of Pillow or any other library at import time.
+  rationale: Monkey-patching is fragile across library versions, breaks IDE tooling,
+    and creates invisible behavior changes. Explicit wrappers are predictable, testable,
+    and respect the principle of least surprise. This trades slightly more adoption
+    friction for dramatically better reliability and debuggability — critical for
+    a security library.
+- id: D-2
+  title: Thread-local budget context with context manager API
+  decision: BudgetContext is stored in threading.local and managed via Python context
+    managers (with statements). Each thread gets independent budget tracking. Async
+    support uses contextvars.
+  rationale: Thread-local storage ensures pipeline operations in different threads
+    don't interfere with each other's budgets. Context managers guarantee cleanup
+    via __exit__. Using contextvars for async ensures correct budget tracking in asyncio
+    event loops without requiring users to pass context objects explicitly.
+- id: D-3
+  title: Optional dependencies via extras for telemetry and config
+  decision: opentelemetry-api and pyyaml are declared as optional extras (pip install
+    safe-ingest[telemetry] and safe-ingest[yaml]). The core library depends only on
+    psutil. Feature detection at runtime determines available backends.
+  rationale: Minimizing required dependencies reduces installation friction and supply
+    chain risk — important for a security-focused library. Many users will want the
+    library in environments where OpenTelemetry is not installed. Runtime feature
+    detection (try/except ImportError) is a well-established Python pattern.
+contracts: []

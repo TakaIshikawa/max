@@ -1,0 +1,22 @@
+title: Implement featureguard.yaml configuration parser
+approval: draft
+phase: planned
+priority: critical
+description: Parse and validate the user's featureguard.yaml file which declares their
+  AI tool dependencies and the specific features they rely on. This is the input that
+  makes checks personalized and relevant.
+acceptanceCriteria:
+- 'A UserConfig Pydantic model represents the featureguard.yaml with fields: version
+  (string), dependencies (list of objects with tool_id and features list), and optional
+  settings (strict mode, output format)'
+- A load_config function reads a featureguard.yaml from a given path (defaulting to
+  ./featureguard.yaml) and returns a validated UserConfig
+- Missing featureguard.yaml produces a clear FileNotFoundError message suggesting
+  `featureguard init`
+- A malformed featureguard.yaml produces a validation error listing all invalid fields,
+  not just the first one
+decomposition:
+  assignments: []
+dependencies:
+- Define advisory and tool registry Pydantic models
+source: discovered

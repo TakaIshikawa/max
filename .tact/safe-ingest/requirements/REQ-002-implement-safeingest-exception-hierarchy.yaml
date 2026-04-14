@@ -1,0 +1,20 @@
+title: Implement SafeIngest exception hierarchy
+approval: draft
+phase: planned
+priority: critical
+description: Define the exception class hierarchy rooted at SafeIngestError, with
+  specific subclasses for each rejection reason. Each exception must carry structured
+  context (limit name, configured value, observed value) for diagnostics.
+acceptanceCriteria:
+- SafeIngestError is the base; subclasses are SafeIngestMemoryError, SafeIngestTimeoutError,
+  SafeIngestCircuitOpenError, SafeIngestDecompressionError, SafeIngestConfigError
+- Each exception instance exposes .limit_name, .limit_value, and .observed_value attributes
+  (where applicable)
+- All exceptions have human-readable str() output that includes the limit, observed
+  value, and remediation hint
+- Exceptions are importable from safe_ingest.exceptions and from the top-level safe_ingest
+  package
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

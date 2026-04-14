@@ -1,0 +1,22 @@
+title: Implement remote registry sync command
+approval: draft
+phase: planned
+priority: medium
+description: Add a `featureguard sync` command that fetches the latest advisory registry
+  from a remote GitHub repository, merging new advisories into the local bundled registry.
+  This enables users to get updates between package releases.
+acceptanceCriteria:
+- '`featureguard sync` fetches advisory files from a configurable GitHub repository
+  URL (defaulting to the project''s own repo) via HTTPS using httpx'
+- New advisories are added to a local cache directory (~/.featureguard/registry/);
+  existing advisories are not overwritten
+- The check command automatically includes both bundled and cached advisories when
+  running
+- Network failures during sync produce a clear error message and do not corrupt the
+  local cache
+decomposition:
+  assignments: []
+dependencies:
+- Implement file-based advisory registry loader
+- Implement CLI with check, init, and list commands
+source: discovered

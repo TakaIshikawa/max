@@ -1,0 +1,22 @@
+title: Implement SMTP email transport
+approval: draft
+phase: planned
+priority: high
+description: Create the SMTP transport that actually delivers approved email messages.
+  This is the primary transport for MVP and validates the transport abstraction.
+acceptanceCriteria:
+- 'Transport is a Protocol with an async deliver(envelope: MessageEnvelope) -> DeliveryResult
+  method'
+- SmtpTransport connects to a configurable SMTP server (host, port, TLS, credentials)
+  and sends the message via aiosmtplib
+- SmtpTransport raises TransportError (not raw aiosmtplib exceptions) on delivery
+  failure with the original error as cause
+- InMemoryTransport is provided for testing — stores delivered messages in a list
+  accessible for assertions
+- Transport is only called after pipeline returns 'allow' disposition — verified by
+  test showing denied messages never reach transport
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

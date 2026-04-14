@@ -1,0 +1,23 @@
+title: Implement cost tracking for LLM API calls
+approval: draft
+phase: planned
+priority: medium
+description: Provide utilities to capture token consumption and estimated cost on
+  LLM call spans. Includes a decorator variant for LLM calls and a manual API for
+  recording cost data. Cost is aggregated on parent agent_run spans.
+acceptanceCriteria:
+- '@trace_llm_call(model=''gpt-4o'') creates a span with agent.span_type=LLM_CALL
+  and the model name attribute.'
+- 'The decorated function''s return value is inspected for token usage fields (supports
+  OpenAI response format: response.usage.prompt_tokens, response.usage.completion_tokens).'
+- A `record_cost(tokens_input, tokens_output, model)` function can be called manually
+  within any traced context to record cost.
+- A built-in pricing table (configurable via YAML) maps model names to per-token costs
+  for USD estimation.
+- Cost attributes (agent.cost.tokens_input, agent.cost.tokens_output, agent.cost.usd)
+  are set on the LLM span and propagated/summed on the parent agent_run span.
+decomposition:
+  assignments: []
+dependencies:
+- Implement agent run context manager for root trace spans
+source: discovered

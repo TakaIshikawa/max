@@ -1,0 +1,21 @@
+title: Add configuration hot-reload support
+approval: draft
+phase: planned
+priority: low
+description: Allow the RoleBridge proxy to reload role definitions when the YAML file
+  changes, without restarting the server. Useful for iterating on permissions in development
+  and for GitOps-driven updates in production.
+acceptanceCriteria:
+- RoleBridge watches the configured .roles.yaml file for changes using fs.watch
+- On file change, the new configuration is validated; if valid, the policy engine
+  is atomically swapped to use the new config
+- If the new configuration is invalid, the old configuration remains active and a
+  warning is logged with the validation errors
+- A structured log entry is emitted on successful reload with old and new config hashes
+  for auditability
+decomposition:
+  assignments: []
+dependencies:
+- Define role configuration schema and YAML loader
+- Build MCP proxy server that intercepts tool calls
+source: discovered

@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 GITHUB_API = "https://api.github.com"
 
 _DEFAULT_QUERIES = [
-    '"ai agent" label:enhancement is:open sort:reactions-+1-desc',
-    '"llm" label:bug is:open sort:reactions-+1-desc',
-    '"mcp server" is:issue is:open sort:comments-desc',
-    '"ai agent" is:issue is:open sort:reactions-+1-desc',
+    '"ai agent" label:enhancement is:issue is:open',
+    '"llm" label:bug is:issue is:open',
+    '"mcp server" is:issue is:open',
+    '"ai agent" is:issue is:open',
 ]
 
 
@@ -71,7 +71,12 @@ class GitHubIssuesAdapter(SourceAdapter):
                 try:
                     resp = await client.get(
                         f"{GITHUB_API}/search/issues",
-                        params={"q": query, "per_page": per_query},
+                        params={
+                            "q": query,
+                            "sort": "reactions-+1",
+                            "order": "desc",
+                            "per_page": per_query,
+                        },
                     )
                     resp.raise_for_status()
                     data = resp.json()

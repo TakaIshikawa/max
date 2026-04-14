@@ -1,0 +1,20 @@
+title: Create rich terminal report renderer
+approval: draft
+phase: planned
+priority: high
+description: Build a visually clear terminal output using the Rich library that presents
+  check results with color-coded severity, advisory details, and migration guidance
+  in a scannable format.
+acceptanceCriteria:
+- Breaking changes render in red with a ✗ prefix, deprecations in yellow with a ⚠
+  prefix, and informational in blue with an ℹ prefix
+- 'Each matched advisory displays: ID, title, affected tool/feature, and migration
+  guide (if present)'
+- A summary line at the end shows total counts by severity (e.g., '2 breaking, 1 deprecation,
+  3 informational')
+- Output is readable and correctly formatted in terminals 80 columns wide or wider
+decomposition:
+  assignments: []
+dependencies:
+- Build the check engine that matches declarations against advisories
+source: discovered

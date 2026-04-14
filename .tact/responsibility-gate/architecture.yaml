@@ -1,0 +1,83 @@
+patterns:
+- name: Strategy Pattern for Assessors
+  description: Each responsibility dimension (fairness, robustness, safety) is implemented
+    as a concrete strategy conforming to the ResponsibilityAssessor protocol. The
+    assessment engine iterates over registered assessors and collects MetricResult
+    objects, decoupling metric computation from report aggregation and threshold evaluation.
+  scope:
+  - responsibility_gate/assessors/
+  - responsibility_gate/engine.py
+- name: Plugin Architecture via Entry Points
+  description: 'Third-party assessors are discovered at runtime using Python packaging
+    entry points (group: responsibility_gate.assessors). The registry also supports
+    explicit programmatic registration for testing and ad-hoc usage. This allows domain-specific
+    extensions without forking.'
+  scope:
+  - responsibility_gate/registry.py
+  - pyproject.toml
+- name: Immutable Value Objects for Results
+  description: MetricResult, CategoryResult, and ResponsibilityReport are frozen Pydantic
+    models. Once computed, results are never mutated — they are composed upward into
+    aggregate structures. This ensures report integrity and simplifies serialization.
+  scope:
+  - responsibility_gate/models.py
+- name: Configuration Layering
+  description: 'Configuration is resolved in layers: built-in defaults → project config
+    file → environment-specific profile → CLI overrides. Each layer can partially
+    override the previous one. Pydantic models validate the merged configuration.'
+  scope:
+  - responsibility_gate/config.py
+invariants:
+- Every assessor must return a valid MetricResult with a numeric score between 0.0
+  and 1.0 inclusive, a metric name, and a boolean passed field — no exceptions or
+  None values are acceptable as results
+- A ResponsibilityReport's overall pass/fail status must be the logical AND of all
+  individual metric pass/fail statuses — a single failing metric fails the entire
+  report
+- Threshold configuration must never silently ignore unknown metric names — unknown
+  metrics in config must raise a validation error at load time
+- Built-in assessors must never make network calls — all data required for assessment
+  must be provided locally by the user or bundled with the library
+- The pytest plugin must never swallow exceptions from assessors — failures in assessment
+  execution must surface as test errors, not silent passes
+- Serialized reports (JSON) must be fully round-trippable — deserializing a serialized
+  report must produce an identical ResponsibilityReport object
+conventions:
+- All public API types are Pydantic v2 models defined in responsibility_gate/models.py
+- Assessor classes are named {Category}Assessor (e.g., FairnessAssessor, RobustnessAssessor)
+  and live in responsibility_gate/assessors/{category}.py
+- All module-level docstrings follow Google-style Python docstring format
+- Configuration keys use snake_case; CLI flags use kebab-case (e.g., --environment-profile)
+- 'Test files mirror source structure: tests/test_assessors/test_fairness.py for responsibility_gate/assessors/fairness.py'
+- Type hints are required on all public function signatures — no bare def f(x) without
+  annotations
+- Exceptions inherit from a base ResponsibilityGateError defined in responsibility_gate/exceptions.py
+- Entry point group name is 'responsibility_gate.assessors' for plugin discovery
+decisions:
+- id: D-1
+  title: Pydantic v2 for all data models and configuration
+  decision: Use Pydantic v2 BaseModel for MetricResult, ResponsibilityReport, and
+    all configuration schemas. Models are frozen (immutable) for result types and
+    mutable for configuration building.
+  rationale: Pydantic provides runtime validation, JSON serialization, and schema
+    generation out of the box. Using it for both config and results ensures a single
+    validation approach across the library. v2's performance improvements make it
+    suitable for potentially high-volume metric results.
+- id: D-2
+  title: Click for CLI instead of argparse
+  decision: Use Click as the CLI framework for the standalone command-line interface.
+  rationale: Click provides composable command groups, automatic help generation,
+    and parameter type validation. This supports future subcommands (e.g., `responsibility-gate
+    assess`, `responsibility-gate report`, `responsibility-gate init`) without refactoring.
+    It is already widely used in the Python ML ecosystem.
+- id: D-3
+  title: Model-agnostic callable interface instead of framework-specific adapters
+  decision: Assessors accept a predict callable (Callable[[np.ndarray], np.ndarray])
+    rather than framework-specific model objects (e.g., sklearn estimator, PyTorch
+    module). Users wrap their models in a simple predict function.
+  rationale: This keeps the core library framework-agnostic and avoids heavy dependencies
+    on PyTorch, TensorFlow, or other ML frameworks. It also means the library works
+    with remote model APIs (wrapped in a callable) without special adapter code. The
+    tradeoff is slightly more setup for users, but it dramatically reduces dependency
+    surface and maintenance burden.
+contracts: []

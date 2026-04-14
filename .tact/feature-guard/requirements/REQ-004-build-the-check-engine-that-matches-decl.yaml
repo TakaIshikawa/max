@@ -1,0 +1,22 @@
+title: Build the check engine that matches declarations against advisories
+approval: draft
+phase: planned
+priority: critical
+description: The core matching logic that compares a user's declared tool+feature
+  dependencies against the advisory registry and produces a structured report of relevant
+  changes. This is the heart of the library.
+acceptanceCriteria:
+- A check() function accepts a UserConfig and a Registry and returns a CheckResult
+  model containing lists of matched advisories grouped by severity (breaking, deprecation,
+  informational)
+- Only advisories matching the user's declared tool_id AND feature_id are included
+  — advisories for tools or features not in the user's config are excluded
+- A tool-level advisory (feature='*') matches all features declared for that tool
+- CheckResult includes a summary with counts by severity and an overall status (clean,
+  warnings, breaking)
+decomposition:
+  assignments: []
+dependencies:
+- Implement file-based advisory registry loader
+- Implement featureguard.yaml configuration parser
+source: discovered

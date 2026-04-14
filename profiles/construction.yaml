@@ -69,10 +69,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"construction" OR "contractor" is:issue is:open sort:reactions-+1-desc'
-        - '"scheduling" "project" label:enhancement is:open sort:reactions-+1-desc'
-        - '"field service" OR "jobsite" is:issue is:open sort:comments-desc'
-        - '"bim" OR "building information" is:issue is:open sort:reactions-+1-desc'
+        - '"construction" OR "contractor" is:issue is:open'
+        - '"scheduling" "project" is:issue label:enhancement is:open'
+        - '"field service" OR "jobsite" is:issue is:open'
+        - '"bim" OR "building information" is:issue is:open'
 
   - adapter: pypi_registry
     params:

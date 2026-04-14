@@ -1,0 +1,20 @@
+title: Define advisory and tool registry Pydantic models
+approval: draft
+phase: planned
+priority: critical
+description: Create the core data models that represent AI tool advisories, tool definitions,
+  and feature surface declarations. These models are the foundation for the entire
+  system — the registry, config parsing, and report generation all depend on them.
+acceptanceCriteria:
+- 'An Advisory model exists with fields: id (FG-YYYY-NNNN format), tool (namespaced
+  kebab-case), feature (dot-notation), severity (breaking|deprecation|informational),
+  title, description, migration_guide (optional), published_date, and source_url (optional)'
+- 'A ToolDefinition model exists with fields: id (namespaced kebab-case), name (display
+  name), and features (list of feature identifiers)'
+- All models validate their fields on construction — invalid advisory IDs, empty tool
+  names, and unknown severity levels raise ValidationError with descriptive messages
+- Models serialize to dict and JSON via Pydantic's standard methods
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

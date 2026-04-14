@@ -45,10 +45,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"ai agent" label:enhancement is:open sort:reactions-+1-desc'
-        - '"llm" label:bug is:open sort:reactions-+1-desc'
-        - '"mcp server" is:issue is:open sort:comments-desc'
-        - '"ai agent" is:issue is:open sort:reactions-+1-desc'
+        - '"ai agent" label:enhancement is:issue is:open'
+        - '"llm" label:bug is:issue is:open'
+        - '"mcp server" is:issue is:open'
+        - '"ai agent" is:issue is:open'
 
   - adapter: npm_registry
     params:

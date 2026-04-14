@@ -1,0 +1,25 @@
+title: Implement CLI entry point with argument parsing and configuration
+approval: draft
+phase: planned
+priority: critical
+description: Create the main CLI entry point using commander.js that wires together
+  the analysis pipeline, handles all flags and options, validates configuration with
+  zod, and manages the overall execution flow including error handling and exit codes.
+acceptanceCriteria:
+- CLI is invocable as 'patch-verify' after npm install; supports --help with usage
+  documentation for all flags
+- 'Supports flags: --diff-file <path>, --git-range <range>, --cve <id>, --threshold
+  <number>, --format <sarif|json|text>, --output <path>, --patterns <dir>, --verbose,
+  --quiet'
+- Validates all flag values using zod schemas; exits with code 2 and actionable error
+  message for invalid arguments
+- 'Orchestrates the full pipeline: input parsing → AST building → pattern matching
+  → validation regression detection → CVE cross-reference (if CVE provided) → scoring
+  → report generation'
+- Handles SIGINT/SIGTERM gracefully; never leaves orphan processes or temp files
+decomposition:
+  assignments: []
+dependencies:
+- Parse unified diff input into structured change representations
+- Generate reports in SARIF, JSON, and human-readable text formats
+source: discovered

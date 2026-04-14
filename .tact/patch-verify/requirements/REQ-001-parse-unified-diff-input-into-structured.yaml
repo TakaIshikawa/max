@@ -1,0 +1,22 @@
+title: Parse unified diff input into structured change representations
+approval: draft
+phase: planned
+priority: critical
+description: The CLI must accept unified diff input (from stdin pipe, file path argument,
+  or git diff execution) and parse it into a structured representation of changed
+  files, hunks, and individual line additions/removals with accurate line number mapping.
+  This is the entry point for the entire analysis pipeline.
+acceptanceCriteria:
+- Accepts diff input via stdin pipe (e.g., git diff | patch-verify), --diff-file flag
+  pointing to a .patch/.diff file, or --git-range flag that executes git diff internally
+- 'Parses unified diff format into an array of FileChange objects, each containing:
+  file path, list of Hunk objects with old/new line ranges, and individual added/removed/context
+  lines'
+- Correctly handles renamed files, binary file markers (skip with warning), and diffs
+  with multiple files
+- Exits with code 2 and a descriptive error if input is empty, not valid unified diff
+  format, or unreadable
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

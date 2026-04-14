@@ -1,0 +1,22 @@
+title: Implement the policy pipeline engine
+approval: draft
+phase: planned
+priority: critical
+description: Build the core pipeline that accepts a MessageEnvelope, runs it through
+  an ordered sequence of policy stages, collects results, and returns an aggregate
+  decision. This is the orchestration backbone of the library.
+acceptanceCriteria:
+- 'PolicyStage is an abstract base class / Protocol with an async evaluate(envelope:
+  MessageEnvelope) -> PolicyResult method'
+- Pipeline accepts an ordered list of PolicyStage instances and executes them sequentially
+  on a given MessageEnvelope
+- Pipeline short-circuits on the first 'deny' result — subsequent stages are not called
+- 'Pipeline returns a PipelineResult containing: all PolicyResult objects evaluated,
+  final disposition (allow/deny), and total evaluation duration_ms'
+- Pipeline with zero stages configured returns 'allow' disposition (permissive when
+  empty)
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

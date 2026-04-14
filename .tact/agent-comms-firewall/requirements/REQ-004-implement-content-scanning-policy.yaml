@@ -1,0 +1,24 @@
+title: Implement content scanning policy
+approval: draft
+phase: planned
+priority: critical
+description: Create a content scanning policy stage that inspects message subject
+  and body for sensitive patterns (API keys, credentials, PII) and common prompt injection
+  markers, denying messages that match.
+acceptanceCriteria:
+- ContentScanPolicy scans both subject and body fields of the MessageEnvelope
+- 'Default pattern set detects: AWS access keys (AKIA...), generic API key patterns
+  (api_key=, bearer tokens), email-formatted passwords, SSN patterns (XXX-XX-XXXX),
+  and at least 3 prompt injection markers (''ignore previous instructions'', ''system
+  prompt'', ''you are now'')'
+- 'Denial reason includes the pattern name that triggered the block (e.g., ''Blocked:
+  aws_access_key detected in body'')'
+- Custom patterns can be added via PolicyConfig content_rules without modifying library
+  code
+- Scanning completes in under 10ms for a 10KB message body (verified by benchmark
+  test)
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

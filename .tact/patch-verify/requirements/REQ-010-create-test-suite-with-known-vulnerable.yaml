@@ -1,0 +1,23 @@
+title: Create test suite with known-vulnerable patch fixtures
+approval: draft
+phase: planned
+priority: high
+description: Build a comprehensive test suite using real-world examples of patches
+  that introduced vulnerabilities (e.g., simple-git CVE-2022-25860 fix) and patches
+  that were clean. This validates the accuracy of the pattern matching and scoring
+  pipeline end-to-end.
+acceptanceCriteria:
+- Includes at least 5 fixture diffs of real-world patches that introduced vulnerabilities,
+  with expected findings documented
+- Includes at least 5 fixture diffs of clean security patches that should produce
+  low/zero risk scores
+- 'End-to-end tests run the full CLI pipeline on each fixture and assert: correct
+  exit code, risk score within expected range, and expected pattern IDs present/absent
+  in findings'
+- 'Unit tests cover each pipeline stage independently: diff parser, AST builder, pattern
+  matcher, validation detector, scorer, and each report formatter'
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI entry point with argument parsing and configuration
+source: discovered

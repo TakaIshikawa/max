@@ -1,0 +1,20 @@
+title: Implement JWT-based identity resolver
+approval: draft
+phase: planned
+priority: critical
+description: Extract user identity and role from JWT tokens provided in the MCP request
+  context. MVP assumes tokens are pre-issued and validates signature, expiry, and
+  role claim extraction.
+acceptanceCriteria:
+- JwtResolver accepts a JWKS URI or a static public key for token verification at
+  initialization
+- 'Given a valid JWT with a configurable role claim (default: ''role''), it returns
+  { userId: string, role: string }'
+- Expired tokens, invalid signatures, and missing role claims each produce a distinct
+  IdentityResolutionError
+- The resolver interface (IdentityResolver) is defined as an abstract contract so
+  alternative implementations can be swapped in
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

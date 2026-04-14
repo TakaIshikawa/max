@@ -1,0 +1,23 @@
+title: Create decompression bomb test fixtures and integration tests
+approval: draft
+phase: planned
+priority: high
+description: Build a comprehensive test suite with synthetic decompression bomb images
+  and memory-profiled tests that verify the library correctly detects and rejects
+  malicious inputs while allowing legitimate ones.
+acceptanceCriteria:
+- 'Test fixtures include: a 1x1 pixel PNG that decompresses to >200MB (pixel bomb),
+  a valid 1920x1080 JPEG (should pass), and a TIFF with extreme dimensions in headers'
+- Tests verify that decompression bombs are rejected with SafeIngestDecompressionError
+  before RSS increases by more than max_memory_delta_mb + 10%
+- Tests verify that legitimate images pass through the wrapper and return identical
+  PIL.Image objects as raw Pillow
+- Tests verify circuit breaker trips after N consecutive bomb attempts and rejects
+  subsequent operations without executing them
+- All tests run in under 30 seconds and do not require more than 1GB RSS
+decomposition:
+  assignments: []
+dependencies:
+- Implement Pillow Image.open wrapper
+- Implement circuit breaker
+source: discovered

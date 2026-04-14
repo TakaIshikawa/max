@@ -71,10 +71,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"open banking" OR "plaid" label:enhancement is:open sort:reactions-+1-desc'
-        - '"compliance" OR "regulatory" is:issue is:open sort:comments-desc'
-        - '"trading" OR "portfolio" label:feature-request is:open sort:reactions-+1-desc'
-        - '"fraud" OR "risk" is:issue is:open sort:reactions-+1-desc'
+        - '"open banking" OR "plaid" is:issue label:enhancement is:open'
+        - '"compliance" OR "regulatory" is:issue is:open'
+        - '"trading" OR "portfolio" is:issue label:feature-request is:open'
+        - '"fraud" OR "risk" is:issue is:open'
 
   - adapter: pypi_registry
     params:

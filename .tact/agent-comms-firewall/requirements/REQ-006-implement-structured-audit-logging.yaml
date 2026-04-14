@@ -1,0 +1,25 @@
+title: Implement structured audit logging
+approval: draft
+phase: planned
+priority: high
+description: Create the audit subsystem that records every send attempt with full
+  pipeline evaluation context. This is essential for compliance, incident response,
+  and debugging.
+acceptanceCriteria:
+- 'AuditEvent model includes: event_id (UUID), timestamp, sender, recipients, channel,
+  pipeline_result (full PipelineResult), disposition, and message_hash (SHA-256 of
+  body, not the body itself for privacy)'
+- 'AuditSink is a Protocol with an async emit(event: AuditEvent) method; library ships
+  with JsonFileAuditSink (appends JSON lines to a file) and ConsoleAuditSink (prints
+  to stderr)'
+- Every call to the firewall's send() method emits exactly one AuditEvent regardless
+  of allow/deny outcome
+- AuditEvent JSON output is parseable and contains all fields needed to reconstruct
+  the policy decision
+- Optional OpenTelemetry AuditSink emits a span per send attempt with policy results
+  as span attributes (only active when opentelemetry-sdk is installed)
+decomposition:
+  assignments: []
+dependencies:
+- Implement the policy pipeline engine
+source: discovered

@@ -1,0 +1,60 @@
+name: agent-comms-firewall
+version: 0.1.0
+vision: A drop-in Python library that intercepts all agent-initiated communications
+  (email, messaging, webhooks) and enforces configurable rate-limiting, content scanning,
+  and policy checks before delivery — preventing compromised or misconfigured AI agents
+  from exfiltrating data, sending unauthorized messages, or overwhelming human recipients.
+goals:
+- id: G-1
+  description: Provide a communication proxy that agents call instead of raw transport
+    APIs, enforcing a configurable policy pipeline before any message leaves the system.
+  successCriteria: All messages routed through agentcomms.send() pass through rate-limiter,
+    content scanner, and audit logger stages before reaching the transport layer;
+    no message bypasses the pipeline.
+- id: G-2
+  description: Ship sensible security defaults that provide immediate value without
+    configuration, blocking the most common agent communication abuse patterns.
+  successCriteria: Out-of-the-box defaults enforce per-recipient rate limits (max
+    10 messages/hour), block messages containing API keys, passwords, and common PII
+    patterns, and log all send attempts to structured audit logs.
+- id: G-3
+  description: Enable custom policy authoring via a declarative policy DSL so security
+    teams can define organization-specific rules without modifying library code.
+  successCriteria: Users can define at least 5 distinct policy rule types (rate limit,
+    content block, recipient allowlist, sender scope, custom predicate) via YAML or
+    Python dict configuration, and the engine evaluates them in declared order.
+- id: G-4
+  description: Produce a complete, structured audit trail of all communication attempts
+    for compliance and incident response.
+  successCriteria: Every send attempt (allowed or denied) emits a structured JSON
+    audit log entry containing timestamp, sender identity, recipient, policy evaluation
+    results, and disposition (allowed/denied/reason); logs are compatible with OpenTelemetry
+    span format.
+constraints:
+- MVP scope is Python-only; TypeScript port is out of scope
+- MVP supports SMTP email transport only; webhook and voice transports are extension
+  points but not implemented
+- No external service dependencies for core functionality — library must work fully
+  offline with in-memory rate limiting and local policy evaluation
+- RFC 8693 token exchange integration is stubbed as an interface only in MVP; full
+  agentsts-core integration is post-MVP
+- LLM-based content classification is out of scope for MVP; content scanning uses
+  regex/pattern matching only
+- Library is advisory/cooperative — it does not provide OS-level or network-level
+  enforcement; agents must opt in by calling the library API
+- Policy DSL in MVP is YAML/dict-based configuration; a full custom language parser
+  is out of scope
+- Must have zero required runtime dependencies beyond pydantic and the Python standard
+  library; opentelemetry and aiosmtplib are optional extras
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - pydantic v2 (data validation and policy config models)
+  - opentelemetry-sdk (audit trail and observability)
+  - aiosmtplib (async SMTP transport)
+  - pytest + pytest-asyncio (testing)
+  infrastructure:
+  - No external infrastructure required for core library
+  - 'Optional: OpenTelemetry collector for audit log export'
+  - 'Optional: Redis for distributed rate limiting (future)'

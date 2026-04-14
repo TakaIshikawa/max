@@ -1,0 +1,23 @@
+title: Implement the ResponsibilityAssessor protocol and assessor registry
+approval: draft
+phase: planned
+priority: critical
+description: Define the ResponsibilityAssessor Protocol class that all assessors must
+  conform to, and build the registry that discovers and manages assessors. The protocol
+  requires an assess(predict_fn, dataset, config) → list[MetricResult] method. The
+  registry supports both explicit registration and entry-point-based plugin discovery.
+acceptanceCriteria:
+- 'ResponsibilityAssessor is a typing.Protocol with assess(predict_fn: Callable, dataset:
+  AssessmentDataset, config: AssessorConfig) -> list[MetricResult] signature'
+- AssessorRegistry.register(name, assessor_class) adds an assessor; AssessorRegistry.discover()
+  loads entry-point plugins from the 'responsibility_gate.assessors' group
+- AssessorRegistry.get_assessors(config) returns only assessors enabled in the current
+  configuration
+- Duplicate registration of the same assessor name raises ResponsibilityGateError
+- A minimal no-op assessor can be registered and invoked through the registry to validate
+  the full protocol
+decomposition:
+  assignments: []
+dependencies:
+- Define core data models for metrics, results, and reports
+source: discovered

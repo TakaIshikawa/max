@@ -1,0 +1,24 @@
+title: Implement convenience API and package entry points
+approval: draft
+phase: planned
+priority: medium
+description: Create the top-level safe_ingest package API with convenient imports,
+  a safe_ingest.configure() function for one-line setup, and proper package metadata
+  for PyPI distribution.
+acceptanceCriteria:
+- safe_ingest.configure(policy=None, yaml_path=None) initializes the global default
+  policy from the given source or auto-discovers safe_ingest.yaml in the working directory
+- 'Key symbols are importable from the top-level package: from safe_ingest import
+  configure, BudgetContext, Policy, SafeIngestError'
+- from safe_ingest.pillow import open works as documented drop-in replacement
+- 'pyproject.toml defines extras: safe-ingest[telemetry] installs opentelemetry-api;
+  safe-ingest[yaml] installs pyyaml; safe-ingest[all] installs both'
+- Package includes py.typed marker and passes mypy --strict on all public API modules
+decomposition:
+  assignments: []
+dependencies:
+- Implement core policy and configuration system
+- Implement budget context manager
+- Implement Pillow Image.open wrapper
+- Implement telemetry emitter with OpenTelemetry support
+source: discovered

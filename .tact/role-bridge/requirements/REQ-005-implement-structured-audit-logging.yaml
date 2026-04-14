@@ -1,0 +1,20 @@
+title: Implement structured audit logging
+approval: draft
+phase: planned
+priority: high
+description: Emit a structured JSON audit event for every tool call processed by RoleBridge,
+  capturing the access decision and context for compliance and debugging.
+acceptanceCriteria:
+- 'Each audit event contains: timestamp (ISO 8601), requestId (UUID), userId, role,
+  toolName, parameters (redactable), decision (allow/deny), and denialReason if applicable'
+- Audit events are emitted to a configurable sink; MVP ships with stdout and JSON-lines
+  file sinks
+- Audit logging never throws or blocks the request path — sink errors are logged separately
+  and do not affect the tool call response
+- An AuditSink interface is defined to allow custom sink implementations (e.g., for
+  SIEM integration post-MVP)
+decomposition:
+  assignments: []
+dependencies:
+- Build MCP proxy server that intercepts tool calls
+source: discovered

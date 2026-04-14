@@ -1,0 +1,23 @@
+title: Implement RobustnessAssessor with input perturbation stability metric
+approval: draft
+phase: planned
+priority: high
+description: Build an assessor that evaluates classification model robustness by applying
+  small perturbations to numeric input features and measuring prediction stability.
+  For each test sample, apply Gaussian noise at a configurable magnitude and measure
+  the fraction of samples whose predictions remain unchanged. This is a lightweight
+  proxy for adversarial robustness.
+acceptanceCriteria:
+- RobustnessAssessor.assess() returns a MetricResult for 'perturbation_stability'
+  metric
+- Perturbation stability score is the fraction of test samples whose predicted class
+  is unchanged after adding Gaussian noise (default sigma=0.05, configurable)
+- Noise magnitude (sigma) is configurable via assessor config
+- Assessor uses a fixed random seed (configurable) for reproducible perturbation results
+- Scores are validated against a known test case with pre-computed expected stability
+  value (tolerance ±0.02)
+decomposition:
+  assignments: []
+dependencies:
+- Implement the ResponsibilityAssessor protocol and assessor registry
+source: discovered

@@ -1,0 +1,24 @@
+title: Implement Docker-based task execution sandbox
+approval: draft
+phase: planned
+priority: critical
+description: Build the sandbox module that executes a code submission inside an isolated
+  Docker container, enforcing security boundaries and collecting execution artifacts
+  (stdout, stderr, exit code, file system diff, timing).
+acceptanceCriteria:
+- The sandbox creates a fresh container per execution using a language-specific base
+  image, copies submission files into a project directory, and runs the task's test_command.
+- 'Containers run with network disabled by default; if task.yaml sets network_required:
+  true, network is enabled and a warning is logged.'
+- The sandbox enforces a configurable timeout (default 60s) and kills the container
+  if exceeded, recording a timeout status in the result.
+- 'After execution, the sandbox extracts artifacts: stdout, stderr, exit code, wall-clock
+  duration, and a list of all files modified/created outside the project directory
+  (safety violation detection).'
+- A pytest suite tests execution of a known-passing submission, a known-failing submission,
+  a timeout scenario, and a safety-violation scenario (writing outside project dir).
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+source: discovered

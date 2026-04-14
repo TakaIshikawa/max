@@ -1,0 +1,26 @@
+title: Implement Pillow Image.open wrapper
+approval: draft
+phase: planned
+priority: critical
+description: Create safe_ingest.pillow module that provides a governed replacement
+  for PIL.Image.open(). The wrapper enforces decompressed size limits, memory delta
+  limits, and wall-time limits, integrating with the budget context and circuit breaker.
+acceptanceCriteria:
+- safe_ingest.pillow.open(fp) is a drop-in replacement for PIL.Image.open(fp) — accepts
+  the same arguments and returns a PIL.Image.Image object
+- Before full decompression, the wrapper estimates decompressed size from image headers
+  and rejects images exceeding max_decompressed_bytes with SafeIngestDecompressionError
+- During decompression, memory delta is monitored; if max_memory_delta_mb is exceeded,
+  the operation is terminated and SafeIngestMemoryError is raised
+- Wall-clock time is enforced; operations exceeding max_wall_time_seconds raise SafeIngestTimeoutError
+- The wrapper registers consumption with the active BudgetContext (if any) and records
+  failures with the circuit breaker
+decomposition:
+  assignments: []
+dependencies:
+- Implement core policy and configuration system
+- Implement SafeIngest exception hierarchy
+- Implement resource measurement utilities
+- Implement budget context manager
+- Implement circuit breaker
+source: discovered

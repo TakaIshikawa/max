@@ -1,0 +1,23 @@
+title: Implement @trace_decision decorator for decision chain spans
+approval: draft
+phase: planned
+priority: critical
+description: Create a decorator that wraps agent decision/planning functions, creating
+  an OpenTelemetry span with decision-specific attributes (reasoning, alternatives
+  considered, confidence score). The decorator must handle both sync and async functions.
+acceptanceCriteria:
+- '@trace_decision(name=...) creates a span with agent.span_type=DECISION and the
+  provided name.'
+- The decorated function can return a dict with keys 'reasoning', 'alternatives',
+  'confidence' which are automatically set as span attributes.
+- Alternatively, attributes can be set manually within the function via `agenttrace.set_decision_attributes(reasoning=...,
+  alternatives=..., confidence=...)`.
+- Both synchronous and async functions are supported without separate decorators.
+- If the decorated function raises an exception, the span records the exception and
+  sets status to ERROR before re-raising.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span attribute schema and constants
+- Implement configuration loading with layered defaults
+source: discovered

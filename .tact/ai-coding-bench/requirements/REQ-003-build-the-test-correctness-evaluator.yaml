@@ -1,0 +1,23 @@
+title: Build the test correctness evaluator
+approval: draft
+phase: planned
+priority: critical
+description: Implement the first evaluator that scores a submission based on how many
+  of the task's test cases pass, producing a normalized 0.0-1.0 score.
+acceptanceCriteria:
+- The evaluator parses test runner output (pytest for Python, jest/vitest for TypeScript)
+  to extract pass/fail/error counts.
+- The correctness score is calculated as passed_tests / total_tests, normalized to
+  0.0-1.0.
+- If the test runner itself fails to execute (e.g., import error), the score is 0.0
+  and the error is captured in the result metadata.
+- 'The evaluator conforms to the Evaluator interface: evaluate(task: Task, artifacts:
+  ExecutionArtifacts) -> EvaluationResult.'
+- A pytest suite validates scoring against known test outputs with 100% pass, partial
+  pass, zero pass, and runner-failure scenarios.
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+- Implement Docker-based task execution sandbox
+source: discovered

@@ -1,0 +1,23 @@
+title: Build message format and error handling conformance tests
+approval: draft
+phase: planned
+priority: high
+description: Implement test_messaging.py for message format validation and test_errors.py
+  for error handling. These tests verify that implementations correctly handle edge
+  cases, malformed inputs, and protocol-level error conditions.
+acceptanceCriteria:
+- Test verifies that task messages contain properly structured Part objects (TextPart
+  with text field, DataPart with data field)
+- Test verifies that sending a request with an invalid JSON-RPC method returns method-not-found
+  error (-32601)
+- Test verifies that sending malformed JSON returns a parse error (-32700)
+- Test verifies that sending a request with missing required fields returns invalid
+  request error (-32600)
+- Tests are tagged with category='messaging' or category='errors' metadata for report
+  grouping
+decomposition:
+  assignments: []
+dependencies:
+- Implement A2A test client
+- Implement reference A2A server
+source: discovered

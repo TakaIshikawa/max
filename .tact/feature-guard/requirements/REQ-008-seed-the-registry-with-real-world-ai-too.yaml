@@ -1,0 +1,19 @@
+title: Seed the registry with real-world AI tool advisories
+approval: draft
+phase: planned
+priority: high
+description: Populate the bundled registry with at least 5 real advisory entries based
+  on documented AI tool changes to demonstrate the system's value and serve as templates
+  for community contributions.
+acceptanceCriteria:
+- At least 5 advisory YAML files exist in the bundled registry covering at least 3
+  different AI tools
+- At least one advisory has severity 'breaking' with a migration_guide field populated
+- At least one advisory has severity 'deprecation' and at least one has severity 'informational'
+- All seed advisories reference real, verifiable AI tool changes (e.g., Claude Code
+  /buddy removal, vastai-sdk deprecation)
+decomposition:
+  assignments: []
+dependencies:
+- Implement file-based advisory registry loader
+source: discovered

@@ -65,10 +65,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"fhir" label:enhancement is:open sort:reactions-+1-desc'
-        - '"ehr" OR "electronic health" is:issue is:open sort:comments-desc'
-        - '"clinical" "workflow" is:issue is:open sort:reactions-+1-desc'
-        - '"patient" "portal" is:issue is:open sort:reactions-+1-desc'
+        - '"fhir" is:issue label:enhancement is:open'
+        - '"ehr" OR "electronic health" is:issue is:open'
+        - '"clinical" "workflow" is:issue is:open'
+        - '"patient" "portal" is:issue is:open'
 
   - adapter: pypi_registry
     params:

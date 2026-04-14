@@ -1,0 +1,21 @@
+title: Implement resource measurement utilities
+approval: draft
+phase: planned
+priority: critical
+description: Create utility functions that measure memory consumption (via psutil
+  and resource module) and wall-clock time for a given operation. These are the low-level
+  primitives used by all wrappers to enforce limits.
+acceptanceCriteria:
+- measure_memory_delta() returns the peak RSS delta in bytes during execution of a
+  callable, using psutil.Process().memory_info()
+- measure_wall_time() returns elapsed wall-clock seconds for a callable with sub-millisecond
+  precision
+- estimate_decompressed_size(file_path_or_buffer) returns estimated decompressed size
+  for supported formats (JPEG, PNG, GIF, TIFF, BMP) by reading headers without full
+  decompression
+- All measurement functions work on Linux and macOS; Windows falls back to psutil-only
+  measurement with a logged warning
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

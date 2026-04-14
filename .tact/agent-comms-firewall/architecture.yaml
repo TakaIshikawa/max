@@ -1,0 +1,96 @@
+patterns:
+- name: Communication Proxy
+  description: All agent-initiated messages flow through a central proxy (AgentCommsFirewall)
+    that mediates between the agent's send intent and the actual transport. The proxy
+    owns the policy pipeline and is the single point of enforcement.
+  scope:
+  - agentcomms/firewall.py
+  - agentcomms/proxy.py
+- name: Pipeline / Chain of Responsibility
+  description: Policy enforcement is implemented as an ordered pipeline of independent
+    policy stages (rate limiter → content scanner → identity verifier → consent checker
+    → audit logger). Each stage receives the message context, can approve, deny, or
+    annotate it, and passes it to the next stage. Stages are independently testable
+    and configurable.
+  scope:
+  - agentcomms/pipeline.py
+  - agentcomms/policies/
+- name: Strategy Pattern for Transports
+  description: The actual message delivery is abstracted behind a Transport interface.
+    SMTP, webhook, and mock transports implement this interface. The proxy delegates
+    delivery to the configured transport only after the pipeline approves the message.
+  scope:
+  - agentcomms/transports/
+- name: Immutable Message Envelope
+  description: Messages flowing through the pipeline are represented as immutable
+    Pydantic models (MessageEnvelope). Policy stages cannot mutate the original message;
+    they produce PolicyResult objects that are collected alongside the envelope.
+  scope:
+  - agentcomms/models.py
+- name: Structured Audit Events
+  description: Every pipeline execution emits a structured AuditEvent containing the
+    full policy evaluation trace. Events are emitted via a pluggable AuditSink interface
+    (console JSON, OpenTelemetry span, file, custom).
+  scope:
+  - agentcomms/audit.py
+invariants:
+- No message may reach a transport without passing through the complete policy pipeline
+  — there is no bypass path
+- A message denied by any policy stage must never be delivered; denial is terminal
+  and immediate
+- Every send attempt (successful or denied) must produce exactly one audit event with
+  full context before the send() call returns
+- The MessageEnvelope is immutable after creation — policy stages must not modify
+  message content, recipients, or sender fields
+- Rate limit counters must be updated atomically — concurrent send() calls for the
+  same recipient must not race past the limit
+- Default policies must be active when no explicit configuration is provided — the
+  library must be secure by default
+- Policy evaluation order must match the declared pipeline order — stages must not
+  execute out of sequence
+conventions:
+- All public API types use Pydantic v2 models with strict validation and explicit
+  field descriptions
+- 'Module structure: agentcomms/ as top-level package, with sub-packages policies/,
+  transports/, and top-level modules for models, pipeline, audit, firewall'
+- 'Async-first API: all public methods are async; synchronous wrappers provided via
+  agentcomms.sync module for convenience'
+- 'Naming: classes are PascalCase, functions/methods are snake_case, constants are
+  UPPER_SNAKE_CASE, policy stage classes end in ''Policy'' (e.g., RateLimitPolicy)'
+- 'Errors: custom exception hierarchy rooted in AgentCommsError; policy denials raise
+  PolicyDeniedError with structured denial reason'
+- 'Configuration: all config is via PolicyConfig Pydantic model, loadable from Python
+  dict or YAML file; no environment variable magic'
+- 'Testing: every module has a corresponding test_<module>.py; policy stages tested
+  in isolation with mock message envelopes'
+- Type hints required on all public functions and methods; mypy strict mode compatibility
+  targeted
+- 'Docstrings: Google-style docstrings on all public classes and functions'
+decisions:
+- id: D-1
+  title: In-memory rate limiting with pluggable backend interface
+  decision: MVP uses an in-memory sliding window rate limiter (per-recipient, per-sender).
+    A RateLimitBackend abstract class allows future Redis/distributed backends without
+    changing the policy stage.
+  rationale: Keeps MVP dependency-free and simple while acknowledging that production
+    deployments with multiple agent instances will need distributed state. The interface
+    boundary is cheap to add now and expensive to retrofit later.
+- id: D-2
+  title: Regex-based content scanning with pluggable classifier interface
+  decision: Content scanning in MVP uses a curated set of regex patterns for API keys,
+    passwords, SSNs, credit cards, and common prompt injection markers. A ContentClassifier
+    protocol allows plugging in LLM-based or ML-based classifiers post-MVP.
+  rationale: Regex patterns catch the most common and dangerous patterns (AWS keys,
+    Bearer tokens, etc.) with zero latency and no external dependencies. LLM-based
+    classification adds latency, cost, and complexity that is inappropriate for an
+    MVP but valuable as an upgrade path.
+- id: D-3
+  title: Policy pipeline is synchronous-in-order, fail-fast
+  decision: Policy stages execute sequentially in declared order. The first denial
+    terminates the pipeline immediately — remaining stages are not evaluated. Audit
+    logging always runs (even after denial) as a post-pipeline hook, not a pipeline
+    stage.
+  rationale: Sequential fail-fast is simplest to reason about, debug, and audit. Parallel
+    policy evaluation would complicate denial attribution and ordering guarantees.
+    Audit logging as a post-hook ensures it cannot be skipped by early termination.
+contracts: []

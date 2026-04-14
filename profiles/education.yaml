@@ -70,10 +70,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"lti" OR "learning tools" label:enhancement is:open sort:reactions-+1-desc'
-        - '"assessment" OR "grading" is:issue is:open sort:comments-desc'
-        - '"course" OR "curriculum" label:feature-request is:open sort:reactions-+1-desc'
-        - '"credential" OR "badge" is:issue is:open sort:reactions-+1-desc'
+        - '"lti" OR "learning tools" is:issue label:enhancement is:open'
+        - '"assessment" OR "grading" is:issue is:open'
+        - '"course" OR "curriculum" is:issue label:feature-request is:open'
+        - '"credential" OR "badge" is:issue is:open'
 
   - adapter: pypi_registry
     params:

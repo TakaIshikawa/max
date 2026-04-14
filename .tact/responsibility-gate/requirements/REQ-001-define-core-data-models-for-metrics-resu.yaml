@@ -1,0 +1,22 @@
+title: Define core data models for metrics, results, and reports
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the foundational Pydantic v2 models that all assessors produce
+  and the report aggregator consumes: MetricResult (single metric score with pass/fail),
+  CategoryResult (aggregation of metrics within one responsibility dimension), and
+  ResponsibilityReport (top-level aggregate with overall pass/fail, timestamp, environment
+  metadata). These models are the contract between all components.'
+acceptanceCriteria:
+- 'MetricResult has fields: name (str), score (float, 0.0-1.0), threshold (float),
+  passed (bool), details (optional dict) — and is frozen after creation'
+- 'CategoryResult has fields: category (str), metrics (list[MetricResult]), passed
+  (bool computed as all metrics passed)'
+- 'ResponsibilityReport has fields: categories (list[CategoryResult]), overall_passed
+  (bool), created_at (datetime), environment (str), metadata (dict) — and serializes
+  to/from JSON with full round-trip fidelity'
+- Pydantic validation rejects scores outside 0.0-1.0 range with a clear error message
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

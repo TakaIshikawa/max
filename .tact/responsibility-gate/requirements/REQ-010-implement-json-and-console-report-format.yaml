@@ -1,0 +1,21 @@
+title: Implement JSON and console report formatters
+approval: draft
+phase: planned
+priority: medium
+description: Build report formatters that render a ResponsibilityReport into human-readable
+  console output (colored table with pass/fail indicators) and machine-readable JSON.
+  The console formatter is used by the CLI; the JSON formatter is used for file output
+  and programmatic consumption.
+acceptanceCriteria:
+- ConsoleFormatter.format(report) returns a string with a table showing each metric
+  name, score, threshold, and pass/fail status
+- JSONFormatter.format(report) returns a JSON string that is identical to report.model_dump_json()
+  — ensuring single serialization path
+- Console output uses green/red ANSI colors for pass/fail when stdout is a TTY, and
+  plain text otherwise
+- Both formatters are selectable via a format parameter in the CLI (--format console|json)
+decomposition:
+  assignments: []
+dependencies:
+- Define core data models for metrics, results, and reports
+source: discovered

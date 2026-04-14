@@ -1,0 +1,21 @@
+title: Write documentation and usage examples
+approval: draft
+phase: planned
+priority: medium
+description: Create a README with quickstart guide, configuration reference, and example
+  integrations showing SafeIngest protecting a PyTorch DataLoader and a simple image
+  processing script.
+acceptanceCriteria:
+- 'README includes: installation instructions (with extras), 5-line quickstart showing
+  import swap for Pillow, configuration reference table for all Policy fields and
+  environment variables'
+- README includes a PyTorch DataLoader example showing BudgetContext wrapping a dataset
+  __getitem__ method
+- README includes a configuration example showing YAML file and equivalent environment
+  variables
+- All code examples in README are tested via pytest-doctest or a dedicated test_examples.py
+decomposition:
+  assignments: []
+dependencies:
+- Implement convenience API and package entry points
+source: discovered

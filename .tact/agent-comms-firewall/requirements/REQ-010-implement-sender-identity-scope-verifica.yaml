@@ -1,0 +1,23 @@
+title: Implement sender identity scope verification stub
+approval: draft
+phase: planned
+priority: medium
+description: Create the identity verification policy stage interface and a basic implementation
+  that checks sender identity against a configured list of authorized senders. This
+  establishes the extension point for future RFC 8693 integration.
+acceptanceCriteria:
+- IdentityPolicy is a policy stage that checks the sender field against a configured
+  list of authorized_senders in PolicyConfig
+- 'Messages from senders not in the authorized_senders list are denied with reason
+  ''Sender not authorized: {sender}'''
+- When authorized_senders is empty or not configured, the policy stage allows all
+  messages (opt-in enforcement)
+- 'IdentityVerifier Protocol is defined with an async verify(sender: str, scopes:
+  list[str]) -> VerificationResult method for future RFC 8693 integration'
+- A TODO comment and docstring on IdentityVerifier clearly documents the planned agentsts-core
+  integration path
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

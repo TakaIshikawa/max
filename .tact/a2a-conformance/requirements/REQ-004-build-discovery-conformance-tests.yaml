@@ -1,0 +1,21 @@
+title: Build discovery conformance tests
+approval: draft
+phase: planned
+priority: critical
+description: Implement the test_discovery.py test module covering agent card discovery
+  and capability negotiation. This is the foundational test category — if discovery
+  fails, no other tests can meaningfully run.
+acceptanceCriteria:
+- Test verifies GET /.well-known/agent.json returns 200 with Content-Type application/json
+- Test validates the response body against the AgentCard Pydantic model (all required
+  fields present and correctly typed)
+- Test verifies the AgentCard contains at least one skill with a non-empty name and
+  description
+- Test verifies the AgentCard declares supported input/output content types
+- Tests are tagged with category='discovery' metadata for report grouping
+decomposition:
+  assignments: []
+dependencies:
+- Implement A2A test client
+- Implement reference A2A server
+source: discovered

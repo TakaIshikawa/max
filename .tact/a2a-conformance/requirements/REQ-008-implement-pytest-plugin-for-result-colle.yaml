@@ -1,0 +1,24 @@
+title: Implement pytest plugin for result collection and reporting
+approval: draft
+phase: planned
+priority: high
+description: Build a pytest plugin that hooks into test execution to collect per-test
+  metadata (category, spec reference, pass/fail, duration) and generates structured
+  reports after a test run. This is the bridge between raw pytest output and the compliance
+  reporting system.
+acceptanceCriteria:
+- Plugin collects test results with category tags, test descriptions, pass/fail/skip/error
+  status, and execution duration
+- 'Plugin generates a JSON report file containing: target URL, timestamp, tool version,
+  total/passed/failed/skipped counts, and per-category breakdowns'
+- Plugin generates JUnit XML output compatible with common CI systems (GitHub Actions,
+  Jenkins, GitLab CI)
+- Plugin is registered as a pytest plugin via entry points so it activates automatically
+  when the package is installed
+- Report generation does not interfere with normal pytest output or other plugins
+decomposition:
+  assignments: []
+dependencies:
+- Build discovery conformance tests
+- Build task lifecycle conformance tests
+source: discovered

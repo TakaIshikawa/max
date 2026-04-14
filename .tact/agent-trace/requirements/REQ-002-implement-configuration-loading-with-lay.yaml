@@ -1,0 +1,22 @@
+title: Implement configuration loading with layered defaults
+approval: draft
+phase: planned
+priority: critical
+description: Build the configuration system that loads settings from defaults, optional
+  YAML file, environment variables, and programmatic overrides. Configuration controls
+  content capture, security rule paths, cost tracking enablement, and exporter settings.
+acceptanceCriteria:
+- A `configure()` function accepts keyword arguments and an optional path to a YAML
+  config file.
+- Environment variables prefixed with AGENT_TRACE_ override YAML and default values
+  (e.g., AGENT_TRACE_CONTENT_CAPTURE=true).
+- Default configuration enables error attribution, disables content capture, and includes
+  the built-in security rules path.
+- Configuration is accessible via a `get_config()` function that returns an immutable
+  config object.
+- Calling `configure()` multiple times merges settings; later calls override earlier
+  values.
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

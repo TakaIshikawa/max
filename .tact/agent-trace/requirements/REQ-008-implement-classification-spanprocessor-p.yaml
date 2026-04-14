@@ -1,0 +1,23 @@
+title: Implement classification SpanProcessor pipeline
+approval: draft
+phase: planned
+priority: high
+description: Build a custom OpenTelemetry SpanProcessor that runs error attribution
+  and security detection on completed spans before they are exported. This processor
+  integrates the rule engine into the OTel pipeline.
+acceptanceCriteria:
+- A `ClassificationSpanProcessor` class implements the OTel SpanProcessor interface
+  (on_start, on_end, shutdown, force_flush).
+- On span end, if the span has an error status or recorded exception, the error attribution
+  rule engine is invoked and the classification attribute is set.
+- On span end, if the span has tool input/output attributes, security detection rules
+  are evaluated against those values.
+- The processor is automatically registered when `agenttrace.configure()` is called
+  with an SDK TracerProvider.
+- The processor adds <2ms of latency per span in benchmarks with default rule sets.
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based rule engine for error attribution
+- Implement security detection rules and alerting
+source: discovered

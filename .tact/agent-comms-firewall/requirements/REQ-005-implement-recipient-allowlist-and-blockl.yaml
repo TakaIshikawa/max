@@ -1,0 +1,21 @@
+title: Implement recipient allowlist and blocklist policy
+approval: draft
+phase: planned
+priority: high
+description: Create a policy stage that checks recipients against configurable allowlists
+  and blocklists, enabling organizations to restrict which humans an agent can contact.
+acceptanceCriteria:
+- RecipientPolicy denies messages to recipients on the blocklist
+- When an allowlist is configured (non-empty), RecipientPolicy denies messages to
+  recipients NOT on the allowlist
+- Allowlist and blocklist support exact email addresses and wildcard domain patterns
+  (e.g., '*@internal.corp')
+- When both allowlist and blocklist are configured, blocklist takes precedence (a
+  recipient on both lists is denied)
+- Messages with multiple recipients are denied if ANY recipient is blocked; the denial
+  reason lists all blocked recipients
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

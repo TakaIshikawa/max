@@ -1,0 +1,25 @@
+title: Calculate deterministic risk score from analysis findings
+approval: draft
+phase: planned
+priority: high
+description: Aggregate all findings from pattern matching, validation regression detection,
+  and CVE cross-referencing into a single numeric risk score (0-100) that represents
+  the likelihood the patch introduces a new vulnerability. The scoring algorithm must
+  be deterministic, transparent, and configurable.
+acceptanceCriteria:
+- 'Produces a risk score from 0 (no risk detected) to 100 (critical risk) based on:
+  number of findings, severity of findings (critical=40pts, high=25pts, medium=10pts,
+  low=3pts, capped at 100), and whether CVE cross-reference flagged same-class regression
+  (adds 20pt multiplier)'
+- Score calculation is fully deterministic — same findings always produce same score
+  regardless of execution order or environment
+- 'CLI exits with code 1 when score exceeds the threshold (default: 70, configurable
+  via --threshold flag); exits with code 0 otherwise'
+- Score breakdown is included in the report showing contribution of each finding to
+  the total score
+decomposition:
+  assignments: []
+dependencies:
+- Implement declarative vulnerability pattern library and matching engine
+- Detect weakened or removed input validation in changed functions
+source: discovered

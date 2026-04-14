@@ -1,0 +1,26 @@
+title: Build the CLI interface
+approval: draft
+phase: planned
+priority: high
+description: 'Create the Click-based CLI that exposes all benchmark operations as
+  commands: listing tasks, running a single task evaluation, running all tasks, and
+  generating the leaderboard.'
+acceptanceCriteria:
+- The CLI provides `ai-coding-bench list-tasks` that prints all discovered tasks with
+  id, language, difficulty, and description.
+- The CLI provides `ai-coding-bench run --task <id> --submission <path> --tool-name
+  <name>` that executes the evaluation pipeline for a single task and prints a summary
+  to stdout.
+- The CLI provides `ai-coding-bench run-all --submissions-dir <path> --tool-name <name>`
+  that evaluates all tasks found in the submissions directory.
+- The CLI provides `ai-coding-bench leaderboard --results-dir <path> --output <path>`
+  that generates the leaderboard.
+- All commands support `--verbose` for detailed logging and `--json` for machine-readable
+  output.
+- A pytest suite tests each CLI command using Click's CliRunner with mocked pipeline
+  components.
+decomposition:
+  assignments: []
+dependencies:
+- Implement the evaluation pipeline and score aggregator
+source: discovered

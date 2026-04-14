@@ -1,0 +1,21 @@
+title: Implement glob and wildcard matching for tool names
+approval: draft
+phase: planned
+priority: medium
+description: Support glob patterns in role definitions for tool name matching, so
+  roles can grant access to categories of tools (e.g., 'github_issues_*') without
+  listing each individually.
+acceptanceCriteria:
+- Tool name patterns support * (match any characters) and ? (match single character)
+  glob syntax
+- Pattern 'github_*' matches 'github_list_issues' and 'github_create_issue' but not
+  'jira_list_issues'
+- Exact tool names take precedence over glob patterns when both match (for deny-override
+  scenarios)
+- Glob matching is covered by unit tests with at least 8 test cases including edge
+  cases (empty pattern, * only, no match)
+decomposition:
+  assignments: []
+dependencies:
+- Implement the policy engine for access decisions
+source: discovered

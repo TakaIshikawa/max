@@ -1,0 +1,24 @@
+title: Implement budget context manager
+approval: draft
+phase: planned
+priority: high
+description: Create the BudgetContext class that tracks cumulative resource consumption
+  across multiple operations within a with block. Operations register their consumption,
+  and the context enforces aggregate limits in addition to per-operation limits.
+acceptanceCriteria:
+- 'BudgetContext is usable as a context manager: with BudgetContext(policy) as ctx:'
+- ctx.remaining_memory_mb and ctx.remaining_time_seconds reflect consumed resources
+  accurately
+- Nested BudgetContext blocks inherit the parent's remaining budget by default; BudgetContext(policy,
+  inherit=False) creates an independent budget
+- BudgetContext is stored in threading.local for thread safety and contextvars.ContextVar
+  for async safety
+- Exceeding the aggregate budget raises SafeIngestMemoryError or SafeIngestTimeoutError
+  with cumulative consumption details
+decomposition:
+  assignments: []
+dependencies:
+- Implement core policy and configuration system
+- Implement SafeIngest exception hierarchy
+- Implement resource measurement utilities
+source: discovered

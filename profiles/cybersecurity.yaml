@@ -70,10 +70,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"detection rule" OR "sigma rule" label:enhancement is:open sort:reactions-+1-desc'
-        - '"vulnerability" "scanner" is:issue is:open sort:comments-desc'
-        - '"siem" OR "security" label:feature-request is:open sort:reactions-+1-desc'
-        - '"threat intelligence" is:issue is:open sort:reactions-+1-desc'
+        - '"detection rule" OR "sigma rule" is:issue label:enhancement is:open'
+        - '"vulnerability" "scanner" is:issue is:open'
+        - '"siem" OR "security" is:issue label:feature-request is:open'
+        - '"threat intelligence" is:issue is:open'
 
   - adapter: pypi_registry
     params:

@@ -1,0 +1,21 @@
+title: Implement file-based advisory registry loader
+approval: draft
+phase: planned
+priority: critical
+description: Build the registry module that loads advisory YAML files from a directory
+  structure, validates them against the Pydantic models, and provides query methods
+  to look up advisories by tool, feature, and severity.
+acceptanceCriteria:
+- A Registry class loads all .yaml files from a given directory path and parses each
+  into validated Advisory models
+- 'Registry exposes query methods: by_tool(tool_id) -> list[Advisory], by_severity(severity)
+  -> list[Advisory], and by_tool_and_feature(tool_id, feature_id) -> list[Advisory]'
+- Invalid YAML files in the registry directory are skipped with a logged warning,
+  not a crash
+- A default registry path points to the bundled advisories directory within the installed
+  package
+decomposition:
+  assignments: []
+dependencies:
+- Define advisory and tool registry Pydantic models
+source: discovered

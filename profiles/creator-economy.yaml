@@ -70,10 +70,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"content" "repurpose" OR "repurposing" is:issue is:open sort:reactions-+1-desc'
-        - '"youtube" OR "podcast" label:enhancement is:open sort:reactions-+1-desc'
-        - '"newsletter" OR "substack" is:issue is:open sort:comments-desc'
-        - '"creator" "tool" is:issue is:open sort:reactions-+1-desc'
+        - '"content" "repurpose" OR "repurposing" is:issue is:open'
+        - '"youtube" OR "podcast" is:issue label:enhancement is:open'
+        - '"newsletter" OR "substack" is:issue is:open'
+        - '"creator" "tool" is:issue is:open'
 
   - adapter: pypi_registry
     params:

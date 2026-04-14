@@ -1,0 +1,22 @@
+title: Build streaming (SSE) conformance tests
+approval: draft
+phase: planned
+priority: high
+description: Implement test_streaming.py covering the tasks/sendSubscribe method and
+  Server-Sent Events streaming behavior. Streaming is a key differentiator of A2A
+  for real-time agent interactions.
+acceptanceCriteria:
+- Test verifies tasks/sendSubscribe returns a response with Content-Type text/event-stream
+- Test verifies that SSE events are valid JSON-RPC notifications with properly structured
+  TaskStatusUpdateEvent or TaskArtifactUpdateEvent payloads
+- Test verifies that the stream eventually terminates with a final event containing
+  a terminal task state (completed, failed, or canceled)
+- Test verifies that the streamed task ID matches the requested task ID across all
+  events
+- Tests are tagged with category='streaming' metadata for report grouping
+decomposition:
+  assignments: []
+dependencies:
+- Implement A2A test client
+- Implement reference A2A server
+source: discovered

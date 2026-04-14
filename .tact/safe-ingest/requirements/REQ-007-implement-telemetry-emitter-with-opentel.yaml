@@ -1,0 +1,21 @@
+title: Implement telemetry emitter with OpenTelemetry support
+approval: draft
+phase: planned
+priority: medium
+description: Create a pluggable telemetry system that emits structured data for every
+  governance decision. Default backend uses OpenTelemetry spans when the SDK is available,
+  falling back to Python structured logging.
+acceptanceCriteria:
+- 'Every wrapped operation emits a telemetry event with: operation_type, library,
+  peak_memory_bytes, decompressed_size_bytes, wall_time_seconds, outcome (allowed|rejected|circuit_open),
+  rejection_reason (if applicable)'
+- When opentelemetry-api is installed, events are emitted as OTel spans with resource
+  attributes on a tracer named 'safe_ingest'
+- When opentelemetry-api is not installed, events are emitted as structured JSON log
+  records via the 'safe_ingest' logger at INFO level
+- Custom emitters can be registered via safe_ingest.telemetry.register_emitter(callable)
+decomposition:
+  assignments: []
+dependencies:
+- Implement SafeIngest exception hierarchy
+source: discovered

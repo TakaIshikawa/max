@@ -1,0 +1,64 @@
+name: patch-verify
+version: 0.1.0
+vision: A CLI tool that analyzes security patches in dependency updates for behavioral
+  regressions and new attack surfaces, catching the recursive vulnerability pattern
+  where a fix for one CVE introduces another — before it reaches your codebase or
+  your AI agent auto-merges it.
+goals:
+- id: G-1
+  description: Detect weakened input validation and new attack surface patterns introduced
+    by security patches in dependency diffs
+  successCriteria: Successfully identifies at least 3 distinct vulnerability classes
+    (CRLF injection, path traversal, option parsing bypass) in changed code with a
+    false-positive rate below 30% on a curated test suite of 20 known-good and 10
+    known-bad patches
+- id: G-2
+  description: Provide a risk score and human-readable report for every analyzed dependency
+    update that enables informed merge/block decisions
+  successCriteria: Every analysis run produces a structured JSON report with a numeric
+    risk score (0-100), per-finding severity, affected file/line references, and a
+    natural-language summary; report renders correctly in terminal and as SARIF
+- id: G-3
+  description: Integrate seamlessly into existing CI pipelines and dependency update
+    workflows as a non-blocking or blocking verification gate
+  successCriteria: Ships as an npm-installable CLI that exits with code 0 (pass) or
+    1 (fail) based on configurable threshold; includes a ready-to-use GitHub Action
+    workflow; completes analysis of a typical dependency diff (< 500 changed lines)
+    in under 30 seconds
+- id: G-4
+  description: Cross-reference patches against public vulnerability databases to verify
+    fix completeness
+  successCriteria: Given a CVE identifier, fetches advisory details from OSV.dev API
+    and compares the patch's changed functions against the advisory's described vulnerability
+    scope; flags incomplete fixes where the patched area does not cover the described
+    attack vector
+constraints:
+- MVP supports JavaScript/TypeScript and Python diffs only; Go and other languages
+  deferred to post-MVP
+- MVP analyzes local git diffs or piped diff input only; direct Dependabot/Renovate
+  webhook integration is post-MVP
+- CVE cross-referencing limited to OSV.dev API; NVD and GitHub Advisory Database integration
+  deferred
+- No custom taint analysis engine in MVP; use pattern-based AST matching for vulnerability
+  detection
+- Must work fully offline for pattern matching; only CVE cross-referencing requires
+  network access
+- No persistent storage or database; all analysis is stateless per invocation
+- Total npm package size must stay under 50MB including tree-sitter WASM binaries
+- All vulnerability patterns must be declaratively defined in a pattern library, not
+  hard-coded in analysis logic
+techStack:
+  languages:
+  - TypeScript
+  - Node.js (>=18 LTS)
+  frameworks:
+  - tree-sitter (via node-tree-sitter)
+  - tree-sitter-javascript
+  - tree-sitter-python
+  - commander.js (CLI framework)
+  - zod (schema validation)
+  infrastructure:
+  - npm (package distribution)
+  - GitHub Actions (CI integration)
+  - OSV.dev REST API
+  - SARIF 2.1.0 output format

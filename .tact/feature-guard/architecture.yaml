@@ -1,0 +1,94 @@
+patterns:
+- name: Registry Pattern
+  description: A versioned, file-based database of advisory entries (YAML/JSON files
+    in a known directory structure) that maps AI tools to their feature surfaces and
+    known changes. Each entry is a self-contained advisory document with structured
+    metadata. The registry is bundled with the package and can be supplemented by
+    a remote source.
+  scope:
+  - feature_guard/registry/
+  - feature_guard/models/advisory.py
+- name: Declaration-Matching Pattern
+  description: User declarations (featureguard.yaml) are parsed into a dependency
+    graph of tool+feature pairs. The check engine matches these declarations against
+    registry advisories using tool name, feature identifier, and version range matching
+    to produce a filtered, relevant report.
+  scope:
+  - feature_guard/config.py
+  - feature_guard/checker.py
+- name: Layered Output Pattern
+  description: Report generation is separated from report rendering. The checker produces
+    a structured CheckResult model; renderers (rich terminal, JSON, plain text) consume
+    that model independently. This enables CLI, CI, and machine-readable outputs from
+    the same check logic.
+  scope:
+  - feature_guard/models/report.py
+  - feature_guard/renderers/
+- name: CLI-as-Thin-Shell Pattern
+  description: The Click CLI is a thin adapter over the core library API. All logic
+    lives in the library layer; the CLI only handles argument parsing, output formatting
+    selection, and exit code mapping. This ensures the library is importable and usable
+    programmatically without the CLI.
+  scope:
+  - feature_guard/cli.py
+invariants:
+- Every advisory in the registry MUST have a unique ID, an affected tool identifier,
+  a severity level (breaking, deprecation, informational), and a human-readable description
+- The `featureguard check` command MUST return exit code 0 when no breaking changes
+  affect declared dependencies, exit code 1 when breaking changes are found, and exit
+  code 2 on configuration or runtime errors
+- The bundled registry MUST always be loadable offline — remote fetch failures MUST
+  NOT prevent the check from running against the local registry
+- User configuration (featureguard.yaml) MUST be validated against a Pydantic schema
+  on load — invalid configurations MUST produce clear error messages, never silent
+  failures
+- Advisory entries MUST be immutable once published — corrections are issued as new
+  advisories referencing the original, never as edits to existing entries
+conventions:
+- All public API functions and classes include type hints and docstrings
+- 'Module structure: feature_guard/ with subpackages models/, registry/, renderers/,
+  and top-level modules cli.py, checker.py, config.py'
+- Pydantic models for all data structures that cross module boundaries (advisories,
+  config, reports)
+- Advisory IDs follow the format FG-YYYY-NNNN (e.g., FG-2025-0001), inspired by CVE
+  numbering
+- Tool identifiers use lowercase kebab-case namespaced names (e.g., anthropic/claude-code,
+  github/copilot, ollama/ollama)
+- Feature identifiers use dot-notation paths (e.g., cli.commands.buddy, api.endpoints.messages,
+  behavior.rate-limits)
+- 'Test files mirror source structure: tests/test_checker.py, tests/test_config.py,
+  etc.'
+- Use pytest for all tests; no unittest.TestCase subclasses
+- All CLI commands use Click decorators; no argparse
+- YAML is the primary human-authored format; JSON is the primary machine-output format
+decisions:
+- id: D-1
+  title: Bundled file-based registry over remote API
+  decision: The advisory registry ships as YAML files bundled inside the Python package,
+    with an optional `featureguard sync` command to fetch updates from a remote GitHub
+    repository.
+  rationale: This eliminates infrastructure costs, ensures offline functionality,
+    and follows the model of tools like pip's bundled certifi certificates. Community
+    contributions happen via GitHub PRs to the registry repo, which are then included
+    in package releases. This avoids the need for a server, database, or authentication
+    system in MVP.
+- id: D-2
+  title: Pydantic models as the canonical data layer
+  decision: All advisory entries, user configurations, and check reports are defined
+    as Pydantic BaseModel classes with strict validation.
+  rationale: Pydantic provides schema validation, serialization to JSON/dict, clear
+    error messages for malformed data, and serves as living documentation of the data
+    format. This is critical because the registry will accept community contributions
+    — strict validation catches malformed advisories at PR time. It also enables the
+    machine-readable JSON output format with zero additional serialization code.
+- id: D-3
+  title: Severity-based exit codes over boolean pass/fail
+  decision: 'The CLI uses graduated exit codes: 0 (clean), 1 (breaking changes found),
+    2 (error). Deprecation warnings do NOT cause non-zero exit by default but can
+    be promoted via a --strict flag.'
+  rationale: CI pipelines need nuanced gating. A deprecation warning should inform
+    but not block a deploy; a breaking change should block. The --strict flag lets
+    teams opt into stricter policies. This mirrors how linters (pylint, eslint) handle
+    warning vs error severity and is immediately familiar to developers configuring
+    CI.
+contracts: []

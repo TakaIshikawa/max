@@ -1,0 +1,54 @@
+name: role-bridge
+version: 0.1.0
+vision: A TypeScript library that wraps any MCP server with declarative role-based
+  access control, enabling organizations to safely expose developer tools to non-technical
+  stakeholders through AI-mediated interfaces with auditable, scoped permissions.
+goals:
+- id: G-1
+  description: Provide a middleware layer that intercepts MCP tool calls and enforces
+    role-based permissions without modifying the upstream MCP server
+  successCriteria: A wrapped MCP server correctly blocks unauthorized tool calls and
+    allows authorized ones for at least 3 distinct role configurations, with zero
+    bypass paths in integration tests
+- id: G-2
+  description: Enable declarative role and permission definitions via YAML configuration
+    files with a well-defined schema
+  successCriteria: Role definitions are validated against a JSON Schema at load time;
+    invalid configurations produce actionable error messages covering all schema violations
+- id: G-3
+  description: Produce a structured audit trail of all access decisions (allow/deny)
+    for compliance and debugging
+  successCriteria: Every tool call intercepted by the middleware emits a structured
+    JSON audit log entry containing timestamp, role, tool name, decision (allow/deny),
+    and denial reason if applicable
+- id: G-4
+  description: Provide a CLI tool for testing and validating permission configurations
+    without running a live MCP server
+  successCriteria: CLI dry-run command correctly reports allow/deny for a given role
+    + tool + parameters combination, matching runtime behavior in 100% of test cases
+constraints:
+- MVP is TypeScript-only; Python implementation is deferred to post-MVP
+- MVP supports JWT-based identity resolution only (no full OAuth/OIDC flow — assumes
+  tokens are already issued)
+- MVP targets a single upstream MCP server per RoleBridge instance (no multi-server
+  fan-out)
+- No persistent storage — role definitions loaded from YAML files at startup, audit
+  logs emitted to stdout/file
+- MVP supports tool-level access control and parameter constraints; resource-level
+  and prompt-level filtering are deferred
+- Rate limiting is deferred to post-MVP
+- Response field filtering is deferred to post-MVP — MVP enforces allow/deny at the
+  tool call level
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - '@modelcontextprotocol/sdk'
+  - zod
+  - jose
+  - js-yaml
+  - commander
+  infrastructure:
+  - Node.js >= 18
+  - npm for distribution
+  - vitest for testing

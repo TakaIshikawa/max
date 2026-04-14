@@ -1,0 +1,24 @@
+title: Implement CLI with validate and serve commands
+approval: draft
+phase: planned
+priority: high
+description: 'Build the CLI entry point using click that provides the primary user
+  interface: ''validate'' to run conformance tests against a target URL, and ''serve''
+  to start the reference server for manual testing or as a test target for other implementations.'
+acceptanceCriteria:
+- '''a2a-conformance validate <url>'' runs the full conformance suite against the
+  given endpoint and prints a summary to stdout'
+- '''a2a-conformance validate <url> --category discovery'' runs only the specified
+  test category'
+- '''a2a-conformance validate <url> --output report.json'' writes the JSON report
+  to the specified file'
+- '''a2a-conformance serve --port 8080'' starts the reference server on the specified
+  port and blocks until interrupted'
+- CLI returns exit code 0 for full pass, 1 for any failures, 2 for infrastructure
+  errors (unreachable endpoint, invalid URL)
+decomposition:
+  assignments: []
+dependencies:
+- Implement pytest plugin for result collection and reporting
+- Implement reference A2A server
+source: discovered

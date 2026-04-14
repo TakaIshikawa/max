@@ -1,0 +1,23 @@
+title: Build the complexity evaluator
+approval: draft
+phase: planned
+priority: high
+description: Implement an evaluator that measures cyclomatic complexity and lines-of-code
+  of the submission relative to the reference solution, scoring submissions that are
+  unnecessarily complex lower.
+acceptanceCriteria:
+- For Python files, the evaluator uses radon to compute cyclomatic complexity and
+  raw LOC metrics.
+- For TypeScript files, the evaluator uses a tree-sitter-based complexity counter
+  that counts branching nodes (if, ternary, logical-or, catch, case).
+- 'The score is computed as a ratio: min(1.0, reference_complexity / submission_complexity)
+  so that submissions equal to or simpler than the reference score 1.0.'
+- The evaluator handles multi-file submissions by aggregating complexity across all
+  modified files.
+- A pytest suite validates scoring with a submission simpler than reference (score
+  1.0), equal (score 1.0), and more complex (score < 1.0).
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+source: discovered

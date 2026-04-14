@@ -1,0 +1,105 @@
+patterns:
+- name: Reference Implementation Pattern
+  description: A minimal, spec-compliant A2A server acts as the canonical 'known-good'
+    endpoint. All conformance tests are first validated against this reference to
+    ensure the tests themselves are correct. External implementations are then tested
+    using the same suite.
+  scope:
+  - reference server
+  - test validation
+- name: Fixture-Based Test Architecture
+  description: pytest fixtures manage the lifecycle of server/client pairs. A session-scoped
+    fixture starts the reference server on a random port, and function-scoped fixtures
+    provide configured httpx clients. External endpoint testing swaps the server fixture
+    for a URL configuration.
+  scope:
+  - test suite
+  - CLI runner
+- name: Category-Organized Test Suite
+  description: Tests are organized into discrete categories (discovery, task_lifecycle,
+    messaging, streaming, errors) as separate pytest modules. Each category can be
+    run independently and reports results per-category for granular compliance reporting.
+  scope:
+  - test suite
+  - reporting
+- name: Pydantic Model Layer
+  description: 'All A2A protocol messages (AgentCard, Task, Message, Artifact, etc.)
+    are defined as Pydantic models that serve dual purpose: they power the reference
+    server''s serialization AND provide the validation layer that tests use to verify
+    external endpoint responses.'
+  scope:
+  - models
+  - reference server
+  - test assertions
+- name: Report Generator Pipeline
+  description: 'Test results are collected via a pytest plugin that captures per-test
+    metadata (category, severity, description). After a run, results flow through
+    a pipeline: raw results → JSON report → optional JUnit XML → optional SVG badge.
+    Each stage is independently testable.'
+  scope:
+  - reporting
+  - CLI output
+invariants:
+- The reference server must always pass 100% of the conformance test suite — any test
+  failure against the reference server is a bug in the test or the reference, never
+  an acceptable state
+- Test results must never be cached or reused across runs — every CLI invocation produces
+  a fresh test execution against the target endpoint
+- All protocol models must be derived from a single source of truth (the Pydantic
+  model layer) — no duplicate message definitions across reference server and test
+  assertions
+- The CLI must always return exit code 0 for full compliance, exit code 1 for any
+  test failures, and exit code 2 for infrastructure errors (unreachable endpoint,
+  etc.)
+- No test may have side effects on other tests — each test case must be independently
+  runnable and order-independent
+- 'JSON reports must always include: target URL, timestamp, tool version, total/passed/failed/skipped
+  counts, and per-category breakdowns'
+conventions:
+- 'Package structure: src/a2a_conformance/ with subpackages models/, server/, client/,
+  tests/, reports/, cli/'
+- All Pydantic models in models/ use strict mode and forbid extra fields to enforce
+  spec compliance
+- 'Test files follow naming: test_{category}.py (e.g., test_discovery.py, test_task_lifecycle.py)'
+- Each test function has a docstring describing the protocol requirement it validates,
+  referencing the spec section
+- 'CLI commands use click with a main group ''a2a-conformance'' and subcommands: ''validate'',
+  ''serve'', ''report'''
+- All async code uses httpx.AsyncClient; synchronous wrappers provided only at CLI
+  entry points
+- Type hints required on all public functions and methods; mypy strict mode compatibility
+- Constants for A2A protocol values (method names, error codes, content types) defined
+  in models/constants.py
+- Fixtures that start servers use context managers for guaranteed cleanup
+- All HTTP interactions log request/response at DEBUG level for troubleshooting failed
+  tests
+decisions:
+- id: D-1
+  title: Use Starlette for reference server instead of FastAPI
+  decision: The reference A2A server is built on Starlette directly rather than FastAPI
+  rationale: The reference server must be minimal and have as few abstraction layers
+    as possible to remain clearly traceable to the A2A spec. FastAPI adds automatic
+    validation, OpenAPI generation, and dependency injection that would obscure the
+    protocol-level behavior. Starlette gives us raw request/response control while
+    still being async-native and production-quality. This also reduces the dependency
+    footprint.
+- id: D-2
+  title: Test against HTTP endpoints rather than importing framework code
+  decision: All conformance tests interact with the target exclusively via HTTP —
+    no in-process imports or framework-specific adapters
+  rationale: The entire value proposition is framework-agnostic interoperability testing.
+    If tests required importing framework code, they would become coupled to specific
+    implementations. HTTP-only testing ensures that any A2A implementation in any
+    language can be validated, and tests verify the actual wire protocol behavior
+    rather than internal correctness.
+- id: D-3
+  title: Use pytest plugin architecture for result collection rather than custom test
+    runner
+  decision: Conformance results are collected via a custom pytest plugin (conftest.py
+    hooks) rather than building a bespoke test execution engine
+  rationale: pytest is the de facto Python test runner with mature plugin infrastructure,
+    parallel execution support, and CI integration. Building on pytest means users
+    get familiar CLI flags, IDE integration, and the ability to combine conformance
+    tests with their own test suites. The custom plugin adds metadata collection (category
+    tags, spec references) and report generation without reinventing test execution.
+contracts: []

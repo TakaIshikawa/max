@@ -1,0 +1,25 @@
+title: Implement SafetyAssessor with output confidence and boundary detection metrics
+approval: draft
+phase: planned
+priority: high
+description: Build an assessor that evaluates classification model safety by checking
+  for overconfident predictions and boundary-case behavior. Measures average prediction
+  confidence on out-of-distribution samples (lower is safer — model should be uncertain
+  on OOD data) and the fraction of predictions that fall into an 'uncertain' confidence
+  band near the decision boundary.
+acceptanceCriteria:
+- SafetyAssessor.assess() returns MetricResult objects for 'ood_uncertainty' and 'boundary_awareness'
+  metrics
+- OOD uncertainty score is 1.0 minus the mean max-class probability on user-provided
+  out-of-distribution samples — higher means the model is appropriately uncertain
+- Boundary awareness score is the fraction of predictions on boundary samples where
+  max-class probability is below a configurable confidence ceiling (default 0.9)
+- Assessor requires an ood_samples key in the dataset; raises ResponsibilityGateError
+  if missing
+- Assessor gracefully handles models that return logits vs probabilities by documenting
+  the expected output format
+decomposition:
+  assignments: []
+dependencies:
+- Implement the ResponsibilityAssessor protocol and assessor registry
+source: discovered

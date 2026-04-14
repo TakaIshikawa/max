@@ -1,0 +1,22 @@
+title: Implement agent run context manager for root trace spans
+approval: draft
+phase: planned
+priority: high
+description: Provide a context manager that creates a root span representing an entire
+  agent run/session. All decision and tool spans created within the context become
+  children of this root span. The root span aggregates total cost and final status.
+acceptanceCriteria:
+- '`with agent_run(name=''my-agent-task'') as run:` creates a root span with agent.span_type=AGENT_RUN.'
+- All @trace_decision and @trace_tool_call spans created within the context are automatically
+  children of the agent_run span via OTel context propagation.
+- The `run` object exposes `set_cost(tokens_input=..., tokens_output=..., usd=...)`
+  to accumulate cost on the root span.
+- On context exit, total accumulated cost attributes are set on the root span.
+- If an unhandled exception exits the context, the root span records it and sets ERROR
+  status.
+decomposition:
+  assignments: []
+dependencies:
+- Implement @trace_decision decorator for decision chain spans
+- Implement @trace_tool_call decorator for tool invocation spans
+source: discovered

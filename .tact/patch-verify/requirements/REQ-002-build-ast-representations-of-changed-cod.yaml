@@ -1,0 +1,22 @@
+title: Build AST representations of changed code regions using tree-sitter
+approval: draft
+phase: planned
+priority: critical
+description: For each changed file in the diff, reconstruct the changed code regions
+  and parse them into ASTs using tree-sitter WASM bindings. The AST must capture enough
+  context (enclosing function, surrounding statements) to enable meaningful pattern
+  matching — not just the changed lines in isolation.
+acceptanceCriteria:
+- Detects file language from extension (.js, .ts, .py) and loads the corresponding
+  tree-sitter WASM grammar; skips unsupported languages with a warning in the report
+- For each changed hunk, reconstructs a parseable code block including the enclosing
+  function/method scope (up to 50 lines of context above and below the hunk boundaries)
+- Produces a valid tree-sitter AST for each code block; records parse errors as warnings
+  without aborting the pipeline
+- Exposes a LanguageAnalyzer interface with parseAST() and extractFunctions() methods;
+  JavaScript/TypeScript and Python analyzers implement this interface
+decomposition:
+  assignments: []
+dependencies:
+- Parse unified diff input into structured change representations
+source: discovered

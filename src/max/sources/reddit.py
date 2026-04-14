@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -43,17 +44,20 @@ class RedditAdapter(SourceAdapter):
         subreddits = self.subreddits
         per_sub = max(limit // len(subreddits), 3)
 
-        async with httpx.AsyncClient(
-            timeout=30,
-            headers={"User-Agent": USER_AGENT},
-            follow_redirects=True,
-        ) as client:
-            for subreddit in subreddits:
-                if len(signals) >= limit:
-                    break
+        for i, subreddit in enumerate(subreddits):
+            if len(signals) >= limit:
+                break
+            # Reddit tracks by TLS session; use a fresh client per subreddit
+            if i > 0:
+                await asyncio.sleep(2)
+            async with httpx.AsyncClient(
+                timeout=30,
+                headers={"User-Agent": USER_AGENT},
+                follow_redirects=True,
+            ) as client:
                 try:
                     resp = await fetch_with_retry(
-                        f"https://www.reddit.com/r/{subreddit}/hot.json",
+                        f"https://old.reddit.com/r/{subreddit}/hot.json",
                         client,
                         adapter_name=self.name,
                         params={"limit": per_sub},

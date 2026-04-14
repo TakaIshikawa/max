@@ -1,0 +1,59 @@
+name: safe-ingest
+version: 0.1.0
+vision: A drop-in Python library that wraps popular data processing libraries with
+  configurable memory budgets, decompression limits, and circuit breakers — turning
+  silent OOM crashes in AI pipelines into graceful, logged rejections with zero changes
+  to existing pipeline logic.
+goals:
+- id: G-1
+  description: Provide resource-governed wrappers for Pillow image operations that
+    enforce memory and decompression size limits per operation
+  successCriteria: Pillow wrapper detects and terminates decompression bomb attempts
+    (>100MB decompressed) within 500ms, raising a SafeIngestError instead of consuming
+    unbounded memory
+- id: G-2
+  description: Implement a configurable budget and circuit breaker system that tracks
+    cumulative resource usage across a pipeline run and halts processing when thresholds
+    are exceeded
+  successCriteria: 'Circuit breaker trips after configurable threshold violations
+    (default: 3 consecutive failures) and rejects subsequent operations for a configurable
+    cooldown period, with all state transitions logged'
+- id: G-3
+  description: Emit structured telemetry for every governed operation so teams can
+    monitor resource consumption patterns in existing observability stacks
+  successCriteria: Every wrapped operation emits an OpenTelemetry span with attributes
+    for peak_memory_bytes, decompressed_size_bytes, wall_time_seconds, and outcome
+    (allowed/rejected/circuit_open)
+- id: G-4
+  description: Enable zero-friction adoption through import-swapping, sensible defaults,
+    and YAML/env-var configuration
+  successCriteria: A user can protect an existing Pillow-based pipeline by changing
+    only the import statement and adding zero configuration; default limits prevent
+    the OWASP top decompression bomb test cases
+constraints:
+- MVP scope is limited to Pillow wrappers only; Scrapy, requests, and aiohttp wrappers
+  are deferred to v0.2+
+- Must work on Python 3.10+ across Linux and macOS; Windows support is best-effort
+  (resource module unavailable)
+- psutil is the only required runtime dependency; opentelemetry-api and pyyaml are
+  optional extras
+- No monkey-patching of third-party libraries at module level — wrappers must be explicit
+  opt-in via import swap or context manager
+- Library must add less than 5ms overhead per wrapped operation when no limit is violated
+- No C extensions — pure Python only for maximum compatibility
+- Configuration must be possible entirely via environment variables for containerized
+  deployments
+techStack:
+  languages:
+  - Python >=3.10
+  frameworks:
+  - psutil — cross-platform memory tracking
+  - opentelemetry-api — telemetry span emission (optional dependency)
+  - pyyaml — configuration loading (optional dependency)
+  - Pillow — primary wrapped library for MVP
+  - pytest — test framework
+  - pytest-memray — memory profiling in tests
+  infrastructure:
+  - PyPI — package distribution
+  - GitHub Actions — CI with memory-profiled test suite
+  - tox — multi-Python-version testing

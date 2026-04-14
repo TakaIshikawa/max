@@ -1,0 +1,24 @@
+title: Implement CLI interface with assess and report commands
+approval: draft
+phase: planned
+priority: high
+description: Build the Click-based CLI that allows running assessments from the command
+  line. The CLI loads configuration, accepts a path to a model artifact and test dataset,
+  runs the assessment engine, prints a summary to stdout, and optionally writes the
+  full JSON report to a file. Exit code is 0 for pass, 1 for fail.
+acceptanceCriteria:
+- Command `responsibility-gate assess --model model.pkl --dataset test.csv` runs all
+  enabled assessors and prints a pass/fail summary table to stdout
+- Flag --environment selects the configuration profile; defaults to 'production' if
+  not specified
+- Flag --output report.json writes the full ResponsibilityReport as JSON to the specified
+  file
+- Exit code is 0 when overall_passed is True, 1 when False, and 2 when an unrecoverable
+  error occurs
+- Command --help displays usage information for all flags and subcommands
+decomposition:
+  assignments: []
+dependencies:
+- Implement the assessment engine that orchestrates assessors and produces reports
+- Implement configuration loading with environment profiles
+source: discovered

@@ -1,0 +1,21 @@
+title: Implement SVG badge generation
+approval: draft
+phase: planned
+priority: medium
+description: Generate SVG compliance badges from test results that framework maintainers
+  can embed in their README files. Badges should indicate compliance level (full,
+  partial, none) with the A2A protocol version tested.
+acceptanceCriteria:
+- '''a2a-conformance validate <url> --badge badge.svg'' generates an SVG badge file
+  alongside the test run'
+- 'Badge displays ''A2A Conformance: Full'' (green) when 100% of tests pass'
+- 'Badge displays ''A2A Conformance: Partial (X%)'' (yellow) when some but not all
+  tests pass, with the pass percentage'
+- 'Badge displays ''A2A Conformance: Fail'' (red) when critical category tests (discovery,
+  task_lifecycle) fail'
+- Badge includes the a2a-conformance tool version for traceability
+decomposition:
+  assignments: []
+dependencies:
+- Implement pytest plugin for result collection and reporting
+source: discovered

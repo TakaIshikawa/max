@@ -1,0 +1,23 @@
+title: Create the initial curated task suite
+approval: draft
+phase: planned
+priority: medium
+description: Author 10 benchmark tasks across Python and TypeScript that cover the
+  target difficulty levels and task types, each with comprehensive test suites and
+  reference solutions.
+acceptanceCriteria:
+- At least 6 Python tasks and 4 TypeScript tasks are included.
+- 'Tasks span three difficulty tiers: easy (3-4 tasks), medium (4-5 tasks), hard (2-3
+  tasks).'
+- 'Task types include: single-function implementation, bug fix, refactoring for readability,
+  and security patch.'
+- Each task has a reference solution that scores >= 0.9 on all evaluation dimensions
+  when run through the pipeline.
+- Each task has a deliberately non-idiomatic alternative solution that scores measurably
+  lower on the style evaluator (delta >= 0.2) to validate evaluator discrimination.
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+- Implement the evaluation pipeline and score aggregator
+source: discovered

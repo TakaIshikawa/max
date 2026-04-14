@@ -1,0 +1,22 @@
+title: Implement security detection rules and alerting
+approval: draft
+phase: planned
+priority: high
+description: Create a set of YAML-defined security detection rules that flag agent
+  operations matching known attack patterns (path traversal, SSRF, command injection).
+  Detected patterns are recorded as span events with security metadata.
+acceptanceCriteria:
+- 'Default security rules YAML includes patterns for: path traversal (../ in file
+  paths), SSRF (requests to internal IPs/metadata endpoints), command injection (shell
+  metacharacters in command arguments).'
+- 'When a rule matches, a span event named ''security.alert'' is added with attributes:
+  rule_name, severity, matched_pattern.'
+- The span's error classification is set to SECURITY_ANOMALY when a security rule
+  matches.
+- Security rules can be disabled entirely via configuration (`security_detection=false`).
+- Users can add custom security rules via additional YAML files specified in configuration.
+decomposition:
+  assignments: []
+dependencies:
+- Implement YAML-based rule engine for error attribution
+source: discovered

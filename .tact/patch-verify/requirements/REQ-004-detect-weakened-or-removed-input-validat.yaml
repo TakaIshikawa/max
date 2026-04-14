@@ -1,0 +1,26 @@
+title: Detect weakened or removed input validation in changed functions
+approval: draft
+phase: planned
+priority: high
+description: Specifically analyze whether a patch removes, weakens, or bypasses existing
+  input validation logic. This is the core detection for the recursive vulnerability
+  pattern — a security fix that inadvertently removes a guard clause or broadens an
+  allow-list. Compare the before and after ASTs of modified functions to identify
+  validation regressions.
+acceptanceCriteria:
+- 'Identifies validation constructs in the ''before'' version of changed functions:
+  conditional checks on input parameters, regex tests, allow-list/deny-list comparisons,
+  type checks, and length/bounds checks'
+- Flags when a validation construct present in the 'before' version is absent or has
+  a weaker condition in the 'after' version (e.g., strict equality changed to loose,
+  regex pattern broadened, conditional branch removed)
+- Each detected validation regression produces a finding with severity 'high' and
+  includes both the removed/weakened validation code and the replacement (or absence
+  thereof)
+- Does not flag validation changes that are strictly more restrictive (added conditions,
+  narrowed regex, additional checks)
+decomposition:
+  assignments: []
+dependencies:
+- Build AST representations of changed code regions using tree-sitter
+source: discovered

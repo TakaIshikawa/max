@@ -1,0 +1,25 @@
+title: Build the idiomatic style evaluator using tree-sitter
+approval: draft
+phase: planned
+priority: high
+description: Implement an evaluator that uses tree-sitter AST analysis to detect non-idiomatic
+  patterns in generated code, scoring submissions on how closely they follow language-specific
+  best practices.
+acceptanceCriteria:
+- The evaluator parses submission files using tree-sitter and applies language-specific
+  idiom rules defined as tree-sitter query patterns.
+- 'At least 5 Python idiom rules are implemented: prefer list comprehension over for-loop-append,
+  use f-strings over format()/%-formatting, use pathlib over os.path, use enumerate
+  over manual index tracking, use context managers for file I/O.'
+- 'At least 3 TypeScript idiom rules are implemented: use optional chaining over nested
+  ifs, use const over let where possible, use array methods (map/filter) over for
+  loops with push.'
+- The score is calculated as 1.0 - (violations / total_checkable_patterns), clamped
+  to 0.0-1.0.
+- A pytest suite validates each idiom rule individually with a positive (idiomatic)
+  and negative (non-idiomatic) code sample.
+decomposition:
+  assignments: []
+dependencies:
+- Define the task manifest schema and loader
+source: discovered

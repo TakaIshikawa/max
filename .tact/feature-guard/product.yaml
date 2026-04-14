@@ -1,0 +1,60 @@
+name: feature-guard
+version: 0.1.0
+vision: A Python library that systematically tracks feature removals, API deprecations,
+  and behavioral changes across AI coding tools and agent platforms — alerting developers
+  before their workflows break and providing structured migration guidance, modeled
+  after the proven security advisory ecosystem.
+goals:
+- id: G-1
+  description: Enable developers to declare their AI tool dependencies and specific
+    features used in a structured configuration file, then check those declarations
+    against a known-changes registry.
+  successCriteria: A developer can create a featureguard.yaml, run `featureguard check`,
+    and receive a structured report of breaking changes, deprecation warnings, and
+    informational notices affecting their declared dependencies within 5 seconds for
+    a local registry.
+- id: G-2
+  description: Provide a versioned, community-contributable registry of AI tool changes
+    following the security advisory model — structured metadata for each change including
+    affected tool, feature, severity, and migration guidance.
+  successCriteria: The registry ships with at least 5 seed entries covering real-world
+    AI tool changes (e.g., Claude Code /buddy removal, vastai-sdk deprecation), each
+    with complete metadata and migration notes, and new entries can be added via a
+    validated YAML/JSON PR workflow.
+- id: G-3
+  description: Integrate into existing developer workflows as a CLI tool, a pre-commit
+    hook, and a CI-compatible exit-code-driven check.
+  successCriteria: The library can be invoked as `featureguard check` (CLI), configured
+    as a pre-commit hook that blocks commits when breaking changes are detected, and
+    returns non-zero exit codes suitable for CI pipeline gating.
+- id: G-4
+  description: Output actionable, structured change reports that include migration
+    paths — not just alerts but guidance on what to do next.
+  successCriteria: Every breaking change entry in the registry includes at least a
+    one-paragraph migration guide, and the CLI outputs reports in both human-readable
+    (rich terminal) and machine-readable (JSON) formats.
+constraints:
+- 'MVP scope: local registry bundled with the package; remote registry fetching is
+  supported but community contribution workflow is documentation-only (no server infrastructure)'
+- No automated scraping or detection of changes in MVP — the registry is human-curated;
+  programmatic detection is a post-MVP feature
+- Python 3.10+ only; no support for other language ecosystems in MVP
+- No notification integrations (Slack, email, Discord) in MVP — CLI and exit codes
+  only
+- Registry format must be stable from v0.1.0 — breaking schema changes require a major
+  version bump
+- No authentication or API keys required for any MVP functionality
+- The library must work fully offline using the bundled registry; remote sync is optional
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - click (CLI framework)
+  - pydantic (data validation and models)
+  - pyyaml (YAML parsing)
+  - rich (terminal output)
+  - httpx (HTTP client for remote registry fetching)
+  infrastructure:
+  - PyPI (package distribution)
+  - GitHub Actions (registry update automation, CI template)
+  - pre-commit framework (hook integration)

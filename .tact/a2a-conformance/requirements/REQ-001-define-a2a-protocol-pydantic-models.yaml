@@ -1,0 +1,23 @@
+title: Define A2A protocol Pydantic models
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement Pydantic v2 models for all core A2A protocol types: AgentCard,
+  Task, TaskStatus, Message, Part (TextPart, FilePart, DataPart), Artifact, TaskSendParams,
+  TaskQueryParams, and JSON-RPC request/response wrappers. These models serve as the
+  single source of truth for both the reference server and test validation.'
+acceptanceCriteria:
+- All A2A spec message types have corresponding Pydantic models with strict validation
+  and forbid extra fields
+- Models correctly serialize to and deserialize from JSON matching the A2A spec wire
+  format
+- Enum types exist for TaskState (submitted, working, input-required, completed, canceled,
+  failed), error codes, and content types
+- JSON-RPC 2.0 request and response wrappers correctly handle id, method, params,
+  result, and error fields
+- A constants module defines all protocol method names (tasks/send, tasks/get, tasks/cancel,
+  tasks/sendSubscribe) and standard error codes
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

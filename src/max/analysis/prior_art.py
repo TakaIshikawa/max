@@ -162,13 +162,16 @@ def _resolve_product_hunt_token() -> str | None:
 
 # ── Search functions ─────────────────────────────────────────────
 
-async def _search_github(query: str, client: httpx.AsyncClient) -> list[PriorArtMatch]:
+async def _search_github(
+    query: str, client: httpx.AsyncClient, *, extra_headers: dict[str, str] | None = None,
+) -> list[PriorArtMatch]:
     """Search GitHub repositories."""
     matches: list[PriorArtMatch] = []
     try:
         resp = await client.get(
             "https://api.github.com/search/repositories",
             params={"q": query, "sort": "stars", "order": "desc", "per_page": 5},
+            headers=extra_headers or {},
         )
         if resp.status_code != 200:
             logger.warning("GitHub search returned %d for query: %s", resp.status_code, query)
@@ -193,7 +196,7 @@ async def _search_github(query: str, client: httpx.AsyncClient) -> list[PriorArt
     return matches
 
 
-async def _search_npm(query: str, client: httpx.AsyncClient) -> list[PriorArtMatch]:
+async def _search_npm(query: str, client: httpx.AsyncClient, **_: object) -> list[PriorArtMatch]:
     """Search npm registry."""
     matches: list[PriorArtMatch] = []
     try:
@@ -225,7 +228,7 @@ async def _search_npm(query: str, client: httpx.AsyncClient) -> list[PriorArtMat
     return matches
 
 
-async def _search_pypi(query: str, client: httpx.AsyncClient) -> list[PriorArtMatch]:
+async def _search_pypi(query: str, client: httpx.AsyncClient, **_: object) -> list[PriorArtMatch]:
     """Search PyPI packages."""
     matches: list[PriorArtMatch] = []
     try:
@@ -287,7 +290,7 @@ async def _search_pypi(query: str, client: httpx.AsyncClient) -> list[PriorArtMa
     return matches
 
 
-async def _search_product_hunt(query: str, client: httpx.AsyncClient) -> list[PriorArtMatch]:
+async def _search_product_hunt(query: str, client: httpx.AsyncClient, **_: object) -> list[PriorArtMatch]:
     """Search Product Hunt posts via GraphQL API."""
     matches: list[PriorArtMatch] = []
     token = _resolve_product_hunt_token()
@@ -403,6 +406,7 @@ async def _search_source(
     client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
     delay: float,
+    **kwargs: object,
 ) -> list[PriorArtMatch]:
     """Search a single source with rate limiting."""
     search_fn = _SEARCH_FNS.get(source)
@@ -414,7 +418,7 @@ async def _search_source(
 
     for query in queries:
         async with semaphore:
-            results = await search_fn(query, client)
+            results = await search_fn(query, client, **kwargs)
             for match in results:
                 if match.url not in seen_urls:
                     seen_urls.add(match.url)
@@ -441,14 +445,19 @@ async def check_prior_art_batch(
 
     # Resolve GitHub token once
     gh_token = _resolve_github_token()
-    headers: dict[str, str] = {
+    gh_headers: dict[str, str] = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "max-idea-engine/0.1.0",
     }
     if gh_token:
-        headers["Authorization"] = f"Bearer {gh_token}"
+        gh_headers["Authorization"] = f"Bearer {gh_token}"
 
-    async with httpx.AsyncClient(timeout=30, headers=headers) as client:
+    # Use neutral headers for the shared client; GitHub search overrides per-request
+    shared_headers: dict[str, str] = {
+        "User-Agent": "max-idea-engine/0.1.0",
+    }
+
+    async with httpx.AsyncClient(timeout=30, headers=shared_headers) as client:
         for unit in units:
             queries = build_search_queries(unit)
             sources = select_sources(unit)
@@ -465,8 +474,11 @@ async def check_prior_art_batch(
             tasks = []
             for source in sources:
                 _, delay = _RATE_LIMITS.get(source, (3, 1.0))
+                kwargs: dict[str, object] = {}
+                if source == "github":
+                    kwargs["extra_headers"] = gh_headers
                 tasks.append(
-                    _search_source(source, queries, client, semaphores[source], delay)
+                    _search_source(source, queries, client, semaphores[source], delay, **kwargs)
                 )
 
             source_results = await asyncio.gather(*tasks)

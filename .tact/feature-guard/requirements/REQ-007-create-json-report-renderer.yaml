@@ -1,0 +1,18 @@
+title: Create JSON report renderer
+approval: draft
+phase: planned
+priority: high
+description: Build a JSON output renderer that serializes CheckResult to a structured,
+  machine-readable JSON format suitable for CI pipelines, dashboards, and programmatic
+  consumption by AI agents.
+acceptanceCriteria:
+- 'JSON output includes top-level keys: status, summary (counts by severity), and
+  advisories (list of matched advisory objects)'
+- Each advisory in the JSON output includes all fields from the Advisory model
+- Output is valid JSON parseable by standard JSON parsers (json.loads roundtrip test)
+- JSON output is written to stdout; all diagnostic/progress messages go to stderr
+decomposition:
+  assignments: []
+dependencies:
+- Build the check engine that matches declarations against advisories
+source: discovered

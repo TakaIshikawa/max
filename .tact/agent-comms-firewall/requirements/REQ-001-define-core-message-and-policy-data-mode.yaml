@@ -1,0 +1,22 @@
+title: Define core message and policy data models
+approval: draft
+phase: planned
+priority: critical
+description: Create the foundational Pydantic v2 models that represent messages flowing
+  through the system and policy evaluation results. These models are the shared vocabulary
+  for every other component.
+acceptanceCriteria:
+- 'MessageEnvelope model includes fields: sender (str), recipients (list[str]), subject
+  (str), body (str), channel (Literal[''email'',''webhook'',''custom'']), metadata
+  (dict), created_at (datetime); all fields are frozen (immutable after creation)'
+- 'PolicyResult model includes fields: policy_name (str), disposition (Literal[''allow'',''deny'']),
+  reason (optional str), duration_ms (float)'
+- PolicyConfig model supports loading from a Python dict with nested config for rate_limits,
+  content_rules, allowed_recipients, and blocked_recipients
+- All models validate with strict mode enabled and raise ValidationError with clear
+  messages on invalid input
+- Models are importable from agentcomms.models
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

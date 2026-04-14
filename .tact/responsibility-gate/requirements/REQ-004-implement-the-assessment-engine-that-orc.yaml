@@ -1,0 +1,25 @@
+title: Implement the assessment engine that orchestrates assessors and produces reports
+approval: draft
+phase: planned
+priority: critical
+description: Build the central engine that takes a predict callable, test dataset,
+  and configuration — runs all registered/enabled assessors — and aggregates results
+  into a ResponsibilityReport. The engine handles assessor errors gracefully (recording
+  them as failed metrics rather than crashing) and enforces threshold-based pass/fail
+  logic.
+acceptanceCriteria:
+- AssessmentEngine.run(predict_fn, dataset, config) executes all enabled assessors
+  and returns a ResponsibilityReport
+- If an assessor raises an exception, the engine records a failing MetricResult with
+  the error message in details rather than propagating the exception
+- The report's overall_passed is True only when every individual MetricResult.passed
+  is True
+- Engine logs assessor execution time per assessor via Python logging at DEBUG level
+- 'Engine can be invoked programmatically with a simple Python API: from responsibility_gate
+  import assess; report = assess(predict_fn, dataset)'
+decomposition:
+  assignments: []
+dependencies:
+- Implement the ResponsibilityAssessor protocol and assessor registry
+- Implement configuration loading with environment profiles
+source: discovered

@@ -1,0 +1,80 @@
+patterns:
+- name: MCP Server Middleware / Proxy
+  description: RoleBridge acts as an MCP server that proxies requests to an upstream
+    MCP server. It presents the same MCP interface to clients but intercepts all tool
+    list and tool call requests, applying permission checks before forwarding allowed
+    calls upstream. The client connects to RoleBridge; RoleBridge connects to the
+    real server.
+  scope:
+  - src/proxy/
+  - src/server/
+- name: Policy Engine with Declarative Rules
+  description: 'Permissions are defined declaratively in YAML and compiled into an
+    in-memory policy engine at startup. The engine exposes a pure function: (role,
+    toolName, parameters) => AccessDecision. This keeps policy evaluation stateless,
+    testable, and deterministic.'
+  scope:
+  - src/policy/
+- name: Identity Resolution Chain
+  description: A pluggable identity resolver extracts the user's role from the request
+    context. MVP implements JWT-based resolution (reading role claims from a Bearer
+    token). The resolver interface allows future providers (API keys, mTLS) without
+    changing the policy engine.
+  scope:
+  - src/identity/
+- name: Audit Event Emitter
+  description: Every access decision (allow or deny) produces a structured AuditEvent
+    object emitted through a pluggable sink interface. MVP ships with a JSON-lines
+    file/stdout sink. Events are fire-and-forget to avoid blocking the request path.
+  scope:
+  - src/audit/
+invariants:
+- Every tool call MUST pass through the policy engine before being forwarded upstream
+  — no bypass path may exist
+- A denied tool call MUST never be forwarded to the upstream MCP server under any
+  circumstances
+- Every tool call (allowed or denied) MUST produce an audit log entry before the response
+  is returned to the client
+- If identity resolution fails (missing token, invalid JWT, no role claim), the request
+  MUST be denied with a clear error — never default to an elevated role
+- Role definitions MUST be validated against the schema at load time — the server
+  MUST refuse to start with an invalid configuration
+- The upstream MCP server MUST NOT require any modification to work with RoleBridge
+conventions:
+- Use kebab-case for file names (e.g., policy-engine.ts, jwt-resolver.ts)
+- Use PascalCase for types/interfaces, camelCase for functions/variables
+- All public API functions and types are exported from src/index.ts
+- Use Zod for all runtime validation (config parsing, JWT claims, tool call parameters)
+- Errors use a typed RoleBridgeError hierarchy with error codes (e.g., PERMISSION_DENIED,
+  INVALID_CONFIG, IDENTITY_RESOLUTION_FAILED)
+- Tests colocated with source files as *.test.ts; integration tests in tests/ directory
+- Role definition YAML files use the extension .roles.yaml
+- All async operations use async/await — no raw Promise chains
+- 'Structured logs use JSON format with fields: timestamp, level, component, message,
+  and context object'
+decisions:
+- id: D-1
+  title: TypeScript-only for MVP
+  decision: Implement MVP in TypeScript only, deferring Python to post-MVP
+  rationale: The evaluation correctly identified dual-language implementation as excessive
+    for MVP. TypeScript aligns with the primary MCP SDK ecosystem (@modelcontextprotocol/sdk
+    is TypeScript-first). A single implementation lets us validate the role definition
+    schema and middleware pattern before committing to cross-language parity.
+- id: D-2
+  title: MCP Proxy pattern over SDK middleware hooks
+  decision: Implement RoleBridge as a standalone MCP server that proxies to an upstream
+    server, rather than as in-process middleware or SDK plugin
+  rationale: The proxy pattern works with ANY MCP server regardless of implementation
+    language or framework. It requires zero modification to the upstream server, maximizing
+    composability. It also enables deployment as a sidecar or gateway. The tradeoff
+    is added latency from an extra hop, which is acceptable for the access control
+    use case.
+- id: D-3
+  title: YAML role definitions with JSON Schema validation
+  decision: Role permissions are defined in YAML files validated against a JSON Schema
+    (enforced via Zod at load time). No database or API for role management in MVP.
+  rationale: YAML is human-readable and version-controllable (GitOps-friendly). Static
+    file-based config avoids the need for a management API, database, or UI in MVP.
+    Zod provides both TypeScript type inference and runtime validation from a single
+    source of truth. The JSON Schema can be published for editor autocompletion.
+contracts: []

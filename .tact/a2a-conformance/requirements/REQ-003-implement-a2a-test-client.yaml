@@ -1,0 +1,22 @@
+title: Implement A2A test client
+approval: draft
+phase: planned
+priority: critical
+description: Build an async HTTP client wrapper using httpx that provides typed methods
+  for all A2A protocol operations. This client is used by the conformance test suite
+  to interact with target endpoints and by the reference server's self-tests.
+acceptanceCriteria:
+- 'Client provides async methods: discover(), send_task(), get_task(), cancel_task(),
+  send_subscribe() matching A2A protocol methods'
+- All methods accept typed Pydantic params and return typed Pydantic response models
+- Client correctly constructs JSON-RPC 2.0 request envelopes with auto-incrementing
+  IDs
+- send_subscribe() returns an async iterator yielding SSE events parsed into typed
+  models
+- Client raises typed exceptions (A2AConnectionError, A2AProtocolError, A2ATimeoutError)
+  for different failure modes
+decomposition:
+  assignments: []
+dependencies:
+- Define A2A protocol Pydantic models
+source: discovered

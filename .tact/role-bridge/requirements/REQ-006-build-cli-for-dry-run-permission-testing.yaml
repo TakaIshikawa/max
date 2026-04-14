@@ -1,0 +1,22 @@
+title: Build CLI for dry-run permission testing
+approval: draft
+phase: planned
+priority: high
+description: Provide a command-line tool that lets developers test whether a given
+  role would be allowed to make a specific tool call, without running a live MCP server.
+  Essential for configuration validation workflows.
+acceptanceCriteria:
+- 'Command: role-bridge check --config <path> --role <role> --tool <toolName> [--params
+  <json>] outputs allow or deny with reason'
+- 'Command: role-bridge validate --config <path> validates the YAML configuration
+  and reports all errors'
+- 'Command: role-bridge list-tools --config <path> --role <role> lists all tools accessible
+  to the given role'
+- Exit code is 0 for allowed/valid, 1 for denied/invalid, 2 for usage errors
+- All commands work without any network access or running MCP server
+decomposition:
+  assignments: []
+dependencies:
+- Define role configuration schema and YAML loader
+- Implement the policy engine for access decisions
+source: discovered

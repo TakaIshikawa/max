@@ -1,0 +1,22 @@
+title: Implement core policy and configuration system
+approval: draft
+phase: planned
+priority: critical
+description: Create the Policy dataclass that holds all resource governance thresholds
+  (max_memory_delta_mb, max_decompressed_bytes, max_wall_time_seconds, circuit_breaker_threshold,
+  circuit_breaker_cooldown_seconds) and the configuration loader that resolves values
+  from code > environment variables > YAML file > built-in defaults.
+acceptanceCriteria:
+- Policy dataclass is immutable (frozen=True) with all fields typed and documented
+- 'Default policy values prevent standard decompression bomb vectors: max_decompressed_bytes=100MB,
+  max_memory_delta_mb=512, max_wall_time_seconds=30'
+- Environment variables with SAFE_INGEST_ prefix override YAML values; YAML overrides
+  defaults
+- Policy.from_env() correctly reads and type-converts all supported SAFE_INGEST_*
+  environment variables
+- Policy.from_yaml(path) loads a YAML file and returns a validated Policy; raises
+  SafeIngestConfigError on invalid values
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

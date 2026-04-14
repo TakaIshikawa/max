@@ -1,0 +1,23 @@
+title: Generate reports in SARIF, JSON, and human-readable text formats
+approval: draft
+phase: planned
+priority: high
+description: Produce analysis reports in multiple output formats via a ReportFormatter
+  adapter interface. SARIF output enables GitHub Security tab integration; JSON enables
+  programmatic consumption by CI scripts and AI agents; text enables human review
+  in terminal.
+acceptanceCriteria:
+- 'Supports --format flag with values: sarif (default), json, text; outputs to stdout
+  by default, to file via --output flag'
+- SARIF output validates against the SARIF 2.1.0 JSON schema; includes tool metadata,
+  run results with rule references, and physical location (file, line range) for each
+  finding
+- 'JSON output includes: risk score, score breakdown, array of findings each with
+  pattern ID, file, line range, severity, description, and matched code snippet'
+- Text output renders a human-readable summary table to the terminal with colored
+  severity indicators (when TTY), risk score, and per-finding details
+decomposition:
+  assignments: []
+dependencies:
+- Calculate deterministic risk score from analysis findings
+source: discovered

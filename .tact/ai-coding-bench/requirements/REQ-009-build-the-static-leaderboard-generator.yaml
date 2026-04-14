@@ -1,0 +1,23 @@
+title: Build the static leaderboard generator
+approval: draft
+phase: planned
+priority: medium
+description: Create a module that reads all JSON result files from the results directory
+  and generates a static HTML leaderboard page showing per-tool rankings across all
+  dimensions.
+acceptanceCriteria:
+- The generator reads all JSON files from a results directory and aggregates scores
+  per tool across all tasks.
+- 'The HTML output displays a ranked table with columns: Rank, Tool Name, Overall
+  Score, Correctness, Complexity, Style, Safety, Tasks Evaluated.'
+- Each tool row is expandable or links to a per-task breakdown showing individual
+  task scores.
+- The HTML is self-contained (inline CSS, no external dependencies) and renders correctly
+  in modern browsers.
+- Running the generator twice on the same input produces byte-identical HTML output
+  (deterministic rendering).
+decomposition:
+  assignments: []
+dependencies:
+- Implement the evaluation pipeline and score aggregator
+source: discovered

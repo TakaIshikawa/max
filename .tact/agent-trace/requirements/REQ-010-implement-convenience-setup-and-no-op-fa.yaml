@@ -1,0 +1,24 @@
+title: Implement convenience setup and no-op fallback behavior
+approval: draft
+phase: planned
+priority: medium
+description: Provide a one-call setup function that configures the OTel TracerProvider,
+  registers the classification processor, and sets up an exporter. Ensure the library
+  degrades gracefully to no-op when the OTel SDK is not installed.
+acceptanceCriteria:
+- '`agenttrace.setup(exporter=''console'')` configures a TracerProvider with ConsoleSpanExporter
+  and the ClassificationSpanProcessor in one call.'
+- '`agenttrace.setup(exporter=''otlp'', endpoint=''http://localhost:4317'')` configures
+  OTLP gRPC export.'
+- When opentelemetry-sdk is not installed, all decorators and context managers execute
+  the wrapped function without creating spans and without raising ImportError.
+- A warning is logged once (not per call) when running in no-op mode due to missing
+  SDK.
+- The setup function is idempotent — calling it multiple times does not create duplicate
+  processors or providers.
+decomposition:
+  assignments: []
+dependencies:
+- Implement classification SpanProcessor pipeline
+- Implement configuration loading with layered defaults
+source: discovered

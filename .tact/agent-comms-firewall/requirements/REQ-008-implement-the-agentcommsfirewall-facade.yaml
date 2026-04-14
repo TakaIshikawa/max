@@ -1,0 +1,29 @@
+title: Implement the AgentCommsFirewall facade
+approval: draft
+phase: planned
+priority: critical
+description: Create the top-level AgentCommsFirewall class that ties together the
+  pipeline, policies, transport, and audit sink into a single easy-to-use API. This
+  is the primary public interface of the library.
+acceptanceCriteria:
+- AgentCommsFirewall is constructable with a PolicyConfig (or uses defaults if none
+  provided), a Transport, and an optional AuditSink
+- firewall.send(sender, recipients, subject, body, **kwargs) is the primary async
+  API — it constructs a MessageEnvelope, runs the pipeline, audits the result, and
+  delivers via transport if allowed
+- send() returns a SendResult with disposition, policy_results, and delivery_result
+  (if delivered)
+- 'send() raises PolicyDeniedError when the message is denied (with full context)
+  OR returns the denial in SendResult based on a configurable raise_on_deny flag (default:
+  False)'
+- AgentCommsFirewall.with_defaults() class method creates an instance with all default
+  policies active and InMemoryTransport for quick testing
+decomposition:
+  assignments: []
+dependencies:
+- Implement the policy pipeline engine
+- Implement structured audit logging
+- Implement SMTP email transport
+- Implement per-recipient rate limiting policy
+- Implement content scanning policy
+source: discovered

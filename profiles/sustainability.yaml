@@ -69,10 +69,10 @@ sources:
   - adapter: github_issues
     params:
       queries:
-        - '"carbon" OR "emissions" label:enhancement is:open sort:reactions-+1-desc'
-        - '"sustainability" OR "esg" is:issue is:open sort:comments-desc'
-        - '"energy" "optimization" is:issue is:open sort:reactions-+1-desc'
-        - '"climate" is:issue is:open sort:reactions-+1-desc'
+        - '"carbon" OR "emissions" is:issue label:enhancement is:open'
+        - '"sustainability" OR "esg" is:issue is:open'
+        - '"energy" "optimization" is:issue is:open'
+        - '"climate" is:issue is:open'
 
   - adapter: pypi_registry
     params:

@@ -1,0 +1,23 @@
+title: Implement YAML-based rule engine for error attribution
+approval: draft
+phase: planned
+priority: high
+description: Build a rule engine that evaluates spans against configurable rules to
+  classify errors into the taxonomy. Rules match on exception type, span attributes,
+  and error messages. The engine is invoked by a SpanProcessor.
+acceptanceCriteria:
+- 'Rules are defined in YAML files with fields: name, match (exception_type, message_pattern,
+  attribute_conditions), classification, priority.'
+- The engine evaluates rules in priority order and returns the first matching classification.
+- 'Built-in default rules cover: TimeoutError → RESOURCE_EXHAUSTION, ConnectionError
+  → TOOL_FAILURE, ValueError from agent code → AGENT_LOGIC_ERROR.'
+- Users can provide additional YAML rule files that are merged with defaults (user
+  rules take higher priority).
+- If no rule matches, the classification defaults to AGENT_LOGIC_ERROR with a flag
+  indicating no specific rule matched.
+decomposition:
+  assignments: []
+dependencies:
+- Implement core span attribute schema and constants
+- Implement configuration loading with layered defaults
+source: discovered

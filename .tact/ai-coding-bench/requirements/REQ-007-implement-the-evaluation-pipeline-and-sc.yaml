@@ -1,0 +1,28 @@
+title: Implement the evaluation pipeline and score aggregator
+approval: draft
+phase: planned
+priority: high
+description: Build the pipeline orchestrator that takes a task and submission, runs
+  it through the sandbox, invokes all registered evaluators, aggregates dimension
+  scores into an overall result, and writes the JSON result file.
+acceptanceCriteria:
+- The pipeline accepts a task ID and submission path, loads the task, executes in
+  the sandbox, and runs all registered evaluators in sequence.
+- 'The aggregated result JSON contains: task_id, tool_name, timestamp, per-dimension
+  scores (correctness, complexity, style, safety), an overall weighted score (configurable
+  weights, default equal), and raw metadata from each evaluator.'
+- The pipeline writes one JSON result file per run to the results directory, named
+  {tool_name}_{task_id}_{timestamp}.json.
+- If any evaluator throws an exception, the pipeline catches it, records the error
+  in that dimension's metadata, assigns a score of 0.0 for that dimension, and continues
+  with remaining evaluators.
+- A pytest integration test runs the full pipeline on an example task with a known
+  submission and validates the output JSON structure and score values.
+decomposition:
+  assignments: []
+dependencies:
+- Build the test correctness evaluator
+- Build the complexity evaluator
+- Build the idiomatic style evaluator using tree-sitter
+- Build the safety property evaluator
+source: discovered

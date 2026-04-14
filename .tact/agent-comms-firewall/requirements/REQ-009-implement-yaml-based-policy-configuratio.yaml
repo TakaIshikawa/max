@@ -1,0 +1,21 @@
+title: Implement YAML-based policy configuration loading
+approval: draft
+phase: planned
+priority: medium
+description: Enable loading policy configuration from YAML files so security teams
+  can manage policies as code without writing Python.
+acceptanceCriteria:
+- PolicyConfig.from_yaml(path) class method loads and validates a YAML file into a
+  PolicyConfig model
+- 'YAML schema supports all PolicyConfig fields: rate_limits (max_messages, window_seconds,
+  per_recipient_overrides), content_rules (patterns list with name and regex), recipient_policy
+  (allowlist, blocklist), and audit (sink_type, file_path)'
+- Invalid YAML files raise ConfigurationError with a human-readable message indicating
+  which field failed validation
+- An example policy YAML file is included in the repository at examples/policy.yaml
+  with commented explanations of all options
+decomposition:
+  assignments: []
+dependencies:
+- Define core message and policy data models
+source: discovered

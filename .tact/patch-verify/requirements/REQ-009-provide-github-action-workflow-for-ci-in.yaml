@@ -1,0 +1,22 @@
+title: Provide GitHub Action workflow for CI integration
+approval: draft
+phase: planned
+priority: medium
+description: Ship a ready-to-use GitHub Action definition (action.yml) that runs patch-verify
+  on pull requests containing dependency updates. The action should auto-detect Dependabot/Renovate
+  PRs, extract the relevant diff, run analysis, and post results as a PR comment and/or
+  upload SARIF to GitHub Security tab.
+acceptanceCriteria:
+- 'Includes an action.yml at the repository root with inputs for: threshold, format,
+  additional-patterns-path, and cve (optional, auto-detected from PR title by default)'
+- Action runs on pull_request events; auto-detects Dependabot and Renovate PRs by
+  checking the PR author (dependabot[bot], renovate[bot])
+- Uploads SARIF output to GitHub Code Scanning via the github/codeql-action/upload-sarif
+  action step
+- Posts a summary comment on the PR with risk score, finding count by severity, and
+  pass/fail status
+decomposition:
+  assignments: []
+dependencies:
+- Implement CLI entry point with argument parsing and configuration
+source: discovered

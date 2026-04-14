@@ -1,0 +1,23 @@
+title: Define the task manifest schema and loader
+approval: draft
+phase: planned
+priority: critical
+description: Create the task.yaml JSON Schema and a task loader module that discovers,
+  validates, and deserializes task directories from the filesystem into typed Task
+  dataclass objects. This is the foundation that all other components depend on.
+acceptanceCriteria:
+- 'A JSON Schema file exists at schemas/task.schema.json that defines required fields:
+  id, language, difficulty, description, initial_files, reference_solution, test_command,
+  and optional fields: network_required, timeout_seconds, tags.'
+- The task loader discovers all valid task directories under a configurable root path
+  by scanning for task.yaml files.
+- The loader raises a descriptive TaskValidationError for any task.yaml that fails
+  schema validation, with the specific validation errors included in the message.
+- At least 3 example task directories exist (2 Python, 1 TypeScript) with valid task.yaml
+  manifests, initial source files, reference solutions, and passing test suites.
+- A pytest suite validates the loader against valid tasks, invalid tasks (missing
+  fields, bad types), and edge cases (empty directory, nested tasks).
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

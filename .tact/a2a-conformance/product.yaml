@@ -1,0 +1,61 @@
+name: a2a-conformance
+version: 0.1.0
+vision: A test harness and CLI validator that certifies whether an AI agent framework's
+  A2A (Agent-to-Agent) protocol implementation actually conforms to the specification
+  — running standardized interoperability tests against any HTTP-reachable A2A endpoint
+  to transform protocol compliance from a marketing checkbox into a verified guarantee.
+goals:
+- id: G-1
+  description: Provide a reference A2A server and client that serve as the canonical
+    baseline for protocol compliance testing
+  successCriteria: Reference server passes 100% of its own conformance test suite;
+    reference client can exercise all defined test categories against the reference
+    server with zero failures
+- id: G-2
+  description: Deliver a comprehensive conformance test suite covering core A2A protocol
+    paths that any implementation can run against
+  successCriteria: 'Test suite covers at minimum: agent card discovery, task lifecycle
+    (create, get, cancel), message format validation, error code handling, and streaming
+    (SSE); at least 30 distinct test cases across these categories'
+- id: G-3
+  description: Ship a CLI tool that can validate any A2A endpoint and produce machine-readable
+    compliance reports
+  successCriteria: CLI accepts a target URL, runs the full test suite, and outputs
+    results in JSON report format and JUnit XML format suitable for CI integration;
+    exit code reflects pass/fail status
+- id: G-4
+  description: Generate interoperability artifacts (reports, badges) that framework
+    maintainers can use to communicate compliance status
+  successCriteria: Tool generates an SVG badge indicating compliance level (full,
+    partial, none) and a JSON interoperability report with per-category pass rates;
+    badge is embeddable in README files
+constraints:
+- MVP targets the A2A protocol specification as published by Google (April 2025 draft);
+  spec changes require test suite updates
+- Reference server is minimal and spec-compliant only — it is NOT a production agent
+  runtime, just a protocol-correct echo/stub
+- All tests must be runnable against any HTTP-reachable endpoint without requiring
+  framework-specific adapters or plugins
+- No external service dependencies at test time — the reference server must be self-contained
+  and startable in-process
+- MVP does NOT include RFC 8693 token exchange testing — authentication testing is
+  deferred to post-MVP
+- MVP does NOT include pairwise interoperability matrix generation — focus is single-endpoint-vs-reference
+  testing only
+- Python 3.11+ required; no support for older Python versions
+- 'Package must be installable via pip with a single command: pip install a2a-conformance'
+techStack:
+  languages:
+  - Python 3.11+
+  frameworks:
+  - pytest >= 7.0 (test runner and fixture infrastructure)
+  - httpx >= 0.27 (async HTTP client for testing endpoints)
+  - pydantic >= 2.0 (A2A message model validation)
+  - jsonschema >= 4.0 (JSON Schema validation of protocol messages)
+  - click >= 8.0 (CLI framework)
+  - uvicorn >= 0.30 (ASGI server for reference implementation)
+  - starlette >= 0.38 (lightweight ASGI framework for reference server)
+  - jinja2 >= 3.0 (SVG badge templating)
+  infrastructure:
+  - PyPI (package distribution)
+  - GitHub Actions (CI and dogfooding the tool itself)

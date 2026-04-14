@@ -1,0 +1,27 @@
+title: Implement reference A2A server
+approval: draft
+phase: planned
+priority: critical
+description: Build a minimal, spec-compliant A2A server using Starlette that implements
+  all required protocol endpoints. The server acts as a known-good implementation
+  for validating the test suite itself and as a test target for client implementations.
+  It should handle agent card discovery, task creation, task querying, task cancellation,
+  and SSE streaming.
+acceptanceCriteria:
+- Server exposes GET /.well-known/agent.json returning a valid AgentCard with capabilities,
+  skills, and supported content types
+- Server accepts JSON-RPC POST requests at the root path and correctly routes to handlers
+  based on the 'method' field
+- tasks/send creates a task, transitions it through states, and returns a completed
+  task with at least one artifact
+- tasks/get returns the current state of a previously created task, or a JSON-RPC
+  error for unknown task IDs
+- tasks/cancel transitions a task to canceled state and returns the updated task,
+  or errors for non-cancelable states
+- Server is startable programmatically via a factory function that returns a (server,
+  url) tuple for test fixtures
+decomposition:
+  assignments: []
+dependencies:
+- Define A2A protocol Pydantic models
+source: discovered

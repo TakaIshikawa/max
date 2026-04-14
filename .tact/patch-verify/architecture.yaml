@@ -1,0 +1,91 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'Analysis flows through a linear pipeline: Input Parsing → Diff Extraction
+    → AST Parsing → Pattern Matching → CVE Cross-Reference → Risk Scoring → Report
+    Generation. Each stage is a discrete module with typed input/output contracts,
+    enabling independent testing and future parallelization.'
+  scope:
+  - src/pipeline/
+  - src/stages/
+- name: Strategy Pattern for Language Analyzers
+  description: Each supported language implements a common LanguageAnalyzer interface
+    (parseAST, extractFunctions, matchPatterns). New languages are added by implementing
+    this interface and registering in a language registry, with no changes to the
+    core pipeline.
+  scope:
+  - src/analyzers/
+- name: Declarative Pattern Library
+  description: Vulnerability patterns are defined as declarative JSON/YAML rules specifying
+    AST node types, structural constraints, and context conditions. The pattern matching
+    engine evaluates these rules against parsed ASTs, separating vulnerability knowledge
+    from detection logic.
+  scope:
+  - src/patterns/
+  - patterns/
+- name: Adapter Pattern for Output Formats
+  description: Report generation uses output adapters (SARIF, JSON, human-readable
+    text) implementing a common ReportFormatter interface. The pipeline produces a
+    canonical internal report structure; adapters transform it to the desired format.
+  scope:
+  - src/reporters/
+invariants:
+- The CLI must always exit with code 0 (pass) or 1 (fail/threshold-exceeded) — never
+  silently swallow errors; unexpected errors exit with code 2 and a diagnostic message
+  to stderr
+- Pattern matching must never modify the input diff or AST — all analysis is read-only
+  over immutable data structures
+- 'Every finding in the report must include: file path, line number range, pattern
+  ID, severity level, and a human-readable explanation — no anonymous or unexplained
+  findings'
+- The risk score algorithm must be deterministic — identical input diffs always produce
+  identical scores regardless of execution environment or timing
+- Network failures (OSV API unavailable) must degrade gracefully — CVE cross-referencing
+  is skipped with a warning, not a hard failure; pattern-based analysis always completes
+- No user-supplied input (diff content, file paths, CVE IDs) is ever passed to shell
+  execution or eval — all external data is treated as untrusted
+conventions:
+- 'File naming: kebab-case for all files and directories (e.g., diff-parser.ts, pattern-matcher.ts)'
+- 'Export style: named exports only; no default exports; one primary export per module
+  file'
+- 'Type definitions: all public interfaces and types in a dedicated types.ts file
+  per module directory'
+- 'Error handling: custom error classes extending PatchVerifyError base class; errors
+  carry structured context (stage, file, line)'
+- 'Logging: structured JSON logging via a shared logger utility; log levels: debug,
+  info, warn, error; controlled by --verbose / --quiet flags'
+- 'Testing: co-located test files using *.test.ts naming; test fixtures in __fixtures__/
+  directories alongside tests'
+- 'Configuration: zod schemas for all configuration objects; fail fast on invalid
+  config with actionable error messages'
+- 'CLI flags: GNU-style long flags (--threshold, --format, --cve); short aliases for
+  common flags (-t, -f)'
+decisions:
+- id: D-1
+  title: Use tree-sitter WASM bindings instead of native bindings
+  decision: Use web-tree-sitter (WASM) rather than native node-tree-sitter bindings
+    for AST parsing
+  rationale: Native tree-sitter bindings require node-gyp and platform-specific compilation,
+    causing installation failures in CI environments and on machines without build
+    tools. WASM bindings are portable, require no native compilation, and work identically
+    across Linux, macOS, and Windows. The ~2x performance penalty is acceptable given
+    MVP diff sizes are small (< 500 changed lines).
+- id: D-2
+  title: Pattern-based AST matching over taint analysis for MVP
+  decision: Implement vulnerability detection via declarative AST pattern matching
+    rather than building a taint analysis engine
+  rationale: Full taint analysis across arbitrary dependency code is a research-grade
+    problem that would consume the entire MVP budget. Pattern-based matching against
+    known vulnerability signatures (CRLF injection patterns, unvalidated path joins,
+    unsafe option parsing) provides actionable results for the most common regression
+    classes. The declarative pattern library is extensible — taint analysis can be
+    added as an additional pattern type later without changing the pipeline architecture.
+- id: D-3
+  title: SARIF as primary machine-readable output format
+  decision: Use SARIF 2.1.0 as the canonical machine-readable output format, with
+    JSON and text as secondary formats
+  rationale: SARIF is natively supported by GitHub Security tab, Azure DevOps, and
+    VS Code. Producing SARIF output gives immediate integration with GitHub code scanning
+    alerts when run as a GitHub Action, providing maximum visibility with zero additional
+    configuration. The SARIF schema also enforces structured findings with locations,
+    severity, and rule metadata — aligning naturally with our report invariants.
+contracts: []

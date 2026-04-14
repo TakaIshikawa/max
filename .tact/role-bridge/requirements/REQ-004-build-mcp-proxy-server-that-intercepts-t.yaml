@@ -1,0 +1,24 @@
+title: Build MCP proxy server that intercepts tool calls
+approval: draft
+phase: planned
+priority: critical
+description: Implement the core MCP proxy server that sits between the client and
+  an upstream MCP server. It forwards tool listing (filtered by role) and intercepts
+  tool calls for policy evaluation.
+acceptanceCriteria:
+- RoleBridge starts as an MCP server (stdio or SSE transport) and connects to a configured
+  upstream MCP server
+- tools/list responses from upstream are filtered to only include tools the current
+  role is allowed to access
+- tools/call requests are evaluated by the policy engine before forwarding; denied
+  calls return an MCP error response without contacting upstream
+- Allowed tool calls are forwarded to upstream and the response is returned unmodified
+  to the client
+- Integration test demonstrates a client connecting to RoleBridge, which proxies to
+  a mock upstream MCP server, with correct allow/deny behavior
+decomposition:
+  assignments: []
+dependencies:
+- Implement the policy engine for access decisions
+- Implement JWT-based identity resolver
+source: discovered

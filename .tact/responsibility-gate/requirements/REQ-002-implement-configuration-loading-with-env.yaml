@@ -1,0 +1,26 @@
+title: Implement configuration loading with environment profiles
+approval: draft
+phase: planned
+priority: critical
+description: Build the configuration system that loads assessment settings from a
+  YAML file (responsibility-gate.yml) with support for named environment profiles.
+  Each profile specifies per-metric thresholds and which assessors to enable. Configuration
+  merges defaults → file → profile → CLI overrides. Provide sensible built-in defaults
+  so zero-config usage works out of the box.
+acceptanceCriteria:
+- Loads configuration from responsibility-gate.yml in the current directory or a path
+  specified via --config CLI flag
+- Supports named environment profiles (dev, staging, production) with per-metric threshold
+  overrides — selecting via --environment flag or RESPONSIBILITY_GATE_ENV environment
+  variable
+- Falls back to built-in default thresholds (0.8 for all metrics) when no config file
+  is present
+- Raises ResponsibilityGateError with a descriptive message when config file has invalid
+  structure or unknown metric names
+- Configuration model is a validated Pydantic object accessible programmatically via
+  load_config() function
+decomposition:
+  assignments: []
+dependencies:
+- Define core data models for metrics, results, and reports
+source: discovered
