@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +12,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_secret(env_var: str, vault_path: str) -> str:
+    """Resolve a secret: env var first, then vault, then empty string."""
+    value = os.getenv(env_var, "")
+    if value:
+        return value
+    try:
+        result = subprocess.run(
+            ["vault", "get", vault_path],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return ""
 
 
 def get_project_root() -> Path:
@@ -47,7 +65,7 @@ def _parse_float(env_var: str, default: float) -> float:
 
 DB_PATH: str = os.getenv("MAX_DB_PATH", str(get_project_root() / "max.db"))
 MODEL: str = os.getenv("MAX_MODEL", "claude-opus-4-6")
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY: str = _resolve_secret("ANTHROPIC_API_KEY", "anthropic/api_key")
 
 # Budget controls (0 = unlimited)
 MAX_TOKEN_BUDGET: int = _parse_int("MAX_TOKEN_BUDGET", 0)  # Total tokens per pipeline run
