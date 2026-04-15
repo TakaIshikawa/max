@@ -7,10 +7,13 @@ simple TF-IDF approach if the SDK is not available.
 from __future__ import annotations
 
 import json
+import logging
 import math
 from collections import Counter
 
 from max.store.db import Store
+
+logger = logging.getLogger(__name__)
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
@@ -77,6 +80,7 @@ def _try_voyage_embed(texts: list[str]) -> list[list[float]] | None:
         result = client.embed(texts, model="voyage-3-lite")
         return result.embeddings
     except Exception:
+        logger.debug("Voyage AI embedding unavailable, using fallback", exc_info=True)
         return None
 
 

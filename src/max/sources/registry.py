@@ -44,7 +44,7 @@ def _discover_adapters() -> dict[str, type[SourceAdapter]]:
             except Exception:
                 logger.warning("Failed to load adapter entry_point '%s'", ep.name, exc_info=True)
     except Exception:
-        pass
+        logger.debug("entry_points discovery unavailable", exc_info=True)
 
     # Fallback: if no entry_points found, load built-ins directly
     if not adapters:

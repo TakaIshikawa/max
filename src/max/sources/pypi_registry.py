@@ -160,6 +160,7 @@ async def _fetch_package_info(client: httpx.AsyncClient, name: str) -> dict | No
             "keywords": info.get("keywords") or "",
         }
     except Exception:
+        logger.debug("Failed to fetch PyPI package info for %s", name, exc_info=True)
         return None
 
 
@@ -171,6 +172,7 @@ async def _fetch_download_stats(client: httpx.AsyncClient, name: str) -> int | N
         data = resp.json()
         return data.get("data", {}).get("last_week")
     except Exception:
+        logger.debug("Failed to fetch download stats for %s", name, exc_info=True)
         return None
 
 
@@ -215,4 +217,5 @@ def _parse_rfc822(date_str: str) -> datetime | None:
     try:
         return parsedate_to_datetime(date_str).replace(tzinfo=timezone.utc)
     except Exception:
+        logger.debug("Failed to parse RFC822 date: %s", date_str, exc_info=True)
         return None
