@@ -1,0 +1,22 @@
+title: Implement magic-byte format detection module
+approval: draft
+phase: planned
+priority: critical
+description: 'Build a format detection module that identifies file types by reading
+  magic bytes (file signatures) from the first N bytes of input. Must detect at minimum:
+  JPEG, PNG, GIF, WebP, BMP, TIFF (images), ZIP, GZIP, TAR (archives), and safetensors
+  header. Returns detected MIME type and confidence. This runs in the parent process
+  on a limited byte prefix (first 8KB), not on the full file.'
+acceptanceCriteria:
+- Correctly identifies JPEG, PNG, GIF, WebP, BMP, TIFF, ZIP, GZIP, TAR, and safetensors
+  files from their magic bytes using only the first 8192 bytes
+- Returns a FormatDetection object with mime_type, confidence (high/medium/low), and
+  detected_extension
+- Files with mismatched extension and magic bytes are flagged with a 'FORMAT_MISMATCH'
+  threat indicator
+- Unrecognized formats return mime_type='application/octet-stream' with confidence='low'
+- Does not read more than 8192 bytes from the input, regardless of file size
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

@@ -1,0 +1,25 @@
+title: Implement SQL parameterization enforcer
+approval: draft
+phase: planned
+priority: high
+description: Implement the sql_parameter channel sanitizer that enforces parameterized
+  query patterns. Rather than escaping SQL strings, it validates that content is safe
+  for use as a parameter value and detects/rejects attempts to pass raw SQL with concatenated
+  user input. Provides clear error messages guiding callers toward parameterized queries.
+acceptanceCriteria:
+- Plain string values (names, descriptions, etc.) pass through unchanged as safe parameter
+  values
+- Input containing SQL injection patterns (UNION SELECT, OR 1=1, DROP TABLE, comment
+  sequences --) is flagged in the report as suspicious but still returned as a safe
+  parameter value (since parameterized queries handle this)
+- Input that appears to be a full SQL statement (SELECT, INSERT, UPDATE, DELETE as
+  first keyword) raises a SqlInjectionError with guidance to use parameterized queries
+- Common SQLi test vectors from sqlmap's test corpus are correctly identified and
+  flagged
+- The sanitizer documents clearly that it is for parameter values only, not for building
+  SQL strings
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

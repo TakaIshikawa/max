@@ -1,0 +1,27 @@
+title: Implement image parser with Pillow in sandbox
+approval: draft
+phase: planned
+priority: high
+description: Create an image parser that decodes images using Pillow inside the subprocess
+  sandbox. The parser validates format against the whitelist, enforces pixel-count
+  limits (to catch pixel bombs), extracts safe metadata (dimensions, color mode, format),
+  and returns sanitized image bytes (re-encoded to a safe format). Pillow's DecompressionBombError
+  threshold is set to match the configured limits.
+acceptanceCriteria:
+- Parses valid JPEG, PNG, GIF, and WebP images and returns ParseResult with status='success',
+  detected_format, and image metadata (width, height, mode)
+- A pixel-bomb PNG (e.g., declared 100000x100000 pixels) is rejected with error_code='RESOURCE_LIMIT_EXCEEDED'
+  and threat_indicators containing 'PIXEL_BOMB'
+- An image file whose magic bytes don't match the declared format returns a threat_indicator
+  'FORMAT_MISMATCH'
+- A malformed/truncated image file returns status='error' with error_code='PARSE_FAILED'
+  and a descriptive error_details string
+- The sandbox subprocess memory limit is enforced — a crafted image that causes Pillow
+  to allocate excessive memory is killed cleanly
+decomposition:
+  assignments: []
+dependencies:
+- Implement subprocess sandbox executor with resource limits
+- Define ParseResult and SandboxConfig Pydantic models
+- Implement magic-byte format detection module
+source: discovered

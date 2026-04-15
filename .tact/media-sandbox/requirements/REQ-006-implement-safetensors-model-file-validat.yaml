@@ -1,0 +1,26 @@
+title: Implement safetensors model file validator
+approval: draft
+phase: planned
+priority: high
+description: Create a model file parser that validates safetensors files inside the
+  subprocess sandbox. The parser reads and validates the safetensors header (JSON
+  metadata), checks tensor shapes and dtypes against configurable limits (max total
+  tensor bytes), and optionally verifies a SHA-256 hash if provided. Does NOT load
+  tensor data into memory — only validates the header and metadata.
+acceptanceCriteria:
+- Parses a valid safetensors file and returns ParseResult with metadata including
+  tensor names, shapes, dtypes, and total_tensor_bytes
+- A safetensors file with a header declaring tensors exceeding max_output_size_bytes
+  is rejected with error_code='RESOURCE_LIMIT_EXCEEDED'
+- When a SHA-256 hash is provided in config, files not matching the hash are rejected
+  with error_code='INTEGRITY_CHECK_FAILED' and threat_indicator 'HASH_MISMATCH'
+- A malformed safetensors file (invalid header JSON, truncated file) returns status='error'
+  with error_code='PARSE_FAILED'
+- Tensor data bytes are never loaded into memory — only the header is parsed
+decomposition:
+  assignments: []
+dependencies:
+- Implement subprocess sandbox executor with resource limits
+- Define ParseResult and SandboxConfig Pydantic models
+- Implement magic-byte format detection module
+source: discovered

@@ -1,0 +1,25 @@
+title: Implement subprocess sandbox executor with resource limits
+approval: draft
+phase: planned
+priority: critical
+description: Build the core sandbox execution engine that runs arbitrary callables
+  in a child subprocess with enforced memory limits (via resource.setrlimit on Linux/macOS)
+  and wall-clock timeouts (via subprocess timeout). The executor must serialize the
+  callable and its arguments, send them to the child, and deserialize the result.
+  If the child is killed (OOM, timeout, signal), the executor must return a structured
+  error, never crash.
+acceptanceCriteria:
+- A function executed in the sandbox that allocates more than the configured max_memory_bytes
+  is killed and returns a ParseResult with status='error' and error_code='MEMORY_LIMIT_EXCEEDED'
+- A function executed in the sandbox that runs longer than max_wall_time_seconds is
+  killed and returns a ParseResult with status='error' and error_code='TIMEOUT'
+- A function that raises an exception in the child returns a ParseResult with status='error',
+  the exception message in error_details, and the parent process remains healthy
+- A function that completes normally returns a ParseResult with status='success' and
+  the serialized return value in the output field
+- Resource telemetry (peak_memory_bytes, wall_time_seconds) is populated in the ParseResult
+  for both success and failure cases
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

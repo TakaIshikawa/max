@@ -1,0 +1,24 @@
+title: Implement parser registry with format routing
+approval: draft
+phase: planned
+priority: high
+description: Build a registry that maps detected formats (MIME types) to parser implementations.
+  Parsers register themselves via a @register_parser decorator. The main parse() function
+  detects the file format, looks up the appropriate parser, validates the format against
+  the config whitelist, and dispatches to the parser. Unregistered formats are rejected
+  with a clear error.
+acceptanceCriteria:
+- Calling parse(file_bytes) on an image automatically routes to the image parser based
+  on magic-byte detection
+- Calling parse(file_bytes) on a ZIP file automatically routes to the archive parser
+- Calling parse(file_bytes, config=SandboxConfig(allowed_formats=['image/png'])) on
+  a JPEG file rejects with error_code='FORMAT_NOT_ALLOWED'
+- A file with an unregistered MIME type returns status='error' with error_code='UNSUPPORTED_FORMAT'
+- New parsers can be registered via @register_parser('mime/type') decorator and are
+  immediately available to parse()
+decomposition:
+  assignments: []
+dependencies:
+- Define ParseResult and SandboxConfig Pydantic models
+- Implement magic-byte format detection module
+source: discovered

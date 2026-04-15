@@ -1,0 +1,20 @@
+title: Implement JSON API output sanitizer
+approval: draft
+phase: planned
+priority: medium
+description: Implement the json_api channel sanitizer that ensures content embedded
+  in JSON API responses is safe. Handles HTML entity escaping for content that may
+  be rendered in browsers, prevents JSON injection via unescaped special characters,
+  and ensures valid UTF-8 encoding.
+acceptanceCriteria:
+- HTML special characters (<, >, &, quotes) are escaped when content will be embedded
+  in JSON destined for browser rendering
+- Unicode escape sequences that could cause issues in JavaScript contexts (U+2028,
+  U+2029 line separators) are properly escaped
+- Null bytes and other control characters are stripped or escaped
+- Valid JSON string content passes through without unnecessary modification
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

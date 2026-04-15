@@ -1,0 +1,23 @@
+title: Group changes into semantically coherent change categories
+approval: draft
+phase: planned
+priority: critical
+description: 'Classify each file change into a semantic category: infrastructure/config
+  (package.json, tsconfig, CI files), types/interfaces (files that primarily define
+  types), implementation (business logic, utilities), tests (test files), documentation
+  (README, docs/). Use both file-path heuristics and AST analysis (e.g., a file that
+  only adds type exports is ''types'' even if not in a types/ directory). Group files
+  in the same category that share dependency relationships into a single change group.'
+acceptanceCriteria:
+- Correctly classifies package.json, tsconfig.json, .github/workflows/*.yml as infrastructure/config
+- Correctly classifies *.test.ts, *.spec.ts, __tests__/* as test files
+- A file that only exports interfaces/types is classified as types/interfaces even
+  if located in src/services/
+- Files in the same category that have no dependency relationship between them are
+  still grouped together in the same change group
+- Produces between 2 and 7 change groups for a typical 10-20 file changeset
+decomposition:
+  assignments: []
+dependencies:
+- Build a cross-file dependency graph from symbol maps
+source: discovered

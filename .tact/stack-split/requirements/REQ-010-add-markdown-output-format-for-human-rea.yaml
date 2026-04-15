@@ -1,0 +1,23 @@
+title: Add markdown output format for human-readable stacked PR plan
+approval: draft
+phase: planned
+priority: medium
+description: In addition to JSON, support a markdown output format that renders the
+  stacked PR plan as a readable document. Each change group becomes a section with
+  its generated PR title as heading, description body, file list, and a visual indicator
+  of stack position. This format is suitable for pasting into a GitHub issue or team
+  discussion.
+acceptanceCriteria:
+- Running `stack-split --format markdown` produces valid markdown output
+- 'Each change group is rendered as a ## heading with the PR title'
+- The document begins with a summary section showing total groups, total files, total
+  lines changed
+- File lists within each group are rendered as markdown checklists
+- The output includes a visual stack diagram showing the dependency chain (e.g., using
+  ASCII art or indentation)
+decomposition:
+  assignments: []
+dependencies:
+- Generate PR descriptions for each change group using templates
+- Output stacked PR plan as structured JSON
+source: discovered

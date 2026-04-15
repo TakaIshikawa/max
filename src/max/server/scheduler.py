@@ -113,7 +113,6 @@ class Scheduler:
                 "insights_generated": self.last_result.insights_generated,
                 "ideas_generated": self.last_result.ideas_generated,
                 "ideas_evaluated": self.last_result.ideas_evaluated,
-                "specs_generated": self.last_result.specs_generated,
                 "avg_insight_confidence": self.last_result.avg_insight_confidence,
                 "avg_idea_score": self.last_result.avg_idea_score,
             }

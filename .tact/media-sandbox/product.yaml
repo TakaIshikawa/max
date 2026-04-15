@@ -1,0 +1,63 @@
+name: media-sandbox
+version: 0.1.0
+vision: A drop-in Python library that wraps common media parsing and deserialization
+  operations in configurable, resource-governed sandboxes — making multimodal AI agent
+  pipelines safe from format-specific exploits, decompression bombs, and deserialization
+  attacks across images, audio, compressed archives, and ML model files.
+goals:
+- id: G-1
+  description: Provide unified, sandboxed parsing for the most common media types
+    ingested by AI agent pipelines (images, audio, compressed archives, ML model files)
+    with per-operation resource budgets.
+  successCriteria: Library exposes parse functions for at least 4 media categories
+    (image, audio, archive, model file), each executing in an isolated subprocess
+    with enforced memory and timeout limits. All 4 categories pass adversarial test
+    suites without crashing the host process.
+- id: G-2
+  description: Detect and neutralize resource-exhaustion attacks (decompression bombs,
+    pixel bombs, recursive archives) before they consume host resources.
+  successCriteria: A suite of at least 10 adversarial payloads (gzip bombs, zip bombs,
+    pixel-flood PNGs, nested archives) are all rejected with descriptive error reports
+    within the configured resource limits, and host process memory never exceeds 2x
+    its baseline during any test.
+- id: G-3
+  description: Return structured, agent-friendly results that include format metadata,
+    resource consumption telemetry, and threat indicators — enabling downstream agent
+    logic to make informed decisions.
+  successCriteria: 'Every parse call returns a typed ParseResult dataclass containing:
+    detected_format, bytes_read, peak_memory_bytes, wall_time_seconds, threat_indicators
+    list, and either the sanitized output or a structured error. Results are JSON-serializable.'
+- id: G-4
+  description: Ship as a zero-config, pip-installable package that works on Linux
+    and macOS with sensible defaults and no mandatory system dependencies beyond Python
+    3.10+.
+  successCriteria: Package installs via pip on a clean Python 3.10+ venv on both Ubuntu
+    22.04 and macOS 13+. Default configuration safely parses benign files of each
+    supported type without any user-supplied config.
+constraints:
+- 'MVP scope: image (Pillow), compressed archive (zip/gzip/tar), and ML model file
+  (safetensors) parsing only. Audio/video deferred to post-MVP.'
+- Subprocess-based isolation only for MVP — no seccomp/landlock/Landlock LSM integration
+  yet.
+- Linux and macOS support only for MVP. Windows support deferred.
+- No streaming/chunked parsing in MVP — entire files are read into the sandbox subprocess.
+- 'Maximum single-file size for MVP: 500 MB (configurable). Larger files rejected
+  before sandbox entry.'
+- No GPU-accelerated parsing paths in MVP.
+- Library only — no CLI, no REST API, no daemon process.
+- Python 3.10+ required (for structural pattern matching and modern typing).
+techStack:
+  languages:
+  - Python 3.10+
+  frameworks:
+  - Pillow
+  - ffmpeg-python (optional, for audio/video frame extraction)
+  - safetensors
+  - pytest
+  - pydantic
+  infrastructure:
+  - subprocess (stdlib)
+  - resource (stdlib, Linux/macOS)
+  - asyncio (stdlib)
+  - multiprocessing (stdlib)
+  - PyPI for distribution

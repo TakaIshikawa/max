@@ -1,0 +1,23 @@
+title: Implement sanitization report and audit logging
+approval: draft
+phase: planned
+priority: medium
+description: Implement the SanitizationReport dataclass and reporting infrastructure.
+  Reports capture what was sanitized, which rules were applied, what modifications
+  were made, and any suspicious patterns detected. Reports must be JSON-serializable
+  for integration with external logging systems.
+acceptanceCriteria:
+- 'SanitizationReport contains: timestamp, channel, policy, content_hash (SHA-256
+  of original), modifications (list of changes made), suspicious_patterns (list of
+  SuspiciousPattern), sanitization_duration_ms'
+- SanitizationReport is JSON-serializable via a .to_dict() method
+- Modifications list includes human-readable descriptions (e.g., 'Removed onclick
+  event handler from <div> tag')
+- Report is only computed when report=True is passed to sanitize() — no performance
+  penalty in the default case
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+- Implement suspicious content detector
+source: discovered

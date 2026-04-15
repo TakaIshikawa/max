@@ -1,0 +1,89 @@
+patterns:
+- name: Strategy Pattern for Channel Sanitizers
+  description: Each output channel (email_html, shell_command, sql_parameter, etc.)
+    is implemented as a distinct sanitizer strategy class conforming to a common interface.
+    The main sanitize() function dispatches to the appropriate strategy based on the
+    declared channel. This allows adding new channels without modifying existing code.
+  scope:
+  - channel_guard/sanitizers/
+- name: Pipeline Pattern for Sanitization Stages
+  description: 'Each channel sanitizer internally applies a pipeline of ordered sanitization
+    stages: (1) pre-processing/normalization, (2) channel-specific escaping/sanitization,
+    (3) suspicious content detection, (4) post-validation. Each stage can contribute
+    findings to the sanitization report.'
+  scope:
+  - channel_guard/sanitizers/
+  - channel_guard/pipeline.py
+- name: Registry Pattern for Channel and Policy Configuration
+  description: Channels and policies are registered in a central registry that maps
+    channel names to sanitizer classes and policy names to configuration objects.
+    Users can register custom channels and policies. The registry validates channel/policy
+    combinations at call time.
+  scope:
+  - channel_guard/registry.py
+- name: Value Object Pattern for Sanitization Results
+  description: Sanitization results are returned as immutable value objects (dataclasses
+    with frozen=True) containing the sanitized content, the report, and metadata.
+    This prevents accidental mutation of sanitized output downstream.
+  scope:
+  - channel_guard/types.py
+invariants:
+- Sanitized output must NEVER contain executable payloads that are dangerous in the
+  context of the declared channel — this is the core security guarantee
+- The sanitize() function must NEVER raise an unhandled exception — malformed input
+  must be handled gracefully by falling back to the strictest sanitization (strip
+  all potentially dangerous content) and flagging the anomaly in the report
+- Original content must NEVER be mutated — sanitization always produces a new string
+- The HTML sanitizer must use an allowlist approach (whitelist of permitted tags/attributes)
+  — NEVER a denylist approach
+- Shell command sanitization must NEVER attempt to 'fix' or 'escape' arbitrary shell
+  strings for execution — it must only quote individual arguments; full shell command
+  strings must be rejected with guidance to use parameterized execution
+- SQL sanitization must NEVER produce 'escaped' SQL strings for concatenation — it
+  must enforce parameterized query patterns and reject raw SQL string building
+- The suspicious content detector must NEVER block content — it only flags and reports;
+  the sanitizer handles neutralization
+conventions:
+- All public API functions and classes are exported from channel_guard/__init__.py
+- Type hints on all function signatures and return types; use Python typing module
+- Dataclasses with frozen=True for all value objects (SanitizationResult, SanitizationReport,
+  SuspiciousPattern)
+- 'Each channel sanitizer lives in its own module: channel_guard/sanitizers/{channel_name}.py'
+- 'Test files mirror source structure: tests/sanitizers/test_{channel_name}.py'
+- 'Test functions follow naming: test_{channel}_{scenario}_{expected_outcome}'
+- Constants for channel names and policy names are string enums in channel_guard/constants.py
+- All pattern lists (XSS patterns, shell metacharacters, SQL keywords) are defined
+  as frozen sets in channel_guard/patterns.py
+- Docstrings on all public functions following Google style
+- No print statements — use logging module with structured log messages
+decisions:
+- id: D-1
+  title: Use nh3 over bleach for HTML sanitization
+  decision: Use the nh3 library (Rust-based, Python bindings) as the HTML sanitization
+    engine instead of bleach.
+  rationale: bleach is officially deprecated and no longer maintained. nh3 is its
+    recommended successor, is significantly faster (Rust-based), and provides a robust
+    allowlist-based HTML sanitization API. It handles edge cases in HTML parsing that
+    pure-Python solutions miss, including mutation XSS vectors.
+- id: D-2
+  title: Return sanitized string by default with optional rich result
+  decision: The sanitize() function returns a plain string by default. Passing `report=True`
+    returns a SanitizationResult object containing both the sanitized string and the
+    full SanitizationReport.
+  rationale: The common case is drop-in sanitization where the caller just wants a
+    safe string. Requiring callers to unwrap a result object for every call adds friction
+    and violates the 'one function call' ergonomic goal. The optional report mode
+    serves the audit logging use case without penalizing the simple case.
+- id: D-3
+  title: Reject dangerous patterns in shell and SQL rather than attempting smart escaping
+  decision: For shell_command and sql_parameter channels, the sanitizer does NOT attempt
+    to escape arbitrary strings for safe embedding. Instead, it provides argument
+    quoting (shell) and parameterization enforcement (SQL), raising a clear error
+    with remediation guidance when callers attempt to pass full command strings or
+    raw SQL with concatenated values.
+  rationale: Smart escaping of shell commands and SQL is a known source of security
+    vulnerabilities — there are always edge cases. The secure pattern is parameterized
+    execution, not escaping. By refusing to provide a false sense of security through
+    escaping, the library forces callers toward the correct pattern. This aligns with
+    the security principle of making the safe path the easy path.
+contracts: []

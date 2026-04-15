@@ -14,7 +14,6 @@ from max.types.signal import Signal
 from max.types.insight import Insight
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation, DimensionScore
-from max.types.tact_spec import TactSpec
 
 
 def _now_iso() -> str:
@@ -615,30 +614,6 @@ class Store:
         ).fetchone()
         return _row_to_evaluation(row) if row else None
 
-    # ── TactSpecs ────────────────────────────────────────────────────
-
-    def insert_tact_spec(self, spec: TactSpec) -> TactSpec:
-        self.conn.execute(
-            """INSERT OR REPLACE INTO tact_specs
-               (buildable_unit_id, spec_json, created_at)
-               VALUES (?, ?, ?)""",
-            (
-                spec.buildable_unit_id,
-                spec.model_dump_json(),
-                _now_iso(),
-            ),
-        )
-        self._commit()
-        return spec
-
-    def get_tact_spec(self, unit_id: str) -> TactSpec | None:
-        row = self.conn.execute(
-            "SELECT * FROM tact_specs WHERE buildable_unit_id = ?", (unit_id,)
-        ).fetchone()
-        if not row:
-            return None
-        return TactSpec.model_validate_json(row["spec_json"])
-
     # ── Feedback ─────────────────────────────────────────────────────
 
     def insert_feedback(
@@ -742,7 +717,7 @@ class Store:
                completed_at = ?,
                signals_fetched = ?, signals_new = ?,
                insights_generated = ?, ideas_generated = ?,
-               ideas_evaluated = ?, specs_generated = ?,
+               ideas_evaluated = ?,
                clusters_found = ?, gaps_detected = ?,
                avg_idea_score = ?,
                fetch_allocation = ?, token_usage = ?,
@@ -755,7 +730,6 @@ class Store:
                 metrics.get("insights_generated", 0),
                 metrics.get("ideas_generated", 0),
                 metrics.get("ideas_evaluated", 0),
-                metrics.get("specs_generated", 0),
                 metrics.get("clusters_found", 0),
                 metrics.get("gaps_detected", 0),
                 metrics.get("avg_idea_score", 0.0),
@@ -785,7 +759,6 @@ class Store:
                 "insights_generated": row["insights_generated"],
                 "ideas_generated": row["ideas_generated"],
                 "ideas_evaluated": row["ideas_evaluated"],
-                "specs_generated": row["specs_generated"],
                 "clusters_found": row["clusters_found"],
                 "gaps_detected": row["gaps_detected"],
                 "avg_idea_score": row["avg_idea_score"],

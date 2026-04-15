@@ -12,14 +12,6 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
-from max.types.tact_spec import (
-    TactArchitecture,
-    TactGoal,
-    TactProduct,
-    TactRequirement,
-    TactSpec,
-    TactTechStack,
-)
 
 
 @pytest.fixture(autouse=True)
@@ -123,42 +115,3 @@ def sample_evaluation() -> UtilityEvaluation:
     )
 
 
-@pytest.fixture
-def sample_tact_spec() -> TactSpec:
-    return TactSpec(
-        buildable_unit_id="bu-test001",
-        product=TactProduct(
-            name="mcp-test-framework",
-            vision="Standardized testing for MCP servers",
-            goals=[
-                TactGoal(
-                    id="G-1",
-                    description="Validate MCP server protocol compliance",
-                    success_criteria="100% of MCP protocol methods covered",
-                ),
-            ],
-            tech_stack=TactTechStack(
-                languages=["TypeScript"],
-                frameworks=["Node.js"],
-                infrastructure=["npm"],
-            ),
-            constraints=["MVP: protocol validation only"],
-        ),
-        architecture=TactArchitecture(
-            patterns=[],
-            invariants=["All tests must be deterministic"],
-            conventions=["kebab-case file names"],
-        ),
-        requirements=[
-            TactRequirement(
-                title="Implement protocol validator",
-                priority="critical",
-                description="Core protocol validation engine",
-                acceptance_criteria=[
-                    "Validates initialize handshake",
-                    "Validates tool listing",
-                    "Validates tool execution",
-                ],
-            ),
-        ],
-    )

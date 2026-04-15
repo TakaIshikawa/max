@@ -1,0 +1,61 @@
+name: channel-guard
+version: 0.1.0
+vision: A Python library that intercepts AI agent output and applies channel-specific
+  sanitization before delivery, preventing the entire class of agent-as-injection-amplifier
+  attacks by ensuring AI-generated content is safe for its target delivery channel
+  — email HTML, shell commands, SQL, notifications, and more — through a single function
+  call with channel declaration.
+goals:
+- id: G-1
+  description: Provide channel-specific sanitization that neutralizes injection payloads
+    across all supported output channels (email_html, shell_command, sql_parameter,
+    url, slack_markdown, http_header, json_api, plain_text).
+  successCriteria: 100% of OWASP XSS cheat sheet vectors are neutralized in email_html
+    channel; 100% of common shell injection vectors are neutralized in shell_command
+    channel; 100% of SQLi test vectors are neutralized in sql_parameter channel.
+- id: G-2
+  description: Deliver a minimal, ergonomic API surface that requires no more than
+    one function call to sanitize agent output for a declared channel.
+  successCriteria: The primary API is a single function `sanitize(content, channel,
+    policy)` that returns sanitized content; integration into an existing agent output
+    pipeline requires no more than 3 lines of code change.
+- id: G-3
+  description: Detect suspicious content patterns that are inconsistent with the declared
+    output channel, flagging potential injection payloads embedded in agent-synthesized
+    content.
+  successCriteria: The suspicious content detector identifies at least 95% of cross-channel
+    injection patterns (e.g., JavaScript in email body, shell metacharacters in notification
+    text) with a false-positive rate below 10% on a curated benign content corpus.
+- id: G-4
+  description: Produce structured sanitization reports suitable for audit logging,
+    enabling security teams to trace what was sanitized, why, and for which channel.
+  successCriteria: 'Every sanitize() call can optionally return a SanitizationReport
+    containing: original content hash, channel, policy applied, modifications made,
+    and suspicious pattern flags; reports are JSON-serializable.'
+constraints:
+- 'MVP supports 8 channels: email_html, shell_command, sql_parameter, url, slack_markdown,
+  http_header, json_api, plain_text'
+- No runtime dependencies beyond nh3 — shlex and re are stdlib; keep the dependency
+  footprint minimal
+- LLM-based semantic analysis is out of scope for MVP — suspicious content detection
+  uses pattern matching only
+- OpenTelemetry integration is out of scope for MVP — audit logging uses plain JSON-serializable
+  report objects
+- Must work on Python 3.10+ across Linux, macOS, and Windows
+- Sanitization must add less than 5ms of latency for content under 10KB on commodity
+  hardware
+- No network calls during sanitization — the library must be fully offline-capable
+- MVP does not include middleware adapters for specific agent frameworks — only the
+  core sanitize() API
+techStack:
+  languages:
+  - Python >=3.10
+  frameworks:
+  - nh3 (HTML sanitization)
+  - shlex (shell escaping)
+  - re (pattern detection)
+  - pytest (testing)
+  - pytest-benchmark (performance testing)
+  infrastructure:
+  - PyPI (distribution)
+  - GitHub Actions (CI)

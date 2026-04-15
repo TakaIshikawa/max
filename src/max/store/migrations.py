@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -86,13 +86,6 @@ CREATE TABLE IF NOT EXISTS evaluations (
     FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
 );
 
-CREATE TABLE IF NOT EXISTS tact_specs (
-    buildable_unit_id TEXT PRIMARY KEY,
-    spec_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
-);
-
 CREATE TABLE IF NOT EXISTS feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     buildable_unit_id TEXT NOT NULL,
@@ -114,7 +107,6 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     insights_generated INTEGER NOT NULL DEFAULT 0,
     ideas_generated INTEGER NOT NULL DEFAULT 0,
     ideas_evaluated INTEGER NOT NULL DEFAULT 0,
-    specs_generated INTEGER NOT NULL DEFAULT 0,
     clusters_found INTEGER NOT NULL DEFAULT 0,
     gaps_detected INTEGER NOT NULL DEFAULT 0,
     avg_idea_score REAL NOT NULL DEFAULT 0.0,
@@ -314,6 +306,12 @@ def _migrate_v9_to_v10(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v10_to_v11(conn: sqlite3.Connection) -> None:
+    """Drop tact_specs table — tact integration removed."""
+    conn.execute("DROP TABLE IF EXISTS tact_specs")
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -356,6 +354,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 10:
         _migrate_v9_to_v10(conn)
+
+    if current < 11:
+        _migrate_v10_to_v11(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

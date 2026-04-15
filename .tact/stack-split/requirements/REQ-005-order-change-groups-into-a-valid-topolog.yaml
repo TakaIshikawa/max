@@ -1,0 +1,25 @@
+title: Order change groups into a valid topological stack sequence
+approval: draft
+phase: planned
+priority: high
+description: 'Apply topological sorting to the change groups based on inter-group
+  dependencies. The result is an ordered sequence where each group only depends on
+  groups that precede it. Within the topological ordering, prefer the canonical category
+  order: infra → types → implementation → tests → docs. Validate that no group references
+  symbols introduced in a later group.'
+acceptanceCriteria:
+- 'A changeset with type definitions, implementations using those types, and tests
+  for those implementations produces the order: types → implementations → tests'
+- When two groups have no dependency relationship, they are ordered by canonical category
+  preference
+- The validation pass confirms that every symbol referenced in group N is defined
+  in groups 1..N or the base codebase
+- If validation fails (should be rare), the tool merges the offending groups and retries
+  with a warning
+- The output sequence includes a 'depends_on' field for each group listing its predecessor
+  group indices
+decomposition:
+  assignments: []
+dependencies:
+- Group changes into semantically coherent change categories
+source: discovered

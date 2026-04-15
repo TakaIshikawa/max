@@ -16,14 +16,6 @@ from max.cli import main
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.signal import Signal, SignalSourceType
-from max.types.tact_spec import (
-    TactArchitecture,
-    TactGoal,
-    TactProduct,
-    TactRequirement,
-    TactSpec,
-    TactTechStack,
-)
 
 
 # ── Helpers ────────────────────────────────────────────────────────
@@ -89,49 +81,12 @@ def _make_evaluation(unit_id: str = "bu-test001", score: float = 78.0) -> Utilit
     )
 
 
-def _make_tact_spec(unit_id: str = "bu-test001") -> TactSpec:
-    return TactSpec(
-        buildable_unit_id=unit_id,
-        product=TactProduct(
-            name="mcp-test-framework",
-            vision="Standardized testing for MCP servers",
-            goals=[
-                TactGoal(
-                    id="G-1",
-                    description="Validate MCP server protocol compliance",
-                    success_criteria="100% of MCP protocol methods covered",
-                ),
-            ],
-            tech_stack=TactTechStack(
-                languages=["TypeScript"],
-                frameworks=["Node.js"],
-                infrastructure=["npm"],
-            ),
-            constraints=["MVP: protocol validation only"],
-        ),
-        architecture=TactArchitecture(
-            patterns=[],
-            invariants=["All tests must be deterministic"],
-            conventions=["kebab-case file names"],
-        ),
-        requirements=[
-            TactRequirement(
-                title="Implement protocol validator",
-                priority="critical",
-                description="Core protocol validation engine",
-                acceptance_criteria=["Validates initialize handshake"],
-            ),
-        ],
-    )
-
-
 def _mock_store(**overrides) -> MagicMock:
     """Build a mock Store with sensible defaults. Override individual methods via kwargs."""
     store = MagicMock()
     store.get_buildable_units.return_value = overrides.get("units", [])
     store.get_buildable_unit.return_value = overrides.get("unit", None)
     store.get_evaluation.return_value = overrides.get("evaluation", None)
-    store.get_tact_spec.return_value = overrides.get("tact_spec", None)
     store.get_feedback_outcomes.return_value = overrides.get("feedback_outcomes", [])
     store.get_signals.return_value = overrides.get("signals", [])
     store.close.return_value = None
@@ -171,7 +126,6 @@ class TestRunCommand:
             insights_generated=3,
             ideas_generated=2,
             ideas_evaluated=2,
-            specs_generated=1,
             avg_insight_confidence=0.80,
             avg_idea_score=72.5,
             top_ideas=[{"title": "Test Idea", "score": 75.0, "recommendation": "yes"}],
@@ -282,7 +236,6 @@ class TestRunCommand:
             ideas_generated=2,
             ideas_duplicates_skipped=0,
             ideas_evaluated=2,
-            specs_generated=1,
             avg_insight_confidence=0.85,
             avg_idea_score=72.5,
             top_ideas=[
@@ -298,7 +251,6 @@ class TestRunCommand:
         assert "Signals fetched:    10" in result.output
         assert "Insights generated: 3" in result.output
         assert "Ideas generated:    2" in result.output
-        assert "Specs generated:    1" in result.output
         assert "Token usage:" in result.output
         assert "Top ideas:" in result.output
         assert "Cool Idea" in result.output

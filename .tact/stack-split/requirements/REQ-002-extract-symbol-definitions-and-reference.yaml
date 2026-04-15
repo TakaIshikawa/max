@@ -1,0 +1,24 @@
+title: Extract symbol definitions and references from changed files using tree-sitter
+approval: draft
+phase: planned
+priority: critical
+description: 'For each changed file in a supported language (TypeScript/JavaScript,
+  Python), parse both the base version and the changed version using tree-sitter.
+  Extract a SymbolMap containing: symbols defined (functions, classes, interfaces,
+  types, variables, exports), symbols referenced (imports, function calls, type annotations),
+  and which symbols are newly introduced vs. modified in the diff.'
+acceptanceCriteria:
+- For a TypeScript file, correctly extracts function declarations, class declarations,
+  interface/type alias definitions, exported symbols, and import references
+- For a Python file, correctly extracts function/class definitions, top-level variable
+  assignments, and import statements
+- Distinguishes between symbols that are newly added in the diff vs. symbols that
+  existed in the base and were modified
+- For unsupported languages, returns an empty SymbolMap and flags the file for heuristic-only
+  grouping
+- Processes a 500-line TypeScript file in under 200ms
+decomposition:
+  assignments: []
+dependencies:
+- Parse git diff into structured per-file change representations
+source: discovered

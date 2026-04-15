@@ -1,0 +1,21 @@
+title: Implement Slack markdown and HTTP header sanitizers
+approval: draft
+phase: planned
+priority: medium
+description: Implement sanitizers for slack_markdown (preventing Slack-specific injection
+  via mrkdwn format, link injection, @channel/@here abuse) and http_header (preventing
+  CRLF injection, header splitting, and response splitting attacks).
+acceptanceCriteria:
+- 'Slack markdown sanitizer escapes or removes Slack-specific injection vectors: malicious
+  link labels, @channel/@here/@everyone mentions (configurable), and mrkdwn formatting
+  abuse'
+- HTTP header sanitizer strips CR (\r) and LF (\n) characters to prevent CRLF injection
+  and header splitting
+- HTTP header sanitizer rejects values containing null bytes
+- Both sanitizers integrate with the suspicious content detector and produce findings
+  in the report
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

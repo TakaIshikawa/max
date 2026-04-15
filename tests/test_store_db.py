@@ -14,7 +14,6 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
-from max.types.tact_spec import TactSpec
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -359,39 +358,6 @@ class TestEvaluationOperations:
 
         ev = store.get_evaluation(sample_unit.id)
         assert ev.overall_score == 90.0
-
-
-# ── TactSpec operations ──────────────────────────────────────────────
-
-
-class TestTactSpecOperations:
-    def test_get_tact_spec_not_found(self, store: Store) -> None:
-        assert store.get_tact_spec("bu-nonexistent") is None
-
-    def test_tact_spec_roundtrip(
-        self, store: Store, sample_unit: BuildableUnit, sample_tact_spec: TactSpec
-    ) -> None:
-        store.insert_buildable_unit(sample_unit)
-        store.insert_tact_spec(sample_tact_spec)
-        spec = store.get_tact_spec(sample_unit.id)
-        assert spec is not None
-        assert spec.buildable_unit_id == sample_unit.id
-        assert spec.product.name == "mcp-test-framework"
-        assert spec.architecture.invariants == ["All tests must be deterministic"]
-        assert len(spec.requirements) == 1
-
-    def test_tact_spec_upsert_replaces(
-        self, store: Store, sample_unit: BuildableUnit, sample_tact_spec: TactSpec
-    ) -> None:
-        store.insert_buildable_unit(sample_unit)
-        store.insert_tact_spec(sample_tact_spec)
-
-        # Modify and re-insert
-        sample_tact_spec.product.vision = "Updated vision"
-        store.insert_tact_spec(sample_tact_spec)
-
-        spec = store.get_tact_spec(sample_unit.id)
-        assert spec.product.vision == "Updated vision"
 
 
 # ── Feedback operations ──────────────────────────────────────────────

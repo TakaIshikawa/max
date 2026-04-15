@@ -21,10 +21,8 @@ from max.evaluation.weights import get_adapted_weights
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.llm.client import BudgetExceededError, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
-from max.publisher.file_writer import write_tact_spec
 from max.sources.base import AdapterCircuitOpenError
 from max.sources.registry import get_all_adapters
-from max.spec.generator import generate_spec
 from max.store.db import Store
 from max.synthesis.engine import synthesize
 from max.types.buildable_unit import BuildableUnit
@@ -49,7 +47,6 @@ class PipelineResult:
     ideas_generated: int = 0
     ideas_duplicates_skipped: int = 0
     ideas_evaluated: int = 0
-    specs_generated: int = 0
     top_ideas: list[dict] = field(default_factory=list)
 
     # Quality metrics
@@ -247,24 +244,6 @@ def run_pipeline(
         if evaluated:
             result.avg_idea_score = sum(e.overall_score for _, e in evaluated) / len(evaluated)
 
-        # 5. Generate specs for ideas above threshold
-        specs_written = 0
-        for unit, evaluation in sorted(evaluated, key=lambda x: x[1].overall_score, reverse=True):
-            if evaluation.overall_score < min_score:
-                continue
-
-            spec = generate_spec(unit, evaluation)
-            store.insert_tact_spec(spec)
-            store.update_buildable_unit_status(unit.id, "approved")
-
-            if output_dir:
-                spec_dir = output_dir / spec.product.name
-                write_tact_spec(spec, spec_dir)
-
-            specs_written += 1
-
-        result.specs_generated = specs_written
-
         # Summary of top ideas
         result.top_ideas = [
             {
@@ -322,7 +301,6 @@ def run_pipeline(
             insights_generated=result.insights_generated,
             ideas_generated=result.ideas_generated,
             ideas_evaluated=result.ideas_evaluated,
-            specs_generated=result.specs_generated,
             clusters_found=result.clusters_found,
             gaps_detected=result.gaps_detected,
             avg_idea_score=result.avg_idea_score,

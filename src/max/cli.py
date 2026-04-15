@@ -21,7 +21,7 @@ def main() -> None:
 
 @main.command()
 @click.option("--profile", "-p", type=str, default=None, help="Pipeline profile name (e.g. 'devtools', 'healthcare')")
-@click.option("--output", "-o", type=click.Path(), default=None, help="Output directory for tact specs")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Output directory")
 @click.option("--signal-limit", type=int, default=None, help="Max signals per adapter")
 @click.option("--min-score", type=float, default=None, help="Minimum score to generate spec")
 @click.option("--weight-profile", type=str, default=None, help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
@@ -34,7 +34,7 @@ def run(
     weight_profile: str | None,
     mode: str | None,
 ) -> None:
-    """Run the full pipeline: fetch → synthesize → ideate → evaluate → publish."""
+    """Run the full pipeline: fetch → synthesize → ideate → evaluate."""
     from max.config import MAX_PROFILE
     from max.pipeline.runner import run_pipeline
     from max.profiles.loader import get_default_profile, load_profile
@@ -77,7 +77,6 @@ def run(
     click.echo(f"Insights generated: {result.insights_generated} ({result.insights_duplicates_skipped} duplicates skipped, avg confidence: {result.avg_insight_confidence:.2f})")
     click.echo(f"Ideas generated:    {result.ideas_generated} ({result.ideas_duplicates_skipped} duplicates skipped)")
     click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
-    click.echo(f"Specs generated:    {result.specs_generated}")
     if result.token_usage:
         total_input = result.token_usage.get("total_input", 0)
         total_output = result.token_usage.get("total_output", 0)
@@ -194,53 +193,10 @@ def inspect(unit_id: str) -> None:
 
 @main.command()
 @click.argument("unit_id")
-@click.option("--output", "-o", type=click.Path(), default=".tact", help="Output directory")
-@click.option("--dry-run", is_flag=True, help="Print spec JSON instead of writing files")
-def publish(unit_id: str, output: str, dry_run: bool) -> None:
-    """Generate and publish a tact spec for a buildable unit."""
-    from max.publisher.file_writer import write_tact_spec
-    from max.spec.generator import generate_spec
-    from max.store.db import Store
-
-    store = Store()
-    try:
-        unit = store.get_buildable_unit(unit_id)
-        if not unit:
-            click.echo(f"Not found: {unit_id}")
-            return
-
-        evaluation = store.get_evaluation(unit_id)
-        if not evaluation:
-            click.echo(f"No evaluation for {unit_id}. Run the pipeline first.")
-            return
-
-        # Check if spec already exists
-        existing = store.get_tact_spec(unit_id)
-        if existing:
-            spec = existing
-            click.echo(f"Using existing spec for {unit.title}")
-        else:
-            click.echo(f"Generating spec for: {unit.title}")
-            spec = generate_spec(unit, evaluation)
-            store.insert_tact_spec(spec)
-
-        if dry_run:
-            click.echo(spec.model_dump_json(indent=2, by_alias=True))
-        else:
-            output_dir = Path(output) / spec.product.name
-            write_tact_spec(spec, output_dir)
-            click.echo(f"Written to: {output_dir.resolve()}")
-            store.update_buildable_unit_status(unit_id, "published")
-    finally:
-        store.close()
-
-
-@main.command()
-@click.argument("unit_id")
-@click.argument("outcome", type=click.Choice(["approved", "rejected", "published", "abandoned"]))
+@click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))
 @click.option("--reason", "-r", type=str, default="", help="Reason for the feedback")
 def feedback(unit_id: str, outcome: str, reason: str) -> None:
-    """Record feedback on a buildable unit (approved/rejected/published/abandoned)."""
+    """Record feedback on a buildable unit (approved/rejected/abandoned)."""
     from max.store.db import Store
 
     store = Store()
@@ -927,7 +883,7 @@ def feedback_log(limit: int) -> None:
             click.echo(f"{r['outcome']:<10s} {score:>5s} {domain:<16s} {r['title'][:50]:<50s} {reason}")
 
         # Summary counts
-        approved = sum(1 for r in records if r["outcome"] in ("approved", "published"))
+        approved = sum(1 for r in records if r["outcome"] == "approved")
         rejected = sum(1 for r in records if r["outcome"] in ("rejected", "abandoned"))
         click.echo(f"\n{len(records)} records: {approved} approved, {rejected} rejected")
     finally:
@@ -1268,31 +1224,6 @@ def archive(days: int | None, purge: bool, purge_days: int, dry_run: bool) -> No
                 f"  {table:20s}  total: {counts['total']:6d}  "
                 f"active: {counts['active']:6d}  archived: {counts['archived']:6d}"
             )
-    finally:
-        store.close()
-
-
-@main.command()
-@click.argument("unit_id")
-@click.option("--tact-url", type=str, default="http://localhost:4800/api/v1", help="Tact daemon URL")
-def push(unit_id: str, tact_url: str) -> None:
-    """Push a spec to the tact daemon via REST API."""
-    from max.publisher.tact_api import push_to_tact_sync
-    from max.store.db import Store
-
-    store = Store()
-    try:
-        spec = store.get_tact_spec(unit_id)
-        if not spec:
-            click.echo(f"No spec for {unit_id}. Run 'max publish {unit_id}' first.")
-            return
-
-        click.echo(f"Pushing {spec.product.name} to {tact_url}...")
-        results = push_to_tact_sync(spec, tact_url=tact_url)
-
-        for endpoint, success in results.items():
-            status = "ok" if success else "FAILED"
-            click.echo(f"  {endpoint}: {status}")
     finally:
         store.close()
 

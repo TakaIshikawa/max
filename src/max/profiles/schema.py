@@ -48,7 +48,7 @@ class PipelineProfile(BaseModel):
     domain: DomainContext
     sources: list[SourceConfig] = Field(default_factory=list)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
-    output_dir: str = ".tact"
+    output_dir: str = ".max-output"
     signal_limit: int = 30
     ideation_mode: str = "direct"
 

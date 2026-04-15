@@ -7,7 +7,6 @@ from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
 from max.types.insight import Insight
 from max.types.signal import Signal
-from max.types.tact_spec import TactSpec
 
 
 def test_insert_and_get_signal(store: Store, sample_signal: Signal) -> None:
@@ -81,21 +80,6 @@ def test_insert_and_get_evaluation(store: Store, sample_unit: BuildableUnit, sam
     assert evaluation.overall_score == 78.0
     assert evaluation.pain_severity.value == 8.0
     assert evaluation.recommendation == "yes"
-
-
-def test_insert_and_get_tact_spec(store: Store, sample_unit: BuildableUnit, sample_tact_spec: TactSpec) -> None:
-    store.insert_buildable_unit(sample_unit)
-    store.insert_tact_spec(sample_tact_spec)
-
-    spec = store.get_tact_spec("bu-test001")
-    assert spec is not None
-    assert spec.product.name == "mcp-test-framework"
-    assert len(spec.requirements) == 1
-    assert spec.requirements[0].acceptance_criteria == [
-        "Validates initialize handshake",
-        "Validates tool listing",
-        "Validates tool execution",
-    ]
 
 
 # ── By-ID lookups ─────────────────────────────────────────────────

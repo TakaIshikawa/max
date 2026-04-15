@@ -1,0 +1,26 @@
+title: Implement archive parser with decompression bomb detection
+approval: draft
+phase: planned
+priority: high
+description: Create an archive parser that handles ZIP, GZIP, and TAR files inside
+  the subprocess sandbox. Before full extraction, the parser checks declared vs actual
+  decompression ratios, nested archive depth, total extracted size, and file count.
+  Archives exceeding any configured limit are rejected. Extraction outputs file metadata
+  (names, sizes, types) without writing to disk — all in-memory within the sandbox.
+acceptanceCriteria:
+- Parses valid ZIP, GZIP, and TAR archives and returns ParseResult with metadata listing
+  contained files (name, compressed_size, uncompressed_size)
+- A gzip bomb (e.g., 10MB compressed → 10GB uncompressed) is detected and rejected
+  with error_code='DECOMPRESSION_BOMB' before full decompression, based on ratio exceeding
+  max_decompression_ratio
+- A nested archive (zip-within-zip) beyond depth 2 is rejected with error_code='NESTED_ARCHIVE_LIMIT'
+- An archive containing more than 10,000 entries (configurable) is rejected with error_code='FILE_COUNT_LIMIT'
+- Total extracted size exceeding max_output_size_bytes is rejected before extraction
+  completes
+decomposition:
+  assignments: []
+dependencies:
+- Implement subprocess sandbox executor with resource limits
+- Define ParseResult and SandboxConfig Pydantic models
+- Implement magic-byte format detection module
+source: discovered

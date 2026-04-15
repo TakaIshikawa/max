@@ -21,7 +21,6 @@ def mock_pipeline_result():
         insights_generated=2,
         ideas_generated=2,
         ideas_evaluated=2,
-        specs_generated=1,
         avg_insight_confidence=0.75,
         avg_idea_score=65.0,
     )

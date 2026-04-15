@@ -1,0 +1,22 @@
+title: Implement URL sanitizer
+approval: draft
+phase: planned
+priority: high
+description: 'Implement the url channel sanitizer that validates and sanitizes URLs
+  to prevent open redirect attacks, javascript: URI injection, and data: URI abuse.
+  Enforces an allowlist of safe schemes and validates URL structure.'
+acceptanceCriteria:
+- URLs with http:// and https:// schemes pass through with proper encoding of unsafe
+  characters
+- 'javascript:, data:, vbscript:, and file: URI schemes are rejected and return an
+  empty string or configurable fallback'
+- URLs with encoded/obfuscated schemes (e.g., java%0ascript:, &#106;avascript:) are
+  detected and blocked after decoding
+- Malformed URLs that could cause parser differential attacks (e.g., http://evil.com\@good.com)
+  are normalized or rejected
+- Protocol-relative URLs (//evil.com) are rejected unless explicitly allowed by policy
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

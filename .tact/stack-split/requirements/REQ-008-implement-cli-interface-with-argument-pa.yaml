@@ -1,0 +1,23 @@
+title: Implement CLI interface with argument parsing and help text
+approval: draft
+phase: planned
+priority: high
+description: Create the CLI entry point using Commander.js. Support the primary command
+  `stack-split [base-ref] [head-ref]` with sensible defaults (base=main, head=HEAD).
+  Include flags for output format (--format json|markdown|summary), output destination
+  (--output), verbosity (--verbose, --quiet), and language override (--lang). Provide
+  comprehensive --help text with usage examples.
+acceptanceCriteria:
+- Running `stack-split` with no arguments in a git repo with a checked-out feature
+  branch produces output using main/master as base and HEAD as head
+- Running `stack-split --help` displays usage, all flags, and at least 2 usage examples
+- 'Running `stack-split --format summary` prints a concise table: group index, title,
+  file count, line count'
+- Invalid arguments produce a clear error message and non-zero exit code
+- The --verbose flag outputs pipeline stage timing and intermediate statistics (files
+  parsed, symbols found, groups formed)
+decomposition:
+  assignments: []
+dependencies:
+- Parse git diff into structured per-file change representations
+source: discovered

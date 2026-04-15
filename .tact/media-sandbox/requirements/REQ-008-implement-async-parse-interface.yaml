@@ -1,0 +1,23 @@
+title: Implement async parse interface
+approval: draft
+phase: planned
+priority: medium
+description: Provide an async version of the parse function (parse_async) that uses
+  asyncio.create_subprocess_exec to run sandbox subprocesses without blocking the
+  event loop. Must support the same config, result types, and resource limits as the
+  sync interface. Enables use in async agent frameworks and concurrent parsing of
+  multiple files.
+acceptanceCriteria:
+- parse_async(file_bytes) returns the same ParseResult as parse(file_bytes) for identical
+  inputs
+- Multiple concurrent parse_async calls execute in parallel subprocesses and complete
+  faster than sequential sync calls
+- Timeout enforcement works correctly in async mode — a slow parse is killed after
+  max_wall_time_seconds
+- parse_async is usable with `await` in a standard asyncio event loop
+decomposition:
+  assignments: []
+dependencies:
+- Implement subprocess sandbox executor with resource limits
+- Implement parser registry with format routing
+source: discovered

@@ -1,0 +1,98 @@
+patterns:
+- name: Subprocess Sandbox Isolation
+  description: Every media parse operation executes in a short-lived child subprocess
+    with hard resource limits (memory via resource.setrlimit, wall-clock timeout via
+    subprocess.run timeout). The parent process never loads untrusted media bytes
+    into its own address space. The child communicates results back via stdout as
+    JSON-serialized ParseResult objects. If the child is killed by OOM or timeout,
+    the parent returns a structured error — never crashes.
+  scope:
+  - media_sandbox/sandbox.py
+  - media_sandbox/executor.py
+- name: Parser Registry with Format Whitelisting
+  description: A central registry maps MIME types and file extensions to parser implementations.
+    Each parser declares which formats it accepts. Incoming files are first sniffed
+    for magic bytes to detect true format, then matched against the whitelist. Mismatches
+    between declared and detected format are flagged as threat indicators. New parsers
+    are registered via a decorator, making the system extensible.
+  scope:
+  - media_sandbox/registry.py
+  - media_sandbox/parsers/
+- name: Resource Budget Configuration
+  description: A hierarchical Pydantic-based configuration system where global defaults
+    can be overridden per media category and per individual parse call. Budgets include
+    max_memory_bytes, max_wall_time_seconds, max_decompression_ratio, max_output_size_bytes,
+    and allowed_formats. Configuration is immutable once a parse begins.
+  scope:
+  - media_sandbox/config.py
+- name: Structured Result Envelope
+  description: All parse operations return a ParseResult dataclass (never raise exceptions
+    for parse failures). The result contains success/failure status, sanitized output
+    (bytes or metadata dict), detected format, resource telemetry, threat indicators,
+    and error details. This pattern ensures agent pipelines always get a decision-quality
+    signal, even on failure.
+  scope:
+  - media_sandbox/result.py
+invariants:
+- The host/parent process MUST NEVER directly decode, decompress, or deserialize untrusted
+  media bytes. All such operations occur exclusively in sandboxed subprocesses.
+- Every subprocess MUST have a finite memory limit and a finite wall-clock timeout.
+  No subprocess may run with unlimited resources.
+- A parse operation MUST NEVER raise an unhandled exception to the caller. All failures
+  are captured in a structured ParseResult with error details.
+- File format detection MUST use magic-byte sniffing, not file extension alone. Extension-only
+  detection is a threat indicator, not a trust signal.
+- Decompression ratio (output_size / input_size) MUST be checked against the configured
+  limit before full extraction. Exceeding the ratio aborts the operation immediately.
+- ParseResult objects MUST be JSON-serializable so they can be passed through any
+  agent framework's message protocol.
+- Configuration is immutable once a parse operation begins — no mid-parse config mutation.
+conventions:
+- All public API functions live in media_sandbox/__init__.py and are importable as
+  `from media_sandbox import parse, parse_async, configure`.
+- 'Parser modules are named by media category: parsers/image.py, parsers/archive.py,
+  parsers/model_file.py.'
+- All dataclasses and Pydantic models use snake_case field names.
+- Type hints are mandatory on all public and internal function signatures.
+- 'Tests mirror source structure: tests/test_sandbox.py, tests/parsers/test_image.py,
+  etc.'
+- Adversarial test fixtures live in tests/fixtures/adversarial/ with a README documenting
+  each payload.
+- Logging uses stdlib logging with a 'media_sandbox' logger name. No print statements.
+- Docstrings follow Google style. All public functions have docstrings.
+- 'Version follows SemVer. Current: 0.1.0.'
+decisions:
+- id: D-1
+  title: Subprocess isolation over in-process sandboxing
+  decision: Use subprocess.run (sync) and asyncio.create_subprocess_exec (async) to
+    execute all media parsing in child processes, rather than in-process techniques
+    like memory arenas or thread isolation.
+  rationale: Subprocess isolation provides the strongest security boundary available
+    without kernel-level sandboxing. A compromised parser (e.g., Pillow buffer overflow)
+    is contained to the child process. The child can be killed cleanly on timeout
+    or OOM without corrupting the parent. In-process isolation (threads, memory views)
+    cannot prevent RCE from a native-code exploit in an image decoder. The performance
+    cost (~10-50ms subprocess spawn) is acceptable for security-critical media parsing
+    in agent pipelines where network I/O already dominates latency.
+- id: D-2
+  title: Structured ParseResult envelope over exceptions
+  decision: Return a ParseResult dataclass from every parse call, encoding success/failure,
+    metadata, and threat indicators in the result object. Never raise exceptions for
+    parse failures.
+  rationale: AI agent pipelines need to make decisions based on parse outcomes — a
+    raised exception loses context (threat indicators, partial metadata, resource
+    telemetry). A structured result lets agents distinguish between 'file is corrupted'
+    vs 'file triggered a decompression bomb limit' vs 'file parsed successfully but
+    has suspicious metadata'. This also makes the library composable in async pipelines
+    and map/filter chains without try/except boilerplate.
+- id: D-3
+  title: Pydantic for configuration and result models
+  decision: Use Pydantic v2 BaseModel for SandboxConfig and ParseResult rather than
+    plain dataclasses or TypedDicts.
+  rationale: Pydantic provides validation on construction (catching misconfigured
+    budgets like negative memory limits), JSON serialization for free (required for
+    agent framework interop), and immutability via frozen models (enforcing the config-immutability
+    invariant). It is already a near-universal dependency in the AI/ML Python ecosystem
+    (LangChain, FastAPI, etc.), so it adds no novel dependency burden for the target
+    user base.
+contracts: []

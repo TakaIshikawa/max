@@ -1,0 +1,22 @@
+title: Implement core sanitize() API with channel dispatch
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the primary public API function `sanitize(content: str, channel:
+  str, policy: str = ''strict'', report: bool = False)` that validates inputs, resolves
+  the appropriate channel sanitizer from the registry, executes the sanitization pipeline,
+  and returns either a sanitized string or a SanitizationResult. This is the single
+  entry point for all sanitization operations.'
+acceptanceCriteria:
+- sanitize('hello', channel='plain_text') returns 'hello' unchanged
+- sanitize(content, channel='unknown_channel') raises ValueError with message listing
+  valid channels
+- sanitize(content, channel='email_html', report=True) returns a SanitizationResult
+  with .content (str) and .report (SanitizationReport) attributes
+- sanitize(None) or sanitize(123) raises TypeError with descriptive message
+- sanitize() with any valid channel never raises an unhandled exception for any string
+  input — fuzz test with 1000 random byte strings
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

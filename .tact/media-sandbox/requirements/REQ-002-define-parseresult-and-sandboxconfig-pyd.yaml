@@ -1,0 +1,22 @@
+title: Define ParseResult and SandboxConfig Pydantic models
+approval: draft
+phase: planned
+priority: critical
+description: 'Create the core data models: ParseResult (status, output, detected_format,
+  bytes_read, peak_memory_bytes, wall_time_seconds, threat_indicators, error_code,
+  error_details) and SandboxConfig (max_memory_bytes, max_wall_time_seconds, max_decompression_ratio,
+  max_output_size_bytes, allowed_formats). Both must be immutable after construction
+  and JSON-serializable.'
+acceptanceCriteria:
+- ParseResult is a frozen Pydantic model with all specified fields, and calling .model_dump_json()
+  produces valid JSON
+- SandboxConfig is a frozen Pydantic model with sensible defaults (256MB memory, 30s
+  timeout, 100x decompression ratio, all formats allowed)
+- Attempting to mutate a field on either model after construction raises a ValidationError
+  or FrozenInstanceError
+- SandboxConfig rejects invalid values (negative memory, zero timeout) with descriptive
+  validation errors
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

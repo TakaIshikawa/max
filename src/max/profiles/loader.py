@@ -118,7 +118,7 @@ def get_default_profile() -> PipelineProfile:
             ),
         ],
         evaluation=EvaluationConfig(weight_profile="default", min_score=50.0),
-        output_dir=".tact",
+        output_dir=".max-output",
         signal_limit=30,
         ideation_mode="direct",
     )

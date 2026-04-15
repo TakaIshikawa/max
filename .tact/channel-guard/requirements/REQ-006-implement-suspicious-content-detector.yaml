@@ -1,0 +1,25 @@
+title: Implement suspicious content detector
+approval: draft
+phase: planned
+priority: high
+description: 'Implement a pattern-matching-based suspicious content detector that
+  identifies content patterns inconsistent with the declared output channel. For example:
+  JavaScript patterns in email body text, shell metacharacters in notification text,
+  SQL keywords in chat messages. The detector flags but never blocks — findings are
+  included in the SanitizationReport.'
+acceptanceCriteria:
+- Detects script tags, event handlers, and JavaScript patterns in non-HTML channels
+  (plain_text, slack_markdown, json_api)
+- Detects shell metacharacters and command patterns in non-shell channels (email_html,
+  plain_text, slack_markdown)
+- Detects SQL injection patterns in non-SQL channels (email_html, plain_text, slack_markdown)
+- 'Each detection returns a SuspiciousPattern object with: pattern_type, matched_content,
+  confidence_score (0.0-1.0), and description'
+- False positive rate is below 10% when tested against a corpus of 500+ benign content
+  samples containing legitimate technical discussion (e.g., a meeting summary discussing
+  SQL queries)
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

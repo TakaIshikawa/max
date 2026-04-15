@@ -1,0 +1,56 @@
+name: stack-split
+version: 0.1.0
+vision: A CLI tool that decomposes large AI-generated diffs into semantically coherent
+  stacked PRs using AST-based dependency analysis, turning unreviewable 2000-line
+  changesets into focused, ordered increments that humans can reason about and review
+  with confidence.
+goals:
+- id: G-1
+  description: Decompose a large diff into a valid sequence of stacked change groups
+    that each represent a semantically coherent unit of work
+  successCriteria: Given a diff touching 10+ files across types, implementation, and
+    tests, the tool produces 3-7 ordered change groups where each group shares a clear
+    semantic theme (infra, types, implementation, tests, docs)
+- id: G-2
+  description: Ensure each stacked change group respects dependency ordering so changes
+    can be applied incrementally without breaking symbol resolution
+  successCriteria: For TypeScript and Python projects, each change group in the stack
+    introduces no unresolved symbol references — symbols are either defined in the
+    current group, a prior group, or the pre-existing codebase
+- id: G-3
+  description: Generate human-readable PR descriptions and a structured plan for each
+    stacked PR in the decomposition
+  successCriteria: Each change group output includes a title, a summary of what changed
+    and why it is a logical unit, and a list of files/symbols affected — usable as
+    a PR description without manual editing
+- id: G-4
+  description: Provide a frictionless CLI experience that works on any git branch
+    or diff without requiring project-specific configuration
+  successCriteria: A user can run `stack-split` in a git repo with a feature branch
+    and get a stacked PR plan in under 30 seconds for a 2000-line diff, with zero
+    config files required
+constraints:
+- MVP supports only TypeScript/JavaScript and Python AST parsing — other languages
+  fall back to file-level heuristic grouping
+- MVP does not create actual git branches or open PRs — it outputs a stacked PR plan
+  as JSON and optional markdown summaries
+- No LLM dependency for MVP — PR descriptions are generated via deterministic templates
+  using extracted symbol and file metadata
+- MVP operates on the diff between two git refs (branch vs base) — it does not require
+  individual commit history
+- Maximum supported diff size for MVP is 5000 lines changed — larger diffs emit a
+  warning and best-effort output
+- No CI/CD integration in MVP — the tool is invoked manually from the command line
+techStack:
+  languages:
+  - TypeScript
+  frameworks:
+  - Node.js
+  - tree-sitter
+  - simple-git
+  - Commander.js
+  infrastructure:
+  - npm (distribution)
+  - GitHub Actions (CI)
+  - tree-sitter-typescript grammar
+  - tree-sitter-python grammar

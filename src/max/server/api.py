@@ -81,7 +81,6 @@ def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> li
             insights_generated=r["insights_generated"],
             ideas_generated=r["ideas_generated"],
             ideas_evaluated=r["ideas_evaluated"],
-            specs_generated=r["specs_generated"],
             status="completed" if r["completed_at"] else "running",
         )
         for r in runs
@@ -332,14 +331,6 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
     return _unit_detail(unit, evaluation)
 
 
-@router.get("/ideas/{idea_id}/spec")
-def get_idea_spec(idea_id: str, store: Store = Depends(get_store)) -> dict:
-    spec = store.get_tact_spec(idea_id)
-    if not spec:
-        raise HTTPException(status_code=404, detail=f"No spec for idea: {idea_id}")
-    return spec.model_dump(by_alias=True)
-
-
 def _evaluate_idea_background(idea_id: str) -> None:
     """Run evaluation in background (blocking LLM call)."""
     from max.evaluation.engine import evaluate
@@ -425,7 +416,6 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         insights_generated=result.insights_generated,
         ideas_generated=result.ideas_generated,
         ideas_evaluated=result.ideas_evaluated,
-        specs_generated=result.specs_generated,
         avg_insight_confidence=result.avg_insight_confidence,
         avg_idea_score=result.avg_idea_score,
         token_usage=result.token_usage,
@@ -445,8 +435,7 @@ def get_stats(store: Store = Depends(get_store)) -> StatsResponse:
 
     all_units = store.get_buildable_units(limit=10000)
     ideas_count = len(all_units)
-    evaluated_count = sum(1 for u in all_units if u.status in ("evaluated", "approved", "published"))
-    published_count = sum(1 for u in all_units if u.status == "published")
+    evaluated_count = sum(1 for u in all_units if u.status in ("evaluated", "approved"))
 
     scores = []
     for unit in all_units:
@@ -461,7 +450,6 @@ def get_stats(store: Store = Depends(get_store)) -> StatsResponse:
         insights_count=insights_count,
         ideas_count=ideas_count,
         evaluated_count=evaluated_count,
-        published_count=published_count,
         avg_score=avg_score,
     )
 

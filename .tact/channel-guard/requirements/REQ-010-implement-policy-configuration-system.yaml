@@ -1,0 +1,23 @@
+title: Implement policy configuration system
+approval: draft
+phase: planned
+priority: medium
+description: Implement the policy system that allows callers to choose between 'strict',
+  'moderate', and 'permissive' sanitization levels per channel. Strict strips all
+  potentially dangerous content; moderate allows safe formatting; permissive allows
+  most content with only critical injection prevention. Users can also define custom
+  policies.
+acceptanceCriteria:
+- Three built-in policies (strict, moderate, permissive) are available for all channels
+- strict policy for email_html strips all HTML tags; moderate allows formatting tags
+  (p, b, i, a, img, ul, ol, li); permissive allows most tags except script, iframe,
+  object, embed
+- Custom policies can be registered via register_policy(name, config) and used in
+  sanitize() calls
+- Invalid policy names raise ValueError with message listing available policies
+- Default policy is 'strict' when not specified
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

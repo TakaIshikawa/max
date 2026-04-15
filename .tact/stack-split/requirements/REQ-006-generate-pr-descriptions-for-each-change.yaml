@@ -1,0 +1,21 @@
+title: Generate PR descriptions for each change group using templates
+approval: draft
+phase: planned
+priority: high
+description: 'For each change group in the stack, generate a human-readable PR title
+  and description body. The title summarizes the semantic theme. The body includes:
+  a summary paragraph, list of files changed, key symbols added/modified, and the
+  group''s position in the stack (e.g., ''PR 2/5 — depends on PR 1''). Uses deterministic
+  templates populated from the symbol maps and group metadata.'
+acceptanceCriteria:
+- Each generated description includes a title of 72 characters or fewer
+- The body includes a 'Files Changed' section listing all files in the group
+- The body includes a 'Key Changes' section listing up to 10 symbols added or modified
+- 'The body includes stack context: ''Part N of M'' and explicit dependency on prior
+  PRs'
+- Descriptions are valid markdown and render correctly when viewed as raw text
+decomposition:
+  assignments: []
+dependencies:
+- Order change groups into a valid topological stack sequence
+source: discovered

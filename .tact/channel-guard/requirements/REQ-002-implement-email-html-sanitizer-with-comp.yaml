@@ -1,0 +1,25 @@
+title: Implement email HTML sanitizer with comprehensive event handler blocking
+approval: draft
+phase: planned
+priority: critical
+description: 'Implement the email_html channel sanitizer using nh3 with a strict allowlist
+  of safe HTML tags and attributes. Must block ALL DOM event handlers including newer/obscure
+  ones (oncontentvisibilityautostatechange, onscrollend, ontoggle, etc.) that are
+  missed by common sanitizers. Must handle HTML entity encoding, data URIs, javascript:
+  URIs, and mutation XSS vectors.'
+acceptanceCriteria:
+- All 100+ OWASP XSS Filter Evasion Cheat Sheet vectors are neutralized (script content
+  removed or escaped, event handlers stripped)
+- Legitimate HTML formatting (p, b, i, ul, ol, li, a with http/https href, img with
+  http/https src) is preserved in 'moderate' policy
+- All known DOM event handler attributes (maintained list of 80+ handlers from MDN
+  spec) are stripped regardless of case or whitespace variations
+- 'javascript:, data:text/html, and vbscript: URI schemes are removed from href and
+  src attributes'
+- HTML entities and unicode escapes used to obfuscate payloads (e.g., &#106;avascript:)
+  are decoded before sanitization
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

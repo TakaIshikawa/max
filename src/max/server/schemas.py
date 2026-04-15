@@ -180,7 +180,6 @@ class PipelineResultResponse(BaseModel):
     insights_generated: int
     ideas_generated: int
     ideas_evaluated: int
-    specs_generated: int
     avg_insight_confidence: float
     avg_idea_score: float
     token_usage: dict[str, int]
@@ -197,7 +196,6 @@ class StatsResponse(BaseModel):
     insights_count: int
     ideas_count: int
     evaluated_count: int
-    published_count: int
     avg_score: float | None = None
 
 
@@ -207,7 +205,6 @@ class PipelineResultSummary(BaseModel):
     insights_generated: int
     ideas_generated: int
     ideas_evaluated: int
-    specs_generated: int
     avg_insight_confidence: float
     avg_idea_score: float
 
@@ -255,5 +252,4 @@ class PipelineRunHistoryResponse(BaseModel):
     insights_generated: int
     ideas_generated: int
     ideas_evaluated: int
-    specs_generated: int
     status: str

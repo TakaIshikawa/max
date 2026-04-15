@@ -1,0 +1,86 @@
+patterns:
+- name: Pipeline Architecture
+  description: 'The core decomposition flow is a linear pipeline: DiffParser → ASTAnalyzer
+    → DependencyGraphBuilder → ChangeGrouper → PlanGenerator. Each stage transforms
+    data and passes a well-typed intermediate representation to the next. Stages are
+    independently testable.'
+  scope:
+  - src/pipeline/
+  - src/stages/
+- name: Strategy Pattern for Language Support
+  description: AST analysis is implemented behind a LanguageAnalyzer interface. Each
+    supported language (TypeScript, Python) provides a concrete strategy that extracts
+    symbol definitions and references from tree-sitter parse trees. A fallback heuristic
+    strategy handles unsupported languages using file-path and diff-hunk analysis.
+  scope:
+  - src/analyzers/
+- name: Directed Acyclic Graph (DAG) for Dependencies
+  description: Cross-file and cross-symbol dependencies are modeled as a DAG. Nodes
+    represent change hunks or file-level changes. Edges represent 'depends on' relationships
+    (symbol defined in A, referenced in B → B depends on A). Topological sorting of
+    this DAG determines valid stacking order.
+  scope:
+  - src/graph/
+- name: Immutable Data Transfer Objects
+  description: All intermediate representations (ParsedDiff, SymbolMap, DependencyGraph,
+    ChangeGroup, StackedPlan) are defined as readonly TypeScript interfaces. Pipeline
+    stages produce new objects rather than mutating inputs, making the flow predictable
+    and testable.
+  scope:
+  - src/types/
+invariants:
+- Every symbol referenced in a change group must be either defined within that group,
+  defined in a preceding group in the stack, or already present in the base codebase
+  — no forward references across groups
+- The stacked PR plan must be a total partition of the input diff — every changed
+  line appears in exactly one change group, nothing is dropped or duplicated
+- 'Change groups are always ordered: infrastructure/config → types/interfaces → implementation
+  → tests → documentation. Within a category, ordering follows topological sort of
+  the dependency graph'
+- The CLI must never modify the git working tree, index, or any branches — it is a
+  read-only analysis tool in MVP
+- All pipeline stages must be pure functions over their inputs — no hidden state,
+  no side effects except final output writing
+conventions:
+- 'File naming: kebab-case for all source files (e.g., dependency-graph-builder.ts,
+  change-grouper.ts)'
+- 'Type naming: PascalCase for interfaces and types, prefixed with ''I'' only for
+  interfaces that have multiple implementations (e.g., ILanguageAnalyzer)'
+- 'Function naming: camelCase, verb-first (e.g., parseDiff, buildDependencyGraph,
+  groupChanges)'
+- Each pipeline stage lives in its own file under src/stages/ and exports a single
+  primary function
+- 'Tests mirror source structure: src/stages/diff-parser.ts → tests/stages/diff-parser.test.ts'
+- All public functions include JSDoc with @param and @returns annotations
+- 'Error handling: throw typed error classes (StackSplitError subclasses) — never
+  throw raw strings'
+- 'Use strict TypeScript: strict mode enabled, no any types, no non-null assertions
+  except in tests'
+decisions:
+- id: D-1
+  title: TypeScript over Python for implementation language
+  decision: Implement the CLI in TypeScript with Node.js runtime
+  rationale: Tree-sitter has excellent Node.js bindings (node-tree-sitter). TypeScript's
+    type system provides strong guarantees for the complex intermediate data structures
+    in the pipeline. The target user base (developers using AI coding tools) overwhelmingly
+    works in TypeScript/JavaScript ecosystems. npm distribution is simpler than pip
+    for CLI tools with native dependencies.
+- id: D-2
+  title: Diff-based analysis over full-repo AST parsing
+  decision: Parse only the changed files (both before and after versions) rather than
+    the entire repository
+  rationale: Full-repo parsing would be slow and unnecessary. By parsing only changed
+    files, we keep analysis fast (<30s for 2000-line diffs) and avoid needing to resolve
+    the entire project dependency graph. We extract the base version of changed files
+    from git to determine which symbols already exist in the codebase vs. which are
+    newly introduced.
+- id: D-3
+  title: JSON plan output over direct git branch creation for MVP
+  decision: Output a structured JSON plan and markdown summaries rather than creating
+    git branches or PRs
+  rationale: Creating branches and PRs requires handling auth, remote configuration,
+    merge conflicts, and tool-specific APIs (Graphite, ghstack, GitHub). This is high-complexity,
+    low-learning work. The JSON plan is immediately useful (can be piped to other
+    tools or reviewed manually) and defers integration complexity to post-MVP. The
+    plan format is designed to be consumable by a future `stack-split apply` command.
+contracts: []

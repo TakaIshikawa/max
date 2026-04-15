@@ -1,0 +1,25 @@
+title: Implement public API surface and package structure
+approval: draft
+phase: planned
+priority: medium
+description: 'Set up the Python package structure (media_sandbox/), pyproject.toml
+  with dependencies and metadata, and the public API in __init__.py. The public API
+  exposes: parse(), parse_async(), configure() (for setting global defaults), SandboxConfig,
+  and ParseResult. Include a minimal README with installation instructions and usage
+  examples for each supported media type.'
+acceptanceCriteria:
+- Package installs in a clean Python 3.10+ venv via `pip install -e .` with all dependencies
+  resolved
+- '`from media_sandbox import parse, parse_async, configure, SandboxConfig, ParseResult`
+  works without error'
+- README.md includes pip install instructions, a quick-start example for image parsing,
+  archive parsing, and model file validation
+- pyproject.toml declares Python >=3.10, lists all runtime dependencies, and sets
+  version to 0.1.0
+- Running `pytest` from the project root discovers and executes all tests
+decomposition:
+  assignments: []
+dependencies:
+- Implement parser registry with format routing
+- Implement async parse interface
+source: discovered

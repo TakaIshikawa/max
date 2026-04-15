@@ -1,0 +1,24 @@
+title: Build a cross-file dependency graph from symbol maps
+approval: draft
+phase: planned
+priority: critical
+description: Construct a directed acyclic graph where nodes represent file-level changes
+  and edges represent dependency relationships. File A depends on File B if A references
+  a symbol that B defines or modifies. Detect and handle circular dependencies by
+  merging cycles into single nodes. This graph determines valid ordering for the stacked
+  PR sequence.
+acceptanceCriteria:
+- 'Given files where types.ts defines interfaces imported by service.ts and service.test.ts,
+  produces edges: service.ts → types.ts, service.test.ts → service.ts'
+- Detects circular dependencies between two files and merges them into a single graph
+  node with a warning
+- Files with no detected cross-file dependencies become independent nodes that can
+  be freely ordered
+- The graph is serializable to JSON for debugging and plan output
+- Handles the case where a file references symbols from unchanged files (external
+  dependencies) without creating graph nodes for unchanged files
+decomposition:
+  assignments: []
+dependencies:
+- Extract symbol definitions and references from changed files using tree-sitter
+source: discovered

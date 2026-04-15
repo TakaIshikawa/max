@@ -1,0 +1,24 @@
+title: Implement heuristic fallback grouping for unsupported languages
+approval: draft
+phase: planned
+priority: medium
+description: 'When files cannot be parsed by tree-sitter (unsupported language or
+  parse failure), apply heuristic grouping based on: file path patterns (test directories,
+  config files, docs), file extension categorization, and directory co-location (files
+  in the same directory are likely related). This ensures the tool produces useful
+  output even for polyglot repos with languages beyond TypeScript and Python.'
+acceptanceCriteria:
+- A Go file is grouped by directory co-location and file-path heuristics rather than
+  AST analysis
+- Config files (.yaml, .toml, .json in root or config/) are correctly classified as
+  infrastructure regardless of language support
+- Test files matching common patterns (*_test.go, *_spec.rb, test_*.py) are classified
+  as tests
+- The heuristic grouping produces at least 2 distinct groups for a 10-file changeset
+  in an unsupported language
+- A warning is emitted listing files that fell back to heuristic analysis
+decomposition:
+  assignments: []
+dependencies:
+- Group changes into semantically coherent change categories
+source: discovered

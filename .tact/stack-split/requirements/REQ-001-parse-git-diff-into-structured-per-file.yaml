@@ -1,0 +1,23 @@
+title: Parse git diff into structured per-file change representations
+approval: draft
+phase: planned
+priority: critical
+description: Given two git refs (e.g., feature branch and main), extract the unified
+  diff and parse it into a structured representation containing per-file hunks with
+  line ranges, added/removed/modified lines, and file metadata (path, language, rename
+  detection). This is the entry point for the entire pipeline.
+acceptanceCriteria:
+- Given a branch with changes across 5+ files, produces a ParsedDiff object with one
+  FileChange entry per changed file
+- Each FileChange includes the file path, detected language (from extension), and
+  an array of Hunk objects with before/after line ranges and content
+- Correctly handles file additions, deletions, renames, and modifications as distinct
+  change types
+- Supports both 'branch vs base' mode (two refs) and 'staged changes' mode (reading
+  from stdin pipe of a diff)
+- Returns an empty ParsedDiff with a warning when run outside a git repository or
+  with invalid refs
+decomposition:
+  assignments: []
+dependencies: []
+source: discovered

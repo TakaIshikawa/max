@@ -1,0 +1,24 @@
+title: Implement shell command argument sanitizer
+approval: draft
+phase: planned
+priority: critical
+description: Implement the shell_command channel sanitizer that safely quotes individual
+  command arguments for shell execution. Must handle OS-specific quoting (POSIX via
+  shlex.quote, Windows via custom quoting). Must reject full shell command strings
+  containing pipes, redirects, or command chaining operators, returning an error with
+  guidance to use parameterized execution.
+acceptanceCriteria:
+- Single arguments containing shell metacharacters (;, |, &, $, backticks, newlines)
+  are properly quoted and safe for use in subprocess calls
+- Input containing command chaining operators (;, &&, ||, |) as a full command string
+  raises a ShellInjectionError with remediation guidance
+- shlex.quote is used on POSIX systems; Windows-specific quoting handles cmd.exe metacharacters
+  (^, %, !)
+- Common shell injection payloads ($(command), `command`, ; rm -rf /, | cat /etc/passwd)
+  are neutralized in quoted output
+- Empty strings and strings with only whitespace are safely quoted
+decomposition:
+  assignments: []
+dependencies:
+- Implement core sanitize() API with channel dispatch
+source: discovered

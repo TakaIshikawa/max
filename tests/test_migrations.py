@@ -26,7 +26,6 @@ EXPECTED_TABLES = {
     "insights",
     "buildable_units",
     "evaluations",
-    "tact_specs",
     "feedback",
     "pipeline_runs",
     "embeddings",

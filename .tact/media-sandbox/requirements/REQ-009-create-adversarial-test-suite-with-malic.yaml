@@ -1,0 +1,27 @@
+title: Create adversarial test suite with malicious fixtures
+approval: draft
+phase: planned
+priority: high
+description: 'Build a comprehensive test suite with crafted adversarial payloads that
+  exercise every security boundary. Include: gzip bomb, zip bomb, pixel-bomb PNG,
+  truncated JPEG, polyglot file (valid ZIP + valid JPEG), oversized safetensors header,
+  nested tar archives, and a file with mismatched extension/magic bytes. Each fixture
+  must have a README entry documenting the attack vector.'
+acceptanceCriteria:
+- Test suite includes at least 8 distinct adversarial fixtures covering gzip bomb,
+  zip bomb, pixel bomb, truncated image, polyglot file, malformed safetensors, nested
+  archive, and format mismatch
+- All adversarial fixtures are rejected by the library with appropriate error_codes
+  and threat_indicators — none cause a crash, hang, or OOM in the parent process
+- Each fixture has a corresponding entry in tests/fixtures/adversarial/README.md documenting
+  the attack vector and expected behavior
+- Test suite runs in under 60 seconds on a standard CI machine
+- Tests are parameterized so new fixtures can be added by dropping a file and adding
+  a README entry
+decomposition:
+  assignments: []
+dependencies:
+- Implement image parser with Pillow in sandbox
+- Implement archive parser with decompression bomb detection
+- Implement safetensors model file validator
+source: discovered

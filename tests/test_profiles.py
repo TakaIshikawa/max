@@ -62,7 +62,7 @@ def test_pipeline_profile_defaults():
     assert profile.sources == []
     assert profile.signal_limit == 30
     assert profile.ideation_mode == "direct"
-    assert profile.output_dir == ".tact"
+    assert profile.output_dir == ".max-output"
 
 
 def test_default_domain_context_values():

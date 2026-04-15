@@ -1,0 +1,22 @@
+title: Output stacked PR plan as structured JSON
+approval: draft
+phase: planned
+priority: high
+description: Serialize the complete stacked PR plan to a well-defined JSON schema.
+  The plan includes metadata (source refs, total lines changed, timestamp), an ordered
+  array of change groups each containing their files, hunks, symbol summary, generated
+  description, and dependency information. This JSON is the primary machine-readable
+  output consumed by downstream tools or a future `stack-split apply` command.
+acceptanceCriteria:
+- Output conforms to a documented JSON schema (included in the repo as stack-plan.schema.json)
+- 'Each change group in the JSON includes: index, title, description, file paths,
+  line count, and depends_on array'
+- The sum of line counts across all groups equals the total diff line count (partition
+  invariant)
+- Output is written to stdout by default, or to a file when --output flag is provided
+- JSON output is parseable by jq and includes no circular references
+decomposition:
+  assignments: []
+dependencies:
+- Generate PR descriptions for each change group using templates
+source: discovered
