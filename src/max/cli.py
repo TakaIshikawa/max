@@ -26,6 +26,8 @@ def main() -> None:
 @click.option("--min-score", type=float, default=None, help="Minimum score to generate spec")
 @click.option("--weight-profile", type=str, default=None, help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
 @click.option("--mode", type=click.Choice(["direct", "refinement", "cross_domain", "all"]), default=None, help="Ideation mode")
+@click.option("--dry-run", is_flag=True, help="Simulate execution without LLM calls or writes")
+@click.option("--stages", type=str, default=None, help="Comma-separated list of stages to run (fetch,annotate,synthesize,detect_gaps,retrospective,ideate,evaluate)")
 def run(
     profile: str | None,
     output: str | None,
@@ -33,11 +35,19 @@ def run(
     min_score: float | None,
     weight_profile: str | None,
     mode: str | None,
+    dry_run: bool,
+    stages: str | None,
 ) -> None:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate."""
     from max.config import MAX_PROFILE
     from max.pipeline.runner import run_pipeline
     from max.profiles.loader import get_default_profile, load_profile
+    from max.types.pipeline import DryRunReport
+
+    # Parse stages parameter
+    stages_list = None
+    if stages:
+        stages_list = [s.strip() for s in stages.split(',')]
 
     # Resolve profile: CLI flag > env var > default
     profile_name = profile or MAX_PROFILE or None
@@ -58,7 +68,10 @@ def run(
 
     output_dir = Path(output) if output else Path(p.output_dir)
 
-    click.echo("Running max pipeline...")
+    if dry_run:
+        click.echo("DRY RUN: Simulating pipeline execution...")
+    else:
+        click.echo("Running max pipeline...")
     click.echo(f"  Profile:      {p.name}")
     click.echo(f"  Domain:       {p.domain.name}")
     click.echo(f"  Output:       {output_dir.resolve()}")
@@ -66,13 +79,39 @@ def run(
     click.echo(f"  Min score:    {p.evaluation.min_score}")
     click.echo(f"  Weights:      {p.evaluation.weight_profile}")
     click.echo(f"  Mode:         {p.ideation_mode}")
+    if stages_list:
+        click.echo(f"  Stages:       {', '.join(stages_list)}")
     click.echo()
 
     result = run_pipeline(
         profile=p,
         output_dir=output_dir,
+        dry_run=dry_run,
+        stages=stages_list,
     )
 
+    # Handle dry-run output
+    if isinstance(result, DryRunReport):
+        click.echo("Pipeline Dry-Run Report")
+        click.echo("=" * 80)
+        click.echo()
+        click.echo(f"{'Stage':<20s} {'Items':<8s} {'LLM Calls':<10s} {'Status':<12s} {'Reason'}")
+        click.echo("-" * 80)
+        for stage in result.stages:
+            status = "SKIPPED" if stage.skipped else "READY"
+            items = str(stage.would_process)
+            llm_calls = str(stage.estimated_llm_calls)
+            reason = stage.reason[:40] if stage.reason else ""
+            click.echo(f"{stage.name:<20s} {items:<8s} {llm_calls:<10s} {status:<12s} {reason}")
+        click.echo("-" * 80)
+        click.echo(f"{'TOTAL':<20s} {'':<8s} {result.estimated_total_llm_calls:<10d}")
+        click.echo()
+        click.echo(f"Estimated token budget: ~{result.estimated_token_budget:,} tokens")
+        click.echo()
+        click.echo("No changes were made (dry-run mode).")
+        return
+
+    # Normal execution output
     click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new, {result.signals_skipped} already synthesized)")
     click.echo(f"Insights generated: {result.insights_generated} ({result.insights_duplicates_skipped} duplicates skipped, avg confidence: {result.avg_insight_confidence:.2f})")
     click.echo(f"Ideas generated:    {result.ideas_generated} ({result.ideas_duplicates_skipped} duplicates skipped)")

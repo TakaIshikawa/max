@@ -27,12 +27,24 @@ from max.store.db import Store
 from max.synthesis.engine import synthesize
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
+from max.types.pipeline import DryRunReport, StageSummary
 from max.types.signal import Signal
 
 if TYPE_CHECKING:
     from max.profiles.schema import DomainContext, PipelineProfile
 
 logger = logging.getLogger(__name__)
+
+# Pipeline stage execution order
+STAGE_ORDER = [
+    'fetch',
+    'annotate',
+    'synthesize',
+    'detect_gaps',
+    'retrospective',
+    'ideate',
+    'evaluate',
+]
 
 
 @dataclass
@@ -85,12 +97,27 @@ def run_pipeline(
     min_score: float = 50.0,
     weight_profile: str = "default",
     ideation_mode: str = "direct",
-) -> PipelineResult:
+    dry_run: bool = False,
+    stages: list[str] | None = None,
+) -> PipelineResult | DryRunReport:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish.
 
     When *profile* is provided, pipeline parameters are extracted from it.
     Explicit keyword arguments override profile values when both are given.
+
+    Args:
+        dry_run: If True, simulate execution without LLM calls or writes, return DryRunReport
+        stages: If provided, only execute the listed stages (in pipeline order)
     """
+    # Validate stages parameter
+    if stages is not None:
+        unknown = set(stages) - set(STAGE_ORDER)
+        if unknown:
+            raise ValueError(f"Unknown stages: {', '.join(sorted(unknown))}. Valid stages: {', '.join(STAGE_ORDER)}")
+        # Filter to requested stages in pipeline order
+        active_stages = [s for s in STAGE_ORDER if s in stages]
+    else:
+        active_stages = STAGE_ORDER[:]
     # Extract params from profile (explicit kwargs take precedence)
     domain: DomainContext | None = None
     source_configs = None
@@ -105,6 +132,19 @@ def run_pipeline(
 
     token_tracker.reset()
     store = Store()
+
+    # Dry-run mode: simulate execution without LLM calls or writes
+    if dry_run:
+        report = _generate_dry_run_report(
+            store=store,
+            active_stages=active_stages,
+            signal_limit=signal_limit,
+            ideation_mode=ideation_mode,
+            source_configs=source_configs,
+        )
+        store.close()
+        return report
+
     semantic_index = SemanticIndex(store)
     result = PipelineResult()
     if profile is not None:
@@ -133,116 +173,130 @@ def run_pipeline(
 
     try:
         # 1. Fetch signals
-        signals, fetch_alloc, adapter_metrics = _fetch_all_signals(
-            signal_limit=signal_limit, store=store, source_configs=source_configs,
-        )
-        result.signals_fetched = len(signals)
-        result.fetch_allocation = fetch_alloc
-        result.adapter_metrics = adapter_metrics
+        signals = []
+        if 'fetch' in active_stages:
+            signals, fetch_alloc, adapter_metrics = _fetch_all_signals(
+                signal_limit=signal_limit, store=store, source_configs=source_configs,
+            )
+            result.signals_fetched = len(signals)
+            result.fetch_allocation = fetch_alloc
+            result.adapter_metrics = adapter_metrics
 
         # 1.1 Annotate signal roles (problem / solution / market)
-        annotate_signals(signals)
+        if 'annotate' in active_stages and signals:
+            annotate_signals(signals)
 
-        pre_count = store.count_signals()
-        for sig in signals:
-            store.insert_signal(sig)
-        result.signals_new = store.count_signals() - pre_count
+        if 'fetch' in active_stages:
+            pre_count = store.count_signals()
+            for sig in signals:
+                store.insert_signal(sig)
+            result.signals_new = store.count_signals() - pre_count
 
         # 2. Synthesize insights (incremental — only new signals)
-        new_signals = store.get_unsynthesized_signals(limit=signal_limit)
-        result.signals_skipped = result.signals_fetched - len(new_signals)
-        if new_signals:
-            # 2.1 Triangulate signals for cross-source corroboration
-            clusters = triangulate(new_signals)
-            result.clusters_found = len(clusters)
-            result.multi_source_clusters = sum(
-                1 for c in clusters if len(c.distinct_sources) > 1
-            )
-            cluster_ctx = format_cluster_context(clusters)
+        insights = []
+        if 'synthesize' in active_stages:
+            new_signals = store.get_unsynthesized_signals(limit=signal_limit)
+            result.signals_skipped = result.signals_fetched - len(new_signals)
+            if new_signals:
+                # 2.1 Triangulate signals for cross-source corroboration
+                clusters = triangulate(new_signals)
+                result.clusters_found = len(clusters)
+                result.multi_source_clusters = sum(
+                    1 for c in clusters if len(c.distinct_sources) > 1
+                )
+                cluster_ctx = format_cluster_context(clusters)
 
-            prior_insights = store.get_insights(limit=20)
-            insights = synthesize(
-                new_signals,
-                prior_insights=prior_insights if prior_insights else None,
-                cluster_context=cluster_ctx,
-                domain=domain,
-            )
-            store.mark_signals_synthesized([s.id for s in new_signals])
-            dedup = dedup_insights(insights, semantic_index)
-            insights = dedup.kept
-            result.insights_duplicates_skipped = dedup.duplicates
-            for ins in insights:
-                store.insert_insight(ins)
-        else:
-            insights = []
-        result.insights_generated = len(insights)
-        if insights:
-            result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
+                prior_insights = store.get_insights(limit=20)
+                insights = synthesize(
+                    new_signals,
+                    prior_insights=prior_insights if prior_insights else None,
+                    cluster_context=cluster_ctx,
+                    domain=domain,
+                )
+                store.mark_signals_synthesized([s.id for s in new_signals])
+                dedup = dedup_insights(insights, semantic_index)
+                insights = dedup.kept
+                result.insights_duplicates_skipped = dedup.duplicates
+                for ins in insights:
+                    store.insert_insight(ins)
+            else:
+                insights = []
+            result.insights_generated = len(insights)
+            if insights:
+                result.avg_insight_confidence = sum(i.confidence for i in insights) / len(insights)
 
         # 3. Detect gaps (validated unmet needs)
-        gaps = detect_gaps(store)
-        result.gaps_detected = len(gaps)
-        gaps_ctx = format_gaps_for_ideation(gaps)
+        gaps = []
+        gaps_ctx = None
+        if 'detect_gaps' in active_stages:
+            gaps = detect_gaps(store)
+            result.gaps_detected = len(gaps)
+            gaps_ctx = format_gaps_for_ideation(gaps)
 
         # 3.5 Retrospective analysis (learned patterns from feedback history)
-        retrospective = analyze_retrospective(store)
-        learned_ctx = format_retrospective_for_ideation(retrospective) if retrospective else None
-        result.learned_from_feedback = retrospective is not None
-        if retrospective:
-            logger.info(
-                "Retrospective: %d patterns, %d successful categories",
-                retrospective.pattern_count,
-                len(retrospective.successful_categories),
-            )
+        retrospective = None
+        learned_ctx = None
+        if 'retrospective' in active_stages:
+            retrospective = analyze_retrospective(store)
+            learned_ctx = format_retrospective_for_ideation(retrospective) if retrospective else None
+            result.learned_from_feedback = retrospective is not None
+            if retrospective:
+                logger.info(
+                    "Retrospective: %d patterns, %d successful categories",
+                    retrospective.pattern_count,
+                    len(retrospective.successful_categories),
+                )
 
         # 4. Ideate (supports multiple modes, with memory of existing ideas)
-        recent_insights = store.get_insights(limit=20)
-        recent_ideas = store.get_buildable_units(limit=30)
         units: list[BuildableUnit] = []
+        if 'ideate' in active_stages:
+            recent_insights = store.get_insights(limit=20)
+            recent_ideas = store.get_buildable_units(limit=30)
 
-        if ideation_mode in ("direct", "all"):
-            units.extend(ideate(
-                recent_insights,
-                existing_ideas=recent_ideas or None,
-                gaps_context=gaps_ctx,
-                learned_context=learned_ctx,
-                domain=domain,
-            ))
+            if ideation_mode in ("direct", "all"):
+                units.extend(ideate(
+                    recent_insights,
+                    existing_ideas=recent_ideas or None,
+                    gaps_context=gaps_ctx,
+                    learned_context=learned_ctx,
+                    domain=domain,
+                ))
 
-        if ideation_mode in ("refinement", "all"):
-            existing = store.get_buildable_units(status="evaluated", limit=10)
-            if existing:
-                units.extend(ideate_refinement(existing, recent_insights, domain=domain))
+            if ideation_mode in ("refinement", "all"):
+                existing = store.get_buildable_units(status="evaluated", limit=10)
+                if existing:
+                    units.extend(ideate_refinement(existing, recent_insights, domain=domain))
 
-        if ideation_mode in ("cross_domain", "all"):
-            units.extend(ideate_cross_domain(
-                recent_insights,
-                existing_ideas=recent_ideas or None,
-                gaps_context=gaps_ctx,
-                learned_context=learned_ctx,
-                domain=domain,
-            ))
+            if ideation_mode in ("cross_domain", "all"):
+                units.extend(ideate_cross_domain(
+                    recent_insights,
+                    existing_ideas=recent_ideas or None,
+                    gaps_context=gaps_ctx,
+                    learned_context=learned_ctx,
+                    domain=domain,
+                ))
 
-        dedup = dedup_buildable_units(units, semantic_index)
-        units = dedup.kept
-        result.ideas_duplicates_skipped = dedup.duplicates
-        domain_name = domain.name if domain else ""
-        for unit in units:
-            unit.domain = domain_name
-            store.insert_buildable_unit(unit)
-        result.ideas_generated = len(units)
+            dedup = dedup_buildable_units(units, semantic_index)
+            units = dedup.kept
+            result.ideas_duplicates_skipped = dedup.duplicates
+            domain_name = domain.name if domain else ""
+            for unit in units:
+                unit.domain = domain_name
+                store.insert_buildable_unit(unit)
+            result.ideas_generated = len(units)
 
-        # 4. Evaluate (using selected weight profile, with evidence grounding)
+        # 5. Evaluate (using selected weight profile, with evidence grounding)
         evaluated: list[tuple[BuildableUnit, UtilityEvaluation]] = []
-        for unit in units:
-            evidence = _resolve_evidence_chain(unit, store)
-            evaluation = evaluate(unit, weights=weights, evidence=evidence, domain=domain)
-            store.insert_evaluation(evaluation)
-            store.update_buildable_unit_status(unit.id, "evaluated")
-            evaluated.append((unit, evaluation))
-        result.ideas_evaluated = len(evaluated)
-        if evaluated:
-            result.avg_idea_score = sum(e.overall_score for _, e in evaluated) / len(evaluated)
+        if 'evaluate' in active_stages and units:
+            for unit in units:
+                evidence = _resolve_evidence_chain(unit, store)
+                evaluation = evaluate(unit, weights=weights, evidence=evidence, domain=domain)
+                store.insert_evaluation(evaluation)
+                store.update_buildable_unit_status(unit.id, "evaluated")
+                evaluated.append((unit, evaluation))
+            result.ideas_evaluated = len(evaluated)
+            if evaluated:
+                result.avg_idea_score = sum(e.overall_score for _, e in evaluated) / len(evaluated)
 
         # Summary of top ideas
         result.top_ideas = [
@@ -427,3 +481,190 @@ def _fetch_all_signals(
             }
 
     return all_signals, allocation, adapter_metrics
+
+
+def _generate_dry_run_report(
+    *,
+    store: Store,
+    active_stages: list[str],
+    signal_limit: int,
+    ideation_mode: str,
+    source_configs: list | None = None,
+) -> DryRunReport:
+    """Generate a dry-run report simulating pipeline execution without LLM calls or writes."""
+    stage_summaries: list[StageSummary] = []
+    total_llm_calls = 0
+
+    # Stage: fetch
+    if 'fetch' in active_stages:
+        adapters = get_all_adapters(source_configs)
+        if store:
+            from max.pipeline.fetch_strategy import compute_fetch_allocation
+            adapter_names = [a.name for a in adapters]
+            allocation = compute_fetch_allocation(signal_limit, adapter_names, store)
+        else:
+            per_adapter = max(signal_limit // len(adapters), 5) if adapters else signal_limit
+            allocation = {a.name: per_adapter for a in adapters}
+
+        total_to_fetch = sum(allocation.values())
+        stage_summaries.append(StageSummary(
+            name='fetch',
+            would_process=total_to_fetch,
+            estimated_llm_calls=0,  # No LLM calls in fetch
+            skipped=total_to_fetch == 0,
+            reason='no adapters configured' if total_to_fetch == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='fetch',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: annotate
+    if 'annotate' in active_stages:
+        # Estimate based on fetch count
+        fetch_count = stage_summaries[0].would_process if stage_summaries else 0
+        stage_summaries.append(StageSummary(
+            name='annotate',
+            would_process=fetch_count,
+            estimated_llm_calls=0,  # Role annotation uses heuristics, not LLM
+            skipped=fetch_count == 0,
+            reason='no signals to annotate' if fetch_count == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='annotate',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: synthesize
+    if 'synthesize' in active_stages:
+        unsynthesized = store.get_unsynthesized_signals(limit=signal_limit)
+        unsynthesized_count = len(unsynthesized)
+        # Estimate LLM calls: ~1 call per batch of 5 signals (rough estimate)
+        llm_calls = max((unsynthesized_count + 4) // 5, 0)
+        total_llm_calls += llm_calls
+        stage_summaries.append(StageSummary(
+            name='synthesize',
+            would_process=unsynthesized_count,
+            estimated_llm_calls=llm_calls,
+            skipped=unsynthesized_count == 0,
+            reason='no new signals since last run' if unsynthesized_count == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='synthesize',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: detect_gaps
+    if 'detect_gaps' in active_stages:
+        # Gap detection analyzes existing insights, no new LLM calls
+        recent_insights = store.get_insights(limit=20)
+        stage_summaries.append(StageSummary(
+            name='detect_gaps',
+            would_process=len(recent_insights),
+            estimated_llm_calls=0,
+            skipped=len(recent_insights) == 0,
+            reason='no insights to analyze' if len(recent_insights) == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='detect_gaps',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: retrospective
+    if 'retrospective' in active_stages:
+        feedback_outcomes = store.get_feedback_outcomes()
+        stage_summaries.append(StageSummary(
+            name='retrospective',
+            would_process=len(feedback_outcomes),
+            estimated_llm_calls=0,
+            skipped=len(feedback_outcomes) == 0,
+            reason='no feedback history' if len(feedback_outcomes) == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='retrospective',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: ideate
+    if 'ideate' in active_stages:
+        recent_insights = store.get_insights(limit=20)
+        # Estimate LLM calls based on ideation mode
+        modes_count = {
+            'direct': 1,
+            'refinement': 1,
+            'cross_domain': 1,
+            'all': 3,
+        }.get(ideation_mode, 1)
+        llm_calls = modes_count * max(1, len(recent_insights) // 10)  # Rough estimate
+        total_llm_calls += llm_calls
+        stage_summaries.append(StageSummary(
+            name='ideate',
+            would_process=len(recent_insights),
+            estimated_llm_calls=llm_calls,
+            skipped=len(recent_insights) == 0,
+            reason='no insights to ideate from' if len(recent_insights) == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='ideate',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Stage: evaluate
+    if 'evaluate' in active_stages:
+        # Estimate new ideas to evaluate (rough estimate based on ideation)
+        ideate_summary = next((s for s in stage_summaries if s.name == 'ideate'), None)
+        if ideate_summary and not ideate_summary.skipped:
+            # Estimate ~2 ideas per 10 insights
+            estimated_ideas = max(ideate_summary.would_process // 5, 1)
+        else:
+            estimated_ideas = 0
+        llm_calls = estimated_ideas  # 1 LLM call per idea for evaluation
+        total_llm_calls += llm_calls
+        stage_summaries.append(StageSummary(
+            name='evaluate',
+            would_process=estimated_ideas,
+            estimated_llm_calls=llm_calls,
+            skipped=estimated_ideas == 0,
+            reason='no ideas to evaluate' if estimated_ideas == 0 else '',
+        ))
+    else:
+        stage_summaries.append(StageSummary(
+            name='evaluate',
+            would_process=0,
+            estimated_llm_calls=0,
+            skipped=True,
+            reason='stage not selected',
+        ))
+
+    # Estimate token budget (rough: 2000 tokens per LLM call on average)
+    estimated_tokens = total_llm_calls * 2000
+
+    return DryRunReport(
+        stages=stage_summaries,
+        estimated_total_llm_calls=total_llm_calls,
+        estimated_token_budget=estimated_tokens,
+    )

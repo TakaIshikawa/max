@@ -61,6 +61,13 @@ class PipelineRunRequest(BaseModel):
     ] = "default"
     ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
     output_dir: str | None = None
+    stages: list[str] | None = None
+
+
+class PipelineDryRunRequest(BaseModel):
+    profile: str | None = None
+    signal_limit: int = Field(default=30, ge=1, le=500)
+    stages: list[str] | None = None
 
 
 class SimilarityRequest(BaseModel):
@@ -253,3 +260,17 @@ class PipelineRunHistoryResponse(BaseModel):
     ideas_generated: int
     ideas_evaluated: int
     status: str
+
+
+class StageSummaryResponse(BaseModel):
+    name: str
+    would_process: int
+    estimated_llm_calls: int
+    skipped: bool
+    reason: str
+
+
+class DryRunReportResponse(BaseModel):
+    stages: list[StageSummaryResponse]
+    estimated_total_llm_calls: int
+    estimated_token_budget: int

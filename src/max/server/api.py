@@ -13,6 +13,7 @@ from max.server.dependencies import get_store
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
     DimensionScoreResponse,
+    DryRunReportResponse,
     EvaluationResponse,
     FeedbackCreate,
     HealthResponse,
@@ -23,6 +24,7 @@ from max.server.schemas import (
     InsightResponse,
     PaginatedResponse,
     PaginationMeta,
+    PipelineDryRunRequest,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
@@ -32,6 +34,7 @@ from max.server.schemas import (
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
+    StageSummaryResponse,
     StatsResponse,
 )
 from max.store.db import Store
@@ -409,6 +412,7 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         min_score=body.min_score,
         weight_profile=body.weight_profile,
         ideation_mode=body.ideation_mode,
+        stages=body.stages,
     )
     return PipelineResultResponse(
         signals_fetched=result.signals_fetched,
@@ -420,6 +424,41 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         avg_idea_score=result.avg_idea_score,
         token_usage=result.token_usage,
         top_ideas=result.top_ideas,
+    )
+
+
+@router.post("/pipeline/dry-run", response_model=DryRunReportResponse)
+async def dry_run_pipeline_endpoint(body: PipelineDryRunRequest) -> DryRunReportResponse:
+    from max.pipeline.runner import run_pipeline
+    from max.profiles.loader import get_default_profile, load_profile
+
+    # Resolve profile
+    if body.profile:
+        profile = load_profile(body.profile)
+    else:
+        profile = get_default_profile()
+
+    result = await asyncio.to_thread(
+        run_pipeline,
+        profile=profile,
+        signal_limit=body.signal_limit,
+        dry_run=True,
+        stages=body.stages,
+    )
+
+    return DryRunReportResponse(
+        stages=[
+            StageSummaryResponse(
+                name=s.name,
+                would_process=s.would_process,
+                estimated_llm_calls=s.estimated_llm_calls,
+                skipped=s.skipped,
+                reason=s.reason,
+            )
+            for s in result.stages
+        ],
+        estimated_total_llm_calls=result.estimated_total_llm_calls,
+        estimated_token_budget=result.estimated_token_budget,
     )
 
 
