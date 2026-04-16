@@ -70,13 +70,13 @@ class TestSourceConfig:
     def test_invalid_weight_type(self):
         """Test that invalid weight type raises ValidationError."""
         with pytest.raises(ValidationError):
-            SourceConfig(adapter="reddit", weight="invalid")  # type: ignore
+            SourceConfig(adapter="reddit", weight="invalid")  # type: ignore[arg-type]
 
     def test_invalid_enabled_type(self):
         """Test that invalid enabled type raises ValidationError."""
         # Note: Pydantic coerces string "true"/"yes" to bool, so use a truly invalid type
         with pytest.raises(ValidationError):
-            SourceConfig(adapter="reddit", enabled=["not", "a", "bool"])  # type: ignore
+            SourceConfig(adapter="reddit", enabled=["not", "a", "bool"])  # type: ignore[arg-type]
 
 
 class TestDomainContext:
@@ -125,7 +125,7 @@ class TestDomainContext:
             DomainContext(
                 name="test",
                 description="Test",
-                categories="not-a-list",  # type: ignore
+                categories="not-a-list",  # type: ignore[arg-type]
                 target_user_types=["users"],
             )
 
@@ -164,12 +164,12 @@ class TestEvaluationConfig:
     def test_invalid_min_score_type(self):
         """Test that invalid min_score type raises ValidationError."""
         with pytest.raises(ValidationError):
-            EvaluationConfig(min_score="high")  # type: ignore
+            EvaluationConfig(min_score="high")  # type: ignore[arg-type]
 
     def test_invalid_custom_weights_type(self):
         """Test that invalid custom_weights type raises ValidationError."""
         with pytest.raises(ValidationError):
-            EvaluationConfig(custom_weights="invalid")  # type: ignore
+            EvaluationConfig(custom_weights="invalid")  # type: ignore[arg-type]
 
 
 class TestPipelineProfile:
@@ -232,7 +232,7 @@ class TestPipelineProfile:
         with pytest.raises(ValidationError):
             PipelineProfile(
                 name="test",
-                domain="not-a-domain",  # type: ignore
+                domain="not-a-domain",  # type: ignore[arg-type]
             )
 
     def test_invalid_sources_type(self):
@@ -246,7 +246,7 @@ class TestPipelineProfile:
                     categories=["app"],
                     target_user_types=["users"],
                 ),
-                sources="not-a-list",  # type: ignore
+                sources="not-a-list",  # type: ignore[arg-type]
             )
 
     def test_profile_allows_unknown_top_level_keys(self):
@@ -674,7 +674,7 @@ class TestSyntheticProfiles:
 
         # PipelineProfile expects a dict
         with pytest.raises((ValidationError, TypeError)):
-            PipelineProfile(**data)  # type: ignore
+            PipelineProfile(**data)  # type: ignore[arg-type]
 
 
 # ── Edge Cases and Error Handling ──────────────────────────────────────
