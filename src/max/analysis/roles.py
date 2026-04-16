@@ -8,15 +8,19 @@ from max.types.signal import Signal
 DEFAULT_ROLE_MAP: dict[str, str] = {
     "github_issues": "problem",
     "security_advisories": "problem",
+    "stackoverflow": "problem",
     "npm_registry": "solution",
     "pypi_registry": "solution",
     "github": "solution",
     "product_hunt": "market",
     "hackernews": "market",
     "reddit": "market",
+    "arxiv": "market",
+    "devto": "market",
+    "pubmed": "market",
 }
 
-MIXED_ADAPTERS: set[str] = {"hackernews", "reddit"}
+MIXED_ADAPTERS: set[str] = {"hackernews", "reddit", "devto"}
 
 _PROBLEM_KEYWORDS: list[str] = [
     "bug", "broken", "crash", "fail", "error", "issue", "pain",
@@ -43,7 +47,7 @@ def classify_signal_role(signal: Signal) -> str:
 
     Priority:
     1. Explicit role_hint in metadata
-    2. Keyword heuristic for mixed adapters (HN, Reddit)
+    2. Keyword heuristic for mixed adapters (HN, Reddit, Dev.to)
     3. Default role from DEFAULT_ROLE_MAP
     4. Fallback: "market"
     """

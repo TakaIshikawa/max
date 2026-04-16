@@ -72,6 +72,34 @@ def test_default_role_map_product_hunt_market() -> None:
     assert classify_signal_role(sig) == "market"
 
 
+def test_default_role_map_stackoverflow_problem() -> None:
+    """stackoverflow adapter → 'problem'."""
+    sig = _make_signal("stackoverflow", source_type=SignalSourceType.FORUM)
+    assert classify_signal_role(sig) == "problem"
+
+
+def test_default_role_map_arxiv_market() -> None:
+    """arxiv adapter → 'market'."""
+    sig = _make_signal("arxiv", source_type=SignalSourceType.SURVEY)
+    assert classify_signal_role(sig) == "market"
+
+
+def test_default_role_map_pubmed_market() -> None:
+    """pubmed adapter → 'market'."""
+    sig = _make_signal("pubmed", source_type=SignalSourceType.SURVEY)
+    assert classify_signal_role(sig) == "market"
+
+
+def test_default_role_map_devto_uses_keywords() -> None:
+    """devto is in MIXED_ADAPTERS, uses keyword heuristic first.
+
+    When no keywords match, falls back to DEFAULT_ROLE_MAP which maps devto to 'market'.
+    """
+    sig = _make_signal("devto", title="Neutral title", content="No special keywords here")
+    # _keyword_classify returns None, falls back to DEFAULT_ROLE_MAP['devto'] = 'market'
+    assert classify_signal_role(sig) == "market"
+
+
 def test_default_role_map_hackernews_uses_keywords() -> None:
     """hackernews is in MIXED_ADAPTERS, uses keyword heuristic first.
 
@@ -253,6 +281,26 @@ def test_mixed_adapter_reddit_market_keywords() -> None:
     assert classify_signal_role(sig) == "market"
 
 
+def test_mixed_adapter_devto_solution_keywords() -> None:
+    """Dev.to signal with solution keywords → 'solution'."""
+    sig = _make_signal(
+        "devto",
+        title="I built a new CLI tool",
+        content="Introducing my open source library for developers",
+    )
+    assert classify_signal_role(sig) == "solution"
+
+
+def test_mixed_adapter_devto_problem_keywords() -> None:
+    """Dev.to signal with problem keywords → 'problem'."""
+    sig = _make_signal(
+        "devto",
+        title="Why does my React app crash?",
+        content="Getting constant errors and bugs in production",
+    )
+    assert classify_signal_role(sig) == "problem"
+
+
 def test_mixed_adapter_content_truncation() -> None:
     """Verify content[:300] is used for keyword matching."""
     # Create content longer than 300 chars with keywords only after position 300
@@ -407,16 +455,20 @@ def test_signal_role_property_reads_metadata() -> None:
 
 def test_mixed_adapters_constant_correctness() -> None:
     """Verify MIXED_ADAPTERS constant contains expected values."""
-    assert MIXED_ADAPTERS == {"hackernews", "reddit"}
+    assert MIXED_ADAPTERS == {"hackernews", "reddit", "devto"}
 
 
 def test_default_role_map_constant_correctness() -> None:
     """Verify DEFAULT_ROLE_MAP constant contains expected mappings."""
     assert DEFAULT_ROLE_MAP["github_issues"] == "problem"
     assert DEFAULT_ROLE_MAP["security_advisories"] == "problem"
+    assert DEFAULT_ROLE_MAP["stackoverflow"] == "problem"
     assert DEFAULT_ROLE_MAP["npm_registry"] == "solution"
     assert DEFAULT_ROLE_MAP["pypi_registry"] == "solution"
     assert DEFAULT_ROLE_MAP["github"] == "solution"
     assert DEFAULT_ROLE_MAP["product_hunt"] == "market"
     assert DEFAULT_ROLE_MAP["hackernews"] == "market"
     assert DEFAULT_ROLE_MAP["reddit"] == "market"
+    assert DEFAULT_ROLE_MAP["arxiv"] == "market"
+    assert DEFAULT_ROLE_MAP["devto"] == "market"
+    assert DEFAULT_ROLE_MAP["pubmed"] == "market"
