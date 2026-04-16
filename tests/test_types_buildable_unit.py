@@ -136,7 +136,7 @@ def test_buildable_unit_invalid_ideation_mode() -> None:
             problem="Test problem",
             solution="Test solution",
             value_proposition="Test value",
-            ideation_mode="invalid_mode",  # type: ignore
+            ideation_mode="invalid_mode",  # type: ignore[arg-type]
         )
 
     errors = exc_info.value.errors()
