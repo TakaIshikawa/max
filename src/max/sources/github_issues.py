@@ -10,6 +10,12 @@ from datetime import datetime
 import httpx
 
 from max.sources.base import SourceAdapter
+from max.sources.errors import (
+    SourceAuthError,
+    SourceParseError,
+    SourceRateLimitError,
+    SourceTransientError,
+)
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -80,7 +86,36 @@ class GitHubIssuesAdapter(SourceAdapter):
                     )
                     resp.raise_for_status()
                     data = resp.json()
-                except Exception:
+                except httpx.HTTPStatusError as e:
+                    status = e.response.status_code
+                    if status == 429:
+                        retry_after = e.response.headers.get("Retry-After")
+                        retry_seconds = float(retry_after) if retry_after else None
+                        # Rate limit affects all queries — raise immediately
+                        raise SourceRateLimitError(
+                            f"Rate limit exceeded for query: {query}",
+                            adapter_name=self.name,
+                            retry_after=retry_seconds,
+                        ) from e
+                    elif status in (401, 403):
+                        # Auth failure affects all queries — raise immediately
+                        raise SourceAuthError(
+                            f"Authentication failed (HTTP {status}) for query: {query}",
+                            adapter_name=self.name,
+                        ) from e
+                    elif 500 <= status < 600:
+                        # Server error for this query — log and continue with next query
+                        logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
+                        continue
+                    else:
+                        logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
+                        continue
+                except (httpx.RequestError, httpx.TimeoutException) as e:
+                    # Network error for this query — log and continue with next query
+                    logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
+                    continue
+                except (ValueError, KeyError, TypeError) as e:
+                    # Parse error for this query — log and continue with next query
                     logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
                     continue
 

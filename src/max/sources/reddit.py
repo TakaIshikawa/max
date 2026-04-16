@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import httpx
 
 from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
+from max.sources.errors import SourceParseError
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,12 @@ class RedditAdapter(SourceAdapter):
                     )
                     data = resp.json()
                 except AdapterFetchError:
+                    logger.warning(
+                        "Reddit fetch failed for r/%s", subreddit, exc_info=True,
+                    )
+                    continue
+                except (ValueError, KeyError, TypeError):
+                    # Parse error for this subreddit — log and continue with next subreddit
                     logger.warning(
                         "Reddit fetch failed for r/%s", subreddit, exc_info=True,
                     )

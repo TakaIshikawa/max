@@ -9,6 +9,12 @@ from datetime import datetime, timezone
 import httpx
 
 from max.sources.base import SourceAdapter
+from max.sources.errors import (
+    SourceAuthError,
+    SourceParseError,
+    SourceRateLimitError,
+    SourceTransientError,
+)
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -54,7 +60,36 @@ class PyPIRegistryAdapter(SourceAdapter):
                     resp = await client.get(rss_url)
                     resp.raise_for_status()
                     candidates = _parse_rss(resp.text)
-                except Exception:
+                except httpx.HTTPStatusError as e:
+                    status = e.response.status_code
+                    if status == 429:
+                        retry_after = e.response.headers.get("Retry-After")
+                        retry_seconds = float(retry_after) if retry_after else None
+                        # Rate limit affects all feeds — raise immediately
+                        raise SourceRateLimitError(
+                            f"Rate limit exceeded for {rss_url}",
+                            adapter_name=self.name,
+                            retry_after=retry_seconds,
+                        ) from e
+                    elif status in (401, 403):
+                        # Auth failure affects all feeds — raise immediately
+                        raise SourceAuthError(
+                            f"Authentication failed (HTTP {status}) for {rss_url}",
+                            adapter_name=self.name,
+                        ) from e
+                    elif 500 <= status < 600:
+                        # Server error for this feed — log and try next feed
+                        logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
+                        continue
+                    else:
+                        logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
+                        continue
+                except (httpx.RequestError, httpx.TimeoutException) as e:
+                    # Network error for this feed — log and try next feed
+                    logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
+                    continue
+                except ET.ParseError as e:
+                    # Parse error for this feed — log and try next feed
                     logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
                     continue
 
@@ -159,8 +194,13 @@ async def _fetch_package_info(client: httpx.AsyncClient, name: str) -> dict | No
             "project_urls": info.get("project_urls"),
             "keywords": info.get("keywords") or "",
         }
-    except Exception:
+    except httpx.HTTPError:
+        # Any HTTP error (status or network) — log but return None (package may not exist or be unavailable)
         logger.debug("Failed to fetch PyPI package info for %s", name, exc_info=True)
+        return None
+    except (ValueError, KeyError, TypeError):
+        # Parse error — log but return None
+        logger.debug("Failed to parse PyPI package info for %s", name, exc_info=True)
         return None
 
 
@@ -171,8 +211,13 @@ async def _fetch_download_stats(client: httpx.AsyncClient, name: str) -> int | N
         resp.raise_for_status()
         data = resp.json()
         return data.get("data", {}).get("last_week")
-    except Exception:
+    except httpx.HTTPError:
+        # Any HTTP error (status or network) — log but return None (stats may not be available)
         logger.debug("Failed to fetch download stats for %s", name, exc_info=True)
+        return None
+    except (ValueError, KeyError, TypeError):
+        # Parse error — log but return None
+        logger.debug("Failed to parse download stats for %s", name, exc_info=True)
         return None
 
 
