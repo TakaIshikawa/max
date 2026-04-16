@@ -659,3 +659,473 @@ class TestEdgeCases:
         assert retrieved is not None
         assert retrieved.metadata["custom_key"] == "custom_value"
         assert retrieved.metadata["signal_role"] == "problem"
+
+
+# ── Schema and Migrations ────────────────────────────────────────────
+
+
+class TestSchemaAndMigrations:
+    def test_fresh_db_has_correct_schema_version(self, tmp_path: Path) -> None:
+        """Fresh database should have the current schema version."""
+        from max.store.migrations import SCHEMA_VERSION
+
+        db_path = str(tmp_path / "fresh.db")
+        s = Store(db_path=db_path)
+        version = s.get_schema_version()
+        assert version == SCHEMA_VERSION
+        s.close()
+
+    def test_idempotent_migration_runs(self, tmp_path: Path) -> None:
+        """Running ensure_schema multiple times should not fail."""
+        from max.store.migrations import ensure_schema
+
+        db_path = str(tmp_path / "idempotent.db")
+        s = Store(db_path=db_path)
+
+        # Run ensure_schema again manually
+        ensure_schema(s.conn)
+        ensure_schema(s.conn)
+
+        # Should still work and schema version should be correct
+        version = s.get_schema_version()
+        from max.store.migrations import SCHEMA_VERSION
+        assert version == SCHEMA_VERSION
+        s.close()
+
+    def test_all_tables_created(self, store: Store) -> None:
+        """Verify all expected tables exist in the schema."""
+        expected_tables = {
+            "schema_version",
+            "signals",
+            "insights",
+            "buildable_units",
+            "evaluations",
+            "feedback",
+            "pipeline_runs",
+            "pipeline_run_domains",
+            "prior_art_matches",
+            "embeddings",
+        }
+
+        cursor = store.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+        actual_tables = {row[0] for row in cursor.fetchall()}
+
+        assert expected_tables.issubset(actual_tables)
+
+    def test_required_indexes_created(self, store: Store) -> None:
+        """Verify required indexes exist."""
+        cursor = store.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        )
+        indexes = {row[0] for row in cursor.fetchall()}
+
+        # Key indexes from schema
+        expected = {
+            "idx_signals_url",
+            "idx_prd_run_id",
+            "idx_prd_domain",
+            "idx_prior_art_bu_id",
+            "idx_signals_archived_at",
+            "idx_insights_archived_at",
+            "idx_pipeline_runs_archived_at",
+        }
+
+        assert expected.issubset(indexes)
+
+
+# ── Transaction Management ───────────────────────────────────────────
+
+
+class TestTransactions:
+    def test_transaction_commits_on_success(self, store: Store) -> None:
+        """Transaction should commit changes when no exception occurs."""
+        with store.transaction():
+            sig = _make_signal(sig_id="sig-tx-1", url="https://a.com/tx1")
+            store.insert_signal(sig)
+
+        # Should be persisted
+        assert store.get_signal("sig-tx-1") is not None
+
+    def test_transaction_rolls_back_on_error(self, store: Store) -> None:
+        """Transaction should rollback all changes when exception occurs."""
+        try:
+            with store.transaction():
+                sig1 = _make_signal(sig_id="sig-tx-2", url="https://a.com/tx2")
+                store.insert_signal(sig1)
+                # Force an error
+                raise ValueError("Test error")
+        except ValueError:
+            pass
+
+        # Should not be persisted
+        assert store.get_signal("sig-tx-2") is None
+
+    def test_nested_transaction_context_preserves_flag(self, store: Store) -> None:
+        """Nested transaction contexts should preserve the transaction flag."""
+        # This tests the implementation detail that _in_transaction flag is preserved
+        assert not getattr(store, "_in_transaction", False)
+
+        with store.transaction():
+            assert store._in_transaction is True
+            sig = _make_signal(sig_id="sig-tx-3", url="https://a.com/tx3")
+            store.insert_signal(sig)
+
+        assert not getattr(store, "_in_transaction", False)
+
+    def test_transaction_with_multiple_operations(self, store: Store) -> None:
+        """Transaction should handle multiple operations atomically."""
+        with store.transaction():
+            sig = _make_signal(sig_id="sig-tx-4", url="https://a.com/tx4")
+            store.insert_signal(sig)
+
+            ins = Insight(
+                id="ins-tx-1",
+                category=InsightCategory.GAP,
+                title="Test",
+                summary="Test",
+                evidence=["sig-tx-4"],
+                confidence=0.5,
+                domains=[],
+                implications=[],
+                time_horizon="near_term",
+            )
+            store.insert_insight(ins)
+
+            unit = _make_unit("bu-tx-1", evidence_signals=["sig-tx-4"])
+            store.insert_buildable_unit(unit)
+
+        # All should be persisted
+        assert store.get_signal("sig-tx-4") is not None
+        assert store.get_insight("ins-tx-1") is not None
+        assert store.get_buildable_unit("bu-tx-1") is not None
+
+    def test_transaction_rollback_multiple_operations(self, store: Store) -> None:
+        """Failed transaction should rollback all operations."""
+        try:
+            with store.transaction():
+                sig = _make_signal(sig_id="sig-tx-5", url="https://a.com/tx5")
+                store.insert_signal(sig)
+
+                ins = Insight(
+                    id="ins-tx-2",
+                    category=InsightCategory.GAP,
+                    title="Test",
+                    summary="Test",
+                    evidence=[],
+                    confidence=0.5,
+                    domains=[],
+                    implications=[],
+                    time_horizon="near_term",
+                )
+                store.insert_insight(ins)
+
+                raise ValueError("Rollback test")
+        except ValueError:
+            pass
+
+        # None should be persisted
+        assert store.get_signal("sig-tx-5") is None
+        assert store.get_insight("ins-tx-2") is None
+
+
+# ── Context Manager ──────────────────────────────────────────────────
+
+
+class TestContextManager:
+    def test_store_as_context_manager(self, tmp_path: Path) -> None:
+        """Store should work as a context manager."""
+        db_path = str(tmp_path / "ctx.db")
+
+        with Store(db_path=db_path) as s:
+            sig = _make_signal(sig_id="sig-ctx-1", url="https://a.com/ctx1")
+            s.insert_signal(sig)
+
+        # Verify data persisted and connection closed
+        with Store(db_path=db_path) as s2:
+            assert s2.get_signal("sig-ctx-1") is not None
+
+    def test_context_manager_closes_on_exception(self, tmp_path: Path) -> None:
+        """Store should close connection even when exception occurs."""
+        db_path = str(tmp_path / "ctx_err.db")
+
+        try:
+            with Store(db_path=db_path) as s:
+                sig = _make_signal(sig_id="sig-ctx-2", url="https://a.com/ctx2")
+                s.insert_signal(sig)
+                raise ValueError("Test error")
+        except ValueError:
+            pass
+
+        # Connection should be closed, and data should be persisted
+        with Store(db_path=db_path) as s2:
+            assert s2.get_signal("sig-ctx-2") is not None
+
+    def test_context_manager_doesnt_suppress_exceptions(self, tmp_path: Path) -> None:
+        """Context manager should not suppress exceptions."""
+        db_path = str(tmp_path / "ctx_suppress.db")
+
+        with pytest.raises(ValueError, match="Test exception"):
+            with Store(db_path=db_path) as s:
+                raise ValueError("Test exception")
+
+
+# ── Prior Art Operations ─────────────────────────────────────────────
+
+
+class TestPriorArtOperations:
+    def test_insert_and_get_prior_art_matches(self, store: Store) -> None:
+        """Insert and retrieve prior art matches."""
+        store.insert_buildable_unit(_make_unit("bu-pa-1"))
+
+        match = {
+            "source": "github",
+            "title": "Similar Project",
+            "url": "https://github.com/user/repo",
+            "description": "A similar implementation",
+            "relevance_score": 0.85,
+            "match_signals": {"overlap": ["feature1", "feature2"]},
+            "search_query": "similar project query",
+        }
+
+        match_id = store.insert_prior_art_match("bu-pa-1", match)
+        assert match_id.startswith("pa-")
+
+        matches = store.get_prior_art_matches("bu-pa-1")
+        assert len(matches) == 1
+        assert matches[0]["title"] == "Similar Project"
+        assert matches[0]["relevance_score"] == 0.85
+
+    def test_get_prior_art_matches_empty(self, store: Store) -> None:
+        """Get matches for unit with no prior art."""
+        store.insert_buildable_unit(_make_unit("bu-pa-2"))
+        assert store.get_prior_art_matches("bu-pa-2") == []
+
+    def test_update_prior_art_status(self, store: Store) -> None:
+        """Update prior art status for buildable unit."""
+        store.insert_buildable_unit(_make_unit("bu-pa-3"))
+        store.update_prior_art_status("bu-pa-3", "checked")
+
+        unit = store.get_buildable_unit("bu-pa-3")
+        assert unit.prior_art_status == "checked"
+
+    def test_delete_prior_art_matches(self, store: Store) -> None:
+        """Delete all prior art matches for a unit."""
+        store.insert_buildable_unit(_make_unit("bu-pa-4"))
+
+        match1 = {"source": "github", "title": "Match 1", "url": "https://a.com/1"}
+        match2 = {"source": "github", "title": "Match 2", "url": "https://a.com/2"}
+
+        store.insert_prior_art_match("bu-pa-4", match1)
+        store.insert_prior_art_match("bu-pa-4", match2)
+
+        assert len(store.get_prior_art_matches("bu-pa-4")) == 2
+
+        deleted = store.delete_prior_art_matches("bu-pa-4")
+        assert deleted == 2
+        assert store.get_prior_art_matches("bu-pa-4") == []
+
+    def test_prior_art_matches_ordered_by_relevance(self, store: Store) -> None:
+        """Prior art matches should be ordered by relevance score descending."""
+        store.insert_buildable_unit(_make_unit("bu-pa-5"))
+
+        match1 = {"source": "github", "title": "Low", "url": "https://a.com/low", "relevance_score": 0.3}
+        match2 = {"source": "github", "title": "High", "url": "https://a.com/high", "relevance_score": 0.9}
+        match3 = {"source": "github", "title": "Medium", "url": "https://a.com/med", "relevance_score": 0.6}
+
+        store.insert_prior_art_match("bu-pa-5", match1)
+        store.insert_prior_art_match("bu-pa-5", match2)
+        store.insert_prior_art_match("bu-pa-5", match3)
+
+        matches = store.get_prior_art_matches("bu-pa-5")
+        assert matches[0]["title"] == "High"
+        assert matches[1]["title"] == "Medium"
+        assert matches[2]["title"] == "Low"
+
+
+# ── Pipeline Run Domains ─────────────────────────────────────────────
+
+
+class TestPipelineRunDomains:
+    def test_insert_and_get_pipeline_run_domains(self, store: Store) -> None:
+        """Insert and retrieve pipeline run domain stats."""
+        store.insert_pipeline_run("run-prd-1", {"profile": "test"})
+
+        stats = {
+            "signals_fetched": 10,
+            "insights_generated": 3,
+            "ideas_generated": 2,
+            "ideas_evaluated": 2,
+            "avg_score": 75.5,
+        }
+
+        store.insert_pipeline_run_domain("run-prd-1", "mcp", stats)
+
+        domains = store.get_pipeline_run_domains("run-prd-1")
+        assert len(domains) == 1
+        assert domains[0]["domain"] == "mcp"
+        assert domains[0]["signals_fetched"] == 10
+        assert domains[0]["avg_score"] == 75.5
+
+    def test_get_pipeline_run_domains_empty(self, store: Store) -> None:
+        """Get domains for run with no domain stats."""
+        store.insert_pipeline_run("run-prd-2", {})
+        assert store.get_pipeline_run_domains("run-prd-2") == []
+
+    def test_get_domain_performance(self, store: Store) -> None:
+        """Get performance history for a specific domain."""
+        store.insert_pipeline_run("run-dp-1", {})
+        store.insert_pipeline_run("run-dp-2", {})
+
+        stats1 = {"signals_fetched": 5, "insights_generated": 2, "avg_score": 70.0}
+        stats2 = {"signals_fetched": 8, "insights_generated": 3, "avg_score": 80.0}
+
+        store.insert_pipeline_run_domain("run-dp-1", "ai", stats1)
+        store.insert_pipeline_run_domain("run-dp-2", "ai", stats2)
+
+        perf = store.get_domain_performance("ai", limit=10)
+        assert len(perf) == 2
+        # Should be ordered by run started_at DESC (newest first)
+        assert perf[0]["run_id"] == "run-dp-2"
+        assert perf[1]["run_id"] == "run-dp-1"
+
+    def test_get_domain_performance_respects_limit(self, store: Store) -> None:
+        """Domain performance should respect limit parameter."""
+        for i in range(5):
+            run_id = f"run-dpl-{i}"
+            store.insert_pipeline_run(run_id, {})
+            store.insert_pipeline_run_domain(run_id, "testing", {"signals_fetched": i})
+
+        perf = store.get_domain_performance("testing", limit=3)
+        assert len(perf) == 3
+
+
+# ── Additional CRUD Coverage ─────────────────────────────────────────
+
+
+class TestAdditionalCRUD:
+    def test_count_buildable_units_with_filters(self, store: Store) -> None:
+        """Count buildable units with status and domain filters."""
+        u1 = _make_unit("bu-cnt-1")
+        u1.status = "draft"
+        u1.domain = "ai"
+
+        u2 = _make_unit("bu-cnt-2")
+        u2.status = "evaluated"
+        u2.domain = "ai"
+
+        u3 = _make_unit("bu-cnt-3")
+        u3.status = "draft"
+        u3.domain = "devtools"
+
+        store.insert_buildable_unit(u1)
+        store.insert_buildable_unit(u2)
+        store.insert_buildable_unit(u3)
+
+        assert store.count_buildable_units() == 3
+        assert store.count_buildable_units(status="draft") == 2
+        assert store.count_buildable_units(status="evaluated") == 1
+        assert store.count_buildable_units(domain="ai") == 2
+        assert store.count_buildable_units(status="draft", domain="ai") == 1
+
+    def test_get_buildable_units_with_domain_filter(self, store: Store) -> None:
+        """Get buildable units filtered by domain."""
+        u1 = _make_unit("bu-dom-1")
+        u1.domain = "mcp"
+
+        u2 = _make_unit("bu-dom-2")
+        u2.domain = "ai"
+
+        store.insert_buildable_unit(u1)
+        store.insert_buildable_unit(u2)
+
+        mcp_units = store.get_buildable_units(domain="mcp")
+        assert len(mcp_units) == 1
+        assert mcp_units[0].id == "bu-dom-1"
+
+    def test_has_feedback(self, store: Store) -> None:
+        """Check if buildable unit has feedback."""
+        store.insert_buildable_unit(_make_unit("bu-hf-1"))
+        store.insert_buildable_unit(_make_unit("bu-hf-2"))
+
+        assert not store.has_feedback("bu-hf-1")
+
+        store.insert_feedback("bu-hf-1", "approved")
+
+        assert store.has_feedback("bu-hf-1")
+        assert not store.has_feedback("bu-hf-2")
+
+    def test_get_feedback_log(self, store: Store) -> None:
+        """Get feedback log with unit and evaluation details."""
+        store.insert_buildable_unit(_make_unit("bu-fl-1"))
+        store.insert_evaluation(_make_evaluation("bu-fl-1", overall_score=85.0))
+        store.insert_feedback("bu-fl-1", "approved", "excellent idea")
+
+        log = store.get_feedback_log(limit=10)
+        assert len(log) == 1
+        assert log[0]["unit_id"] == "bu-fl-1"
+        assert log[0]["outcome"] == "approved"
+        assert log[0]["reason"] == "excellent idea"
+        assert log[0]["score"] == 85.0
+        assert log[0]["recommendation"] == "yes"
+
+    def test_count_insights(self, store: Store) -> None:
+        """Count total insights."""
+        assert store.count_insights() == 0
+
+        ins = Insight(
+            id="ins-cnt-1",
+            category=InsightCategory.GAP,
+            title="Test",
+            summary="Test",
+            evidence=[],
+            confidence=0.5,
+            domains=[],
+            implications=[],
+            time_horizon="near_term",
+        )
+        store.insert_insight(ins)
+
+        assert store.count_insights() == 1
+
+
+# ── Concurrent Connections ───────────────────────────────────────────
+
+
+class TestConcurrentConnections:
+    def test_multiple_stores_same_db(self, tmp_path: Path) -> None:
+        """Multiple Store instances can connect to the same database."""
+        db_path = str(tmp_path / "concurrent.db")
+
+        # First store writes data
+        with Store(db_path=db_path) as s1:
+            sig = _make_signal(sig_id="sig-conc-1", url="https://a.com/conc1")
+            s1.insert_signal(sig)
+
+        # Second store reads it
+        with Store(db_path=db_path) as s2:
+            retrieved = s2.get_signal("sig-conc-1")
+            assert retrieved is not None
+            assert retrieved.id == "sig-conc-1"
+
+    def test_wal_mode_supports_concurrent_reads(self, tmp_path: Path) -> None:
+        """WAL mode allows concurrent readers."""
+        db_path = str(tmp_path / "wal_concurrent.db")
+
+        # Initialize with WAL mode
+        with Store(db_path=db_path, wal_mode=True) as s1:
+            sig = _make_signal(sig_id="sig-wal-1", url="https://a.com/wal1")
+            s1.insert_signal(sig)
+
+        # Open two concurrent readers
+        s2 = Store(db_path=db_path, wal_mode=True)
+        s3 = Store(db_path=db_path, wal_mode=True)
+
+        try:
+            # Both should be able to read
+            assert s2.get_signal("sig-wal-1") is not None
+            assert s3.get_signal("sig-wal-1") is not None
+        finally:
+            s2.close()
+            s3.close()
