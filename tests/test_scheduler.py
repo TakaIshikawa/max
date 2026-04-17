@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from unittest.mock import patch
 
 import pytest
 
+from max.llm.client import BudgetExceededError
 from max.server.scheduler import Scheduler
 
 
@@ -381,3 +383,236 @@ async def test_status_shows_run_count_and_failure_streak(mock_pipeline_result):
     status = scheduler.status()
     assert status["run_count"] == 2
     assert status["failure_streak"] == 1
+
+
+@pytest.mark.asyncio
+async def test_pipeline_execution_timeout():
+    """Pipeline execution that exceeds timeout is counted as failure."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_execution_seconds=1,  # 1 second timeout
+    )
+
+    def slow_pipeline(**kwargs):
+        time.sleep(2)  # Exceeds timeout
+        from max.pipeline.runner import PipelineResult
+        return PipelineResult(
+            signals_fetched=0,
+            signals_new=0,
+            insights_generated=0,
+            ideas_generated=0,
+            ideas_evaluated=0,
+            avg_insight_confidence=0.0,
+            avg_idea_score=0.0,
+        )
+
+    with patch("max.server.scheduler.run_pipeline", side_effect=slow_pipeline):
+        result = await scheduler.run_once()
+
+    assert result is None
+    assert scheduler._failure_streak == 1
+    assert "timeout" in scheduler.last_error.lower()
+    assert scheduler.last_error_at is not None
+
+
+@pytest.mark.asyncio
+async def test_timeout_triggers_auto_pause():
+    """Multiple consecutive timeouts trigger scheduler auto-pause."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_execution_seconds=1,
+        max_consecutive_failures=2,
+    )
+
+    def slow_pipeline(**kwargs):
+        time.sleep(2)
+        from max.pipeline.runner import PipelineResult
+        return PipelineResult(
+            signals_fetched=0,
+            signals_new=0,
+            insights_generated=0,
+            ideas_generated=0,
+            ideas_evaluated=0,
+            avg_insight_confidence=0.0,
+            avg_idea_score=0.0,
+        )
+
+    with patch("max.server.scheduler.run_pipeline", side_effect=slow_pipeline):
+        await scheduler.run_once()  # timeout 1
+        assert scheduler.enabled is True
+        assert scheduler._failure_streak == 1
+
+        await scheduler.run_once()  # timeout 2 — triggers pause
+        assert scheduler.enabled is False
+        assert scheduler._failure_streak == 2
+
+
+@pytest.mark.asyncio
+async def test_budget_exceeded_causes_immediate_pause():
+    """BudgetExceededError causes immediate auto-pause without waiting for consecutive failures."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_consecutive_failures=3,  # Would normally need 3 failures
+    )
+
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=BudgetExceededError("Token budget exceeded: 10000 > 5000"),
+    ):
+        result = await scheduler.run_once()
+
+    assert result is None
+    assert scheduler.enabled is False  # Immediately paused
+    assert scheduler._failure_streak == 1
+    assert "budget exceeded" in scheduler.last_error.lower()
+    assert scheduler.last_error_at is not None
+
+
+@pytest.mark.asyncio
+async def test_resume_resets_failure_counter_and_enables():
+    """resume() resets failure counter and re-enables scheduler."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_consecutive_failures=2,
+    )
+
+    # Trigger auto-pause
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("fail"),
+    ):
+        await scheduler.run_once()
+        await scheduler.run_once()
+
+    assert scheduler.enabled is False
+    assert scheduler._failure_streak == 2
+
+    # Resume
+    scheduler.resume()
+
+    assert scheduler.enabled is True
+    assert scheduler._failure_streak == 0
+
+
+@pytest.mark.asyncio
+async def test_resume_after_budget_exceeded():
+    """resume() works after BudgetExceededError auto-pause."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+
+    # Trigger budget exceeded auto-pause
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=BudgetExceededError("Cost budget exceeded"),
+    ):
+        await scheduler.run_once()
+
+    assert scheduler.enabled is False
+    assert scheduler._failure_streak == 1
+
+    # Resume
+    scheduler.resume()
+
+    assert scheduler.enabled is True
+    assert scheduler._failure_streak == 0
+
+
+@pytest.mark.asyncio
+async def test_reset_and_resume_clears_error_state():
+    """reset_and_resume() clears error state and re-enables."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_consecutive_failures=2,
+    )
+
+    # Trigger failures
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("fail"),
+    ):
+        await scheduler.run_once()
+        await scheduler.run_once()
+
+    assert scheduler.enabled is False
+    assert scheduler._failure_streak == 2
+    assert scheduler.last_error == "fail"
+    assert scheduler.last_error_at is not None
+
+    # Reset and resume
+    scheduler.reset_and_resume()
+
+    assert scheduler.enabled is True
+    assert scheduler._failure_streak == 0
+    assert scheduler.last_error is None
+    assert scheduler.last_error_at is None
+
+
+@pytest.mark.asyncio
+async def test_reset_and_resume_with_new_config():
+    """reset_and_resume() accepts and applies new config."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_consecutive_failures=2,
+    )
+
+    # Trigger auto-pause
+    with patch(
+        "max.server.scheduler.run_pipeline",
+        side_effect=RuntimeError("fail"),
+    ):
+        await scheduler.run_once()
+        await scheduler.run_once()
+
+    assert scheduler.enabled is False
+    assert scheduler.max_execution_seconds == 1800  # default
+
+    # Reset with new config
+    scheduler.reset_and_resume(
+        new_config={
+            "max_execution_seconds": 3600,
+            "interval_seconds": 7200,
+            "max_consecutive_failures": 5,
+        }
+    )
+
+    assert scheduler.enabled is True
+    assert scheduler._failure_streak == 0
+    assert scheduler.max_execution_seconds == 3600
+    assert scheduler.interval_seconds == 7200
+    assert scheduler.max_consecutive_failures == 5
+
+
+@pytest.mark.asyncio
+async def test_update_max_execution_seconds():
+    """update() can modify max_execution_seconds."""
+    scheduler = Scheduler(interval_seconds=60, enabled=True)
+    assert scheduler.max_execution_seconds == 1800  # default
+
+    scheduler.update(max_execution_seconds=3600)
+    assert scheduler.max_execution_seconds == 3600
+
+
+def test_scheduler_init_with_max_execution_seconds():
+    """Scheduler can be initialized with custom max_execution_seconds."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_execution_seconds=900,
+    )
+    assert scheduler.max_execution_seconds == 900
+
+
+def test_status_includes_max_execution_seconds():
+    """status() includes max_execution_seconds."""
+    scheduler = Scheduler(
+        interval_seconds=60,
+        enabled=True,
+        max_execution_seconds=2400,
+    )
+    status = scheduler.status()
+    assert status["max_execution_seconds"] == 2400
