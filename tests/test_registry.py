@@ -253,3 +253,151 @@ def test_get_adapter_returns_instance():
 def test_get_adapter_raises_for_unknown():
     with pytest.raises(KeyError, match="Unknown adapter"):
         get_adapter("does_not_exist")
+
+
+# ── Entry point non-SourceAdapter handling ───────────────────────────
+
+
+def test_entry_point_warns_if_not_source_adapter_subclass(caplog):
+    """Entry point loading a non-SourceAdapter class logs a warning and skips it."""
+    class NotAnAdapter:
+        pass
+
+    class FakeEntryPoint:
+        name = "invalid_adapter"
+        def load(self):
+            return NotAnAdapter
+
+    with patch(
+        "max.sources.registry.importlib.metadata.entry_points",
+        return_value=[FakeEntryPoint()],
+    ):
+        discovered = _discover_adapters()
+
+    assert "invalid_adapter" not in discovered
+    assert "not a SourceAdapter subclass" in caplog.text
+
+
+def test_entry_point_warns_on_load_failure(caplog):
+    """Entry point that raises during load() logs a warning and skips it."""
+    class FailingEntryPoint:
+        name = "broken_adapter"
+        def load(self):
+            raise RuntimeError("Failed to load")
+
+    with patch(
+        "max.sources.registry.importlib.metadata.entry_points",
+        return_value=[FailingEntryPoint()],
+    ):
+        discovered = _discover_adapters()
+
+    assert "broken_adapter" not in discovered
+    assert "Failed to load adapter entry_point" in caplog.text
+
+
+# ── get_all_adapters with source_configs ──────────────────────────────
+
+
+def test_get_all_adapters_with_source_configs_as_dicts():
+    """get_all_adapters accepts list of dicts with adapter, enabled, params."""
+    from max.sources.hackernews import HackerNewsAdapter
+
+    # Mock registry to have only hackernews and reddit
+    with patch("max.config.MAX_ADAPTERS", "hackernews,reddit"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        source_configs = [
+            {"adapter": "hackernews", "enabled": True, "params": {"limit": 50}},
+            {"adapter": "reddit", "enabled": True, "params": {}},
+        ]
+        adapters = get_all_adapters(source_configs=source_configs)
+
+    assert len(adapters) == 2
+    assert all(isinstance(a, SourceAdapter) for a in adapters)
+
+    # Verify hackernews adapter received custom params
+    hn_adapter = next(a for a in adapters if a.name == "hackernews")
+    assert isinstance(hn_adapter, HackerNewsAdapter)
+    assert hn_adapter._config == {"limit": 50}
+
+
+def test_get_all_adapters_with_source_config_objects():
+    """get_all_adapters accepts list of SourceConfig Pydantic objects."""
+    from max.profiles.schema import SourceConfig
+
+    with patch("max.config.MAX_ADAPTERS", "hackernews,reddit"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        source_configs = [
+            SourceConfig(adapter="hackernews", enabled=True, params={"limit": 100}),
+            SourceConfig(adapter="reddit", enabled=True, params={"subreddits": ["python"]}),
+        ]
+        adapters = get_all_adapters(source_configs=source_configs)
+
+    assert len(adapters) == 2
+    names = {a.name for a in adapters}
+    assert names == {"hackernews", "reddit"}
+
+
+def test_get_all_adapters_skips_disabled_adapters():
+    """When enabled=False, adapter is not instantiated."""
+    with patch("max.config.MAX_ADAPTERS", "hackernews,reddit"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        source_configs = [
+            {"adapter": "hackernews", "enabled": True, "params": {}},
+            {"adapter": "reddit", "enabled": False, "params": {}},
+        ]
+        adapters = get_all_adapters(source_configs=source_configs)
+
+    assert len(adapters) == 1
+    assert adapters[0].name == "hackernews"
+
+
+def test_get_all_adapters_warns_for_unknown_adapter(caplog):
+    """Unknown adapter name in source_configs logs a warning and is skipped."""
+    with patch("max.config.MAX_ADAPTERS", "hackernews"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        source_configs = [
+            {"adapter": "hackernews", "enabled": True, "params": {}},
+            {"adapter": "nonexistent_adapter", "enabled": True, "params": {}},
+        ]
+        adapters = get_all_adapters(source_configs=source_configs)
+
+    assert len(adapters) == 1
+    assert adapters[0].name == "hackernews"
+    assert "Profile references unknown adapter: nonexistent_adapter" in caplog.text
+
+
+def test_get_all_adapters_passes_custom_params_to_constructor():
+    """Custom params in source_configs are passed to adapter constructor."""
+    with patch("max.config.MAX_ADAPTERS", "hackernews"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        custom_params = {"filter_keywords": ["mcp", "ai"], "limit": 75}
+        source_configs = [
+            {"adapter": "hackernews", "enabled": True, "params": custom_params},
+        ]
+        adapters = get_all_adapters(source_configs=source_configs)
+
+    assert len(adapters) == 1
+    assert adapters[0]._config == custom_params
+
+
+def test_get_all_adapters_without_config_uses_defaults():
+    """When source_configs=None, all adapters are instantiated with default config."""
+    with patch("max.config.MAX_ADAPTERS", "hackernews,reddit"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        adapters = get_all_adapters(source_configs=None)
+
+    assert len(adapters) == 2
+    for adapter in adapters:
+        # Default config is empty dict
+        assert adapter._config == {}
