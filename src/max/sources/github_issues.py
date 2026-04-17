@@ -16,6 +16,7 @@ from max.sources.errors import (
     SourceRateLimitError,
     SourceTransientError,
 )
+from max.sources.retry import with_retry
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,54 @@ class GitHubIssuesAdapter(SourceAdapter):
     @property
     def queries(self) -> list[str]:
         return self._config.get("queries", _DEFAULT_QUERIES)
+
+    @with_retry(max_retries=3, base_delay=1.0, adapter_name="github_issues")
+    async def _fetch_query(
+        self, client: httpx.AsyncClient, query: str, per_query: int
+    ) -> dict:
+        """Fetch GitHub issues for a single query with retry logic."""
+        try:
+            resp = await client.get(
+                f"{GITHUB_API}/search/issues",
+                params={
+                    "q": query,
+                    "sort": "reactions-+1",
+                    "order": "desc",
+                    "per_page": per_query,
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 429:
+                retry_after = e.response.headers.get("Retry-After")
+                retry_seconds = float(retry_after) if retry_after else None
+                raise SourceRateLimitError(
+                    f"Rate limit exceeded for query: {query}",
+                    adapter_name=self.name,
+                    retry_after=retry_seconds,
+                ) from e
+            elif status in (401, 403):
+                raise SourceAuthError(
+                    f"Authentication failed (HTTP {status}) for query: {query}",
+                    adapter_name=self.name,
+                ) from e
+            elif 500 <= status < 600:
+                raise SourceTransientError(
+                    f"Server error (HTTP {status}) for query: {query}",
+                    adapter_name=self.name,
+                ) from e
+            else:
+                raise SourceTransientError(
+                    f"HTTP {status} for query: {query}",
+                    adapter_name=self.name,
+                ) from e
+        except (ValueError, KeyError, TypeError) as e:
+            raise SourceParseError(
+                f"Failed to parse response for query: {query}",
+                adapter_name=self.name,
+            ) from e
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
@@ -75,47 +124,17 @@ class GitHubIssuesAdapter(SourceAdapter):
                     await asyncio.sleep(1)
 
                 try:
-                    resp = await client.get(
-                        f"{GITHUB_API}/search/issues",
-                        params={
-                            "q": query,
-                            "sort": "reactions-+1",
-                            "order": "desc",
-                            "per_page": per_query,
-                        },
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()
-                except httpx.HTTPStatusError as e:
-                    status = e.response.status_code
-                    if status == 429:
-                        retry_after = e.response.headers.get("Retry-After")
-                        retry_seconds = float(retry_after) if retry_after else None
-                        # Rate limit affects all queries — raise immediately
-                        raise SourceRateLimitError(
-                            f"Rate limit exceeded for query: {query}",
-                            adapter_name=self.name,
-                            retry_after=retry_seconds,
-                        ) from e
-                    elif status in (401, 403):
-                        # Auth failure affects all queries — raise immediately
-                        raise SourceAuthError(
-                            f"Authentication failed (HTTP {status}) for query: {query}",
-                            adapter_name=self.name,
-                        ) from e
-                    elif 500 <= status < 600:
-                        # Server error for this query — log and continue with next query
-                        logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
-                        continue
-                    else:
-                        logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
-                        continue
-                except (httpx.RequestError, httpx.TimeoutException) as e:
-                    # Network error for this query — log and continue with next query
-                    logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
-                    continue
-                except (ValueError, KeyError, TypeError) as e:
-                    # Parse error for this query — log and continue with next query
+                    data = await self._fetch_query(client, query, per_query)
+                except (SourceRateLimitError, SourceAuthError):
+                    # Rate limit or auth errors affect all queries — raise immediately
+                    raise
+                except (
+                    SourceTransientError,
+                    SourceParseError,
+                    httpx.RequestError,
+                    httpx.TimeoutException,
+                ):
+                    # Transient, parse, or network errors for this query — log and continue with next query
                     logger.warning("GitHub Issues search failed for query: %s", query, exc_info=True)
                     continue
 

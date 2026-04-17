@@ -15,6 +15,7 @@ from max.sources.errors import (
     SourceRateLimitError,
     SourceTransientError,
 )
+from max.sources.retry import with_retry
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,44 @@ class PyPIRegistryAdapter(SourceAdapter):
             return set(configured)
         return _DEFAULT_KEYWORDS
 
+    @with_retry(max_retries=3, base_delay=1.0, adapter_name="pypi_registry")
+    async def _fetch_rss(self, client: httpx.AsyncClient, rss_url: str) -> list[tuple[str, str, datetime | None]]:
+        """Fetch and parse PyPI RSS feed with retry logic."""
+        try:
+            resp = await client.get(rss_url)
+            resp.raise_for_status()
+            return _parse_rss(resp.text)
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 429:
+                retry_after = e.response.headers.get("Retry-After")
+                retry_seconds = float(retry_after) if retry_after else None
+                raise SourceRateLimitError(
+                    f"Rate limit exceeded for {rss_url}",
+                    adapter_name=self.name,
+                    retry_after=retry_seconds,
+                ) from e
+            elif status in (401, 403):
+                raise SourceAuthError(
+                    f"Authentication failed (HTTP {status}) for {rss_url}",
+                    adapter_name=self.name,
+                ) from e
+            elif 500 <= status < 600:
+                raise SourceTransientError(
+                    f"Server error (HTTP {status}) for {rss_url}",
+                    adapter_name=self.name,
+                ) from e
+            else:
+                raise SourceTransientError(
+                    f"HTTP {status} for {rss_url}",
+                    adapter_name=self.name,
+                ) from e
+        except ET.ParseError as e:
+            raise SourceParseError(
+                f"Failed to parse RSS feed: {rss_url}",
+                adapter_name=self.name,
+            ) from e
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_names: set[str] = set()
@@ -57,39 +96,17 @@ class PyPIRegistryAdapter(SourceAdapter):
                 if len(signals) >= limit:
                     break
                 try:
-                    resp = await client.get(rss_url)
-                    resp.raise_for_status()
-                    candidates = _parse_rss(resp.text)
-                except httpx.HTTPStatusError as e:
-                    status = e.response.status_code
-                    if status == 429:
-                        retry_after = e.response.headers.get("Retry-After")
-                        retry_seconds = float(retry_after) if retry_after else None
-                        # Rate limit affects all feeds — raise immediately
-                        raise SourceRateLimitError(
-                            f"Rate limit exceeded for {rss_url}",
-                            adapter_name=self.name,
-                            retry_after=retry_seconds,
-                        ) from e
-                    elif status in (401, 403):
-                        # Auth failure affects all feeds — raise immediately
-                        raise SourceAuthError(
-                            f"Authentication failed (HTTP {status}) for {rss_url}",
-                            adapter_name=self.name,
-                        ) from e
-                    elif 500 <= status < 600:
-                        # Server error for this feed — log and try next feed
-                        logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
-                        continue
-                    else:
-                        logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
-                        continue
-                except (httpx.RequestError, httpx.TimeoutException) as e:
-                    # Network error for this feed — log and try next feed
-                    logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
-                    continue
-                except ET.ParseError as e:
-                    # Parse error for this feed — log and try next feed
+                    candidates = await self._fetch_rss(client, rss_url)
+                except (SourceRateLimitError, SourceAuthError):
+                    # Rate limit or auth errors affect all feeds — raise immediately
+                    raise
+                except (
+                    SourceTransientError,
+                    SourceParseError,
+                    httpx.RequestError,
+                    httpx.TimeoutException,
+                ):
+                    # Transient, parse, or network errors for this feed — log and try next feed
                     logger.warning("Failed to fetch PyPI RSS: %s", rss_url, exc_info=True)
                     continue
 
