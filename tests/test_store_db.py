@@ -735,6 +735,165 @@ class TestSchemaAndMigrations:
         assert expected.issubset(indexes)
 
 
+# ── Cursor Encoding/Decoding ─────────────────────────────────────────
+
+
+class TestCursorEncoding:
+    def test_encode_decode_roundtrip(self) -> None:
+        """Encode then decode should return original values."""
+        from max.store.db import _encode_cursor, _decode_cursor
+
+        timestamp = "2026-01-15T10:30:00.000000+00:00"
+        entity_id = "sig-test123"
+
+        cursor = _encode_cursor(timestamp, entity_id)
+        decoded_timestamp, decoded_id = _decode_cursor(cursor)
+
+        assert decoded_timestamp == timestamp
+        assert decoded_id == entity_id
+
+    def test_decode_invalid_base64_raises_value_error(self) -> None:
+        """Decode with invalid base64 should raise ValueError."""
+        from max.store.db import _decode_cursor
+
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            _decode_cursor("not-valid-base64!!!")
+
+    def test_decode_missing_separator_raises_value_error(self) -> None:
+        """Decode with valid base64 but missing pipe separator should raise ValueError."""
+        import base64
+        from max.store.db import _decode_cursor
+
+        # Create valid base64 but without pipe separator
+        invalid_data = "no_separator_here"
+        invalid_cursor = base64.b64encode(invalid_data.encode()).decode()
+
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            _decode_cursor(invalid_cursor)
+
+    def test_encode_with_special_characters_in_entity_id(self) -> None:
+        """Encode should handle special characters in entity_id."""
+        from max.store.db import _encode_cursor, _decode_cursor
+
+        timestamp = "2026-01-15T10:30:00.000000+00:00"
+        # Entity ID with special characters
+        entity_id = "sig-test|with|pipes|and-dashes_underscores"
+
+        cursor = _encode_cursor(timestamp, entity_id)
+        decoded_timestamp, decoded_id = _decode_cursor(cursor)
+
+        # Should split on first pipe only
+        assert decoded_timestamp == timestamp
+        assert decoded_id == entity_id
+
+
+# ── Signals Pagination ───────────────────────────────────────────────
+
+
+class TestSignalsPagination:
+    def test_empty_store_returns_empty_list_and_no_cursor(self, store: Store) -> None:
+        """Empty store should return empty list and None cursor."""
+        signals, next_cursor = store.get_signals_paginated()
+        assert signals == []
+        assert next_cursor is None
+
+    def test_fewer_signals_than_limit_returns_all_no_cursor(self, store: Store) -> None:
+        """Fewer signals than limit should return all signals and next_cursor=None."""
+        for i in range(3):
+            store.insert_signal(_make_signal(sig_id=f"sig-pag-{i}", url=f"https://a.com/pag{i}"))
+
+        signals, next_cursor = store.get_signals_paginated(limit=10)
+        assert len(signals) == 3
+        assert next_cursor is None
+
+    def test_more_signals_than_limit_returns_exactly_limit_and_cursor(self, store: Store) -> None:
+        """More signals than limit should return exactly limit signals and a non-None next_cursor."""
+        for i in range(10):
+            store.insert_signal(_make_signal(sig_id=f"sig-pag2-{i}", url=f"https://a.com/pag2-{i}"))
+
+        signals, next_cursor = store.get_signals_paginated(limit=5)
+        assert len(signals) == 5
+        assert next_cursor is not None
+
+    def test_using_next_cursor_returns_next_page(self, store: Store) -> None:
+        """Using next_cursor from first page should return the next page."""
+        for i in range(10):
+            store.insert_signal(_make_signal(sig_id=f"sig-pag3-{i}", url=f"https://a.com/pag3-{i}"))
+
+        # Get first page
+        page1, cursor1 = store.get_signals_paginated(limit=5)
+        assert len(page1) == 5
+        assert cursor1 is not None
+
+        # Get second page using cursor
+        page2, cursor2 = store.get_signals_paginated(cursor=cursor1, limit=5)
+        assert len(page2) == 5
+        assert cursor2 is None  # No more pages
+
+        # Verify no overlap between pages
+        page1_ids = {s.id for s in page1}
+        page2_ids = {s.id for s in page2}
+        assert page1_ids.isdisjoint(page2_ids)
+
+    def test_full_pagination_walk(self, store: Store) -> None:
+        """Full pagination walk through all signals should return all unique signals."""
+        n_signals = 25
+        for i in range(n_signals):
+            store.insert_signal(_make_signal(sig_id=f"sig-walk-{i}", url=f"https://a.com/walk-{i}"))
+
+        all_signals = []
+        cursor = None
+        page_limit = 7
+
+        while True:
+            signals, cursor = store.get_signals_paginated(cursor=cursor, limit=page_limit)
+            all_signals.extend(signals)
+            if cursor is None:
+                break
+
+        # Verify we got all signals exactly once
+        assert len(all_signals) == n_signals
+        all_ids = [s.id for s in all_signals]
+        assert len(set(all_ids)) == n_signals  # All unique
+
+    def test_pagination_with_source_type_filter(self, store: Store) -> None:
+        """Pagination with source_type filter should only return filtered signals."""
+        # Insert mixed source types
+        for i in range(5):
+            store.insert_signal(
+                _make_signal(
+                    adapter="hn",
+                    sig_id=f"sig-forum-{i}",
+                    url=f"https://a.com/forum-{i}",
+                    source_type=SignalSourceType.FORUM,
+                )
+            )
+        for i in range(3):
+            store.insert_signal(
+                _make_signal(
+                    adapter="npm",
+                    sig_id=f"sig-reg-{i}",
+                    url=f"https://a.com/reg-{i}",
+                    source_type=SignalSourceType.REGISTRY,
+                )
+            )
+
+        signals, next_cursor = store.get_signals_paginated(source_type="forum", limit=10)
+        assert len(signals) == 5
+        assert all(s.source_type == SignalSourceType.FORUM for s in signals)
+
+        signals, next_cursor = store.get_signals_paginated(source_type="registry", limit=10)
+        assert len(signals) == 3
+        assert all(s.source_type == SignalSourceType.REGISTRY for s in signals)
+
+    def test_invalid_cursor_raises_value_error(self, store: Store) -> None:
+        """Invalid cursor string should raise ValueError."""
+        store.insert_signal(_make_signal(sig_id="sig-ic-1", url="https://a.com/ic1"))
+
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            store.get_signals_paginated(cursor="invalid-cursor-format")
+
+
 # ── Transaction Management ───────────────────────────────────────────
 
 
@@ -828,6 +987,46 @@ class TestTransactions:
         # None should be persisted
         assert store.get_signal("sig-tx-5") is None
         assert store.get_insight("ins-tx-2") is None
+
+    def test_commit_is_noop_inside_transaction(self, store: Store) -> None:
+        """_commit() should be a no-op inside a transaction context."""
+        # Insert a signal outside transaction first to verify normal commit works
+        sig_before = _make_signal(sig_id="sig-tx-6", url="https://a.com/tx6")
+        store.insert_signal(sig_before)
+        assert store.get_signal("sig-tx-6") is not None
+
+        # Now test inside transaction
+        try:
+            with store.transaction():
+                sig = _make_signal(sig_id="sig-tx-7", url="https://a.com/tx7")
+                store.insert_signal(sig)
+                # At this point, _commit() was called by insert_signal but should be a no-op
+                # The data should NOT be committed yet
+
+                # Force an error to rollback
+                raise ValueError("Test rollback")
+        except ValueError:
+            pass
+
+        # Signal should NOT be persisted because _commit() was a no-op inside transaction
+        assert store.get_signal("sig-tx-7") is None
+
+    def test_nested_transaction_flag_behavior(self, store: Store) -> None:
+        """Nested transaction flag (_in_transaction) should be restored correctly."""
+        # Start with no transaction flag
+        assert not getattr(store, "_in_transaction", False)
+
+        with store.transaction():
+            # Inside transaction, flag should be True
+            assert store._in_transaction is True
+
+            # Simulate a nested scenario (though we don't support true nesting)
+            # The flag should be preserved
+            inner_flag_state = store._in_transaction
+            assert inner_flag_state is True
+
+        # After exiting transaction, flag should be restored to False
+        assert not getattr(store, "_in_transaction", False)
 
 
 # ── Context Manager ──────────────────────────────────────────────────
