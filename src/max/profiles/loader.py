@@ -17,6 +17,21 @@ from max.profiles.schema import (
 logger = logging.getLogger(__name__)
 
 
+class ProfileValidationError(Exception):
+    """Raised when profile validation fails."""
+
+    def __init__(self, issues: list[str]):
+        self.issues = issues
+        super().__init__(self._format_message())
+
+    def _format_message(self) -> str:
+        if len(self.issues) == 1:
+            return f"Profile validation failed: {self.issues[0]}"
+        return f"Profile validation failed with {len(self.issues)} errors:\n" + "\n".join(
+            f"  - {issue}" for issue in self.issues
+        )
+
+
 def get_profiles_dir() -> Path:
     """Return the profiles directory (project_root/profiles/)."""
     # Walk up from this file to find the project root (where pyproject.toml lives)
@@ -136,10 +151,97 @@ def list_profiles() -> list[str]:
     return names
 
 
+def validate_profile(profile: PipelineProfile) -> list[str]:
+    """Validate a pipeline profile and return a list of issues (errors and warnings).
+
+    Validations performed:
+    1. Adapter names exist in the registry (ERROR)
+    2. Weight values are numeric and in range 0.0-10.0 (ERROR)
+    3. Category names are known (WARNING)
+
+    Returns:
+        List of error/warning messages. Errors are prefixed with "ERROR:",
+        warnings with "WARNING:".
+    """
+    issues: list[str] = []
+
+    # Import here to avoid circular dependency
+    from max.sources.registry import list_adapters
+
+    # Get available adapters
+    try:
+        available_adapters = set(list_adapters())
+    except Exception as e:
+        logger.warning("Failed to load adapter registry: %s", e)
+        available_adapters = set()
+
+    # Validate adapter names
+    for source in profile.sources:
+        if source.adapter not in available_adapters:
+            issues.append(
+                f"ERROR: Unknown adapter '{source.adapter}'. "
+                f"Available adapters: {sorted(available_adapters)}"
+            )
+
+    # Validate weight values
+    for source in profile.sources:
+        weight = source.weight
+        if not isinstance(weight, (int, float)):
+            issues.append(
+                f"ERROR: Invalid weight type for adapter '{source.adapter}': "
+                f"{type(weight).__name__} (expected numeric)"
+            )
+        elif weight < 0.0 or weight > 10.0:
+            issues.append(
+                f"ERROR: Weight {weight} for adapter '{source.adapter}' is out of range "
+                f"(must be between 0.0 and 10.0)"
+            )
+
+    # Validate category names (warning only)
+    # Use DEFAULT_DOMAIN_CONTEXT categories as reference
+    known_categories = set(DEFAULT_DOMAIN_CONTEXT.categories)
+    profile_categories = set(profile.domain.categories)
+    unknown_categories = profile_categories - known_categories
+
+    if unknown_categories:
+        logger.warning(
+            "Profile '%s' uses unknown categories: %s. Known categories: %s",
+            profile.name,
+            sorted(unknown_categories),
+            sorted(known_categories),
+        )
+        issues.append(
+            f"WARNING: Unknown categories in profile '{profile.name}': "
+            f"{sorted(unknown_categories)}"
+        )
+
+    return issues
+
+
 def _load_yaml(path: Path) -> PipelineProfile:
     """Parse a YAML file into a PipelineProfile."""
     with open(path) as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Invalid profile YAML (expected dict): {path}")
-    return PipelineProfile(**data)
+
+    profile = PipelineProfile(**data)
+
+    # Validate the profile
+    issues = validate_profile(profile)
+
+    # Separate errors and warnings
+    errors = [issue for issue in issues if issue.startswith("ERROR:")]
+    warnings = [issue for issue in issues if issue.startswith("WARNING:")]
+
+    # Log warnings
+    for warning in warnings:
+        logger.warning(warning.replace("WARNING: ", ""))
+
+    # Raise on errors
+    if errors:
+        # Remove "ERROR: " prefix for the exception
+        error_messages = [e.replace("ERROR: ", "") for e in errors]
+        raise ProfileValidationError(error_messages)
+
+    return profile
