@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib
-from unittest.mock import patch
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from max.config import _parse_float, _parse_int
+from max.config import _parse_float, _parse_int, _resolve_secret, get_project_root
 
 
 class TestParseInt:
@@ -119,3 +121,158 @@ class TestModuleLevelDefaults:
 
         # Reload with real env to restore state for other tests
         importlib.reload(cfg)
+
+
+class TestResolveSecret:
+    """Tests for _resolve_secret helper."""
+
+    def test_env_var_takes_precedence(self):
+        """When env var is set, vault is never called."""
+        mock_run = MagicMock()
+        with patch.dict("os.environ", {"TEST_SECRET": "env-value"}), patch("subprocess.run", mock_run):
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == "env-value"
+            mock_run.assert_not_called()
+
+    def test_vault_fallback(self):
+        """When env var is empty, vault command is called and returns value."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "secret-value\n"
+
+        with patch.dict("os.environ", {}, clear=True), patch("subprocess.run", return_value=mock_result) as mock_run:
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == "secret-value"
+            mock_run.assert_called_once_with(
+                ["vault", "get", "vault/path"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+
+    def test_vault_command_failure(self):
+        """When vault command returns non-zero, returns empty string."""
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = ""
+
+        with patch.dict("os.environ", {}, clear=True), patch("subprocess.run", return_value=mock_result):
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == ""
+
+    def test_vault_not_installed(self):
+        """When vault command raises FileNotFoundError, returns empty string."""
+        with patch.dict("os.environ", {}, clear=True), patch("subprocess.run", side_effect=FileNotFoundError):
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == ""
+
+    def test_vault_timeout(self):
+        """When vault command times out, returns empty string."""
+        with patch.dict("os.environ", {}, clear=True), patch("subprocess.run", side_effect=subprocess.TimeoutExpired(["vault"], 5)):
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == ""
+
+    def test_vault_returns_empty_stdout(self):
+        """When vault succeeds but returns empty stdout, returns empty string."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = ""
+
+        with patch.dict("os.environ", {}, clear=True), patch("subprocess.run", return_value=mock_result):
+            result = _resolve_secret("TEST_SECRET", "vault/path")
+            assert result == ""
+
+
+class TestCorsOrigins:
+    """Tests for CORS origins parsing."""
+
+    def test_empty_string(self):
+        """Empty MAX_CORS_ORIGINS results in empty list."""
+        import os
+
+        clean_env = {k: v for k, v in os.environ.items() if k != "MAX_CORS_ORIGINS"}
+        clean_env["MAX_CORS_ORIGINS"] = ""
+
+        with patch.dict("os.environ", clean_env, clear=True):
+            import max.config as cfg
+
+            importlib.reload(cfg)
+            assert cfg.CORS_ORIGINS == []
+
+        importlib.reload(cfg)
+
+    def test_single_origin(self):
+        """Single origin is parsed correctly."""
+        import os
+
+        clean_env = {k: v for k, v in os.environ.items() if k != "MAX_CORS_ORIGINS"}
+        clean_env["MAX_CORS_ORIGINS"] = "http://localhost:3000"
+
+        with patch.dict("os.environ", clean_env, clear=True):
+            import max.config as cfg
+
+            importlib.reload(cfg)
+            assert cfg.CORS_ORIGINS == ["http://localhost:3000"]
+
+        importlib.reload(cfg)
+
+    def test_multiple_comma_separated(self):
+        """Multiple comma-separated origins are parsed correctly."""
+        import os
+
+        clean_env = {k: v for k, v in os.environ.items() if k != "MAX_CORS_ORIGINS"}
+        clean_env["MAX_CORS_ORIGINS"] = "http://localhost:3000,https://example.com"
+
+        with patch.dict("os.environ", clean_env, clear=True):
+            import max.config as cfg
+
+            importlib.reload(cfg)
+            assert cfg.CORS_ORIGINS == ["http://localhost:3000", "https://example.com"]
+
+        importlib.reload(cfg)
+
+    def test_whitespace_handling(self):
+        """Extra whitespace around commas is stripped."""
+        import os
+
+        clean_env = {k: v for k, v in os.environ.items() if k != "MAX_CORS_ORIGINS"}
+        clean_env["MAX_CORS_ORIGINS"] = "http://localhost:3000 , https://example.com , https://another.com"
+
+        with patch.dict("os.environ", clean_env, clear=True):
+            import max.config as cfg
+
+            importlib.reload(cfg)
+            assert cfg.CORS_ORIGINS == ["http://localhost:3000", "https://example.com", "https://another.com"]
+
+        importlib.reload(cfg)
+
+    def test_trailing_comma(self):
+        """Trailing comma results in single origin (empty strings filtered)."""
+        import os
+
+        clean_env = {k: v for k, v in os.environ.items() if k != "MAX_CORS_ORIGINS"}
+        clean_env["MAX_CORS_ORIGINS"] = "http://localhost:3000,"
+
+        with patch.dict("os.environ", clean_env, clear=True):
+            import max.config as cfg
+
+            importlib.reload(cfg)
+            assert cfg.CORS_ORIGINS == ["http://localhost:3000"]
+
+        importlib.reload(cfg)
+
+
+class TestGetProjectRoot:
+    """Tests for get_project_root() function."""
+
+    def test_returns_path_object(self):
+        """get_project_root() returns a Path object."""
+        result = get_project_root()
+        assert isinstance(result, Path)
+
+    def test_contains_src_max_subdirectory(self):
+        """Returned path contains src/max as a subdirectory."""
+        root = get_project_root()
+        src_max_path = root / "src" / "max"
+        assert src_max_path.exists()
+        assert src_max_path.is_dir()
