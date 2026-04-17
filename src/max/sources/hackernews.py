@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import httpx
 
 from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
+from max.sources.errors import SourceParseError
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,19 @@ class HackerNewsAdapter(SourceAdapter):
             resp = await fetch_with_retry(
                 f"{HN_API}/topstories.json", client, adapter_name=self.name,
             )
-            story_ids = resp.json()[:fetch_count]
+            try:
+                story_ids = resp.json()[:fetch_count]
+            except (ValueError, KeyError, TypeError) as e:
+                logger.warning(
+                    "%s: failed to parse top stories JSON: %s",
+                    self.name,
+                    e,
+                    exc_info=True,
+                )
+                raise SourceParseError(
+                    f"failed to parse top stories JSON: {e}",
+                    adapter_name=self.name,
+                ) from e
 
             signals: list[Signal] = []
             for story_id in story_ids:
@@ -48,7 +61,19 @@ class HackerNewsAdapter(SourceAdapter):
                     )
                 except AdapterFetchError:
                     continue
-                item = item_resp.json()
+
+                try:
+                    item = item_resp.json()
+                except (ValueError, KeyError, TypeError):
+                    # Parse error for this item — log and continue with next item
+                    logger.warning(
+                        "%s: failed to parse item JSON for story %s",
+                        self.name,
+                        story_id,
+                        exc_info=True,
+                    )
+                    continue
+
                 if not item or item.get("type") != "story":
                     continue
 
