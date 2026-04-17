@@ -908,3 +908,472 @@ def test_pypi_adapter_keywords_custom() -> None:
     custom_keywords = ["database", "sql", "postgres"]
     adapter = PyPIRegistryAdapter(config={"keywords": custom_keywords})
     assert adapter.keywords == set(custom_keywords)
+
+
+# ── Error Handling Tests ─────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_rate_limit_error() -> None:
+    """PyPI adapter raises SourceRateLimitError on HTTP 429 after retries exhausted."""
+    from max.sources.errors import SourceRateLimitError
+
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            resp = MagicMock()
+            resp.status_code = 429
+            resp.headers = {"Retry-After": "60"}
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "429 Rate Limit",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            with pytest.raises(SourceRateLimitError) as exc_info:
+                await adapter.fetch(limit=10)
+
+            assert exc_info.value.adapter_name == "pypi_registry"
+            assert exc_info.value.retry_after == 60.0
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_auth_error_401() -> None:
+    """PyPI adapter raises SourceAuthError on HTTP 401 (no retry)."""
+    from max.sources.errors import SourceAuthError
+
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            resp = MagicMock()
+            resp.status_code = 401
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "401 Unauthorized",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        with pytest.raises(SourceAuthError) as exc_info:
+            await adapter.fetch(limit=10)
+
+        assert exc_info.value.adapter_name == "pypi_registry"
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_auth_error_403() -> None:
+    """PyPI adapter raises SourceAuthError on HTTP 403 (no retry)."""
+    from max.sources.errors import SourceAuthError
+
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            resp = MagicMock()
+            resp.status_code = 403
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "403 Forbidden",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        with pytest.raises(SourceAuthError) as exc_info:
+            await adapter.fetch(limit=10)
+
+        assert exc_info.value.adapter_name == "pypi_registry"
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_server_error_500() -> None:
+    """PyPI adapter continues to next feed on HTTP 500, returns empty if all feeds fail."""
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            # Both RSS feeds return 500
+            resp = MagicMock()
+            resp.status_code = 500
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "500 Internal Server Error",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays during retries
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            signals = await adapter.fetch(limit=10)
+
+            # When all RSS feeds fail with transient errors, returns empty list
+            assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_server_error_502() -> None:
+    """PyPI adapter continues to next feed on HTTP 502, returns empty if all feeds fail."""
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            # Both RSS feeds return 502
+            resp = MagicMock()
+            resp.status_code = 502
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "502 Bad Gateway",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays during retries
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            signals = await adapter.fetch(limit=10)
+
+            # When all RSS feeds fail with transient errors, returns empty list
+            assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_server_error_503() -> None:
+    """PyPI adapter continues to next feed on HTTP 503, returns empty if all feeds fail."""
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            # Both RSS feeds return 503
+            resp = MagicMock()
+            resp.status_code = 503
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "503 Service Unavailable",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays during retries
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            signals = await adapter.fetch(limit=10)
+
+            # When all RSS feeds fail with transient errors, returns empty list
+            assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_rss_parse_error() -> None:
+    """PyPI adapter continues to next feed on parse error, returns empty if all feeds fail."""
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            # Return response with malformed XML that ElementTree.fromstring() can't parse
+            return MagicMock(text="<broken><xml", raise_for_status=lambda: None)
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays during retries
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            signals = await adapter.fetch(limit=10)
+
+            # When all RSS feeds fail with parse errors, returns empty list
+            assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_other_http_errors() -> None:
+    """PyPI adapter continues to next feed on other HTTP errors, returns empty if all feeds fail."""
+    adapter = PyPIRegistryAdapter()
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            # Both RSS feeds return 418 (I'm a teapot)
+            resp = MagicMock()
+            resp.status_code = 418
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "418 I'm a teapot",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    # Patch sleep to avoid actual delays during retries
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get = mock_get
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_cls.return_value = mock_client
+
+            signals = await adapter.fetch(limit=10)
+
+            # When all RSS feeds fail with transient errors, returns empty list
+            assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_continues_on_transient_error_in_first_rss_feed() -> None:
+    """PyPI adapter continues to next RSS feed when first feed has transient error."""
+    from max.sources.errors import SourceTransientError
+
+    adapter = PyPIRegistryAdapter()
+
+    call_count = 0
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        nonlocal call_count
+        if "rss/updates.xml" in url:
+            # First RSS feed raises transient error
+            resp = MagicMock()
+            resp.status_code = 503
+            resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+                "503 Service Unavailable",
+                request=MagicMock(),
+                response=resp,
+            )
+            return resp
+        if "rss/packages.xml" in url:
+            # Second RSS feed succeeds
+            call_count += 1
+            return MagicMock(text=MOCK_RSS_XML, raise_for_status=lambda: None)
+        if "pypi.org/pypi/langchain-agent" in url:
+            return MagicMock(json=lambda: MOCK_PYPI_JSON_LANGCHAIN, raise_for_status=lambda: None)
+        if "pypistats.org" in url:
+            return MagicMock(json=lambda: MOCK_PYPISTATS_LOW_DOWNLOADS, raise_for_status=lambda: None)
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        signals = await adapter.fetch(limit=10)
+
+    # Should have successfully processed second RSS feed
+    assert call_count == 1
+    assert len(signals) >= 1
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_continues_on_parse_error_in_first_rss_feed() -> None:
+    """PyPI adapter continues to next RSS feed when first feed has parse error."""
+    adapter = PyPIRegistryAdapter()
+
+    call_count = 0
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        nonlocal call_count
+        if "rss/updates.xml" in url:
+            # First RSS feed has parse error (malformed XML caught by _parse_rss)
+            return MagicMock(text="<broken><xml", raise_for_status=lambda: None)
+        if "rss/packages.xml" in url:
+            # Second RSS feed succeeds
+            call_count += 1
+            return MagicMock(text=MOCK_RSS_XML, raise_for_status=lambda: None)
+        if "pypi.org/pypi/langchain-agent" in url:
+            return MagicMock(json=lambda: MOCK_PYPI_JSON_LANGCHAIN, raise_for_status=lambda: None)
+        if "pypistats.org" in url:
+            return MagicMock(json=lambda: MOCK_PYPISTATS_LOW_DOWNLOADS, raise_for_status=lambda: None)
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        signals = await adapter.fetch(limit=10)
+
+    # Should have successfully processed second RSS feed
+    assert call_count == 1
+    assert len(signals) >= 1
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_empty_or_minimal_metadata() -> None:
+    """PyPI adapter handles packages with minimal metadata gracefully."""
+    adapter = PyPIRegistryAdapter()
+
+    rss_minimal = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item><title>ai-minimal 0.1.0</title><link>https://pypi.org/project/ai-minimal/</link></item>
+  </channel>
+</rss>
+"""
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            return MagicMock(text=rss_minimal, raise_for_status=lambda: None)
+        if "pypi.org/pypi/ai-minimal" in url:
+            # Minimal metadata - only required fields
+            return MagicMock(
+                json=lambda: {
+                    "info": {
+                        "name": "ai-minimal",
+                        "version": "0.1.0",
+                        # summary is missing
+                        # author is missing
+                        # classifiers is missing
+                        # requires_python is missing
+                        # package_url is missing
+                        # project_urls is missing
+                        # keywords is missing
+                    }
+                },
+                raise_for_status=lambda: None,
+            )
+        if "pypistats.org" in url:
+            # Stats also fail
+            raise httpx.HTTPError("Stats unavailable")
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        signals = await adapter.fetch(limit=10)
+
+    # Should still create a signal with defaults
+    assert len(signals) == 1
+    signal = signals[0]
+    assert signal.metadata["pypi_name"] == "ai-minimal"
+    assert signal.metadata["version"] == "0.1.0"
+    assert signal.content == "ai-minimal"  # Falls back to name when summary is empty
+    assert signal.author is None
+    assert signal.credibility == 0.3  # Default when stats fail
+    assert signal.metadata["downloads_week"] is None
+    assert "python" in signal.tags
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_handles_duplicate_packages_with_slash() -> None:
+    """PyPI adapter normalizes package names by removing version suffix after slash."""
+    adapter = PyPIRegistryAdapter()
+
+    rss_with_slash = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item><title>langchain-agent/0.2.0 0.2.0</title><link>https://pypi.org/project/langchain-agent/</link></item>
+    <item><title>langchain-agent 0.2.0</title><link>https://pypi.org/project/langchain-agent/</link></item>
+  </channel>
+</rss>
+"""
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            return MagicMock(text=rss_with_slash, raise_for_status=lambda: None)
+        if "pypi.org/pypi/langchain-agent" in url:
+            return MagicMock(json=lambda: MOCK_PYPI_JSON_LANGCHAIN, raise_for_status=lambda: None)
+        if "pypistats.org" in url:
+            return MagicMock(json=lambda: MOCK_PYPISTATS_LOW_DOWNLOADS, raise_for_status=lambda: None)
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        signals = await adapter.fetch(limit=10)
+
+    # Should deduplicate - only one signal despite two RSS items
+    assert len(signals) == 1
+    assert signals[0].metadata["pypi_name"] == "langchain-agent"
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_http_client_timeout() -> None:
+    """PyPI adapter creates AsyncClient with 30 second timeout."""
+    adapter = PyPIRegistryAdapter()
+
+    captured_timeout = None
+
+    class MockAsyncClient:
+        def __init__(self, timeout=None):
+            nonlocal captured_timeout
+            captured_timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        async def get(self, url: str, **kwargs):
+            return MagicMock(text="", raise_for_status=lambda: None, json=lambda: {})
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient", MockAsyncClient):
+        with patch("max.sources.pypi_registry._parse_rss", return_value=[]):
+            await adapter.fetch(limit=10)
+
+    assert captured_timeout == 30
