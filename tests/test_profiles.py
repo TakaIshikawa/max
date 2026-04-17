@@ -190,3 +190,48 @@ def test_profile_yaml_round_trip(tmp_path: Path):
     assert profile.name == "roundtrip"
     assert profile.signal_limit == 15
     assert len(profile.sources) == 1
+
+
+@pytest.mark.parametrize("profile_name", list_profiles())
+def test_all_profiles_load_successfully(profile_name: str):
+    """Parametric test: all profile YAML files should load and validate successfully.
+
+    This test discovers all *.yaml/*.yml files in the profiles/ directory and validates:
+    1. YAML parses correctly
+    2. Profile matches PipelineProfile schema (all required fields present)
+    3. All referenced adapters exist in the registry
+    4. All source configs have valid structure
+    5. Domain context has required fields
+    """
+    # Load the profile - this will raise if validation fails
+    profile = load_profile(profile_name)
+
+    # Verify basic schema compliance
+    assert isinstance(profile.name, str)
+    assert len(profile.name) > 0
+
+    # Verify domain context
+    assert isinstance(profile.domain.name, str)
+    assert isinstance(profile.domain.description, str)
+    assert isinstance(profile.domain.categories, list)
+    assert len(profile.domain.categories) > 0
+    assert isinstance(profile.domain.target_user_types, list)
+    assert len(profile.domain.target_user_types) > 0
+
+    # Verify sources
+    assert isinstance(profile.sources, list)
+    for source in profile.sources:
+        assert isinstance(source.adapter, str)
+        assert isinstance(source.enabled, bool)
+        assert isinstance(source.weight, (int, float))
+        assert isinstance(source.params, dict)
+
+    # Verify evaluation config
+    assert isinstance(profile.evaluation.weight_profile, str)
+    assert isinstance(profile.evaluation.min_score, (int, float))
+
+    # Verify other fields
+    assert isinstance(profile.output_dir, str)
+    assert isinstance(profile.signal_limit, int)
+    assert profile.signal_limit > 0
+    assert isinstance(profile.ideation_mode, str)
