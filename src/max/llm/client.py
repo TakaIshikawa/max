@@ -61,6 +61,10 @@ class TokenTracker:
         """Calculate estimated cost in USD based on current usage."""
         pricing = MODEL_PRICING.get(self.model)
         if not pricing:
+            logger.warning(
+                "Unknown model '%s' for cost tracking — falling back to Opus pricing",
+                self.model,
+            )
             # Fallback to Opus pricing if model not found
             pricing = MODEL_PRICING["claude-opus-4-6"]
 
@@ -72,6 +76,10 @@ class TokenTracker:
         """Calculate cost breakdown by stage."""
         pricing = MODEL_PRICING.get(self.model)
         if not pricing:
+            logger.warning(
+                "Unknown model '%s' for cost tracking — falling back to Opus pricing",
+                self.model,
+            )
             pricing = MODEL_PRICING["claude-opus-4-6"]
 
         costs = {}
@@ -167,6 +175,21 @@ def _call_with_retry(
 
             if attempt < max_attempts - 1:
                 delay = base_delay * (backoff_factor**attempt)
+
+                # Check for Retry-After header in rate limit errors
+                if isinstance(e, anthropic.RateLimitError) and hasattr(e, 'response'):
+                    retry_after = e.response.headers.get('retry-after')
+                    if retry_after:
+                        try:
+                            retry_after_seconds = float(retry_after)
+                            delay = max(retry_after_seconds, delay)
+                            logger.info(
+                                "Rate limit hit — using Retry-After header: %.1fs",
+                                retry_after_seconds,
+                            )
+                        except ValueError:
+                            logger.debug("Could not parse Retry-After header: %s", retry_after)
+
                 logger.warning(
                     "LLM API call failed with %s — retrying in %.1fs (attempt %d/%d)",
                     error_type,
@@ -190,7 +213,8 @@ def _call_with_retry(
             raise
 
     # All retries exhausted, re-raise the last exception
-    assert last_exception is not None
+    if last_exception is None:
+        raise RuntimeError("Retry loop exhausted without capturing exception")
     raise last_exception
 
 
@@ -231,13 +255,25 @@ def structured_call(
             tool_choice={"type": "tool", "name": "structured_output"},
         )
 
+    start_time = time.time()
     response = _call_with_retry(_make_call)
+    latency = time.time() - start_time
 
     if stage and hasattr(response, "usage"):
         token_tracker.record(
             stage,
             response.usage.input_tokens,
             response.usage.output_tokens,
+        )
+
+        # Log per-call token usage metrics
+        logger.debug(
+            "LLM call completed — stage=%s input_tokens=%d output_tokens=%d model=%s latency=%.2fs",
+            stage,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            model,
+            latency,
         )
 
         # Check budget after recording tokens
@@ -284,13 +320,25 @@ def text_call(
             messages=[{"role": "user", "content": prompt}],
         )
 
+    start_time = time.time()
     response = _call_with_retry(_make_call)
+    latency = time.time() - start_time
 
     if stage and hasattr(response, "usage"):
         token_tracker.record(
             stage,
             response.usage.input_tokens,
             response.usage.output_tokens,
+        )
+
+        # Log per-call token usage metrics
+        logger.debug(
+            "LLM call completed — stage=%s input_tokens=%d output_tokens=%d model=%s latency=%.2fs",
+            stage,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            model,
+            latency,
         )
 
         # Check budget after recording tokens
