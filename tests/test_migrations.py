@@ -16,6 +16,9 @@ from max.store.migrations import (
     _migrate_v5_to_v6,
     _migrate_v6_to_v7,
     _migrate_v7_to_v8,
+    _migrate_v8_to_v9,
+    _migrate_v9_to_v10,
+    _migrate_v10_to_v11,
     ensure_schema,
 )
 from max.store.db import Store
@@ -285,12 +288,113 @@ class TestIncrementalMigrations:
         assert "domain" in _get_columns(conn, "buildable_units")
         conn.close()
 
+    def test_migrate_v8_to_v9_adds_prior_art_matches_table(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        assert "prior_art_matches" not in _get_tables(conn)
+        _migrate_v8_to_v9(conn)
+        assert "prior_art_matches" in _get_tables(conn)
+        conn.close()
+
+    def test_migrate_v8_to_v9_prior_art_matches_columns(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        _migrate_v8_to_v9(conn)
+        cols = _get_columns(conn, "prior_art_matches")
+        expected = {
+            "id", "buildable_unit_id", "source", "title", "url",
+            "description", "relevance_score", "match_signals",
+            "search_query", "created_at",
+        }
+        assert cols == expected
+        conn.close()
+
+    def test_migrate_v8_to_v9_adds_prior_art_status(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        assert "prior_art_status" not in _get_columns(conn, "buildable_units")
+        _migrate_v8_to_v9(conn)
+        assert "prior_art_status" in _get_columns(conn, "buildable_units")
+        conn.close()
+
+    def test_migrate_v8_to_v9_creates_prior_art_index(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        _migrate_v8_to_v9(conn)
+        indices = _get_indices(conn)
+        assert "idx_prior_art_bu_id" in indices
+        conn.close()
+
+    def test_migrate_v9_to_v10_adds_source_idea_ids(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        _migrate_v8_to_v9(conn)
+        assert "source_idea_ids" not in _get_columns(conn, "buildable_units")
+        _migrate_v9_to_v10(conn)
+        assert "source_idea_ids" in _get_columns(conn, "buildable_units")
+        conn.close()
+
+    def test_migrate_v10_to_v11_drops_tact_specs(self) -> None:
+        conn = _create_v1_db()
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        _migrate_v8_to_v9(conn)
+        _migrate_v9_to_v10(conn)
+        assert "tact_specs" in _get_tables(conn)
+        _migrate_v10_to_v11(conn)
+        assert "tact_specs" not in _get_tables(conn)
+        conn.close()
+
+    def test_migrate_v10_to_v11_without_tact_specs_does_not_error(self) -> None:
+        """Test DROP TABLE IF EXISTS works when table doesn't exist."""
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)  # Fresh DB has no tact_specs
+        # Should not raise an error
+        _migrate_v10_to_v11(conn)
+        assert "tact_specs" not in _get_tables(conn)
+        conn.close()
+
 
 # ── 3. Full migration path: v1 → v8 via ensure_schema ───────────────
 
 
 class TestFullMigrationPath:
-    def test_v1_to_v8_via_ensure_schema(self) -> None:
+    def test_v1_to_v11_via_ensure_schema(self) -> None:
         conn = _create_v1_db()
         assert _get_schema_version(conn) == 1
         ensure_schema(conn)
@@ -315,6 +419,13 @@ class TestFullMigrationPath:
         assert "archived_at" in _get_columns(conn, "signals")
         assert "archived_at" in _get_columns(conn, "insights")
         assert "archived_at" in _get_columns(conn, "pipeline_runs")
+        # v9 additions
+        assert "prior_art_matches" in _get_tables(conn)
+        assert "prior_art_status" in _get_columns(conn, "buildable_units")
+        # v10 addition
+        assert "source_idea_ids" in _get_columns(conn, "buildable_units")
+        # v11 removal
+        assert "tact_specs" not in _get_tables(conn)
         conn.close()
 
     def test_v1_data_survives_migration(self) -> None:
@@ -357,6 +468,26 @@ class TestFullMigrationPath:
         row = conn.execute("SELECT synthesized_at, signal_role FROM signals WHERE id = 'sig-def'").fetchone()
         assert row[0] is None  # synthesized_at default
         assert row[1] == ""    # signal_role default
+        conn.close()
+
+    def test_v1_buildable_unit_gets_v9_v10_defaults(self) -> None:
+        """Test that v9 and v10 columns get proper defaults after migration."""
+        conn = _create_v1_db()
+        conn.execute(
+            """INSERT INTO buildable_units (id, title, one_liner, category,
+               problem, solution, value_proposition, status, created_at, updated_at)
+               VALUES ('bu-v9v10', 'Unit', 'liner', 'cli_tool', 'p', 's', 'v',
+                       'draft', '2025-01-01', '2025-01-01')"""
+        )
+        conn.commit()
+
+        ensure_schema(conn)
+
+        row = conn.execute(
+            "SELECT prior_art_status, source_idea_ids FROM buildable_units WHERE id = 'bu-v9v10'"
+        ).fetchone()
+        assert row[0] == "unchecked"  # prior_art_status default from v9
+        assert row[1] == "[]"  # source_idea_ids default from v10
         conn.close()
 
 
@@ -424,6 +555,35 @@ class TestIdempotency:
         _migrate_v5_to_v6(conn)
         _migrate_v5_to_v6(conn)
         assert "domain" in _get_columns(conn, "buildable_units")
+        conn.close()
+
+    def test_late_migrations_idempotent(self) -> None:
+        """Test v8→v9, v9→v10, v10→v11 migrations can be called multiple times."""
+        conn = _create_v1_db()
+        # Advance to v8
+        _migrate_v1_to_v2(conn)
+        _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+
+        # Test v8→v9 idempotency
+        _migrate_v8_to_v9(conn)
+        _migrate_v8_to_v9(conn)  # safe to call again
+        assert "prior_art_matches" in _get_tables(conn)
+        assert "prior_art_status" in _get_columns(conn, "buildable_units")
+
+        # Test v9→v10 idempotency
+        _migrate_v9_to_v10(conn)
+        _migrate_v9_to_v10(conn)  # safe to call again
+        assert "source_idea_ids" in _get_columns(conn, "buildable_units")
+
+        # Test v10→v11 idempotency
+        _migrate_v10_to_v11(conn)
+        _migrate_v10_to_v11(conn)  # safe to call again
+        assert "tact_specs" not in _get_tables(conn)
         conn.close()
 
 
