@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 
 import httpx
 
@@ -66,15 +67,18 @@ class ProductHuntAdapter(SourceAdapter):
         token = os.environ.get("PRODUCT_HUNT_TOKEN")
         if not token:
             try:
-                import subprocess
                 result = subprocess.run(
                     ["vault", "get", "product_hunt/token"],
                     capture_output=True, text=True, timeout=5,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     token = result.stdout.strip()
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+                logger.warning(
+                    "%s: failed to retrieve token from vault: %s",
+                    self.name,
+                    e,
+                )
         if not token:
             logger.warning("PRODUCT_HUNT_TOKEN not set — skipping Product Hunt adapter")
             return []
@@ -105,12 +109,22 @@ class ProductHuntAdapter(SourceAdapter):
                             "variables": {"topic": topic_slug, "first": per_topic},
                         },
                     )
-                    data = resp.json()
                 except AdapterFetchError:
                     logger.warning(
                         "Product Hunt query failed for topic: %s",
                         topic_slug,
                         exc_info=True,
+                    )
+                    continue
+
+                try:
+                    data = resp.json()
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        "%s: failed to parse JSON response for topic '%s': %s",
+                        self.name,
+                        topic_slug,
+                        e,
                     )
                     continue
 

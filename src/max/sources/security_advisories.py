@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 from datetime import datetime
 
 import httpx
@@ -46,15 +47,18 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
         token = os.environ.get("GITHUB_TOKEN")
         if not token:
             try:
-                import subprocess
                 result = subprocess.run(
                     ["vault", "get", "github/token"],
                     capture_output=True, text=True, timeout=5,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     token = result.stdout.strip()
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+                logger.warning(
+                    "%s: failed to retrieve token from vault: %s",
+                    self.name,
+                    e,
+                )
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
@@ -77,7 +81,6 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
                                 "per_page": per_query,
                             },
                         )
-                        advisories = resp.json()
                     except AdapterFetchError:
                         logger.warning(
                             "Failed to fetch advisories for %s/%s",
@@ -87,52 +90,64 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
                         )
                         continue
 
-                for adv in advisories:
-                    ghsa_id = adv.get("ghsa_id", "")
-                    if ghsa_id in seen_ids:
-                        continue
-                    seen_ids.add(ghsa_id)
-
-                    # Skip withdrawn advisories
-                    if adv.get("withdrawn_at"):
-                        continue
-
-                    if len(signals) >= limit:
-                        break
-
-                    cvss_score = adv.get("cvss", {}).get("score") or 5.0
-                    credibility = min(cvss_score / 10.0, 1.0)
-
-                    cve_id = adv.get("cve_id")
-                    severity = adv.get("severity", "unknown")
-                    summary = adv.get("summary", "")
-                    description = adv.get("description", "")
-
-                    affected = _extract_affected(adv)
-                    cwes = _extract_cwes(adv)
-
-                    signals.append(
-                        Signal(
-                            source_type=SignalSourceType.SECURITY,
-                            source_adapter=self.name,
-                            title=f"[{severity.upper()}] {summary[:200]}",
-                            content=(description or summary)[:500],
-                            url=adv.get("html_url", f"https://github.com/advisories/{ghsa_id}"),
-                            published_at=_parse_dt(adv.get("published_at")),
-                            tags=_build_tags(ecosystem, cwes, severity),
-                            credibility=credibility,
-                            metadata={
-                                "ghsa_id": ghsa_id,
-                                "cve_id": cve_id,
-                                "severity": severity,
-                                "cvss_score": cvss_score,
-                                "cvss_vector": adv.get("cvss", {}).get("vector_string"),
-                                "ecosystem": ecosystem,
-                                "affected_packages": affected[:10],
-                                "cwes": cwes,
-                            },
+                    try:
+                        advisories = resp.json()
+                    except (ValueError, KeyError) as e:
+                        logger.warning(
+                            "%s: failed to parse JSON response for %s/%s: %s",
+                            self.name,
+                            ecosystem,
+                            severity,
+                            e,
                         )
-                    )
+                        continue
+
+                    for adv in advisories:
+                        ghsa_id = adv.get("ghsa_id", "")
+                        if ghsa_id in seen_ids:
+                            continue
+                        seen_ids.add(ghsa_id)
+
+                        # Skip withdrawn advisories
+                        if adv.get("withdrawn_at"):
+                            continue
+
+                        if len(signals) >= limit:
+                            break
+
+                        cvss_score = adv.get("cvss", {}).get("score") or 5.0
+                        credibility = min(cvss_score / 10.0, 1.0)
+
+                        cve_id = adv.get("cve_id")
+                        severity = adv.get("severity", "unknown")
+                        summary = adv.get("summary", "")
+                        description = adv.get("description", "")
+
+                        affected = _extract_affected(adv)
+                        cwes = _extract_cwes(adv)
+
+                        signals.append(
+                            Signal(
+                                source_type=SignalSourceType.SECURITY,
+                                source_adapter=self.name,
+                                title=f"[{severity.upper()}] {summary[:200]}",
+                                content=(description or summary)[:500],
+                                url=adv.get("html_url", f"https://github.com/advisories/{ghsa_id}"),
+                                published_at=_parse_dt(adv.get("published_at")),
+                                tags=_build_tags(ecosystem, cwes, severity),
+                                credibility=credibility,
+                                metadata={
+                                    "ghsa_id": ghsa_id,
+                                    "cve_id": cve_id,
+                                    "severity": severity,
+                                    "cvss_score": cvss_score,
+                                    "cvss_vector": adv.get("cvss", {}).get("vector_string"),
+                                    "ecosystem": ecosystem,
+                                    "affected_packages": affected[:10],
+                                    "cwes": cwes,
+                                },
+                            )
+                        )
 
         return signals[:limit]
 
