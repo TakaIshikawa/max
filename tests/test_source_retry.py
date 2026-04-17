@@ -299,6 +299,95 @@ class TestRetryAsync:
         assert result == {"pos": "hello", "kw": 42}
 
 
+class TestRetryEdgeCases:
+    """Tests for edge cases in retry logic."""
+
+    @pytest.mark.asyncio
+    async def test_max_retries_zero_no_retries(self):
+        """Should not retry when max_retries=0 (fail immediately after first attempt)."""
+        call_count = 0
+
+        @with_retry(max_retries=0, base_delay=0.1, adapter_name="test")
+        async def fetch_data():
+            nonlocal call_count
+            call_count += 1
+            raise SourceTransientError("Server error", adapter_name="test")
+
+        with pytest.raises(SourceTransientError, match="Server error"):
+            await fetch_data()
+
+        # Should only call once (no retries allowed)
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_max_retries_zero_succeeds_on_first_attempt(self):
+        """Should succeed on first attempt even with max_retries=0."""
+        call_count = 0
+
+        @with_retry(max_retries=0, base_delay=0.1, adapter_name="test")
+        async def fetch_data():
+            nonlocal call_count
+            call_count += 1
+            return {"status": "ok"}
+
+        result = await fetch_data()
+        assert result == {"status": "ok"}
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_max_retries_one_allows_single_retry(self):
+        """Should allow exactly one retry when max_retries=1."""
+        call_count = 0
+
+        @with_retry(max_retries=1, base_delay=0.05, adapter_name="test")
+        async def fetch_data():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise SourceTransientError("Server error", adapter_name="test")
+            return {"status": "ok"}
+
+        result = await fetch_data()
+        assert result == {"status": "ok"}
+        assert call_count == 2  # Initial attempt + 1 retry
+
+    @pytest.mark.asyncio
+    async def test_max_retries_one_fails_after_two_attempts(self):
+        """Should fail after 2 total attempts when max_retries=1."""
+        call_count = 0
+
+        @with_retry(max_retries=1, base_delay=0.05, adapter_name="test")
+        async def fetch_data():
+            nonlocal call_count
+            call_count += 1
+            raise SourceTransientError("Persistent error", adapter_name="test")
+
+        with pytest.raises(SourceTransientError, match="Persistent error"):
+            await fetch_data()
+
+        assert call_count == 2  # Initial attempt + 1 retry
+
+    @pytest.mark.asyncio
+    async def test_retry_async_with_max_retries_zero(self):
+        """retry_async should not retry when max_retries=0."""
+        call_count = 0
+
+        async def fetch_data():
+            nonlocal call_count
+            call_count += 1
+            raise SourceRateLimitError("Rate limited", adapter_name="test")
+
+        with pytest.raises(SourceRateLimitError):
+            await retry_async(
+                fetch_data,
+                max_retries=0,
+                base_delay=0.1,
+                adapter_name="test",
+            )
+
+        assert call_count == 1
+
+
 class TestRetryLogging:
     """Tests for retry logging behavior."""
 
