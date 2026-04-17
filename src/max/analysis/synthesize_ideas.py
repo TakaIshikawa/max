@@ -59,6 +59,7 @@ class SynthesisResult:
     cross_synthesized: list[BuildableUnit] = field(default_factory=list)
     source_idea_ids: list[str] = field(default_factory=list)
     complementary_groups_found: int = 0
+    skipped_clusters: int = 0
 
 
 # ── Prompts ─────────────────────────────────��────────────────────
@@ -215,15 +216,27 @@ def _output_to_unit(
         all_insights.update(u.inspiring_insights)
         all_signals.update(u.evidence_signals)
 
-    # Also include any insights the LLM referenced
-    all_insights.update(output.inspiring_insights)
+    # Validate and include insights from LLM output
+    if isinstance(output.inspiring_insights, list):
+        all_insights.update(output.inspiring_insights)
+    else:
+        logger.warning(
+            "Invalid inspiring_insights type in LLM output: %s, defaulting to empty list",
+            type(output.inspiring_insights).__name__,
+        )
 
     # Pick domain from most common among sources
     domains = [u.domain for u in source_ideas if u.domain]
     domain = max(set(domains), key=domains.count) if domains else ""
 
+    # Validate target_users
     target_users = output.target_users
-    if target_users not in ("humans", "agents", "both"):
+    if not target_users or target_users not in ("humans", "agents", "both"):
+        if target_users and target_users not in ("humans", "agents", "both"):
+            logger.warning(
+                "Invalid target_users '%s' in LLM output, defaulting to 'both'",
+                target_users,
+            )
         target_users = "both"
 
     return BuildableUnit(
@@ -283,10 +296,33 @@ def detect_complementary_groups(
     idea_ids = {u.id for u in ideas}
     valid: list[ComplementaryGroup] = []
     for group in result.complementary_groups:
-        group.synergy_score = max(0.0, min(1.0, group.synergy_score))
-        if group.synergy_score >= 0.6 and all(
-            gid in idea_ids for gid in group.idea_ids
-        ):
+        # Validate and clamp synergy_score
+        original_score = group.synergy_score
+        if not isinstance(original_score, (int, float)):
+            logger.warning(
+                "Non-numeric synergy_score '%s' for group %s, defaulting to 0.0",
+                original_score, group.idea_ids,
+            )
+            group.synergy_score = 0.0
+        else:
+            clamped_score = max(0.0, min(1.0, float(original_score)))
+            if clamped_score != original_score:
+                logger.debug(
+                    "Clamped synergy_score from %.2f to %.2f for group %s",
+                    original_score, clamped_score, group.idea_ids,
+                )
+            group.synergy_score = clamped_score
+
+        # Validate idea IDs and filter out invalid ones
+        valid_idea_ids = [gid for gid in group.idea_ids if gid in idea_ids]
+        invalid_ids = [gid for gid in group.idea_ids if gid not in idea_ids]
+        if invalid_ids:
+            logger.warning(
+                "Filtered out invalid idea IDs from group: %s", invalid_ids,
+            )
+
+        if group.synergy_score >= 0.6 and len(valid_idea_ids) >= 2:
+            group.idea_ids = valid_idea_ids
             valid.append(group)
 
     valid.sort(key=lambda g: g.synergy_score, reverse=True)
@@ -343,11 +379,19 @@ def run_synthesis(
             for u, _ in cluster.members:
                 result.source_idea_ids.append(u.id)
         except Exception:
+            result.skipped_clusters += 1
             logger.warning(
                 "Failed to synthesize cluster (representative: %s)",
                 cluster.representative.title,
                 exc_info=True,
             )
+
+    # Log summary if any clusters were skipped
+    if result.skipped_clusters > 0:
+        logger.info(
+            "Intra-cluster synthesis complete: %d clusters processed, %d skipped due to errors",
+            len(result.intra_synthesized), result.skipped_clusters,
+        )
 
     # Phase 2: cross-cluster (opt-in)
     if cross_cluster:
@@ -364,29 +408,31 @@ def run_synthesis(
                     candidates, max_groups=max_cross_groups,
                 )
                 result.complementary_groups_found = len(groups)
-
-                for group in groups:
-                    group_ideas = [
-                        u for u in candidates if u.id in group.idea_ids
-                    ]
-                    if len(group_ideas) < 2:
-                        continue
-                    try:
-                        new_unit = synthesize_group(group_ideas, group)
-                        result.cross_synthesized.append(new_unit)
-                        for u in group_ideas:
-                            if u.id not in result.source_idea_ids:
-                                result.source_idea_ids.append(u.id)
-                    except Exception:
-                        logger.warning(
-                            "Failed to synthesize cross-cluster group: %s",
-                            group.idea_ids,
-                            exc_info=True,
-                        )
             except Exception:
                 logger.warning(
-                    "Failed to detect complementary groups",
+                    "Failed to detect complementary groups, continuing with empty groups",
                     exc_info=True,
                 )
+                groups = []
+                result.complementary_groups_found = 0
+
+            for group in groups:
+                group_ideas = [
+                    u for u in candidates if u.id in group.idea_ids
+                ]
+                if len(group_ideas) < 2:
+                    continue
+                try:
+                    new_unit = synthesize_group(group_ideas, group)
+                    result.cross_synthesized.append(new_unit)
+                    for u in group_ideas:
+                        if u.id not in result.source_idea_ids:
+                            result.source_idea_ids.append(u.id)
+                except Exception:
+                    logger.warning(
+                        "Failed to synthesize cross-cluster group: %s",
+                        group.idea_ids,
+                        exc_info=True,
+                    )
 
     return result

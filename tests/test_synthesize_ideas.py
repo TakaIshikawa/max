@@ -435,6 +435,193 @@ class TestSynthesizeCommand:
             assert mock_store.update_buildable_unit_status.called
 
 
+# ── Robustness & Error Handling ──────────────────────────────────
+
+
+class TestSynthesisExceptionHandling:
+    @patch("max.analysis.synthesize_ideas.synthesize_cluster")
+    def test_cluster_synthesis_exception_skipped_counter(self, mock_synth):
+        """Test that cluster synthesis exceptions increment skipped counter."""
+        mock_synth.side_effect = [
+            Exception("LLM API failure"),
+            _make_unit(id="bu-ok", title="OK"),
+        ]
+
+        ideas1 = [
+            (_make_unit(id="bu-1"), _make_eval("bu-1")),
+            (_make_unit(id="bu-2"), _make_eval("bu-2")),
+        ]
+        ideas2 = [
+            (_make_unit(id="bu-3"), _make_eval("bu-3")),
+            (_make_unit(id="bu-4"), _make_eval("bu-4")),
+        ]
+
+        cluster1 = _make_cluster(ideas1)
+        cluster2 = _make_cluster(ideas2)
+
+        result = run_synthesis([cluster1, cluster2])
+
+        # First cluster failed, second succeeded
+        assert result.skipped_clusters == 1
+        assert len(result.intra_synthesized) == 1
+        assert result.intra_synthesized[0].id == "bu-ok"
+
+    @patch("max.analysis.synthesize_ideas.synthesize_cluster")
+    def test_all_clusters_fail_returns_empty_result(self, mock_synth):
+        """Test that all clusters failing returns empty result with correct skipped count."""
+        mock_synth.side_effect = Exception("Total failure")
+
+        ideas = [
+            (_make_unit(id="bu-1"), _make_eval("bu-1")),
+            (_make_unit(id="bu-2"), _make_eval("bu-2")),
+        ]
+        cluster = _make_cluster(ideas)
+
+        result = run_synthesis([cluster])
+
+        assert result.skipped_clusters == 1
+        assert len(result.intra_synthesized) == 0
+        assert len(result.source_idea_ids) == 0
+
+    @patch("max.analysis.synthesize_ideas.detect_complementary_groups")
+    def test_cross_cluster_detection_exception_continues(self, mock_detect):
+        """Test that cross-cluster detection exception doesn't abandon phase."""
+        mock_detect.side_effect = Exception("Detection failed")
+
+        cluster1 = _make_cluster([(_make_unit(id="bu-1"), _make_eval("bu-1"))])
+        cluster2 = _make_cluster([(_make_unit(id="bu-2"), _make_eval("bu-2"))])
+
+        result = run_synthesis([cluster1, cluster2], cross_cluster=True)
+
+        # Should continue with empty groups instead of crashing
+        assert result.complementary_groups_found == 0
+        assert len(result.cross_synthesized) == 0
+
+
+class TestLLMOutputValidation:
+    def test_invalid_inspiring_insights_type_defaults_to_empty(self):
+        """Test that non-list inspiring_insights defaults to empty list."""
+        output = _mock_synthesized_output()
+        output.inspiring_insights = "not-a-list"  # type: ignore
+
+        unit = _output_to_unit(output, source_ideas=[_make_unit()], mode=IdeationMode.SYNTHESIS)
+
+        # Should still have insights from source ideas, but not from invalid output
+        assert isinstance(unit.inspiring_insights, list)
+
+    def test_empty_target_users_defaults_with_warning(self):
+        """Test that empty target_users defaults to 'both'."""
+        output = _mock_synthesized_output()
+        output.target_users = ""
+
+        unit = _output_to_unit(output, source_ideas=[_make_unit()], mode=IdeationMode.SYNTHESIS)
+
+        assert unit.target_users == "both"
+
+    def test_invalid_target_users_defaults_with_warning(self):
+        """Test that invalid target_users defaults to 'both' with warning."""
+        output = _mock_synthesized_output()
+        output.target_users = "invalid_value"
+
+        unit = _output_to_unit(output, source_ideas=[_make_unit()], mode=IdeationMode.SYNTHESIS)
+
+        assert unit.target_users == "both"
+
+    def test_non_numeric_synergy_score_handled_gracefully(self):
+        """Test that non-numeric synergy_score is handled gracefully."""
+        from max.analysis.synthesize_ideas import detect_complementary_groups
+
+        # Create a group manually with a non-numeric score bypassing Pydantic validation
+        with patch("max.analysis.synthesize_ideas.structured_call") as mock_call:
+            # Create a valid group first
+            group = ComplementaryGroup(
+                idea_ids=["bu-1", "bu-2"],
+                complementarity_reason="Test",
+                combined_value_proposition="Test value",
+                synergy_score=0.8,
+            )
+            # Then set the score to an invalid value after creation
+            group.synergy_score = "invalid"  # type: ignore
+
+            mock_call.return_value = CrossClusterDetectionOutput(
+                complementary_groups=[group]
+            )
+
+            ideas = [_make_unit(id="bu-1"), _make_unit(id="bu-2")]
+            groups = detect_complementary_groups(ideas)
+
+            # Group should be filtered out due to 0.0 score (below 0.6 threshold)
+            assert len(groups) == 0
+
+    def test_synergy_score_clamping_logged(self):
+        """Test that synergy_score clamping occurs and is logged."""
+        from max.analysis.synthesize_ideas import detect_complementary_groups
+
+        with patch("max.analysis.synthesize_ideas.structured_call") as mock_call:
+            mock_call.return_value = CrossClusterDetectionOutput(
+                complementary_groups=[
+                    ComplementaryGroup(
+                        idea_ids=["bu-1", "bu-2"],
+                        complementarity_reason="Test",
+                        combined_value_proposition="Test value",
+                        synergy_score=1.5,  # Above 1.0, should be clamped
+                    ),
+                ]
+            )
+
+            ideas = [_make_unit(id="bu-1"), _make_unit(id="bu-2")]
+            groups = detect_complementary_groups(ideas)
+
+            # Should be clamped to 1.0 (still passes 0.6 threshold)
+            assert len(groups) == 1
+            assert groups[0].synergy_score == 1.0
+
+    def test_invalid_idea_ids_filtered_from_groups(self):
+        """Test that invalid idea IDs are filtered from complementary groups."""
+        from max.analysis.synthesize_ideas import detect_complementary_groups
+
+        with patch("max.analysis.synthesize_ideas.structured_call") as mock_call:
+            mock_call.return_value = CrossClusterDetectionOutput(
+                complementary_groups=[
+                    ComplementaryGroup(
+                        idea_ids=["bu-1", "bu-999", "bu-2", "bu-888"],  # bu-999, bu-888 don't exist
+                        complementarity_reason="Test",
+                        combined_value_proposition="Test value",
+                        synergy_score=0.8,
+                    ),
+                ]
+            )
+
+            ideas = [_make_unit(id="bu-1"), _make_unit(id="bu-2")]
+            groups = detect_complementary_groups(ideas)
+
+            # Invalid IDs should be filtered, but group still has 2 valid IDs
+            assert len(groups) == 1
+            assert set(groups[0].idea_ids) == {"bu-1", "bu-2"}
+
+    def test_group_with_too_few_valid_ids_filtered_out(self):
+        """Test that groups with < 2 valid IDs after filtering are excluded."""
+        from max.analysis.synthesize_ideas import detect_complementary_groups
+
+        with patch("max.analysis.synthesize_ideas.structured_call") as mock_call:
+            mock_call.return_value = CrossClusterDetectionOutput(
+                complementary_groups=[
+                    ComplementaryGroup(
+                        idea_ids=["bu-1", "bu-999"],  # Only 1 valid ID
+                        complementarity_reason="Test",
+                        combined_value_proposition="Test value",
+                        synergy_score=0.8,
+                    ),
+                ]
+            )
+
+            ideas = [_make_unit(id="bu-1"), _make_unit(id="bu-2")]
+            groups = detect_complementary_groups(ideas)
+
+            # Group should be filtered out (< 2 valid IDs)
+            assert len(groups) == 0
+
+
 # ── Store Integration ────────────────────────────────────────────
 
 
