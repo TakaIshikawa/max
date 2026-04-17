@@ -172,15 +172,15 @@ async def test_npm_fetch_parses_packages() -> None:
         },
     ])
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: mock_data,
-            raise_for_status=lambda: None,
         )
 
     with patch("max.sources.npm_registry.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
@@ -208,15 +208,15 @@ async def test_npm_respects_limit() -> None:
     ]
     mock_data = _mock_npm_response(many_pkgs)
 
-    async def mock_get(url: str, **kwargs) -> MagicMock:
+    async def mock_request(method: str, url: str, **kwargs) -> MagicMock:
         return MagicMock(
+            status_code=200,
             json=lambda: mock_data,
-            raise_for_status=lambda: None,
         )
 
     with patch("max.sources.npm_registry.httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()
-        mock_client.get = mock_get
+        mock_client.request = mock_request
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
