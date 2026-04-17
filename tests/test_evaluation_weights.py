@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import math
+import random
 from pathlib import Path
 
 import pytest
 
 from max.evaluation.weights import (
     DEFAULT_WEIGHTS,
+    INVERTED_DIMENSIONS,
     WEIGHT_PROFILES,
     adapt_weights,
     compute_overall_score,
@@ -203,6 +206,85 @@ def test_compute_overall_score_extra_dimensions_ignored() -> None:
     values["unknown_dimension"] = 10.0
     score = compute_overall_score(values)
     assert score == 50.0  # Unknown dimension doesn't affect score
+
+
+def test_compute_overall_score_inverted_dimension_does_not_affect_compute() -> None:
+    """Inverted dimensions are NOT inverted in compute_overall_score.
+
+    Note: The INVERTED_DIMENSIONS constant documents which dimensions are
+    semantically inverted (lower is better), but compute_overall_score takes
+    raw dimension values as-is. Inversion happens at the LLM scoring stage,
+    not in the mathematical computation.
+    """
+    # Set an inverted dimension (build_effort) to high value
+    values = {dim: 0.0 for dim in DEFAULT_WEIGHTS}
+    values["build_effort"] = 10.0
+    score = compute_overall_score(values)
+
+    # build_effort weight is 0.15, so: 10 * 0.15 * 10 = 15.0
+    assert score == pytest.approx(15.0, abs=0.01)
+
+    # Setting competitive_density (also inverted) to high value
+    values = {dim: 0.0 for dim in DEFAULT_WEIGHTS}
+    values["competitive_density"] = 10.0
+    score = compute_overall_score(values)
+
+    # competitive_density weight is 0.10, so: 10 * 0.10 * 10 = 10.0
+    assert score == pytest.approx(10.0, abs=0.01)
+
+
+def test_compute_overall_score_empty_dict() -> None:
+    """Empty dimension values should yield 0.0."""
+    values: dict[str, float] = {}
+    score = compute_overall_score(values)
+    assert score == 0.0
+
+
+def test_compute_overall_score_nan_values() -> None:
+    """NaN values should be handled (treated as contributing NaN to sum)."""
+    values = {dim: 5.0 for dim in DEFAULT_WEIGHTS}
+    values["pain_severity"] = float("nan")
+    score = compute_overall_score(values)
+    # Score will be NaN due to NaN in calculation
+    assert math.isnan(score)
+
+
+def test_compute_overall_score_infinity_values() -> None:
+    """Infinity values should be handled (produce infinite score)."""
+    values = {dim: 5.0 for dim in DEFAULT_WEIGHTS}
+    values["pain_severity"] = float("inf")
+    score = compute_overall_score(values)
+    # Score will be infinity
+    assert math.isinf(score)
+
+
+def test_compute_overall_score_property_based_range() -> None:
+    """Property test: scores should always be in [0.0, 100.0] for valid inputs.
+
+    Tests 100 random combinations of dimension values in [0, 10] range.
+    """
+    random.seed(42)  # Reproducible
+
+    for _ in range(100):
+        # Generate random values in [0, 10] for each dimension
+        values = {dim: random.uniform(0, 10) for dim in DEFAULT_WEIGHTS}
+        score = compute_overall_score(values)
+
+        # Score should be in valid range
+        assert 0.0 <= score <= 100.0, f"Score {score} out of range for values {values}"
+
+
+def test_compute_overall_score_property_based_boundary() -> None:
+    """Property test: boundary values (0, 10) should produce valid scores."""
+    random.seed(42)
+
+    for _ in range(50):
+        # Generate random values using only boundary values (0 or 10)
+        values = {dim: random.choice([0.0, 10.0]) for dim in DEFAULT_WEIGHTS}
+        score = compute_overall_score(values)
+
+        assert 0.0 <= score <= 100.0, f"Score {score} out of range for values {values}"
+        assert not math.isnan(score), f"Score is NaN for values {values}"
 
 
 # ============================================================================
@@ -428,6 +510,76 @@ def test_adapt_weights_missing_dimension_values() -> None:
     # Should not crash, should return valid weights
     assert len(result) == 7
     assert abs(sum(result.values()) - 1.0) < 0.001
+
+
+def test_adapt_weights_no_weight_exceeds_one() -> None:
+    """No individual weight should exceed 1.0 after adaptation."""
+    # Create extreme outcomes to try to push one weight very high
+    outcomes = [
+        {
+            "dimension_values": {
+                "pain_severity": 10.0,
+                "addressable_scale": 0.0,
+                "build_effort": 0.0,
+                "composability": 0.0,
+                "competitive_density": 0.0,
+                "timing_fit": 0.0,
+                "compounding_value": 0.0,
+            },
+            "success": True,
+        },
+        {
+            "dimension_values": {
+                "pain_severity": 0.0,
+                "addressable_scale": 10.0,
+                "build_effort": 10.0,
+                "composability": 10.0,
+                "competitive_density": 10.0,
+                "timing_fit": 10.0,
+                "compounding_value": 10.0,
+            },
+            "success": False,
+        },
+    ]
+
+    # Try with high learning rate
+    result = adapt_weights(outcomes, learning_rate=0.5)
+
+    # No weight should exceed 1.0
+    for dim, weight in result.items():
+        assert weight <= 1.0, f"{dim} weight {weight} exceeds 1.0"
+
+    # All weights should be positive
+    for dim, weight in result.items():
+        assert weight > 0, f"{dim} weight {weight} is not positive"
+
+
+def test_adapt_weights_large_feedback_dataset_performance() -> None:
+    """Verify reasonable performance with large feedback dataset (1000+ rows)."""
+    import time
+
+    # Generate 1000 feedback outcomes
+    outcomes = []
+    random.seed(42)
+    for i in range(1000):
+        outcomes.append({
+            "dimension_values": {dim: random.uniform(0, 10) for dim in DEFAULT_WEIGHTS},
+            "success": i % 2 == 0,  # Alternate success/failure
+        })
+
+    # Time the adaptation
+    start = time.time()
+    result = adapt_weights(outcomes)
+    elapsed = time.time() - start
+
+    # Should complete in reasonable time (< 1 second for 1000 rows)
+    assert elapsed < 1.0, f"adapt_weights took {elapsed:.2f}s for 1000 rows"
+
+    # Result should still be valid
+    assert len(result) == 7
+    assert abs(sum(result.values()) - 1.0) < 0.001
+    assert all(w > 0 for w in result.values())
+    assert all(w <= 1.0 for w in result.values())
 
 
 # ============================================================================
