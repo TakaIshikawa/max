@@ -1,0 +1,220 @@
+# JSON Schema (in YAML format) for Pipeline Profile configuration files
+# This schema documents the expected structure, types, and constraints for all
+# YAML profile files in this directory.
+#
+# Usage:
+#   - Use this as documentation when creating new profile files
+#   - Validation is performed via tests/test_profile_schema_validation.py
+#
+# See also: src/max/profiles/schema.py for Pydantic models
+
+$schema: http://json-schema.org/draft-07/schema#
+title: Pipeline Profile
+description: Complete pipeline profile configuration for MAX ideation system
+type: object
+
+required:
+  - name
+  - domain
+
+properties:
+  name:
+    type: string
+    description: Unique profile identifier (should match filename stem)
+    minLength: 1
+    examples:
+      - devtools
+      - construction
+      - cybersecurity
+
+  domain:
+    type: object
+    description: Domain context injected into LLM prompts for idea generation
+    required:
+      - name
+      - description
+      - categories
+      - target_user_types
+    properties:
+      name:
+        type: string
+        description: Domain identifier (e.g., "healthcare", "developer-tools")
+        minLength: 1
+        examples:
+          - healthcare
+          - developer-tools
+          - construction
+
+      description:
+        type: string
+        description: 1-2 sentence domain description for LLM system prompts
+        minLength: 1
+        examples:
+          - "Developer tools and AI agent ecosystem. Focus on tools for software engineers, AI agents, and the infrastructure connecting them"
+          - "Construction technology and field service operations. Focus on project documentation, scheduling, safety monitoring"
+
+      categories:
+        type: array
+        description: Valid buildable categories for this domain
+        minItems: 1
+        items:
+          type: string
+        examples:
+          - ["mcp_server", "cli_tool", "library", "integration", "automation", "application", "feature"]
+          - ["documentation_tool", "scheduling_automation", "safety_monitor", "coordination_platform"]
+
+      target_user_types:
+        type: array
+        description: Target user personas for this domain
+        minItems: 1
+        items:
+          type: string
+        examples:
+          - ["humans", "agents", "both"]
+          - ["clinicians", "patients", "both"]
+          - ["general_contractors", "project_managers", "field_workers"]
+
+      extra_instructions:
+        type: string
+        description: Optional domain-specific prompt additions (market context, priorities, constraints)
+        default: ""
+        examples:
+          - "Prioritize tools that serve SMBs and small security teams. Open-source-first distribution works well here."
+
+  sources:
+    type: array
+    description: List of data source configurations (adapters to fetch signals from)
+    default: []
+    items:
+      type: object
+      required:
+        - adapter
+      properties:
+        adapter:
+          type: string
+          description: Adapter name (must exist in adapter registry)
+          minLength: 1
+          enum:
+            - hackernews
+            - reddit
+            - github
+            - github_issues
+            - npm_registry
+            - pypi_registry
+            - security_advisories
+            - product_hunt
+
+        enabled:
+          type: boolean
+          description: Whether this source is active
+          default: true
+
+        weight:
+          type: number
+          description: Relative fetch budget weight (0.0-10.0)
+          minimum: 0.0
+          maximum: 10.0
+          default: 1.0
+
+        params:
+          type: object
+          description: Adapter-specific parameters (structure varies by adapter)
+          default: {}
+          additionalProperties: true
+          # Examples of common param structures:
+          # reddit: {"subreddits": ["programming", "MachineLearning"]}
+          # github: {"topics": ["mcp", "ai-agent", "llm"]}
+          # github_issues: {"queries": ["\"ai agent\" label:enhancement"]}
+          # npm_registry: {"queries": ["mcp server", "ai agent"]}
+          # pypi_registry: {"keywords": ["ai", "llm", "agent"]}
+          # security_advisories: {"ecosystems": ["pip", "npm"], "severities": ["critical", "high"]}
+          # product_hunt: {"topics": ["developer-tools", "artificial-intelligence"]}
+          # hackernews: {"filter_keywords": ["security", "vulnerability"]}
+
+  evaluation:
+    type: object
+    description: Evaluation and scoring configuration
+    default:
+      weight_profile: default
+      min_score: 50.0
+    properties:
+      weight_profile:
+        type: string
+        description: Named weight profile for evaluation dimensions
+        default: default
+        enum:
+          - default
+          - quick_wins
+          - moonshots
+          - ecosystem
+          - agent_first
+
+      custom_weights:
+        type: object
+        description: Optional custom dimension weights (overrides weight_profile)
+        default: null
+        additionalProperties:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        properties:
+          pain_severity:
+            type: number
+            description: Weight for pain severity dimension
+          addressable_scale:
+            type: number
+            description: Weight for addressable scale dimension
+          build_effort:
+            type: number
+            description: Weight for build effort dimension (inverted - lower effort = higher score)
+          composability:
+            type: number
+            description: Weight for composability dimension
+          competitive_density:
+            type: number
+            description: Weight for competitive density dimension (inverted - fewer competitors = higher score)
+          timing_fit:
+            type: number
+            description: Weight for timing fit dimension
+          compounding_value:
+            type: number
+            description: Weight for compounding value dimension
+
+      min_score:
+        type: number
+        description: Minimum overall score threshold (0-100) for ideas to be considered
+        minimum: 0.0
+        maximum: 100.0
+        default: 50.0
+
+  output_dir:
+    type: string
+    description: Directory for pipeline output artifacts
+    default: .max-output
+    minLength: 1
+    examples:
+      - .max-output
+      - .tact
+
+  signal_limit:
+    type: integer
+    description: Maximum number of signals to fetch and process
+    minimum: 1
+    default: 30
+    examples:
+      - 20
+      - 30
+      - 50
+
+  ideation_mode:
+    type: string
+    description: Ideation strategy mode
+    default: direct
+    enum:
+      - direct
+      - refinement
+      - cross_domain
+      - synthesis
+      - cross_synthesis
+
+additionalProperties: false
