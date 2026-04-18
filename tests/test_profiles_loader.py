@@ -12,6 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -69,14 +70,20 @@ class TestSourceConfig:
 
     def test_invalid_weight_type(self):
         """Test that invalid weight type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_weight: Any = "invalid"
+
         with pytest.raises(ValidationError):
-            SourceConfig(adapter="reddit", weight="invalid")  # type: ignore[arg-type]
+            SourceConfig(adapter="reddit", weight=invalid_weight)
 
     def test_invalid_enabled_type(self):
         """Test that invalid enabled type raises ValidationError."""
         # Note: Pydantic coerces string "true"/"yes" to bool, so use a truly invalid type
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_enabled: Any = ["not", "a", "bool"]
+
         with pytest.raises(ValidationError):
-            SourceConfig(adapter="reddit", enabled=["not", "a", "bool"])  # type: ignore[arg-type]
+            SourceConfig(adapter="reddit", enabled=invalid_enabled)
 
 
 class TestDomainContext:
@@ -121,11 +128,14 @@ class TestDomainContext:
 
     def test_invalid_categories_type(self):
         """Test that invalid categories type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_categories: Any = "not-a-list"
+
         with pytest.raises(ValidationError):
             DomainContext(
                 name="test",
                 description="Test",
-                categories="not-a-list",  # type: ignore[arg-type]
+                categories=invalid_categories,
                 target_user_types=["users"],
             )
 
@@ -163,13 +173,19 @@ class TestEvaluationConfig:
 
     def test_invalid_min_score_type(self):
         """Test that invalid min_score type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_min_score: Any = "high"
+
         with pytest.raises(ValidationError):
-            EvaluationConfig(min_score="high")  # type: ignore[arg-type]
+            EvaluationConfig(min_score=invalid_min_score)
 
     def test_invalid_custom_weights_type(self):
         """Test that invalid custom_weights type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_custom_weights: Any = "invalid"
+
         with pytest.raises(ValidationError):
-            EvaluationConfig(custom_weights="invalid")  # type: ignore[arg-type]
+            EvaluationConfig(custom_weights=invalid_custom_weights)
 
 
 class TestPipelineProfile:
@@ -229,14 +245,20 @@ class TestPipelineProfile:
 
     def test_invalid_domain_type(self):
         """Test that invalid domain type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_domain: Any = "not-a-domain"
+
         with pytest.raises(ValidationError):
             PipelineProfile(
                 name="test",
-                domain="not-a-domain",  # type: ignore[arg-type]
+                domain=invalid_domain,
             )
 
     def test_invalid_sources_type(self):
         """Test that invalid sources type raises ValidationError."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_sources: Any = "not-a-list"
+
         with pytest.raises(ValidationError):
             PipelineProfile(
                 name="test",
@@ -246,7 +268,7 @@ class TestPipelineProfile:
                     categories=["app"],
                     target_user_types=["users"],
                 ),
-                sources="not-a-list",  # type: ignore[arg-type]
+                sources=invalid_sources,
             )
 
     def test_profile_allows_unknown_top_level_keys(self):
@@ -673,8 +695,11 @@ class TestSyntheticProfiles:
             data = yaml.safe_load(f)
 
         # PipelineProfile expects a dict
+        # Explicitly type as Any to test runtime validation of invalid structure
+        invalid_data: Any = data
+
         with pytest.raises((ValidationError, TypeError)):
-            PipelineProfile(**data)  # type: ignore[arg-type]
+            PipelineProfile(**invalid_data)
 
 
 # ── Edge Cases and Error Handling ──────────────────────────────────────

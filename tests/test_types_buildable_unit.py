@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -128,6 +129,9 @@ def test_buildable_unit_missing_required_fields() -> None:
 
 def test_buildable_unit_invalid_ideation_mode() -> None:
     """Test that invalid ideation_mode raises ValidationError."""
+    # Explicitly type as Any to test runtime validation of invalid value
+    invalid_mode: Any = "invalid_mode"
+
     with pytest.raises(ValidationError) as exc_info:
         BuildableUnit(
             title="Test",
@@ -136,7 +140,7 @@ def test_buildable_unit_invalid_ideation_mode() -> None:
             problem="Test problem",
             solution="Test solution",
             value_proposition="Test value",
-            ideation_mode="invalid_mode",  # type: ignore[arg-type]
+            ideation_mode=invalid_mode,
         )
 
     errors = exc_info.value.errors()

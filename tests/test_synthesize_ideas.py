@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -501,8 +502,11 @@ class TestSynthesisExceptionHandling:
 class TestLLMOutputValidation:
     def test_invalid_inspiring_insights_type_defaults_to_empty(self):
         """Test that non-list inspiring_insights defaults to empty list."""
+        # Explicitly type as Any to test runtime validation of invalid value
+        invalid_insights: Any = "not-a-list"
+
         output = _mock_synthesized_output()
-        output.inspiring_insights = "not-a-list"  # type: ignore
+        output.inspiring_insights = invalid_insights
 
         unit = _output_to_unit(output, source_ideas=[_make_unit()], mode=IdeationMode.SYNTHESIS)
 
@@ -533,6 +537,9 @@ class TestLLMOutputValidation:
 
         # Create a group manually with a non-numeric score bypassing Pydantic validation
         with patch("max.analysis.synthesize_ideas.structured_call") as mock_call:
+            # Explicitly type as Any to test runtime validation of invalid value
+            invalid_score: Any = "invalid"
+
             # Create a valid group first
             group = ComplementaryGroup(
                 idea_ids=["bu-1", "bu-2"],
@@ -541,7 +548,7 @@ class TestLLMOutputValidation:
                 synergy_score=0.8,
             )
             # Then set the score to an invalid value after creation
-            group.synergy_score = "invalid"  # type: ignore
+            group.synergy_score = invalid_score
 
             mock_call.return_value = CrossClusterDetectionOutput(
                 complementary_groups=[group]
