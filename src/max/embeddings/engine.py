@@ -6,10 +6,12 @@ simple TF-IDF approach if the SDK is not available.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
 from collections import Counter
+from datetime import datetime, timezone
 
 from max.store.db import Store
 
@@ -45,6 +47,11 @@ def _simple_embed(text: str, vocab_size: int = 256) -> list[float]:
         vec[idx] = count / total
 
     return vec
+
+
+def content_hash(text: str) -> str:
+    """Compute SHA-256 hash of text for change detection."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _resolve_voyage_api_key() -> str | None:
@@ -180,3 +187,135 @@ class SemanticIndex:
             max_sim = max(max_sim, sim)
 
         return 1.0 - max_sim
+
+    def _get_embeddable_text(self, unit) -> str:
+        """Build the text to embed for a buildable unit."""
+        parts = [unit.title, unit.one_liner, unit.problem, unit.solution]
+        return " ".join(parts)
+
+    def _get_embedding_metadata(
+        self, entity_id: str, entity_type: str
+    ) -> dict | None:
+        """Get embedding metadata for an entity."""
+        row = self.store.conn.execute(
+            """SELECT entity_id, entity_type, content_hash, embedded_at
+               FROM embeddings_metadata
+               WHERE entity_id = ? AND entity_type = ?""",
+            (entity_id, entity_type),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "entity_id": row["entity_id"],
+            "entity_type": row["entity_type"],
+            "content_hash": row["content_hash"],
+            "embedded_at": row["embedded_at"],
+        }
+
+    def _upsert_embedding_metadata(
+        self, entity_id: str, entity_type: str, hash_val: str
+    ) -> None:
+        """Insert or update embedding metadata."""
+        now = datetime.now(timezone.utc).isoformat()
+        self.store.conn.execute(
+            """INSERT OR REPLACE INTO embeddings_metadata
+               (entity_id, entity_type, content_hash, embedded_at)
+               VALUES (?, ?, ?, ?)""",
+            (entity_id, entity_type, hash_val, now),
+        )
+
+    def _remove_embedding(self, entity_id: str, entity_type: str) -> None:
+        """Remove embedding and metadata for a deleted entity."""
+        self.store.conn.execute(
+            "DELETE FROM embeddings WHERE id = ? AND entity_type = ?",
+            (entity_id, entity_type),
+        )
+        self.store.conn.execute(
+            "DELETE FROM embeddings_metadata WHERE entity_id = ? AND entity_type = ?",
+            (entity_id, entity_type),
+        )
+
+    def embed_incremental(
+        self, entity_type: str = "buildable_unit"
+    ) -> dict:
+        """Incrementally update embeddings — only new/changed entities.
+
+        Compares content hashes to detect changes. Removes embeddings for
+        deleted entities.
+
+        Returns dict with counts: embedded, skipped, removed.
+        """
+        # Get all current buildable units
+        units = self.store.get_buildable_units(limit=10000)
+
+        # Get all existing metadata for this entity_type
+        rows = self.store.conn.execute(
+            "SELECT entity_id, content_hash FROM embeddings_metadata WHERE entity_type = ?",
+            (entity_type,),
+        ).fetchall()
+        existing_meta = {row["entity_id"]: row["content_hash"] for row in rows}
+
+        current_ids = set()
+        embedded = 0
+        skipped = 0
+
+        for unit in units:
+            current_ids.add(unit.id)
+            text = self._get_embeddable_text(unit)
+            new_hash = content_hash(text)
+
+            old_hash = existing_meta.get(unit.id)
+            if old_hash == new_hash:
+                skipped += 1
+                continue
+
+            # New or changed — re-embed
+            embedding = embed_text(text)
+            self.store.conn.execute(
+                """INSERT OR REPLACE INTO embeddings (id, entity_type, embedding)
+                   VALUES (?, ?, ?)""",
+                (unit.id, entity_type, json.dumps(embedding)),
+            )
+            self._upsert_embedding_metadata(unit.id, entity_type, new_hash)
+            embedded += 1
+
+        # Remove embeddings for deleted entities
+        removed = 0
+        stale_ids = set(existing_meta.keys()) - current_ids
+        for stale_id in stale_ids:
+            self._remove_embedding(stale_id, entity_type)
+            removed += 1
+
+        self.store.conn.commit()
+
+        logger.info(
+            "Incremental embedding: %d embedded, %d skipped, %d removed",
+            embedded, skipped, removed,
+        )
+        return {"embedded": embedded, "skipped": skipped, "removed": removed}
+
+    def embed_full(self, entity_type: str = "buildable_unit") -> dict:
+        """Full re-embedding of all entities.
+
+        Returns dict with count: embedded.
+        """
+        units = self.store.get_buildable_units(limit=10000)
+        embedded = 0
+
+        for unit in units:
+            text = self._get_embeddable_text(unit)
+            new_hash = content_hash(text)
+
+            embedding = embed_text(text)
+            self.store.conn.execute(
+                """INSERT OR REPLACE INTO embeddings (id, entity_type, embedding)
+                   VALUES (?, ?, ?)""",
+                (unit.id, entity_type, json.dumps(embedding)),
+            )
+            self._upsert_embedding_metadata(unit.id, entity_type, new_hash)
+            embedded += 1
+
+        self.store.conn.commit()
+
+        logger.info("Full embedding: %d embedded", embedded)
+        return {"embedded": embedded}

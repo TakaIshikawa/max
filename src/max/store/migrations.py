@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -153,6 +153,17 @@ CREATE TABLE IF NOT EXISTS embeddings (
     embedding TEXT NOT NULL,
     PRIMARY KEY (id, entity_type)
 );
+
+CREATE TABLE IF NOT EXISTS embeddings_metadata (
+    entity_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    embedded_at TEXT NOT NULL,
+    PRIMARY KEY (entity_id, entity_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_meta_type ON embeddings_metadata(entity_type);
+CREATE INDEX IF NOT EXISTS idx_embeddings_meta_embedded_at ON embeddings_metadata(embedded_at);
 """
 
 
@@ -312,6 +323,26 @@ def _migrate_v10_to_v11(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v11_to_v12(conn: sqlite3.Connection) -> None:
+    """Add embeddings_metadata table for incremental embedding updates."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS embeddings_metadata (
+            entity_id TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            embedded_at TEXT NOT NULL,
+            PRIMARY KEY (entity_id, entity_type)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_embeddings_meta_type ON embeddings_metadata(entity_type)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_embeddings_meta_embedded_at ON embeddings_metadata(embedded_at)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -357,6 +388,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 11:
         _migrate_v10_to_v11(conn)
+
+    if current < 12:
+        _migrate_v11_to_v12(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
