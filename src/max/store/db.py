@@ -534,6 +534,152 @@ class Store:
             query += " WHERE " + " AND ".join(conditions)
         return self.conn.execute(query, params).fetchone()[0]
 
+    # ── Quality Loop Memory ─────────────────────────────────────────
+
+    def insert_idea_critique(
+        self,
+        unit_id: str,
+        critique: dict,
+        *,
+        evidence_pack: dict | str | None = None,
+        pipeline_run_id: str | None = None,
+        stage: str = "ideation_critique",
+    ) -> str:
+        """Persist quality-loop critique dimensions for an idea."""
+        critique_id = _gen_id("crit")
+        dimensions = {
+            key: critique.get(key, 0.0)
+            for key in [
+                "urgency",
+                "buyer_clarity",
+                "specificity",
+                "evidence_support",
+                "feasibility",
+                "differentiation",
+                "distribution_path",
+                "domain_risk",
+                "novelty",
+                "usefulness",
+                "quality_score",
+            ]
+        }
+        if isinstance(evidence_pack, str):
+            evidence_pack_json = evidence_pack
+        else:
+            evidence_pack_json = json.dumps(evidence_pack or {})
+        self.conn.execute(
+            """INSERT INTO idea_critiques
+               (id, buildable_unit_id, pipeline_run_id, stage, dimensions,
+                reasoning, rejection_tags, evidence_pack, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                critique_id,
+                unit_id,
+                pipeline_run_id,
+                stage,
+                json.dumps(dimensions),
+                critique.get("reasoning", ""),
+                json.dumps(critique.get("rejection_tags", [])),
+                evidence_pack_json,
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return critique_id
+
+    def get_idea_critiques(self, unit_id: str) -> list[dict]:
+        """Return persisted critiques for an idea, newest first."""
+        rows = self.conn.execute(
+            """SELECT * FROM idea_critiques
+               WHERE buildable_unit_id = ?
+               ORDER BY created_at DESC""",
+            (unit_id,),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "buildable_unit_id": row["buildable_unit_id"],
+                "pipeline_run_id": row["pipeline_run_id"],
+                "stage": row["stage"],
+                "dimensions": json.loads(row["dimensions"]),
+                "reasoning": row["reasoning"],
+                "rejection_tags": json.loads(row["rejection_tags"]),
+                "evidence_pack": json.loads(row["evidence_pack"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def insert_idea_memory(
+        self,
+        *,
+        outcome: str,
+        pattern: str,
+        unit_id: str | None = None,
+        domain: str = "",
+        rejection_tags: list[str] | None = None,
+        score: float = 0.0,
+        evidence_rationale: str = "",
+    ) -> str:
+        """Persist compact idea memory for future evidence packs."""
+        memory_id = _gen_id("mem")
+        self.conn.execute(
+            """INSERT INTO idea_memory
+               (id, buildable_unit_id, domain, outcome, pattern, rejection_tags,
+                score, evidence_rationale, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                memory_id,
+                unit_id,
+                domain,
+                outcome,
+                pattern,
+                json.dumps(rejection_tags or []),
+                score,
+                evidence_rationale,
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return memory_id
+
+    def get_idea_memory(
+        self,
+        *,
+        domain: str | None = None,
+        outcome: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Return compact idea memory rows."""
+        query = "SELECT * FROM idea_memory"
+        conditions: list[str] = []
+        params: list = []
+        if domain:
+            conditions.append("(domain = ? OR domain = '')")
+            params.append(domain)
+        if outcome:
+            conditions.append("outcome = ?")
+            params.append(outcome)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "buildable_unit_id": row["buildable_unit_id"],
+                "domain": row["domain"],
+                "outcome": row["outcome"],
+                "pattern": row["pattern"],
+                "rejection_tags": json.loads(row["rejection_tags"]),
+                "score": row["score"],
+                "evidence_rationale": row["evidence_rationale"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
     # ── Prior Art ───────────────────────────────────────────────────
 
     def insert_prior_art_match(self, unit_id: str, match: dict) -> str:
@@ -664,6 +810,35 @@ class Store:
                VALUES (?, ?, ?, ?, ?, ?)""",
             (unit_id, outcome, reason, json.dumps(dimension_values), approval_score, _now_iso()),
         )
+        if outcome in ("approved", "published", "rejected", "abandoned"):
+            row = self.conn.execute(
+                """SELECT title, one_liner, problem, domain, rejection_tags,
+                          quality_score, evidence_rationale
+                   FROM buildable_units WHERE id = ?""",
+                (unit_id,),
+            ).fetchone()
+            if row:
+                memory_outcome = "approved" if outcome in ("approved", "published") else "rejected"
+                pattern = f"{row['title']}: {row['one_liner'] or row['problem']}"
+                if reason:
+                    pattern = f"{pattern} ({reason})"
+                self.conn.execute(
+                    """INSERT INTO idea_memory
+                       (id, buildable_unit_id, domain, outcome, pattern,
+                        rejection_tags, score, evidence_rationale, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        _gen_id("mem"),
+                        unit_id,
+                        row["domain"],
+                        memory_outcome,
+                        pattern,
+                        row["rejection_tags"],
+                        row["quality_score"],
+                        row["evidence_rationale"],
+                        _now_iso(),
+                    ),
+                )
         self._commit()
 
     def get_feedback_log(self, *, limit: int = 50) -> list[dict]:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -160,6 +160,37 @@ CREATE TABLE IF NOT EXISTS prior_art_matches (
 );
 
 CREATE INDEX IF NOT EXISTS idx_prior_art_bu_id ON prior_art_matches(buildable_unit_id);
+
+CREATE TABLE IF NOT EXISTS idea_critiques (
+    id TEXT PRIMARY KEY,
+    buildable_unit_id TEXT NOT NULL,
+    pipeline_run_id TEXT DEFAULT NULL,
+    stage TEXT NOT NULL DEFAULT 'ideation_critique',
+    dimensions TEXT NOT NULL DEFAULT '{}',
+    reasoning TEXT NOT NULL DEFAULT '',
+    rejection_tags TEXT NOT NULL DEFAULT '[]',
+    evidence_pack TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_idea_critiques_bu_id ON idea_critiques(buildable_unit_id);
+
+CREATE TABLE IF NOT EXISTS idea_memory (
+    id TEXT PRIMARY KEY,
+    buildable_unit_id TEXT DEFAULT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    outcome TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    rejection_tags TEXT NOT NULL DEFAULT '[]',
+    score REAL NOT NULL DEFAULT 0.0,
+    evidence_rationale TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_idea_memory_domain ON idea_memory(domain);
+CREATE INDEX IF NOT EXISTS idx_idea_memory_outcome ON idea_memory(outcome);
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT NOT NULL,
@@ -361,6 +392,44 @@ def _migrate_v12_to_v13(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _migrate_v13_to_v14(conn: sqlite3.Connection) -> None:
+    """Add persisted critique and idea-memory tables."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS idea_critiques (
+            id TEXT PRIMARY KEY,
+            buildable_unit_id TEXT NOT NULL,
+            pipeline_run_id TEXT DEFAULT NULL,
+            stage TEXT NOT NULL DEFAULT 'ideation_critique',
+            dimensions TEXT NOT NULL DEFAULT '{}',
+            reasoning TEXT NOT NULL DEFAULT '',
+            rejection_tags TEXT NOT NULL DEFAULT '[]',
+            evidence_pack TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_idea_critiques_bu_id ON idea_critiques(buildable_unit_id)"
+    )
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS idea_memory (
+            id TEXT PRIMARY KEY,
+            buildable_unit_id TEXT DEFAULT NULL,
+            domain TEXT NOT NULL DEFAULT '',
+            outcome TEXT NOT NULL,
+            pattern TEXT NOT NULL,
+            rejection_tags TEXT NOT NULL DEFAULT '[]',
+            score REAL NOT NULL DEFAULT 0.0,
+            evidence_rationale TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_idea_memory_domain ON idea_memory(domain)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_idea_memory_outcome ON idea_memory(outcome)")
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -412,6 +481,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 13:
         _migrate_v12_to_v13(conn)
+
+    if current < 14:
+        _migrate_v13_to_v14(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

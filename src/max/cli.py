@@ -26,6 +26,8 @@ def main() -> None:
 @click.option("--min-score", type=float, default=None, help="Minimum score to generate spec")
 @click.option("--weight-profile", type=str, default=None, help="Weight profile: default, quick_wins, moonshots, ecosystem, agent_first")
 @click.option("--mode", type=click.Choice(["direct", "refinement", "cross_domain", "all"]), default=None, help="Ideation mode")
+@click.option("--quality-loop/--no-quality-loop", default=None, help="Run draft critique, revision, and quality gate before evaluation")
+@click.option("--draft-count", type=int, default=None, help="Max draft ideas to pass through the quality loop")
 @click.option("--dry-run", is_flag=True, help="Simulate execution without LLM calls or writes")
 @click.option("--stages", type=str, default=None, help="Comma-separated list of stages to run (fetch,annotate,synthesize,detect_gaps,retrospective,ideate,evaluate)")
 def run(
@@ -35,6 +37,8 @@ def run(
     min_score: float | None,
     weight_profile: str | None,
     mode: str | None,
+    quality_loop: bool | None,
+    draft_count: int | None,
     dry_run: bool,
     stages: str | None,
 ) -> None:
@@ -56,6 +60,30 @@ def run(
     else:
         p = get_default_profile()
 
+    _run_single_profile(
+        p, output, signal_limit, min_score, weight_profile, mode,
+        quality_loop, draft_count, dry_run, stages_list,
+    )
+    if not dry_run:
+        _run_post_eval_stages(domain=p.domain.name)
+
+
+def _run_single_profile(
+    p,
+    output: str | None,
+    signal_limit: int | None,
+    min_score: float | None,
+    weight_profile: str | None,
+    mode: str | None,
+    quality_loop: bool | None,
+    draft_count: int | None,
+    dry_run: bool,
+    stages_list: list[str] | None,
+) -> None:
+    """Execute the pipeline for a single profile."""
+    from max.pipeline.runner import run_pipeline
+    from max.types.pipeline import DryRunReport
+
     # CLI flags override profile values
     if signal_limit is not None:
         p.signal_limit = signal_limit
@@ -65,6 +93,10 @@ def run(
         p.evaluation.weight_profile = weight_profile
     if mode is not None:
         p.ideation_mode = mode
+    if quality_loop is not None:
+        p.quality_loop_enabled = quality_loop
+    if draft_count is not None:
+        p.draft_count = draft_count
 
     output_dir = Path(output) if output else Path(p.output_dir)
 
@@ -79,6 +111,9 @@ def run(
     click.echo(f"  Min score:    {p.evaluation.min_score}")
     click.echo(f"  Weights:      {p.evaluation.weight_profile}")
     click.echo(f"  Mode:         {p.ideation_mode}")
+    click.echo(f"  Quality loop: {'on' if p.quality_loop_enabled else 'off'}")
+    if p.quality_loop_enabled:
+        click.echo(f"  Draft count:  {p.draft_count}")
     if stages_list:
         click.echo(f"  Stages:       {', '.join(stages_list)}")
     click.echo()
@@ -115,6 +150,17 @@ def run(
     click.echo(f"Signals fetched:    {result.signals_fetched} ({result.signals_new} new, {result.signals_skipped} already synthesized)")
     click.echo(f"Insights generated: {result.insights_generated} ({result.insights_duplicates_skipped} duplicates skipped, avg confidence: {result.avg_insight_confidence:.2f})")
     click.echo(f"Ideas generated:    {result.ideas_generated} ({result.ideas_duplicates_skipped} duplicates skipped)")
+    if result.draft_ideas_generated or result.ideas_revised or result.ideas_rejected_by_quality_gate:
+        click.echo(
+            f"Quality loop:       {result.draft_ideas_generated} drafts, "
+            f"{result.ideas_revised} revised, "
+            f"{result.ideas_rejected_by_quality_gate} rejected"
+        )
+        if result.avg_novelty_score or result.avg_usefulness_score:
+            click.echo(
+                f"Quality scores:     novelty {result.avg_novelty_score:.1f}, "
+                f"usefulness {result.avg_usefulness_score:.1f}"
+            )
     click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
     if result.token_usage:
         total_input = result.token_usage.get("total_input", 0)
@@ -130,6 +176,54 @@ def run(
         for idea in result.top_ideas:
             marker = "✓" if idea["score"] >= p.evaluation.min_score else " "
             click.echo(f"  [{marker}] {idea['score']:5.1f}  {idea['title']}  ({idea['recommendation']})")
+
+
+def _run_post_eval_stages(domain: str | None = None) -> None:
+    """Run post-evaluation stages: dedup → synthesize → prior-art → triage."""
+    from max.pipeline.runner import run_post_pipeline
+
+    click.echo()
+    click.echo(f"{'=' * 80}")
+    click.echo("Post-evaluation: dedup → synthesize → prior-art → triage")
+    click.echo(f"{'=' * 80}")
+    click.echo()
+
+    result = run_post_pipeline(domain=domain)
+
+    # Report results
+    if result.duplicates_marked:
+        click.echo(f"Dedup:          {result.duplicates_marked} duplicates removed")
+    else:
+        click.echo("Dedup:          no duplicates found")
+
+    if result.ideas_synthesized:
+        click.echo(
+            f"Synthesize:     {result.ideas_synthesized} ideas merged from "
+            f"{result.source_ideas_merged} sources ({result.synthesis_clusters} clusters)"
+        )
+    else:
+        click.echo("Synthesize:     no clusters to merge")
+
+    if result.prior_art_checked:
+        click.echo(
+            f"Prior art:      {result.prior_art_checked} checked — "
+            f"{result.prior_art_strong} strong, {result.prior_art_weak} weak, "
+            f"{result.prior_art_clear} clear"
+        )
+    else:
+        click.echo("Prior art:      no ideas to check")
+
+    if result.triage_auto_approved or result.triage_auto_rejected:
+        click.echo(
+            f"Triage:         {result.triage_auto_approved} auto-approved, "
+            f"{result.triage_auto_rejected} auto-rejected, "
+            f"{result.triage_pending_review} pending review"
+        )
+    else:
+        click.echo(f"Triage:         {result.triage_pending_review} ideas pending review")
+
+    click.echo()
+    click.echo("Ready for: max review")
 
 
 @main.command()
@@ -160,13 +254,23 @@ def profiles() -> None:
 @click.option("--status", type=str, default=None, help="Filter by status")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain (e.g. 'healthcare', 'fintech')")
 @click.option("--limit", type=int, default=20, help="Max results")
-def ideas(status: str | None, domain: str | None, limit: int) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+@click.option("--show-critique", is_flag=True, help="Show latest quality-loop critique summary")
+def ideas(
+    status: str | None,
+    domain: str | None,
+    limit: int,
+    include_archived: bool,
+    show_critique: bool,
+) -> None:
     """List generated ideas with scores."""
     from max.store.db import Store
 
     store = Store()
     try:
         units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+        if not include_archived and status != "archived":
+            units = [u for u in units if u.status != "archived"]
         if not units:
             click.echo("No ideas found.")
             return
@@ -177,13 +281,24 @@ def ideas(status: str | None, domain: str | None, limit: int) -> None:
             rec = evaluation.recommendation if evaluation else "-"
             domain_label = f"[{unit.domain}]" if unit.domain else ""
             click.echo(f"  {score:5.1f}  [{unit.status:10s}]  {domain_label:16s}  {unit.title}  ({rec})  {unit.id}")
+            if show_critique:
+                critiques = store.get_idea_critiques(unit.id)
+                if critiques:
+                    dims = critiques[0]["dimensions"]
+                    click.echo(
+                        f"        critique q={dims.get('quality_score', 0.0):.1f} "
+                        f"novelty={dims.get('novelty', 0.0):.1f} "
+                        f"usefulness={dims.get('usefulness', 0.0):.1f} "
+                        f"tags={', '.join(critiques[0]['rejection_tags']) or '-'}"
+                    )
     finally:
         store.close()
 
 
 @main.command()
 @click.argument("unit_id")
-def inspect(unit_id: str) -> None:
+@click.option("--evidence-pack", is_flag=True, help="Show persisted or reconstructed evidence pack")
+def inspect(unit_id: str, evidence_pack: bool) -> None:
     """Inspect a buildable unit with its evaluation."""
     from max.store.db import Store
 
@@ -199,6 +314,12 @@ def inspect(unit_id: str) -> None:
         click.echo(f"Category:    {unit.category}")
         click.echo(f"Status:      {unit.status}")
         click.echo(f"Target:      {unit.target_users}")
+        if unit.specific_user or unit.buyer or unit.workflow_context:
+            click.echo(f"User:        {unit.specific_user or '-'}")
+            click.echo(f"Buyer:       {unit.buyer or '-'}")
+            click.echo(f"Workflow:    {unit.workflow_context or '-'}")
+        if unit.validation_plan:
+            click.echo(f"Validation:  {unit.validation_plan}")
         click.echo()
         click.echo(f"Problem:     {unit.problem}")
         click.echo(f"Solution:    {unit.solution}")
@@ -226,6 +347,41 @@ def inspect(unit_id: str) -> None:
                 click.echo("Weaknesses:")
                 for w in evaluation.weaknesses:
                     click.echo(f"  - {w}")
+
+        critiques = store.get_idea_critiques(unit.id)
+        if critiques:
+            critique = critiques[0]
+            dims = critique["dimensions"]
+            click.echo()
+            click.echo("Latest Critique:")
+            for name in [
+                "urgency", "buyer_clarity", "specificity", "evidence_support",
+                "feasibility", "differentiation", "distribution_path",
+                "domain_risk", "novelty", "usefulness", "quality_score",
+            ]:
+                if name in dims:
+                    click.echo(f"  {name:20s} {dims[name]:4.1f}")
+            if critique["rejection_tags"]:
+                click.echo(f"  tags: {', '.join(critique['rejection_tags'])}")
+            if critique["reasoning"]:
+                click.echo(f"  reasoning: {critique['reasoning']}")
+
+        if evidence_pack:
+            click.echo()
+            click.echo("Evidence Pack:")
+            if critiques and critiques[0].get("evidence_pack"):
+                import json
+
+                click.echo(json.dumps(critiques[0]["evidence_pack"], indent=2))
+            else:
+                from max.ideation.evidence import build_evidence_pack
+
+                insights = [
+                    insight
+                    for insight_id in unit.inspiring_insights
+                    if (insight := store.get_insight(insight_id))
+                ]
+                click.echo(build_evidence_pack(insights=insights, store=store).to_json())
     finally:
         store.close()
 

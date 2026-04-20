@@ -22,6 +22,31 @@ domain:
     - learners
     - hr_professionals
     - both
+  target_segments:
+    - mid-market corporate training teams
+    - professional certification providers
+    - higher education program administrators
+  workflows:
+    - compliance training tracking
+    - skill assessment
+    - credential verification
+    - LMS content updates
+  buyer_roles:
+    - training manager
+    - HR director
+    - program administrator
+  hard_constraints:
+    - preserve learner privacy
+    - integrate with existing LMS workflows
+    - support auditable completion records
+  bad_idea_patterns:
+    - generic AI tutor
+    - content library without adoption workflow
+    - LMS replacement for first MVP
+  good_idea_criteria:
+    - clear compliance or completion ROI
+    - has measurable learner/admin workflow impact
+    - testable with one course or cohort in 2 weeks
   extra_instructions: >-
     Corporate LMS is a known pain point — companies track training in spreadsheets
     and compliance training deadlines get missed. Every company with 50+ employees

@@ -18,7 +18,7 @@ from max.analysis.triangulation import format_cluster_context, triangulate
 from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
 from max.evaluation.weights import get_adapted_weights
-from max.ideation.critique import apply_critiques, critique_ideas
+from max.ideation.critique import apply_critiques, critique_ideas, critique_to_record
 from max.ideation.evidence import build_evidence_pack
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.ideation.quality_gate import quality_gate
@@ -297,6 +297,9 @@ def run_pipeline(
 
         # 4. Ideate (supports multiple modes, with memory of existing ideas)
         units: list[BuildableUnit] = []
+        rejected_by_quality_gate: list[BuildableUnit] = []
+        critique_records_by_title: dict[str, dict] = {}
+        evidence_pack_json: str | None = None
         if 'ideate' in active_stages:
             # Prefer current-run insights; fall back to domain-filtered store insights
             if insights:
@@ -345,6 +348,11 @@ def run_pipeline(
                 )
                 draft_units = units[: max(1, draft_count)]
                 critiques = critique_ideas(draft_units, evidence_pack)
+                critique_records_by_title = {
+                    c.title.lower(): critique_to_record(c)
+                    for c in critiques
+                }
+                evidence_pack_json = evidence_pack.to_json()
                 draft_units = apply_critiques(draft_units, critiques)
                 revised_units = revise_ideas(
                     draft_units,
@@ -354,6 +362,7 @@ def run_pipeline(
                 )
                 revised_units = apply_critiques(revised_units, critiques)
                 kept_units, rejected_units = quality_gate(revised_units)
+                rejected_by_quality_gate = rejected_units
                 units = kept_units
                 result.ideas_revised = len(revised_units)
                 result.ideas_rejected_by_quality_gate = len(rejected_units)
@@ -388,9 +397,49 @@ def run_pipeline(
             units = dedup.kept
             result.ideas_duplicates_skipped = dedup.duplicates
             domain_name = domain.name if domain else ""
+            for rejected in rejected_by_quality_gate:
+                rejected.domain = domain_name
+                rejected.status = "rejected"
+                store.insert_buildable_unit(rejected)
+                critique = critique_records_by_title.get(rejected.title.lower())
+                if critique:
+                    store.insert_idea_critique(
+                        rejected.id,
+                        critique,
+                        evidence_pack=evidence_pack_json,
+                        pipeline_run_id=run_id,
+                        stage="quality_gate_rejected",
+                    )
+                store.insert_idea_memory(
+                    unit_id=rejected.id,
+                    domain=domain_name,
+                    outcome="quality_rejected",
+                    pattern=f"{rejected.title}: {rejected.one_liner or rejected.problem}",
+                    rejection_tags=rejected.rejection_tags,
+                    score=rejected.quality_score,
+                    evidence_rationale=rejected.evidence_rationale,
+                )
             for unit in units:
                 unit.domain = domain_name
                 store.insert_buildable_unit(unit)
+                critique = critique_records_by_title.get(unit.title.lower())
+                if critique:
+                    store.insert_idea_critique(
+                        unit.id,
+                        critique,
+                        evidence_pack=evidence_pack_json,
+                        pipeline_run_id=run_id,
+                    )
+                if quality_loop_enabled:
+                    store.insert_idea_memory(
+                        unit_id=unit.id,
+                        domain=domain_name,
+                        outcome="quality_passed",
+                        pattern=f"{unit.title}: {unit.one_liner or unit.problem}",
+                        rejection_tags=unit.rejection_tags,
+                        score=unit.quality_score,
+                        evidence_rationale=unit.evidence_rationale,
+                    )
             result.ideas_generated = len(units)
 
         # 5. Evaluate (using selected weight profile, with evidence grounding)

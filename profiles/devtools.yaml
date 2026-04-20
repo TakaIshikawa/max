@@ -17,6 +17,31 @@ domain:
     - humans
     - agents
     - both
+  target_segments:
+    - AI tool builders
+    - platform engineering teams
+    - open-source maintainers
+  workflows:
+    - local development
+    - CI validation
+    - agent tool integration
+    - dependency maintenance
+  buyer_roles:
+    - developer experience lead
+    - engineering manager
+    - open-source maintainer
+  hard_constraints:
+    - must fit existing developer workflow
+    - avoid requiring full IDE migration
+    - should be useful from CLI or API
+  bad_idea_patterns:
+    - generic coding assistant
+    - dashboard without developer action
+    - framework requiring ecosystem migration
+  good_idea_criteria:
+    - solves a repeated developer workflow pain
+    - can be validated in a public repo within 2 weeks
+    - has clear integration or distribution path
 
 sources:
   - adapter: hackernews

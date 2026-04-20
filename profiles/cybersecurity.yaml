@@ -22,6 +22,31 @@ domain:
     - devops_engineers
     - smb_administrators
     - both
+  target_segments:
+    - small security teams
+    - developer-first security teams
+    - managed service providers
+  workflows:
+    - alert triage
+    - vulnerability prioritization
+    - detection rule authoring
+    - compliance evidence collection
+  buyer_roles:
+    - security lead
+    - head of infrastructure
+    - MSP owner
+  hard_constraints:
+    - avoid collecting sensitive secrets
+    - produce auditable findings
+    - integrate with existing SIEM or ticketing workflows
+  bad_idea_patterns:
+    - generic security chatbot
+    - SIEM replacement for small teams
+    - scanner without remediation workflow
+  good_idea_criteria:
+    - reduces alert or vulnerability backlog
+    - has clear operator workflow
+    - testable against public security data in 2 weeks
   extra_instructions: >-
     66% of MCP servers have security findings. 96% of developers do not trust
     AI-generated code. Detection engineering is fragmented across YARA, Sigma,

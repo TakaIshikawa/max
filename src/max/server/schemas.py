@@ -159,6 +159,17 @@ class EvaluationResponse(BaseModel):
     weights_used: dict[str, float]
 
 
+class IdeaCritiqueResponse(BaseModel):
+    id: str
+    buildable_unit_id: str
+    pipeline_run_id: str | None = None
+    stage: str
+    dimensions: dict[str, float]
+    reasoning: str
+    rejection_tags: list[str]
+    created_at: str
+
+
 class IdeaSummaryResponse(BaseModel):
     id: str
     title: str
@@ -174,6 +185,7 @@ class IdeaSummaryResponse(BaseModel):
     novelty_score: float = 0.0
     usefulness_score: float = 0.0
     rejection_tags: list[str] = Field(default_factory=list)
+    latest_critique: IdeaCritiqueResponse | None = None
     score: float | None = None
     recommendation: str | None = None
 
@@ -210,6 +222,7 @@ class IdeaDetailResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
+    latest_critique: IdeaCritiqueResponse | None = None
     evaluation: EvaluationResponse | None = None
 
 

@@ -136,3 +136,10 @@ def apply_critiques(
         unit.quality_score = max(0.0, min(10.0, critique.quality_score))
         unit.rejection_tags = critique.rejection_tags
     return units
+
+
+def critique_to_record(critique: IdeaCritique) -> dict:
+    """Convert critique model to a persistence-friendly dict."""
+    data = critique.model_dump()
+    data["quality_score"] = critique.quality_score
+    return data

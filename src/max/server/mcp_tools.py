@@ -78,6 +78,13 @@ def search_ideas(
                 "domain": unit.domain,
                 "status": unit.status,
                 "target_users": unit.target_users,
+                "specific_user": unit.specific_user,
+                "buyer": unit.buyer,
+                "workflow_context": unit.workflow_context,
+                "quality_score": unit.quality_score,
+                "novelty_score": unit.novelty_score,
+                "usefulness_score": unit.usefulness_score,
+                "rejection_tags": unit.rejection_tags,
                 "score": evaluation.overall_score if evaluation else None,
                 "recommendation": evaluation.recommendation if evaluation else None,
             })
@@ -106,9 +113,25 @@ def get_idea(id: str) -> dict:
             "solution": unit.solution,
             "target_users": unit.target_users,
             "value_proposition": unit.value_proposition,
+            "specific_user": unit.specific_user,
+            "buyer": unit.buyer,
+            "workflow_context": unit.workflow_context,
+            "current_workaround": unit.current_workaround,
+            "why_now": unit.why_now,
+            "validation_plan": unit.validation_plan,
+            "first_10_customers": unit.first_10_customers,
+            "domain_risks": unit.domain_risks,
+            "evidence_rationale": unit.evidence_rationale,
+            "quality_score": unit.quality_score,
+            "novelty_score": unit.novelty_score,
+            "usefulness_score": unit.usefulness_score,
+            "rejection_tags": unit.rejection_tags,
             "tech_approach": unit.tech_approach,
             "status": unit.status,
         }
+        critiques = store.get_idea_critiques(id)
+        if critiques:
+            result["latest_critique"] = critiques[0]
         if evaluation:
             result["evaluation"] = {
                 "overall_score": evaluation.overall_score,
@@ -126,16 +149,34 @@ def get_idea(id: str) -> dict:
         return result
 
 
-def get_spec(id: str) -> dict:
-    """Get the tact-compatible spec for an idea.
-
-    Returns the full spec JSON that can be consumed by tact or similar build orchestrators.
-    """
+def get_idea_critique(id: str) -> dict:
+    """Get persisted quality-loop critique details for an idea."""
     with _get_store() as store:
-        spec = store.get_tact_spec(id)
-        if not spec:
-            return {"error": f"No spec for idea: {id}"}
-        return spec.model_dump(by_alias=True)
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+        critiques = store.get_idea_critiques(id)
+        return {"id": id, "critiques": critiques}
+
+
+def get_evidence_pack(id: str) -> dict:
+    """Get the evidence pack used for an idea, or reconstruct one from its evidence chain."""
+    with _get_store() as store:
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+        critiques = store.get_idea_critiques(id)
+        if critiques and critiques[0].get("evidence_pack"):
+            return critiques[0]["evidence_pack"]
+
+        from max.ideation.evidence import build_evidence_pack
+
+        insights = [
+            insight
+            for insight_id in unit.inspiring_insights
+            if (insight := store.get_insight(insight_id))
+        ]
+        return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
 
 
 def contribute_signal(
@@ -315,6 +356,10 @@ def ideas_list() -> str:
                 "category": unit.category,
                 "domain": unit.domain,
                 "status": unit.status,
+                "quality_score": unit.quality_score,
+                "novelty_score": unit.novelty_score,
+                "usefulness_score": unit.usefulness_score,
+                "rejection_tags": unit.rejection_tags,
                 "score": ev.overall_score if ev else None,
                 "recommendation": ev.recommendation if ev else None,
             })
@@ -338,21 +383,33 @@ def idea_detail(idea_id: str) -> str:
             "solution": unit.solution,
             "target_users": unit.target_users,
             "value_proposition": unit.value_proposition,
+            "specific_user": unit.specific_user,
+            "buyer": unit.buyer,
+            "workflow_context": unit.workflow_context,
+            "current_workaround": unit.current_workaround,
+            "why_now": unit.why_now,
+            "validation_plan": unit.validation_plan,
+            "first_10_customers": unit.first_10_customers,
+            "domain_risks": unit.domain_risks,
+            "evidence_rationale": unit.evidence_rationale,
+            "quality_score": unit.quality_score,
+            "novelty_score": unit.novelty_score,
+            "usefulness_score": unit.usefulness_score,
+            "rejection_tags": unit.rejection_tags,
             "status": unit.status,
         }
+        critiques = store.get_idea_critiques(idea_id)
+        if critiques:
+            result["latest_critique"] = critiques[0]
         if evaluation:
             result["score"] = evaluation.overall_score
             result["recommendation"] = evaluation.recommendation
         return json.dumps(result, indent=2)
 
 
-def spec_detail(idea_id: str) -> str:
-    """Get the tact-compatible spec for an idea."""
-    with _get_store() as store:
-        spec = store.get_tact_spec(idea_id)
-        if not spec:
-            return json.dumps({"error": f"No spec: {idea_id}"})
-        return spec.model_dump_json(by_alias=True, indent=2)
+def evidence_pack_detail(idea_id: str) -> str:
+    """Get evidence pack details for a specific idea."""
+    return json.dumps(get_evidence_pack(idea_id), indent=2)
 
 
 # ── MCP server factory ─────────────────────────────────────────────
@@ -365,7 +422,8 @@ def create_mcp_server() -> FastMCP:
     # Register tools
     mcp.tool(search_ideas)
     mcp.tool(get_idea)
-    mcp.tool(get_spec)
+    mcp.tool(get_idea_critique)
+    mcp.tool(get_evidence_pack)
     mcp.tool(contribute_signal)
     mcp.tool(contribute_idea)
     mcp.tool(evaluate_idea)
@@ -377,6 +435,6 @@ def create_mcp_server() -> FastMCP:
     # Register resources
     mcp.resource("ideas://list")(ideas_list)
     mcp.resource("ideas://{idea_id}")(idea_detail)
-    mcp.resource("specs://{idea_id}")(spec_detail)
+    mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
 
     return mcp

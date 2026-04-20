@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from max.server.schemas import (
     FeedbackCreate,
     HealthResponse,
     IdeaCreate,
+    IdeaCritiqueResponse,
     IdeaDetailResponse,
     IdeaSummaryResponse,
     InsightCreate,
@@ -146,6 +148,19 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
     )
 
 
+def _critique_to_response(row: dict) -> IdeaCritiqueResponse:
+    return IdeaCritiqueResponse(
+        id=row["id"],
+        buildable_unit_id=row["buildable_unit_id"],
+        pipeline_run_id=row.get("pipeline_run_id"),
+        stage=row["stage"],
+        dimensions=row["dimensions"],
+        reasoning=row["reasoning"],
+        rejection_tags=row["rejection_tags"],
+        created_at=row["created_at"],
+    )
+
+
 def _evaluation_to_response(ev: UtilityEvaluation) -> EvaluationResponse:
     def dim(d) -> DimensionScoreResponse:
         return DimensionScoreResponse(value=d.value, confidence=d.confidence, reasoning=d.reasoning)
@@ -168,7 +183,7 @@ def _evaluation_to_response(ev: UtilityEvaluation) -> EvaluationResponse:
     )
 
 
-def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
+def _unit_detail(unit, evaluation=None, latest_critique=None) -> IdeaDetailResponse:
     return IdeaDetailResponse(
         id=unit.id,
         title=unit.title,
@@ -201,6 +216,7 @@ def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
         status=unit.status,
         created_at=unit.created_at.isoformat() if hasattr(unit.created_at, "isoformat") else unit.created_at,
         updated_at=unit.updated_at.isoformat() if hasattr(unit.updated_at, "isoformat") else unit.updated_at,
+        latest_critique=_critique_to_response(latest_critique) if latest_critique else None,
         evaluation=_evaluation_to_response(evaluation) if evaluation else None,
     )
 
@@ -331,7 +347,11 @@ def list_ideas(
         evaluation = store.get_evaluation(unit.id)
         if min_score is not None and (evaluation is None or evaluation.overall_score < min_score):
             continue
-        results.append(_unit_summary(unit, evaluation))
+        summary = _unit_summary(unit, evaluation)
+        critiques = store.get_idea_critiques(unit.id)
+        if critiques:
+            summary.latest_critique = _critique_to_response(critiques[0])
+        results.append(summary)
 
     total_count = store.count_buildable_units(status=status, domain=domain)
 
@@ -351,7 +371,38 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     evaluation = store.get_evaluation(idea_id)
-    return _unit_detail(unit, evaluation)
+    critiques = store.get_idea_critiques(idea_id)
+    return _unit_detail(unit, evaluation, latest_critique=critiques[0] if critiques else None)
+
+
+@router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])
+def get_idea_critiques(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> list[IdeaCritiqueResponse]:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return [_critique_to_response(row) for row in store.get_idea_critiques(idea_id)]
+
+
+@router.get("/ideas/{idea_id}/evidence-pack")
+def get_idea_evidence_pack(idea_id: str, store: Store = Depends(get_store)) -> dict:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    critiques = store.get_idea_critiques(idea_id)
+    if critiques and critiques[0].get("evidence_pack"):
+        return critiques[0]["evidence_pack"]
+
+    from max.ideation.evidence import build_evidence_pack
+
+    insights = [
+        insight
+        for insight_id in unit.inspiring_insights
+        if (insight := store.get_insight(insight_id))
+    ]
+    return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
 
 
 def _evaluate_idea_background(idea_id: str) -> None:

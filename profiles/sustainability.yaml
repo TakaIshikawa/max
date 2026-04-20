@@ -22,6 +22,31 @@ domain:
     - compliance_teams
     - small_business_owners
     - both
+  target_segments:
+    - mid-market ESG reporting teams
+    - supplier sustainability teams
+    - SMBs facing customer reporting requests
+  workflows:
+    - carbon data collection
+    - supplier emissions follow-up
+    - ESG report preparation
+    - energy usage anomaly review
+  buyer_roles:
+    - sustainability officer
+    - compliance lead
+    - operations director
+  hard_constraints:
+    - cite data sources and calculation methods
+    - avoid unverifiable impact claims
+    - integrate with spreadsheet-based collection workflows
+  bad_idea_patterns:
+    - generic ESG dashboard
+    - carbon calculator without data collection workflow
+    - marketplace for offsets as first MVP
+  good_idea_criteria:
+    - reduces reporting or data collection burden
+    - produces auditable evidence
+    - testable with one reporting workflow in 2 weeks
   extra_instructions: >-
     EU CSRD/CS3D amendments landed summer 2025 — mandatory sustainability
     reporting for companies operating in EU markets. 82% of banks lack quality

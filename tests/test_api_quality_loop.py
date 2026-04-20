@@ -40,6 +40,26 @@ def quality_client(tmp_path):
         quality_score=7.0,
     )
     store.insert_buildable_unit(unit)
+    store.insert_idea_critique(
+        "bu-quality001",
+        {
+            "urgency": 8,
+            "buyer_clarity": 7,
+            "specificity": 8,
+            "evidence_support": 6,
+            "feasibility": 7,
+            "differentiation": 6,
+            "distribution_path": 6,
+            "domain_risk": 7,
+            "novelty": 6,
+            "usefulness": 8,
+            "quality_score": 6.9,
+            "reasoning": "Specific buyer and workflow are present.",
+            "rejection_tags": [],
+        },
+        evidence_pack={"domain_name": "developer-tools", "insights": []},
+        pipeline_run_id="run-quality",
+    )
     store.close()
 
     app = create_app()
@@ -66,6 +86,7 @@ def test_idea_detail_includes_quality_fields(quality_client):
     assert data["novelty_score"] == 6.0
     assert data["usefulness_score"] == 8.0
     assert data["quality_score"] == 7.0
+    assert data["latest_critique"]["dimensions"]["buyer_clarity"] == 7
 
 
 def test_idea_summary_includes_quality_fields(quality_client):
@@ -76,6 +97,21 @@ def test_idea_summary_includes_quality_fields(quality_client):
     assert item["buyer"] == "VP engineering"
     assert item["workflow_context"] == "release validation"
     assert item["quality_score"] == 7.0
+    assert item["latest_critique"]["dimensions"]["usefulness"] == 8
+
+
+def test_idea_critiques_endpoint(quality_client):
+    resp = quality_client.get("/api/v1/ideas/bu-quality001/critiques")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["pipeline_run_id"] == "run-quality"
+    assert data[0]["dimensions"]["quality_score"] == 6.9
+
+
+def test_idea_evidence_pack_endpoint(quality_client):
+    resp = quality_client.get("/api/v1/ideas/bu-quality001/evidence-pack")
+    assert resp.status_code == 200
+    assert resp.json()["domain_name"] == "developer-tools"
 
 
 def test_pipeline_run_accepts_quality_loop_flags(quality_client):

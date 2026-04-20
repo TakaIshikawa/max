@@ -71,9 +71,24 @@ def _gap_summary(gap: Gap) -> dict:
     }
 
 
-def _patterns_from_feedback(store: Store, *, limit: int = 50) -> tuple[list[str], list[str]]:
+def _patterns_from_feedback(
+    store: Store,
+    *,
+    domain: str | None = None,
+    limit: int = 50,
+) -> tuple[list[str], list[str]]:
     rejected: list[str] = []
     successful: list[str] = []
+    if hasattr(store, "get_idea_memory"):
+        memory_rows = store.get_idea_memory(domain=domain, limit=limit)
+        for row in memory_rows:
+            pattern = row.get("pattern") or ""
+            if not pattern:
+                continue
+            if row.get("outcome") in ("rejected", "quality_rejected"):
+                rejected.append(pattern)
+            elif row.get("outcome") in ("approved", "quality_passed", "published"):
+                successful.append(pattern)
     for row in store.get_feedback_log(limit=limit):
         title = row.get("title") or ""
         reason = row.get("reason") or ""
@@ -118,5 +133,7 @@ def build_evidence_pack(
         elif role == "market":
             pack.market_signals.append(_signal_summary(signal))
 
-    pack.rejected_patterns, pack.successful_patterns = _patterns_from_feedback(store)
+    pack.rejected_patterns, pack.successful_patterns = _patterns_from_feedback(
+        store, domain=pack.domain_name or None,
+    )
     return pack

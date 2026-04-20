@@ -103,3 +103,5 @@ def test_run_pipeline_quality_loop_wires_critique_revision_and_gate():
     assert result.ideas_rejected_by_quality_gate == 0
     assert result.ideas_generated == 1
     assert result.ideas_evaluated == 1
+    store.insert_idea_memory.assert_called_once()
+    assert store.insert_idea_memory.call_args.kwargs["outcome"] == "quality_passed"

@@ -23,6 +23,31 @@ domain:
     - small_business_owners
     - developers
     - both
+  target_segments:
+    - mid-market financial institutions
+    - fintech compliance teams
+    - SMB finance operators
+  workflows:
+    - regulatory evidence collection
+    - fraud review
+    - risk reporting
+    - open banking reconciliation
+  buyer_roles:
+    - chief compliance officer
+    - head of risk
+    - finance operations lead
+  hard_constraints:
+    - auditable outputs required
+    - avoid storing unnecessary financial PII
+    - integrate with existing accounting or banking data flows
+  bad_idea_patterns:
+    - generic finance chatbot
+    - trading signal tool without compliance controls
+    - dashboard without filing or review workflow
+  good_idea_criteria:
+    - tied to regulatory deadline or loss reduction
+    - clear buyer and audit trail
+    - testable with synthetic or exported data in 2 weeks
   extra_instructions: >-
     DORA (Digital Operational Resilience Act) is fully enforceable since Jan 2025.
     EU AI Act high-risk rules apply to credit scoring and employment decisions.

@@ -22,6 +22,32 @@ domain:
     - field_workers
     - subcontractors
     - both
+  target_segments:
+    - small general contractors
+    - subcontractor operations teams
+    - field service crews
+  workflows:
+    - daily reports
+    - jobsite photo documentation
+    - subcontractor coordination
+    - payment tracking
+    - safety incident reporting
+  buyer_roles:
+    - owner operator
+    - operations manager
+    - project executive
+  hard_constraints:
+    - mobile-first field workflow
+    - low-connectivity operation
+    - minimal data entry for crews
+  bad_idea_patterns:
+    - desktop dashboard for field workers
+    - platform replacing existing project management system
+    - tool requiring perfect BIM data
+  good_idea_criteria:
+    - replaces paper or spreadsheets
+    - saves time on a daily field workflow
+    - testable on one active jobsite within 2 weeks
   extra_instructions: >-
     Highest primitive-tooling-vs-clear-pain ratio of any domain. 730K+ US
     construction companies operating on paper, photos on personal phones,

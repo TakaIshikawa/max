@@ -23,6 +23,31 @@ domain:
     - newsletter_writers
     - streamers
     - both
+  target_segments:
+    - solo creators with paid audiences
+    - podcast production teams
+    - creator operators managing multiple channels
+  workflows:
+    - long-form content repurposing
+    - sponsorship pipeline tracking
+    - publishing calendar management
+    - audience feedback analysis
+  buyer_roles:
+    - creator founder
+    - producer
+    - creator operations lead
+  hard_constraints:
+    - preserve creator voice and brand style
+    - work across multiple platforms
+    - avoid platform terms violations
+  bad_idea_patterns:
+    - generic content idea generator
+    - analytics dashboard without workflow action
+    - marketplace without clear supply acquisition
+  good_idea_criteria:
+    - saves creator production time
+    - connects directly to monetization or retention
+    - testable with one creator workflow in 2 weeks
   extra_instructions: >-
     Creator economy valued at $178-214B in 2025-2026 with 22-23% CAGR.
     Content repurposing is the #1 pain point — converting a 60-minute podcast
