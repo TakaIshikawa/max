@@ -250,10 +250,9 @@ class TestIdeaCreate:
         assert "solution" in missing_fields
         assert "value_proposition" in missing_fields
 
-    def test_target_users_validation(self):
-        """Test target_users literal validation."""
-        # Valid values
-        for val in ["humans", "agents", "both"]:
+    def test_target_users_accepts_profile_defined_values(self):
+        """Test target_users accepts generic and profile-defined values."""
+        for val in ["humans", "agents", "both", "clinicians", "administrators"]:
             idea = IdeaCreate(
                 title="T",
                 one_liner="O",
@@ -263,17 +262,6 @@ class TestIdeaCreate:
                 target_users=val,
             )
             assert idea.target_users == val
-
-        # Invalid values
-        with pytest.raises(ValidationError):
-            IdeaCreate(
-                title="T",
-                one_liner="O",
-                problem="P",
-                solution="S",
-                value_proposition="V",
-                target_users="invalid",
-            )
 
     def test_category_min_length(self):
         """Test category has minimum length validation."""
@@ -355,6 +343,8 @@ class TestPipelineRunRequest:
         assert request.min_score == 50.0
         assert request.weight_profile == "default"
         assert request.ideation_mode == "direct"
+        assert request.quality_loop_enabled is False
+        assert request.draft_count == 8
         assert request.output_dir is None
         assert request.stages is None
 
@@ -365,6 +355,8 @@ class TestPipelineRunRequest:
             min_score=75.0,
             weight_profile="moonshots",
             ideation_mode="refinement",
+            quality_loop_enabled=True,
+            draft_count=12,
             output_dir="/tmp/out",
             stages=["fetch", "synthesize"],
         )
@@ -372,6 +364,8 @@ class TestPipelineRunRequest:
         assert request.min_score == 75.0
         assert request.weight_profile == "moonshots"
         assert request.ideation_mode == "refinement"
+        assert request.quality_loop_enabled is True
+        assert request.draft_count == 12
         assert request.output_dir == "/tmp/out"
         assert request.stages == ["fetch", "synthesize"]
 
@@ -420,11 +414,18 @@ class TestPipelineRunRequest:
 
     def test_serialization(self):
         """Test model_dump produces expected JSON structure."""
-        request = PipelineRunRequest(signal_limit=50, min_score=60.0)
+        request = PipelineRunRequest(
+            signal_limit=50,
+            min_score=60.0,
+            quality_loop_enabled=True,
+            draft_count=10,
+        )
         dumped = request.model_dump()
         assert dumped["signal_limit"] == 50
         assert dumped["min_score"] == 60.0
         assert dumped["weight_profile"] == "default"
+        assert dumped["quality_loop_enabled"] is True
+        assert dumped["draft_count"] == 10
 
 
 class TestPipelineDryRunRequest:

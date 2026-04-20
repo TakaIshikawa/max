@@ -134,6 +134,13 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
         domain=unit.domain,
         status=unit.status,
         target_users=unit.target_users,
+        specific_user=unit.specific_user,
+        buyer=unit.buyer,
+        workflow_context=unit.workflow_context,
+        quality_score=unit.quality_score,
+        novelty_score=unit.novelty_score,
+        usefulness_score=unit.usefulness_score,
+        rejection_tags=unit.rejection_tags,
         score=evaluation.overall_score if evaluation else None,
         recommendation=evaluation.recommendation if evaluation else None,
     )
@@ -173,6 +180,19 @@ def _unit_detail(unit, evaluation=None) -> IdeaDetailResponse:
         solution=unit.solution,
         target_users=unit.target_users,
         value_proposition=unit.value_proposition,
+        specific_user=unit.specific_user,
+        buyer=unit.buyer,
+        workflow_context=unit.workflow_context,
+        current_workaround=unit.current_workaround,
+        why_now=unit.why_now,
+        validation_plan=unit.validation_plan,
+        first_10_customers=unit.first_10_customers,
+        domain_risks=unit.domain_risks,
+        evidence_rationale=unit.evidence_rationale,
+        novelty_score=unit.novelty_score,
+        usefulness_score=unit.usefulness_score,
+        quality_score=unit.quality_score,
+        rejection_tags=unit.rejection_tags,
         inspiring_insights=unit.inspiring_insights,
         evidence_signals=unit.evidence_signals,
         tech_approach=unit.tech_approach,
@@ -364,6 +384,15 @@ def create_idea(
         solution=body.solution,
         target_users=body.target_users,
         value_proposition=body.value_proposition,
+        specific_user=body.specific_user,
+        buyer=body.buyer,
+        workflow_context=body.workflow_context,
+        current_workaround=body.current_workaround,
+        why_now=body.why_now,
+        validation_plan=body.validation_plan,
+        first_10_customers=body.first_10_customers,
+        domain_risks=body.domain_risks,
+        evidence_rationale=body.evidence_rationale,
         tech_approach=body.tech_approach,
         suggested_stack=body.suggested_stack,
         composability_notes=body.composability_notes,
@@ -388,7 +417,7 @@ def create_feedback(
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
-    store.insert_feedback(idea_id, body.outcome, body.reason)
+    store.insert_feedback(idea_id, body.outcome, body.reason, approval_score=body.approval_score)
     store.update_buildable_unit_status(idea_id, body.outcome)
     return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
 
@@ -412,6 +441,8 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         min_score=body.min_score,
         weight_profile=body.weight_profile,
         ideation_mode=body.ideation_mode,
+        quality_loop_enabled=body.quality_loop_enabled,
+        draft_count=body.draft_count,
         stages=body.stages,
     )
     return PipelineResultResponse(
@@ -420,6 +451,11 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         insights_generated=result.insights_generated,
         ideas_generated=result.ideas_generated,
         ideas_evaluated=result.ideas_evaluated,
+        draft_ideas_generated=result.draft_ideas_generated,
+        ideas_revised=result.ideas_revised,
+        ideas_rejected_by_quality_gate=result.ideas_rejected_by_quality_gate,
+        avg_novelty_score=result.avg_novelty_score,
+        avg_usefulness_score=result.avg_usefulness_score,
         avg_insight_confidence=result.avg_insight_confidence,
         avg_idea_score=result.avg_idea_score,
         token_usage=result.token_usage,

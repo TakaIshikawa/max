@@ -41,8 +41,17 @@ class IdeaCreate(BaseModel):
     category: str = Field(default="application", min_length=1)
     problem: str
     solution: str
-    target_users: Literal["humans", "agents", "both"] = "both"
+    target_users: str = "both"
     value_proposition: str
+    specific_user: str = ""
+    buyer: str = ""
+    workflow_context: str = ""
+    current_workaround: str = ""
+    why_now: str = ""
+    validation_plan: str = ""
+    first_10_customers: str = ""
+    domain_risks: list[str] = Field(default_factory=list)
+    evidence_rationale: str = ""
     tech_approach: str = ""
     suggested_stack: dict = Field(default_factory=dict)
     composability_notes: str = ""
@@ -51,6 +60,7 @@ class IdeaCreate(BaseModel):
 class FeedbackCreate(BaseModel):
     outcome: Literal["approved", "rejected", "published", "abandoned"]
     reason: str = ""
+    approval_score: int | None = Field(default=None, ge=1, le=10)
 
 
 class PipelineRunRequest(BaseModel):
@@ -60,6 +70,8 @@ class PipelineRunRequest(BaseModel):
         "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
     ] = "default"
     ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
+    quality_loop_enabled: bool = False
+    draft_count: int = Field(default=8, ge=1, le=50)
     output_dir: str | None = None
     stages: list[str] | None = None
 
@@ -155,6 +167,13 @@ class IdeaSummaryResponse(BaseModel):
     domain: str = ""
     status: str
     target_users: str
+    specific_user: str = ""
+    buyer: str = ""
+    workflow_context: str = ""
+    quality_score: float = 0.0
+    novelty_score: float = 0.0
+    usefulness_score: float = 0.0
+    rejection_tags: list[str] = Field(default_factory=list)
     score: float | None = None
     recommendation: str | None = None
 
@@ -170,6 +189,19 @@ class IdeaDetailResponse(BaseModel):
     solution: str
     target_users: str
     value_proposition: str
+    specific_user: str = ""
+    buyer: str = ""
+    workflow_context: str = ""
+    current_workaround: str = ""
+    why_now: str = ""
+    validation_plan: str = ""
+    first_10_customers: str = ""
+    domain_risks: list[str] = Field(default_factory=list)
+    evidence_rationale: str = ""
+    novelty_score: float = 0.0
+    usefulness_score: float = 0.0
+    quality_score: float = 0.0
+    rejection_tags: list[str] = Field(default_factory=list)
     inspiring_insights: list[str]
     evidence_signals: list[str]
     tech_approach: str
@@ -187,6 +219,11 @@ class PipelineResultResponse(BaseModel):
     insights_generated: int
     ideas_generated: int
     ideas_evaluated: int
+    draft_ideas_generated: int = 0
+    ideas_revised: int = 0
+    ideas_rejected_by_quality_gate: int = 0
+    avg_novelty_score: float = 0.0
+    avg_usefulness_score: float = 0.0
     avg_insight_confidence: float
     avg_idea_score: float
     token_usage: dict[str, int]
