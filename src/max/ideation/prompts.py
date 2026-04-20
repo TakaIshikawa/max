@@ -39,6 +39,16 @@ def get_system_prompt(domain: DomainContext | None = None) -> str:
         return _DEFAULT_SYSTEM
     categories_text = "\n".join(f"- {cat}" for cat in domain.categories)
     target_text = " | ".join(domain.target_user_types)
+    constraints_text = "\n".join(f"- {c}" for c in domain.hard_constraints)
+    bad_patterns_text = "\n".join(f"- {p}" for p in domain.bad_idea_patterns)
+    criteria_text = "\n".join(f"- {c}" for c in domain.good_idea_criteria)
+    quality_blocks = ""
+    if constraints_text:
+        quality_blocks += f"\n\nHard constraints:\n{constraints_text}"
+    if bad_patterns_text:
+        quality_blocks += f"\n\nAvoid these weak idea patterns:\n{bad_patterns_text}"
+    if criteria_text:
+        quality_blocks += f"\n\nGood ideas should satisfy:\n{criteria_text}"
     extra = f"\n\n{domain.extra_instructions}" if domain.extra_instructions else ""
     return f"""\
 You are a product ideation engine for {domain.description}. \
@@ -54,6 +64,7 @@ Categories:
 {categories_text}
 
 Target users: {target_text}\
+{quality_blocks}\
 {extra}
 """
 
@@ -90,10 +101,21 @@ EXISTING IDEAS (do NOT regenerate these — generate DIFFERENT ideas):
 
     domain_label = f"the {domain.name} domain" if domain else "the developer/AI ecosystem"
     target_label = " | ".join(domain.target_user_types) if domain else "humans, agents, or both"
+    domain_focus = ""
+    if domain:
+        focus_lines = []
+        if domain.target_segments:
+            focus_lines.append(f"Target segments: {', '.join(domain.target_segments)}")
+        if domain.workflows:
+            focus_lines.append(f"Workflows: {', '.join(domain.workflows)}")
+        if domain.buyer_roles:
+            focus_lines.append(f"Buyer roles: {', '.join(domain.buyer_roles)}")
+        if focus_lines:
+            domain_focus = "DOMAIN FOCUS:\n" + "\n".join(focus_lines) + "\n\n"
 
     return f"""\
 Generate buildable project ideas based on these insights from {domain_label}.
-{learned_block}{existing_block}{gaps_block}
+{learned_block}{existing_block}{gaps_block}{domain_focus}
 INSIGHTS:
 {insights_json}
 
@@ -104,12 +126,15 @@ For each idea:
 4. Articulate the value proposition
 5. Sketch the technical approach
 6. Note composability — how it could integrate with other tools/systems
+7. Identify the specific user, buyer, workflow moment, current workaround, why now, validation plan, first 10 customers, domain risks, and evidence rationale
 
 Generate 3-5 distinct ideas. Favor ideas that:
 - Address pain points with high severity
 - Serve the broadest relevant audience
 - Have high composability with existing ecosystems
-- Can be built and shipped as focused, well-scoped projects\
+- Can be built and shipped as focused, well-scoped projects
+- Are specific enough to test with real users within 2 weeks
+- Avoid generic assistants, dashboards, marketplaces, and ideas without a clear buyer\
 """
 
 

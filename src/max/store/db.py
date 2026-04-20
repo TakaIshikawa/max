@@ -395,10 +395,13 @@ class Store:
         self.conn.execute(
             """INSERT INTO buildable_units
                (id, title, one_liner, category, ideation_mode, problem, solution,
-                target_users, value_proposition, inspiring_insights, evidence_signals,
+                target_users, value_proposition, specific_user, buyer, workflow_context,
+                current_workaround, why_now, validation_plan, first_10_customers,
+                domain_risks, evidence_rationale, novelty_score, usefulness_score,
+                quality_score, rejection_tags, inspiring_insights, evidence_signals,
                 tech_approach, suggested_stack, composability_notes, status, domain,
                 source_idea_ids, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 unit.id,
                 unit.title,
@@ -409,6 +412,19 @@ class Store:
                 unit.solution,
                 unit.target_users,
                 unit.value_proposition,
+                unit.specific_user,
+                unit.buyer,
+                unit.workflow_context,
+                unit.current_workaround,
+                unit.why_now,
+                unit.validation_plan,
+                unit.first_10_customers,
+                json.dumps(unit.domain_risks),
+                unit.evidence_rationale,
+                unit.novelty_score,
+                unit.usefulness_score,
+                unit.quality_score,
+                json.dumps(unit.rejection_tags),
                 json.dumps(unit.inspiring_insights),
                 json.dumps(unit.evidence_signals),
                 unit.tech_approach,
@@ -621,10 +637,12 @@ class Store:
         unit_id: str,
         outcome: str,
         reason: str = "",
+        approval_score: int | None = None,
     ) -> None:
         """Record feedback on a buildable unit.
 
-        outcome: approved | rejected | published | abandoned
+        outcome: approved | rejected | abandoned | synthesized
+        approval_score: 1-10 conviction score (only for approvals)
         """
         # Get dimension values from evaluation if available
         evaluation = self.get_evaluation(unit_id)
@@ -642,16 +660,17 @@ class Store:
 
         self.conn.execute(
             """INSERT INTO feedback
-               (buildable_unit_id, outcome, reason, dimension_values, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (unit_id, outcome, reason, json.dumps(dimension_values), _now_iso()),
+               (buildable_unit_id, outcome, reason, dimension_values, approval_score, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (unit_id, outcome, reason, json.dumps(dimension_values), approval_score, _now_iso()),
         )
         self._commit()
 
     def get_feedback_log(self, *, limit: int = 50) -> list[dict]:
         """Get recent feedback records with unit details for display."""
         rows = self.conn.execute(
-            """SELECT f.buildable_unit_id, f.outcome, f.reason, f.created_at,
+            """SELECT f.buildable_unit_id, f.outcome, f.reason, f.approval_score,
+                      f.created_at,
                       bu.title, bu.domain, bu.category,
                       e.overall_score, e.recommendation
                FROM feedback f
@@ -665,6 +684,7 @@ class Store:
                 "unit_id": row["buildable_unit_id"],
                 "outcome": row["outcome"],
                 "reason": row["reason"],
+                "approval_score": row["approval_score"],
                 "created_at": row["created_at"],
                 "title": row["title"],
                 "domain": row["domain"],
@@ -686,7 +706,7 @@ class Store:
     def get_feedback_outcomes(self) -> list[dict]:
         """Get all feedback records formatted for weight adaptation."""
         rows = self.conn.execute(
-            "SELECT buildable_unit_id, outcome, dimension_values FROM feedback"
+            "SELECT buildable_unit_id, outcome, dimension_values, approval_score FROM feedback"
         ).fetchall()
 
         outcomes = []
@@ -697,6 +717,7 @@ class Store:
                 "buildable_unit_id": row["buildable_unit_id"],
                 "dimension_values": dim_vals,
                 "success": success,
+                "approval_score": row["approval_score"],
             })
         return outcomes
 
@@ -968,7 +989,6 @@ class Store:
         archivable_insight_ids = []
         for row in old_insights:
             insight_id = row[0]
-            evidence = json.loads(row[1])  # list of signal IDs referenced
 
             # Find buildable_units that reference this insight
             units = self.conn.execute(
@@ -1123,6 +1143,19 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         solution=row["solution"],
         target_users=row["target_users"],
         value_proposition=row["value_proposition"],
+        specific_user=row["specific_user"] if "specific_user" in row.keys() else "",
+        buyer=row["buyer"] if "buyer" in row.keys() else "",
+        workflow_context=row["workflow_context"] if "workflow_context" in row.keys() else "",
+        current_workaround=row["current_workaround"] if "current_workaround" in row.keys() else "",
+        why_now=row["why_now"] if "why_now" in row.keys() else "",
+        validation_plan=row["validation_plan"] if "validation_plan" in row.keys() else "",
+        first_10_customers=row["first_10_customers"] if "first_10_customers" in row.keys() else "",
+        domain_risks=json.loads(row["domain_risks"]) if "domain_risks" in row.keys() else [],
+        evidence_rationale=row["evidence_rationale"] if "evidence_rationale" in row.keys() else "",
+        novelty_score=row["novelty_score"] if "novelty_score" in row.keys() else 0.0,
+        usefulness_score=row["usefulness_score"] if "usefulness_score" in row.keys() else 0.0,
+        quality_score=row["quality_score"] if "quality_score" in row.keys() else 0.0,
+        rejection_tags=json.loads(row["rejection_tags"]) if "rejection_tags" in row.keys() else [],
         inspiring_insights=json.loads(row["inspiring_insights"]),
         evidence_signals=json.loads(row["evidence_signals"]),
         tech_approach=row["tech_approach"],

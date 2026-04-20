@@ -32,6 +32,15 @@ class BuildableUnitOutput(BaseModel):
     solution: str = ""
     target_users: str = "both"
     value_proposition: str = ""
+    specific_user: str = ""
+    buyer: str = ""
+    workflow_context: str = ""
+    current_workaround: str = ""
+    why_now: str = ""
+    validation_plan: str = ""
+    first_10_customers: str = ""
+    domain_risks: list[str] = Field(default_factory=list)
+    evidence_rationale: str = ""
     inspiring_insights: list[str] = Field(default_factory=list)
     tech_approach: str = ""
     suggested_stack: dict = Field(default_factory=dict)
@@ -75,6 +84,15 @@ def _units_to_json(units: list[BuildableUnit]) -> str:
                 "solution": u.solution,
                 "target_users": u.target_users,
                 "value_proposition": u.value_proposition,
+                "specific_user": u.specific_user,
+                "buyer": u.buyer,
+                "workflow_context": u.workflow_context,
+                "current_workaround": u.current_workaround,
+                "why_now": u.why_now,
+                "validation_plan": u.validation_plan,
+                "first_10_customers": u.first_10_customers,
+                "domain_risks": u.domain_risks,
+                "evidence_rationale": u.evidence_rationale,
                 "tech_approach": u.tech_approach,
                 "composability_notes": u.composability_notes,
             }
@@ -88,9 +106,11 @@ def _parse_output(
     result: IdeationOutput,
     insights: list[Insight],
     mode: IdeationMode,
+    domain: DomainContext | None = None,
 ) -> list[BuildableUnit]:
     """Convert LLM output to BuildableUnit list with evidence tracing."""
     insight_map = {i.id: i for i in insights}
+    valid_target_users = set(domain.target_user_types) if domain else {"humans", "agents", "both"}
     units: list[BuildableUnit] = []
 
     for out in result.ideas:
@@ -113,10 +133,17 @@ def _parse_output(
                 ideation_mode=mode,
                 problem=out.problem,
                 solution=out.solution,
-                target_users=out.target_users
-                if out.target_users in ("humans", "agents", "both")
-                else "both",
+                target_users=out.target_users if out.target_users in valid_target_users else "both",
                 value_proposition=out.value_proposition,
+                specific_user=out.specific_user,
+                buyer=out.buyer,
+                workflow_context=out.workflow_context,
+                current_workaround=out.current_workaround,
+                why_now=out.why_now,
+                validation_plan=out.validation_plan,
+                first_10_customers=out.first_10_customers,
+                domain_risks=out.domain_risks,
+                evidence_rationale=out.evidence_rationale,
                 inspiring_insights=out.inspiring_insights,
                 evidence_signals=list(set(evidence_signals)),
                 tech_approach=out.tech_approach,
@@ -163,7 +190,7 @@ def ideate(
         stage="ideation",
     )
 
-    return _parse_output(result, insights, IdeationMode.DIRECT)
+    return _parse_output(result, insights, IdeationMode.DIRECT, domain=domain)
 
 
 def ideate_refinement(
@@ -186,7 +213,7 @@ def ideate_refinement(
         stage="ideation_refinement",
     )
 
-    return _parse_output(result, new_insights, IdeationMode.REFINEMENT)
+    return _parse_output(result, new_insights, IdeationMode.REFINEMENT, domain=domain)
 
 
 def ideate_cross_domain(
@@ -231,6 +258,8 @@ def ideate_cross_domain(
         )
 
         all_insights = insight_domain_groups[domain_a] + insight_domain_groups[domain_b]
-        all_units.extend(_parse_output(result, all_insights, IdeationMode.CROSS_DOMAIN))
+        all_units.extend(
+            _parse_output(result, all_insights, IdeationMode.CROSS_DOMAIN, domain=domain)
+        )
 
     return all_units

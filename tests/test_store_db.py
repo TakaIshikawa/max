@@ -320,6 +320,19 @@ class TestBuildableUnitOperations:
         assert unit.suggested_stack == {"language": "typescript", "runtime": "node"}
         assert unit.composability_notes == "Integrates with CI/CD pipelines"
         assert unit.evidence_signals == ["sig-test001"]
+        assert unit.specific_user == "MCP server maintainer"
+        assert unit.buyer == "developer platform lead"
+        assert unit.workflow_context == "pre-release CI validation"
+        assert unit.current_workaround == "manual protocol testing"
+        assert unit.why_now == "MCP server adoption is growing"
+        assert unit.validation_plan == "run against five open-source MCP servers"
+        assert unit.first_10_customers == "teams publishing MCP servers"
+        assert unit.domain_risks == ["protocol churn"]
+        assert unit.evidence_rationale == "Insight shows lack of standardized testing."
+        assert unit.novelty_score == 7.0
+        assert unit.usefulness_score == 8.0
+        assert unit.quality_score == 7.5
+        assert unit.rejection_tags == []
 
 
 # ── Evaluation operations ────────────────────────────────────────────

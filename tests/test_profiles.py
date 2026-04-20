@@ -40,6 +40,12 @@ def test_domain_context_required_fields():
     )
     assert dc.name == "test"
     assert dc.extra_instructions == ""
+    assert dc.target_segments == []
+    assert dc.workflows == []
+    assert dc.buyer_roles == []
+    assert dc.hard_constraints == []
+    assert dc.bad_idea_patterns == []
+    assert dc.good_idea_criteria == []
 
 
 def test_evaluation_config_defaults():
@@ -63,6 +69,8 @@ def test_pipeline_profile_defaults():
     assert profile.signal_limit == 30
     assert profile.ideation_mode == "direct"
     assert profile.output_dir == ".max-output"
+    assert profile.quality_loop_enabled is False
+    assert profile.draft_count == 8
 
 
 def test_default_domain_context_values():
@@ -84,7 +92,7 @@ def test_load_devtools_profile():
     profile = load_profile("devtools")
     assert profile.name == "devtools"
     assert profile.domain.name == "developer-tools"
-    assert len(profile.sources) == 8
+    assert len(profile.sources) == 11
     assert profile.signal_limit == 30
     assert profile.evaluation.weight_profile == "default"
 
@@ -97,6 +105,9 @@ def test_load_healthcare_profile():
     assert "clinical_tool" in profile.domain.categories
     assert "clinicians" in profile.domain.target_user_types
     assert "HIPAA" in profile.domain.extra_instructions
+    assert "small specialty clinics" in profile.domain.target_segments
+    assert "prior authorization" in profile.domain.workflows
+    assert profile.quality_loop_enabled is False
     assert profile.signal_limit == 25
 
 
@@ -110,7 +121,7 @@ def test_get_default_profile_matches_devtools():
     default = get_default_profile()
     assert default.name == "devtools"
     assert default.domain.name == "developer-tools"
-    assert len(default.sources) == 8
+    assert len(default.sources) == 11
 
     # Verify adapter names match
     adapter_names = [s.adapter for s in default.sources]

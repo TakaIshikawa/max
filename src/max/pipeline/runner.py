@@ -18,7 +18,11 @@ from max.analysis.triangulation import format_cluster_context, triangulate
 from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
 from max.evaluation.weights import get_adapted_weights
+from max.ideation.critique import apply_critiques, critique_ideas
+from max.ideation.evidence import build_evidence_pack
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
+from max.ideation.quality_gate import quality_gate
+from max.ideation.revision import revise_ideas
 from max.llm.client import BudgetExceededError, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
 from max.sources.base import AdapterCircuitOpenError
@@ -46,6 +50,14 @@ STAGE_ORDER = [
     'evaluate',
 ]
 
+# Post-evaluation stages (run after all profiles complete)
+POST_EVAL_STAGES = [
+    'dedup',
+    'synthesize_ideas',
+    'prior_art',
+    'triage',
+]
+
 
 @dataclass
 class PipelineResult:
@@ -60,6 +72,11 @@ class PipelineResult:
     ideas_duplicates_skipped: int = 0
     ideas_evaluated: int = 0
     top_ideas: list[dict] = field(default_factory=list)
+    draft_ideas_generated: int = 0
+    ideas_revised: int = 0
+    ideas_rejected_by_quality_gate: int = 0
+    avg_novelty_score: float = 0.0
+    avg_usefulness_score: float = 0.0
 
     # Quality metrics
     weights_adapted: bool = False
@@ -89,6 +106,31 @@ class PipelineResult:
     budget_exceeded: bool = False
 
 
+@dataclass
+class PostPipelineResult:
+    """Summary of post-evaluation stages (dedup → synthesize → prior-art → triage)."""
+
+    # Dedup
+    duplicates_found: int = 0
+    duplicates_marked: int = 0
+
+    # Synthesize ideas
+    synthesis_clusters: int = 0
+    ideas_synthesized: int = 0
+    source_ideas_merged: int = 0
+
+    # Prior art
+    prior_art_checked: int = 0
+    prior_art_strong: int = 0
+    prior_art_weak: int = 0
+    prior_art_clear: int = 0
+
+    # Triage
+    triage_auto_approved: int = 0
+    triage_auto_rejected: int = 0
+    triage_pending_review: int = 0
+
+
 def run_pipeline(
     *,
     profile: PipelineProfile | None = None,
@@ -97,6 +139,8 @@ def run_pipeline(
     min_score: float = 50.0,
     weight_profile: str = "default",
     ideation_mode: str = "direct",
+    quality_loop_enabled: bool = False,
+    draft_count: int = 8,
     dry_run: bool = False,
     stages: list[str] | None = None,
 ) -> PipelineResult | DryRunReport:
@@ -129,6 +173,8 @@ def run_pipeline(
         min_score = profile.evaluation.min_score
         weight_profile = profile.evaluation.weight_profile
         ideation_mode = profile.ideation_mode
+        quality_loop_enabled = profile.quality_loop_enabled
+        draft_count = profile.draft_count
 
     token_tracker.reset()
     store = Store()
@@ -158,6 +204,8 @@ def run_pipeline(
         "min_score": min_score,
         "weight_profile": weight_profile,
         "ideation_mode": ideation_mode,
+        "quality_loop_enabled": quality_loop_enabled,
+        "draft_count": draft_count,
         "profile": profile.name if profile else None,
     }
     store.insert_pipeline_run(run_id, config)
@@ -250,8 +298,16 @@ def run_pipeline(
         # 4. Ideate (supports multiple modes, with memory of existing ideas)
         units: list[BuildableUnit] = []
         if 'ideate' in active_stages:
-            recent_insights = store.get_insights(limit=20)
-            recent_ideas = store.get_buildable_units(limit=30)
+            # Prefer current-run insights; fall back to domain-filtered store insights
+            if insights:
+                recent_insights = insights
+            else:
+                all_insights = store.get_insights(limit=50)
+                recent_insights = _filter_insights_for_domain(all_insights, domain)
+
+            # Scope existing ideas to current domain to avoid cross-domain contamination
+            domain_name = domain.name if domain else None
+            recent_ideas = store.get_buildable_units(limit=30, domain=domain_name)
 
             if ideation_mode in ("direct", "all"):
                 units.extend(ideate(
@@ -263,7 +319,9 @@ def run_pipeline(
                 ))
 
             if ideation_mode in ("refinement", "all"):
-                existing = store.get_buildable_units(status="evaluated", limit=10)
+                existing = store.get_buildable_units(
+                    status="evaluated", limit=10, domain=domain_name,
+                )
                 if existing:
                     units.extend(ideate_refinement(existing, recent_insights, domain=domain))
 
@@ -276,7 +334,57 @@ def run_pipeline(
                     domain=domain,
                 ))
 
-            dedup = dedup_buildable_units(units, semantic_index)
+            result.draft_ideas_generated = len(units)
+
+            if quality_loop_enabled and units:
+                evidence_pack = build_evidence_pack(
+                    insights=recent_insights,
+                    store=store,
+                    domain=domain,
+                    gaps=gaps,
+                )
+                draft_units = units[: max(1, draft_count)]
+                critiques = critique_ideas(draft_units, evidence_pack)
+                draft_units = apply_critiques(draft_units, critiques)
+                revised_units = revise_ideas(
+                    draft_units,
+                    critiques,
+                    evidence_pack,
+                    recent_insights,
+                )
+                revised_units = apply_critiques(revised_units, critiques)
+                kept_units, rejected_units = quality_gate(revised_units)
+                units = kept_units
+                result.ideas_revised = len(revised_units)
+                result.ideas_rejected_by_quality_gate = len(rejected_units)
+                if revised_units:
+                    result.avg_novelty_score = (
+                        sum(u.novelty_score for u in revised_units) / len(revised_units)
+                    )
+                    result.avg_usefulness_score = (
+                        sum(u.usefulness_score for u in revised_units) / len(revised_units)
+                    )
+
+            # Collect product names from existing ideas in the store
+            from max.pipeline.dedup import _extract_product_name
+
+            existing_units = store.get_buildable_units(limit=500)
+            existing_names = {
+                _extract_product_name(u.title)
+                for u in existing_units
+                if u.status not in ("rejected", "duplicate")
+            }
+
+            # Index existing ideas into semantic index so dedup catches
+            # semantically similar ideas across runs (not just within a batch)
+            for eu in existing_units:
+                if eu.status not in ("rejected", "duplicate"):
+                    eu_text = f"{eu.title} {eu.one_liner or ''}"
+                    semantic_index.index_entity(eu.id, "buildable_unit", eu_text)
+
+            dedup = dedup_buildable_units(
+                units, semantic_index, existing_names=existing_names,
+            )
             units = dedup.kept
             result.ideas_duplicates_skipped = dedup.duplicates
             domain_name = domain.name if domain else ""
@@ -365,6 +473,52 @@ def run_pipeline(
         store.close()
 
     return result
+
+
+def _filter_insights_for_domain(
+    insights: list, domain: DomainContext | None,
+) -> list:
+    """Filter insights to those relevant to the given domain.
+
+    Uses a strict whitelist of domain-specific terms derived from the profile
+    domain name.  Only insight ``domains`` entries are checked (not titles),
+    reducing false matches from generic words.
+
+    Returns up to 20 matching insights, or an empty list if nothing matches.
+    """
+    if domain is None or not insights:
+        return insights[:20]
+
+    # Map profile domain names to strict keyword sets for insight domain matching
+    _DOMAIN_KEYWORDS: dict[str, set[str]] = {
+        "developer-tools": {
+            "developer_tools", "developer_tool", "devtools", "mcp",
+            "mcp_ecosystem", "cli", "sdk", "ide",
+        },
+        "ai-infrastructure": {
+            "ai_infrastructure", "ml_infrastructure", "mlops", "ml_ops",
+            "model_serving", "inference", "training", "fine_tuning",
+            "vector_database", "gpu", "cuda",
+        },
+        "healthcare": {
+            "healthcare", "health_tech", "healthtech", "digital_health",
+            "clinical", "ehr", "fhir", "medical", "patient",
+            "telemedicine", "hipaa",
+        },
+    }
+
+    match_terms = _DOMAIN_KEYWORDS.get(domain.name, set())
+    if not match_terms:
+        # Unknown domain — derive from domain name
+        match_terms = {domain.name.lower().replace("-", "_")}
+
+    matched = []
+    for ins in insights:
+        ins_domains_lower = {d.lower() for d in (ins.domains or [])}
+        if ins_domains_lower & match_terms:
+            matched.append(ins)
+
+    return matched[:20]
 
 
 def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
@@ -668,3 +822,282 @@ def _generate_dry_run_report(
         estimated_total_llm_calls=total_llm_calls,
         estimated_token_budget=estimated_tokens,
     )
+
+
+def run_post_pipeline(
+    *,
+    domain: str | None = None,
+    stages: list[str] | None = None,
+    dedup_threshold: float = 0.85,
+    triage_approve_threshold: float = 68.0,
+    triage_reject_threshold: float = 50.0,
+    prior_art_auto_reject: bool = False,
+    limit: int = 500,
+) -> PostPipelineResult:
+    """Run post-evaluation stages: dedup → synthesize_ideas → prior_art → triage.
+
+    These stages operate across all domains and should run after all per-profile
+    pipeline runs complete.
+
+    Args:
+        domain: Optional domain filter (None = all domains).
+        stages: If provided, only run these post-eval stages.
+        dedup_threshold: Similarity threshold for dedup clustering.
+        triage_approve_threshold: Score threshold for auto-approve.
+        triage_reject_threshold: Score threshold for auto-reject.
+        prior_art_auto_reject: Auto-reject ideas with strong prior-art matches.
+        limit: Max ideas to process per stage.
+    """
+    active_stages = stages if stages else POST_EVAL_STAGES[:]
+
+    store = Store()
+    result = PostPipelineResult()
+
+    try:
+        # 1. Dedup — cluster similar ideas, mark lower-scored duplicates
+        if 'dedup' in active_stages:
+            result.duplicates_found, result.duplicates_marked = _run_dedup(
+                store, domain=domain, threshold=dedup_threshold, limit=limit,
+            )
+
+        # 2. Synthesize ideas — merge similar idea clusters into combined ideas
+        if 'synthesize_ideas' in active_stages:
+            synth = _run_synthesize_ideas(
+                store, domain=domain, threshold=dedup_threshold, limit=limit,
+            )
+            result.synthesis_clusters = synth[0]
+            result.ideas_synthesized = synth[1]
+            result.source_ideas_merged = synth[2]
+
+        # 3. Prior art — check for existing implementations
+        if 'prior_art' in active_stages:
+            pa = _run_prior_art(
+                store, domain=domain, auto_reject=prior_art_auto_reject, limit=limit,
+            )
+            result.prior_art_checked = pa[0]
+            result.prior_art_strong = pa[1]
+            result.prior_art_weak = pa[2]
+            result.prior_art_clear = pa[3]
+
+        # 4. Triage — auto-approve/reject by score thresholds
+        if 'triage' in active_stages:
+            tri = _run_triage(
+                store, domain=domain,
+                approve_threshold=triage_approve_threshold,
+                reject_threshold=triage_reject_threshold,
+                limit=limit,
+            )
+            result.triage_auto_approved = tri[0]
+            result.triage_auto_rejected = tri[1]
+            result.triage_pending_review = tri[2]
+
+    finally:
+        store.close()
+
+    return result
+
+
+def _run_dedup(
+    store: Store,
+    *,
+    domain: str | None,
+    threshold: float,
+    limit: int,
+) -> tuple[int, int]:
+    """Dedup stage: cluster ideas, mark duplicates. Returns (found, marked)."""
+    from max.analysis.dedup import cluster_ideas
+
+    units = store.get_buildable_units(limit=limit, domain=domain)
+    ideas = []
+    for unit in units:
+        if unit.status in ("duplicate", "archived"):
+            continue
+        ev = store.get_evaluation(unit.id)
+        if ev:
+            ideas.append((unit, ev))
+
+    if not ideas:
+        return 0, 0
+
+    clusters = cluster_ideas(ideas, similarity_threshold=threshold)
+    dup_clusters = [c for c in clusters if c.size > 1]
+
+    if not dup_clusters:
+        return 0, 0
+
+    total_found = sum(len(c.duplicates) for c in dup_clusters)
+    marked = 0
+    for cluster in dup_clusters:
+        cluster_marked = 0
+        for unit, ev in cluster.duplicates:
+            # Preserve prior user decisions — don't overwrite approved/rejected status
+            if unit.status in ("approved", "rejected"):
+                continue
+            reason = f"duplicate of {cluster.representative.id} ({cluster.representative.title[:50]})"
+            store.insert_feedback(unit.id, "rejected", f"auto-dedup: {reason}")
+            store.update_buildable_unit_status(unit.id, "duplicate")
+            marked += 1
+            cluster_marked += 1
+        logger.info(
+            "Dedup cluster: KEEP %s (status=%s), marked %d/%d duplicates",
+            cluster.representative.title[:50],
+            cluster.representative.status,
+            cluster_marked,
+            len(cluster.duplicates),
+        )
+
+    return total_found, marked
+
+
+def _run_synthesize_ideas(
+    store: Store,
+    *,
+    domain: str | None,
+    threshold: float,
+    limit: int,
+) -> tuple[int, int, int]:
+    """Synthesize stage: merge similar idea clusters. Returns (clusters, synthesized, source_count)."""
+    from max.analysis.dedup import cluster_ideas
+    from max.analysis.synthesize_ideas import run_synthesis
+
+    units = store.get_buildable_units(limit=limit, domain=domain)
+    active = [
+        u for u in units
+        if u.status not in ("rejected", "duplicate", "synthesized", "archived")
+    ]
+
+    pairs = []
+    for u in active:
+        ev = store.get_evaluation(u.id)
+        if ev:
+            pairs.append((u, ev))
+
+    if not pairs:
+        return 0, 0, 0
+
+    clusters = cluster_ideas(pairs, similarity_threshold=threshold)
+    multi_clusters = [c for c in clusters if c.size > 1]
+
+    if not multi_clusters:
+        return 0, 0, 0
+
+    synth_result = run_synthesis(clusters)
+
+    # Store synthesized ideas and update source statuses
+    for new_unit in synth_result.intra_synthesized:
+        store.insert_buildable_unit(new_unit)
+        for src_id in new_unit.source_idea_ids:
+            store.insert_feedback(src_id, "synthesized", f"merged into {new_unit.id}")
+            store.update_buildable_unit_status(src_id, "synthesized")
+        logger.info("Synthesized: %s", new_unit.title[:60])
+
+    for new_unit in synth_result.cross_synthesized:
+        store.insert_buildable_unit(new_unit)
+        for src_id in new_unit.source_idea_ids:
+            store.insert_feedback(src_id, "synthesized", f"cross-merged into {new_unit.id}")
+            store.update_buildable_unit_status(src_id, "synthesized")
+        logger.info("Cross-synthesized: %s", new_unit.title[:60])
+
+    total_synth = len(synth_result.intra_synthesized) + len(synth_result.cross_synthesized)
+    return len(multi_clusters), total_synth, len(synth_result.source_idea_ids)
+
+
+def _run_prior_art(
+    store: Store,
+    *,
+    domain: str | None,
+    auto_reject: bool,
+    limit: int,
+) -> tuple[int, int, int, int]:
+    """Prior-art stage: search for existing implementations. Returns (checked, strong, weak, clear)."""
+    from max.analysis.prior_art import check_prior_art
+
+    units = store.get_buildable_units(limit=limit, domain=domain)
+    # Only unchecked, non-rejected/duplicate/archived ideas
+    units = [
+        u for u in units
+        if u.prior_art_status == "unchecked"
+        and u.status not in ("rejected", "duplicate", "archived")
+    ]
+
+    if not units:
+        return 0, 0, 0, 0
+
+    results = check_prior_art(units, dry_run=False)
+
+    strong = 0
+    weak = 0
+    clear = 0
+
+    for pa_result in results:
+        unit = next(u for u in units if u.id == pa_result.buildable_unit_id)
+
+        for match in pa_result.matches:
+            store.insert_prior_art_match(unit.id, {
+                "source": match.source,
+                "title": match.title,
+                "url": match.url,
+                "description": match.description,
+                "relevance_score": match.relevance_score,
+                "match_signals": match.match_signals,
+                "search_query": match.search_query,
+            })
+
+        store.update_prior_art_status(unit.id, pa_result.status)
+
+        if pa_result.status == "strong_match":
+            strong += 1
+            logger.info("Prior-art STRONG match: %s", unit.title[:60])
+            if auto_reject:
+                store.insert_feedback(unit.id, "rejected", "auto-rejected: strong prior art match")
+                store.update_buildable_unit_status(unit.id, "rejected")
+        elif pa_result.status == "weak_match":
+            weak += 1
+        else:
+            clear += 1
+
+    return len(units), strong, weak, clear
+
+
+def _run_triage(
+    store: Store,
+    *,
+    domain: str | None,
+    approve_threshold: float,
+    reject_threshold: float,
+    limit: int,
+) -> tuple[int, int, int]:
+    """Triage stage: auto-approve/reject by thresholds. Returns (approved, rejected, pending)."""
+    units = store.get_buildable_units(limit=limit, domain=domain)
+
+    auto_approved = []
+    auto_rejected = []
+    pending = 0
+
+    for unit in units:
+        if unit.status == "archived":
+            continue
+        ev = store.get_evaluation(unit.id)
+        if not ev:
+            continue
+        if store.has_feedback(unit.id):
+            continue
+
+        if ev.overall_score >= approve_threshold and ev.recommendation == "yes":
+            auto_approved.append((unit, ev))
+        elif ev.overall_score < reject_threshold or ev.recommendation == "no":
+            auto_rejected.append((unit, ev))
+        else:
+            pending += 1
+
+    for unit, ev in auto_approved:
+        store.insert_feedback(unit.id, "approved", "auto-triage: score >= threshold + rec=yes")
+        store.update_buildable_unit_status(unit.id, "approved")
+        logger.info("Auto-approved: %.1f  %s", ev.overall_score, unit.title[:60])
+
+    for unit, ev in auto_rejected:
+        reason = f"auto-triage: score={ev.overall_score:.1f}, rec={ev.recommendation}"
+        store.insert_feedback(unit.id, "rejected", reason)
+        store.update_buildable_unit_status(unit.id, "rejected")
+
+    return len(auto_approved), len(auto_rejected), pending

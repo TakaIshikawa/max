@@ -77,6 +77,19 @@ def sample_unit() -> BuildableUnit:
         solution="A CLI tool that validates MCP server implementations",
         target_users="both",
         value_proposition="Reduce bugs in MCP servers by 80%",
+        specific_user="MCP server maintainer",
+        buyer="developer platform lead",
+        workflow_context="pre-release CI validation",
+        current_workaround="manual protocol testing",
+        why_now="MCP server adoption is growing",
+        validation_plan="run against five open-source MCP servers",
+        first_10_customers="teams publishing MCP servers",
+        domain_risks=["protocol churn"],
+        evidence_rationale="Insight shows lack of standardized testing.",
+        novelty_score=7.0,
+        usefulness_score=8.0,
+        quality_score=7.5,
+        rejection_tags=[],
         inspiring_insights=["ins-test001"],
         evidence_signals=["sig-test001"],
         tech_approach="TypeScript CLI with protocol-level validation",
@@ -113,5 +126,4 @@ def sample_evaluation() -> UtilityEvaluation:
             "compounding_value": 0.15,
         },
     )
-
 

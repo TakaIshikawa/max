@@ -21,6 +21,35 @@ domain:
     - patients
     - administrators
     - both
+  target_segments:
+    - small specialty clinics
+    - hospital clinical operations teams
+    - revenue-cycle and prior authorization teams
+  workflows:
+    - clinical documentation
+    - patient intake
+    - prior authorization
+    - EHR reconciliation
+    - care coordination
+  buyer_roles:
+    - practice owner
+    - clinic administrator
+    - department administrator
+    - health system CIO
+  hard_constraints:
+    - HIPAA compliance for all patient data
+    - human review for clinical decision support
+    - EHR integration must avoid full EHR replacement
+  bad_idea_patterns:
+    - generic AI assistant for doctors
+    - dashboard without workflow ownership
+    - patient marketplace without clear acquisition channel
+    - diagnosis automation requiring FDA pathway as the first MVP
+  good_idea_criteria:
+    - clear economic buyer
+    - testable with a clinic workflow in 2 weeks
+    - reduces administrative burden or patient leakage
+    - integrates with existing EHR or communication workflow
   extra_instructions: >-
     HIPAA compliance is a hard constraint for all ideas involving patient data.
     Prioritize ideas that reduce clinician burnout or improve patient outcomes.
@@ -101,10 +130,20 @@ sources:
         - health-fitness
         - artificial-intelligence
 
+  - adapter: pubmed
+    params:
+      queries:
+        - "digital health AND clinical workflow"
+        - "EHR usability OR clinician burnout"
+        - "AI diagnosis AND patient safety"
+        - "FHIR interoperability"
+        - "telemedicine AND patient outcomes"
+      recent_days: 30
+
 evaluation:
   weight_profile: default
   min_score: 45.0
 
-output_dir: .tact
+output_dir: .max-output
 signal_limit: 25
 ideation_mode: direct

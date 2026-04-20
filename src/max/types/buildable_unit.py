@@ -38,6 +38,19 @@ class BuildableUnit(BaseModel):
     solution: str
     target_users: str = "both"  # humans | agents | both
     value_proposition: str
+    specific_user: str = ""
+    buyer: str = ""
+    workflow_context: str = ""
+    current_workaround: str = ""
+    why_now: str = ""
+    validation_plan: str = ""
+    first_10_customers: str = ""
+    domain_risks: list[str] = Field(default_factory=list)
+    evidence_rationale: str = ""
+    novelty_score: float = 0.0
+    usefulness_score: float = 0.0
+    quality_score: float = 0.0
+    rejection_tags: list[str] = Field(default_factory=list)
 
     # Traceability
     inspiring_insights: list[str] = Field(default_factory=list)  # Insight IDs

@@ -59,6 +59,19 @@ def test_buildable_unit_minimal_construction() -> None:
     assert unit.tech_approach == ""
     assert unit.suggested_stack == {}
     assert unit.composability_notes == ""
+    assert unit.specific_user == ""
+    assert unit.buyer == ""
+    assert unit.workflow_context == ""
+    assert unit.current_workaround == ""
+    assert unit.why_now == ""
+    assert unit.validation_plan == ""
+    assert unit.first_10_customers == ""
+    assert unit.domain_risks == []
+    assert unit.evidence_rationale == ""
+    assert unit.novelty_score == 0.0
+    assert unit.usefulness_score == 0.0
+    assert unit.quality_score == 0.0
+    assert unit.rejection_tags == []
     assert unit.domain == ""
     assert unit.prior_art_status == "unchecked"
     assert unit.status == "draft"
@@ -81,6 +94,19 @@ def test_buildable_unit_all_fields() -> None:
         solution="Detailed solution approach",
         target_users="agents",
         value_proposition="High value for AI agents",
+        specific_user="platform engineer",
+        buyer="VP engineering",
+        workflow_context="debugging agent tool failures",
+        current_workaround="manual log inspection",
+        why_now="agent tool usage is growing",
+        validation_plan="interview five platform teams",
+        first_10_customers="teams already using MCP servers",
+        domain_risks=["data access"],
+        evidence_rationale="Signals show repeated debugging pain.",
+        novelty_score=7.0,
+        usefulness_score=8.0,
+        quality_score=7.5,
+        rejection_tags=["needs_validation"],
         inspiring_insights=["insight-1", "insight-2"],
         evidence_signals=["signal-1", "signal-2", "signal-3"],
         source_idea_ids=["idea-1", "idea-2"],
@@ -99,6 +125,19 @@ def test_buildable_unit_all_fields() -> None:
     assert unit.category == "mcp_server"
     assert unit.ideation_mode == IdeationMode.SYNTHESIS
     assert unit.target_users == "agents"
+    assert unit.specific_user == "platform engineer"
+    assert unit.buyer == "VP engineering"
+    assert unit.workflow_context == "debugging agent tool failures"
+    assert unit.current_workaround == "manual log inspection"
+    assert unit.why_now == "agent tool usage is growing"
+    assert unit.validation_plan == "interview five platform teams"
+    assert unit.first_10_customers == "teams already using MCP servers"
+    assert unit.domain_risks == ["data access"]
+    assert unit.evidence_rationale == "Signals show repeated debugging pain."
+    assert unit.novelty_score == 7.0
+    assert unit.usefulness_score == 8.0
+    assert unit.quality_score == 7.5
+    assert unit.rejection_tags == ["needs_validation"]
     assert len(unit.inspiring_insights) == 2
     assert len(unit.evidence_signals) == 3
     assert len(unit.source_idea_ids) == 2

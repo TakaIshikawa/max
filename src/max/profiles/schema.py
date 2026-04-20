@@ -31,6 +31,12 @@ class DomainContext(BaseModel):
     categories: list[str]  # valid buildable categories for this domain
     target_user_types: list[str]  # e.g. ["clinicians", "patients", "both"]
     extra_instructions: str = ""  # optional domain-specific prompt additions
+    target_segments: list[str] = Field(default_factory=list)
+    workflows: list[str] = Field(default_factory=list)
+    buyer_roles: list[str] = Field(default_factory=list)
+    hard_constraints: list[str] = Field(default_factory=list)
+    bad_idea_patterns: list[str] = Field(default_factory=list)
+    good_idea_criteria: list[str] = Field(default_factory=list)
 
 
 class EvaluationConfig(BaseModel):
@@ -51,6 +57,8 @@ class PipelineProfile(BaseModel):
     output_dir: str = ".max-output"
     signal_limit: int = 30
     ideation_mode: str = "direct"
+    quality_loop_enabled: bool = False
+    draft_count: int = 8
 
 
 # Default domain context — captures current dev-tools behavior

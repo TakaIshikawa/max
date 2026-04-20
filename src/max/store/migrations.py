@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 13
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -55,6 +55,19 @@ CREATE TABLE IF NOT EXISTS buildable_units (
     solution TEXT NOT NULL,
     target_users TEXT NOT NULL DEFAULT 'both',
     value_proposition TEXT NOT NULL,
+    specific_user TEXT NOT NULL DEFAULT '',
+    buyer TEXT NOT NULL DEFAULT '',
+    workflow_context TEXT NOT NULL DEFAULT '',
+    current_workaround TEXT NOT NULL DEFAULT '',
+    why_now TEXT NOT NULL DEFAULT '',
+    validation_plan TEXT NOT NULL DEFAULT '',
+    first_10_customers TEXT NOT NULL DEFAULT '',
+    domain_risks TEXT NOT NULL DEFAULT '[]',
+    evidence_rationale TEXT NOT NULL DEFAULT '',
+    novelty_score REAL NOT NULL DEFAULT 0.0,
+    usefulness_score REAL NOT NULL DEFAULT 0.0,
+    quality_score REAL NOT NULL DEFAULT 0.0,
+    rejection_tags TEXT NOT NULL DEFAULT '[]',
     inspiring_insights TEXT NOT NULL DEFAULT '[]',
     evidence_signals TEXT NOT NULL DEFAULT '[]',
     tech_approach TEXT NOT NULL DEFAULT '',
@@ -92,6 +105,7 @@ CREATE TABLE IF NOT EXISTS feedback (
     outcome TEXT NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
     dimension_values TEXT NOT NULL DEFAULT '{}',
+    approval_score INTEGER DEFAULT NULL,
     created_at TEXT NOT NULL,
     pipeline_run_id TEXT DEFAULT NULL,
     FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
@@ -312,6 +326,41 @@ def _migrate_v10_to_v11(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v11_to_v12(conn: sqlite3.Connection) -> None:
+    """Add approval_score column to feedback table."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(feedback)").fetchall()}
+    if "approval_score" not in columns:
+        conn.execute("ALTER TABLE feedback ADD COLUMN approval_score INTEGER DEFAULT NULL")
+        conn.commit()
+
+
+def _migrate_v12_to_v13(conn: sqlite3.Connection) -> None:
+    """Add quality-loop fields to buildable_units."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(buildable_units)").fetchall()}
+    additions = {
+        "specific_user": "TEXT NOT NULL DEFAULT ''",
+        "buyer": "TEXT NOT NULL DEFAULT ''",
+        "workflow_context": "TEXT NOT NULL DEFAULT ''",
+        "current_workaround": "TEXT NOT NULL DEFAULT ''",
+        "why_now": "TEXT NOT NULL DEFAULT ''",
+        "validation_plan": "TEXT NOT NULL DEFAULT ''",
+        "first_10_customers": "TEXT NOT NULL DEFAULT ''",
+        "domain_risks": "TEXT NOT NULL DEFAULT '[]'",
+        "evidence_rationale": "TEXT NOT NULL DEFAULT ''",
+        "novelty_score": "REAL NOT NULL DEFAULT 0.0",
+        "usefulness_score": "REAL NOT NULL DEFAULT 0.0",
+        "quality_score": "REAL NOT NULL DEFAULT 0.0",
+        "rejection_tags": "TEXT NOT NULL DEFAULT '[]'",
+    }
+    changed = False
+    for name, ddl in additions.items():
+        if name not in columns:
+            conn.execute(f"ALTER TABLE buildable_units ADD COLUMN {name} {ddl}")
+            changed = True
+    if changed:
+        conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -357,6 +406,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 11:
         _migrate_v10_to_v11(conn)
+
+    if current < 12:
+        _migrate_v11_to_v12(conn)
+
+    if current < 13:
+        _migrate_v12_to_v13(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
