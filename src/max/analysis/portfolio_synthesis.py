@@ -33,11 +33,14 @@ class ProjectBrief:
     supporting: list[Candidate] = field(default_factory=list)
     readiness_score: float = 0.0
     why_this_now: str = ""
+    merged_product_concept: str = ""
+    synthesis_rationale: str = ""
     mvp_scope: list[str] = field(default_factory=list)
     first_milestones: list[str] = field(default_factory=list)
     validation_plan: str = ""
     risks: list[str] = field(default_factory=list)
     source_idea_ids: list[str] = field(default_factory=list)
+    design_status: str = "candidate"
 
 
 def build_candidates(
@@ -108,6 +111,14 @@ def render_markdown(briefs: list[ProjectBrief], *, title: str = "Design Candidat
                 "### Why This",
                 "",
                 brief.why_this_now or lead.why_now or lead.value_proposition,
+                "",
+                "### Product Concept",
+                "",
+                brief.merged_product_concept or lead.solution,
+                "",
+                "### Synthesis Rationale",
+                "",
+                brief.synthesis_rationale,
                 "",
                 "### MVP Scope",
                 "",
@@ -259,6 +270,8 @@ def _build_brief(
         supporting=supporting,
         readiness_score=readiness,
         why_this_now=unit.why_now or unit.evidence_rationale or unit.value_proposition,
+        merged_product_concept=_merged_product_concept(unit, supporting),
+        synthesis_rationale=_synthesis_rationale(unit, supporting),
         mvp_scope=_mvp_scope(unit),
         first_milestones=_first_milestones(unit),
         validation_plan=unit.validation_plan,
@@ -302,6 +315,8 @@ def _brief_to_dict(brief: ProjectBrief) -> dict:
         "specific_user": lead.specific_user,
         "workflow_context": lead.workflow_context,
         "why_this_now": brief.why_this_now,
+        "merged_product_concept": brief.merged_product_concept,
+        "synthesis_rationale": brief.synthesis_rationale,
         "mvp_scope": brief.mvp_scope,
         "first_milestones": brief.first_milestones,
         "validation_plan": brief.validation_plan,
@@ -315,4 +330,32 @@ def _brief_to_dict(brief: ProjectBrief) -> dict:
             for candidate in brief.supporting
         ],
         "source_idea_ids": brief.source_idea_ids,
+        "design_status": brief.design_status,
     }
+
+
+def _merged_product_concept(unit: BuildableUnit, supporting: list[Candidate]) -> str:
+    if not supporting:
+        return unit.solution
+    contributions = [
+        f"{candidate.unit.title}: {candidate.unit.one_liner or candidate.unit.value_proposition}"
+        for candidate in supporting
+    ]
+    return (
+        f"{unit.solution}\n\nSupporting components to consider:\n"
+        + "\n".join(f"- {item}" for item in contributions)
+    )
+
+
+def _synthesis_rationale(unit: BuildableUnit, supporting: list[Candidate]) -> str:
+    if not supporting:
+        return (
+            "This brief is anchored on a single approved lead idea because it is the "
+            "strongest implementation candidate in its theme."
+        )
+    supporting_titles = ", ".join(candidate.unit.title for candidate in supporting)
+    return (
+        f"Use {unit.title} as the lead product concept because it has the strongest "
+        f"readiness score in this theme. Treat supporting ideas as adjacent modules, "
+        f"distribution hooks, or later roadmap options: {supporting_titles}."
+    )

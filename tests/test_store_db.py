@@ -717,6 +717,10 @@ class TestSchemaAndMigrations:
             "pipeline_runs",
             "pipeline_run_domains",
             "prior_art_matches",
+            "idea_critiques",
+            "idea_memory",
+            "design_briefs",
+            "design_brief_sources",
             "embeddings",
         }
 
@@ -743,6 +747,9 @@ class TestSchemaAndMigrations:
             "idx_signals_archived_at",
             "idx_insights_archived_at",
             "idx_pipeline_runs_archived_at",
+            "idx_design_briefs_domain",
+            "idx_design_briefs_status",
+            "idx_design_brief_sources_idea",
         }
 
         assert expected.issubset(indexes)
@@ -1267,6 +1274,20 @@ class TestAdditionalCRUD:
 
         assert store.has_feedback("bu-hf-1")
         assert not store.has_feedback("bu-hf-2")
+
+    def test_get_latest_feedback(self, store: Store) -> None:
+        unit = _make_unit("bu-latest-feedback")
+        store.insert_buildable_unit(unit)
+        assert store.get_latest_feedback(unit.id) is None
+
+        store.insert_feedback(unit.id, "rejected", "first reason")
+        store.insert_feedback(unit.id, "approved", "latest reason", approval_score=8)
+
+        latest = store.get_latest_feedback(unit.id)
+        assert latest is not None
+        assert latest["outcome"] == "approved"
+        assert latest["reason"] == "latest reason"
+        assert latest["approval_score"] == 8
 
     def test_get_feedback_log(self, store: Store) -> None:
         """Get feedback log with unit and evaluation details."""

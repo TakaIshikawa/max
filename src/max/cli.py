@@ -674,12 +674,14 @@ def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cr
 @click.option("--top", type=int, default=8, help="Number of project briefs to output")
 @click.option("--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown", help="Output format")
 @click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+@click.option("--persist/--no-persist", default=True, help="Persist generated briefs to max.db")
 def design_candidates(
     domain: str | None,
     limit: int,
     top: int,
     fmt: str,
     output: str | None,
+    persist: bool,
 ) -> None:
     """Synthesize approved ideas into implementation-ready design candidates."""
     from max.analysis.portfolio_synthesis import (
@@ -707,13 +709,48 @@ def design_candidates(
             return
 
         briefs = synthesize_project_briefs(candidates, top=top)
+        persisted_ids = []
+        if persist:
+            persisted_ids = [store.insert_design_brief(brief) for brief in briefs]
         if output:
             write_briefs(Path(output), briefs, fmt=fmt)
-            click.echo(f"Wrote {len(briefs)} design candidate brief(s) to {output}")
+            message = f"Wrote {len(briefs)} design candidate brief(s) to {output}"
+            if persisted_ids:
+                message += f" and persisted {len(persisted_ids)} to max.db"
+            click.echo(message)
             return
 
         rendered = render_json(briefs) if fmt == "json" else render_markdown(briefs)
         click.echo(rendered)
+        if persisted_ids:
+            click.echo()
+            click.echo("Persisted design brief IDs:")
+            for brief_id in persisted_ids:
+                click.echo(f"  {brief_id}")
+    finally:
+        store.close()
+
+
+@main.command(name="design-briefs")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--status", type=str, default=None, help="Filter by design status")
+@click.option("--limit", type=int, default=20, help="Max briefs to list")
+def design_briefs(domain: str | None, status: str | None, limit: int) -> None:
+    """List persisted design briefs."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        briefs = store.get_design_briefs(domain=domain, status=status, limit=limit)
+        if not briefs:
+            click.echo("No design briefs found.")
+            return
+        for brief in briefs:
+            click.echo(
+                f"{brief['id']}  {brief['readiness_score']:5.1f}  "
+                f"[{brief['design_status']}] [{brief['domain']}] {brief['title']}"
+            )
+            click.echo(f"  Lead: {brief['lead_idea_id']} | Sources: {len(brief['source_idea_ids'])}")
     finally:
         store.close()
 

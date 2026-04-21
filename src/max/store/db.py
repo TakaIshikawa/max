@@ -680,6 +680,138 @@ class Store:
             for row in rows
         ]
 
+    # ── Design Briefs ───────────────────────────────────────────────
+
+    def insert_design_brief(self, brief) -> str:
+        """Persist a design brief snapshot and its source idea relationships."""
+        brief_id = _gen_id("dbf")
+        now = _now_iso()
+        lead_id = brief.lead.unit.id
+        source_ids = list(dict.fromkeys(brief.source_idea_ids or [lead_id]))
+
+        self.conn.execute(
+            """INSERT INTO design_briefs
+               (id, title, domain, theme, readiness_score, lead_idea_id,
+                buyer, specific_user, workflow_context, why_this_now,
+                merged_product_concept, synthesis_rationale, mvp_scope,
+                first_milestones, validation_plan, risks, source_idea_ids,
+                design_status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                brief_id,
+                brief.title,
+                brief.domain,
+                brief.theme,
+                brief.readiness_score,
+                lead_id,
+                brief.lead.unit.buyer,
+                brief.lead.unit.specific_user,
+                brief.lead.unit.workflow_context,
+                brief.why_this_now,
+                brief.merged_product_concept,
+                brief.synthesis_rationale,
+                json.dumps(brief.mvp_scope),
+                json.dumps(brief.first_milestones),
+                brief.validation_plan,
+                json.dumps(brief.risks),
+                json.dumps(source_ids),
+                brief.design_status,
+                now,
+                now,
+            ),
+        )
+
+        relationship_rows: list[tuple[str, str, str, int, str]] = [
+            (brief_id, lead_id, "lead", 0, now)
+        ]
+        for rank, candidate in enumerate(brief.supporting, 1):
+            relationship_rows.append((brief_id, candidate.unit.id, "supporting", rank, now))
+        for rank, idea_id in enumerate(source_ids):
+            relationship_rows.append((brief_id, idea_id, "source", rank, now))
+
+        self.conn.executemany(
+            """INSERT OR IGNORE INTO design_brief_sources
+               (brief_id, idea_id, role, rank, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            relationship_rows,
+        )
+        self._commit()
+        return brief_id
+
+    def get_design_brief(self, brief_id: str) -> dict | None:
+        """Return a persisted design brief with source relationships."""
+        row = self.conn.execute(
+            "SELECT * FROM design_briefs WHERE id = ?", (brief_id,)
+        ).fetchone()
+        return self._row_to_design_brief(row) if row else None
+
+    def get_design_briefs(
+        self,
+        *,
+        domain: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Return persisted design briefs, newest first."""
+        query = "SELECT * FROM design_briefs"
+        conditions: list[str] = []
+        params: list = []
+        if domain:
+            conditions.append("domain = ?")
+            params.append(domain)
+        if status:
+            conditions.append("design_status = ?")
+            params.append(status)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [self._row_to_design_brief(row) for row in rows]
+
+    def update_design_brief_status(self, brief_id: str, status: str) -> None:
+        """Update design workflow status for a persisted brief."""
+        self.conn.execute(
+            "UPDATE design_briefs SET design_status = ?, updated_at = ? WHERE id = ?",
+            (status, _now_iso(), brief_id),
+        )
+        self._commit()
+
+    def _row_to_design_brief(self, row: sqlite3.Row) -> dict:
+        sources = self.conn.execute(
+            """SELECT idea_id, role, rank
+               FROM design_brief_sources
+               WHERE brief_id = ?
+               ORDER BY role, rank""",
+            (row["id"],),
+        ).fetchall()
+        return {
+            "id": row["id"],
+            "title": row["title"],
+            "domain": row["domain"],
+            "theme": row["theme"],
+            "readiness_score": row["readiness_score"],
+            "lead_idea_id": row["lead_idea_id"],
+            "buyer": row["buyer"],
+            "specific_user": row["specific_user"],
+            "workflow_context": row["workflow_context"],
+            "why_this_now": row["why_this_now"],
+            "merged_product_concept": row["merged_product_concept"],
+            "synthesis_rationale": row["synthesis_rationale"],
+            "mvp_scope": json.loads(row["mvp_scope"]),
+            "first_milestones": json.loads(row["first_milestones"]),
+            "validation_plan": row["validation_plan"],
+            "risks": json.loads(row["risks"]),
+            "source_idea_ids": json.loads(row["source_idea_ids"]),
+            "design_status": row["design_status"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "sources": [
+                {"idea_id": source["idea_id"], "role": source["role"], "rank": source["rank"]}
+                for source in sources
+            ],
+        }
+
     # ── Prior Art ───────────────────────────────────────────────────
 
     def insert_prior_art_match(self, unit_id: str, match: dict) -> str:
@@ -877,6 +1009,26 @@ class Store:
             (unit_id,),
         ).fetchone()
         return row[0] > 0
+
+    def get_latest_feedback(self, unit_id: str) -> dict | None:
+        """Get the most recent feedback row for a buildable unit."""
+        row = self.conn.execute(
+            """SELECT buildable_unit_id, outcome, reason, approval_score, created_at
+               FROM feedback
+               WHERE buildable_unit_id = ?
+               ORDER BY created_at DESC, id DESC
+               LIMIT 1""",
+            (unit_id,),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "buildable_unit_id": row["buildable_unit_id"],
+            "outcome": row["outcome"],
+            "reason": row["reason"],
+            "approval_score": row["approval_score"],
+            "created_at": row["created_at"],
+        }
 
     def get_feedback_outcomes(self) -> list[dict]:
         """Get all feedback records formatted for weight adaptation."""

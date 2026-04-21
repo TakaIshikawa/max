@@ -1,6 +1,6 @@
 # Design Candidates
 
-Generated: 2026-04-21T06:48:29.720848+00:00
+Generated: 2026-04-21T07:05:58.277424+00:00
 
 These are synthesized from approved or published ideas and ranked for near-term design/implementation readiness.
 
@@ -17,6 +17,19 @@ These are synthesized from approved or published ideas and ranked for near-term 
 ### Why This
 
 GTA-2 (sig-19fbe7fdcaf8) just established the hierarchical capability evaluation taxonomy that these test cases extend with a security dimension. PraisonAI's incomplete CVE fix (sig-e93eefcdebd9, credibility 0.98) proved that agent tool-use security is an active exploitation vector, not theoretical. The MCP ecosystem is growing fast — establishing adversarial testing norms now shapes how the ecosystem matures. agentkit-cli (sig-ec428bdb9aa6) exists but has near-zero adoption (credibility 0.00575) and no adversarial/security testing component — the security angle is the clear differentiator.
+
+### Product Concept
+
+A curated, open-source library of adversarial workflow benchmarks — test cases that look like legitimate agent tasks but contain embedded attack payloads (command injection in tool arguments, path traversal in file operations, SSRF in URL parameters). Each test case specifies: the legitimate task the agent should complete, the embedded attack vector, the expected secure behavior (complete the task, reject the attack), and a scoring rubric that measures both capability (did it finish the task?) and security (did it reject the payload?). Ships as a Python package with a CLI runner that executes test cases against any agent accessible via MCP, HTTP, or stdin/stdout, and outputs a joint capability-security scorecard.
+
+Supporting components to consider:
+- SessionVault — Persistent Memory and Session State Manager for AI Coding Agents with Local-First Storage: Local-first persistent memory for AI coding agents — structured session state that survives restarts, scopes by project, and makes agents remember what they've learned.
+- AgentTrace — OpenTelemetry-Based Observability Library for AI Agent Decision Chains: A lightweight instrumentation library that traces AI agent decision chains, tool invocations, and error attribution using OpenTelemetry — giving developers Datadog-level visibility into autonomous agent workflows.
+- BIAuditTrail: Governance and audit proxy for MCP-mediated business intelligence workflows — logs, controls, and traces every agent analytical action from query to visualization.
+
+### Synthesis Rationale
+
+Use AgentAdversarialBench — Adversarial Workflow Test Suite for Agent Tool-Use Pipelines as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: SessionVault — Persistent Memory and Session State Manager for AI Coding Agents with Local-First Storage, AgentTrace — OpenTelemetry-Based Observability Library for AI Agent Decision Chains, BIAuditTrail.
 
 ### MVP Scope
 
@@ -68,6 +81,14 @@ Build 20 adversarial workflow test cases covering 4 attack categories (command i
 
 Eliminates the #1 production blocker for AI agents — unreliable function calling — with a drop-in library that turns any model's tool-use output into validated, schema-conformant calls, saving developers from building and maintaining custom harnesses.
 
+### Product Concept
+
+A Python/TypeScript library that wraps any LLM's function calling output with: (1) JSON schema validation of tool call arguments against declared schemas, (2) auto-repair heuristics for common failure modes (double-stringification, missing required fields, type coercion errors, malformed JSON), (3) configurable retry with progressive prompt augmentation (injecting the validation error back into the conversation), (4) model-specific bug workaround registry (community-contributed patches for known model quirks), and (5) telemetry that tracks per-model, per-tool success rates to surface reliability data. Works as middleware that wraps existing LLM client libraries (openai, anthropic, litellm).
+
+### Synthesis Rationale
+
+This brief is anchored on a single approved lead idea because it is the strongest implementation candidate in its theme.
+
 ### MVP Scope
 
 - Own one narrow workflow: Function calling is the foundation of the entire MCP/agent ecosystem, yet even leading models fail catastrophically on non-trivial type signatures. A developer found 6.75% first-try success on complex types with Qwen, and 0% on the entire Qwen 3.5 family due to a double-stringify bug. Every MCP server interaction, every tool use in agent workflows, depends on reliable structured output — but developers are each independently building custom harnesses to work around model-layer failures. This duplicated effort absorbs enormous developer time and creates fragile, model-specific workarounds.
@@ -103,6 +124,19 @@ Define a 2-week validation test.
 ### Why This
 
 Unlocks enterprise MCP adoption by providing the missing trust, governance, and auditability layer — reducing security risk from supply chain attacks and unauthorized data access while giving compliance teams the visibility they need.
+
+### Product Concept
+
+MCP Guardian is a proxy process that intercepts all MCP client-to-server traffic. It provides: (1) a declarative policy engine where admins define per-server permission scopes (e.g., 'sentry-mcp may only read issues, not modify'), (2) real-time anomaly detection that flags unusual patterns like bulk data reads, credential-shaped strings in tool outputs, or unexpected filesystem traversal, (3) cryptographic verification of MCP server package provenance via sigstore/cosign attestations, (4) a structured audit log (JSON/OpenTelemetry-compatible) of every tool call, its parameters, and truncated responses for compliance review. It runs as a local sidecar or a shared gateway, and exposes its own MCP server interface so agents can query their own permission boundaries.
+
+Supporting components to consider:
+- MCP Registry — Discovery, Trust Scoring, and Compatibility Index for MCP Servers: A searchable registry and CLI that catalogs MCP servers with verified publisher identity, capability declarations, trust/quality scores, and compatibility metadata — the 'npm search + Snyk' for the MCP ecosystem.
+- MLPipeSecScan — ML/Data Pipeline Security Scanner with Data-Engineering-Specific Attack Surface Detection: Application that scans ML pipeline environments (Jupyter, Kedro, MLflow, FastAPI model servers) for vulnerabilities and data-engineering-specific attack surfaces that generic dependency scanners miss
+- MCP Sandbox — Isolated Execution Environment for Untrusted MCP Servers: A container-based sandbox that runs any MCP server in an isolated environment with configurable filesystem, network, and resource restrictions — letting agents safely use untrusted MCP servers without risking the host system.
+
+### Synthesis Rationale
+
+Use MCP Guardian — Security Proxy and Audit Layer for MCP Server Connections as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: MCP Registry — Discovery, Trust Scoring, and Compatibility Index for MCP Servers, MLPipeSecScan — ML/Data Pipeline Security Scanner with Data-Engineering-Specific Attack Surface Detection, MCP Sandbox — Isolated Execution Environment for Untrusted MCP Servers.
 
 ### MVP Scope
 
@@ -146,6 +180,17 @@ Define a 2-week validation test.
 
 Give every MCP-compatible AI agent structural code understanding for free — reducing code generation errors by enabling agents to make AST-aware edits rather than text-level string manipulation. One MCP server replaces dozens of ad-hoc parsers across agent frameworks.
 
+### Product Concept
+
+An MCP server that wraps Tree-sitter's multi-language AST parsing into a set of high-level code understanding tools: list_functions, find_symbol_references, get_dependency_graph, extract_class_hierarchy, identify_imports, get_function_signature, find_code_block_by_description (combining AST with semantic search), and safe_rename_symbol. Agents call these tools instead of parsing code themselves, getting structured responses (JSON ASTs, dependency graphs, symbol tables) that enable reliable code modifications. Ships with language packs for Python, TypeScript, R, Julia, Go, Rust, and SQL.
+
+Supporting components to consider:
+- ModalityMatch — Data Modality Analyzer and SSL Method Recommender for Non-Standard ML Domains: Pre-flight compatibility checker for SSL methods — analyze your dataset's modality and get honest recommendations on which approaches will actually work, with realistic baseline expectations.
+
+### Synthesis Rationale
+
+Use TreeSitterMCP — Universal Code Understanding API Exposing AST Operations as MCP Tools for AI Coding Agents as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: ModalityMatch — Data Modality Analyzer and SSL Method Recommender for Non-Standard ML Domains.
+
 ### MVP Scope
 
 - Own one narrow workflow: AI coding agents treat code as flat text, making edits via string manipulation that frequently break syntax, misplace imports, or corrupt control flow. Tree-sitter provides universal AST parsing across 100+ languages, but there's no standardized way for AI agents to access structural code operations (find all functions matching a pattern, identify a symbol's scope, extract dependency graphs, perform safe renames) through the MCP protocol. Every agent framework builds its own ad-hoc code parsing — or worse, relies on regex. Meanwhile, Tree-sitter's expansion to R and data science languages means the full ML practitioner codebase (Python, R, Julia, SQL) is now parseable, but agents can't leverage this.
@@ -186,6 +231,14 @@ Define a 2-week validation test.
 
 Reduces multi-server agent setup from hours of manual configuration to a single command. Makes complex agent workflows reproducible, testable, and shareable. Turns the fragmented MCP ecosystem into composable building blocks.
 
+### Product Concept
+
+MCP Composer provides: (1) A declarative workflow definition format (YAML) where developers specify which MCP servers a task needs, how they connect, what context they share, and what permissions each requires. (2) A CLI (`mcp-compose up debug-workflow`) that launches all required MCP servers, manages their lifecycle, and exposes them as a unified MCP interface to the agent. (3) A context bus that enables servers to share relevant state (e.g., the Sentry error ID flows into the filesystem server's search scope). (4) Built-in dry-run and testing mode that validates workflows against server capability declarations before running them live. (5) A library of community-contributed workflow templates for common patterns (debug, code review, documentation generation, deployment).
+
+### Synthesis Rationale
+
+This brief is anchored on a single approved lead idea because it is the strongest implementation candidate in its theme.
+
 ### MVP Scope
 
 - Own one narrow workflow: As the MCP ecosystem explodes (ins-e0cf0510aabf), real-world agent tasks require coordinating multiple MCP servers simultaneously — e.g., an agent debugging a production issue needs Sentry (error data), filesystem (code access), and Notion (documentation) working together with shared context. Today, each MCP server is a standalone silo. Developers must manually configure, launch, and manage multiple server connections, handle context passing between them, and hope they don't conflict. There's no way to define reusable multi-server workflows, test them, or share them. This friction is a major barrier to enterprise adoption (ins-cb85dc3acebb) and makes the 'picks and shovels' infrastructure layer (ins-6643673ebf33) harder to build on.
@@ -221,6 +274,17 @@ Define a 2-week validation test.
 ### Why This
 
 Increases clinical trial enrollment by surfacing relevant trials to clinicians at the point of care, improves patient access to cutting-edge treatments, and reduces the manual effort of trial screening. Particularly impactful for oncology, rare diseases, and conditions with limited treatment options. Addresses the healthcare AI application gap where the technology exists but isn't deployed for clinical workflows.
+
+### Product Concept
+
+An application that integrates with EHR systems via FHIR APIs to access structured patient data (demographics, diagnoses, medications, lab results, procedures). Continuously monitors ClinicalTrials.gov for new trials, parses eligibility criteria using clinical NLP (extracting age ranges, required/excluded diagnoses, lab value thresholds, prior treatment requirements), and matches patients against criteria. Generates ranked trial recommendations for clinicians with explanations of why patients qualify. Provides patient-facing summaries of trial options with plain-language descriptions.
+
+Supporting components to consider:
+- CareTransitionTracker — Patient-Facing Care Coordination Timeline with Clinical Event Integration: A mobile-first patient portal that aggregates clinical events from EHR systems into a visual timeline, helping patients and caregivers track care transitions, medication changes, and follow-up requirements.
+
+### Synthesis Rationale
+
+Use ClinicalTrialMatchEngine — FHIR-Based Patient-to-Trial Matching with Eligibility Criteria NLP as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: CareTransitionTracker — Patient-Facing Care Coordination Timeline with Clinical Event Integration.
 
 ### MVP Scope
 
@@ -261,6 +325,19 @@ Define a 2-week validation test.
 ### Why This
 
 Prevents the silent degradation of model quality from contaminated training data. RAG pipeline operators get confidence that their knowledge base isn't poisoned by circular AI-generated content. Fine-tuning teams can verify corpus integrity before spending GPU hours on training. Domain-specific AI systems (medical, legal, scientific) get the provenance verification layer required for trustworthy deployment. Catches contamination that looks legitimate because it has peer-reviewed provenance.
+
+### Product Concept
+
+A corpus-level contamination scanning pipeline that analyzes documents in training datasets and RAG indices for two classes of contamination: (1) AI-generated content detection — statistical and stylometric analysis to flag documents likely generated or substantially written by LLMs, and (2) circular citation detection — graph analysis of citation networks to identify citation loops where Source A cites Source B which cites AI output which cites Source A, creating false provenance. Outputs a per-document contamination risk score, a corpus-level contamination report, and actionable recommendations (quarantine, manual review, or remove). Runs as a batch pipeline over existing corpora and as a streaming filter for new documents entering RAG indices.
+
+Supporting components to consider:
+- CognitiveMCP — Composable Cognitive Middleware Toolkit for AI Coding Agents with Persistent Memory, Planning, and Self-Evaluation via MCP: Composable cognitive middleware for AI coding tools — add persistent memory, task planning, and code self-evaluation to any MCP-compatible agent.
+- CodeGraphEval — Graph-Based Evaluation Framework for AI-Generated Code Using AST, Dependency, and Control Flow Analysis: Graph-based evaluation framework for AI-generated code — benchmark coding tools on structural quality, security, and codebase fit using AST and control flow analysis.
+- MCPGate — Granular Permission and Data-Flow Governance Proxy for MCP Tool Connections: Fine-grained access control and data-flow auditing for MCP — classify tool data sensitivity, enforce per-agent permissions, and log every byte that flows between agents and personal data.
+
+### Synthesis Rationale
+
+Use CorpusGuard — AI-Generated Content and Circular Citation Contamination Detector for Training Data and RAG Corpora as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: CognitiveMCP — Composable Cognitive Middleware Toolkit for AI Coding Agents with Persistent Memory, Planning, and Self-Evaluation via MCP, CodeGraphEval — Graph-Based Evaluation Framework for AI-Generated Code Using AST, Dependency, and Control Flow Analysis, MCPGate — Granular Permission and Data-Flow Governance Proxy for MCP Tool Connections.
 
 ### MVP Scope
 
@@ -304,6 +381,19 @@ Define a 2-week validation test.
 
 Replaces $50K-$200K/year GRC platform subscriptions and manual regulatory monitoring with an automated, AI-classified change feed that maps directly to your organization's specific compliance obligations — catching regulatory changes weeks before they become audit findings.
 
+### Product Concept
+
+An open-source regulatory change tracking service purpose-built for healthcare that ingests feeds from CMS (Federal Register, MLN Matters), state health department bulletins, FDA safety communications, OIG advisory opinions, and OCR HIPAA guidance. It uses AI classification to tag changes by domain (billing, clinical practice, privacy, facility licensing, telehealth, controlled substances) and maps them to specific organizational obligations — e.g., 'This CMS final rule changes E/M documentation requirements effective Q1 2026; your current EHR templates for outpatient visits need updating.' Delivers alerts via existing channels (Slack, Teams, email) with severity scoring and action deadlines.
+
+Supporting components to consider:
+- MedSupplyCompliance — Healthcare Supply Chain Compliance Middleware with UDI Validation, Lot Traceability, and Expiration Alerting: Transforms any existing inventory system into a healthcare-compliant supply chain platform without rip-and-replace — reducing FDA audit risk, enabling automated recall response, and preventing expired or recalled products from reaching patients. Hospitals avoid the $2-5M cost of dedicated healthcare supply chain platforms by wrapping their existing tools.
+- PriorAuthIQ — Payer-Specific Prior Authorization Denial Pattern Analyzer with Appeal Optimization and Regulatory Compliance Tracking: Prior authorization denial pattern analyzer that predicts which PAs will be denied before submission, optimizes appeal strategies with payer-specific intelligence, and tracks payer compliance with CMS response time mandates.
+- HandoffGuard — AI-Powered Clinical Handoff Quality Scoring with Pattern Detection for Systemic Communication Failures: AI-powered handoff quality analytics that scores every clinical handoff for completeness, detects systemic communication failure patterns by unit and shift, and gives quality teams the data to prevent the #1 cause of sentinel events.
+
+### Synthesis Rationale
+
+Use ClinicalComplianceLint — Real-Time Multi-Jurisdiction Healthcare Regulatory Change Tracker with EHR Obligation Mapping as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: MedSupplyCompliance — Healthcare Supply Chain Compliance Middleware with UDI Validation, Lot Traceability, and Expiration Alerting, PriorAuthIQ — Payer-Specific Prior Authorization Denial Pattern Analyzer with Appeal Optimization and Regulatory Compliance Tracking, HandoffGuard — AI-Powered Clinical Handoff Quality Scoring with Pattern Detection for Systemic Communication Failures.
+
 ### MVP Scope
 
 - Own one narrow workflow: Healthcare organizations operate across multiple jurisdictions (states, countries) where clinical regulations, billing codes, privacy rules (HIPAA, state-level health privacy laws, GDPR for international systems), and scope-of-practice rules change frequently. Compliance teams manually monitor CMS updates, state medical board announcements, OIG guidance, and FDA safety communications — often learning about changes after they've taken effect. This creates compliance gaps that expose organizations to audit findings, CMS penalties, and malpractice liability. The insight that regulatory change tracking is universally absent from AI tooling (ins-176ea42bf6d3) and that multi-jurisdiction compliance engines are missing from operational platforms (ins-4a12cc008f46) applies directly to healthcare, where the regulatory surface area is arguably the largest of any industry.
@@ -346,6 +436,17 @@ Define a 2-week validation test.
 
 Eliminates vendor lock-in in AI coding tool configuration while ensuring every AI agent that touches your codebase gets accurate, up-to-date project context. Turns the 'agent onboarding' problem from a manual chore into an automated, continuously-validated process.
 
+### Product Concept
+
+An MCP server that provides tools for generating, validating, and evolving AGENTS.md files. It (1) analyzes a codebase's structure, conventions, dependencies, CI config, and existing documentation to auto-generate a comprehensive AGENTS.md, (2) validates existing AGENTS.md files against the actual codebase state and flags stale or contradictory instructions, (3) provides a migration tool that converts CLAUDE.md, .cursorrules, and other vendor-specific files into the AGENTS.md standard, and (4) exposes an MCP resource that serves the parsed, structured project context so any connected agent can query it programmatically. Includes a companion web UI for human review and editing of generated files.
+
+Supporting components to consider:
+- InferenceAdvisor: An MCP server that analyzes your actual AI workload patterns and provides real-time, data-driven recommendations on the optimal inference strategy — cloud API, local hardware, or hybrid — with specific provider and hardware suggestions.
+
+### Synthesis Rationale
+
+Use AgentsMD Forge as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: InferenceAdvisor.
+
 ### MVP Scope
 
 - Own one narrow workflow: AI coding agents (Claude Code, Codex, Cursor, Amp) need project context to work effectively, but every tool is inventing its own format (CLAUDE.md, .cursorrules, etc.). AGENTS.md is emerging as a vendor-neutral standard, but creating and maintaining these files is manual, error-prone, and quickly goes stale. Developers working with multiple AI tools face fragmentation — context written for one agent doesn't transfer to another. Meanwhile, agents themselves have no way to programmatically discover or validate the quality of project context files.
@@ -385,6 +486,18 @@ Define a 2-week validation test.
 ### Why This
 
 Removes the biggest practical barrier to local-first AI adoption — hardware uncertainty — by giving developers and agent frameworks a single function call that answers 'what can I run, and how should I configure it?' with data-driven recommendations instead of guesswork.
+
+### Product Concept
+
+A Python library that: (1) scans local hardware — GPU VRAM, GPU compute capability, CPU architecture and instruction sets (AVX2, ARM NEON), total/available RAM, disk space and speed; (2) queries a community-maintained model compatibility database mapping models to minimum hardware requirements at each quantization level (Q4_K_M, Q5_K_S, Q8_0, FP16); (3) returns a ranked list of runnable models with expected performance estimates (tokens/sec, context length achievable, time-to-first-token); (4) generates ready-to-use configuration files for Ollama, llama.cpp, and vLLM; (5) exposes a programmatic API so agent frameworks can auto-select models at runtime based on available hardware. Includes special handling for ARM SBC constraints (thermal throttling, power limits, no GPU).
+
+Supporting components to consider:
+- QuantAdvisor: Hardware-aware quantization format recommender that maps model + device + quality constraints to the optimal local inference configuration.
+- AgentPromote: Agent CI/CD pipeline tool that validates, cost-profiles, and promotes locally-developed AI agents to production through behavioral testing and safety gates.
+
+### Synthesis Rationale
+
+Use ModelFit — Local Hardware-to-LLM Compatibility Library with Auto-Configuration as the lead product concept because it has the strongest readiness score in this theme. Treat supporting ideas as adjacent modules, distribution hooks, or later roadmap options: QuantAdvisor, AgentPromote.
 
 ### MVP Scope
 

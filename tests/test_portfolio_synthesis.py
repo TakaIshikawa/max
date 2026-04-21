@@ -5,6 +5,7 @@ from max.analysis.portfolio_synthesis import (
     render_markdown,
     synthesize_project_briefs,
 )
+from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 
@@ -101,3 +102,31 @@ def test_render_markdown_includes_design_sections() -> None:
     assert "### MVP Scope" in markdown
     assert "### First Milestones" in markdown
     assert "`bu-1`" in markdown
+
+
+def test_store_persists_design_brief_with_sources(tmp_path) -> None:
+    first = _unit("bu-1", title="AgentAdversarialBench")
+    second = _unit("bu-2", title="AgentAPIProbe")
+    candidates = build_candidates(
+        [first, second],
+        evaluations={"bu-1": _evaluation("bu-1", 75), "bu-2": _evaluation("bu-2", 70)},
+        feedback={"bu-1": {"approval_score": 8}, "bu-2": {"approval_score": 6}},
+    )
+    brief = synthesize_project_briefs(candidates, top=1)[0]
+
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = store.insert_design_brief(brief)
+        stored = store.get_design_brief(brief_id)
+        assert stored is not None
+        assert stored["lead_idea_id"] == "bu-1"
+        assert stored["design_status"] == "candidate"
+        assert stored["source_idea_ids"] == ["bu-1", "bu-2"]
+        roles = {(source["idea_id"], source["role"]) for source in stored["sources"]}
+        assert ("bu-1", "lead") in roles
+        assert ("bu-2", "supporting") in roles
+
+        store.update_design_brief_status(brief_id, "designing")
+        assert store.get_design_brief(brief_id)["design_status"] == "designing"
+    finally:
+        store.close()

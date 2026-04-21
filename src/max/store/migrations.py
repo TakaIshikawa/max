@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -191,6 +191,45 @@ CREATE TABLE IF NOT EXISTS idea_memory (
 
 CREATE INDEX IF NOT EXISTS idx_idea_memory_domain ON idea_memory(domain);
 CREATE INDEX IF NOT EXISTS idx_idea_memory_outcome ON idea_memory(outcome);
+
+CREATE TABLE IF NOT EXISTS design_briefs (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    theme TEXT NOT NULL DEFAULT '',
+    readiness_score REAL NOT NULL DEFAULT 0.0,
+    lead_idea_id TEXT NOT NULL,
+    buyer TEXT NOT NULL DEFAULT '',
+    specific_user TEXT NOT NULL DEFAULT '',
+    workflow_context TEXT NOT NULL DEFAULT '',
+    why_this_now TEXT NOT NULL DEFAULT '',
+    merged_product_concept TEXT NOT NULL DEFAULT '',
+    synthesis_rationale TEXT NOT NULL DEFAULT '',
+    mvp_scope TEXT NOT NULL DEFAULT '[]',
+    first_milestones TEXT NOT NULL DEFAULT '[]',
+    validation_plan TEXT NOT NULL DEFAULT '',
+    risks TEXT NOT NULL DEFAULT '[]',
+    source_idea_ids TEXT NOT NULL DEFAULT '[]',
+    design_status TEXT NOT NULL DEFAULT 'candidate',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (lead_idea_id) REFERENCES buildable_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS design_brief_sources (
+    brief_id TEXT NOT NULL,
+    idea_id TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'source',
+    rank INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (brief_id, idea_id, role),
+    FOREIGN KEY (brief_id) REFERENCES design_briefs(id),
+    FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_design_briefs_domain ON design_briefs(domain);
+CREATE INDEX IF NOT EXISTS idx_design_briefs_status ON design_briefs(design_status);
+CREATE INDEX IF NOT EXISTS idx_design_brief_sources_idea ON design_brief_sources(idea_id);
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT NOT NULL,
@@ -430,6 +469,51 @@ def _migrate_v13_to_v14(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v14_to_v15(conn: sqlite3.Connection) -> None:
+    """Add persisted design brief tables."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS design_briefs (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            domain TEXT NOT NULL DEFAULT '',
+            theme TEXT NOT NULL DEFAULT '',
+            readiness_score REAL NOT NULL DEFAULT 0.0,
+            lead_idea_id TEXT NOT NULL,
+            buyer TEXT NOT NULL DEFAULT '',
+            specific_user TEXT NOT NULL DEFAULT '',
+            workflow_context TEXT NOT NULL DEFAULT '',
+            why_this_now TEXT NOT NULL DEFAULT '',
+            merged_product_concept TEXT NOT NULL DEFAULT '',
+            synthesis_rationale TEXT NOT NULL DEFAULT '',
+            mvp_scope TEXT NOT NULL DEFAULT '[]',
+            first_milestones TEXT NOT NULL DEFAULT '[]',
+            validation_plan TEXT NOT NULL DEFAULT '',
+            risks TEXT NOT NULL DEFAULT '[]',
+            source_idea_ids TEXT NOT NULL DEFAULT '[]',
+            design_status TEXT NOT NULL DEFAULT 'candidate',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (lead_idea_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS design_brief_sources (
+            brief_id TEXT NOT NULL,
+            idea_id TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'source',
+            rank INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (brief_id, idea_id, role),
+            FOREIGN KEY (brief_id) REFERENCES design_briefs(id),
+            FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_design_briefs_domain ON design_briefs(domain)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_design_briefs_status ON design_briefs(design_status)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_design_brief_sources_idea ON design_brief_sources(idea_id)")
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -484,6 +568,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 14:
         _migrate_v13_to_v14(conn)
+
+    if current < 15:
+        _migrate_v14_to_v15(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

@@ -7,7 +7,6 @@ import sqlite3
 import pytest
 
 from max.store.migrations import (
-    SCHEMA_SQL,
     SCHEMA_VERSION,
     _migrate_v1_to_v2,
     _migrate_v2_to_v3,
@@ -34,6 +33,10 @@ EXPECTED_TABLES = {
     "embeddings",
     "pipeline_run_domains",
     "prior_art_matches",
+    "idea_critiques",
+    "idea_memory",
+    "design_briefs",
+    "design_brief_sources",
 }
 
 
@@ -218,6 +221,22 @@ class TestFreshSchema:
         ensure_schema(conn)
         cols = _get_columns(conn, "embeddings")
         assert cols == {"id", "entity_type", "embedding"}
+        conn.close()
+
+    def test_fresh_db_design_briefs_tables(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        assert {
+            "id",
+            "title",
+            "lead_idea_id",
+            "source_idea_ids",
+            "design_status",
+            "synthesis_rationale",
+        }.issubset(_get_columns(conn, "design_briefs"))
+        assert {"brief_id", "idea_id", "role", "rank"}.issubset(
+            _get_columns(conn, "design_brief_sources")
+        )
         conn.close()
 
 
