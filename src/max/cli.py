@@ -668,6 +668,56 @@ def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cr
         store.close()
 
 
+@main.command(name="design-candidates")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--limit", type=int, default=500, help="Max reviewed ideas to consider")
+@click.option("--top", type=int, default=8, help="Number of project briefs to output")
+@click.option("--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown", help="Output format")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+def design_candidates(
+    domain: str | None,
+    limit: int,
+    top: int,
+    fmt: str,
+    output: str | None,
+) -> None:
+    """Synthesize approved ideas into implementation-ready design candidates."""
+    from max.analysis.portfolio_synthesis import (
+        build_candidates,
+        render_json,
+        render_markdown,
+        synthesize_project_briefs,
+        write_briefs,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, domain=domain)
+        evaluations = {unit.id: store.get_evaluation(unit.id) for unit in units}
+        feedback = {unit.id: store.get_latest_feedback(unit.id) for unit in units}
+
+        candidates = build_candidates(
+            units,
+            evaluations=evaluations,
+            feedback=feedback,
+        )
+        if not candidates:
+            click.echo("No approved or published ideas found.")
+            return
+
+        briefs = synthesize_project_briefs(candidates, top=top)
+        if output:
+            write_briefs(Path(output), briefs, fmt=fmt)
+            click.echo(f"Wrote {len(briefs)} design candidate brief(s) to {output}")
+            return
+
+        rendered = render_json(briefs) if fmt == "json" else render_markdown(briefs)
+        click.echo(rendered)
+    finally:
+        store.close()
+
+
 @main.command(name="prior-art")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--limit", type=int, default=80, help="Max ideas to check")
