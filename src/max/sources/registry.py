@@ -20,6 +20,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
+    "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
