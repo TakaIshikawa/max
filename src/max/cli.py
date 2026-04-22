@@ -275,6 +275,84 @@ def _run_post_eval_stages(domain: str | None = None) -> None:
     click.echo("Ready for: max review")
 
 
+@main.group(name="budget")
+def budget_group() -> None:
+    """Inspect LLM token and budget usage."""
+
+
+@budget_group.command(name="usage")
+@click.option("--limit", type=int, default=20, show_default=True, help="Pipeline runs to include")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+@click.option(
+    "--current/--no-current",
+    default=True,
+    show_default=True,
+    help="Include in-process token tracker usage",
+)
+def budget_usage(limit: int, fmt: str, current: bool) -> None:
+    """Show current and historical LLM budget usage."""
+    from max.analysis.budget_usage import build_llm_budget_usage
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        usage = build_llm_budget_usage(store, limit=limit, include_current=current)
+    finally:
+        store.close()
+
+    if fmt == "json":
+        click.echo(json.dumps(usage, indent=2))
+        return
+
+    _print_budget_usage(usage)
+
+
+def _budget_limit_text(limit: int | float, remaining: int | float | None, *, money: bool = False) -> str:
+    if limit <= 0:
+        return "unlimited"
+    if money:
+        return f"${limit:.4f} (${remaining or 0.0:.4f} remaining)"
+    return f"{int(limit):,} ({int(remaining or 0):,} remaining)"
+
+
+def _print_budget_usage(usage: dict[str, object]) -> None:
+    total_input = int(usage["total_input"])
+    total_output = int(usage["total_output"])
+    total_tokens = int(usage["total_tokens"])
+    total_cost = float(usage["total_cost_usd"])
+    token_budget = int(usage["token_budget"])
+    cost_budget = float(usage["cost_budget_usd"])
+
+    click.echo(f"LLM budget usage ({usage['run_count']} runs)")
+    click.echo(f"Tokens: {total_input:,} in / {total_output:,} out / {total_tokens:,} total")
+    click.echo(f"Cost:   ${total_cost:.4f}")
+    click.echo(
+        "Limits: "
+        f"tokens {_budget_limit_text(token_budget, usage['remaining_tokens'])}; "
+        f"cost {_budget_limit_text(cost_budget, usage['remaining_cost_usd'], money=True)}"
+    )
+
+    stages = usage.get("stages") or []
+    if stages:
+        click.echo()
+        click.echo(f"{'Stage':<24s} {'Tokens':>12s} {'Cost':>10s}")
+        click.echo("-" * 48)
+        for stage in stages:
+            if not isinstance(stage, dict):
+                continue
+            click.echo(
+                f"{str(stage['stage'])[:24]:<24s} "
+                f"{int(stage['total_tokens']):>12,} "
+                f"${float(stage['estimated_cost_usd']):>9.4f}"
+            )
+
+
 @main.group(invoke_without_command=True)
 @click.pass_context
 def profiles(ctx: click.Context) -> None:

@@ -752,6 +752,55 @@ class LLMUsageResponse(BaseModel):
     runs: list[LLMUsageRunResponse]
 
 
+class LLMBudgetStageUsageResponse(BaseModel):
+    stage: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+
+
+class LLMBudgetCurrentUsageResponse(BaseModel):
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+    stages: list[LLMBudgetStageUsageResponse] = Field(default_factory=list)
+
+
+class LLMBudgetRunUsageResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None = None
+    status: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+    stages: list[LLMBudgetStageUsageResponse] = Field(default_factory=list)
+    token_usage: dict[str, object] = Field(default_factory=dict)
+
+
+class LLMBudgetUsageResponse(BaseModel):
+    limit: int
+    run_count: int
+    include_current: bool
+    model: str
+    total_input: int
+    total_output: int
+    total_tokens: int
+    total_cost_usd: float
+    token_budget: int
+    cost_budget_usd: float
+    remaining_tokens: int | None = None
+    remaining_cost_usd: float | None = None
+    stages: list[LLMBudgetStageUsageResponse] = Field(default_factory=list)
+    current: LLMBudgetCurrentUsageResponse | None = None
+    runs: list[LLMBudgetRunUsageResponse] = Field(default_factory=list)
+
+
 class PipelinePostRunResponse(BaseModel):
     duplicates_marked: int
     ideas_synthesized: int

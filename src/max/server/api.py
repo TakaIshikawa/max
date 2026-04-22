@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from max import config
 from max.analysis.export import idea_export_records, render_idea_export
+from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -69,6 +70,7 @@ from max.server.schemas import (
     InsightTrendResponse,
     LLMUsageResponse,
     LLMUsageRunResponse,
+    LLMBudgetUsageResponse,
     LineageGraphEdgeResponse,
     LineageGraphNodeResponse,
     LineageGraphResponse,
@@ -214,6 +216,17 @@ def llm_usage(
         total_output=total_output,
         total_cost_usd=total_cost,
         runs=run_breakdown,
+    )
+
+
+@router.get("/budget/usage", response_model=LLMBudgetUsageResponse)
+def llm_budget_usage(
+    limit: int = Query(20, ge=1, le=500),
+    include_current: bool = Query(True),
+    store: Store = Depends(get_store),
+) -> LLMBudgetUsageResponse:
+    return LLMBudgetUsageResponse.model_validate(
+        build_llm_budget_usage(store, limit=limit, include_current=include_current)
     )
 
 
