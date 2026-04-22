@@ -18,6 +18,7 @@ from max.store.migrations import (
     _migrate_v8_to_v9,
     _migrate_v9_to_v10,
     _migrate_v10_to_v11,
+    _migrate_v18_to_v19,
     ensure_schema,
 )
 from max.store.db import Store
@@ -41,6 +42,7 @@ EXPECTED_TABLES = {
     "domain_quality_memory",
     "domain_quality_eval_runs",
     "domain_quality_eval_items",
+    "publication_history",
 }
 
 
@@ -290,6 +292,22 @@ class TestFreshSchema:
         }.issubset(_get_columns(conn, "domain_quality_eval_items"))
         conn.close()
 
+    def test_fresh_db_publication_history_table(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        assert {
+            "id",
+            "idea_id",
+            "target_type",
+            "target_url",
+            "status",
+            "response_status",
+            "error",
+            "created_at",
+        } == _get_columns(conn, "publication_history")
+        assert "idx_publication_history_idea" in _get_indices(conn)
+        conn.close()
+
 
 # ── 2. Incremental migrations apply cleanly ──────────────────────────
 
@@ -459,6 +477,21 @@ class TestIncrementalMigrations:
         assert "tact_specs" not in _get_tables(conn)
         conn.close()
 
+    def test_migrate_v18_to_v19_adds_publication_history(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        conn.execute("DROP TABLE publication_history")
+        conn.execute("DROP INDEX IF EXISTS idx_publication_history_idea")
+        conn.execute("DROP INDEX IF EXISTS idx_publication_history_created")
+        conn.commit()
+
+        assert "publication_history" not in _get_tables(conn)
+        _migrate_v18_to_v19(conn)
+
+        assert "publication_history" in _get_tables(conn)
+        assert "idx_publication_history_idea" in _get_indices(conn)
+        conn.close()
+
 
 # ── 3. Full migration path: v1 → v8 via ensure_schema ───────────────
 
@@ -496,6 +529,8 @@ class TestFullMigrationPath:
         assert "source_idea_ids" in _get_columns(conn, "buildable_units")
         # v11 removal
         assert "tact_specs" not in _get_tables(conn)
+        # v19 addition
+        assert "publication_history" in _get_tables(conn)
         conn.close()
 
     def test_v1_data_survives_migration(self) -> None:

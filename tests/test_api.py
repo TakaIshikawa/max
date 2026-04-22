@@ -1337,6 +1337,47 @@ def test_get_idea_prior_art_not_found(client):
     assert resp.status_code == 404
 
 
+def test_get_idea_publications(seeded_client, seeded_db):
+    store = Store(db_path=seeded_db, wal_mode=True)
+    first = store.insert_publication_attempt(
+        idea_id="bu-api001",
+        target_type="webhook",
+        target_url="https://example.com/hook",
+        status="failure",
+        error="timeout",
+    )
+    second = store.insert_publication_attempt(
+        idea_id="bu-api001",
+        target_type="webhook",
+        target_url="https://example.com/hook",
+        status="success",
+        response_status=202,
+    )
+    store.conn.execute(
+        "UPDATE publication_history SET created_at = ? WHERE id = ?",
+        ("2026-01-01T00:00:00+00:00", first["id"]),
+    )
+    store.conn.execute(
+        "UPDATE publication_history SET created_at = ? WHERE id = ?",
+        ("2026-01-02T00:00:00+00:00", second["id"]),
+    )
+    store.conn.commit()
+    store.close()
+
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/publications")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [attempt["id"] for attempt in data] == [second["id"], first["id"]]
+    assert data[0]["response_status"] == 202
+    assert data[1]["error"] == "timeout"
+
+
+def test_get_idea_publications_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/publications")
+    assert resp.status_code == 404
+
+
 def test_check_idea_prior_art_runs_checker(client, db_path):
     store = Store(db_path=db_path, wal_mode=True)
     unit = BuildableUnit(

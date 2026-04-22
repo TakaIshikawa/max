@@ -439,6 +439,17 @@ class PriorArtResponse(BaseModel):
     matches: list[PriorArtMatchResponse]
 
 
+class PublicationAttemptResponse(BaseModel):
+    id: str
+    idea_id: str
+    target_type: str
+    target_url: str
+    status: str
+    response_status: int | None = None
+    error: str = ""
+    created_at: str
+
+
 class EvidenceChainEdgeResponse(BaseModel):
     source: str
     target: str

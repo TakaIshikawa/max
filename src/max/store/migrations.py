@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -306,6 +306,21 @@ CREATE TABLE IF NOT EXISTS embeddings (
     embedding TEXT NOT NULL,
     PRIMARY KEY (id, entity_type)
 );
+
+CREATE TABLE IF NOT EXISTS publication_history (
+    id TEXT PRIMARY KEY,
+    idea_id TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_url TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    response_status INTEGER DEFAULT NULL,
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_history_idea ON publication_history(idea_id);
+CREATE INDEX IF NOT EXISTS idx_publication_history_created ON publication_history(created_at);
 """
 
 
@@ -692,6 +707,30 @@ def _migrate_v17_to_v18(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
+    """Add publication attempt history table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS publication_history (
+            id TEXT PRIMARY KEY,
+            idea_id TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            target_url TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL,
+            response_status INTEGER DEFAULT NULL,
+            error TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_publication_history_idea ON publication_history(idea_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_publication_history_created ON publication_history(created_at)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -758,6 +797,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 18:
         _migrate_v17_to_v18(conn)
+
+    if current < 19:
+        _migrate_v18_to_v19(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

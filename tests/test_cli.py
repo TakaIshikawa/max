@@ -15,6 +15,7 @@ import yaml
 from click.testing import CliRunner
 
 from max.cli import main
+from max.publisher.webhook import WebhookPublishError
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.signal import Signal, SignalSourceType
@@ -621,6 +622,13 @@ class TestPublishCommand:
         )
         assert "Published tact-spec for bu-test001" in result.output
         assert "token=secret" not in result.output
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="webhook",
+            target_url="https://example.com/hook",
+            status="success",
+            response_status=202,
+        )
 
     @patch("max.publisher.webhook.WebhookPublisher")
     @patch("max.store.db.Store")
@@ -665,6 +673,49 @@ class TestPublishCommand:
             retries=4,
         )
         assert "Published blueprint for dbf-test001" in result.output
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="webhook",
+            target_url="https://example.com/hook",
+            status="success",
+            response_status=200,
+        )
+
+    @patch("max.publisher.webhook.WebhookPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_records_webhook_failure(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.return_value
+        publisher.redacted_url = "https://example.com/hook"
+        publisher.publish.side_effect = WebhookPublishError("webhook returned HTTP 500")
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--webhook-url",
+                "https://example.com/hook",
+                "--payload",
+                "tact-spec",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "webhook returned HTTP 500" in result.output
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="webhook",
+            target_url="https://example.com/hook",
+            status="failure",
+            error="webhook returned HTTP 500",
+        )
 
     @patch("max.store.db.Store")
     def test_publish_missing_tact_spec_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:

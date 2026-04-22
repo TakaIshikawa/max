@@ -1072,6 +1072,7 @@ def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float,
 
     store = Store()
     try:
+        publication_idea_id = entity_id
         if payload_type == "tact-spec":
             unit = store.get_buildable_unit(entity_id)
             if not unit:
@@ -1084,16 +1085,32 @@ def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float,
                 raise click.ClickException(f"Design brief not found: {entity_id}")
             payload = build_blueprint_source_brief(store, brief)
             subject = brief["title"]
+            publication_idea_id = brief["lead_idea_id"]
 
+        publisher = WebhookPublisher(
+            webhook_url,
+            timeout=timeout,
+            retries=retries,
+        )
         try:
-            result = WebhookPublisher(
-                webhook_url,
-                timeout=timeout,
-                retries=retries,
-            ).publish(payload, payload_type=payload_type)
+            result = publisher.publish(payload, payload_type=payload_type)
         except (ValueError, WebhookPublishError) as exc:
+            store.insert_publication_attempt(
+                idea_id=publication_idea_id,
+                target_type="webhook",
+                target_url=publisher.redacted_url,
+                status="failure",
+                error=str(exc),
+            )
             raise click.ClickException(str(exc)) from exc
 
+        store.insert_publication_attempt(
+            idea_id=publication_idea_id,
+            target_type="webhook",
+            target_url=result.url,
+            status="success",
+            response_status=result.status_code,
+        )
         click.echo(
             f"Published {payload_type} for {entity_id} ({subject}) to "
             f"{result.url} [{result.status_code}] in {result.attempts} attempt(s)"

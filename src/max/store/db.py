@@ -1595,6 +1595,73 @@ class Store:
         self._commit()
         return cursor.rowcount
 
+    # ── Publication History ─────────────────────────────────────────
+
+    def insert_publication_attempt(
+        self,
+        *,
+        idea_id: str,
+        target_type: str,
+        target_url: str = "",
+        status: str,
+        response_status: int | None = None,
+        error: str = "",
+    ) -> dict:
+        """Record an attempted publication for an idea."""
+        attempt_id = _gen_id("pub")
+        created_at = _now_iso()
+        self.conn.execute(
+            """INSERT INTO publication_history
+               (id, idea_id, target_type, target_url, status, response_status, error, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                attempt_id,
+                idea_id,
+                target_type,
+                target_url,
+                status,
+                response_status,
+                error,
+                created_at,
+            ),
+        )
+        self._commit()
+        return {
+            "id": attempt_id,
+            "idea_id": idea_id,
+            "target_type": target_type,
+            "target_url": target_url,
+            "status": status,
+            "response_status": response_status,
+            "error": error,
+            "created_at": created_at,
+        }
+
+    def list_publication_attempts(self, idea_id: str, *, limit: int = 50) -> list[dict]:
+        """List recent publication attempts for an idea, newest first."""
+        rows = self.conn.execute(
+            """SELECT id, idea_id, target_type, target_url, status,
+                      response_status, error, created_at
+               FROM publication_history
+               WHERE idea_id = ?
+               ORDER BY created_at DESC, id DESC
+               LIMIT ?""",
+            (idea_id, limit),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "idea_id": row["idea_id"],
+                "target_type": row["target_type"],
+                "target_url": row["target_url"],
+                "status": row["status"],
+                "response_status": row["response_status"],
+                "error": row["error"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
     # ── Evaluations ──────────────────────────────────────────────────
 
     def insert_evaluation(self, evaluation: UtilityEvaluation) -> UtilityEvaluation:

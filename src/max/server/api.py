@@ -72,6 +72,7 @@ from max.server.schemas import (
     PipelineRunRequest,
     PipelineTrendResponse,
     PipelineTrendWindowResponse,
+    PublicationAttemptResponse,
     PriorArtCheckRequest,
     PriorArtResponse,
     ProfileDetailResponse,
@@ -990,6 +991,21 @@ def get_idea_prior_art(idea_id: str, store: Store = Depends(get_store)) -> Prior
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return _prior_art_response(unit, store.get_prior_art_matches(idea_id))
+
+
+@router.get("/ideas/{idea_id}/publications", response_model=list[PublicationAttemptResponse])
+def get_idea_publications(
+    idea_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> list[PublicationAttemptResponse]:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return [
+        PublicationAttemptResponse(**attempt)
+        for attempt in store.list_publication_attempts(idea_id, limit=limit)
+    ]
 
 
 @router.post("/ideas/{idea_id}/prior-art/check", response_model=PriorArtResponse)

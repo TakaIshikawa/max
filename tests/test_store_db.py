@@ -263,6 +263,74 @@ class TestSignalRoles:
         assert len(store.get_signals_by_role("market", limit=3)) == 3
 
 
+class TestPublicationHistory:
+    def test_insert_and_list_publication_attempts_newest_first(
+        self,
+        store: Store,
+        sample_unit: BuildableUnit,
+    ) -> None:
+        store.insert_buildable_unit(sample_unit)
+
+        first = store.insert_publication_attempt(
+            idea_id=sample_unit.id,
+            target_type="webhook",
+            target_url="https://example.com/hook",
+            status="failure",
+            error="timeout",
+        )
+        second = store.insert_publication_attempt(
+            idea_id=sample_unit.id,
+            target_type="webhook",
+            target_url="https://example.com/hook",
+            status="success",
+            response_status=202,
+        )
+        store.conn.execute(
+            "UPDATE publication_history SET created_at = ? WHERE id = ?",
+            ("2026-01-01T00:00:00+00:00", first["id"]),
+        )
+        store.conn.execute(
+            "UPDATE publication_history SET created_at = ? WHERE id = ?",
+            ("2026-01-02T00:00:00+00:00", second["id"]),
+        )
+        store.conn.commit()
+
+        attempts = store.list_publication_attempts(sample_unit.id)
+
+        assert [attempt["id"] for attempt in attempts] == [second["id"], first["id"]]
+        assert attempts[0]["status"] == "success"
+        assert attempts[0]["response_status"] == 202
+        assert attempts[1]["error"] == "timeout"
+
+    def test_list_publication_attempts_scopes_to_idea(
+        self,
+        store: Store,
+        sample_unit: BuildableUnit,
+    ) -> None:
+        other = _make_unit("bu-other")
+        store.insert_buildable_unit(sample_unit)
+        store.insert_buildable_unit(other)
+        store.insert_publication_attempt(
+            idea_id=sample_unit.id,
+            target_type="webhook",
+            target_url="https://example.com/one",
+            status="success",
+            response_status=200,
+        )
+        store.insert_publication_attempt(
+            idea_id=other.id,
+            target_type="webhook",
+            target_url="https://example.com/two",
+            status="success",
+            response_status=200,
+        )
+
+        attempts = store.list_publication_attempts(sample_unit.id)
+
+        assert len(attempts) == 1
+        assert attempts[0]["idea_id"] == sample_unit.id
+
+
 # ── Insight operations ───────────────────────────────────────────────
 
 
