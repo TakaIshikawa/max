@@ -1980,6 +1980,120 @@ def _render_launch_checklist(checklist: dict, *, fmt: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+@main.command(name="experiment-card")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "markdown"]),
+    default="markdown",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write experiment card to file",
+)
+def experiment_card(idea_id: str, fmt: str, output: str | None) -> None:
+    """Generate a deterministic experiment card for one buildable idea."""
+    from max.spec.experiment_card import generate_experiment_card
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        card = generate_experiment_card(unit, store.get_evaluation(idea_id))
+        rendered = _render_experiment_card(card, fmt=fmt)
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered, encoding="utf-8")
+            return
+        click.echo(rendered, nl=False)
+    finally:
+        store.close()
+
+
+def _render_experiment_card(card: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(card, indent=2) + "\n"
+    if fmt != "markdown":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    summary = card["idea_summary"]
+    lines = [
+        f"# Experiment Card: {summary['title']}",
+        "",
+        f"**Idea:** {card['idea_id']}",
+        f"**Target participant:** {card['target_participant']['persona']}",
+        f"**Primary hypothesis:** {card['primary_hypothesis']}",
+        "",
+        "## Idea Summary",
+        "",
+        f"- Problem: {summary['problem']}",
+        f"- Solution: {summary['solution']}",
+        f"- Value proposition: {summary['value_proposition']}",
+        f"- Workflow context: {summary['workflow_context'] or '-'}",
+        "",
+        "## Riskiest Assumptions",
+        "",
+    ]
+
+    for assumption in card["riskiest_assumptions"]:
+        lines.append(
+            f"- **{assumption['id']}** ({assumption['source']}): {assumption['assumption']} "
+            f"Test: {assumption['test_focus']}"
+        )
+
+    lines.extend(["", "## Recruitment Channels", ""])
+    for channel in card["recruitment_channel_suggestions"]:
+        lines.append(f"- **{channel['channel']}**: {channel['ask']}")
+
+    test = card["minimum_viable_test"]
+    lines.extend(
+        [
+            "",
+            "## Minimum Viable Test",
+            "",
+            f"Type: {test['type']}",
+            f"Duration: {test['duration_days']} days",
+            f"Description: {test['description']}",
+            "",
+            "Steps:",
+        ]
+    )
+    for step in test["steps"]:
+        lines.append(f"- {step}")
+
+    lines.extend(["", "## Success Metrics", ""])
+    for metric in card["success_metrics"]:
+        lines.append(f"- **{metric['metric']}**: {metric['target']}")
+
+    lines.extend(["", "## Failure Signals", ""])
+    for signal in card["failure_signals"]:
+        lines.append(f"- **{signal['signal']}**: {signal['threshold']}")
+
+    lines.extend(["", "## 7-Day Execution Plan", ""])
+    for item in card["seven_day_execution_plan"]:
+        lines.append(f"- **{item['day']} - {item['focus']}**: {item['actions']} Deliverable: {item['deliverable']}")
+
+    lines.extend(["", "## Instrumentation Notes", ""])
+    for note in card["instrumentation_notes"]:
+        lines.append(f"- {note}")
+
+    lines.extend(["", "## Decision Rules", ""])
+    for decision, rule in card["decision_rules"].items():
+        lines.append(f"- **{decision}**: {rule}")
+
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="risk-register")
 @click.argument("idea_id")
 @click.option(

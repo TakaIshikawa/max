@@ -69,6 +69,7 @@ from max.server.schemas import (
     DryRunReportResponse,
     EvidenceChainResponse,
     EvidenceDensityResponse,
+    ExperimentCardResponse,
     EvaluationExplanationResponse,
     EvaluationCalibrationResponse,
     EvaluationResponse,
@@ -157,6 +158,7 @@ from max.server.schemas import (
 from max.evaluation.explain import explain_evaluation
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
+from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -1679,6 +1681,16 @@ def get_idea_launch_checklist(idea_id: str, store: Store = Depends(get_store)) -
     tact_spec = generate_spec_preview(unit, evaluation)
     return LaunchChecklistResponse.model_validate(
         generate_launch_checklist(unit, evaluation, tact_spec)
+    )
+
+
+@router.get("/ideas/{idea_id}/experiment-card", response_model=ExperimentCardResponse)
+def get_idea_experiment_card(idea_id: str, store: Store = Depends(get_store)) -> ExperimentCardResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return ExperimentCardResponse.model_validate(
+        generate_experiment_card(unit, store.get_evaluation(idea_id))
     )
 
 

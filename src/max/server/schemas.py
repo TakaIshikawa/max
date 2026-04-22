@@ -568,6 +568,24 @@ class LaunchChecklistResponse(BaseModel):
     risks: list[dict[str, str]]
 
 
+class ExperimentCardResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    source: dict[str, Any]
+    idea_summary: dict[str, Any]
+    riskiest_assumptions: list[dict[str, str]]
+    primary_hypothesis: str
+    target_participant: dict[str, Any]
+    recruitment_channel_suggestions: list[dict[str, str]]
+    minimum_viable_test: dict[str, Any]
+    success_metrics: list[dict[str, str]]
+    failure_signals: list[dict[str, str]]
+    seven_day_execution_plan: list[dict[str, str]]
+    instrumentation_notes: list[str]
+    decision_rules: dict[str, str]
+
+
 class FeedbackBatchItemResponse(BaseModel):
     idea_id: str
     outcome: Literal["approved", "rejected", "published", "abandoned"]

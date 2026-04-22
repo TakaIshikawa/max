@@ -939,6 +939,73 @@ class TestLaunchChecklistCommand:
         store.get_evaluation.assert_not_called()
 
 
+class TestExperimentCardCommand:
+    @patch("max.store.db.Store")
+    def test_experiment_card_stdout_json(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["experiment-card", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-experiment-card/v1"
+        assert payload["kind"] == "max.experiment_card"
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["source"]["recommendation"] == "yes"
+        assert payload["target_participant"]["sample_size"] == 5
+        assert len(payload["seven_day_execution_plan"]) == 7
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_experiment_card_stdout_markdown(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["experiment-card", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "# Experiment Card: MCP Test Framework" in result.output
+        assert "## Riskiest Assumptions" in result.output
+        assert "## 7-Day Execution Plan" in result.output
+        assert "**proceed**" in result.output
+
+    @patch("max.store.db.Store")
+    def test_experiment_card_writes_markdown(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                ["experiment-card", "bu-test001", "--output", "out/card.md"],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert result.output == ""
+            assert "# Experiment Card: MCP Test Framework" in Path("out/card.md").read_text()
+
+    @patch("max.store.db.Store")
+    def test_experiment_card_missing_idea(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["experiment-card", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
 class TestRiskRegisterCommand:
     @patch("max.store.db.Store")
     def test_risk_register_stdout_json(

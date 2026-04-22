@@ -1880,6 +1880,31 @@ def test_get_idea_launch_checklist_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_experiment_card(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/experiment-card")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max-experiment-card/v1"
+    assert data["kind"] == "max.experiment_card"
+    assert data["idea_id"] == "bu-api001"
+    assert data["source"]["evaluation_available"] is True
+    assert data["source"]["recommendation"] == "yes"
+    assert data["idea_summary"]["title"] == "Test Idea"
+    assert data["primary_hypothesis"]
+    assert data["target_participant"]["sample_size"] == 5
+    assert data["minimum_viable_test"]["duration_days"] == 7
+    assert data["success_metrics"]
+    assert data["failure_signals"]
+    assert len(data["seven_day_execution_plan"]) == 7
+    assert set(data["decision_rules"]) == {"proceed", "iterate", "stop"}
+
+
+def test_get_idea_experiment_card_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/experiment-card")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_risk_register(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/risk-register")
     assert resp.status_code == 200
