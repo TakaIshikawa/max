@@ -29,6 +29,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "devto": "max.sources.devto:DevtoAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
+    "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
 }
 
 

@@ -39,6 +39,7 @@ stackoverflow = "max.sources.stackoverflow:StackOverflowAdapter"
 arxiv = "max.sources.arxiv:ArxivAdapter"
 devto = "max.sources.devto:DevtoAdapter"
 pubmed = "max.sources.pubmed:PubMedAdapter"
+rss_feed = "max.sources.rss_feed:RssFeedAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]
