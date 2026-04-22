@@ -46,6 +46,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
+    "discourse": "max.sources.discourse:DiscourseAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
     "devto": "max.sources.devto:DevtoAdapter",
@@ -144,6 +145,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["tags", "min_score", "unanswered_only"],
         required_keys=[],
         description="Fetches Stack Overflow questions for configured tags and score filters.",
+    ),
+    "discourse": AdapterMetadata(
+        name="discourse",
+        config_keys=["base_urls", "category_slugs", "tags", "max_pages"],
+        required_keys=["base_urls"],
+        description="Fetches public Discourse forum topics from latest or category JSON endpoints.",
     ),
     "arxiv": AdapterMetadata(
         name="arxiv",
