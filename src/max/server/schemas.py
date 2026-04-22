@@ -995,6 +995,50 @@ class ProfileCoverageGapsResponse(BaseModel):
     terms: list[ProfileCoverageTermResponse]
 
 
+class ProfileDriftDistributionResponse(BaseModel):
+    metric: str
+    sample_count: int
+    expected: dict[str, float]
+    observed: dict[str, float]
+    counts: dict[str, int]
+    missing_expected: list[str]
+    unexpected: list[str]
+    drift_score: float
+    status: str
+
+
+class EvaluationWeightMismatchResponse(BaseModel):
+    sample_count: int
+    expected_weights: dict[str, float]
+    average_weights_used: dict[str, float]
+    average_absolute_delta: float
+    max_dimension_delta: float
+    mismatched_evaluation_count: int
+    missing_weights_count: int
+    status: str
+    dimension_deltas: dict[str, float]
+
+
+class ProfileDriftResponse(BaseModel):
+    generated_at: str
+    profile_name: str
+    domain: str
+    signal_limit: int
+    unit_limit: int
+    insight_limit: int
+    signals_analyzed: int
+    insights_analyzed: int
+    units_analyzed: int
+    evaluations_analyzed: int
+    category_drift: ProfileDriftDistributionResponse
+    source_mix_drift: ProfileDriftDistributionResponse
+    target_user_drift: ProfileDriftDistributionResponse
+    evaluation_weight_mismatch: EvaluationWeightMismatchResponse
+    overall_drift_score: float
+    status: str
+    warnings: list[str]
+
+
 class PipelineResultResponse(BaseModel):
     profile_name: str | None = None
     domain: str | None = None

@@ -731,6 +731,125 @@ def _render_source_reliability(report) -> None:
     click.echo("-" * 78)
 
 
+@main.command(name="profile-drift")
+@click.argument("profile")
+@click.option(
+    "--signal-limit",
+    type=int,
+    default=500,
+    show_default=True,
+    help="Maximum recent signals to include",
+)
+@click.option(
+    "--unit-limit",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Maximum recent buildable units to include",
+)
+@click.option(
+    "--insight-limit",
+    type=int,
+    default=500,
+    show_default=True,
+    help="Maximum recent insights to include",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def profile_drift(
+    profile: str,
+    signal_limit: int,
+    unit_limit: int,
+    insight_limit: int,
+    fmt: str,
+    as_json: bool,
+) -> None:
+    """Analyze drift between recent outputs and a domain profile."""
+    from max.analysis.profile_drift import build_profile_drift_report
+    from max.profiles.loader import load_profile
+    from max.store.db import Store
+
+    if signal_limit < 1:
+        raise click.ClickException("--signal-limit must be at least 1")
+    if unit_limit < 1:
+        raise click.ClickException("--unit-limit must be at least 1")
+    if insight_limit < 1:
+        raise click.ClickException("--insight-limit must be at least 1")
+
+    try:
+        profile_config = load_profile(profile)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
+
+    with Store() as store:
+        report = build_profile_drift_report(
+            profile_config,
+            store,
+            signal_limit=signal_limit,
+            unit_limit=unit_limit,
+            insight_limit=insight_limit,
+        )
+
+    if as_json or fmt == "json":
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_profile_drift(report)
+
+
+def _render_profile_drift(report) -> None:
+    click.echo("Profile drift")
+    click.echo(
+        f"Profile: {report.profile_name}  Domain: {report.domain}  "
+        f"Status: {report.status}  Score: {_format_rate(report.overall_drift_score)}"
+    )
+    click.echo(
+        f"Signals: {report.signals_analyzed}  Insights: {report.insights_analyzed}  "
+        f"Units: {report.units_analyzed}  Evaluations: {report.evaluations_analyzed}"
+    )
+    click.echo()
+    click.echo(
+        f"{'Metric':<24s} {'Samples':>7s} {'Drift':>7s} {'Status':>8s} "
+        f"{'Unexpected':<24s} Missing expected"
+    )
+    click.echo("-" * 104)
+    for metric in (
+        report.category_drift,
+        report.source_mix_drift,
+        report.target_user_drift,
+    ):
+        click.echo(
+            f"{metric.metric:<24s} "
+            f"{metric.sample_count:>7d} "
+            f"{_format_rate(metric.drift_score):>7s} "
+            f"{metric.status:>8s} "
+            f"{', '.join(metric.unexpected)[:24]:<24s} "
+            f"{', '.join(metric.missing_expected)[:32]}"
+        )
+    weight = report.evaluation_weight_mismatch
+    click.echo(
+        f"{'evaluation_weight_mismatch':<24s} "
+        f"{weight.sample_count:>7d} "
+        f"{_format_rate(weight.average_absolute_delta):>7s} "
+        f"{weight.status:>8s} "
+        f"{str(weight.mismatched_evaluation_count) + ' mismatched':<24s} "
+        f"{weight.missing_weights_count} missing weights"
+    )
+    click.echo("-" * 104)
+
+    if report.warnings:
+        click.echo()
+        click.echo("Warnings")
+        for warning in report.warnings:
+            click.echo(f"  - {warning}")
+
+
 def _known_profile_domains() -> dict[str, str]:
     """Return {domain_name: profile_name} for all valid profiles."""
     from max.profiles.loader import list_profiles, load_profile

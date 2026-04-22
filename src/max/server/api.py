@@ -23,6 +23,12 @@ from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
+from max.analysis.profile_drift import (
+    DEFAULT_INSIGHT_LIMIT as DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT,
+    DEFAULT_SIGNAL_LIMIT as DEFAULT_PROFILE_DRIFT_SIGNAL_LIMIT,
+    DEFAULT_UNIT_LIMIT as DEFAULT_PROFILE_DRIFT_UNIT_LIMIT,
+    build_profile_drift_report,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -118,6 +124,7 @@ from max.server.schemas import (
     ProfileDetailResponse,
     ProfileCoverageGapsResponse,
     ProfileCoverageTermResponse,
+    ProfileDriftResponse,
     ProfileSummaryResponse,
     ProfileValidationIssueResponse,
     ProfileValidationResponse,
@@ -883,6 +890,26 @@ def get_profile_coverage_gaps(
         low_coverage_threshold=low_coverage_threshold,
     )
     return _profile_coverage_gaps_to_response(report)
+
+
+@router.get("/profiles/{profile_name}/drift", response_model=ProfileDriftResponse)
+@router.get("/profiles/{profile_name}/profile-drift", response_model=ProfileDriftResponse)
+def get_profile_drift(
+    profile_name: str,
+    signal_limit: int = Query(DEFAULT_PROFILE_DRIFT_SIGNAL_LIMIT, ge=1, le=10_000),
+    unit_limit: int = Query(DEFAULT_PROFILE_DRIFT_UNIT_LIMIT, ge=1, le=10_000),
+    insight_limit: int = Query(DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT, ge=1, le=10_000),
+    store: Store = Depends(get_store),
+) -> ProfileDriftResponse:
+    profile = _load_profile_or_404(profile_name)
+    report = build_profile_drift_report(
+        profile,
+        store,
+        signal_limit=signal_limit,
+        unit_limit=unit_limit,
+        insight_limit=insight_limit,
+    )
+    return ProfileDriftResponse.model_validate(report.to_dict())
 
 
 # ── Evaluation Weights ──────────────────────────────────────────────
