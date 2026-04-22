@@ -49,6 +49,7 @@ lobsters = "max.sources.lobsters:LobstersAdapter"
 nuget = "max.sources.nuget:NuGetAdapter"
 dockerhub = "max.sources.dockerhub:DockerHubAdapter"
 mcp_registry = "max.sources.mcp_registry:McpRegistryAdapter"
+stackshare = "max.sources.stackshare:StackShareAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

@@ -246,12 +246,22 @@ def test_list_adapters_returns_strings():
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
-    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed,crates_io,dockerhub,mcp_registry"), \
+    with patch(
+        "max.config.MAX_ADAPTERS",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare",
+    ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
         metadata = get_adapter_metadata()
 
-    assert set(metadata) == {"hackernews", "rss_feed", "crates_io", "dockerhub", "mcp_registry"}
+    assert set(metadata) == {
+        "hackernews",
+        "rss_feed",
+        "crates_io",
+        "dockerhub",
+        "mcp_registry",
+        "stackshare",
+    }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
     assert "Hacker News" in metadata["hackernews"].description
@@ -274,6 +284,9 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["mcp_registry"].required_keys == []
     assert "MCP server registry" in metadata["mcp_registry"].description
+    assert metadata["stackshare"].config_keys == ["stacks", "categories", "base_url"]
+    assert metadata["stackshare"].required_keys == []
+    assert "StackShare" in metadata["stackshare"].description
 
 
 def test_get_adapter_returns_instance():
