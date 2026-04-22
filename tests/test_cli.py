@@ -1226,6 +1226,34 @@ class TestPublishCommand:
         assert result.exit_code != 0
         assert "Idea not found: bu-missing" in result.output
 
+    @patch("max.store.db.Store")
+    def test_publish_github_issue_dry_run_prints_payload(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "github-issue",
+                "--github-repository",
+                "owner/repo",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["title"] == "[Max] MCP Test Framework"
+        assert "tact-spec" in payload["labels"]
+        assert payload["metadata"]["idea_id"] == "bu-test001"
+        assert payload["metadata"]["repository"] == "owner/repo"
+        store.insert_publication_attempt.assert_not_called()
+
 
 class TestDomainQualityCommands:
     @patch("max.store.db.Store")

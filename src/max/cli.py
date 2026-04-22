@@ -1528,7 +1528,24 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
 
 @main.command(name="publish")
 @click.argument("entity_id")
-@click.option("--webhook-url", required=True, help="Webhook URL to POST the generated payload to")
+@click.option(
+    "--target",
+    type=click.Choice(["webhook", "github-issue"]),
+    default="webhook",
+    show_default=True,
+    help="Publishing target",
+)
+@click.option("--webhook-url", default=None, help="Webhook URL to POST the generated payload to")
+@click.option(
+    "--github-repository",
+    default=None,
+    help="GitHub repository in owner/repo format (defaults to GITHUB_REPOSITORY)",
+)
+@click.option(
+    "--github-token",
+    default=None,
+    help="GitHub token for live issue creation (defaults to GITHUB_TOKEN)",
+)
 @click.option(
     "--payload",
     "payload_type",
@@ -1539,12 +1556,29 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
 )
 @click.option("--timeout", type=float, default=10.0, show_default=True, help="Webhook timeout in seconds")
 @click.option("--retries", type=int, default=2, show_default=True, help="Retry count for transient failures")
-def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float, retries: int) -> None:
-    """Publish a generated tact spec or Blueprint source brief to a webhook."""
+@click.option("--dry-run", is_flag=True, help="Build and print the publish payload without network calls")
+def publish(
+    entity_id: str,
+    target: str,
+    webhook_url: str | None,
+    github_repository: str | None,
+    github_token: str | None,
+    payload_type: str,
+    timeout: float,
+    retries: int,
+    dry_run: bool,
+) -> None:
+    """Publish a generated tact spec or Blueprint source brief."""
     from max.analysis.blueprint_export import build_blueprint_source_brief
+    from max.publisher.github_issues import GitHubIssuePublishError, GitHubIssuePublisher
     from max.publisher.webhook import WebhookPublishError, WebhookPublisher
     from max.spec.generator import generate_spec_preview
     from max.store.db import Store
+
+    if target == "webhook" and not webhook_url:
+        raise click.ClickException("--webhook-url is required when --target webhook")
+    if target == "github-issue" and payload_type != "tact-spec":
+        raise click.ClickException("--target github-issue only supports --payload tact-spec")
 
     store = Store()
     try:
@@ -1562,6 +1596,47 @@ def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float,
             payload = build_blueprint_source_brief(store, brief)
             subject = brief["title"]
             publication_idea_id = brief["lead_idea_id"]
+
+        if target == "github-issue":
+            try:
+                publisher = GitHubIssuePublisher.from_env(
+                    repository=github_repository,
+                    token=github_token,
+                    timeout=timeout,
+                )
+                result = publisher.publish(payload, dry_run=dry_run)
+            except (ValueError, GitHubIssuePublishError) as exc:
+                if not dry_run:
+                    store.insert_publication_attempt(
+                        idea_id=publication_idea_id,
+                        target_type="github_issue",
+                        target_url=github_repository or "",
+                        status="failure",
+                        error=str(exc),
+                    )
+                raise click.ClickException(str(exc)) from exc
+
+            if dry_run:
+                click.echo(json.dumps(result.payload, indent=2))
+                return
+
+            store.insert_publication_attempt(
+                idea_id=publication_idea_id,
+                target_type="github_issue",
+                target_url=result.issue_url or result.repository,
+                status="success",
+                response_status=result.status_code,
+            )
+            click.echo(
+                f"Published GitHub issue for {entity_id} ({subject}) to "
+                f"{result.issue_url or result.repository} [{result.status_code}]"
+            )
+            return
+
+        assert webhook_url is not None
+        if dry_run:
+            click.echo(json.dumps(payload, indent=2))
+            return
 
         publisher = WebhookPublisher(
             webhook_url,
