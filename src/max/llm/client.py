@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+from typing import Callable, Mapping, TypeVar
 
 import anthropic
 from pydantic import BaseModel, ValidationError
@@ -27,6 +27,38 @@ MODEL_PRICING = {
     "claude-sonnet-3-5-20241022": {"input_per_1k": 0.003, "output_per_1k": 0.015},
     "claude-haiku-4-5-20251001": {"input_per_1k": 0.001, "output_per_1k": 0.005},
 }
+
+
+def pricing_for_model(model: str) -> dict[str, float]:
+    """Return pricing for a model, falling back to Opus pricing when unknown."""
+    pricing = MODEL_PRICING.get(model)
+    if not pricing:
+        logger.warning(
+            "Unknown model '%s' for cost tracking — falling back to Opus pricing",
+            model,
+        )
+        pricing = MODEL_PRICING["claude-opus-4-6"]
+    return pricing
+
+
+def estimate_token_cost_usd(
+    input_tokens: int,
+    output_tokens: int,
+    *,
+    model: str = MODEL,
+) -> float:
+    """Calculate estimated USD cost for input/output token counts."""
+    pricing = pricing_for_model(model)
+    input_cost = (input_tokens / 1000) * pricing["input_per_1k"]
+    output_cost = (output_tokens / 1000) * pricing["output_per_1k"]
+    return input_cost + output_cost
+
+
+def token_counts_from_usage(token_usage: Mapping[str, object]) -> tuple[int, int]:
+    """Extract input/output token counts from persisted token usage summaries."""
+    input_tokens = token_usage.get("total_input", token_usage.get("input", 0))
+    output_tokens = token_usage.get("total_output", token_usage.get("output", 0))
+    return int(input_tokens or 0), int(output_tokens or 0)
 
 
 class BudgetExceededError(Exception):
@@ -59,34 +91,21 @@ class TokenTracker:
 
     def estimated_cost_usd(self) -> float:
         """Calculate estimated cost in USD based on current usage."""
-        pricing = MODEL_PRICING.get(self.model)
-        if not pricing:
-            logger.warning(
-                "Unknown model '%s' for cost tracking — falling back to Opus pricing",
-                self.model,
-            )
-            # Fallback to Opus pricing if model not found
-            pricing = MODEL_PRICING["claude-opus-4-6"]
-
-        input_cost = (self.usage["input"] / 1000) * pricing["input_per_1k"]
-        output_cost = (self.usage["output"] / 1000) * pricing["output_per_1k"]
-        return input_cost + output_cost
+        return estimate_token_cost_usd(
+            self.usage["input"],
+            self.usage["output"],
+            model=self.model,
+        )
 
     def cost_by_stage(self) -> dict[str, float]:
         """Calculate cost breakdown by stage."""
-        pricing = MODEL_PRICING.get(self.model)
-        if not pricing:
-            logger.warning(
-                "Unknown model '%s' for cost tracking — falling back to Opus pricing",
-                self.model,
-            )
-            pricing = MODEL_PRICING["claude-opus-4-6"]
-
         costs = {}
         for stage, counts in self.by_stage.items():
-            input_cost = (counts["input"] / 1000) * pricing["input_per_1k"]
-            output_cost = (counts["output"] / 1000) * pricing["output_per_1k"]
-            costs[stage] = input_cost + output_cost
+            costs[stage] = estimate_token_cost_usd(
+                counts["input"],
+                counts["output"],
+                model=self.model,
+            )
         return costs
 
     def budget_remaining(self, budget: float) -> float:

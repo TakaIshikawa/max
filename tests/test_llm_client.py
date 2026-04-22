@@ -15,13 +15,28 @@ from max.llm.client import (
     BudgetExceededError,
     TokenTracker,
     _call_with_retry,
+    estimate_token_cost_usd,
     structured_call,
     text_call,
+    token_counts_from_usage,
 )
 
 
 class DummyOutput(BaseModel):
     result: str
+
+
+def test_token_counts_from_usage_supports_summary_and_raw_shapes():
+    assert token_counts_from_usage({"total_input": 100, "total_output": 50}) == (100, 50)
+    assert token_counts_from_usage({"input": 75, "output": 25}) == (75, 25)
+
+
+def test_estimate_token_cost_usd_uses_model_pricing():
+    assert estimate_token_cost_usd(
+        1000,
+        500,
+        model="claude-opus-4-6",
+    ) == pytest.approx(0.0525)
 
 
 def _create_mock_http_response(status_code: int, headers: dict[str, str] | None = None) -> Mock:

@@ -50,6 +50,8 @@ from max.server.schemas import (
     InsightCreate,
     InsightDetailResponse,
     InsightResponse,
+    LLMUsageResponse,
+    LLMUsageRunResponse,
     PaginatedResponse,
     PaginationMeta,
     PipelineAggregateResultResponse,
@@ -74,6 +76,7 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.registry import list_adapters
@@ -128,6 +131,59 @@ def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> li
         )
         for r in runs
     ]
+
+
+# ── LLM Usage ───────────────────────────────────────────────────────
+
+
+@router.get("/usage/llm", response_model=LLMUsageResponse)
+def llm_usage(
+    limit: int = Query(20, ge=1, le=500),
+    store: Store = Depends(get_store),
+) -> LLMUsageResponse:
+    runs = store.get_pipeline_runs(limit=limit)
+    total_input = 0
+    total_output = 0
+    total_cost = 0.0
+    run_breakdown: list[LLMUsageRunResponse] = []
+
+    for run in runs:
+        token_usage = run.get("token_usage", {})
+        input_tokens, output_tokens = token_counts_from_usage(token_usage)
+        model = str(run.get("config", {}).get("model") or config.MODEL)
+        stored_cost = token_usage.get("estimated_cost_usd")
+        cost = (
+            float(stored_cost)
+            if isinstance(stored_cost, (int, float))
+            else estimate_token_cost_usd(input_tokens, output_tokens, model=model)
+        )
+
+        total_input += input_tokens
+        total_output += output_tokens
+        total_cost += cost
+        run_breakdown.append(
+            LLMUsageRunResponse(
+                id=run["id"],
+                started_at=run["started_at"],
+                finished_at=run["completed_at"],
+                status=run.get("status")
+                or ("completed" if run["completed_at"] else "running"),
+                model=model,
+                total_input=input_tokens,
+                total_output=output_tokens,
+                total_cost_usd=cost,
+                token_usage=token_usage,
+            )
+        )
+
+    return LLMUsageResponse(
+        limit=limit,
+        run_count=len(run_breakdown),
+        total_input=total_input,
+        total_output=total_output,
+        total_cost_usd=total_cost,
+        runs=run_breakdown,
+    )
 
 
 # ── Helpers ─────────────────────────────────────────────────────────

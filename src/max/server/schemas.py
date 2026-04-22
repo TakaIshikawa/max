@@ -522,6 +522,27 @@ class PipelineAggregateResultResponse(BaseModel):
     profiles: list[PipelineResultResponse]
 
 
+class LLMUsageRunResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None = None
+    status: str
+    model: str
+    total_input: int
+    total_output: int
+    total_cost_usd: float | None = None
+    token_usage: dict[str, object] = Field(default_factory=dict)
+
+
+class LLMUsageResponse(BaseModel):
+    limit: int
+    run_count: int
+    total_input: int
+    total_output: int
+    total_cost_usd: float | None = None
+    runs: list[LLMUsageRunResponse]
+
+
 class PipelinePostRunResponse(BaseModel):
     duplicates_marked: int
     ideas_synthesized: int

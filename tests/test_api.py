@@ -1792,6 +1792,11 @@ def pipeline_runs_db(db_path):
                 insights_generated=i * 2,
                 ideas_generated=i,
                 ideas_evaluated=i,
+                token_usage=(
+                    {"total_input": i * 1000, "total_output": i * 100}
+                    if i == 1
+                    else {"input": i * 1000, "output": i * 100}
+                ),
             )
     store.close()
     return db_path
@@ -1837,6 +1842,47 @@ def test_list_pipeline_runs_empty(client):
     resp = client.get("/api/v1/pipeline/runs")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_llm_usage_aggregates_pipeline_runs(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/usage/llm")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["limit"] == 20
+    assert data["run_count"] == 7
+    assert data["total_input"] == 15_000
+    assert data["total_output"] == 1_500
+    assert data["total_cost_usd"] == pytest.approx(0.3375)
+    assert len(data["runs"]) == 7
+    assert {run["id"] for run in data["runs"]} == {f"run-{i:03d}" for i in range(1, 8)}
+
+    run_001 = next(run for run in data["runs"] if run["id"] == "run-001")
+    assert run_001["total_input"] == 1000
+    assert run_001["total_output"] == 100
+    assert run_001["total_cost_usd"] == pytest.approx(0.0225)
+
+
+def test_llm_usage_limit(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/usage/llm?limit=3")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["limit"] == 3
+    assert data["run_count"] == 3
+    assert len(data["runs"]) == 3
+
+
+def test_llm_usage_empty(client):
+    resp = client.get("/api/v1/usage/llm")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "limit": 20,
+        "run_count": 0,
+        "total_input": 0,
+        "total_output": 0,
+        "total_cost_usd": 0.0,
+        "runs": [],
+    }
 
 
 def _api_mock_profile(name: str, domain_name: str):
