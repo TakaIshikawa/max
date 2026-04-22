@@ -1537,6 +1537,37 @@ class TestIdeasCommand:
         assert payload[0]["recommendation"] is None
 
 
+class TestOpportunityHeatmapCommand:
+    @patch("max.store.db.Store")
+    def test_opportunity_heatmap_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(units=[])
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["opportunity-heatmap", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == []
+        store.get_buildable_units.assert_called_once_with(limit=1000, domain=None)
+        store.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    def test_opportunity_heatmap_text(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit(id="bu-001", title="Idea Alpha", status="evaluated")
+        unit.domain = "devtools"
+        signal = _make_signal("sig-test001")
+        insight = _make_insight("ins-test001")
+        evaluation = _make_evaluation("bu-001", score=78.0)
+        store = _mock_store(units=[unit], signal=signal, insight=insight, evaluation=evaluation)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["opportunity-heatmap", "--domain", "devtools"])
+
+        assert result.exit_code == 0, result.output
+        assert "Opportunity heatmap" in result.output
+        assert "devtools" in result.output
+        assert "cli_tool" in result.output
+
+
 class TestExportIdeasCommand:
     """Tests for ``max export ideas``."""
 

@@ -2616,6 +2616,26 @@ def test_stats_seeded(seeded_client):
     assert data["avg_score"] == 78.0
 
 
+def test_opportunity_heatmap_endpoint(seeded_client):
+    resp = seeded_client.get("/api/v1/opportunity-heatmap")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["domain"] == "testing"
+    assert data[0]["idea_category"] == "application"
+    assert data[0]["signal_count"] == 1
+    assert data[0]["insight_count"] == 1
+    assert data[0]["idea_count"] == 1
+    assert data[0]["evaluated_count"] == 1
+    assert data[0]["average_score"] == 78.0
+    assert data[0]["opportunity_score"] > 0
+
+
+def test_ideas_opportunity_heatmap_alias(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/opportunity-heatmap?domain=testing")
+    assert resp.status_code == 200
+    assert resp.json()[0]["domain"] == "testing"
+
+
 # ── Adapter endpoints ───────────────────────────────────────────────
 
 

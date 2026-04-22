@@ -1185,6 +1185,22 @@ class PortfolioOverlapClusterResponse(BaseModel):
     suggested_action: Literal["merge", "differentiate", "keep separate"]
 
 
+class OpportunityHeatmapBucketResponse(BaseModel):
+    domain: str
+    idea_category: str
+    signal_count: int
+    insight_count: int
+    idea_count: int
+    evaluated_count: int
+    approved_count: int
+    average_score: float | None = None
+    evidence_density: float
+    newest_fetched_at: str | None = None
+    freshness_signal: float
+    opportunity_score: float
+    reasons: list[str] = Field(default_factory=list)
+
+
 class StatsResponse(BaseModel):
     signals_count: int
     insights_count: int

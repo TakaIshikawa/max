@@ -559,6 +559,101 @@ def _format_source_params(params: dict) -> str:
     return encoded if len(encoded) <= 42 else f"{encoded[:39]}..."
 
 
+@main.command(name="opportunity-heatmap")
+@click.option("--domain", type=str, default=None, help="Limit analysis to one domain")
+@click.option(
+    "--min-signals",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Minimum resolved evidence signals per bucket",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=1000,
+    show_default=True,
+    help="Maximum ideas to scan",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+def opportunity_heatmap(domain: str | None, min_signals: int, limit: int, fmt: str) -> None:
+    """Analyze opportunity density by domain and idea category."""
+    from max.analysis.opportunity_heatmap import build_opportunity_heatmap
+    from max.store.db import Store
+
+    if min_signals < 0:
+        raise click.ClickException("--min-signals must be non-negative")
+    if limit < 1:
+        raise click.ClickException("--limit must be at least 1")
+
+    store = Store()
+    try:
+        buckets = build_opportunity_heatmap(
+            store,
+            domain=domain,
+            min_signals=min_signals,
+            limit=limit,
+        )
+    finally:
+        store.close()
+
+    if fmt == "json":
+        click.echo(json.dumps(buckets, indent=2))
+        return
+
+    _render_opportunity_heatmap(buckets, domain=domain, min_signals=min_signals)
+
+
+def _render_opportunity_heatmap(
+    buckets: list[dict],
+    *,
+    domain: str | None,
+    min_signals: int,
+) -> None:
+    click.echo("Opportunity heatmap")
+    if domain:
+        click.echo(f"Domain: {domain}")
+    click.echo(f"Minimum signals: {min_signals}")
+    click.echo()
+
+    if not buckets:
+        click.echo("No opportunity heatmap buckets found.")
+        return
+
+    click.echo(
+        f"{'Domain':<18s} {'Category':<16s} {'Sig':>4s} {'Ins':>4s} "
+        f"{'Ideas':>5s} {'Eval':>5s} {'Appr':>5s} {'Avg':>6s} "
+        f"{'Dens':>6s} {'Fresh':>6s} {'Score':>6s}"
+    )
+    click.echo("-" * 96)
+    for bucket in buckets:
+        average_score = bucket["average_score"]
+        avg_text = "-" if average_score is None else f"{float(average_score):.1f}"
+        click.echo(
+            f"{str(bucket['domain'])[:18]:<18s} "
+            f"{str(bucket['idea_category'])[:16]:<16s} "
+            f"{int(bucket['signal_count']):>4d} "
+            f"{int(bucket['insight_count']):>4d} "
+            f"{int(bucket['idea_count']):>5d} "
+            f"{int(bucket['evaluated_count']):>5d} "
+            f"{int(bucket['approved_count']):>5d} "
+            f"{avg_text:>6s} "
+            f"{float(bucket['evidence_density']):>6.1f} "
+            f"{float(bucket['freshness_signal']):>6.1f} "
+            f"{float(bucket['opportunity_score']):>6.1f}"
+        )
+        reasons = bucket.get("reasons") or []
+        if reasons:
+            click.echo(f"  - {reasons[0]}")
+    click.echo("-" * 96)
+
+
 @main.group(name="signals")
 def signals_group() -> None:
     """Inspect ingested signals."""

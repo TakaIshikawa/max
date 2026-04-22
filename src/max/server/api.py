@@ -22,6 +22,7 @@ from max.analysis.contradictions import (
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
+from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.profile_drift import (
     DEFAULT_INSIGHT_LIMIT as DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT,
@@ -88,6 +89,7 @@ from max.server.schemas import (
     IdeaEvaluateBatchRequest,
     IdeaEvaluateBatchResponse,
     IdeaMemoryResponse,
+    OpportunityHeatmapBucketResponse,
     IdeaSimilarityRequest,
     IdeaSimilarityResultResponse,
     IdeaScoreDistributionResponse,
@@ -1364,6 +1366,55 @@ def get_portfolio_overlap(
         include_archived=include_archived,
     )
     return [PortfolioOverlapClusterResponse(**asdict(cluster)) for cluster in clusters]
+
+
+def _opportunity_heatmap_response(
+    *,
+    domain: str | None,
+    min_signals: int,
+    limit: int,
+    store: Store,
+) -> list[OpportunityHeatmapBucketResponse]:
+    try:
+        buckets = build_opportunity_heatmap(
+            store,
+            domain=domain,
+            min_signals=min_signals,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return [OpportunityHeatmapBucketResponse(**bucket) for bucket in buckets]
+
+
+@router.get("/opportunity-heatmap", response_model=list[OpportunityHeatmapBucketResponse])
+def get_opportunity_heatmap(
+    domain: str | None = None,
+    min_signals: int = Query(default=1, ge=0),
+    limit: int = Query(default=1000, ge=1, le=10000),
+    store: Store = Depends(get_store),
+) -> list[OpportunityHeatmapBucketResponse]:
+    return _opportunity_heatmap_response(
+        domain=domain,
+        min_signals=min_signals,
+        limit=limit,
+        store=store,
+    )
+
+
+@router.get("/ideas/opportunity-heatmap", response_model=list[OpportunityHeatmapBucketResponse])
+def get_ideas_opportunity_heatmap(
+    domain: str | None = None,
+    min_signals: int = Query(default=1, ge=0),
+    limit: int = Query(default=1000, ge=1, le=10000),
+    store: Store = Depends(get_store),
+) -> list[OpportunityHeatmapBucketResponse]:
+    return _opportunity_heatmap_response(
+        domain=domain,
+        min_signals=min_signals,
+        limit=limit,
+        store=store,
+    )
 
 
 def _idea_similarity_response(result) -> IdeaSimilarityResultResponse:
