@@ -45,6 +45,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
+    "openalex": "max.sources.openalex:OpenAlexAdapter",
     "devto": "max.sources.devto:DevtoAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
@@ -128,6 +129,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["categories", "queries"],
         required_keys=[],
         description="Fetches arXiv papers matching configured categories and query expressions.",
+    ),
+    "openalex": AdapterMetadata(
+        name="openalex",
+        config_keys=[
+            "search_terms",
+            "concepts",
+            "from_publication_date",
+            "per_page",
+            "mailto",
+        ],
+        required_keys=[],
+        description="Fetches scholarly works from OpenAlex matching configured search and concept filters.",
     ),
     "devto": AdapterMetadata(
         name="devto",
