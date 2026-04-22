@@ -76,6 +76,8 @@ from max.server.schemas import (
     PriorArtCheckRequest,
     PriorArtResponse,
     ProfileDetailResponse,
+    ProfileCoverageGapsResponse,
+    ProfileCoverageTermResponse,
     ProfileSummaryResponse,
     ReviewQueueItemResponse,
     ScheduleStatusResponse,
@@ -503,6 +505,26 @@ def _profile_detail_to_response(profile) -> ProfileDetailResponse:
     )
 
 
+def _profile_coverage_gaps_to_response(report) -> ProfileCoverageGapsResponse:
+    return ProfileCoverageGapsResponse(
+        profile_name=report.profile_name,
+        domain=report.domain,
+        low_coverage_threshold=report.low_coverage_threshold,
+        enabled_adapters=report.enabled_adapters,
+        terms=[
+            ProfileCoverageTermResponse(
+                term=term.term,
+                term_type=term.term_type,
+                total_count=term.total_count,
+                adapter_counts=term.adapter_counts,
+                enabled_adapters=term.enabled_adapters,
+                suggested_source_adapters=term.suggested_source_adapters,
+            )
+            for term in report.terms
+        ],
+    )
+
+
 def _prior_art_response(unit: BuildableUnit, matches: list[dict]) -> PriorArtResponse:
     return PriorArtResponse(
         idea_id=unit.id,
@@ -571,6 +593,28 @@ def list_pipeline_profiles() -> list[ProfileSummaryResponse]:
 @router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)
 def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
     return _profile_detail_to_response(_load_profile_or_404(profile_name))
+
+
+@router.get("/profiles/{profile_name}/coverage-gaps", response_model=ProfileCoverageGapsResponse)
+def get_profile_coverage_gaps(
+    profile_name: str,
+    low_coverage_threshold: int = Query(
+        default=1,
+        ge=1,
+        le=100,
+        description="Minimum active matching signals required before a term is considered covered",
+    ),
+    store: Store = Depends(get_store),
+) -> ProfileCoverageGapsResponse:
+    from max.analysis.profile_coverage import compute_profile_coverage_gaps
+
+    profile = _load_profile_or_404(profile_name)
+    report = compute_profile_coverage_gaps(
+        profile,
+        store,
+        low_coverage_threshold=low_coverage_threshold,
+    )
+    return _profile_coverage_gaps_to_response(report)
 
 
 # ── Evaluation Weights ──────────────────────────────────────────────

@@ -395,6 +395,60 @@ def test_get_profile_returns_404_for_unknown_profile(client):
     assert resp.json()["detail"] == "Profile not found: missing"
 
 
+def test_get_profile_coverage_gaps_returns_uncovered_terms(client, db_path):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    profile = PipelineProfile(
+        name="coverage",
+        domain=DomainContext(
+            name="testing",
+            description="testing domain",
+            categories=["mcp", "workflow automation"],
+            target_user_types=["developers"],
+        ),
+        sources=[
+            SourceConfig(adapter="hackernews", watchlist=["mcp", "agent testing"]),
+            SourceConfig(adapter="reddit", params={"queries": ["agent testing"]}),
+        ],
+    )
+    store = Store(db_path=db_path, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-coverage-api",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="hackernews",
+            title="MCP coverage exists",
+            content="A stored active signal",
+            url="https://example.com/coverage-api",
+            tags=[],
+        )
+    )
+    store.close()
+
+    with patch("max.profiles.loader.load_profile", return_value=profile):
+        resp = client.get("/api/v1/profiles/coverage/coverage-gaps")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile_name"] == "coverage"
+    assert data["domain"] == "testing"
+    assert data["enabled_adapters"] == ["hackernews", "reddit"]
+
+    by_term = {term["term"]: term for term in data["terms"]}
+    assert "mcp" not in by_term
+    assert by_term["agent testing"]["adapter_counts"] == {"hackernews": 0, "reddit": 0}
+    assert by_term["agent testing"]["suggested_source_adapters"] == ["hackernews", "reddit"]
+    assert by_term["workflow automation"]["enabled_adapters"] == ["hackernews", "reddit"]
+
+
+def test_get_profile_coverage_gaps_returns_404_for_unknown_profile(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/profiles/missing/coverage-gaps")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
 # ── Evaluation weight endpoints ─────────────────────────────────────
 
 

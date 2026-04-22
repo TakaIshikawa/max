@@ -622,6 +622,23 @@ class ProfileDetailResponse(BaseModel):
     draft_count: int
 
 
+class ProfileCoverageTermResponse(BaseModel):
+    term: str
+    term_type: str
+    total_count: int
+    adapter_counts: dict[str, int]
+    enabled_adapters: list[str]
+    suggested_source_adapters: list[str]
+
+
+class ProfileCoverageGapsResponse(BaseModel):
+    profile_name: str
+    domain: str
+    low_coverage_threshold: int
+    enabled_adapters: list[str]
+    terms: list[ProfileCoverageTermResponse]
+
+
 class PipelineResultResponse(BaseModel):
     profile_name: str | None = None
     domain: str | None = None
