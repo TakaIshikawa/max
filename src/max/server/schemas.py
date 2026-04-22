@@ -298,6 +298,21 @@ class IdeaDetailResponse(BaseModel):
     evaluation: EvaluationResponse | None = None
 
 
+class EvidenceChainEdgeResponse(BaseModel):
+    source: str
+    target: str
+    type: str
+    role: Literal["inspires", "evidenced_by"]
+
+
+class EvidenceChainResponse(BaseModel):
+    idea_id: str
+    idea: dict
+    insights: list[dict]
+    signals: list[dict]
+    edges: list[EvidenceChainEdgeResponse]
+
+
 class DesignBriefSourceResponse(BaseModel):
     idea_id: str
     role: str

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.insight import Insight
@@ -71,7 +73,13 @@ def _signal_node(signal: Signal) -> dict:
     }
 
 
-def build_evidence_chain_graph(unit: BuildableUnit, store: Store) -> dict:
+def build_evidence_chain_graph(
+    unit: BuildableUnit,
+    store: Store,
+    *,
+    insight_converter: Callable[[Insight], dict] | None = None,
+    signal_converter: Callable[[Signal], dict] | None = None,
+) -> dict:
     """Build idea -> insight -> signal graph with typed edges."""
     insights: list[dict] = []
     signals: list[dict] = []
@@ -80,18 +88,21 @@ def build_evidence_chain_graph(unit: BuildableUnit, store: Store) -> dict:
     seen_signals: set[str] = set()
     seen_edges: set[tuple[str, str, str]] = set()
 
-    def add_edge(source: str, target: str, edge_type: str) -> None:
+    to_insight_node = insight_converter or _insight_node
+    to_signal_node = signal_converter or _signal_node
+
+    def add_edge(source: str, target: str, edge_type: str, role: str) -> None:
         key = (source, target, edge_type)
         if key in seen_edges:
             return
         seen_edges.add(key)
-        edges.append({"source": source, "target": target, "type": edge_type})
+        edges.append({"source": source, "target": target, "type": edge_type, "role": role})
 
     def add_signal(signal: Signal) -> None:
         if signal.id in seen_signals:
             return
         seen_signals.add(signal.id)
-        signals.append(_signal_node(signal))
+        signals.append(to_signal_node(signal))
 
     for insight_id in unit.inspiring_insights:
         insight = store.get_insight(insight_id)
@@ -99,24 +110,25 @@ def build_evidence_chain_graph(unit: BuildableUnit, store: Store) -> dict:
             continue
         if insight.id not in seen_insights:
             seen_insights.add(insight.id)
-            insights.append(_insight_node(insight))
-        add_edge(unit.id, insight.id, "inspired_by")
+            insights.append(to_insight_node(insight))
+        add_edge(unit.id, insight.id, "inspired_by", "inspires")
 
         for signal_id in insight.evidence:
             signal = store.get_signal(signal_id)
             if not signal:
                 continue
             add_signal(signal)
-            add_edge(insight.id, signal.id, "supported_by")
+            add_edge(insight.id, signal.id, "supported_by", "evidenced_by")
 
     for signal_id in unit.evidence_signals:
         signal = store.get_signal(signal_id)
         if not signal:
             continue
         add_signal(signal)
-        add_edge(unit.id, signal.id, "direct_evidence")
+        add_edge(unit.id, signal.id, "direct_evidence", "evidenced_by")
 
     return {
+        "idea_id": unit.id,
         "idea": _idea_node(unit),
         "insights": insights,
         "signals": signals,

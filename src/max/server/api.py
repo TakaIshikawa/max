@@ -21,6 +21,7 @@ from max.server.schemas import (
     DomainQualityScoreResponse,
     DimensionScoreResponse,
     DryRunReportResponse,
+    EvidenceChainResponse,
     EvaluationResponse,
     FeedbackCreate,
     HealthResponse,
@@ -592,12 +593,18 @@ def get_idea_evidence_pack(idea_id: str, store: Store = Depends(get_store)) -> d
     return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
 
 
-@router.get("/ideas/{idea_id}/evidence-chain")
-def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> dict:
+@router.get("/ideas/{idea_id}/evidence-chain", response_model=EvidenceChainResponse)
+def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> EvidenceChainResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
-    return build_evidence_chain_graph(unit, store)
+    graph = build_evidence_chain_graph(
+        unit,
+        store,
+        insight_converter=lambda insight: _insight_to_response(insight).model_dump(),
+        signal_converter=lambda signal: _signal_to_response(signal).model_dump(),
+    )
+    return EvidenceChainResponse(**graph)
 
 
 @router.get("/ideas/{idea_id}/domain-quality", response_model=list[DomainQualityScoreResponse])
