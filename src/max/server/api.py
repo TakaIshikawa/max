@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import time
 from dataclasses import asdict
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
 from pydantic import ValidationError
@@ -79,6 +81,8 @@ from max.server.schemas import (
     FeedbackTrendDomainResponse,
     FeedbackTrendResponse,
     FeedbackTrendWindowResponse,
+    FeedbackWebhookRequest,
+    FeedbackWebhookResponse,
     FetchAllocationAdapterExplainResponse,
     FetchAllocationExplainResponse,
     HealthResponse,
@@ -1832,24 +1836,114 @@ def create_idea(
 # ── Feedback ────────────────────────────────────────────────────────
 
 
+def _feedback_webhook_secret() -> str:
+    return config.MAX_FEEDBACK_WEBHOOK_SECRET.strip()
+
+
+def _verify_feedback_webhook_signature(payload: bytes, signature: str | None) -> None:
+    secret = _feedback_webhook_secret()
+    if not secret:
+        return
+    if not signature:
+        raise HTTPException(status_code=401, detail="Missing webhook signature")
+
+    expected = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    provided = signature.removeprefix("sha256=").strip()
+    if not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+
+def _cached_request_body(request: Request, body: FeedbackWebhookRequest) -> bytes:
+    payload = getattr(request, "_body", None)
+    if isinstance(payload, bytes):
+        return payload
+    return json.dumps(
+        body.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _feedback_reason_with_external_metadata(body: FeedbackWebhookRequest) -> str:
+    external_metadata: dict[str, Any] = {
+        "external_run_id": body.external_run_id,
+        "external_url": body.external_url,
+    }
+    if body.metadata:
+        external_metadata["metadata"] = body.metadata
+    encoded = json.dumps(external_metadata, sort_keys=True, separators=(",", ":"))
+    if body.reason:
+        return f"{body.reason}\n\nexternal_feedback={encoded}"
+    return f"external_feedback={encoded}"
+
+
+def _record_feedback(
+    *,
+    idea_id: str,
+    outcome: Literal["approved", "rejected", "published", "abandoned"],
+    reason: str,
+    approval_score: int | None,
+    store: Store,
+) -> None:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    try:
+        validate_buildable_unit_status_transition(unit.status, outcome)
+    except InvalidBuildableUnitStatusTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    store.insert_feedback(
+        idea_id,
+        outcome,
+        reason,
+        approval_score=approval_score,
+    )
+    store.update_buildable_unit_status(idea_id, outcome)
+
+
 @router.post("/ideas/{idea_id}/feedback", status_code=201)
 def create_feedback(
     idea_id: str,
     body: FeedbackCreate,
     store: Store = Depends(get_store),
 ) -> dict:
-    unit = store.get_buildable_unit(idea_id)
-    if not unit:
-        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
-
-    try:
-        validate_buildable_unit_status_transition(unit.status, body.outcome)
-    except InvalidBuildableUnitStatusTransition as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-    store.insert_feedback(idea_id, body.outcome, body.reason, approval_score=body.approval_score)
-    store.update_buildable_unit_status(idea_id, body.outcome)
+    _record_feedback(
+        idea_id=idea_id,
+        outcome=body.outcome,
+        reason=body.reason,
+        approval_score=body.approval_score,
+        store=store,
+    )
     return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
+
+
+@router.post("/webhooks/feedback", response_model=FeedbackWebhookResponse, status_code=201)
+def create_feedback_webhook(
+    request: Request,
+    body: FeedbackWebhookRequest,
+    store: Store = Depends(get_store),
+) -> FeedbackWebhookResponse:
+    payload = _cached_request_body(request, body)
+    _verify_feedback_webhook_signature(
+        payload,
+        request.headers.get("X-Max-Signature"),
+    )
+    reason = _feedback_reason_with_external_metadata(body)
+    _record_feedback(
+        idea_id=body.idea_id,
+        outcome=body.outcome,
+        reason=reason,
+        approval_score=body.approval_score,
+        store=store,
+    )
+    return FeedbackWebhookResponse(
+        status="ok",
+        idea_id=body.idea_id,
+        outcome=body.outcome,
+        external_run_id=body.external_run_id,
+    )
 
 
 @router.post("/ideas/feedback-batch", response_model=FeedbackBatchResponse, status_code=200)

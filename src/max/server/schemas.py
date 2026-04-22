@@ -90,6 +90,16 @@ class FeedbackCreate(BaseModel):
     approval_score: int | None = Field(default=None, ge=1, le=10)
 
 
+class FeedbackWebhookRequest(BaseModel):
+    idea_id: str
+    outcome: Literal["approved", "rejected", "published", "abandoned"]
+    reason: str = ""
+    approval_score: int | None = Field(default=None, ge=1, le=10)
+    external_run_id: str
+    external_url: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class FeedbackBatchItem(BaseModel):
     idea_id: str
     outcome: Literal["approved", "rejected", "published", "abandoned"]
@@ -568,6 +578,13 @@ class FeedbackBatchItemResponse(BaseModel):
 
 class FeedbackBatchResponse(BaseModel):
     results: list[FeedbackBatchItemResponse]
+
+
+class FeedbackWebhookResponse(BaseModel):
+    status: Literal["ok"]
+    idea_id: str
+    outcome: Literal["approved", "rejected", "published", "abandoned"]
+    external_run_id: str
 
 
 class IdeaStatusCountResponse(BaseModel):

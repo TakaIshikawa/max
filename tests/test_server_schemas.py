@@ -18,6 +18,8 @@ from max.server.schemas import (
     DryRunReportResponse,
     EvaluationResponse,
     FeedbackCreate,
+    FeedbackWebhookRequest,
+    FeedbackWebhookResponse,
     HealthResponse,
     IdeaCreate,
     IdeaDetailResponse,
@@ -338,6 +340,64 @@ class TestFeedbackCreate:
         dumped = feedback.model_dump()
         assert dumped["outcome"] == "published"
         assert dumped["reason"] == "Ready to ship"
+
+
+class TestFeedbackWebhookRequest:
+    """Tests for FeedbackWebhookRequest request model."""
+
+    def test_valid_construction_full(self):
+        feedback = FeedbackWebhookRequest(
+            idea_id="bu-webhook",
+            outcome="approved",
+            reason="passed external checks",
+            approval_score=8,
+            external_run_id="run-123",
+            external_url="https://example.com/runs/run-123",
+            metadata={"executor": "ci", "duration_seconds": 42},
+        )
+
+        assert feedback.idea_id == "bu-webhook"
+        assert feedback.outcome == "approved"
+        assert feedback.reason == "passed external checks"
+        assert feedback.approval_score == 8
+        assert feedback.external_run_id == "run-123"
+        assert feedback.metadata["executor"] == "ci"
+
+    def test_metadata_defaults_to_empty_dict(self):
+        feedback = FeedbackWebhookRequest(
+            idea_id="bu-webhook",
+            outcome="rejected",
+            external_run_id="run-123",
+            external_url="https://example.com/runs/run-123",
+        )
+
+        assert feedback.reason == ""
+        assert feedback.metadata == {}
+
+    def test_outcome_validation(self):
+        with pytest.raises(ValidationError):
+            FeedbackWebhookRequest(
+                idea_id="bu-webhook",
+                outcome="invalid",
+                external_run_id="run-123",
+                external_url="https://example.com/runs/run-123",
+            )
+
+    def test_response_construction(self):
+        response = FeedbackWebhookResponse(
+            status="ok",
+            idea_id="bu-webhook",
+            outcome="published",
+            external_run_id="run-123",
+        )
+
+        dumped = response.model_dump()
+        assert dumped == {
+            "status": "ok",
+            "idea_id": "bu-webhook",
+            "outcome": "published",
+            "external_run_id": "run-123",
+        }
 
 
 class TestPipelineRunRequest:

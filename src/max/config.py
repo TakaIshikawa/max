@@ -74,6 +74,7 @@ MAX_COST_BUDGET: float = _parse_float("MAX_COST_BUDGET", 0.0)  # Max USD per pip
 # Server
 MAX_HOST: str = os.getenv("MAX_HOST", "0.0.0.0")
 MAX_PORT: int = _parse_int("MAX_PORT", 8000)
+MAX_FEEDBACK_WEBHOOK_SECRET: str = os.getenv("MAX_FEEDBACK_WEBHOOK_SECRET", "")
 
 # Scheduler
 MAX_SCHEDULE_INTERVAL: int = _parse_int("MAX_SCHEDULE_INTERVAL", 21600)  # seconds, default 6h
