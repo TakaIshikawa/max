@@ -667,6 +667,76 @@ class TestBlueprintExportCommands:
         assert "Design brief not found: dbf-missing" in result.output
 
 
+class TestDesignBriefValidationPlanCommand:
+    @patch("max.store.db.Store")
+    def test_validation_plan_stdout_markdown(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit()
+        unit.specific_user = "platform engineer"
+        unit.buyer = "engineering manager"
+        unit.workflow_context = "CI gate"
+        unit.current_workaround = "manual prompt testing"
+        store = _mock_store(unit=unit)
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "validation-plan", "dbf-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "# Validation Plan: AgentAdversarialBench" in result.output
+        assert "## Target User Hypotheses" in result.output
+        assert "## Smoke-Test Landing Page Copy" in result.output
+        store.get_design_brief.assert_called_once_with("dbf-test001")
+
+    @patch("max.store.db.Store")
+    def test_validation_plan_stdout_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["design-briefs", "validation-plan", "dbf-test001", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max.design_brief.validation_plan.v1"
+        assert payload["design_brief"]["id"] == "dbf-test001"
+
+    @patch("max.store.db.Store")
+    def test_validation_plan_writes_markdown(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                [
+                    "design-briefs",
+                    "validation-plan",
+                    "dbf-test001",
+                    "--output",
+                    "validation.md",
+                ],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert Path("validation.md").exists()
+            assert "# Validation Plan: AgentAdversarialBench" in Path("validation.md").read_text()
+
+    @patch("max.store.db.Store")
+    def test_validation_plan_not_found(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "validation-plan", "dbf-missing"])
+
+        assert result.exit_code != 0
+        assert "Design brief not found: dbf-missing" in result.output
+
+
 class TestSpecPreviewCommand:
     @patch("max.store.db.Store")
     def test_spec_preview_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:

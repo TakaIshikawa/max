@@ -698,6 +698,21 @@ class DesignBriefStatusUpdate(BaseModel):
     status: Literal["draft", "approved", "published", "archived", "rejected"]
 
 
+class DesignBriefValidationPlanResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    target_user_hypotheses: list[dict]
+    recruiting_criteria: dict
+    interview_script: dict
+    smoke_test_landing_page_copy: dict
+    success_metrics: list[dict]
+    failure_thresholds: list[dict]
+    two_week_timeline: list[dict]
+    risks_to_probe: list[str]
+    source_ideas: list[dict]
+
+
 class FeedbackTrendDomainResponse(BaseModel):
     domain: str
     total_count: int

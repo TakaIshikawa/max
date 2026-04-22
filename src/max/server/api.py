@@ -45,6 +45,7 @@ from max.server.schemas import (
     CircuitBreakerStateResponse,
     DesignBriefResponse,
     DesignBriefStatusUpdate,
+    DesignBriefValidationPlanResponse,
     DomainQualityMemoryResponse,
     DomainQualityScoreResponse,
     DimensionScoreResponse,
@@ -1948,6 +1949,19 @@ def get_design_brief_markdown(
         content=render_design_brief_markdown(brief),
         media_type="text/markdown",
     )
+
+
+@router.get("/design-briefs/{brief_id}/validation-plan", response_model=DesignBriefValidationPlanResponse)
+def get_design_brief_validation_plan(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefValidationPlanResponse:
+    from max.analysis.design_validation import build_validation_plan
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefValidationPlanResponse(**build_validation_plan(store, brief))
 
 
 # ── Domain Quality ──────────────────────────────────────────────────

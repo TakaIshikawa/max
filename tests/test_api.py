@@ -2346,6 +2346,25 @@ def test_get_design_brief_markdown(seeded_client):
     assert "`bu-api001`" in resp.text
 
 
+def test_get_design_brief_validation_plan(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/validation-plan")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max.design_brief.validation_plan.v1"
+    assert data["design_brief"]["id"] == brief_id
+    assert data["target_user_hypotheses"]
+    assert data["recruiting_criteria"]["screener_questions"]
+    assert data["interview_script"]["problem_discovery_questions"]
+    assert data["smoke_test_landing_page_copy"]["headline"] == "Test Design Brief"
+    assert data["success_metrics"]
+    assert data["failure_thresholds"]
+    assert data["two_week_timeline"]
+
+
 def test_synthesize_design_briefs_persists_approved_and_published(client, db_path):
     def _score(value: float) -> DimensionScore:
         return DimensionScore(value=value, confidence=0.8, reasoning="seeded")
@@ -2428,6 +2447,11 @@ def test_synthesize_design_briefs_persists_approved_and_published(client, db_pat
 
 def test_get_design_brief_markdown_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing/markdown")
+    assert resp.status_code == 404
+
+
+def test_get_design_brief_validation_plan_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing/validation-plan")
     assert resp.status_code == 404
 
 

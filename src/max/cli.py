@@ -2208,6 +2208,44 @@ def design_briefs_blueprint(design_brief_id: str, output: str | None) -> None:
         store.close()
 
 
+@design_briefs.command(name="validation-plan")
+@click.argument("design_brief_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format",
+)
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write plan to file")
+def design_briefs_validation_plan(
+    design_brief_id: str,
+    fmt: str,
+    output: str | None,
+) -> None:
+    """Export a deterministic validation plan for a design brief."""
+    from max.analysis.design_validation import (
+        build_validation_plan,
+        render_validation_plan,
+        write_validation_plan,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        plan = build_validation_plan(store, brief)
+        if output:
+            write_validation_plan(Path(output), plan, fmt=fmt)
+            click.echo(f"Wrote validation plan to {output}")
+            return
+        click.echo(render_validation_plan(plan, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @main.command(name="export-design-brief")
 @click.argument("design_brief_id")
 @click.option("--format", "fmt", type=click.Choice(["json", "yaml"]), default="json")
