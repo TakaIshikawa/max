@@ -59,6 +59,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
+    "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -229,6 +230,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["stacks", "categories", "base_url"],
         required_keys=[],
         description="Fetches StackShare developer tool and infrastructure adoption signals.",
+    ),
+    "huggingface": AdapterMetadata(
+        name="huggingface",
+        config_keys=["queries", "resource_types", "sort", "limit_per_query"],
+        required_keys=[],
+        description="Fetches Hugging Face Hub model, dataset, and Space discovery signals.",
     ),
 }
 

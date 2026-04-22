@@ -212,6 +212,7 @@ properties:
             - stackoverflow
             - devto
             - rss_feed
+            - huggingface
 
         enabled:
           type: boolean
@@ -249,6 +250,7 @@ properties:
           # pypi_registry: {"keywords": ["ai", "llm", "agent"]}
           # security_advisories: {"ecosystems": ["pip", "npm"], "severities": ["critical", "high"]}
           # product_hunt: {"topics": ["developer-tools", "artificial-intelligence"]}
+          # huggingface: {"queries": ["agent", "mcp"], "resource_types": ["model", "dataset", "space"], "sort": "downloads"}
           # hackernews: {"filter_keywords": ["security", "vulnerability"]}
           # rss_feed: {"feeds": ["https://example.com/feed.xml"], "max_age_days": 14}
           # watchlist terms are normalized by the loader into the relevant

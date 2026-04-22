@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -262,6 +262,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "mcp_registry",
         "stackshare",
         "bluesky",
+        "huggingface",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -291,6 +292,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["bluesky"].config_keys == ["queries", "domains"]
     assert metadata["bluesky"].required_keys == []
     assert "Bluesky" in metadata["bluesky"].description
+    assert metadata["huggingface"].config_keys == [
+        "queries",
+        "resource_types",
+        "sort",
+        "limit_per_query",
+    ]
+    assert metadata["huggingface"].required_keys == []
+    assert "Hugging Face Hub" in metadata["huggingface"].description
 
 
 def test_get_adapter_returns_instance():

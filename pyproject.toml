@@ -52,6 +52,7 @@ nuget = "max.sources.nuget:NuGetAdapter"
 dockerhub = "max.sources.dockerhub:DockerHubAdapter"
 mcp_registry = "max.sources.mcp_registry:McpRegistryAdapter"
 stackshare = "max.sources.stackshare:StackShareAdapter"
+huggingface = "max.sources.huggingface:HuggingFaceAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]
