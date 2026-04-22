@@ -232,10 +232,13 @@ class TestScheduleUpdateRequest:
         m = ScheduleUpdateRequest()
         assert m.enabled is None
         assert m.interval_seconds is None
+        assert m.profile is None
+        assert m.include_all is None
         assert m.signal_limit is None
         assert m.min_score is None
         assert m.weight_profile is None
         assert m.ideation_mode is None
+        assert m.quality_loop_enabled is None
         assert m.trigger_now is False
 
     # interval_seconds
@@ -330,15 +333,21 @@ class TestComposition:
         m = ScheduleUpdateRequest(
             enabled=True,
             interval_seconds=7200,
+            profile="devtools",
+            include_all=True,
             signal_limit=50,
             min_score=60.0,
             weight_profile="ecosystem",
             ideation_mode="cross_domain",
+            quality_loop_enabled=True,
             trigger_now=True,
         )
         d = m.model_dump()
         assert d["enabled"] is True
         assert d["interval_seconds"] == 7200
+        assert d["profile"] == "devtools"
+        assert d["include_all"] is True
+        assert d["quality_loop_enabled"] is True
         assert d["trigger_now"] is True
 
     def test_design_brief_response(self):

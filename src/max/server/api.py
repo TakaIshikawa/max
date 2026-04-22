@@ -1291,10 +1291,13 @@ async def update_schedule(body: ScheduleUpdateRequest, request: Request) -> Sche
     scheduler.update(
         enabled=body.enabled,
         interval_seconds=body.interval_seconds,
+        profile=body.profile,
+        include_all=body.include_all,
         signal_limit=body.signal_limit,
         min_score=body.min_score,
         weight_profile=body.weight_profile,
         ideation_mode=body.ideation_mode,
+        quality_loop_enabled=body.quality_loop_enabled,
         max_consecutive_failures=body.max_consecutive_failures,
     )
     if body.trigger_now:

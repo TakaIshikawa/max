@@ -539,6 +539,8 @@ class PipelineResultSummary(BaseModel):
 class ScheduleStatusResponse(BaseModel):
     enabled: bool
     interval_seconds: int
+    profile: str | None = None
+    include_all: bool = False
     running: bool
     last_run_at: str | None = None
     next_run_at: str | None = None
@@ -554,12 +556,15 @@ class ScheduleStatusResponse(BaseModel):
 class ScheduleUpdateRequest(BaseModel):
     enabled: bool | None = None
     interval_seconds: int | None = Field(default=None, ge=60)
+    profile: str | None = None
+    include_all: bool | None = None
     signal_limit: int | None = Field(default=None, ge=1, le=500)
     min_score: float | None = Field(default=None, ge=0.0, le=100.0)
     weight_profile: Literal[
         "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
     ] | None = None
     ideation_mode: Literal["direct", "refinement", "cross_domain"] | None = None
+    quality_loop_enabled: bool | None = None
     max_consecutive_failures: int | None = Field(default=None, ge=1)
     trigger_now: bool = False
 

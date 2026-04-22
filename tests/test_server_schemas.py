@@ -593,10 +593,13 @@ class TestScheduleUpdateRequest:
         request = ScheduleUpdateRequest()
         assert request.enabled is None
         assert request.interval_seconds is None
+        assert request.profile is None
+        assert request.include_all is None
         assert request.signal_limit is None
         assert request.min_score is None
         assert request.weight_profile is None
         assert request.ideation_mode is None
+        assert request.quality_loop_enabled is None
         assert request.max_consecutive_failures is None
         assert request.trigger_now is False
 
@@ -605,19 +608,25 @@ class TestScheduleUpdateRequest:
         request = ScheduleUpdateRequest(
             enabled=True,
             interval_seconds=3600,
+            profile="devtools",
+            include_all=True,
             signal_limit=50,
             min_score=70.0,
             weight_profile="quick_wins",
             ideation_mode="cross_domain",
+            quality_loop_enabled=True,
             max_consecutive_failures=5,
             trigger_now=True,
         )
         assert request.enabled is True
         assert request.interval_seconds == 3600
+        assert request.profile == "devtools"
+        assert request.include_all is True
         assert request.signal_limit == 50
         assert request.min_score == 70.0
         assert request.weight_profile == "quick_wins"
         assert request.ideation_mode == "cross_domain"
+        assert request.quality_loop_enabled is True
         assert request.max_consecutive_failures == 5
         assert request.trigger_now is True
 
@@ -1510,6 +1519,8 @@ class TestScheduleStatusResponse:
             pipeline_config={},
         )
         assert status.enabled is True
+        assert status.profile is None
+        assert status.include_all is False
         assert status.last_run_at is None
         assert status.failure_streak == 0
         assert status.max_consecutive_failures == 3
@@ -1528,6 +1539,8 @@ class TestScheduleStatusResponse:
         status = ScheduleStatusResponse(
             enabled=True,
             interval_seconds=7200,
+            profile="all",
+            include_all=True,
             running=True,
             last_run_at="2024-01-01T12:00:00Z",
             next_run_at="2024-01-01T14:00:00Z",
@@ -1540,6 +1553,8 @@ class TestScheduleStatusResponse:
             pipeline_config={"signal_limit": 30},
         )
         assert status.running is True
+        assert status.profile == "all"
+        assert status.include_all is True
         assert status.run_count == 42
         assert status.last_result is not None
         assert status.last_result.avg_idea_score == 82.0

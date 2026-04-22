@@ -1451,6 +1451,30 @@ def test_update_schedule_interval(schedule_client):
     assert resp.json()["interval_seconds"] == 3600
 
 
+def test_update_schedule_pipeline_config(schedule_client):
+    resp = schedule_client.post(
+        "/api/v1/schedule",
+        json={
+            "profile": "devtools",
+            "include_all": True,
+            "signal_limit": 45,
+            "min_score": 62.5,
+            "weight_profile": "quick_wins",
+            "ideation_mode": "refinement",
+            "quality_loop_enabled": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] == "devtools"
+    assert data["include_all"] is True
+    assert data["pipeline_config"]["signal_limit"] == 45
+    assert data["pipeline_config"]["min_score"] == 62.5
+    assert data["pipeline_config"]["weight_profile"] == "quick_wins"
+    assert data["pipeline_config"]["ideation_mode"] == "refinement"
+    assert data["pipeline_config"]["quality_loop_enabled"] is True
+
+
 # ── Health endpoint ──────────────────────────────────────────────────
 
 

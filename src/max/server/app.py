@@ -19,15 +19,25 @@ from max.server.scheduler import Scheduler
 logger = logging.getLogger(__name__)
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() == "true"
+
+
 def _get_schedule_config() -> dict:
     """Read schedule config fresh from env (supports CLI overrides)."""
     return {
         "interval_seconds": int(os.getenv("MAX_SCHEDULE_INTERVAL", "21600")),
-        "enabled": os.getenv("MAX_SCHEDULE_ENABLED", "true").lower() == "true",
+        "enabled": _env_bool("MAX_SCHEDULE_ENABLED", True),
+        "profile": os.getenv("MAX_SCHEDULE_PIPELINE_PROFILE"),
+        "include_all": _env_bool("MAX_SCHEDULE_INCLUDE_ALL", False),
         "signal_limit": int(os.getenv("MAX_SCHEDULE_SIGNAL_LIMIT", "30")),
         "min_score": float(os.getenv("MAX_SCHEDULE_MIN_SCORE", "50.0")),
         "weight_profile": os.getenv("MAX_SCHEDULE_PROFILE", "default"),
         "ideation_mode": os.getenv("MAX_SCHEDULE_MODE", "direct"),
+        "quality_loop_enabled": _env_bool("MAX_SCHEDULE_QUALITY_LOOP_ENABLED", False),
     }
 
 
@@ -44,11 +54,14 @@ def create_app() -> FastAPI:
             scheduler = Scheduler(
                 interval_seconds=cfg["interval_seconds"],
                 enabled=cfg["enabled"],
+                profile=cfg["profile"],
+                include_all=cfg["include_all"],
                 pipeline_kwargs={
                     "signal_limit": cfg["signal_limit"],
                     "min_score": cfg["min_score"],
                     "weight_profile": cfg["weight_profile"],
                     "ideation_mode": cfg["ideation_mode"],
+                    "quality_loop_enabled": cfg["quality_loop_enabled"],
                 },
             )
             app.state.started_at = time.monotonic()

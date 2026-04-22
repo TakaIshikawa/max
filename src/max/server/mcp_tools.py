@@ -386,17 +386,37 @@ def get_schedule() -> dict:
 def set_schedule(
     enabled: bool | None = None,
     interval_seconds: int | None = None,
+    profile: str | None = None,
+    include_all: bool | None = None,
+    signal_limit: int | None = None,
+    min_score: float | None = None,
+    weight_profile: str | None = None,
+    ideation_mode: str | None = None,
+    quality_loop_enabled: bool | None = None,
     trigger_now: bool = False,
 ) -> dict:
     """Update the pipeline schedule or trigger an immediate run.
 
     Set enabled=false to pause, enabled=true to resume.
     Set interval_seconds to change how often the pipeline runs.
+    Set profile to run a named pipeline profile, or "all" for all focused profiles.
+    Set include_all=true to bypass focus when profile="all".
+    Set pipeline options to override scheduled run defaults.
     Set trigger_now=true to run the pipeline immediately.
     """
     if _scheduler is None:
         return {"error": "Scheduler not available"}
-    _scheduler.update(enabled=enabled, interval_seconds=interval_seconds)
+    _scheduler.update(
+        enabled=enabled,
+        interval_seconds=interval_seconds,
+        profile=profile,
+        include_all=include_all,
+        signal_limit=signal_limit,
+        min_score=min_score,
+        weight_profile=weight_profile,
+        ideation_mode=ideation_mode,
+        quality_loop_enabled=quality_loop_enabled,
+    )
     if trigger_now:
         asyncio.ensure_future(_scheduler.run_once())
     return _scheduler.status()

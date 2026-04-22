@@ -16,8 +16,11 @@ from max.server.mcp_tools import (
     get_stats,
     list_design_briefs,
     search_ideas,
+    set_schedule,
+    set_scheduler_ref,
     set_store_factory,
 )
+from max.server.scheduler import Scheduler
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -366,3 +369,28 @@ def test_get_stats_seeded(seeded_mcp_db):
     assert result["signals_count"] == 1
     assert result["ideas_count"] == 1
     assert result["avg_score"] == 78.0
+
+
+def test_set_schedule_pipeline_config():
+    scheduler = Scheduler(interval_seconds=3600, enabled=True)
+    set_scheduler_ref(scheduler)
+    try:
+        result = set_schedule(
+            profile="devtools",
+            include_all=True,
+            signal_limit=45,
+            min_score=62.5,
+            weight_profile="quick_wins",
+            ideation_mode="refinement",
+            quality_loop_enabled=True,
+        )
+    finally:
+        set_scheduler_ref(None)
+
+    assert result["profile"] == "devtools"
+    assert result["include_all"] is True
+    assert result["pipeline_config"]["signal_limit"] == 45
+    assert result["pipeline_config"]["min_score"] == 62.5
+    assert result["pipeline_config"]["weight_profile"] == "quick_wins"
+    assert result["pipeline_config"]["ideation_mode"] == "refinement"
+    assert result["pipeline_config"]["quality_loop_enabled"] is True

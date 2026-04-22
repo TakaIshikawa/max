@@ -50,6 +50,8 @@ def test_scheduler_status():
     status = scheduler.status()
     assert status["enabled"] is False
     assert status["interval_seconds"] == 3600
+    assert status["profile"] is None
+    assert status["include_all"] is False
     assert status["running"] is False
     assert status["run_count"] == 0
     assert status["last_run_at"] is None
@@ -169,16 +171,22 @@ def test_update_all_pipeline_kwargs():
     scheduler = Scheduler(interval_seconds=60, enabled=True)
 
     scheduler.update(
+        profile="devtools",
+        include_all=True,
         signal_limit=100,
         min_score=75.0,
         weight_profile="balanced",
         ideation_mode="creative",
+        quality_loop_enabled=True,
     )
 
+    assert scheduler.profile == "devtools"
+    assert scheduler.include_all is True
     assert scheduler.pipeline_kwargs["signal_limit"] == 100
     assert scheduler.pipeline_kwargs["min_score"] == 75.0
     assert scheduler.pipeline_kwargs["weight_profile"] == "balanced"
     assert scheduler.pipeline_kwargs["ideation_mode"] == "creative"
+    assert scheduler.pipeline_kwargs["quality_loop_enabled"] is True
 
 
 @pytest.mark.asyncio
