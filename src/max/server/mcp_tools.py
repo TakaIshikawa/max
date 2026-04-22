@@ -178,6 +178,40 @@ def get_idea_critique(id: str) -> dict:
         return {"id": id, "critiques": critiques}
 
 
+def list_design_briefs(
+    domain: str | None = None,
+    status: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    """List persisted design briefs from the max portfolio synthesis pipeline.
+
+    Use domain to filter by pipeline profile domain.
+    Use status to filter by design workflow status (candidate, designing, etc).
+    """
+    with _get_store() as store:
+        return store.get_design_briefs(domain=domain, status=status, limit=limit)
+
+
+def get_design_brief(brief_id: str) -> dict:
+    """Get a persisted design brief with its source idea relationships."""
+    with _get_store() as store:
+        brief = store.get_design_brief(brief_id)
+        if not brief:
+            return {"error": f"Design brief not found: {brief_id}"}
+        return brief
+
+
+def get_design_brief_markdown(brief_id: str) -> dict:
+    """Render a persisted design brief as Markdown for design handoff."""
+    from max.analysis.portfolio_synthesis import render_design_brief_markdown
+
+    with _get_store() as store:
+        brief = store.get_design_brief(brief_id)
+        if not brief:
+            return {"error": f"Design brief not found: {brief_id}"}
+        return {"id": brief_id, "markdown": render_design_brief_markdown(brief)}
+
+
 def get_evidence_pack(id: str) -> dict:
     """Get the evidence pack used for an idea, or reconstruct one from its evidence chain."""
     with _get_store() as store:
@@ -433,6 +467,16 @@ def evidence_pack_detail(idea_id: str) -> str:
     return json.dumps(get_evidence_pack(idea_id), indent=2)
 
 
+def design_briefs_list() -> str:
+    """Browse persisted design briefs from the max portfolio synthesis pipeline."""
+    return json.dumps(list_design_briefs(), indent=2)
+
+
+def design_brief_detail(brief_id: str) -> str:
+    """Get details of a specific design brief."""
+    return json.dumps(get_design_brief(brief_id), indent=2)
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -444,6 +488,9 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(search_ideas)
     mcp.tool(get_idea)
     mcp.tool(get_idea_critique)
+    mcp.tool(list_design_briefs)
+    mcp.tool(get_design_brief)
+    mcp.tool(get_design_brief_markdown)
     mcp.tool(get_evidence_pack)
     mcp.tool(contribute_signal)
     mcp.tool(contribute_idea)
@@ -457,5 +504,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://list")(ideas_list)
     mcp.resource("ideas://{idea_id}")(idea_detail)
     mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
+    mcp.resource("design-briefs://list")(design_briefs_list)
+    mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
 
     return mcp

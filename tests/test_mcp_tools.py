@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import pytest
 
+from max.analysis.portfolio_synthesis import build_candidates, synthesize_project_briefs
 from max.server.mcp_tools import (
     contribute_idea,
     contribute_signal,
+    get_design_brief,
+    get_design_brief_markdown,
     get_idea,
     get_stats,
+    list_design_briefs,
     search_ideas,
     set_store_factory,
 )
@@ -83,6 +87,81 @@ def seeded_mcp_db(mcp_db):
     return mcp_db
 
 
+@pytest.fixture
+def seeded_design_brief_db(mcp_db):
+    """DB pre-populated with one persisted design brief."""
+    store = Store(db_path=mcp_db, wal_mode=True)
+
+    first = BuildableUnit(
+        id="bu-brief001",
+        title="MCP Design Brief",
+        one_liner="A test design brief for MCP",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="Design handoffs lack context",
+        solution="Persist synthesized briefs",
+        value_proposition="Clear implementation handoff",
+        specific_user="product engineer",
+        buyer="engineering manager",
+        workflow_context="MCP tool browsing",
+        why_now="Design brief synthesis is now persisted.",
+        validation_plan="Call the MCP tools.",
+        domain="developer-tools",
+        status="approved",
+    )
+    second = BuildableUnit(
+        id="bu-brief002",
+        title="MCP Supporting Idea",
+        one_liner="Supporting idea for MCP design brief",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="Supporting context is hard to find",
+        solution="Attach source relationships",
+        value_proposition="Better handoffs",
+        specific_user="product engineer",
+        buyer="engineering manager",
+        workflow_context="MCP tool browsing",
+        why_now="Design brief synthesis is now persisted.",
+        validation_plan="Call the MCP tools.",
+        domain="developer-tools",
+        status="approved",
+    )
+    store.insert_buildable_unit(first)
+    store.insert_buildable_unit(second)
+
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+    evaluations = {}
+    for unit_id, score in [("bu-brief001", 75.0), ("bu-brief002", 70.0)]:
+        evaluation = UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(7.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(8.0),
+            composability=_score(7.0),
+            competitive_density=_score(7.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(7.0),
+            overall_score=score,
+            strengths=["Testable"],
+            weaknesses=["Narrow scope"],
+            recommendation="yes",
+            weights_used={"pain_severity": 0.20},
+        )
+        store.insert_evaluation(evaluation)
+        evaluations[unit_id] = evaluation
+
+    candidates = build_candidates(
+        [first, second],
+        evaluations=evaluations,
+        feedback={"bu-brief001": {"approval_score": 8}, "bu-brief002": {"approval_score": 6}},
+    )
+    brief_id = store.insert_design_brief(synthesize_project_briefs(candidates, top=1)[0])
+    store.close()
+    return brief_id
+
+
 def test_search_ideas_empty(mcp_db):
     result = search_ideas()
     assert result == []
@@ -130,6 +209,44 @@ def test_get_idea_not_found(mcp_db):
     assert "error" in result
 
 
+def test_list_design_briefs(seeded_design_brief_db):
+    result = list_design_briefs()
+    assert len(result) == 1
+    assert result[0]["id"] == seeded_design_brief_db
+    assert result[0]["title"] == "MCP Design Brief"
+
+
+def test_list_design_briefs_filters(seeded_design_brief_db):
+    assert len(list_design_briefs(domain="developer-tools")) == 1
+    assert list_design_briefs(domain="healthcare") == []
+    assert len(list_design_briefs(status="candidate")) == 1
+    assert list_design_briefs(status="designing") == []
+
+
+def test_get_design_brief_found(seeded_design_brief_db):
+    result = get_design_brief(seeded_design_brief_db)
+    assert result["id"] == seeded_design_brief_db
+    assert result["lead_idea_id"] == "bu-brief001"
+    assert result["source_idea_ids"] == ["bu-brief001", "bu-brief002"]
+
+
+def test_get_design_brief_not_found(mcp_db):
+    result = get_design_brief("dbf-missing")
+    assert result == {"error": "Design brief not found: dbf-missing"}
+
+
+def test_get_design_brief_markdown(seeded_design_brief_db):
+    result = get_design_brief_markdown(seeded_design_brief_db)
+    assert result["id"] == seeded_design_brief_db
+    assert "# MCP Design Brief" in result["markdown"]
+    assert "### MVP Scope" in result["markdown"]
+
+
+def test_get_design_brief_markdown_not_found(mcp_db):
+    result = get_design_brief_markdown("dbf-missing")
+    assert result == {"error": "Design brief not found: dbf-missing"}
+
+
 def test_contribute_signal(mcp_db):
     result = contribute_signal(
         title="Test Signal via MCP",
@@ -162,5 +279,3 @@ def test_get_stats_seeded(seeded_mcp_db):
     assert result["signals_count"] == 1
     assert result["ideas_count"] == 1
     assert result["avg_score"] == 78.0
-
-
