@@ -441,6 +441,36 @@ class EvaluationCalibrationResponse(BaseModel):
     groups: list[EvaluationCalibrationGroupResponse]
 
 
+class RoiForecastItemResponse(BaseModel):
+    rank: int
+    idea_id: str
+    title: str
+    domain: str
+    status: str
+    category: str
+    roi_score: float
+    evaluation_score: float | None
+    weighted_utility_score: float
+    evidence_count: int
+    evidence_score: float
+    estimated_complexity: float
+    complexity_score: float
+    confidence: float
+    recommendation: str | None
+    drivers: list[str]
+    warnings: list[str]
+
+
+class RoiForecastResponse(BaseModel):
+    generated_at: str
+    profile: str | None = None
+    weight_profile: str
+    weights: dict[str, float]
+    total_units: int
+    evaluated_units: int
+    results: list[RoiForecastItemResponse]
+
+
 class ReviewQueueItemResponse(IdeaSummaryResponse):
     evaluation: EvaluationSummaryResponse
     latest_critique: IdeaCritiqueResponse | None = None

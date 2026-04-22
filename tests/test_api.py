@@ -1619,6 +1619,18 @@ def test_get_evaluation_calibration(client, db_path):
     assert group["low_score_approval_rate"] == pytest.approx(1.0)
 
 
+def test_get_roi_forecast(seeded_client):
+    resp = seeded_client.get("/api/v1/roi-forecast?domain=testing")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_units"] == 1
+    assert data["evaluated_units"] == 1
+    assert data["results"][0]["idea_id"] == "bu-api001"
+    assert data["results"][0]["roi_score"] > 0
+    assert data["results"][0]["evidence_count"] == 2
+
+
 def test_get_idea(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001")
     assert resp.status_code == 200

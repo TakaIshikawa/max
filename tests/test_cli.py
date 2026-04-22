@@ -925,6 +925,33 @@ class TestEvidenceDensityCommand:
         store.get_signal.assert_not_called()
 
 
+class TestRoiForecastCommand:
+    @patch("max.store.db.Store")
+    def test_roi_forecast_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(units=[_make_unit()], evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["roi-forecast", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["total_units"] == 1
+        assert payload["evaluated_units"] == 1
+        assert payload["results"][0]["idea_id"] == "bu-test001"
+        assert payload["results"][0]["roi_score"] > 0
+
+    @patch("max.store.db.Store")
+    def test_roi_forecast_stdout_text(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(units=[_make_unit()], evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["roi-forecast"])
+
+        assert result.exit_code == 0, result.output
+        assert "ROI forecast" in result.output
+        assert "MCP Test Framework" in result.output
+
+
 class TestPublishCommand:
     @patch("max.publisher.webhook.WebhookPublisher")
     @patch("max.store.db.Store")

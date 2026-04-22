@@ -23,6 +23,7 @@ from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
 )
+from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
@@ -117,6 +118,7 @@ from max.server.schemas import (
     ReviewQueueItemResponse,
     ReviewThresholdRecommendationResponse,
     ReviewThresholdsResponse,
+    RoiForecastResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -914,6 +916,34 @@ def get_evaluation_calibration(
         limit=limit,
     )
     return EvaluationCalibrationResponse(**asdict(report))
+
+
+@router.get("/roi-forecast", response_model=RoiForecastResponse)
+@router.get("/ideas/roi-forecast", response_model=RoiForecastResponse)
+def get_roi_forecast(
+    domain: str | None = None,
+    status: str | None = None,
+    profile: str | None = None,
+    weight_profile: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    store: Store = Depends(get_store),
+) -> RoiForecastResponse:
+    if profile and weight_profile:
+        raise HTTPException(
+            status_code=400,
+            detail="Use either profile or weight_profile, not both.",
+        )
+    profile_input = None
+    if profile:
+        profile_input = _load_profile_or_404(profile)
+    elif weight_profile:
+        _weight_profile_or_404(weight_profile)
+        profile_input = weight_profile
+
+    units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+    evaluations = {unit.id: store.get_evaluation(unit.id) for unit in units}
+    report = generate_roi_forecast(units, evaluations, profile=profile_input)
+    return RoiForecastResponse(**asdict(report))
 
 
 # ── Signals ─────────────────────────────────────────────────────────

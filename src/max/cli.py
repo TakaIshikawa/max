@@ -1629,6 +1629,88 @@ def _format_optional_float(value: float | None) -> str:
     return "-" if value is None else f"{value:.3f}"
 
 
+@main.command(name="roi-forecast")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--status", type=str, default=None, help="Filter by idea status")
+@click.option("--profile", "-p", type=str, default=None, help="Use a pipeline profile's evaluation weights")
+@click.option("--weight-profile", type=str, default=None, help="Use a named evaluation weight profile")
+@click.option("--limit", type=int, default=100, show_default=True, help="Maximum ideas to rank")
+@click.option("--json", "as_json", is_flag=True, help="Print report as JSON")
+def roi_forecast(
+    domain: str | None,
+    status: str | None,
+    profile: str | None,
+    weight_profile: str | None,
+    limit: int,
+    as_json: bool,
+) -> None:
+    """Rank ideas by rough return on implementation effort."""
+    from dataclasses import asdict
+
+    from max.analysis.roi_forecast import generate_roi_forecast
+    from max.evaluation.weights import WEIGHT_PROFILES
+    from max.profiles.loader import load_profile
+    from max.store.db import Store
+
+    if limit < 1:
+        raise click.ClickException("--limit must be at least 1")
+    if profile and weight_profile:
+        raise click.ClickException("Use either --profile or --weight-profile, not both")
+
+    profile_input = None
+    if profile:
+        try:
+            profile_input = load_profile(profile)
+        except FileNotFoundError as e:
+            raise click.ClickException(str(e)) from e
+    elif weight_profile:
+        if weight_profile not in WEIGHT_PROFILES:
+            available = ", ".join(sorted(WEIGHT_PROFILES))
+            raise click.ClickException(
+                f"Unknown weight profile: {weight_profile}. Available: {available}"
+            )
+        profile_input = weight_profile
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+        evaluations = {unit.id: store.get_evaluation(unit.id) for unit in units}
+        report = generate_roi_forecast(units, evaluations, profile=profile_input)
+    finally:
+        store.close()
+
+    if as_json:
+        click.echo(json.dumps(asdict(report), indent=2))
+        return
+
+    if not report.results:
+        click.echo("No ideas found for ROI forecast.")
+        return
+
+    click.echo(
+        f"ROI forecast ({report.total_units} ideas, {report.evaluated_units} evaluated, "
+        f"weights: {report.weight_profile})"
+    )
+    click.echo(
+        f"{'#':>3s} {'ROI':>6s} {'Eval':>6s} {'Evid':>5s} {'Cx':>4s} "
+        f"{'Conf':>5s} {'Rec':<10s} Title"
+    )
+    click.echo("-" * 88)
+    for item in report.results:
+        eval_score = "-" if item.evaluation_score is None else f"{item.evaluation_score:.1f}"
+        recommendation = item.recommendation or "-"
+        click.echo(
+            f"{item.rank:>3d} "
+            f"{item.roi_score:>6.1f} "
+            f"{eval_score:>6s} "
+            f"{item.evidence_count:>5d} "
+            f"{item.estimated_complexity:>4.1f} "
+            f"{item.confidence:>5.2f} "
+            f"{recommendation:<10.10s} "
+            f"{item.title}"
+        )
+
+
 @main.command()
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))
