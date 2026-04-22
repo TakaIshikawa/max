@@ -274,6 +274,53 @@ def get_design_brief_markdown(brief_id: str) -> dict:
         return {"id": brief_id, "markdown": render_design_brief_markdown(brief)}
 
 
+def max_portfolio_overlap(
+    limit: int = 20,
+    min_overlap_score: float = 0.35,
+    include_archived: bool = False,
+) -> list[dict] | dict:
+    """Return portfolio overlap clusters for idea deduplication and positioning.
+
+    Set limit to cap the number of clusters.
+    Set min_overlap_score between 0 and 1 to tune sensitivity.
+    Set include_archived=true to include archived ideas in the analysis.
+    """
+    from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
+
+    try:
+        with _get_store() as store:
+            clusters = find_portfolio_overlap_clusters(
+                store,
+                limit=limit,
+                min_overlap_score=min_overlap_score,
+                include_archived=include_archived,
+            )
+    except ValueError as e:
+        return {"error": str(e)}
+
+    return [_portfolio_overlap_cluster_to_dict(cluster) for cluster in clusters]
+
+
+def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
+    return {
+        "cluster_id": cluster.cluster_id,
+        "idea_ids": cluster.idea_ids,
+        "representative_idea_ids": cluster.representative_idea_ids,
+        "overlap_score": cluster.overlap_score,
+        "reasons": [
+            {
+                "type": reason.type,
+                "description": reason.description,
+                "score": reason.score,
+                "shared_terms": reason.shared_terms,
+                "shared_ids": reason.shared_ids,
+            }
+            for reason in cluster.overlap_reasons
+        ],
+        "suggested_action": cluster.suggested_action,
+    }
+
+
 def get_evidence_pack(id: str) -> dict:
     """Get the evidence pack used for an idea, or reconstruct one from its evidence chain."""
     with _get_store() as store:
@@ -786,6 +833,11 @@ def signal_freshness_detail() -> str:
     return json.dumps(max_signal_freshness(), indent=2)
 
 
+def portfolio_overlap_detail() -> str:
+    """Browse the default portfolio overlap report."""
+    return json.dumps(max_portfolio_overlap(), indent=2)
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -812,6 +864,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_stats)
     mcp.tool(max_source_reliability)
     mcp.tool(max_signal_freshness)
+    mcp.tool(max_portfolio_overlap)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -825,5 +878,6 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
+    mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
 
     return mcp

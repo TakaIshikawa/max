@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -23,8 +24,10 @@ from max.server.mcp_tools import (
     get_spec_preview,
     get_stats,
     list_design_briefs,
+    max_portfolio_overlap,
     max_signal_freshness,
     max_source_reliability,
+    portfolio_overlap_detail,
     search_ideas,
     set_schedule,
     set_scheduler_ref,
@@ -94,6 +97,37 @@ def _mcp_mock_dry_run_report():
         cost_by_stage={"ideate": 0.01},
         enabled_adapters=["test"],
         fetch_allocation={"test": 12},
+    )
+
+
+def _mcp_overlap_unit(
+    unit_id: str,
+    title: str,
+    problem: str,
+    *,
+    target_users: str = "MCP platform teams",
+    specific_user: str = "platform engineer",
+    evidence: list[str] | None = None,
+    status: str = "evaluated",
+    quality_score: float = 7.0,
+) -> BuildableUnit:
+    return BuildableUnit(
+        id=unit_id,
+        title=title,
+        one_liner=problem,
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem=problem,
+        solution="Build a workflow automation surface",
+        target_users=target_users,
+        specific_user=specific_user,
+        value_proposition="Reduce manual review work",
+        evidence_signals=evidence or [],
+        tech_approach="TypeScript service with workflow automation",
+        suggested_stack={"language": "typescript", "runtime": "node"},
+        quality_score=quality_score,
+        usefulness_score=8.0,
+        status=status,
     )
 
 
@@ -526,6 +560,120 @@ def test_get_design_brief_markdown_not_found(mcp_db):
     assert result == {"error": "Design brief not found: dbf-missing"}
 
 
+def test_max_portfolio_overlap_returns_serializable_clusters_sorted(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    for unit in [
+        _mcp_overlap_unit(
+            "bu-overlap-a",
+            "MCP Release Tester",
+            "MCP maintainers need repeatable server release testing",
+            evidence=["sig-mcp-shared", "sig-release"],
+            quality_score=8.0,
+        ),
+        _mcp_overlap_unit(
+            "bu-overlap-b",
+            "MCP Protocol Test Console",
+            "MCP maintainers need repeatable protocol release testing",
+            evidence=["sig-mcp-shared", "sig-protocol"],
+            quality_score=7.0,
+        ),
+        _mcp_overlap_unit(
+            "bu-overlap-c",
+            "Payroll Export Reviewer",
+            "Payroll analysts need spreadsheet export review automation",
+            target_users="finance operations teams",
+            specific_user="payroll analyst",
+            evidence=["sig-payroll-shared"],
+            quality_score=6.0,
+        ),
+        _mcp_overlap_unit(
+            "bu-overlap-d",
+            "Payroll Export Checker",
+            "Payroll analysts need spreadsheet export checking",
+            target_users="finance operations teams",
+            specific_user="payroll analyst",
+            evidence=["sig-payroll-shared", "sig-payroll-extra"],
+            quality_score=5.0,
+        ),
+    ]:
+        store.insert_buildable_unit(unit)
+    store.close()
+
+    result = max_portfolio_overlap(min_overlap_score=0.25)
+
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert [cluster["overlap_score"] for cluster in result] == sorted(
+        [cluster["overlap_score"] for cluster in result],
+        reverse=True,
+    )
+    assert {
+        "cluster_id",
+        "idea_ids",
+        "representative_idea_ids",
+        "overlap_score",
+        "reasons",
+        "suggested_action",
+    } <= result[0].keys()
+    mcp_cluster = next(
+        cluster
+        for cluster in result
+        if cluster["idea_ids"] == ["bu-overlap-a", "bu-overlap-b"]
+    )
+    assert mcp_cluster["representative_idea_ids"] == ["bu-overlap-a", "bu-overlap-b"]
+    assert {reason["type"] for reason in mcp_cluster["reasons"]} >= {
+        "target_users",
+        "problem_statement",
+        "evidence_signal_ids",
+    }
+    json.dumps(result)
+
+
+def test_max_portfolio_overlap_include_archived(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    store.insert_buildable_unit(
+        _mcp_overlap_unit(
+            "bu-overlap-live",
+            "Incident Triage Console",
+            "SRE teams need incident triage automation",
+            target_users="SRE teams",
+            specific_user="site reliability engineer",
+            evidence=["sig-incident-shared"],
+        )
+    )
+    store.insert_buildable_unit(
+        _mcp_overlap_unit(
+            "bu-overlap-archived",
+            "Incident Triage Assistant",
+            "SRE teams need incident triage review automation",
+            target_users="SRE teams",
+            specific_user="site reliability engineer",
+            evidence=["sig-incident-shared"],
+            status="archived",
+        )
+    )
+    store.close()
+
+    assert max_portfolio_overlap(min_overlap_score=0.25) == []
+    result = max_portfolio_overlap(min_overlap_score=0.25, include_archived=True)
+
+    assert len(result) == 1
+    assert result[0]["idea_ids"] == ["bu-overlap-archived", "bu-overlap-live"]
+
+
+def test_max_portfolio_overlap_rejects_invalid_arguments(mcp_db):
+    assert max_portfolio_overlap(limit=0) == {"error": "limit must be at least 1"}
+    assert max_portfolio_overlap(min_overlap_score=1.1) == {
+        "error": "min_overlap_score must be between 0 and 1"
+    }
+
+
+def test_portfolio_overlap_resource_returns_default_report(seeded_mcp_db):
+    result = json.loads(portfolio_overlap_detail())
+
+    assert result == []
+
+
 def test_contribute_signal(mcp_db):
     result = contribute_signal(
         title="Test Signal via MCP",
@@ -729,6 +877,8 @@ def test_signal_freshness_resource_registered(monkeypatch):
 
     assert "max_signal_freshness" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
+    assert "max_portfolio_overlap" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
 
 
 def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
