@@ -876,3 +876,54 @@ def test_pipeline_run_all_include_all_bypasses_focus_and_aggregates(
     assert data["totals"]["token_usage"] == {"input": 30, "output": 5}
     assert [p["profile_name"] for p in data["profiles"]] == ["devtools", "healthcare"]
     assert mock_run.call_count == 2
+
+
+def test_pipeline_post_run_invokes_runner(client):
+    from max.pipeline.runner import PostPipelineResult
+
+    result = PostPipelineResult(
+        duplicates_found=99,
+        duplicates_marked=2,
+        synthesis_clusters=3,
+        ideas_synthesized=4,
+        source_ideas_merged=5,
+        prior_art_checked=6,
+        prior_art_strong=7,
+        prior_art_weak=8,
+        prior_art_clear=9,
+        triage_auto_approved=10,
+        triage_auto_rejected=11,
+        triage_pending_review=12,
+    )
+
+    with patch("max.pipeline.runner.run_post_pipeline", return_value=result) as mock_run:
+        resp = client.post("/api/v1/pipeline/post-run", json={})
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "duplicates_marked": 2,
+        "ideas_synthesized": 4,
+        "source_ideas_merged": 5,
+        "synthesis_clusters": 3,
+        "prior_art_checked": 6,
+        "prior_art_strong": 7,
+        "prior_art_weak": 8,
+        "prior_art_clear": 9,
+        "triage_auto_approved": 10,
+        "triage_auto_rejected": 11,
+        "triage_pending_review": 12,
+    }
+    mock_run.assert_called_once_with(domain=None)
+
+
+def test_pipeline_post_run_passes_optional_domain(client):
+    from max.pipeline.runner import PostPipelineResult
+
+    with patch(
+        "max.pipeline.runner.run_post_pipeline",
+        return_value=PostPipelineResult(),
+    ) as mock_run:
+        resp = client.post("/api/v1/pipeline/post-run", json={"domain": "fintech"})
+
+    assert resp.status_code == 200
+    mock_run.assert_called_once_with(domain="fintech")

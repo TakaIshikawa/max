@@ -32,6 +32,8 @@ from max.server.schemas import (
     PaginationMeta,
     PipelineAggregateResultResponse,
     PipelineDryRunRequest,
+    PipelinePostRunRequest,
+    PipelinePostRunResponse,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
@@ -744,6 +746,32 @@ def _aggregate_pipeline_results(results: list[PipelineResultResponse]) -> Pipeli
         avg_idea_score=weighted_average("avg_idea_score", "ideas_evaluated"),
         token_usage=token_usage,
         top_ideas=top_ideas[:10],
+    )
+
+
+@router.post(
+    "/pipeline/post-run",
+    response_model=PipelinePostRunResponse,
+    dependencies=[Depends(rate_limit(config.MAX_RATE_LIMIT_EXPENSIVE_RPM))],
+)
+async def run_post_pipeline_endpoint(
+    body: PipelinePostRunRequest,
+) -> PipelinePostRunResponse:
+    from max.pipeline.runner import run_post_pipeline
+
+    result = await asyncio.to_thread(run_post_pipeline, domain=body.domain)
+    return PipelinePostRunResponse(
+        duplicates_marked=result.duplicates_marked,
+        ideas_synthesized=result.ideas_synthesized,
+        source_ideas_merged=result.source_ideas_merged,
+        synthesis_clusters=result.synthesis_clusters,
+        prior_art_checked=result.prior_art_checked,
+        prior_art_strong=result.prior_art_strong,
+        prior_art_weak=result.prior_art_weak,
+        prior_art_clear=result.prior_art_clear,
+        triage_auto_approved=result.triage_auto_approved,
+        triage_auto_rejected=result.triage_auto_rejected,
+        triage_pending_review=result.triage_pending_review,
     )
 
 

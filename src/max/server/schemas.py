@@ -84,6 +84,10 @@ class PipelineDryRunRequest(BaseModel):
     stages: list[str] | None = None
 
 
+class PipelinePostRunRequest(BaseModel):
+    domain: str | None = None
+
+
 class SimilarityRequest(BaseModel):
     text: str
     entity_type: str
@@ -334,6 +338,20 @@ class PipelineAggregateResultResponse(BaseModel):
     profiles_run: int
     totals: PipelineResultResponse
     profiles: list[PipelineResultResponse]
+
+
+class PipelinePostRunResponse(BaseModel):
+    duplicates_marked: int
+    ideas_synthesized: int
+    source_ideas_merged: int
+    synthesis_clusters: int
+    prior_art_checked: int
+    prior_art_strong: int
+    prior_art_weak: int
+    prior_art_clear: int
+    triage_auto_approved: int
+    triage_auto_rejected: int
+    triage_pending_review: int
 
 
 class SimilarityResult(BaseModel):

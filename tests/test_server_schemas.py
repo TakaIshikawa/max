@@ -28,6 +28,8 @@ from max.server.schemas import (
     PaginationMeta,
     PaginationParams,
     PipelineDryRunRequest,
+    PipelinePostRunRequest,
+    PipelinePostRunResponse,
     PipelineResultResponse,
     PipelineResultSummary,
     PipelineRunHistoryResponse,
@@ -463,6 +465,20 @@ class TestPipelineDryRunRequest:
         dumped = request.model_dump()
         assert dumped["profile"] == "ecosystem"
         assert dumped["signal_limit"] == 75
+
+
+class TestPipelinePostRunRequest:
+    """Tests for PipelinePostRunRequest model."""
+
+    def test_valid_construction_defaults(self):
+        """Test construction with default values."""
+        request = PipelinePostRunRequest()
+        assert request.domain is None
+
+    def test_valid_construction_with_domain(self):
+        """Test construction with optional domain."""
+        request = PipelinePostRunRequest(domain="fintech")
+        assert request.domain == "fintech"
 
 
 class TestSimilarityRequest:
@@ -1142,6 +1158,37 @@ class TestPipelineResultResponse:
         dumped = result.model_dump()
         assert dumped["signals_fetched"] == 50
         assert dumped["top_ideas"] == []
+
+
+class TestPipelinePostRunResponse:
+    """Tests for PipelinePostRunResponse model."""
+
+    def test_valid_construction(self):
+        """Test construction with all required fields."""
+        result = PipelinePostRunResponse(
+            duplicates_marked=1,
+            ideas_synthesized=2,
+            source_ideas_merged=3,
+            synthesis_clusters=4,
+            prior_art_checked=5,
+            prior_art_strong=6,
+            prior_art_weak=7,
+            prior_art_clear=8,
+            triage_auto_approved=9,
+            triage_auto_rejected=10,
+            triage_pending_review=11,
+        )
+        assert result.duplicates_marked == 1
+        assert result.triage_pending_review == 11
+
+    def test_required_fields(self):
+        """Test that required fields raise ValidationError when missing."""
+        with pytest.raises(ValidationError) as exc_info:
+            PipelinePostRunResponse()
+        errors = exc_info.value.errors()
+        missing_fields = {e["loc"][0] for e in errors}
+        assert "duplicates_marked" in missing_fields
+        assert "triage_pending_review" in missing_fields
 
 
 class TestSimilarityResult:
