@@ -734,3 +734,145 @@ def test_list_pipeline_runs_empty(client):
     resp = client.get("/api/v1/pipeline/runs")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def _api_mock_profile(name: str, domain_name: str):
+    from max.profiles.schema import DomainContext, PipelineProfile
+
+    return PipelineProfile(
+        name=name,
+        domain=DomainContext(
+            name=domain_name,
+            description=f"{domain_name} domain",
+            categories=["cli_tool"],
+            target_user_types=["developers"],
+        ),
+    )
+
+
+def _api_mock_pipeline_result(
+    *,
+    signals_fetched: int,
+    signals_new: int,
+    insights_generated: int,
+    ideas_generated: int,
+    ideas_evaluated: int,
+    token_usage: dict[str, int] | None = None,
+):
+    from max.pipeline.runner import PipelineResult
+
+    return PipelineResult(
+        signals_fetched=signals_fetched,
+        signals_new=signals_new,
+        insights_generated=insights_generated,
+        ideas_generated=ideas_generated,
+        ideas_evaluated=ideas_evaluated,
+        avg_insight_confidence=0.8,
+        avg_idea_score=70.0,
+        token_usage=token_usage or {},
+        top_ideas=[],
+    )
+
+
+def test_pipeline_run_all_respects_focus(client, tmp_path, monkeypatch):
+    from max.focus import save_focus_domains
+
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    monkeypatch.setattr("max.focus.get_profiles_dir", lambda: profiles_dir)
+    save_focus_domains(["developer-tools"])
+
+    profiles = {
+        "devtools": "developer-tools",
+        "healthcare": "healthcare",
+    }
+
+    with (
+        patch("max.profiles.loader.list_profiles", return_value=list(profiles)),
+        patch(
+            "max.profiles.loader.load_profile",
+            side_effect=lambda name: _api_mock_profile(name, profiles[name]),
+        ),
+        patch(
+            "max.pipeline.runner.run_pipeline",
+            return_value=_api_mock_pipeline_result(
+                signals_fetched=2,
+                signals_new=1,
+                insights_generated=1,
+                ideas_generated=1,
+                ideas_evaluated=1,
+            ),
+        ) as mock_run,
+    ):
+        resp = client.post("/api/v1/pipeline/run", json={"profile": "all"})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] == "all"
+    assert data["profiles_run"] == 1
+    assert data["focus_domains"] == ["developer-tools"]
+    assert data["skipped_profiles"] == ["healthcare"]
+    assert data["profiles"][0]["profile_name"] == "devtools"
+    assert data["profiles"][0]["domain"] == "developer-tools"
+    assert data["totals"]["signals_fetched"] == 2
+    assert mock_run.call_count == 1
+
+
+def test_pipeline_run_all_include_all_bypasses_focus_and_aggregates(
+    client, tmp_path, monkeypatch
+):
+    from max.focus import save_focus_domains
+
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    monkeypatch.setattr("max.focus.get_profiles_dir", lambda: profiles_dir)
+    save_focus_domains(["developer-tools"])
+
+    profiles = {
+        "devtools": "developer-tools",
+        "healthcare": "healthcare",
+    }
+    results = [
+        _api_mock_pipeline_result(
+            signals_fetched=2,
+            signals_new=1,
+            insights_generated=1,
+            ideas_generated=1,
+            ideas_evaluated=1,
+            token_usage={"input": 10},
+        ),
+        _api_mock_pipeline_result(
+            signals_fetched=3,
+            signals_new=2,
+            insights_generated=2,
+            ideas_generated=2,
+            ideas_evaluated=2,
+            token_usage={"input": 20, "output": 5},
+        ),
+    ]
+
+    with (
+        patch("max.profiles.loader.list_profiles", return_value=list(profiles)),
+        patch(
+            "max.profiles.loader.load_profile",
+            side_effect=lambda name: _api_mock_profile(name, profiles[name]),
+        ),
+        patch("max.pipeline.runner.run_pipeline", side_effect=results) as mock_run,
+    ):
+        resp = client.post(
+            "/api/v1/pipeline/run",
+            json={"profile": "all", "include_all": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["include_all"] is True
+    assert data["focus_domains"] is None
+    assert data["skipped_profiles"] == []
+    assert data["profiles_run"] == 2
+    assert data["totals"]["signals_fetched"] == 5
+    assert data["totals"]["signals_new"] == 3
+    assert data["totals"]["ideas_evaluated"] == 3
+    assert data["totals"]["token_usage"] == {"input": 30, "output": 5}
+    assert [p["profile_name"] for p in data["profiles"]] == ["devtools", "healthcare"]
+    assert mock_run.call_count == 2

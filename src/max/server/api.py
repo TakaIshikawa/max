@@ -30,6 +30,7 @@ from max.server.schemas import (
     InsightResponse,
     PaginatedResponse,
     PaginationMeta,
+    PipelineAggregateResultResponse,
     PipelineDryRunRequest,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
@@ -579,15 +580,62 @@ def get_domain_quality_memory(
 
 @router.post(
     "/pipeline/run",
-    response_model=PipelineResultResponse,
+    response_model=PipelineResultResponse | PipelineAggregateResultResponse,
     dependencies=[Depends(rate_limit(config.MAX_RATE_LIMIT_EXPENSIVE_RPM))],
 )
-async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultResponse:
+async def run_pipeline_endpoint(
+    body: PipelineRunRequest,
+) -> PipelineResultResponse | PipelineAggregateResultResponse:
+    from max.focus import focused_profile_names
     from max.pipeline.runner import run_pipeline
+    from max.profiles.loader import load_profile
 
     output_dir = Path(body.output_dir) if body.output_dir else None
+    if body.profile == "all":
+        profile_names, skipped_profiles, focus_domains = focused_profile_names(
+            include_all=body.include_all
+        )
+        if not profile_names and focus_domains is None:
+            raise HTTPException(status_code=404, detail="No profiles found")
+        if not profile_names:
+            raise HTTPException(
+                status_code=400,
+                detail="No profiles match focus. Clear focus or set include_all=true.",
+            )
+
+        profile_results: list[PipelineResultResponse] = []
+        for profile_name in profile_names:
+            profile = load_profile(profile_name)
+            profile = _apply_pipeline_request_overrides(profile, body)
+            result = await asyncio.to_thread(
+                run_pipeline,
+                profile=profile,
+                output_dir=output_dir,
+                stages=body.stages,
+            )
+            profile_results.append(
+                _pipeline_result_response(
+                    result,
+                    profile_name=profile.name,
+                    domain=profile.domain.name,
+                )
+            )
+
+        return PipelineAggregateResultResponse(
+            include_all=body.include_all,
+            focus_domains=focus_domains,
+            skipped_profiles=skipped_profiles,
+            profiles_run=len(profile_results),
+            totals=_aggregate_pipeline_results(profile_results),
+            profiles=profile_results,
+        )
+
+    profile = load_profile(body.profile) if body.profile else None
+    if profile is not None:
+        profile = _apply_pipeline_request_overrides(profile, body)
     result = await asyncio.to_thread(
         run_pipeline,
+        profile=profile,
         output_dir=output_dir,
         signal_limit=body.signal_limit,
         min_score=body.min_score,
@@ -597,7 +645,22 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         draft_count=body.draft_count,
         stages=body.stages,
     )
+    return _pipeline_result_response(
+        result,
+        profile_name=profile.name if profile else None,
+        domain=profile.domain.name if profile else None,
+    )
+
+
+def _pipeline_result_response(
+    result,
+    *,
+    profile_name: str | None = None,
+    domain: str | None = None,
+) -> PipelineResultResponse:
     return PipelineResultResponse(
+        profile_name=profile_name or result.profile_name or None,
+        domain=domain,
         signals_fetched=result.signals_fetched,
         signals_new=result.signals_new,
         insights_generated=result.insights_generated,
@@ -614,6 +677,73 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         avg_idea_score=result.avg_idea_score,
         token_usage=result.token_usage,
         top_ideas=result.top_ideas,
+    )
+
+
+def _apply_pipeline_request_overrides(profile, body: PipelineRunRequest):
+    """Apply explicit API fields to a loaded profile, mirroring CLI overrides."""
+    fields_set = body.model_fields_set
+    profile = profile.model_copy(deep=True)
+    if "signal_limit" in fields_set:
+        profile.signal_limit = body.signal_limit
+    if "min_score" in fields_set:
+        profile.evaluation.min_score = body.min_score
+    if "weight_profile" in fields_set:
+        profile.evaluation.weight_profile = body.weight_profile
+    if "ideation_mode" in fields_set:
+        profile.ideation_mode = body.ideation_mode
+    if "quality_loop_enabled" in fields_set:
+        profile.quality_loop_enabled = body.quality_loop_enabled
+    if "draft_count" in fields_set:
+        profile.draft_count = body.draft_count
+    return profile
+
+
+def _aggregate_pipeline_results(results: list[PipelineResultResponse]) -> PipelineResultResponse:
+    def total(field: str) -> int:
+        return sum(getattr(result, field) for result in results)
+
+    def weighted_average(score_field: str, weight_field: str) -> float:
+        weighted_total = sum(
+            getattr(result, score_field) * getattr(result, weight_field)
+            for result in results
+        )
+        weights = total(weight_field)
+        return weighted_total / weights if weights else 0.0
+
+    token_usage: dict[str, int] = {}
+    for result in results:
+        for key, value in result.token_usage.items():
+            token_usage[key] = token_usage.get(key, 0) + value
+
+    top_ideas = [
+        idea
+        for result in results
+        for idea in result.top_ideas
+    ]
+    top_ideas.sort(key=lambda idea: idea.get("score", idea.get("overall_score", 0)), reverse=True)
+
+    return PipelineResultResponse(
+        signals_fetched=total("signals_fetched"),
+        signals_new=total("signals_new"),
+        insights_generated=total("insights_generated"),
+        ideas_generated=total("ideas_generated"),
+        ideas_evaluated=total("ideas_evaluated"),
+        draft_ideas_generated=total("draft_ideas_generated"),
+        ideas_revised=total("ideas_revised"),
+        ideas_rejected_by_quality_gate=total("ideas_rejected_by_quality_gate"),
+        ideas_rejected_by_domain_quality=total("ideas_rejected_by_domain_quality"),
+        avg_domain_quality_score=weighted_average(
+            "avg_domain_quality_score", "draft_ideas_generated"
+        ),
+        avg_novelty_score=weighted_average("avg_novelty_score", "ideas_revised"),
+        avg_usefulness_score=weighted_average("avg_usefulness_score", "ideas_revised"),
+        avg_insight_confidence=weighted_average(
+            "avg_insight_confidence", "insights_generated"
+        ),
+        avg_idea_score=weighted_average("avg_idea_score", "ideas_evaluated"),
+        token_usage=token_usage,
+        top_ideas=top_ideas[:10],
     )
 
 

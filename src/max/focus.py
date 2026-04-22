@@ -59,3 +59,35 @@ def in_focus(domain: str) -> bool:
     if focus is None:
         return True
     return domain in focus
+
+
+def focused_profile_names(
+    *, include_all: bool = False
+) -> tuple[list[str], list[str], list[str] | None]:
+    """Return profile names selected by the current focus config.
+
+    Returns ``(selected, skipped, focus_domains)``. ``focus_domains`` is None
+    when no focus filter applies.
+    """
+    from max.profiles.loader import list_profiles, load_profile
+
+    all_names = list_profiles()
+    focus_domains = None if include_all else load_focus_domains()
+    if focus_domains is None:
+        return all_names, [], None
+
+    selected: list[str] = []
+    skipped: list[str] = []
+    for name in all_names:
+        try:
+            profile = load_profile(name)
+        except Exception:
+            # Preserve the CLI's historical behavior: focus filtering should not
+            # hide a profile that cannot be inspected.
+            selected.append(name)
+            continue
+        if profile.domain.name in focus_domains:
+            selected.append(name)
+        else:
+            skipped.append(name)
+    return selected, skipped, focus_domains

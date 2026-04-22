@@ -64,6 +64,7 @@ class FeedbackCreate(BaseModel):
 
 
 class PipelineRunRequest(BaseModel):
+    profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
     min_score: float = Field(default=50.0, ge=0.0, le=100.0)
     weight_profile: Literal[
@@ -74,6 +75,7 @@ class PipelineRunRequest(BaseModel):
     draft_count: int = Field(default=8, ge=1, le=50)
     output_dir: str | None = None
     stages: list[str] | None = None
+    include_all: bool = False
 
 
 class PipelineDryRunRequest(BaseModel):
@@ -304,6 +306,8 @@ class DomainQualityMemoryResponse(BaseModel):
 
 
 class PipelineResultResponse(BaseModel):
+    profile_name: str | None = None
+    domain: str | None = None
     signals_fetched: int
     signals_new: int
     insights_generated: int
@@ -320,6 +324,16 @@ class PipelineResultResponse(BaseModel):
     avg_idea_score: float
     token_usage: dict[str, int]
     top_ideas: list[dict]
+
+
+class PipelineAggregateResultResponse(BaseModel):
+    profile: Literal["all"] = "all"
+    include_all: bool = False
+    focus_domains: list[str] | None = None
+    skipped_profiles: list[str] = Field(default_factory=list)
+    profiles_run: int
+    totals: PipelineResultResponse
+    profiles: list[PipelineResultResponse]
 
 
 class SimilarityResult(BaseModel):

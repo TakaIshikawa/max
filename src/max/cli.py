@@ -51,7 +51,7 @@ def run(
     --include-all is passed.
     """
     from max.config import MAX_PROFILE
-    from max.focus import load_focus_domains
+    from max.focus import focused_profile_names
     from max.profiles.loader import get_default_profile, list_profiles, load_profile
 
     # Parse stages parameter
@@ -68,32 +68,17 @@ def run(
             click.echo("No profiles found in profiles/ directory.")
             return
 
-        focus_domains = None if include_all else load_focus_domains()
-        if focus_domains is None:
-            names = all_names
-        else:
-            names = []
-            skipped = []
-            for name in all_names:
-                try:
-                    p = load_profile(name)
-                except Exception:
-                    names.append(name)
-                    continue
-                if p.domain.name in focus_domains:
-                    names.append(name)
-                else:
-                    skipped.append(name)
-            if skipped:
-                click.echo(
-                    f"Focus domains: {', '.join(focus_domains)}. "
-                    f"Skipping {len(skipped)} out-of-focus profile(s): {', '.join(skipped)}"
-                )
-                click.echo("  (use --include-all to run every profile)")
-                click.echo()
-            if not names:
-                click.echo("No profiles match focus. Use 'max focus clear' or --include-all.")
-                return
+        names, skipped, focus_domains = focused_profile_names(include_all=include_all)
+        if focus_domains is not None and skipped:
+            click.echo(
+                f"Focus domains: {', '.join(focus_domains)}. "
+                f"Skipping {len(skipped)} out-of-focus profile(s): {', '.join(skipped)}"
+            )
+            click.echo("  (use --include-all to run every profile)")
+            click.echo()
+        if focus_domains is not None and not names:
+            click.echo("No profiles match focus. Use 'max focus clear' or --include-all.")
+            return
 
         click.echo(f"Running pipeline across {len(names)} profile(s): {', '.join(names)}")
         click.echo()
