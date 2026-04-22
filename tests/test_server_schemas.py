@@ -23,6 +23,7 @@ from max.server.schemas import (
     IdeaDetailResponse,
     IdeaSummaryResponse,
     InsightCreate,
+    InsightDetailResponse,
     InsightResponse,
     PaginatedResponse,
     PaginationMeta,
@@ -851,6 +852,58 @@ class TestInsightResponse:
         dumped = insight.model_dump()
         assert dumped["id"] == "ins_456"
         assert dumped["time_horizon"] == "long_term"
+
+
+class TestInsightDetailResponse:
+    """Tests for InsightDetailResponse model."""
+
+    def test_valid_construction_with_evidence_signals(self):
+        signal = SignalResponse(
+            id="sig_123",
+            source_type="forum",
+            source_adapter="hn",
+            signal_role="problem",
+            title="Evidence",
+            content="Evidence content",
+            url="https://example.com/evidence",
+            fetched_at="2024-01-01T00:00:00Z",
+            tags=["evidence"],
+            credibility=0.8,
+            metadata={},
+        )
+        insight = InsightDetailResponse(
+            id="ins_123",
+            category="gap",
+            title="Test Insight",
+            summary="Summary",
+            evidence=["sig_123", "sig_missing"],
+            confidence=0.85,
+            domains=["ai"],
+            implications=[],
+            time_horizon="near_term",
+            created_at="2024-01-01T00:00:00Z",
+            evidence_signals=[signal],
+            missing_evidence_ids=["sig_missing"],
+        )
+        assert insight.evidence_signals[0].id == "sig_123"
+        assert insight.missing_evidence_ids == ["sig_missing"]
+
+    def test_defaults_to_empty_evidence_resolution_lists(self):
+        insight = InsightDetailResponse(
+            id="ins_456",
+            category="trend",
+            title="Pattern",
+            summary="Summary",
+            evidence=[],
+            confidence=0.7,
+            domains=[],
+            implications=[],
+            time_horizon="long_term",
+            created_at="2024-01-01T00:00:00Z",
+        )
+        dumped = insight.model_dump()
+        assert dumped["evidence_signals"] == []
+        assert dumped["missing_evidence_ids"] == []
 
 
 class TestDimensionScoreResponse:

@@ -27,6 +27,7 @@ from max.server.schemas import (
     IdeaDetailResponse,
     IdeaSummaryResponse,
     InsightCreate,
+    InsightDetailResponse,
     InsightResponse,
     PaginatedResponse,
     PaginationMeta,
@@ -132,6 +133,24 @@ def _insight_to_response(ins: Insight) -> InsightResponse:
         implications=ins.implications,
         time_horizon=ins.time_horizon,
         created_at=ins.created_at.isoformat() if hasattr(ins.created_at, "isoformat") else ins.created_at,
+    )
+
+
+def _insight_detail_to_response(ins: Insight, store: Store) -> InsightDetailResponse:
+    evidence_signals: list[SignalResponse] = []
+    missing_evidence_ids: list[str] = []
+
+    for signal_id in ins.evidence:
+        signal = store.get_signal(signal_id)
+        if signal:
+            evidence_signals.append(_signal_to_response(signal))
+        else:
+            missing_evidence_ids.append(signal_id)
+
+    return InsightDetailResponse(
+        **_insight_to_response(ins).model_dump(),
+        evidence_signals=evidence_signals,
+        missing_evidence_ids=missing_evidence_ids,
     )
 
 
@@ -369,6 +388,14 @@ def create_insight(body: InsightCreate, store: Store = Depends(get_store)) -> In
     )
     insight = store.insert_insight(insight)
     return _insight_to_response(insight)
+
+
+@router.get("/insights/{insight_id}", response_model=InsightDetailResponse)
+def get_insight(insight_id: str, store: Store = Depends(get_store)) -> InsightDetailResponse:
+    insight = store.get_insight(insight_id)
+    if not insight:
+        raise HTTPException(status_code=404, detail=f"Insight not found: {insight_id}")
+    return _insight_detail_to_response(insight, store)
 
 
 # ── Ideas ───────────────────────────────────────────────────────────

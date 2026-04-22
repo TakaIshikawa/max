@@ -119,7 +119,7 @@ class SignalResponse(BaseModel):
     id: str
     source_type: str
     source_adapter: str
-    signal_role: str
+    signal_role: str = ""
     title: str
     content: str
     url: str
@@ -142,6 +142,11 @@ class InsightResponse(BaseModel):
     implications: list[str]
     time_horizon: str
     created_at: str
+
+
+class InsightDetailResponse(InsightResponse):
+    evidence_signals: list[SignalResponse] = Field(default_factory=list)
+    missing_evidence_ids: list[str] = Field(default_factory=list)
 
 
 class DimensionScoreResponse(BaseModel):

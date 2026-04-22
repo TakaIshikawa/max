@@ -454,6 +454,56 @@ def test_insight_response_schema(seeded_client):
     assert isinstance(data["created_at"], str)
 
 
+def test_get_insight_detail_resolves_evidence_signals(seeded_client):
+    resp = seeded_client.get("/api/v1/insights/ins-api001")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "ins-api001"
+    assert data["evidence"] == ["sig-api001"]
+    assert [signal["id"] for signal in data["evidence_signals"]] == ["sig-api001"]
+    assert data["evidence_signals"][0]["title"] == "Test Signal"
+    assert data["missing_evidence_ids"] == []
+
+
+def test_get_insight_detail_reports_missing_evidence_ids(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_signal(
+            Signal(
+                id="sig-existing",
+                source_type=SignalSourceType.FORUM,
+                source_adapter="test",
+                title="Existing Signal",
+                content="Still exists",
+                url="https://example.com/existing",
+            )
+        )
+        store.insert_insight(
+            Insight(
+                id="ins-missing-evidence",
+                category=InsightCategory.GAP,
+                title="Partial Evidence",
+                summary="Some evidence was deleted.",
+                evidence=["sig-existing", "sig-missing"],
+                confidence=0.7,
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/insights/ins-missing-evidence")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [signal["id"] for signal in data["evidence_signals"]] == ["sig-existing"]
+    assert data["missing_evidence_ids"] == ["sig-missing"]
+
+
+def test_get_insight_not_found_returns_404(client):
+    resp = client.get("/api/v1/insights/ins-does-not-exist")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Insight not found: ins-does-not-exist"
+
+
 def test_create_insight_full_fields(client):
     """Create insight with all fields and verify response."""
     resp = client.post(
