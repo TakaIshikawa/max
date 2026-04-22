@@ -223,6 +223,19 @@ class IdeaSummaryResponse(BaseModel):
     recommendation: str | None = None
 
 
+class EvaluationSummaryResponse(BaseModel):
+    overall_score: float
+    rank: int | None
+    recommendation: str
+    strengths: list[str]
+    weaknesses: list[str]
+
+
+class ReviewQueueItemResponse(IdeaSummaryResponse):
+    evaluation: EvaluationSummaryResponse
+    latest_critique: IdeaCritiqueResponse | None = None
+
+
 class IdeaStatusCountResponse(BaseModel):
     status: str
     count: int

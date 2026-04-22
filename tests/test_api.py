@@ -723,6 +723,87 @@ def test_list_ideas_filter_status(multi_idea_client):
     assert len(resp.json()["items"]) == 0
 
 
+def test_get_review_queue_returns_unreviewed_evaluated_ideas(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+
+    def _score(value: float) -> DimensionScore:
+        return DimensionScore(value=value, confidence=0.7, reasoning="seed")
+
+    def _unit(unit_id: str, title: str, *, domain: str, status: str = "evaluated") -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=title,
+            one_liner="Queue candidate",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Review queue needs candidates",
+            solution="Return candidates from API",
+            value_proposition="Faster review",
+            status=status,
+            domain=domain,
+        )
+
+    def _evaluation(unit_id: str, score: float) -> UtilityEvaluation:
+        return UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(8.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(6.0),
+            composability=_score(7.0),
+            competitive_density=_score(8.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(6.0),
+            overall_score=score,
+            strengths=["clear pain"],
+            weaknesses=["needs validation"],
+            recommendation="yes",
+            weights_used={"pain_severity": 0.2},
+        )
+
+    try:
+        seeds = [
+            (_unit("bu-queue-high", "High Queue", domain="ai"), 88.0, None),
+            (_unit("bu-queue-low", "Low Queue", domain="ai"), 65.0, None),
+            (_unit("bu-queue-reviewed", "Reviewed Queue", domain="ai"), 91.0, "rejected"),
+            (_unit("bu-queue-other", "Other Queue", domain="devtools"), 93.0, None),
+            (_unit("bu-queue-draft", "Draft Queue", domain="ai", status="draft"), 99.0, None),
+        ]
+        for unit, score, outcome in seeds:
+            store.insert_buildable_unit(unit)
+            store.insert_evaluation(_evaluation(unit.id, score))
+            if outcome:
+                store.insert_feedback(unit.id, outcome, "already reviewed")
+        store.insert_idea_critique(
+            "bu-queue-high",
+            {
+                "buyer_clarity": 8.0,
+                "quality_score": 7.5,
+                "reasoning": "Clear buyer.",
+                "rejection_tags": [],
+            },
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/review-queue?domain=ai&min_score=70&limit=10")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["id"] for item in data] == ["bu-queue-high"]
+    assert data[0]["score"] == 88.0
+    assert data[0]["review_state"] == "pending_review"
+    assert data[0]["feedback_outcome"] is None
+    assert data[0]["evaluation"] == {
+        "overall_score": 88.0,
+        "rank": None,
+        "recommendation": "yes",
+        "strengths": ["clear pain"],
+        "weaknesses": ["needs validation"],
+    }
+    assert data[0]["latest_critique"]["dimensions"]["buyer_clarity"] == 8.0
+    assert data[0]["latest_critique"]["reasoning"] == "Clear buyer."
+
+
 def test_get_idea_status_summary(client, db_path):
     store = Store(db_path=db_path, wal_mode=True)
 

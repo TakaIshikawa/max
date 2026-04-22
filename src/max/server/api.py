@@ -23,6 +23,7 @@ from max.server.schemas import (
     DryRunReportResponse,
     EvidenceChainResponse,
     EvaluationResponse,
+    EvaluationSummaryResponse,
     FeedbackCreate,
     HealthResponse,
     IdeaCreate,
@@ -45,6 +46,7 @@ from max.server.schemas import (
     PipelineRunRequest,
     ProfileDetailResponse,
     ProfileSummaryResponse,
+    ReviewQueueItemResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -236,6 +238,16 @@ def _evaluation_to_response(ev: UtilityEvaluation) -> EvaluationResponse:
         weaknesses=ev.weaknesses,
         recommendation=ev.recommendation,
         weights_used=ev.weights_used,
+    )
+
+
+def _evaluation_summary_to_response(ev: UtilityEvaluation) -> EvaluationSummaryResponse:
+    return EvaluationSummaryResponse(
+        overall_score=ev.overall_score,
+        rank=ev.rank,
+        recommendation=ev.recommendation,
+        strengths=ev.strengths,
+        weaknesses=ev.weaknesses,
     )
 
 
@@ -482,6 +494,31 @@ def get_insight(insight_id: str, store: Store = Depends(get_store)) -> InsightDe
 
 
 # ── Ideas ───────────────────────────────────────────────────────────
+
+
+@router.get("/review-queue", response_model=list[ReviewQueueItemResponse])
+def get_review_queue(
+    domain: str | None = None,
+    min_score: float | None = Query(default=None, ge=0.0, le=100.0),
+    limit: int = Query(default=50, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> list[ReviewQueueItemResponse]:
+    rows = store.get_review_queue(domain=domain, min_score=min_score, limit=limit)
+    items: list[ReviewQueueItemResponse] = []
+    for row in rows:
+        payload = _unit_summary(row["unit"], row["evaluation"]).model_dump()
+        payload["evaluation"] = _evaluation_summary_to_response(row["evaluation"])
+        payload["latest_critique"] = (
+            _critique_to_response(row["latest_critique"])
+            if row["latest_critique"]
+            else None
+        )
+        items.append(
+            ReviewQueueItemResponse(
+                **payload,
+            )
+        )
+    return items
 
 
 @router.get("/ideas")

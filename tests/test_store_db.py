@@ -1598,6 +1598,56 @@ class TestAdditionalCRUD:
         assert len(mcp_units) == 1
         assert mcp_units[0].id == "bu-dom-1"
 
+    def test_get_review_queue_returns_unreviewed_evaluated_ideas_by_score(self, store: Store) -> None:
+        high = _make_unit("bu-review-high")
+        high.status = "evaluated"
+        high.domain = "devtools"
+        low = _make_unit("bu-review-low")
+        low.status = "evaluated"
+        low.domain = "devtools"
+        reviewed = _make_unit("bu-review-done")
+        reviewed.status = "evaluated"
+        draft = _make_unit("bu-review-draft")
+        draft.status = "draft"
+
+        for unit, score in [(high, 88.0), (low, 62.0), (reviewed, 91.0), (draft, 99.0)]:
+            store.insert_buildable_unit(unit)
+            store.insert_evaluation(_make_evaluation(unit.id, overall_score=score))
+        store.insert_feedback(reviewed.id, "approved", "already reviewed")
+        store.insert_idea_critique(
+            high.id,
+            {
+                "buyer_clarity": 8.0,
+                "quality_score": 7.5,
+                "reasoning": "Clear buyer and workflow.",
+                "rejection_tags": [],
+            },
+        )
+
+        queue = store.get_review_queue()
+
+        assert [row["unit"].id for row in queue] == ["bu-review-high", "bu-review-low"]
+        assert [row["evaluation"].overall_score for row in queue] == [88.0, 62.0]
+        assert queue[0]["latest_critique"]["dimensions"]["buyer_clarity"] == 8.0
+        assert queue[0]["latest_critique"]["reasoning"] == "Clear buyer and workflow."
+
+    def test_get_review_queue_filters_domain_min_score_and_limit(self, store: Store) -> None:
+        seeds = [
+            ("bu-review-ai-1", "ai", 90.0),
+            ("bu-review-ai-2", "ai", 75.0),
+            ("bu-review-dev-1", "devtools", 95.0),
+        ]
+        for unit_id, domain, score in seeds:
+            unit = _make_unit(unit_id)
+            unit.status = "evaluated"
+            unit.domain = domain
+            store.insert_buildable_unit(unit)
+            store.insert_evaluation(_make_evaluation(unit.id, overall_score=score))
+
+        queue = store.get_review_queue(domain="ai", min_score=80.0, limit=1)
+
+        assert [row["unit"].id for row in queue] == ["bu-review-ai-1"]
+
     def test_has_feedback(self, store: Store) -> None:
         """Check if buildable unit has feedback."""
         store.insert_buildable_unit(_make_unit("bu-hf-1"))

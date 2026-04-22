@@ -798,6 +798,77 @@ class Store:
             for row in rows
         ]
 
+    def get_review_queue(
+        self,
+        *,
+        domain: str | None = None,
+        min_score: float | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Return evaluated ideas that have not received feedback, score-first."""
+        query = """SELECT bu.*,
+                          e.buildable_unit_id, e.pain_severity, e.addressable_scale,
+                          e.build_effort, e.composability, e.competitive_density,
+                          e.timing_fit, e.compounding_value, e.overall_score,
+                          e.rank, e.strengths, e.weaknesses, e.recommendation,
+                          e.weights_used,
+                          c.id AS critique_id,
+                          c.buildable_unit_id AS critique_buildable_unit_id,
+                          c.pipeline_run_id AS critique_pipeline_run_id,
+                          c.stage AS critique_stage,
+                          c.dimensions AS critique_dimensions,
+                          c.reasoning AS critique_reasoning,
+                          c.rejection_tags AS critique_rejection_tags,
+                          c.created_at AS critique_created_at
+                   FROM buildable_units bu
+                   JOIN evaluations e ON e.buildable_unit_id = bu.id
+                   LEFT JOIN idea_critiques c ON c.id = (
+                       SELECT ic.id
+                       FROM idea_critiques ic
+                       WHERE ic.buildable_unit_id = bu.id
+                       ORDER BY ic.created_at DESC, ic.id DESC
+                       LIMIT 1
+                   )
+                   WHERE bu.status = 'evaluated'
+                     AND NOT EXISTS (
+                         SELECT 1 FROM feedback f
+                         WHERE f.buildable_unit_id = bu.id
+                     )"""
+        params: list = []
+        if domain:
+            query += " AND bu.domain = ?"
+            params.append(domain)
+        if min_score is not None:
+            query += " AND e.overall_score >= ?"
+            params.append(min_score)
+
+        query += " ORDER BY e.overall_score DESC, bu.updated_at DESC, bu.id DESC LIMIT ?"
+        params.append(limit)
+
+        rows = self.conn.execute(query, params).fetchall()
+        results = []
+        for row in rows:
+            latest_critique = None
+            if row["critique_id"]:
+                latest_critique = {
+                    "id": row["critique_id"],
+                    "buildable_unit_id": row["critique_buildable_unit_id"],
+                    "pipeline_run_id": row["critique_pipeline_run_id"],
+                    "stage": row["critique_stage"],
+                    "dimensions": json.loads(row["critique_dimensions"]),
+                    "reasoning": row["critique_reasoning"],
+                    "rejection_tags": json.loads(row["critique_rejection_tags"]),
+                    "created_at": row["critique_created_at"],
+                }
+            results.append(
+                {
+                    "unit": _row_to_buildable_unit(row),
+                    "evaluation": _row_to_evaluation(row),
+                    "latest_critique": latest_critique,
+                }
+            )
+        return results
+
     def insert_idea_memory(
         self,
         *,
