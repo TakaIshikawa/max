@@ -320,17 +320,21 @@ def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> Sign
 def list_insights(
     cursor: str | None = None,
     limit: int = 20,
+    domain: str | None = None,
+    category: str | None = None,
     store: Store = Depends(get_store),
 ) -> PaginatedResponse[InsightResponse]:
     # Clamp limit to max 100
     limit = min(limit, 100)
 
     try:
-        insights, next_cursor = store.get_insights_paginated(cursor=cursor, limit=limit)
+        insights, next_cursor = store.get_insights_paginated(
+            cursor=cursor, limit=limit, domain=domain, category=category
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    total_count = store.count_insights()
+    total_count = store.count_insights(domain=domain, category=category)
 
     return PaginatedResponse[InsightResponse](
         items=[_insight_to_response(i) for i in insights],

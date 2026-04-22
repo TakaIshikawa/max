@@ -359,7 +359,12 @@ class Store:
         return [_row_to_insight(row) for row in rows]
 
     def get_insights_paginated(
-        self, *, cursor: str | None = None, limit: int = 20
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+        domain: str | None = None,
+        category: str | None = None,
     ) -> tuple[list[Insight], str | None]:
         """Get insights with cursor-based pagination.
 
@@ -367,11 +372,30 @@ class Store:
         """
         query = "SELECT * FROM insights"
         params: list = []
+        conditions: list[str] = []
+
+        if domain:
+            conditions.append(
+                """EXISTS (
+                   SELECT 1 FROM json_each(
+                       CASE WHEN json_valid(insights.domains) THEN insights.domains ELSE '[]' END
+                   )
+                   WHERE json_each.value = ?
+                )"""
+            )
+            params.append(domain)
+
+        if category:
+            conditions.append("category = ?")
+            params.append(category)
 
         if cursor:
             cursor_timestamp, cursor_id = _decode_cursor(cursor)
-            query += " WHERE (created_at, id) < (?, ?)"
+            conditions.append("(created_at, id) < (?, ?)")
             params.extend([cursor_timestamp, cursor_id])
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
 
         query += " ORDER BY created_at DESC, id DESC LIMIT ?"
         params.append(limit + 1)
@@ -397,8 +421,32 @@ class Store:
         ).fetchone()
         return _row_to_insight(row) if row else None
 
-    def count_insights(self) -> int:
-        return self.conn.execute("SELECT COUNT(*) FROM insights").fetchone()[0]
+    def count_insights(
+        self, *, domain: str | None = None, category: str | None = None
+    ) -> int:
+        query = "SELECT COUNT(*) FROM insights"
+        params: list = []
+        conditions: list[str] = []
+
+        if domain:
+            conditions.append(
+                """EXISTS (
+                   SELECT 1 FROM json_each(
+                       CASE WHEN json_valid(insights.domains) THEN insights.domains ELSE '[]' END
+                   )
+                   WHERE json_each.value = ?
+                )"""
+            )
+            params.append(domain)
+
+        if category:
+            conditions.append("category = ?")
+            params.append(category)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        return self.conn.execute(query, params).fetchone()[0]
 
     # ── BuildableUnits ───────────────────────────────────────────────
 

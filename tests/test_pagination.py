@@ -275,6 +275,109 @@ def test_insights_count(store: Store):
     assert store.count_insights() == 5
 
 
+def test_insights_with_domain_filter(store: Store):
+    """Test insight pagination and counts with domain filter."""
+    store.insert_insight(
+        Insight(
+            id="ins-ai",
+            category=InsightCategory.GAP,
+            title="AI Insight",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["ai", "devtools"],
+        )
+    )
+    store.insert_insight(
+        Insight(
+            id="ins-health",
+            category=InsightCategory.TREND,
+            title="Healthcare Insight",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["healthcare"],
+        )
+    )
+
+    insights, next_cursor = store.get_insights_paginated(
+        cursor=None, limit=10, domain="devtools"
+    )
+
+    assert [i.id for i in insights] == ["ins-ai"]
+    assert next_cursor is None
+    assert store.count_insights(domain="devtools") == 1
+
+
+def test_insights_with_category_filter(store: Store):
+    """Test insight pagination and counts with category filter."""
+    store.insert_insight(
+        Insight(
+            id="ins-gap",
+            category=InsightCategory.GAP,
+            title="Gap Insight",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["devtools"],
+        )
+    )
+    store.insert_insight(
+        Insight(
+            id="ins-trend",
+            category=InsightCategory.TREND,
+            title="Trend Insight",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["devtools"],
+        )
+    )
+
+    insights, next_cursor = store.get_insights_paginated(
+        cursor=None, limit=10, category="trend"
+    )
+
+    assert [i.id for i in insights] == ["ins-trend"]
+    assert next_cursor is None
+    assert store.count_insights(category="trend") == 1
+
+
+def test_insights_combined_filters_ignore_invalid_domain_json(store: Store):
+    """Domain filtering should not fail if a row has malformed domains JSON."""
+    valid = store.insert_insight(
+        Insight(
+            id="ins-valid",
+            category=InsightCategory.GAP,
+            title="Valid Insight",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["devtools"],
+        )
+    )
+    invalid = store.insert_insight(
+        Insight(
+            id="ins-invalid",
+            category=InsightCategory.GAP,
+            title="Invalid Domains",
+            summary="Summary",
+            evidence=[],
+            confidence=0.8,
+            domains=["devtools"],
+        )
+    )
+    store.conn.execute("UPDATE insights SET domains = ? WHERE id = ?", ("not-json", invalid.id))
+
+    insights, next_cursor = store.get_insights_paginated(
+        cursor=None, limit=10, domain="devtools", category="gap"
+    )
+
+    assert [i.id for i in insights] == [valid.id]
+    assert next_cursor is None
+    assert store.count_insights(domain="devtools", category="gap") == 1
+
+
 # ── BuildableUnits (ideas) pagination tests ────────────────────────
 
 

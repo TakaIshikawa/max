@@ -395,6 +395,40 @@ def test_list_insights_seeded(seeded_client):
     assert response_data["pagination"]["total_count"] == 1
 
 
+def test_list_insights_filters(client):
+    client.post(
+        "/api/v1/insights",
+        json={
+            "category": "gap",
+            "title": "Devtools Gap",
+            "summary": "Summary",
+            "domains": ["devtools", "ai"],
+        },
+    )
+    client.post(
+        "/api/v1/insights",
+        json={
+            "category": "trend",
+            "title": "Healthcare Trend",
+            "summary": "Summary",
+            "domains": ["healthcare"],
+        },
+    )
+
+    resp = client.get("/api/v1/insights?domain=devtools&category=gap")
+    assert resp.status_code == 200
+    response_data = resp.json()
+    assert len(response_data["items"]) == 1
+    assert response_data["items"][0]["title"] == "Devtools Gap"
+    assert response_data["pagination"]["total_count"] == 1
+
+    resp = client.get("/api/v1/insights?domain=devtools&category=trend")
+    assert resp.status_code == 200
+    response_data = resp.json()
+    assert response_data["items"] == []
+    assert response_data["pagination"]["total_count"] == 0
+
+
 def test_insight_response_schema(seeded_client):
     """Verify response contains all InsightResponse fields."""
     resp = seeded_client.get("/api/v1/insights")
