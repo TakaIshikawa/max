@@ -324,6 +324,22 @@ class IdeaStatusSummaryResponse(BaseModel):
     groups: list[IdeaStatusSummaryGroupResponse]
 
 
+class IdeaScoreDistributionBucketResponse(BaseModel):
+    min_score: float
+    max_score: float
+    count: int
+    average_score: float
+    by_recommendation: dict[str, int]
+    by_status: dict[str, int]
+
+
+class IdeaScoreDistributionResponse(BaseModel):
+    bucket_size: int
+    evaluated_count: int
+    unevaluated_count: int
+    buckets: list[IdeaScoreDistributionBucketResponse]
+
+
 class IdeaDetailResponse(BaseModel):
     id: str
     title: str

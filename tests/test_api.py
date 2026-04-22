@@ -989,6 +989,136 @@ def test_get_idea_status_summary(client, db_path):
     )
 
 
+def test_get_idea_score_distribution(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+
+    def _unit(unit_id: str, status: str, domain: str) -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=f"Idea {unit_id}",
+            one_liner="A distributed idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Problem",
+            solution="Solution",
+            value_proposition="Value",
+            status=status,
+            domain=domain,
+        )
+
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+    def _evaluation(unit_id: str, score: float, recommendation: str) -> UtilityEvaluation:
+        return UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(8.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(6.0),
+            composability=_score(7.0),
+            competitive_density=_score(8.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(6.0),
+            overall_score=score,
+            recommendation=recommendation,
+            weights_used={"pain_severity": 0.20},
+        )
+
+    seeds = [
+        (_unit("bu-score-1", "evaluated", "ai"), 71.0, "yes"),
+        (_unit("bu-score-2", "evaluated", "ai"), 78.0, "maybe"),
+        (_unit("bu-score-3", "approved", "ai"), 92.0, "yes"),
+        (_unit("bu-score-4", "evaluated", "devtools"), 65.0, "no"),
+    ]
+    for unit, score, recommendation in seeds:
+        store.insert_buildable_unit(unit)
+        store.insert_evaluation(_evaluation(unit.id, score, recommendation))
+    store.insert_buildable_unit(_unit("bu-score-unevaluated", "draft", "ai"))
+    store.close()
+
+    resp = client.get("/api/v1/ideas/score-distribution?bucket_size=20")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["bucket_size"] == 20
+    assert data["evaluated_count"] == 4
+    assert data["unevaluated_count"] == 1
+    buckets = {row["min_score"]: row for row in data["buckets"]}
+    assert buckets[60.0]["count"] == 3
+    assert buckets[60.0]["average_score"] == pytest.approx((71.0 + 78.0 + 65.0) / 3)
+    assert buckets[60.0]["by_recommendation"] == {"yes": 1, "maybe": 1, "no": 1}
+    assert buckets[60.0]["by_status"] == {"evaluated": 3}
+    assert buckets[80.0]["count"] == 1
+    assert buckets[80.0]["by_recommendation"] == {"yes": 1}
+    assert buckets[80.0]["by_status"] == {"approved": 1}
+
+
+def test_get_idea_score_distribution_filters(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+
+    def _unit(unit_id: str, status: str, domain: str) -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=f"Idea {unit_id}",
+            one_liner="A filtered distribution idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Problem",
+            solution="Solution",
+            value_proposition="Value",
+            status=status,
+            domain=domain,
+        )
+
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+    def _evaluation(unit_id: str, score: float, recommendation: str) -> UtilityEvaluation:
+        return UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(8.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(6.0),
+            composability=_score(7.0),
+            competitive_density=_score(8.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(6.0),
+            overall_score=score,
+            recommendation=recommendation,
+            weights_used={"pain_severity": 0.20},
+        )
+
+    seeds = [
+        (_unit("bu-score-filter-1", "evaluated", "ai"), 84.0, "yes"),
+        (_unit("bu-score-filter-2", "approved", "ai"), 88.0, "maybe"),
+        (_unit("bu-score-filter-3", "evaluated", "devtools"), 86.0, "no"),
+    ]
+    for unit, score, recommendation in seeds:
+        store.insert_buildable_unit(unit)
+        store.insert_evaluation(_evaluation(unit.id, score, recommendation))
+    store.insert_buildable_unit(_unit("bu-score-filter-unevaluated", "evaluated", "ai"))
+    store.close()
+
+    resp = client.get(
+        "/api/v1/ideas/score-distribution?domain=ai&status=evaluated&bucket_size=10"
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["evaluated_count"] == 1
+    assert data["unevaluated_count"] == 1
+    assert data["buckets"] == [
+        {
+            "min_score": 80.0,
+            "max_score": 90.0,
+            "count": 1,
+            "average_score": 84.0,
+            "by_recommendation": {"yes": 1},
+            "by_status": {"evaluated": 1},
+        }
+    ]
+
+
 def test_get_idea(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001")
     assert resp.status_code == 200

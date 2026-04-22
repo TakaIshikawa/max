@@ -51,6 +51,7 @@ from max.server.schemas import (
     IdeaEvaluateBatchRequest,
     IdeaEvaluateBatchResponse,
     IdeaMemoryResponse,
+    IdeaScoreDistributionResponse,
     IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
     InsightCreate,
@@ -742,6 +743,22 @@ def list_ideas(
 @router.get("/ideas/status-summary", response_model=IdeaStatusSummaryResponse)
 def get_idea_status_summary(store: Store = Depends(get_store)) -> IdeaStatusSummaryResponse:
     return IdeaStatusSummaryResponse(**store.get_idea_status_summary())
+
+
+@router.get("/ideas/score-distribution", response_model=IdeaScoreDistributionResponse)
+def get_idea_score_distribution(
+    domain: str | None = None,
+    status: str | None = None,
+    bucket_size: int = Query(default=10, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> IdeaScoreDistributionResponse:
+    return IdeaScoreDistributionResponse(
+        **store.get_idea_score_distribution(
+            domain=domain,
+            status=status,
+            bucket_size=bucket_size,
+        )
+    )
 
 
 def _evaluate_existing_idea(store: Store, idea_id: str) -> UtilityEvaluation:

@@ -861,6 +861,96 @@ class Store:
             ],
         }
 
+    def get_idea_score_distribution(
+        self,
+        *,
+        domain: str | None = None,
+        status: str | None = None,
+        bucket_size: int = 10,
+    ) -> dict:
+        """Return evaluated idea score buckets plus unevaluated idea count."""
+        if bucket_size < 1 or bucket_size > 100:
+            raise ValueError("bucket_size must be between 1 and 100")
+
+        conditions: list[str] = []
+        params: list = []
+        if domain:
+            conditions.append("bu.domain = ?")
+            params.append(domain)
+        if status:
+            conditions.append("bu.status = ?")
+            params.append(status)
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        scored_rows = self.conn.execute(
+            f"""SELECT e.overall_score, e.recommendation, bu.status
+                FROM buildable_units bu
+                JOIN evaluations e ON e.buildable_unit_id = bu.id
+                {where_clause}
+                ORDER BY e.overall_score ASC, bu.id ASC""",
+            params,
+        ).fetchall()
+
+        unevaluated_conditions = [*conditions, "e.buildable_unit_id IS NULL"]
+        unevaluated_where = "WHERE " + " AND ".join(unevaluated_conditions)
+        unevaluated_count = self.conn.execute(
+            f"""SELECT COUNT(*) AS count
+                FROM buildable_units bu
+                LEFT JOIN evaluations e ON e.buildable_unit_id = bu.id
+                {unevaluated_where}""",
+            params,
+        ).fetchone()["count"]
+
+        buckets: dict[float, dict] = {}
+        for row in scored_rows:
+            score = float(row["overall_score"])
+            if score >= 100.0:
+                min_score = float(max(0, 100 - bucket_size))
+            else:
+                min_score = float(int(score // bucket_size) * bucket_size)
+            max_score = float(min(100, min_score + bucket_size))
+
+            bucket = buckets.setdefault(
+                min_score,
+                {
+                    "min_score": min_score,
+                    "max_score": max_score,
+                    "count": 0,
+                    "score_total": 0.0,
+                    "by_recommendation": {},
+                    "by_status": {},
+                },
+            )
+            bucket["count"] += 1
+            bucket["score_total"] += score
+            recommendation = row["recommendation"] or ""
+            bucket["by_recommendation"][recommendation] = (
+                bucket["by_recommendation"].get(recommendation, 0) + 1
+            )
+            idea_status = row["status"] or ""
+            bucket["by_status"][idea_status] = bucket["by_status"].get(idea_status, 0) + 1
+
+        bucket_list = []
+        for bucket in sorted(buckets.values(), key=lambda item: item["min_score"]):
+            count = bucket["count"]
+            bucket_list.append(
+                {
+                    "min_score": bucket["min_score"],
+                    "max_score": bucket["max_score"],
+                    "count": count,
+                    "average_score": bucket["score_total"] / count if count else 0.0,
+                    "by_recommendation": bucket["by_recommendation"],
+                    "by_status": bucket["by_status"],
+                }
+            )
+
+        return {
+            "bucket_size": bucket_size,
+            "evaluated_count": len(scored_rows),
+            "unevaluated_count": unevaluated_count,
+            "buckets": bucket_list,
+        }
+
     # ── Quality Loop Memory ─────────────────────────────────────────
 
     def insert_idea_critique(

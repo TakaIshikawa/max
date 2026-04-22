@@ -1713,6 +1713,86 @@ class TestAdditionalCRUD:
         assert recommendations["maybe"]["statuses"] == {"approved": 1}
         assert {row["recommendation"] for row in summary["groups"]} == {"yes", "maybe", None}
 
+    def test_get_idea_score_distribution_buckets_scores_and_breakdowns(self, store: Store) -> None:
+        """Bucket evaluated idea scores and count unevaluated ideas separately."""
+        seeds = [
+            ("bu-dist-ai-1", "ai", "evaluated", 72.0, "yes"),
+            ("bu-dist-ai-2", "ai", "evaluated", 78.0, "maybe"),
+            ("bu-dist-ai-3", "ai", "approved", 91.0, "yes"),
+            ("bu-dist-dev-1", "devtools", "evaluated", 64.0, "no"),
+        ]
+        for unit_id, domain, status, score, recommendation in seeds:
+            unit = _make_unit(unit_id)
+            unit.domain = domain
+            unit.status = status
+            store.insert_buildable_unit(unit)
+            evaluation = _make_evaluation(unit_id, overall_score=score)
+            evaluation.recommendation = recommendation
+            store.insert_evaluation(evaluation)
+
+        unevaluated = _make_unit("bu-dist-unevaluated")
+        unevaluated.domain = "ai"
+        unevaluated.status = "draft"
+        store.insert_buildable_unit(unevaluated)
+
+        distribution = store.get_idea_score_distribution(bucket_size=20)
+
+        assert distribution["bucket_size"] == 20
+        assert distribution["evaluated_count"] == 4
+        assert distribution["unevaluated_count"] == 1
+        buckets = {row["min_score"]: row for row in distribution["buckets"]}
+        assert buckets[60.0]["max_score"] == 80.0
+        assert buckets[60.0]["count"] == 3
+        assert buckets[60.0]["average_score"] == pytest.approx((72.0 + 78.0 + 64.0) / 3)
+        assert buckets[60.0]["by_recommendation"] == {"yes": 1, "maybe": 1, "no": 1}
+        assert buckets[60.0]["by_status"] == {"evaluated": 3}
+        assert buckets[80.0]["count"] == 1
+        assert buckets[80.0]["by_status"] == {"approved": 1}
+
+    def test_get_idea_score_distribution_filters_domain_and_status(self, store: Store) -> None:
+        seeds = [
+            ("bu-dist-filter-1", "ai", "evaluated", 82.0, "yes"),
+            ("bu-dist-filter-2", "ai", "approved", 88.0, "maybe"),
+            ("bu-dist-filter-3", "devtools", "evaluated", 84.0, "no"),
+        ]
+        for unit_id, domain, status, score, recommendation in seeds:
+            unit = _make_unit(unit_id)
+            unit.domain = domain
+            unit.status = status
+            store.insert_buildable_unit(unit)
+            evaluation = _make_evaluation(unit_id, overall_score=score)
+            evaluation.recommendation = recommendation
+            store.insert_evaluation(evaluation)
+
+        unevaluated_ai = _make_unit("bu-dist-filter-uneval-ai")
+        unevaluated_ai.domain = "ai"
+        unevaluated_ai.status = "evaluated"
+        store.insert_buildable_unit(unevaluated_ai)
+
+        unevaluated_draft = _make_unit("bu-dist-filter-uneval-draft")
+        unevaluated_draft.domain = "ai"
+        unevaluated_draft.status = "draft"
+        store.insert_buildable_unit(unevaluated_draft)
+
+        distribution = store.get_idea_score_distribution(
+            domain="ai",
+            status="evaluated",
+            bucket_size=10,
+        )
+
+        assert distribution["evaluated_count"] == 1
+        assert distribution["unevaluated_count"] == 1
+        assert distribution["buckets"] == [
+            {
+                "min_score": 80.0,
+                "max_score": 90.0,
+                "count": 1,
+                "average_score": 82.0,
+                "by_recommendation": {"yes": 1},
+                "by_status": {"evaluated": 1},
+            }
+        ]
+
     def test_get_buildable_units_with_domain_filter(self, store: Store) -> None:
         """Get buildable units filtered by domain."""
         u1 = _make_unit("bu-dom-1")
