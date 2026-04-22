@@ -629,6 +629,25 @@ def test_get_design_brief_blueprint(seeded_client):
     assert data["source_ideas"][0]["id"] == "bu-api001"
 
 
+def test_get_design_brief_markdown(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/markdown")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/markdown")
+    assert "# Test Design Brief" in resp.text
+    assert "### MVP Scope" in resp.text
+    assert "- Export packet" in resp.text
+    assert "`bu-api001`" in resp.text
+
+
+def test_get_design_brief_markdown_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing/markdown")
+    assert resp.status_code == 404
+
+
 def test_get_design_brief_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing")
     assert resp.status_code == 404

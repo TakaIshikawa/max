@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 
 from max import config
 from max.server.dependencies import get_store
@@ -570,6 +570,22 @@ def get_design_brief_blueprint(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return BlueprintSourceBriefResponse(**build_blueprint_source_brief(store, brief))
+
+
+@router.get("/design-briefs/{brief_id}/markdown", response_class=Response)
+def get_design_brief_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    from max.analysis.portfolio_synthesis import render_design_brief_markdown
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return Response(
+        content=render_design_brief_markdown(brief),
+        media_type="text/markdown",
+    )
 
 
 # ── Domain Quality ──────────────────────────────────────────────────

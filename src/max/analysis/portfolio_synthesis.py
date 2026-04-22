@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
@@ -139,6 +139,76 @@ def render_markdown(briefs: list[ProjectBrief], *, title: str = "Design Candidat
                 lines.append(f"- `{unit.id}` — {unit.title} ({candidate.readiness_score:.1f}/100)")
             lines.append("")
         lines.extend(["### Source IDs", "", ", ".join(f"`{sid}`" for sid in brief.source_idea_ids), ""])
+    return "\n".join(lines)
+
+
+def render_design_brief_markdown(brief: Mapping[str, Any], *, title: str | None = None) -> str:
+    """Render one persisted design brief row as Markdown."""
+    generated_at = datetime.now(timezone.utc).isoformat()
+    lead_id = str(brief.get("lead_idea_id") or "TBD")
+    lead_title = str(brief.get("lead_idea_title") or brief.get("title") or "Untitled")
+    source_ids = list(brief.get("source_idea_ids") or [])
+    supporting_sources = [
+        source
+        for source in brief.get("sources", [])
+        if source.get("role") == "supporting"
+    ]
+    supporting_sources.sort(key=lambda source: source.get("rank", 0))
+
+    lines = [
+        f"# {title or brief.get('title') or 'Design Brief'}",
+        "",
+        f"Generated: {generated_at}",
+        "",
+        "These are synthesized from approved or published ideas and ranked for near-term design/implementation readiness.",
+        "",
+        f"## 1. {brief.get('title') or 'Untitled'}",
+        "",
+        f"- **Domain**: {brief.get('domain') or 'general'}",
+        f"- **Theme**: {brief.get('theme') or 'implementation-candidate'}",
+        f"- **Readiness**: {float(brief.get('readiness_score') or 0.0):.1f}/100",
+        f"- **Lead idea**: `{lead_id}` — {lead_title}",
+        f"- **Buyer**: {brief.get('buyer') or 'TBD'}",
+        f"- **Specific user**: {brief.get('specific_user') or 'TBD'}",
+        f"- **Workflow**: {brief.get('workflow_context') or 'TBD'}",
+        "",
+        "### Why This",
+        "",
+        str(brief.get("why_this_now") or ""),
+        "",
+        "### Product Concept",
+        "",
+        str(brief.get("merged_product_concept") or ""),
+        "",
+        "### Synthesis Rationale",
+        "",
+        str(brief.get("synthesis_rationale") or ""),
+        "",
+        "### MVP Scope",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in brief.get("mvp_scope", []))
+    lines.extend(["", "### First Milestones", ""])
+    lines.extend(f"- {item}" for item in brief.get("first_milestones", []))
+    lines.extend(
+        [
+            "",
+            "### Validation",
+            "",
+            str(brief.get("validation_plan") or "Define a 2-week validation test."),
+            "",
+        ]
+    )
+    if brief.get("risks"):
+        lines.extend(["### Risks", ""])
+        lines.extend(f"- {risk}" for risk in brief["risks"])
+        lines.append("")
+    if supporting_sources:
+        lines.extend(["### Supporting Ideas", ""])
+        for source in supporting_sources:
+            lines.append(f"- `{source['idea_id']}`")
+        lines.append("")
+    lines.extend(["### Source IDs", "", ", ".join(f"`{source_id}`" for source_id in source_ids), ""])
     return "\n".join(lines)
 
 

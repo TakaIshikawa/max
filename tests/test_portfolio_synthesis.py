@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from max.analysis.portfolio_synthesis import (
     build_candidates,
+    render_design_brief_markdown,
     render_markdown,
     synthesize_project_briefs,
 )
@@ -103,6 +104,36 @@ def test_render_markdown_includes_design_sections() -> None:
     assert "### MVP Scope" in markdown
     assert "### First Milestones" in markdown
     assert "`bu-1`" in markdown
+
+
+def test_render_design_brief_markdown_from_persisted_dict() -> None:
+    markdown = render_design_brief_markdown(
+        {
+            "title": "Persisted Brief",
+            "domain": "testing",
+            "theme": "api-testing",
+            "readiness_score": 82.0,
+            "lead_idea_id": "bu-1",
+            "buyer": "Platform lead",
+            "specific_user": "API maintainer",
+            "workflow_context": "Exporting briefs",
+            "why_this_now": "Teams need design handoff packets.",
+            "merged_product_concept": "A Markdown handoff.",
+            "synthesis_rationale": "Single strong source.",
+            "mvp_scope": ["Render Markdown"],
+            "first_milestones": ["Add API endpoint"],
+            "validation_plan": "Call the endpoint.",
+            "risks": ["Missing source title"],
+            "source_idea_ids": ["bu-1"],
+            "sources": [{"idea_id": "bu-2", "role": "supporting", "rank": 1}],
+        }
+    )
+
+    assert "# Persisted Brief" in markdown
+    assert "- **Lead idea**: `bu-1` — Persisted Brief" in markdown
+    assert "### MVP Scope" in markdown
+    assert "- Render Markdown" in markdown
+    assert "- `bu-2`" in markdown
 
 
 def test_store_persists_design_brief_with_sources(tmp_path) -> None:
