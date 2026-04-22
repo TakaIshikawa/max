@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -525,12 +526,16 @@ def archive_ideas(dry_run: bool, limit: int) -> None:
 @click.option("--limit", type=int, default=20, help="Max results")
 @click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
 @click.option("--show-critique", is_flag=True, help="Show latest quality-loop critique summary")
+@click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table", show_default=True)
+@click.option("--output", "-o", type=click.Path(dir_okay=False), default=None, help="Write JSON output to file")
 def ideas(
     status: str | None,
     domain: str | None,
     limit: int,
     include_archived: bool,
     show_critique: bool,
+    fmt: str,
+    output: str | None,
 ) -> None:
     """List generated ideas with scores."""
     from max.store.db import Store
@@ -542,6 +547,26 @@ def ideas(
             units = [u for u in units if u.status != "archived"]
         if not units:
             click.echo("No ideas found.")
+            return
+
+        if fmt == "json" or output:
+            payload = [
+                _idea_summary_json(
+                    unit,
+                    store.get_evaluation(unit.id),
+                    _get_latest_feedback(store, unit.id),
+                    _get_idea_critiques(store, unit.id),
+                )
+                for unit in units
+            ]
+            rendered = json.dumps(payload, indent=2)
+            if output:
+                output_path = Path(output)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(rendered + "\n", encoding="utf-8")
+                click.echo(f"Wrote {len(payload)} idea(s) to {output_path}")
+            else:
+                click.echo(rendered)
             return
 
         for unit in units:
@@ -562,6 +587,73 @@ def ideas(
                     )
     finally:
         store.close()
+
+
+def _get_latest_feedback(store, unit_id: str) -> dict | None:
+    latest_feedback = store.get_latest_feedback(unit_id)
+    return latest_feedback if isinstance(latest_feedback, dict) else None
+
+
+def _get_idea_critiques(store, unit_id: str) -> list[dict]:
+    critiques = store.get_idea_critiques(unit_id)
+    return critiques if isinstance(critiques, list) else []
+
+
+def _idea_review_metadata(unit: BuildableUnit, latest_feedback: dict | None = None) -> dict:
+    outcome = latest_feedback["outcome"] if latest_feedback else None
+    state = outcome or unit.status or "pending"
+    if state == "evaluated":
+        state = "pending_review"
+    elif state == "draft":
+        state = "draft"
+    graph_state = "".join(part.capitalize() for part in state.replace("-", "_").split("_"))
+    return {
+        "review_state": state,
+        "feedback_outcome": outcome,
+        "feedback_reason": latest_feedback["reason"] if latest_feedback else "",
+        "reviewed_at": latest_feedback["created_at"] if latest_feedback else None,
+        "graph_labels": ["Idea", f"Review{graph_state}"],
+        "is_approved": state in ("approved", "published"),
+    }
+
+
+def _idea_summary_json(
+    unit: BuildableUnit,
+    evaluation: UtilityEvaluation | None = None,
+    latest_feedback: dict | None = None,
+    critiques: list[dict] | None = None,
+) -> dict:
+    summary = {
+        "id": unit.id,
+        "title": unit.title,
+        "one_liner": unit.one_liner,
+        "category": str(unit.category),
+        "domain": unit.domain,
+        "status": unit.status,
+        **_idea_review_metadata(unit, latest_feedback),
+        "quality_score": unit.quality_score,
+        "novelty_score": unit.novelty_score,
+        "usefulness_score": unit.usefulness_score,
+        "rejection_tags": unit.rejection_tags,
+        "score": evaluation.overall_score if evaluation else None,
+        "recommendation": evaluation.recommendation if evaluation else None,
+    }
+    if critiques:
+        summary["latest_critique"] = _idea_critique_json(critiques[0])
+    return summary
+
+
+def _idea_critique_json(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "buildable_unit_id": row["buildable_unit_id"],
+        "pipeline_run_id": row.get("pipeline_run_id"),
+        "stage": row["stage"],
+        "dimensions": row["dimensions"],
+        "reasoning": row["reasoning"],
+        "rejection_tags": row["rejection_tags"],
+        "created_at": row["created_at"],
+    }
 
 
 @main.command()

@@ -6,6 +6,7 @@ source modules (e.g. ``max.store.db.Store``) rather than ``max.cli.Store``.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -88,6 +89,7 @@ def _mock_store(**overrides) -> MagicMock:
     store.get_buildable_unit.return_value = overrides.get("unit", None)
     store.get_evaluation.return_value = overrides.get("evaluation", None)
     store.get_latest_feedback.return_value = overrides.get("latest_feedback", None)
+    store.get_idea_critiques.return_value = overrides.get("idea_critiques", [])
     store.get_feedback_outcomes.return_value = overrides.get("feedback_outcomes", [])
     store.get_signals.return_value = overrides.get("signals", [])
     store.get_design_brief.return_value = overrides.get("design_brief", None)
@@ -637,6 +639,70 @@ class TestIdeasCommand:
         runner.invoke(main, ["ideas", "--limit", "5"])
 
         store.get_buildable_units.assert_called_once_with(limit=5, status=None, domain=None)
+
+    @patch("max.store.db.Store")
+    def test_ideas_json_format(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit(id="bu-001", title="Idea Alpha", status="evaluated")
+        unit.domain = "devtools"
+        unit.quality_score = 7.5
+        unit.novelty_score = 7.0
+        unit.usefulness_score = 8.0
+        unit.rejection_tags = ["too_broad"]
+        evaluation = _make_evaluation("bu-001", score=78.0)
+        store = _mock_store(
+            units=[unit],
+            latest_feedback={
+                "outcome": "approved",
+                "reason": "strong candidate",
+                "created_at": "2026-04-22T00:00:00+00:00",
+            },
+        )
+        store.get_evaluation.return_value = evaluation
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["ideas", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload == [
+            {
+                "id": "bu-001",
+                "title": "Idea Alpha",
+                "one_liner": "Standardized testing for MCP servers",
+                "category": "cli_tool",
+                "domain": "devtools",
+                "status": "evaluated",
+                "review_state": "approved",
+                "feedback_outcome": "approved",
+                "feedback_reason": "strong candidate",
+                "reviewed_at": "2026-04-22T00:00:00+00:00",
+                "graph_labels": ["Idea", "ReviewApproved"],
+                "is_approved": True,
+                "quality_score": 7.5,
+                "novelty_score": 7.0,
+                "usefulness_score": 8.0,
+                "rejection_tags": ["too_broad"],
+                "score": 78.0,
+                "recommendation": "yes",
+            }
+        ]
+
+    @patch("max.store.db.Store")
+    def test_ideas_output_writes_json(self, MockStore, runner: CliRunner, tmp_path: Path) -> None:
+        unit = _make_unit(id="bu-001", title="Idea Alpha")
+        store = _mock_store(units=[unit])
+        store.get_evaluation.return_value = None
+        MockStore.return_value = store
+        output_path = tmp_path / "ideas.json"
+
+        result = runner.invoke(main, ["ideas", "--output", str(output_path)])
+
+        assert result.exit_code == 0, result.output
+        assert result.output == f"Wrote 1 idea(s) to {output_path}\n"
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+        assert payload[0]["id"] == "bu-001"
+        assert payload[0]["score"] is None
+        assert payload[0]["recommendation"] is None
 
 
 # ── inspect command ────────────────────────────────────────────────
