@@ -1003,6 +1003,58 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
         store.close()
 
 
+@main.command(name="publish")
+@click.argument("entity_id")
+@click.option("--webhook-url", required=True, help="Webhook URL to POST the generated payload to")
+@click.option(
+    "--payload",
+    "payload_type",
+    type=click.Choice(["tact-spec", "blueprint"]),
+    default="tact-spec",
+    show_default=True,
+    help="Generated payload type to publish",
+)
+@click.option("--timeout", type=float, default=10.0, show_default=True, help="Webhook timeout in seconds")
+@click.option("--retries", type=int, default=2, show_default=True, help="Retry count for transient failures")
+def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float, retries: int) -> None:
+    """Publish a generated tact spec or Blueprint source brief to a webhook."""
+    from max.analysis.blueprint_export import build_blueprint_source_brief
+    from max.publisher.webhook import WebhookPublishError, WebhookPublisher
+    from max.spec.generator import generate_spec_preview
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        if payload_type == "tact-spec":
+            unit = store.get_buildable_unit(entity_id)
+            if not unit:
+                raise click.ClickException(f"Idea not found: {entity_id}")
+            payload = generate_spec_preview(unit, store.get_evaluation(entity_id))
+            subject = unit.title
+        else:
+            brief = store.get_design_brief(entity_id)
+            if not brief:
+                raise click.ClickException(f"Design brief not found: {entity_id}")
+            payload = build_blueprint_source_brief(store, brief)
+            subject = brief["title"]
+
+        try:
+            result = WebhookPublisher(
+                webhook_url,
+                timeout=timeout,
+                retries=retries,
+            ).publish(payload, payload_type=payload_type)
+        except (ValueError, WebhookPublishError) as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        click.echo(
+            f"Published {payload_type} for {entity_id} ({subject}) to "
+            f"{result.url} [{result.status_code}] in {result.attempts} attempt(s)"
+        )
+    finally:
+        store.close()
+
+
 @main.command()
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))

@@ -472,6 +472,106 @@ class TestBlueprintExportCommands:
         assert "Design brief not found: dbf-missing" in result.output
 
 
+class TestPublishCommand:
+    @patch("max.publisher.webhook.WebhookPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_tact_spec_posts_generated_spec(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.return_value
+        publisher.publish.return_value.status_code = 202
+        publisher.publish.return_value.attempts = 1
+        publisher.publish.return_value.url = "https://example.com/hook"
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--webhook-url",
+                "https://example.com/hook?token=secret",
+                "--payload",
+                "tact-spec",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = publisher.publish.call_args.args[0]
+        assert payload["kind"] == "tact.project_spec"
+        assert payload["source"]["idea_id"] == "bu-test001"
+        publisher.publish.assert_called_once()
+        assert publisher.publish.call_args.kwargs["payload_type"] == "tact-spec"
+        MockPublisher.assert_called_once_with(
+            "https://example.com/hook?token=secret",
+            timeout=10.0,
+            retries=2,
+        )
+        assert "Published tact-spec for bu-test001" in result.output
+        assert "token=secret" not in result.output
+
+    @patch("max.publisher.webhook.WebhookPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_blueprint_posts_generated_source_brief(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+        publisher = MockPublisher.return_value
+        publisher.publish.return_value.status_code = 200
+        publisher.publish.return_value.attempts = 1
+        publisher.publish.return_value.url = "https://example.com/hook"
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "dbf-test001",
+                "--webhook-url",
+                "https://example.com/hook",
+                "--payload",
+                "blueprint",
+                "--timeout",
+                "2.5",
+                "--retries",
+                "4",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = publisher.publish.call_args.args[0]
+        assert payload["schema_version"] == "max.blueprint.source_brief.v1"
+        assert payload["source"]["id"] == "dbf-test001"
+        assert publisher.publish.call_args.kwargs["payload_type"] == "blueprint"
+        MockPublisher.assert_called_once_with(
+            "https://example.com/hook",
+            timeout=2.5,
+            retries=4,
+        )
+        assert "Published blueprint for dbf-test001" in result.output
+
+    @patch("max.store.db.Store")
+    def test_publish_missing_tact_spec_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["publish", "bu-missing", "--webhook-url", "https://example.com/hook"],
+        )
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+
+
 class TestDomainQualityCommands:
     @patch("max.store.db.Store")
     def test_domain_quality_score(self, MockStore, runner: CliRunner) -> None:
