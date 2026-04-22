@@ -26,6 +26,7 @@ from max.server.schemas import (
     IdeaCreate,
     IdeaCritiqueResponse,
     IdeaDetailResponse,
+    IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
     InsightCreate,
     InsightDetailResponse,
@@ -523,6 +524,11 @@ def list_ideas(
             total_count=total_count,
         ),
     )
+
+
+@router.get("/ideas/status-summary", response_model=IdeaStatusSummaryResponse)
+def get_idea_status_summary(store: Store = Depends(get_store)) -> IdeaStatusSummaryResponse:
+    return IdeaStatusSummaryResponse(**store.get_idea_status_summary())
 
 
 @router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)

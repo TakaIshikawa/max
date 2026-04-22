@@ -15,6 +15,16 @@ from max.types.insight import Insight
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation, DimensionScore
 
+IDEA_STATUS_SUMMARY_STATUSES = (
+    "pending_review",
+    "approved",
+    "rejected",
+    "published",
+    "archived",
+    "duplicate",
+    "synthesized",
+)
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -624,6 +634,93 @@ class Store:
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         return self.conn.execute(query, params).fetchone()[0]
+
+    def get_idea_status_summary(self) -> dict:
+        """Return SQL-aggregated idea counts by status, domain, and recommendation."""
+        status_expr = "CASE WHEN status = 'evaluated' THEN 'pending_review' ELSE status END"
+
+        total = self.conn.execute("SELECT COUNT(*) FROM buildable_units").fetchone()[0]
+
+        status_rows = self.conn.execute(
+            f"""SELECT {status_expr} AS status, COUNT(*) AS count
+                FROM buildable_units
+                GROUP BY {status_expr}
+                ORDER BY status"""
+        ).fetchall()
+        by_status = [
+            {"status": row["status"] or "", "count": row["count"]}
+            for row in status_rows
+        ]
+        totals = {status: 0 for status in IDEA_STATUS_SUMMARY_STATUSES}
+        for row in status_rows:
+            status = row["status"] or ""
+            if status in totals:
+                totals[status] = row["count"]
+
+        domain_rows = self.conn.execute(
+            f"""SELECT COALESCE(domain, '') AS domain,
+                       {status_expr} AS status,
+                       COUNT(*) AS count
+                FROM buildable_units
+                GROUP BY COALESCE(domain, ''), {status_expr}
+                ORDER BY domain, status"""
+        ).fetchall()
+        domains: dict[str, dict] = {}
+        for row in domain_rows:
+            domain = row["domain"] or ""
+            item = domains.setdefault(
+                domain,
+                {"domain": domain, "count": 0, "statuses": {}},
+            )
+            item["count"] += row["count"]
+            item["statuses"][row["status"] or ""] = row["count"]
+
+        recommendation_rows = self.conn.execute(
+            f"""SELECT e.recommendation AS recommendation,
+                       {status_expr} AS status,
+                       COUNT(*) AS count
+                FROM buildable_units bu
+                JOIN evaluations e ON e.buildable_unit_id = bu.id
+                GROUP BY e.recommendation, {status_expr}
+                ORDER BY e.recommendation, status"""
+        ).fetchall()
+        recommendations: dict[str, dict] = {}
+        for row in recommendation_rows:
+            recommendation = row["recommendation"] or ""
+            item = recommendations.setdefault(
+                recommendation,
+                {"recommendation": recommendation, "count": 0, "statuses": {}},
+            )
+            item["count"] += row["count"]
+            item["statuses"][row["status"] or ""] = row["count"]
+
+        group_rows = self.conn.execute(
+            f"""SELECT {status_expr} AS status,
+                       COALESCE(bu.domain, '') AS domain,
+                       e.recommendation AS recommendation,
+                       COUNT(*) AS count
+                FROM buildable_units bu
+                LEFT JOIN evaluations e ON e.buildable_unit_id = bu.id
+                GROUP BY {status_expr}, COALESCE(bu.domain, ''), e.recommendation
+                ORDER BY status, domain, recommendation"""
+        ).fetchall()
+
+        return {
+            "total": total,
+            "totals": totals,
+            "by_status": by_status,
+            "by_domain": list(domains.values()),
+            "by_recommendation": list(recommendations.values()),
+            "groups": [
+                {
+                    "status": row["status"] or "",
+                    "domain": row["domain"] or "",
+                    "recommendation": row["recommendation"],
+                    "count": row["count"],
+                }
+                for row in group_rows
+            ],
+        }
 
     # ── Quality Loop Memory ─────────────────────────────────────────
 

@@ -1534,6 +1534,55 @@ class TestAdditionalCRUD:
         assert store.count_buildable_units(domain="ai") == 2
         assert store.count_buildable_units(status="draft", domain="ai") == 1
 
+    def test_get_idea_status_summary(self, store: Store) -> None:
+        """Summarize idea statuses with domain and recommendation breakdowns."""
+        evaluated = _make_unit("bu-status-evaluated")
+        evaluated.status = "evaluated"
+        evaluated.domain = "ai"
+
+        approved = _make_unit("bu-status-approved")
+        approved.status = "approved"
+        approved.domain = "ai"
+
+        archived = _make_unit("bu-status-archived")
+        archived.status = "archived"
+        archived.domain = "devtools"
+
+        store.insert_buildable_unit(evaluated)
+        store.insert_buildable_unit(approved)
+        store.insert_buildable_unit(archived)
+
+        yes_eval = _make_evaluation(evaluated.id, overall_score=81.0)
+        yes_eval.recommendation = "yes"
+        maybe_eval = _make_evaluation(approved.id, overall_score=64.0)
+        maybe_eval.recommendation = "maybe"
+        store.insert_evaluation(yes_eval)
+        store.insert_evaluation(maybe_eval)
+
+        summary = store.get_idea_status_summary()
+
+        assert summary["total"] == 3
+        assert summary["totals"] == {
+            "pending_review": 1,
+            "approved": 1,
+            "rejected": 0,
+            "published": 0,
+            "archived": 1,
+            "duplicate": 0,
+            "synthesized": 0,
+        }
+        assert {"status": "pending_review", "count": 1} in summary["by_status"]
+
+        domains = {row["domain"]: row for row in summary["by_domain"]}
+        assert domains["ai"]["count"] == 2
+        assert domains["ai"]["statuses"] == {"approved": 1, "pending_review": 1}
+        assert domains["devtools"]["statuses"] == {"archived": 1}
+
+        recommendations = {row["recommendation"]: row for row in summary["by_recommendation"]}
+        assert recommendations["yes"]["statuses"] == {"pending_review": 1}
+        assert recommendations["maybe"]["statuses"] == {"approved": 1}
+        assert {row["recommendation"] for row in summary["groups"]} == {"yes", "maybe", None}
+
     def test_get_buildable_units_with_domain_filter(self, store: Store) -> None:
         """Get buildable units filtered by domain."""
         u1 = _make_unit("bu-dom-1")

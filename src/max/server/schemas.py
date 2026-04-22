@@ -211,6 +211,39 @@ class IdeaSummaryResponse(BaseModel):
     recommendation: str | None = None
 
 
+class IdeaStatusCountResponse(BaseModel):
+    status: str
+    count: int
+
+
+class IdeaDomainStatusSummaryResponse(BaseModel):
+    domain: str
+    count: int
+    statuses: dict[str, int]
+
+
+class IdeaRecommendationStatusSummaryResponse(BaseModel):
+    recommendation: str
+    count: int
+    statuses: dict[str, int]
+
+
+class IdeaStatusSummaryGroupResponse(BaseModel):
+    status: str
+    domain: str
+    recommendation: str | None = None
+    count: int
+
+
+class IdeaStatusSummaryResponse(BaseModel):
+    total: int
+    totals: dict[str, int]
+    by_status: list[IdeaStatusCountResponse]
+    by_domain: list[IdeaDomainStatusSummaryResponse]
+    by_recommendation: list[IdeaRecommendationStatusSummaryResponse]
+    groups: list[IdeaStatusSummaryGroupResponse]
+
+
 class IdeaDetailResponse(BaseModel):
     id: str
     title: str

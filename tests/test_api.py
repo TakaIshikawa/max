@@ -714,6 +714,73 @@ def test_list_ideas_filter_status(multi_idea_client):
     assert len(resp.json()["items"]) == 0
 
 
+def test_get_idea_status_summary(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+
+    def _unit(unit_id: str, status: str, domain: str) -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=f"Idea {unit_id}",
+            one_liner="A summarized idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Problem",
+            solution="Solution",
+            value_proposition="Value",
+            status=status,
+            domain=domain,
+        )
+
+    store.insert_buildable_unit(_unit("bu-summary-1", "evaluated", "ai"))
+    store.insert_buildable_unit(_unit("bu-summary-2", "approved", "ai"))
+    store.insert_buildable_unit(_unit("bu-summary-3", "duplicate", "devtools"))
+
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+    evaluation = UtilityEvaluation(
+        buildable_unit_id="bu-summary-1",
+        pain_severity=_score(8.0),
+        addressable_scale=_score(7.0),
+        build_effort=_score(6.0),
+        composability=_score(7.0),
+        competitive_density=_score(8.0),
+        timing_fit=_score(7.0),
+        compounding_value=_score(6.0),
+        overall_score=74.0,
+        recommendation="yes",
+        weights_used={"pain_severity": 0.20},
+    )
+    store.insert_evaluation(evaluation)
+    store.close()
+
+    resp = client.get("/api/v1/ideas/status-summary")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["total"] == 3
+    assert data["totals"] == {
+        "pending_review": 1,
+        "approved": 1,
+        "rejected": 0,
+        "published": 0,
+        "archived": 0,
+        "duplicate": 1,
+        "synthesized": 0,
+    }
+    assert {"status": "pending_review", "count": 1} in data["by_status"]
+    assert {row["recommendation"] for row in data["by_recommendation"]} == {"yes"}
+    assert any(
+        row == {
+            "status": "pending_review",
+            "domain": "ai",
+            "recommendation": "yes",
+            "count": 1,
+        }
+        for row in data["groups"]
+    )
+
+
 def test_get_idea(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001")
     assert resp.status_code == 200
