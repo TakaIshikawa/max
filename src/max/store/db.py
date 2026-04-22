@@ -8,6 +8,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 
+from max.analysis.status import validate_buildable_unit_status_transition
 from max.config import DB_PATH
 from max.store.migrations import ensure_schema
 from max.types.signal import Signal
@@ -682,7 +683,15 @@ class Store:
 
         return units, next_cursor
 
-    def update_buildable_unit_status(self, unit_id: str, status: str) -> None:
+    def update_buildable_unit_status(
+        self, unit_id: str, status: str, *, force: bool = False
+    ) -> None:
+        row = self.conn.execute(
+            "SELECT status FROM buildable_units WHERE id = ?", (unit_id,)
+        ).fetchone()
+        if not row:
+            return
+        validate_buildable_unit_status_transition(row["status"], status, force=force)
         self.conn.execute(
             "UPDATE buildable_units SET status = ?, updated_at = ? WHERE id = ?",
             (status, _now_iso(), unit_id),

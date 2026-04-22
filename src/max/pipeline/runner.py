@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from max.analysis.gap_detector import detect_gaps, format_gaps_for_ideation
 from max.analysis.retrospective import analyze_retrospective, format_retrospective_for_ideation
 from max.analysis.roles import annotate_signals
+from max.analysis.status import can_transition_buildable_unit_status
 from max.analysis.triangulation import format_cluster_context, triangulate
 from max.embeddings.engine import SemanticIndex
 from max.evaluation.engine import evaluate
@@ -1364,9 +1365,11 @@ def _run_triage(
             continue
 
         if ev.overall_score >= approve_threshold and ev.recommendation == "yes":
-            auto_approved.append((unit, ev))
+            if can_transition_buildable_unit_status(unit.status, "approved"):
+                auto_approved.append((unit, ev))
         elif ev.overall_score < reject_threshold or ev.recommendation == "no":
-            auto_rejected.append((unit, ev))
+            if can_transition_buildable_unit_status(unit.status, "rejected"):
+                auto_rejected.append((unit, ev))
         else:
             pending += 1
 

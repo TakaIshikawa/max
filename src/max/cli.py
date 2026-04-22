@@ -663,6 +663,7 @@ def archive_ideas(dry_run: bool, limit: int) -> None:
     `max focus set <domains>` first to configure focus.
     """
     from max.focus import load_focus_domains
+    from max.analysis.status import can_transition_buildable_unit_status
     from max.store.db import Store
 
     focus_domains = load_focus_domains()
@@ -681,6 +682,8 @@ def archive_ideas(dry_run: bool, limit: int) -> None:
             if not unit.domain or unit.domain in focus_domains:
                 continue
             if unit.status != "evaluated":
+                continue
+            if not can_transition_buildable_unit_status(unit.status, "archived"):
                 continue
             if store.has_feedback(unit.id):
                 continue
@@ -1048,6 +1051,7 @@ def triage(domain: str | None, approve_threshold: float, reject_threshold: float
     Default thresholds: auto-approve >= 68 with rec=yes, auto-reject < 50 or rec=no.
     Remaining ideas are left for human review.
     """
+    from max.analysis.status import can_transition_buildable_unit_status
     from max.store.db import Store
 
     store = Store()
@@ -1071,9 +1075,11 @@ def triage(domain: str | None, approve_threshold: float, reject_threshold: float
                 continue
 
             if ev.overall_score >= approve_threshold and ev.recommendation == "yes":
-                auto_approved.append((unit, ev))
+                if can_transition_buildable_unit_status(unit.status, "approved"):
+                    auto_approved.append((unit, ev))
             elif ev.overall_score < reject_threshold or ev.recommendation == "no":
-                auto_rejected.append((unit, ev))
+                if can_transition_buildable_unit_status(unit.status, "rejected"):
+                    auto_rejected.append((unit, ev))
             else:
                 pending.append((unit, ev))
 

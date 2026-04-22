@@ -1229,6 +1229,42 @@ def test_feedback_not_found(client):
     assert resp.status_code == 404
 
 
+def test_feedback_rejects_invalid_status_transition(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-published",
+                title="Published Idea",
+                one_liner="Already shipped",
+                category=BuildableCategory.APPLICATION,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+                status="published",
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.post(
+        "/api/v1/ideas/bu-published/feedback",
+        json={"outcome": "rejected", "reason": "changed mind"},
+    )
+
+    assert resp.status_code == 409
+    assert "published -> rejected" in resp.json()["detail"]
+
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        unit = store.get_buildable_unit("bu-published")
+        assert unit is not None
+        assert unit.status == "published"
+        assert store.has_feedback("bu-published") is False
+    finally:
+        store.close()
+
+
 def test_feedback_trends_endpoint(seeded_client):
     feedback_resp = seeded_client.post(
         "/api/v1/ideas/bu-api001/feedback",

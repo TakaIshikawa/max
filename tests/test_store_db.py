@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from max.analysis.status import InvalidBuildableUnitStatusTransition
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -379,6 +380,30 @@ class TestBuildableUnitOperations:
         assert updated.status == "evaluated"
         # updated_at should be at least as recent as original
         assert updated.updated_at >= original.updated_at
+
+    def test_update_buildable_unit_status_rejects_backwards_transition(
+        self, store: Store, sample_unit: BuildableUnit
+    ) -> None:
+        store.insert_buildable_unit(sample_unit)
+        store.update_buildable_unit_status(sample_unit.id, "approved")
+
+        with pytest.raises(InvalidBuildableUnitStatusTransition):
+            store.update_buildable_unit_status(sample_unit.id, "draft")
+
+        unit = store.get_buildable_unit(sample_unit.id)
+        assert unit is not None
+        assert unit.status == "approved"
+
+    def test_update_buildable_unit_status_force_allows_backwards_transition(
+        self, store: Store, sample_unit: BuildableUnit
+    ) -> None:
+        store.insert_buildable_unit(sample_unit)
+        store.update_buildable_unit_status(sample_unit.id, "approved")
+        store.update_buildable_unit_status(sample_unit.id, "draft", force=True)
+
+        unit = store.get_buildable_unit(sample_unit.id)
+        assert unit is not None
+        assert unit.status == "draft"
 
     def test_restore_archived_idea_returns_to_evaluated(self, store: Store, sample_unit: BuildableUnit) -> None:
         store.insert_buildable_unit(sample_unit)

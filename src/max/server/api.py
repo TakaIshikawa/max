@@ -11,6 +11,10 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
 
 from max import config
+from max.analysis.status import (
+    InvalidBuildableUnitStatusTransition,
+    validate_buildable_unit_status_transition,
+)
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
@@ -871,6 +875,11 @@ def create_feedback(
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    try:
+        validate_buildable_unit_status_transition(unit.status, body.outcome)
+    except InvalidBuildableUnitStatusTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     store.insert_feedback(idea_id, body.outcome, body.reason, approval_score=body.approval_score)
     store.update_buildable_unit_status(idea_id, body.outcome)
