@@ -484,6 +484,29 @@ class EvidenceChainResponse(BaseModel):
     edges: list[EvidenceChainEdgeResponse]
 
 
+class LineageGraphNodeResponse(BaseModel):
+    id: str
+    entity_id: str
+    type: Literal["idea", "buildable_unit", "insight", "signal"]
+    label: str
+    evidence_links: list[str] = Field(default_factory=list)
+    data: dict = Field(default_factory=dict)
+
+
+class LineageGraphEdgeResponse(BaseModel):
+    id: str
+    source: str
+    target: str
+    type: Literal["materialized_as", "inspired_by", "supported_by", "direct_evidence"]
+    label: str
+
+
+class LineageGraphResponse(BaseModel):
+    idea_id: str
+    nodes: list[LineageGraphNodeResponse]
+    edges: list[LineageGraphEdgeResponse]
+
+
 class DesignBriefSourceResponse(BaseModel):
     idea_id: str
     role: str

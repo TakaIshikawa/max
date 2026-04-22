@@ -69,6 +69,9 @@ from max.server.schemas import (
     InsightTrendResponse,
     LLMUsageResponse,
     LLMUsageRunResponse,
+    LineageGraphEdgeResponse,
+    LineageGraphNodeResponse,
+    LineageGraphResponse,
     PaginatedResponse,
     PaginationMeta,
     PipelineAggregateResultResponse,
@@ -541,6 +544,138 @@ def _prior_art_response(unit: BuildableUnit, matches: list[dict]) -> PriorArtRes
         prior_art_status=unit.prior_art_status,
         matches=matches,
     )
+
+
+def _lineage_node_id(node_type: str, entity_id: str) -> str:
+    return f"{node_type}:{entity_id}"
+
+
+def _lineage_edge_id(source: str, target: str, edge_type: str) -> str:
+    return f"{source}->{target}:{edge_type}"
+
+
+def _lineage_graph_response(unit: BuildableUnit, store: Store) -> LineageGraphResponse:
+    chain = build_evidence_chain_graph(
+        unit,
+        store,
+        insight_converter=lambda insight: _insight_to_response(insight).model_dump(),
+        signal_converter=lambda signal: _signal_to_response(signal).model_dump(),
+    )
+    signal_links = {
+        signal["id"]: signal["url"]
+        for signal in chain["signals"]
+        if signal.get("id") and signal.get("url")
+    }
+    insight_signal_ids = {
+        insight["id"]: list(insight.get("evidence", []))
+        for insight in chain["insights"]
+    }
+    insight_links = {
+        insight_id: [
+            signal_links[signal_id]
+            for signal_id in signal_ids
+            if signal_id in signal_links
+        ]
+        for insight_id, signal_ids in insight_signal_ids.items()
+    }
+    unit_links: list[str] = []
+    for signal_id in unit.evidence_signals:
+        if signal_id in signal_links and signal_links[signal_id] not in unit_links:
+            unit_links.append(signal_links[signal_id])
+    for insight_id in unit.inspiring_insights:
+        for link in insight_links.get(insight_id, []):
+            if link not in unit_links:
+                unit_links.append(link)
+
+    idea_node_id = _lineage_node_id("idea", unit.id)
+    unit_node_id = _lineage_node_id("buildable_unit", unit.id)
+    nodes = [
+        LineageGraphNodeResponse(
+            id=idea_node_id,
+            entity_id=unit.id,
+            type="idea",
+            label=unit.title,
+            evidence_links=unit_links,
+            data={
+                "one_liner": unit.one_liner,
+                "domain": unit.domain,
+                "status": unit.status,
+            },
+        ),
+        LineageGraphNodeResponse(
+            id=unit_node_id,
+            entity_id=unit.id,
+            type="buildable_unit",
+            label=unit.one_liner or unit.title,
+            evidence_links=unit_links,
+            data=chain["idea"],
+        ),
+    ]
+    edges = [
+        LineageGraphEdgeResponse(
+            id=_lineage_edge_id(idea_node_id, unit_node_id, "materialized_as"),
+            source=idea_node_id,
+            target=unit_node_id,
+            type="materialized_as",
+            label="materialized as",
+        )
+    ]
+
+    for insight in chain["insights"]:
+        node_id = _lineage_node_id("insight", insight["id"])
+        nodes.append(
+            LineageGraphNodeResponse(
+                id=node_id,
+                entity_id=insight["id"],
+                type="insight",
+                label=insight["title"],
+                evidence_links=insight_links.get(insight["id"], []),
+                data=insight,
+            )
+        )
+
+    for signal in chain["signals"]:
+        node_id = _lineage_node_id("signal", signal["id"])
+        nodes.append(
+            LineageGraphNodeResponse(
+                id=node_id,
+                entity_id=signal["id"],
+                type="signal",
+                label=signal["title"],
+                evidence_links=[signal["url"]] if signal.get("url") else [],
+                data=signal,
+            )
+        )
+
+    edge_labels = {
+        "inspired_by": "inspired by",
+        "supported_by": "supported by",
+        "direct_evidence": "direct evidence",
+    }
+    edge_source_prefix = {
+        "inspired_by": "buildable_unit",
+        "supported_by": "insight",
+        "direct_evidence": "buildable_unit",
+    }
+    edge_target_prefix = {
+        "inspired_by": "insight",
+        "supported_by": "signal",
+        "direct_evidence": "signal",
+    }
+    for edge in chain["edges"]:
+        source = _lineage_node_id(edge_source_prefix[edge["type"]], edge["source"])
+        target = _lineage_node_id(edge_target_prefix[edge["type"]], edge["target"])
+        edges.append(
+            LineageGraphEdgeResponse(
+                id=_lineage_edge_id(source, target, edge["type"]),
+                source=source,
+                target=target,
+                type=edge["type"],
+                label=edge_labels[edge["type"]],
+            )
+        )
+
+    return LineageGraphResponse(idea_id=unit.id, nodes=nodes, edges=edges)
 
 
 def run_prior_art_check_for_idea(store: Store, idea_id: str, *, force: bool = False) -> PriorArtResponse:
@@ -1163,6 +1298,15 @@ def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> 
         signal_converter=lambda signal: _signal_to_response(signal).model_dump(),
     )
     return EvidenceChainResponse(**graph)
+
+
+@router.get("/ideas/{idea_id}/lineage", response_model=LineageGraphResponse)
+@router.get("/ideas/{idea_id}/lineage-graph", response_model=LineageGraphResponse)
+def get_idea_lineage_graph(idea_id: str, store: Store = Depends(get_store)) -> LineageGraphResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return _lineage_graph_response(unit, store)
 
 
 @router.get("/ideas/{idea_id}/domain-quality", response_model=list[DomainQualityScoreResponse])

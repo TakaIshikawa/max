@@ -1686,6 +1686,33 @@ def test_get_idea_evidence_chain_not_found(client):
     assert resp.status_code == 404
 
 
+def test_get_idea_lineage_graph(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/lineage")
+    assert resp.status_code == 200
+    data = resp.json()
+    nodes = {node["id"]: node for node in data["nodes"]}
+    assert data["idea_id"] == "bu-api001"
+    assert nodes["idea:bu-api001"]["label"] == "Test Idea"
+    assert nodes["idea:bu-api001"]["type"] == "idea"
+    assert nodes["buildable_unit:bu-api001"]["type"] == "buildable_unit"
+    assert nodes["insight:ins-api001"]["label"] == "Test Insight"
+    assert nodes["signal:sig-api001"]["evidence_links"] == ["https://example.com/test"]
+    assert {
+        (edge["source"], edge["target"], edge["type"])
+        for edge in data["edges"]
+    } == {
+        ("idea:bu-api001", "buildable_unit:bu-api001", "materialized_as"),
+        ("buildable_unit:bu-api001", "insight:ins-api001", "inspired_by"),
+        ("insight:ins-api001", "signal:sig-api001", "supported_by"),
+        ("buildable_unit:bu-api001", "signal:sig-api001", "direct_evidence"),
+    }
+
+
+def test_get_idea_lineage_graph_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/lineage")
+    assert resp.status_code == 404
+
+
 def test_get_idea_domain_quality(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/domain-quality")
     assert resp.status_code == 200
