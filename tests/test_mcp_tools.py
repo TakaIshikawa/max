@@ -8,8 +8,10 @@ from max.analysis.portfolio_synthesis import build_candidates, synthesize_projec
 from max.server.mcp_tools import (
     contribute_idea,
     contribute_signal,
+    evidence_chain_detail,
     get_design_brief,
     get_design_brief_markdown,
+    get_evidence_chain,
     get_idea,
     get_stats,
     list_design_briefs,
@@ -19,6 +21,7 @@ from max.server.mcp_tools import (
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
+from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
 
 
@@ -83,6 +86,63 @@ def seeded_mcp_db(mcp_db):
         weights_used={"pain_severity": 0.20},
     )
     store.insert_evaluation(evaluation)
+    store.close()
+    return mcp_db
+
+
+@pytest.fixture
+def seeded_evidence_chain_db(mcp_db):
+    """DB pre-populated with an idea, insight, transitive signal, and direct signal."""
+    store = Store(db_path=mcp_db, wal_mode=True)
+
+    insight_signal = Signal(
+        id="sig-chain001",
+        source_type=SignalSourceType.FORUM,
+        source_adapter="hn",
+        title="Insight Signal",
+        content="Evidence that supports the insight",
+        url="https://example.com/insight-signal",
+        tags=["mcp"],
+        credibility=0.8,
+        metadata={"signal_role": "problem"},
+    )
+    direct_signal = Signal(
+        id="sig-chain002",
+        source_type=SignalSourceType.REGISTRY,
+        source_adapter="npm",
+        title="Direct Signal",
+        content="Direct evidence for the idea",
+        url="https://example.com/direct-signal",
+        tags=["registry"],
+        credibility=0.7,
+    )
+    store.insert_signal(insight_signal)
+    store.insert_signal(direct_signal)
+
+    insight = Insight(
+        id="ins-chain001",
+        category=InsightCategory.GAP,
+        title="Testing Gap",
+        summary="MCP tools need better testing.",
+        evidence=["sig-chain001"],
+        confidence=0.9,
+        domains=["developer-tools"],
+    )
+    store.insert_insight(insight)
+
+    unit = BuildableUnit(
+        id="bu-chain001",
+        title="Evidence Chain Idea",
+        one_liner="Expose evidence graph",
+        category=BuildableCategory.CLI_TOOL,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="Evidence is hard to inspect",
+        solution="Return a graph",
+        value_proposition="Traceable ideas",
+        inspiring_insights=["ins-chain001"],
+        evidence_signals=["sig-chain002"],
+    )
+    store.insert_buildable_unit(unit)
     store.close()
     return mcp_db
 
@@ -207,6 +267,33 @@ def test_get_idea_found(seeded_mcp_db):
 def test_get_idea_not_found(mcp_db):
     result = get_idea(id="nonexistent")
     assert "error" in result
+
+
+def test_get_evidence_chain_graph(seeded_evidence_chain_db):
+    result = get_evidence_chain(id="bu-chain001")
+
+    assert result["idea"]["id"] == "bu-chain001"
+    assert [ins["id"] for ins in result["insights"]] == ["ins-chain001"]
+    assert {sig["id"] for sig in result["signals"]} == {"sig-chain001", "sig-chain002"}
+    assert {
+        (edge["source"], edge["target"], edge["type"])
+        for edge in result["edges"]
+    } == {
+        ("bu-chain001", "ins-chain001", "inspired_by"),
+        ("ins-chain001", "sig-chain001", "supported_by"),
+        ("bu-chain001", "sig-chain002", "direct_evidence"),
+    }
+
+
+def test_get_evidence_chain_not_found(mcp_db):
+    result = get_evidence_chain(id="missing")
+    assert result == {"error": "Idea not found: missing"}
+
+
+def test_evidence_chain_resource(seeded_evidence_chain_db):
+    result = evidence_chain_detail("bu-chain001")
+    assert '"idea": {' in result
+    assert '"type": "direct_evidence"' in result
 
 
 def test_list_design_briefs(seeded_design_brief_db):

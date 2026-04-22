@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 
 from max import config
 from max.server.dependencies import get_store
+from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
     BlueprintSourceBriefResponse,
@@ -545,6 +546,14 @@ def get_idea_evidence_pack(idea_id: str, store: Store = Depends(get_store)) -> d
         if (insight := store.get_insight(insight_id))
     ]
     return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
+
+
+@router.get("/ideas/{idea_id}/evidence-chain")
+def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> dict:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return build_evidence_chain_graph(unit, store)
 
 
 @router.get("/ideas/{idea_id}/domain-quality", response_model=list[DomainQualityScoreResponse])

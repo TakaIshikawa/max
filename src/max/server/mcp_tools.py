@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
 
+from max.server.evidence_chain import build_evidence_chain_graph
 from max.store.db import Store
 
 if TYPE_CHECKING:
@@ -230,6 +231,15 @@ def get_evidence_pack(id: str) -> dict:
             if (insight := store.get_insight(insight_id))
         ]
         return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
+
+
+def get_evidence_chain(id: str) -> dict:
+    """Get the idea evidence chain as a graph of idea, insights, signals, and typed edges."""
+    with _get_store() as store:
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+        return build_evidence_chain_graph(unit, store)
 
 
 def contribute_signal(
@@ -467,6 +477,11 @@ def evidence_pack_detail(idea_id: str) -> str:
     return json.dumps(get_evidence_pack(idea_id), indent=2)
 
 
+def evidence_chain_detail(idea_id: str) -> str:
+    """Get evidence-chain graph details for a specific idea."""
+    return json.dumps(get_evidence_chain(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -492,6 +507,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief)
     mcp.tool(get_design_brief_markdown)
     mcp.tool(get_evidence_pack)
+    mcp.tool(get_evidence_chain)
     mcp.tool(contribute_signal)
     mcp.tool(contribute_idea)
     mcp.tool(evaluate_idea)
@@ -504,6 +520,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://list")(ideas_list)
     mcp.resource("ideas://{idea_id}")(idea_detail)
     mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
+    mcp.resource("ideas://{idea_id}/evidence-chain")(evidence_chain_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
 

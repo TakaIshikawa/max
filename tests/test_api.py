@@ -79,6 +79,8 @@ def seeded_db(db_path):
         problem="No test ideas",
         solution="Create a test idea",
         value_proposition="Better testing",
+        inspiring_insights=["ins-api001"],
+        evidence_signals=["sig-api001"],
     )
     store.insert_buildable_unit(unit)
 
@@ -682,6 +684,28 @@ def test_get_idea(seeded_client):
 
 def test_get_idea_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent")
+    assert resp.status_code == 404
+
+
+def test_get_idea_evidence_chain(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["idea"]["id"] == "bu-api001"
+    assert [insight["id"] for insight in data["insights"]] == ["ins-api001"]
+    assert [signal["id"] for signal in data["signals"]] == ["sig-api001"]
+    assert {
+        (edge["source"], edge["target"], edge["type"])
+        for edge in data["edges"]
+    } == {
+        ("bu-api001", "ins-api001", "inspired_by"),
+        ("ins-api001", "sig-api001", "supported_by"),
+        ("bu-api001", "sig-api001", "direct_evidence"),
+    }
+
+
+def test_get_idea_evidence_chain_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/evidence-chain")
     assert resp.status_code == 404
 
 
