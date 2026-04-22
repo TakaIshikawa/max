@@ -241,6 +241,27 @@ class SignalFreshnessResponse(BaseModel):
     recommendations: list[SignalFreshnessRecommendationResponse]
 
 
+class SourceReliabilityTypeResponse(BaseModel):
+    source_type: str
+    total_signals: int
+    source_adapters: list[str]
+    registered_adapters: list[str]
+    adapter_health_score: float
+    signal_usefulness_score: float
+    corroboration_rate: float
+    downstream_idea_conversion_rate: float
+    feedback_approval_rate: float | None = None
+    reliability_score: float
+    reasons: list[str]
+
+
+class SourceReliabilityResponse(BaseModel):
+    generated_at: str
+    signal_limit: int
+    total_signals: int
+    source_types: list[SourceReliabilityTypeResponse]
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str

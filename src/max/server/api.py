@@ -29,6 +29,7 @@ from max.analysis.run_comparison import (
 )
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
+from max.analysis.source_reliability import DEFAULT_SIGNAL_LIMIT, build_source_reliability_report
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -133,6 +134,7 @@ from max.server.schemas import (
     SignalImportRequest,
     SignalImportResponse,
     SignalImportRowResult,
+    SourceReliabilityResponse,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -1007,6 +1009,15 @@ def get_signal_freshness(
         source_adapters=source_adapter,
     )
     return SignalFreshnessResponse.model_validate(report.to_dict())
+
+
+@router.get("/source-reliability", response_model=SourceReliabilityResponse)
+def get_source_reliability(
+    signal_limit: int = Query(DEFAULT_SIGNAL_LIMIT, ge=1, le=10_000),
+    store: Store = Depends(get_store),
+) -> SourceReliabilityResponse:
+    report = build_source_reliability_report(store, signal_limit=signal_limit)
+    return SourceReliabilityResponse.model_validate(report.to_dict())
 
 
 @router.post("/signals", response_model=SignalCreateResponse, status_code=201)

@@ -664,6 +664,73 @@ def _short_timestamp(value: str | None) -> str:
     return value.replace("+00:00", "Z")[:19]
 
 
+@main.command(name="source-reliability")
+@click.option(
+    "--signal-limit",
+    type=int,
+    default=500,
+    show_default=True,
+    help="Maximum active signals to include",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def source_reliability(signal_limit: int, fmt: str, as_json: bool) -> None:
+    """Analyze source reliability by source type."""
+    from max.analysis.source_reliability import build_source_reliability_report
+    from max.store.db import Store
+
+    if signal_limit < 1:
+        raise click.ClickException("--signal-limit must be at least 1")
+
+    store = Store()
+    try:
+        report = build_source_reliability_report(store, signal_limit=signal_limit)
+    finally:
+        store.close()
+
+    if as_json or fmt == "json":
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_source_reliability(report)
+
+
+def _render_source_reliability(report) -> None:
+    click.echo("Source reliability")
+    click.echo(f"Signals analyzed: {report.total_signals}  Limit: {report.signal_limit}")
+    click.echo()
+    if not report.source_types:
+        click.echo("No active signals found.")
+        return
+
+    click.echo(
+        f"{'Source type':<18s} {'Signals':>7s} {'Adapters':>8s} "
+        f"{'Health':>7s} {'Useful':>7s} {'Corr':>7s} {'Ideas':>7s} {'Score':>7s}"
+    )
+    click.echo("-" * 78)
+    for row in report.source_types:
+        click.echo(
+            f"{row.source_type[:18]:<18s} "
+            f"{row.total_signals:>7d} "
+            f"{len(row.source_adapters):>8d} "
+            f"{_format_rate(row.adapter_health_score):>7s} "
+            f"{_format_rate(row.signal_usefulness_score):>7s} "
+            f"{_format_rate(row.corroboration_rate):>7s} "
+            f"{_format_rate(row.downstream_idea_conversion_rate):>7s} "
+            f"{_format_rate(row.reliability_score):>7s}"
+        )
+        click.echo(f"  Adapters: {', '.join(row.source_adapters)}")
+        for reason in row.reasons:
+            click.echo(f"  - {reason}")
+    click.echo("-" * 78)
+
+
 def _known_profile_domains() -> dict[str, str]:
     """Return {domain_name: profile_name} for all valid profiles."""
     from max.profiles.loader import list_profiles, load_profile
