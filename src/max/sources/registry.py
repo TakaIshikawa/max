@@ -24,6 +24,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
+    "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",

@@ -8,6 +8,7 @@ from max.types.signal import Signal
 DEFAULT_ROLE_MAP: dict[str, str] = {
     "github_issues": "problem",
     "security_advisories": "problem",
+    "nvd_cve": "problem",
     "stackoverflow": "problem",
     "npm_registry": "solution",
     "pypi_registry": "solution",

@@ -22,6 +22,7 @@ class SourceConfig(BaseModel):
     #   npm_registry: {"queries": [...]}
     #   pypi_registry: {"keywords": [...]}
     #   security_advisories: {"ecosystems": [...], "severities": [...]}
+    #   nvd_cve: {"keywords": [...], "severities": [...], "cvss_min": 7.0}
     #   product_hunt: {"topics": [...]}
     #   hackernews: {"filter_keywords": [...]}
     #   rss_feed: {"feeds": ["https://example.com/feed.xml"], "max_age_days": 14}
