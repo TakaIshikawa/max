@@ -1980,6 +1980,75 @@ def _render_launch_checklist(checklist: dict, *, fmt: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+@main.command(name="risk-register")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def risk_register(idea_id: str, fmt: str) -> None:
+    """Generate a risk register for one buildable idea."""
+    from max.analysis.contradictions import build_idea_contradiction_report
+    from max.analysis.evidence_density import build_evidence_density_report
+    from max.spec.risk_register import generate_risk_register
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        register = generate_risk_register(
+            unit,
+            store.get_evaluation(idea_id),
+            build_evidence_density_report(unit, store),
+            build_idea_contradiction_report(unit, store),
+        )
+        click.echo(_render_risk_register(register, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
+def _render_risk_register(register: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(register, indent=2) + "\n"
+    if fmt != "text":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    summary = register["summary"]
+    lines = [
+        f"Risk register: {summary['title']}",
+        f"Idea: {register['idea_id']}",
+        f"Risks: {summary['risk_count']} (critical: {summary['critical_risk_count']}, high: {summary['high_risk_count']})",
+    ]
+    recommendation = summary.get("recommendation")
+    if recommendation:
+        lines.append(f"Evaluation: {recommendation} ({summary.get('overall_score', 0.0):.1f})")
+
+    if register["risks"]:
+        lines.append("\nPrioritized risks:")
+        for risk in register["risks"]:
+            lines.append(
+                f"{risk['priority']}. [{risk['severity']}/{risk['likelihood']}] "
+                f"{risk['title']}: {risk['description']}"
+            )
+            if risk["evidence_links"]:
+                lines.append(f"   Evidence: {', '.join(risk['evidence_links'])}")
+            if risk["mitigations"]:
+                lines.append(f"   Mitigation: {risk['mitigations'][0]}")
+            lines.append(f"   Owner: {risk['owner_suggestion']}")
+            lines.append(f"   Trigger: {risk['validation_trigger']}")
+    else:
+        lines.append("\nNo deterministic risks found.")
+
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="evidence-density")
 @click.argument("idea_id")
 @click.option(

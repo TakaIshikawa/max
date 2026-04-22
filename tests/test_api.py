@@ -1880,6 +1880,25 @@ def test_get_idea_launch_checklist_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_risk_register(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/risk-register")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max-risk-register/v1"
+    assert data["kind"] == "max.risk_register"
+    assert data["idea_id"] == "bu-api001"
+    assert data["source"]["evidence_density_available"] is True
+    assert data["source"]["contradictions_available"] is True
+    assert data["risks"]
+    assert any(risk["id"] == "missing_specific_user" for risk in data["risks"])
+
+
+def test_get_idea_risk_register_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/risk-register")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_evidence_chain(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
     assert resp.status_code == 200
