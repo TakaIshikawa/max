@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+from urllib.parse import urlparse
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class SourceConfig(BaseModel):
@@ -11,7 +14,7 @@ class SourceConfig(BaseModel):
     adapter: str  # adapter name (e.g. "reddit", "github")
     enabled: bool = True
     weight: float = 1.0  # relative fetch budget weight
-    params: dict = Field(default_factory=dict)
+    params: dict[str, Any] = Field(default_factory=dict)
     # params vary by adapter:
     #   reddit: {"subreddits": [...]}
     #   github: {"topics": [...]}
@@ -21,6 +24,32 @@ class SourceConfig(BaseModel):
     #   security_advisories: {"ecosystems": [...], "severities": [...]}
     #   product_hunt: {"topics": [...]}
     #   hackernews: {"filter_keywords": [...]}
+    #   rss_feed: {"feeds": ["https://example.com/feed.xml"], "max_age_days": 14}
+
+    @model_validator(mode="after")
+    def validate_adapter_params(self) -> "SourceConfig":
+        if self.adapter != "rss_feed":
+            return self
+
+        feeds = self.params.get("feeds")
+        if feeds is not None:
+            if not isinstance(feeds, list):
+                raise ValueError("rss_feed params.feeds must be a list of URL strings")
+            for feed_url in feeds:
+                if not isinstance(feed_url, str) or not feed_url.strip():
+                    raise ValueError("rss_feed params.feeds must be a list of URL strings")
+                parsed = urlparse(feed_url)
+                if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                    raise ValueError("rss_feed params.feeds must contain HTTP(S) URL strings")
+
+        max_age_days = self.params.get("max_age_days")
+        if max_age_days is not None:
+            if not isinstance(max_age_days, int) or isinstance(max_age_days, bool):
+                raise ValueError("rss_feed params.max_age_days must be an integer")
+            if max_age_days < 1:
+                raise ValueError("rss_feed params.max_age_days must be at least 1")
+
+        return self
 
 
 class DomainContext(BaseModel):

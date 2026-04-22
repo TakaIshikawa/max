@@ -62,6 +62,32 @@ class TestSourceConfig:
         assert config.weight == 2.5
         assert config.params == {"topics": ["ai", "ml"]}
 
+    def test_valid_rss_feed_params(self):
+        """Test SourceConfig accepts RSS feed URLs and max age."""
+        config = SourceConfig(
+            adapter="rss_feed",
+            enabled=False,
+            params={
+                "feeds": ["https://example.com/feed.xml"],
+                "max_age_days": 14,
+                "tags": ["custom-feed"],
+            },
+        )
+
+        assert config.params["feeds"] == ["https://example.com/feed.xml"]
+        assert config.params["max_age_days"] == 14
+
+    def test_invalid_rss_feed_params_fail(self):
+        """Test SourceConfig rejects malformed RSS feed params."""
+        with pytest.raises(ValidationError):
+            SourceConfig(adapter="rss_feed", params={"feeds": ["not-a-url"]})
+
+        with pytest.raises(ValidationError):
+            SourceConfig(
+                adapter="rss_feed",
+                params={"feeds": ["https://example.com/feed.xml"], "max_age_days": 0},
+            )
+
     def test_missing_required_adapter_field(self):
         """Test that missing adapter field raises ValidationError."""
         with pytest.raises(ValidationError) as exc_info:

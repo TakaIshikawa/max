@@ -220,6 +220,15 @@ sources:
         - python
         - typescript
 
+  - adapter: rss_feed
+    enabled: false
+    params:
+      feeds:
+        - https://example.com/feed.xml
+      max_age_days: 14
+      tags:
+        - custom-feed
+
 evaluation:
   weight_profile: default
   min_score: 50.0

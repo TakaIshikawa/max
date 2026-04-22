@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from jsonschema import Draft7Validator, ValidationError, validators
+from jsonschema import Draft7Validator, ValidationError
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────
@@ -55,12 +55,7 @@ def profile_files(profiles_dir: Path) -> list[Path]:
 @pytest.fixture(scope="module")
 def validator(schema: dict) -> Draft7Validator:
     """Create a JSON Schema validator with format checking enabled."""
-    # Enable format validation
-    ValidatorWithFormats = validators.extend(
-        Draft7Validator,
-        validators={"format": Draft7Validator.FORMAT_CHECKER.check},
-    )
-    return ValidatorWithFormats(schema)
+    return Draft7Validator(schema, format_checker=Draft7Validator.FORMAT_CHECKER)
 
 
 # ── Schema Validity Tests ──────────────────────────────────────────────
@@ -178,6 +173,7 @@ class TestSchemaProperties:
             "pypi_registry",
             "security_advisories",
             "product_hunt",
+            "rss_feed",
         ]
         for adapter in known_adapters:
             assert (
@@ -194,6 +190,22 @@ class TestSchemaProperties:
         assert "maximum" in weight_prop
         assert weight_prop["minimum"] == 0.0
         assert weight_prop["maximum"] == 10.0
+
+    def test_schema_documents_rss_feed_params_shape(self, schema: dict):
+        """Test that rss_feed adapter params are documented."""
+        source_item = schema["properties"]["sources"]["items"]
+        rss_rule = next(
+            rule
+            for rule in source_item["allOf"]
+            if rule["if"]["properties"]["adapter"]["const"] == "rss_feed"
+        )
+        params = rss_rule["then"]["properties"]["params"]
+
+        assert params["properties"]["feeds"]["type"] == "array"
+        assert params["properties"]["feeds"]["items"]["type"] == "string"
+        assert params["properties"]["feeds"]["items"]["format"] == "uri"
+        assert params["properties"]["max_age_days"]["type"] == "integer"
+        assert params["properties"]["max_age_days"]["minimum"] == 1
 
     def test_schema_documents_evaluation_field(self, schema: dict):
         """Test that 'evaluation' field is properly documented."""
@@ -440,6 +452,60 @@ class TestTypeConstraints:
 
         errors = list(validator.iter_errors(invalid_profile))
         assert len(errors) > 0
+
+    def test_valid_rss_feed_params_pass(self, validator: Draft7Validator):
+        """Test that rss_feed accepts feed URL strings and optional max age."""
+        valid_profile = {
+            "name": "test",
+            "domain": {
+                "name": "test",
+                "description": "test",
+                "categories": ["integration"],
+                "target_user_types": ["users"],
+            },
+            "sources": [
+                {
+                    "adapter": "rss_feed",
+                    "enabled": False,
+                    "params": {
+                        "feeds": ["https://example.com/feed.xml"],
+                        "max_age_days": 14,
+                    },
+                }
+            ],
+        }
+
+        assert list(validator.iter_errors(valid_profile)) == []
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"feeds": "https://example.com/feed.xml"},
+            {"feeds": ["not-a-url"]},
+            {"feeds": ["ftp://example.com/feed.xml"]},
+            {"feeds": ["https://example.com/feed.xml"], "max_age_days": 0},
+            {"feeds": ["https://example.com/feed.xml"], "max_age_days": "14"},
+        ],
+    )
+    def test_invalid_rss_feed_params_fail(self, validator: Draft7Validator, params: dict):
+        """Test that malformed rss_feed params fail validation."""
+        invalid_profile = {
+            "name": "test",
+            "domain": {
+                "name": "test",
+                "description": "test",
+                "categories": ["integration"],
+                "target_user_types": ["users"],
+            },
+            "sources": [
+                {
+                    "adapter": "rss_feed",
+                    "params": params,
+                }
+            ],
+        }
+
+        assert list(validator.iter_errors(invalid_profile))
 
 
 # ── Enum Constraint Tests ──────────────────────────────────────────────

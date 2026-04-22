@@ -210,6 +210,7 @@ properties:
             - pubmed
             - stackoverflow
             - devto
+            - rss_feed
 
         enabled:
           type: boolean
@@ -237,6 +238,35 @@ properties:
           # security_advisories: {"ecosystems": ["pip", "npm"], "severities": ["critical", "high"]}
           # product_hunt: {"topics": ["developer-tools", "artificial-intelligence"]}
           # hackernews: {"filter_keywords": ["security", "vulnerability"]}
+          # rss_feed: {"feeds": ["https://example.com/feed.xml"], "max_age_days": 14}
+
+      allOf:
+        - if:
+            properties:
+              adapter:
+                const: rss_feed
+          then:
+            properties:
+              params:
+                type: object
+                properties:
+                  feeds:
+                    type: array
+                    description: RSS or Atom feed URLs to fetch
+                    items:
+                      type: string
+                      format: uri
+                      pattern: ^https?://
+                  max_age_days:
+                    type: integer
+                    description: Optional maximum age for feed entries
+                    minimum: 1
+                  tags:
+                    type: array
+                    description: Optional tags applied to signals from these feeds
+                    items:
+                      type: string
+                additionalProperties: true
 
   evaluation:
     type: object
