@@ -92,7 +92,7 @@ def test_load_devtools_profile():
     profile = load_profile("devtools")
     assert profile.name == "devtools"
     assert profile.domain.name == "developer-tools"
-    assert len(profile.sources) == 11
+    assert len(profile.sources) == 13
     assert profile.signal_limit == 30
     assert profile.evaluation.weight_profile == "default"
 
@@ -121,13 +121,14 @@ def test_get_default_profile_matches_devtools():
     default = get_default_profile()
     assert default.name == "devtools"
     assert default.domain.name == "developer-tools"
-    assert len(default.sources) == 11
+    assert len(default.sources) == 13
 
     # Verify adapter names match
     adapter_names = [s.adapter for s in default.sources]
     assert "hackernews" in adapter_names
     assert "reddit" in adapter_names
     assert "github" in adapter_names
+    assert "nuget" in adapter_names
     assert "npm_registry" in adapter_names
 
 
@@ -150,6 +151,10 @@ def test_profile_source_configs_have_params():
 
     npm = sources_by_adapter["npm_registry"]
     assert "mcp server" in npm.params["queries"]
+
+    nuget = sources_by_adapter["nuget"]
+    assert "semantic kernel" in nuget.params["queries"]
+    assert "Microsoft.SemanticKernel" in nuget.params["package_names"]
 
 
 def test_profile_from_dict():

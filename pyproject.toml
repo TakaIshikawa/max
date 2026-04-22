@@ -46,6 +46,7 @@ pubmed = "max.sources.pubmed:PubMedAdapter"
 rss_feed = "max.sources.rss_feed:RssFeedAdapter"
 crates_io = "max.sources.crates_io:CratesIoAdapter"
 lobsters = "max.sources.lobsters:LobstersAdapter"
+nuget = "max.sources.nuget:NuGetAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

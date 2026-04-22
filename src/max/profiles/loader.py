@@ -139,6 +139,18 @@ def get_default_profile() -> PipelineProfile:
                 },
             ),
             SourceConfig(
+                adapter="nuget",
+                params={
+                    "queries": ["semantic kernel", "ai agent", "mcp", "openai"],
+                    "package_names": [
+                        "Microsoft.Extensions.AI",
+                        "Microsoft.SemanticKernel",
+                        "Azure.AI.OpenAI",
+                        "OpenAI",
+                    ],
+                },
+            ),
+            SourceConfig(
                 adapter="security_advisories",
                 params={"ecosystems": ["pip", "npm", "go"], "severities": ["critical", "high"]},
             ),

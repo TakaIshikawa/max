@@ -12,6 +12,7 @@ DEFAULT_ROLE_MAP: dict[str, str] = {
     "stackoverflow": "problem",
     "npm_registry": "solution",
     "pypi_registry": "solution",
+    "nuget": "solution",
     "github": "solution",
     "github_funding": "market",
     "product_hunt": "market",

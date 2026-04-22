@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from max.analysis.roles import (
     DEFAULT_ROLE_MAP,
     MIXED_ADAPTERS,
@@ -57,6 +55,12 @@ def test_default_role_map_npm_registry_solution() -> None:
 def test_default_role_map_pypi_registry_solution() -> None:
     """pypi_registry adapter → 'solution'."""
     sig = _make_signal("pypi_registry", source_type=SignalSourceType.REGISTRY)
+    assert classify_signal_role(sig) == "solution"
+
+
+def test_default_role_map_nuget_solution() -> None:
+    """nuget adapter → 'solution'."""
+    sig = _make_signal("nuget", source_type=SignalSourceType.REGISTRY)
     assert classify_signal_role(sig) == "solution"
 
 
@@ -465,6 +469,7 @@ def test_default_role_map_constant_correctness() -> None:
     assert DEFAULT_ROLE_MAP["stackoverflow"] == "problem"
     assert DEFAULT_ROLE_MAP["npm_registry"] == "solution"
     assert DEFAULT_ROLE_MAP["pypi_registry"] == "solution"
+    assert DEFAULT_ROLE_MAP["nuget"] == "solution"
     assert DEFAULT_ROLE_MAP["github"] == "solution"
     assert DEFAULT_ROLE_MAP["product_hunt"] == "market"
     assert DEFAULT_ROLE_MAP["hackernews"] == "market"

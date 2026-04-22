@@ -53,6 +53,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
     "lobsters": "max.sources.lobsters:LobstersAdapter",
+    "nuget": "max.sources.nuget:NuGetAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -187,6 +188,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["tags", "page", "limit"],
         required_keys=[],
         description="Fetches Lobsters developer forum stories from newest or tag-specific JSON pages.",
+    ),
+    "nuget": AdapterMetadata(
+        name="nuget",
+        config_keys=["queries", "package_names", "include_prerelease"],
+        required_keys=[],
+        description="Fetches NuGet package metadata and recent version activity for configured packages and search terms.",
     ),
 }
 

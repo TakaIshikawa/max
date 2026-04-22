@@ -13,6 +13,7 @@ _WATCHLIST_PARAM_KEYS = {
     "github": "topics",
     "github_issues": "queries",
     "hackernews": "filter_keywords",
+    "nuget": "queries",
     "npm_registry": "queries",
     "nvd_cve": "keywords",
     "product_hunt": "topics",
@@ -57,6 +58,7 @@ class SourceConfig(BaseModel):
     #   reddit: {"subreddits": [...]}
     #   github: {"topics": [...]}
     #   github_issues: {"queries": [...]}
+    #   nuget: {"queries": [...], "package_names": [...]}
     #   npm_registry: {"queries": [...]}
     #   pypi_registry: {"keywords": [...]}
     #   security_advisories: {"ecosystems": [...], "severities": [...]}

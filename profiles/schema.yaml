@@ -202,6 +202,7 @@ properties:
             - reddit
             - github
             - github_issues
+            - nuget
             - npm_registry
             - pypi_registry
             - security_advisories
@@ -243,6 +244,7 @@ properties:
           # reddit: {"subreddits": ["programming", "MachineLearning"]}
           # github: {"topics": ["mcp", "ai-agent", "llm"]}
           # github_issues: {"queries": ["\"ai agent\" label:enhancement"]}
+          # nuget: {"queries": ["semantic kernel", "mcp"], "package_names": ["Microsoft.SemanticKernel"]}
           # npm_registry: {"queries": ["mcp server", "ai agent"]}
           # pypi_registry: {"keywords": ["ai", "llm", "agent"]}
           # security_advisories: {"ecosystems": ["pip", "npm"], "severities": ["critical", "high"]}

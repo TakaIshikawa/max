@@ -620,6 +620,7 @@ class TestGetDefaultProfile:
         assert "reddit" in adapter_names
         assert "github" in adapter_names
         assert "github_issues" in adapter_names
+        assert "nuget" in adapter_names
         assert "npm_registry" in adapter_names
         assert "pypi_registry" in adapter_names
         assert "security_advisories" in adapter_names
@@ -641,7 +642,7 @@ class TestGetDefaultProfile:
         profile = get_default_profile()
         assert profile.name == "devtools"
         assert profile.domain.name == "developer-tools"
-        assert len(profile.sources) == 8
+        assert len(profile.sources) == 9
 
 
 # ── YAML Round-trip and Synthetic Profile Tests ──────────────────────

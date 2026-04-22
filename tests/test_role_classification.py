@@ -224,6 +224,7 @@ def test_all_deterministic_adapters_covered() -> None:
         "security_advisories": SignalSourceType.SECURITY,
         "npm_registry": SignalSourceType.REGISTRY,
         "pypi_registry": SignalSourceType.REGISTRY,
+        "nuget": SignalSourceType.REGISTRY,
         "github": SignalSourceType.TRENDING,
         "product_hunt": SignalSourceType.TRENDING,
         "hackernews": SignalSourceType.FORUM,

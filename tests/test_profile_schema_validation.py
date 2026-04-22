@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from jsonschema import Draft7Validator, ValidationError
+from jsonschema import Draft7Validator
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────
@@ -169,6 +169,7 @@ class TestSchemaProperties:
             "reddit",
             "github",
             "github_issues",
+            "nuget",
             "npm_registry",
             "pypi_registry",
             "security_advisories",
