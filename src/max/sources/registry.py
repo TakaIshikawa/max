@@ -40,6 +40,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
+    "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
@@ -100,6 +101,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries"],
         required_keys=[],
         description="Searches GitHub issues for configured query strings.",
+    ),
+    "gitlab_issues": AdapterMetadata(
+        name="gitlab_issues",
+        config_keys=["queries", "labels", "project_ids", "state", "min_upvotes"],
+        required_keys=[],
+        description="Searches public GitLab issues for configured query strings and filters.",
     ),
     "security_advisories": AdapterMetadata(
         name="security_advisories",
