@@ -209,6 +209,38 @@ class SignalImportResponse(BaseModel):
     results: list[SignalImportRowResult]
 
 
+class SignalFreshnessGroupResponse(BaseModel):
+    key: str
+    total_count: int
+    newest_timestamp: str | None
+    oldest_timestamp: str | None
+    median_age_days: float | None
+    stale_count: int
+
+
+class SignalFreshnessRecommendationResponse(BaseModel):
+    source_adapter: str
+    stale_count: int
+    total_count: int
+    newest_timestamp: str | None
+    median_age_days: float | None
+    reason: str
+    action: str
+
+
+class SignalFreshnessResponse(BaseModel):
+    generated_at: str
+    max_age_days: int
+    source_adapter_filters: list[str]
+    total_signals: int
+    stale_signals: int
+    by_source_adapter: list[SignalFreshnessGroupResponse]
+    by_source_type: list[SignalFreshnessGroupResponse]
+    by_domain_tag: list[SignalFreshnessGroupResponse]
+    by_signal_role: list[SignalFreshnessGroupResponse]
+    recommendations: list[SignalFreshnessRecommendationResponse]
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str

@@ -21,6 +21,7 @@ from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
 )
+from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -115,6 +116,7 @@ from max.server.schemas import (
     ScheduleUpdateRequest,
     SignalCreate,
     SignalCreateResponse,
+    SignalFreshnessResponse,
     SignalImportRequest,
     SignalImportResponse,
     SignalImportRowResult,
@@ -932,6 +934,20 @@ def list_signals(
             total_count=total_count,
         ),
     )
+
+
+@router.get("/signals/freshness", response_model=SignalFreshnessResponse)
+def get_signal_freshness(
+    max_age_days: int = Query(DEFAULT_MAX_AGE_DAYS, ge=1),
+    source_adapter: list[str] | None = Query(default=None),
+    store: Store = Depends(get_store),
+) -> SignalFreshnessResponse:
+    report = build_signal_freshness_report(
+        store,
+        max_age_days=max_age_days,
+        source_adapters=source_adapter,
+    )
+    return SignalFreshnessResponse.model_validate(report.to_dict())
 
 
 @router.post("/signals", response_model=SignalCreateResponse, status_code=201)

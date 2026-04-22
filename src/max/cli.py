@@ -559,6 +559,111 @@ def _format_source_params(params: dict) -> str:
     return encoded if len(encoded) <= 42 else f"{encoded[:39]}..."
 
 
+@main.group(name="signals")
+def signals_group() -> None:
+    """Inspect ingested signals."""
+
+
+@signals_group.command(name="freshness")
+@click.option(
+    "--max-age-days",
+    type=int,
+    default=30,
+    show_default=True,
+    help="Age threshold for stale signals",
+)
+@click.option("--source-adapter", multiple=True, help="Limit analysis to one or more source adapters")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def signals_freshness(
+    max_age_days: int,
+    source_adapter: tuple[str, ...],
+    fmt: str,
+    as_json: bool,
+) -> None:
+    """Report signal age and stale source recommendations."""
+    from max.analysis.signal_freshness import build_signal_freshness_report
+    from max.store.db import Store
+
+    if max_age_days < 1:
+        raise click.ClickException("--max-age-days must be at least 1")
+
+    store = Store()
+    try:
+        report = build_signal_freshness_report(
+            store,
+            max_age_days=max_age_days,
+            source_adapters=list(source_adapter) or None,
+        )
+    finally:
+        store.close()
+
+    if as_json or fmt == "json":
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_signal_freshness(report)
+
+
+def _render_signal_freshness(report) -> None:
+    click.echo("Signal freshness")
+    click.echo(
+        f"Signals: {report.total_signals}  "
+        f"Stale: {report.stale_signals}  "
+        f"Max age: {report.max_age_days} days"
+    )
+    if report.source_adapter_filters:
+        click.echo(f"Adapters: {', '.join(report.source_adapter_filters)}")
+
+    _render_freshness_group("By source adapter", report.by_source_adapter)
+    _render_freshness_group("By source type", report.by_source_type)
+    _render_freshness_group("By domain tag", report.by_domain_tag)
+    _render_freshness_group("By signal role", report.by_signal_role)
+
+    click.echo()
+    click.echo("Recommendations")
+    if not report.recommendations:
+        click.echo("  No stale source adapters detected.")
+        return
+    for rec in report.recommendations:
+        click.echo(f"  {rec.source_adapter}: {rec.reason} {rec.action}")
+
+
+def _render_freshness_group(title: str, groups) -> None:
+    click.echo()
+    click.echo(title)
+    if not groups:
+        click.echo("  (none)")
+        return
+    click.echo(
+        f"  {'Key':<24s} {'Count':>6s} {'Stale':>6s} "
+        f"{'Median':>8s} {'Newest':<20s} {'Oldest':<20s}"
+    )
+    click.echo("  " + "-" * 92)
+    for group in groups:
+        median_age = "-" if group.median_age_days is None else f"{group.median_age_days:.2f}"
+        click.echo(
+            f"  {group.key[:24]:<24s} "
+            f"{group.total_count:>6d} "
+            f"{group.stale_count:>6d} "
+            f"{median_age:>8s} "
+            f"{_short_timestamp(group.newest_timestamp):<20s} "
+            f"{_short_timestamp(group.oldest_timestamp):<20s}"
+        )
+
+
+def _short_timestamp(value: str | None) -> str:
+    if not value:
+        return "-"
+    return value.replace("+00:00", "Z")[:19]
+
+
 def _known_profile_domains() -> dict[str, str]:
     """Return {domain_name: profile_name} for all valid profiles."""
     from max.profiles.loader import list_profiles, load_profile

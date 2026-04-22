@@ -359,6 +359,37 @@ class Store:
         ).fetchall()
         return [_row_to_signal(row) for row in rows]
 
+    def get_signal_freshness_records(
+        self,
+        *,
+        source_adapters: list[str] | None = None,
+    ) -> list[dict]:
+        """Return active signal fields needed for read-only freshness analysis."""
+        query = """SELECT id, source_type, source_adapter, published_at, fetched_at,
+                          tags, signal_role
+                   FROM signals
+                   WHERE archived_at IS NULL"""
+        params: list = []
+        if source_adapters:
+            placeholders = ",".join("?" for _ in source_adapters)
+            query += f" AND source_adapter IN ({placeholders})"
+            params.extend(source_adapters)
+        query += " ORDER BY fetched_at DESC, id DESC"
+
+        rows = self.conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "source_type": row["source_type"],
+                "source_adapter": row["source_adapter"],
+                "published_at": row["published_at"],
+                "fetched_at": row["fetched_at"],
+                "tags": json.loads(row["tags"]),
+                "signal_role": row["signal_role"],
+            }
+            for row in rows
+        ]
+
     def get_adapter_quality_stats(self) -> dict[str, dict]:
         """Get per-adapter signal utilization stats.
 
