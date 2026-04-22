@@ -575,6 +575,24 @@ class AdapterHealthResponse(BaseModel):
     adapters: list[AdapterHealthItemResponse]
 
 
+class FetchAllocationAdapterExplainResponse(BaseModel):
+    adapter_name: str
+    enabled: bool
+    configured_weight: float
+    total_signals: int = 0
+    insight_hit_rate: float = 0.0
+    idea_hit_rate: float = 0.0
+    approval_rate: float | None = None
+    allocated_limit: int = 0
+
+
+class FetchAllocationExplainResponse(BaseModel):
+    profile: str
+    total_budget: int
+    allocation: dict[str, int]
+    adapters: list[FetchAllocationAdapterExplainResponse]
+
+
 class PipelineResultSummary(BaseModel):
     signals_fetched: int
     signals_new: int

@@ -1513,6 +1513,70 @@ def test_adapter_health_unknown_profile_returns_404(client):
     assert resp.json()["detail"] == "Profile not found: missing"
 
 
+def test_fetch_allocation_explain_reports_profile_inputs_and_final_limits(seeded_client):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    profile = PipelineProfile(
+        name="explain",
+        domain=DomainContext(
+            name="testing",
+            description="testing domain",
+            categories=["application"],
+            target_user_types=["developers"],
+        ),
+        sources=[
+            SourceConfig(adapter="test", weight=2.5),
+            SourceConfig(adapter="unused", enabled=False, weight=0.25),
+        ],
+    )
+
+    seeded_client.post(
+        "/api/v1/ideas/bu-api001/feedback",
+        json={"outcome": "approved", "reason": "useful"},
+    )
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile),
+        patch(
+            "max.pipeline.fetch_strategy.compute_fetch_allocation",
+            return_value={"test": 17},
+        ) as mock_allocation,
+    ):
+        resp = seeded_client.get(
+            "/api/v1/fetch/allocation-explain?profile=explain&total_budget=17"
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] == "explain"
+    assert data["total_budget"] == 17
+    assert data["allocation"] == {"test": 17}
+    mock_allocation.assert_called_once()
+    assert mock_allocation.call_args.args[0] == 17
+    assert mock_allocation.call_args.args[1] == ["test"]
+
+    by_name = {row["adapter_name"]: row for row in data["adapters"]}
+    assert by_name["test"]["enabled"] is True
+    assert by_name["test"]["configured_weight"] == 2.5
+    assert by_name["test"]["total_signals"] == 1
+    assert by_name["test"]["insight_hit_rate"] == 1.0
+    assert by_name["test"]["idea_hit_rate"] == 1.0
+    assert by_name["test"]["approval_rate"] == 1.0
+    assert by_name["test"]["allocated_limit"] == 17
+    assert by_name["unused"]["enabled"] is False
+    assert by_name["unused"]["configured_weight"] == 0.25
+    assert by_name["unused"]["approval_rate"] is None
+    assert by_name["unused"]["allocated_limit"] == 0
+
+
+def test_fetch_allocation_explain_unknown_profile_returns_404(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/fetch/allocation-explain?profile=missing&total_budget=10")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
 # ── Similarity endpoint ────────────────────────────────────────────
 
 

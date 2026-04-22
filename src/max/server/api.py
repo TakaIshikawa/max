@@ -31,6 +31,8 @@ from max.server.schemas import (
     FeedbackTrendDomainResponse,
     FeedbackTrendResponse,
     FeedbackTrendWindowResponse,
+    FetchAllocationAdapterExplainResponse,
+    FetchAllocationExplainResponse,
     HealthResponse,
     IdeaCreate,
     IdeaCritiqueResponse,
@@ -1370,6 +1372,50 @@ def get_adapter_health(
         registered_adapters=registered_adapters,
         enabled_profile_sources=enabled_profile_sources,
         circuit_breakers=circuit_breakers,
+        adapters=adapters,
+    )
+
+
+@router.get("/fetch/allocation-explain", response_model=FetchAllocationExplainResponse)
+def get_fetch_allocation_explain(
+    profile: str = Query(
+        ...,
+        description="Profile name whose source configuration should be explained",
+    ),
+    total_budget: int = Query(..., ge=1, le=500, description="Total fetch signal budget"),
+    store: Store = Depends(get_store),
+) -> FetchAllocationExplainResponse:
+    profile_config = _load_profile_or_404(profile)
+
+    enabled_adapter_names = [source.adapter for source in profile_config.sources if source.enabled]
+
+    from max.pipeline.fetch_strategy import compute_fetch_allocation
+
+    allocation = compute_fetch_allocation(total_budget, enabled_adapter_names, store)
+    quality_stats = store.get_adapter_quality_stats()
+    approval_stats = store.get_adapter_approval_stats()
+
+    adapters = []
+    for source in profile_config.sources:
+        quality = quality_stats.get(source.adapter, {})
+        approval = approval_stats.get(source.adapter)
+        adapters.append(
+            FetchAllocationAdapterExplainResponse(
+                adapter_name=source.adapter,
+                enabled=source.enabled,
+                configured_weight=source.weight,
+                total_signals=quality.get("total_signals", 0),
+                insight_hit_rate=quality.get("insight_hit_rate", 0.0),
+                idea_hit_rate=quality.get("idea_hit_rate", 0.0),
+                approval_rate=approval.get("approval_rate") if approval else None,
+                allocated_limit=allocation.get(source.adapter, 0) if source.enabled else 0,
+            )
+        )
+
+    return FetchAllocationExplainResponse(
+        profile=profile,
+        total_budget=total_budget,
+        allocation=allocation,
         adapters=adapters,
     )
 
