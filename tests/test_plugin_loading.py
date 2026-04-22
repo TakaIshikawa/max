@@ -91,6 +91,7 @@ def test_fallback_to_builtins():
     assert "github_issues" in adapters
     assert "security_advisories" in adapters
     assert "product_hunt" in adapters
+    assert "crates_io" in adapters
 
 
 def test_entry_point_load_failure_skipped():

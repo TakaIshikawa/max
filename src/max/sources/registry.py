@@ -49,6 +49,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "devto": "max.sources.devto:DevtoAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
+    "crates_io": "max.sources.crates_io:CratesIoAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -159,6 +160,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feeds", "tags", "max_age_days"],
         required_keys=["feeds"],
         description="Fetches RSS or Atom entries from explicitly configured feed URLs.",
+    ),
+    "crates_io": AdapterMetadata(
+        name="crates_io",
+        config_keys=["queries", "categories"],
+        required_keys=[],
+        description="Searches Crates.io for Rust packages matching configured queries and categories.",
     ),
 }
 

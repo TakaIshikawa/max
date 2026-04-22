@@ -246,18 +246,21 @@ def test_list_adapters_returns_strings():
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
-    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed"), \
+    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed,crates_io"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
         metadata = get_adapter_metadata()
 
-    assert set(metadata) == {"hackernews", "rss_feed"}
+    assert set(metadata) == {"hackernews", "rss_feed", "crates_io"}
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
     assert "Hacker News" in metadata["hackernews"].description
     assert metadata["rss_feed"].config_keys == ["feeds", "tags", "max_age_days"]
     assert metadata["rss_feed"].required_keys == ["feeds"]
     assert "RSS" in metadata["rss_feed"].description
+    assert metadata["crates_io"].config_keys == ["queries", "categories"]
+    assert metadata["crates_io"].required_keys == []
+    assert "Crates.io" in metadata["crates_io"].description
 
 
 def test_get_adapter_returns_instance():
