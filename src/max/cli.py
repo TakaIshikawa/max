@@ -1486,6 +1486,84 @@ def spec_readiness(idea_id: str, fmt: str) -> None:
         store.close()
 
 
+@main.command(name="implementation-plan")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def implementation_plan(idea_id: str, fmt: str) -> None:
+    """Generate an autonomous-agent implementation plan for an idea."""
+    from max.spec.generator import generate_spec_preview
+    from max.spec.implementation_plan import generate_implementation_plan
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        evaluation = store.get_evaluation(idea_id)
+        spec_preview = generate_spec_preview(unit, evaluation)
+        plan = generate_implementation_plan(unit, evaluation, spec_preview)
+        click.echo(_render_implementation_plan(plan, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
+def _render_implementation_plan(plan: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(plan, indent=2) + "\n"
+    if fmt != "text":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    lines = [
+        f"Implementation plan: {plan['summary']['title']}",
+        f"Idea: {plan['idea_id']}",
+        (
+            "Readiness: "
+            f"{plan['summary']['readiness_status']} "
+            f"({plan['summary']['readiness_score']:.1f})"
+        ),
+    ]
+    recommendation = plan["summary"].get("recommendation")
+    if recommendation:
+        lines.append(
+            f"Evaluation: {recommendation} ({plan['summary'].get('overall_score', 0.0):.1f})"
+        )
+
+    lines.append("\nMilestones:")
+    for milestone in plan["milestones"]:
+        lines.append(f"- {milestone['id']} {milestone['title']}: {milestone['goal']}")
+        for task in milestone["tasks"]:
+            lines.append(f"  - {task['id']}: {task['description']}")
+
+    lines.append("\nValidation:")
+    for step in plan["validation_steps"]:
+        lines.append(f"- {step['id']}: {step['description']}")
+
+    lines.append("\nExpected files/modules:")
+    for item in plan["expected_files_modules"]:
+        lines.append(f"- {item['path']} ({item['role']}): {item['reason']}")
+
+    if plan["risks"]:
+        lines.append("\nRisks:")
+        for risk in plan["risks"]:
+            lines.append(f"- [{risk['source']}] {risk['description']}")
+
+    if plan["open_questions"]:
+        lines.append("\nOpen questions:")
+        for question in plan["open_questions"]:
+            lines.append(f"- {question}")
+
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="evidence-density")
 @click.argument("idea_id")
 @click.option(

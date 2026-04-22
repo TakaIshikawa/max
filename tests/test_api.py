@@ -1818,6 +1818,28 @@ def test_get_idea_spec_readiness_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_implementation_plan(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/implementation-plan")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max-implementation-plan/v1"
+    assert data["kind"] == "max.implementation_plan"
+    assert data["idea_id"] == "bu-api001"
+    assert data["source"]["spec_preview_schema_version"] == "tact-spec-preview/v1"
+    assert data["summary"]["title"] == "Test Idea"
+    assert data["summary"]["recommendation"] == "yes"
+    assert [milestone["id"] for milestone in data["milestones"]] == ["M1", "M2", "M3", "M4"]
+    assert any(task["id"] == "T3" for task in data["task_breakdown"])
+    assert data["validation_steps"]
+    assert data["expected_files_modules"]
+
+
+def test_get_idea_implementation_plan_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/implementation-plan")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_evidence_chain(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
     assert resp.status_code == 200

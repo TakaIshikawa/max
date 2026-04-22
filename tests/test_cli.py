@@ -833,6 +833,55 @@ class TestSpecReadinessCommand:
         store.get_evaluation.assert_not_called()
 
 
+class TestImplementationPlanCommand:
+    @patch("max.store.db.Store")
+    def test_implementation_plan_stdout_json(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["implementation-plan", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-implementation-plan/v1"
+        assert payload["kind"] == "max.implementation_plan"
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["summary"]["recommendation"] == "yes"
+        assert any(task["id"] == "T3" for task in payload["task_breakdown"])
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_implementation_plan_stdout_text(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["implementation-plan", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Implementation plan: MCP Test Framework" in result.output
+        assert "Milestones:" in result.output
+        assert "Validation:" in result.output
+        assert "Expected files/modules:" in result.output
+
+    @patch("max.store.db.Store")
+    def test_implementation_plan_missing_idea(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["implementation-plan", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
 class TestEvidenceDensityCommand:
     @patch("max.store.db.Store")
     def test_evidence_density_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
