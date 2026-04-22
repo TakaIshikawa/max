@@ -35,6 +35,8 @@ from max.server.schemas import (
     PipelineResultSummary,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
+    ProfileDetailResponse,
+    ProfileSummaryResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -44,6 +46,7 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.profiles.schema import DomainContext, EvaluationConfig, SourceConfig
 
 
 # ── Request Models ──────────────────────────────────────────────────
@@ -1164,6 +1167,106 @@ class TestIdeaDetailResponse:
         assert dumped["id"] == "idea_789"
         assert dumped["ideation_mode"] == "cross_domain"
         assert dumped["evaluation"] is None
+
+
+class TestProfileSummaryResponse:
+    """Tests for ProfileSummaryResponse model."""
+
+    def test_valid_construction(self):
+        profile = ProfileSummaryResponse(
+            name="devtools",
+            domain="developer-tools",
+            description="Developer tools",
+            enabled_source_count=7,
+            signal_limit=30,
+            min_score=50.0,
+            weight_profile="default",
+            ideation_mode="direct",
+            quality_loop_enabled=False,
+        )
+        assert profile.name == "devtools"
+        assert profile.domain == "developer-tools"
+        assert profile.enabled_source_count == 7
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            ProfileSummaryResponse()
+        missing_fields = {e["loc"][0] for e in exc_info.value.errors()}
+        assert "name" in missing_fields
+        assert "domain" in missing_fields
+        assert "enabled_source_count" in missing_fields
+
+    def test_serialization(self):
+        profile = ProfileSummaryResponse(
+            name="healthcare",
+            domain="healthcare",
+            description="Healthcare",
+            enabled_source_count=3,
+            signal_limit=25,
+            min_score=65.0,
+            weight_profile="quick_wins",
+            ideation_mode="refinement",
+            quality_loop_enabled=True,
+        )
+        dumped = profile.model_dump()
+        assert dumped["description"] == "Healthcare"
+        assert dumped["quality_loop_enabled"] is True
+
+
+class TestProfileDetailResponse:
+    """Tests for ProfileDetailResponse model."""
+
+    def test_valid_construction(self):
+        profile = ProfileDetailResponse(
+            name="devtools",
+            domain=DomainContext(
+                name="developer-tools",
+                description="Developer tools",
+                categories=["cli_tool"],
+                target_user_types=["developers"],
+            ),
+            sources=[SourceConfig(adapter="hackernews")],
+            evaluation=EvaluationConfig(weight_profile="default", min_score=50.0),
+            output_dir=".max-output",
+            signal_limit=30,
+            ideation_mode="direct",
+            quality_loop_enabled=False,
+            draft_count=8,
+        )
+        assert profile.domain.name == "developer-tools"
+        assert profile.sources[0].adapter == "hackernews"
+        assert profile.evaluation.min_score == 50.0
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            ProfileDetailResponse()
+        missing_fields = {e["loc"][0] for e in exc_info.value.errors()}
+        assert "name" in missing_fields
+        assert "domain" in missing_fields
+        assert "sources" in missing_fields
+
+    def test_serialization(self):
+        profile = ProfileDetailResponse(
+            name="fintech",
+            domain=DomainContext(
+                name="fintech",
+                description="Financial technology",
+                categories=["compliance_automation"],
+                target_user_types=["analysts"],
+                hard_constraints=["auditability"],
+            ),
+            sources=[SourceConfig(adapter="reddit", enabled=False)],
+            evaluation=EvaluationConfig(weight_profile="agent_first", min_score=70.0),
+            output_dir=".fintech-output",
+            signal_limit=20,
+            ideation_mode="cross_domain",
+            quality_loop_enabled=True,
+            draft_count=5,
+        )
+        dumped = profile.model_dump()
+        assert dumped["domain"]["hard_constraints"] == ["auditability"]
+        assert dumped["sources"][0]["enabled"] is False
+        assert dumped["evaluation"]["weight_profile"] == "agent_first"
 
 
 class TestPipelineResultResponse:

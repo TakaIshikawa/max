@@ -6,6 +6,8 @@ from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
+from max.profiles.schema import DomainContext, EvaluationConfig, SourceConfig
+
 T = TypeVar("T")
 
 
@@ -314,6 +316,30 @@ class DomainQualityMemoryResponse(BaseModel):
     score: float
     notes: str
     created_at: str
+
+
+class ProfileSummaryResponse(BaseModel):
+    name: str
+    domain: str
+    description: str
+    enabled_source_count: int
+    signal_limit: int
+    min_score: float
+    weight_profile: str
+    ideation_mode: str
+    quality_loop_enabled: bool
+
+
+class ProfileDetailResponse(BaseModel):
+    name: str
+    domain: DomainContext
+    sources: list[SourceConfig]
+    evaluation: EvaluationConfig
+    output_dir: str
+    signal_limit: int
+    ideation_mode: str
+    quality_loop_enabled: bool
+    draft_count: int
 
 
 class PipelineResultResponse(BaseModel):

@@ -206,6 +206,99 @@ def multi_idea_client(multi_idea_db):
     return TestClient(app)
 
 
+# ── Profile endpoints ───────────────────────────────────────────────
+
+
+def _profile_endpoint_fixture(name: str, domain_name: str):
+    from max.profiles.schema import DomainContext, EvaluationConfig, PipelineProfile, SourceConfig
+
+    return PipelineProfile(
+        name=name,
+        domain=DomainContext(
+            name=domain_name,
+            description=f"{domain_name} domain",
+            categories=["application", "cli_tool"],
+            target_user_types=["developers"],
+            extra_instructions="Ship practical tools.",
+            target_segments=["platform teams"],
+            workflows=["triage"],
+            buyer_roles=["engineering leaders"],
+            hard_constraints=["no PHI"],
+            bad_idea_patterns=["generic dashboards"],
+            good_idea_criteria=["clear buyer"],
+        ),
+        sources=[
+            SourceConfig(adapter="hackernews", weight=1.5),
+            SourceConfig(adapter="reddit", enabled=False, params={"subreddits": ["programming"]}),
+        ],
+        evaluation=EvaluationConfig(weight_profile="agent_first", min_score=68.0),
+        output_dir=".custom-output",
+        signal_limit=42,
+        ideation_mode="refinement",
+        quality_loop_enabled=True,
+        draft_count=6,
+    )
+
+
+def test_list_profiles_returns_profile_summaries(client):
+    profiles = {
+        "devtools": _profile_endpoint_fixture("devtools", "developer-tools"),
+        "healthcare": _profile_endpoint_fixture("healthcare", "healthcare"),
+    }
+
+    with (
+        patch("max.profiles.loader.list_profiles", return_value=list(profiles)),
+        patch("max.profiles.loader.load_profile", side_effect=lambda name: profiles[name]),
+    ):
+        resp = client.get("/api/v1/profiles")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [profile["name"] for profile in data] == ["devtools", "healthcare"]
+    assert data[0] == {
+        "name": "devtools",
+        "domain": "developer-tools",
+        "description": "developer-tools domain",
+        "enabled_source_count": 1,
+        "signal_limit": 42,
+        "min_score": 68.0,
+        "weight_profile": "agent_first",
+        "ideation_mode": "refinement",
+        "quality_loop_enabled": True,
+    }
+
+
+def test_get_profile_returns_profile_detail(client):
+    profile = _profile_endpoint_fixture("devtools", "developer-tools")
+
+    with patch("max.profiles.loader.load_profile", return_value=profile):
+        resp = client.get("/api/v1/profiles/devtools")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "devtools"
+    assert data["domain"]["name"] == "developer-tools"
+    assert data["domain"]["target_segments"] == ["platform teams"]
+    assert data["sources"][0]["adapter"] == "hackernews"
+    assert data["sources"][1]["enabled"] is False
+    assert data["sources"][1]["params"] == {"subreddits": ["programming"]}
+    assert data["evaluation"] == {
+        "weight_profile": "agent_first",
+        "custom_weights": None,
+        "min_score": 68.0,
+    }
+    assert data["output_dir"] == ".custom-output"
+    assert data["draft_count"] == 6
+
+
+def test_get_profile_returns_404_for_unknown_profile(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/profiles/missing")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
 # ── Signal endpoints ────────────────────────────────────────────────
 
 

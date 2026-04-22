@@ -38,6 +38,8 @@ from max.server.schemas import (
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
+    ProfileDetailResponse,
+    ProfileSummaryResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -276,6 +278,58 @@ def _unit_detail(
 
 def _design_brief_to_response(brief: dict) -> DesignBriefResponse:
     return DesignBriefResponse(**brief)
+
+
+def _profile_summary_to_response(profile) -> ProfileSummaryResponse:
+    return ProfileSummaryResponse(
+        name=profile.name,
+        domain=profile.domain.name,
+        description=profile.domain.description,
+        enabled_source_count=sum(1 for source in profile.sources if source.enabled),
+        signal_limit=profile.signal_limit,
+        min_score=profile.evaluation.min_score,
+        weight_profile=profile.evaluation.weight_profile,
+        ideation_mode=profile.ideation_mode,
+        quality_loop_enabled=profile.quality_loop_enabled,
+    )
+
+
+def _profile_detail_to_response(profile) -> ProfileDetailResponse:
+    return ProfileDetailResponse(
+        name=profile.name,
+        domain=profile.domain,
+        sources=profile.sources,
+        evaluation=profile.evaluation,
+        output_dir=profile.output_dir,
+        signal_limit=profile.signal_limit,
+        ideation_mode=profile.ideation_mode,
+        quality_loop_enabled=profile.quality_loop_enabled,
+        draft_count=profile.draft_count,
+    )
+
+
+def _load_profile_or_404(profile_name: str):
+    from max.profiles.loader import load_profile
+
+    try:
+        return load_profile(profile_name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {profile_name}")
+
+
+# ── Profiles ────────────────────────────────────────────────────────
+
+
+@router.get("/profiles", response_model=list[ProfileSummaryResponse])
+def list_pipeline_profiles() -> list[ProfileSummaryResponse]:
+    from max.profiles.loader import list_profiles
+
+    return [_profile_summary_to_response(_load_profile_or_404(name)) for name in list_profiles()]
+
+
+@router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)
+def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
+    return _profile_detail_to_response(_load_profile_or_404(profile_name))
 
 
 # ── Signals ─────────────────────────────────────────────────────────
