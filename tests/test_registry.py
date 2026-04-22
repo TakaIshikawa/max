@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -263,6 +263,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "stackshare",
         "bluesky",
         "huggingface",
+        "awesome_lists",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -300,6 +301,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["huggingface"].required_keys == []
     assert "Hugging Face Hub" in metadata["huggingface"].description
+    assert metadata["awesome_lists"].config_keys == [
+        "lists",
+        "topics",
+        "include_descriptions",
+        "github_token",
+    ]
+    assert metadata["awesome_lists"].required_keys == []
+    assert "awesome-list" in metadata["awesome_lists"].description
 
 
 def test_get_adapter_returns_instance():

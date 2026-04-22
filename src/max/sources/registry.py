@@ -60,6 +60,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
+    "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -236,6 +237,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "resource_types", "sort", "limit_per_query"],
         required_keys=[],
         description="Fetches Hugging Face Hub model, dataset, and Space discovery signals.",
+    ),
+    "awesome_lists": AdapterMetadata(
+        name="awesome_lists",
+        config_keys=["lists", "topics", "include_descriptions", "github_token"],
+        required_keys=[],
+        description="Fetches curated GitHub awesome-list markdown links as registry signals.",
     ),
 }
 
