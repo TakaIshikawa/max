@@ -49,6 +49,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
     "devto": "max.sources.devto:DevtoAdapter",
+    "bluesky": "max.sources.bluesky:BlueskyAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
@@ -167,6 +168,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["tags", "period"],
         required_keys=[],
         description="Fetches DEV Community articles for configured tags and time period.",
+    ),
+    "bluesky": AdapterMetadata(
+        name="bluesky",
+        config_keys=["queries", "domains"],
+        required_keys=[],
+        description="Fetches recent Bluesky posts matching configured search terms.",
     ),
     "pubmed": AdapterMetadata(
         name="pubmed",

@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -261,6 +261,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "dockerhub",
         "mcp_registry",
         "stackshare",
+        "bluesky",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -287,6 +288,9 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["stackshare"].config_keys == ["stacks", "categories", "base_url"]
     assert metadata["stackshare"].required_keys == []
     assert "StackShare" in metadata["stackshare"].description
+    assert metadata["bluesky"].config_keys == ["queries", "domains"]
+    assert metadata["bluesky"].required_keys == []
+    assert "Bluesky" in metadata["bluesky"].description
 
 
 def test_get_adapter_returns_instance():

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 _WATCHLIST_PARAM_KEYS = {
     "arxiv": "queries",
+    "bluesky": "queries",
     "devto": "tags",
     "github": "topics",
     "github_issues": "queries",
