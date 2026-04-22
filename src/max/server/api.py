@@ -107,6 +107,7 @@ def _signal_to_response(sig: Signal) -> SignalResponse:
         id=sig.id,
         source_type=sig.source_type.value if hasattr(sig.source_type, "value") else sig.source_type,
         source_adapter=sig.source_adapter,
+        signal_role=sig.signal_role,
         title=sig.title,
         content=sig.content,
         url=sig.url,
@@ -266,6 +267,7 @@ def list_signals(
     cursor: str | None = None,
     limit: int = 20,
     source_type: str | None = None,
+    signal_role: str | None = None,
     store: Store = Depends(get_store),
 ) -> PaginatedResponse[SignalResponse]:
     # Clamp limit to max 100
@@ -273,12 +275,12 @@ def list_signals(
 
     try:
         signals, next_cursor = store.get_signals_paginated(
-            cursor=cursor, limit=limit, source_type=source_type
+            cursor=cursor, limit=limit, source_type=source_type, signal_role=signal_role
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    total_count = store.count_signals(source_type=source_type)
+    total_count = store.count_signals(source_type=source_type, signal_role=signal_role)
 
     return PaginatedResponse[SignalResponse](
         items=[_signal_to_response(s) for s in signals],
@@ -292,6 +294,10 @@ def list_signals(
 
 @router.post("/signals", response_model=SignalResponse, status_code=201)
 def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> SignalResponse:
+    metadata = dict(body.metadata)
+    if body.signal_role is not None:
+        metadata["signal_role"] = body.signal_role
+
     signal = Signal(
         source_type=body.source_type,
         source_adapter=body.source_adapter,
@@ -301,7 +307,7 @@ def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> Sign
         author=body.author,
         tags=body.tags,
         credibility=body.credibility,
-        metadata=body.metadata,
+        metadata=metadata,
     )
     signal = store.insert_signal(signal)
     return _signal_to_response(signal)

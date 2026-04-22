@@ -156,7 +156,12 @@ class Store:
         return [_row_to_signal(row) for row in rows]
 
     def get_signals_paginated(
-        self, *, cursor: str | None = None, limit: int = 20, source_type: str | None = None
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+        source_type: str | None = None,
+        signal_role: str | None = None,
     ) -> tuple[list[Signal], str | None]:
         """Get signals with cursor-based pagination.
 
@@ -164,19 +169,22 @@ class Store:
         """
         query = "SELECT * FROM signals"
         params: list = []
-        conditions: list[str] = []
+        conditions: list[str] = ["archived_at IS NULL"]
 
         if source_type:
             conditions.append("source_type = ?")
             params.append(source_type)
+
+        if signal_role:
+            conditions.append("signal_role = ?")
+            params.append(signal_role)
 
         if cursor:
             cursor_timestamp, cursor_id = _decode_cursor(cursor)
             conditions.append("(fetched_at, id) < (?, ?)")
             params.extend([cursor_timestamp, cursor_id])
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+        query += " WHERE " + " AND ".join(conditions)
 
         query += " ORDER BY fetched_at DESC, id DESC LIMIT ?"
         params.append(limit + 1)  # Fetch one extra to determine if there are more results
@@ -197,12 +205,17 @@ class Store:
 
         return signals, next_cursor
 
-    def count_signals(self, *, source_type: str | None = None) -> int:
+    def count_signals(
+        self, *, source_type: str | None = None, signal_role: str | None = None
+    ) -> int:
         query = "SELECT COUNT(*) FROM signals WHERE archived_at IS NULL"
         params: list = []
         if source_type:
             query += " AND source_type = ?"
             params.append(source_type)
+        if signal_role:
+            query += " AND signal_role = ?"
+            params.append(signal_role)
         return self.conn.execute(query, params).fetchone()[0]
 
     def get_unsynthesized_signals(self, *, limit: int = 100) -> list[Signal]:

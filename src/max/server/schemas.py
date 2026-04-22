@@ -18,6 +18,7 @@ class SignalCreate(BaseModel):
     url: str
     source_type: str = "forum"
     source_adapter: str = "api"
+    signal_role: str | None = None
     author: str | None = None
     tags: list[str] = Field(default_factory=list)
     credibility: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -118,6 +119,7 @@ class SignalResponse(BaseModel):
     id: str
     source_type: str
     source_adapter: str
+    signal_role: str
     title: str
     content: str
     url: str

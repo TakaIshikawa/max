@@ -264,11 +264,12 @@ def test_signal_response_schema(seeded_client):
     expected_keys = {
         "id", "source_type", "source_adapter", "title", "content",
         "url", "author", "published_at", "fetched_at", "tags",
-        "credibility", "metadata",
+        "credibility", "metadata", "signal_role",
     }
     assert set(data.keys()) == expected_keys
     assert data["source_type"] == "forum"
     assert data["source_adapter"] == "test"
+    assert data["signal_role"] == ""
     assert isinstance(data["tags"], list)
     assert isinstance(data["credibility"], float)
 
@@ -286,6 +287,7 @@ def test_create_signal_full_fields(client):
             "author": "tester",
             "tags": ["a", "b"],
             "credibility": 0.9,
+            "signal_role": "solution",
             "metadata": {"key": "value"},
         },
     )
@@ -293,10 +295,68 @@ def test_create_signal_full_fields(client):
     data = resp.json()
     assert data["source_type"] == "registry"
     assert data["source_adapter"] == "npm"
+    assert data["signal_role"] == "solution"
     assert data["author"] == "tester"
     assert data["tags"] == ["a", "b"]
     assert data["credibility"] == 0.9
     assert data["metadata"]["key"] == "value"
+    assert data["metadata"]["signal_role"] == "solution"
+
+
+def test_create_signal_uses_metadata_signal_role(client):
+    resp = client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Metadata Role Signal",
+            "content": "Content",
+            "url": "https://example.com/metadata-role",
+            "metadata": {"signal_role": "problem"},
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["signal_role"] == "problem"
+
+
+def test_list_signals_filters_by_signal_role_and_source_type(client):
+    client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Forum Problem",
+            "content": "C1",
+            "url": "https://example.com/forum-problem",
+            "source_type": "forum",
+            "signal_role": "problem",
+        },
+    )
+    client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Registry Problem",
+            "content": "C2",
+            "url": "https://example.com/registry-problem",
+            "source_type": "registry",
+            "signal_role": "problem",
+        },
+    )
+    client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Forum Solution",
+            "content": "C3",
+            "url": "https://example.com/forum-solution",
+            "source_type": "forum",
+            "signal_role": "solution",
+        },
+    )
+
+    resp = client.get("/api/v1/signals?source_type=forum&signal_role=problem")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["pagination"]["total_count"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Forum Problem"
+    assert data["items"][0]["source_type"] == "forum"
+    assert data["items"][0]["signal_role"] == "problem"
 
 
 # ── Insight endpoints ───────────────────────────────────────────────
