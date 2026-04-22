@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -455,6 +456,200 @@ def focus_clear() -> None:
         return
     save_focus_domains(None)
     click.echo("Focus cleared. All domains included.")
+
+
+@main.command(name="import-signals")
+@click.argument("input_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--source-adapter", type=str, default=None, help="Source adapter to assign to imported signals")
+@click.option("--source-type", type=str, default=None, help="Source type to assign to imported signals")
+@click.option("--tag", "tags", multiple=True, help="Tag to add to every imported signal")
+@click.option("--dry-run", is_flag=True, help="Validate and report counts without inserting signals")
+@click.option("--fail-fast", is_flag=True, help="Stop at the first invalid or failed row")
+def import_signals(
+    input_path: Path,
+    source_adapter: str | None,
+    source_type: str | None,
+    tags: tuple[str, ...],
+    dry_run: bool,
+    fail_fast: bool,
+) -> None:
+    """Import signals from a JSONL or CSV file."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        counts = _import_signals_from_file(
+            store,
+            input_path,
+            source_adapter=source_adapter,
+            source_type=source_type,
+            tags=list(tags),
+            dry_run=dry_run,
+            fail_fast=fail_fast,
+        )
+    finally:
+        store.close()
+
+    click.echo("Import signals summary")
+    click.echo(f"  created:   {counts['created']}")
+    click.echo(f"  duplicate: {counts['duplicate']}")
+    click.echo(f"  invalid:   {counts['invalid']}")
+    click.echo(f"  failed:    {counts['failed']}")
+    if dry_run:
+        click.echo("Dry run: no changes applied.")
+
+
+def _import_signals_from_file(
+    store,
+    input_path: Path,
+    *,
+    source_adapter: str | None,
+    source_type: str | None,
+    tags: list[str],
+    dry_run: bool,
+    fail_fast: bool,
+) -> dict[str, int]:
+    counts = {"created": 0, "duplicate": 0, "invalid": 0, "failed": 0}
+    seen_urls: set[str] = set()
+    for line_no, raw in _read_signal_import_rows(input_path):
+        try:
+            signal = _signal_from_import_row(
+                raw,
+                source_adapter=source_adapter,
+                source_type=source_type,
+                tags=tags,
+            )
+        except (TypeError, ValueError) as e:
+            counts["invalid"] += 1
+            click.echo(f"Invalid row {line_no}: {e}", err=True)
+            if fail_fast:
+                raise click.ClickException(f"Invalid row {line_no}: {e}") from e
+            continue
+
+        try:
+            if signal.url in seen_urls or store.get_signal_by_url(signal.url) is not None:
+                counts["duplicate"] += 1
+                seen_urls.add(signal.url)
+                continue
+
+            if dry_run:
+                counts["created"] += 1
+                seen_urls.add(signal.url)
+                continue
+
+            store.insert_signal(signal)
+            if store.get_signal(signal.id) is not None:
+                counts["created"] += 1
+            else:
+                counts["duplicate"] += 1
+            seen_urls.add(signal.url)
+        except Exception as e:
+            counts["failed"] += 1
+            click.echo(f"Failed row {line_no}: {e}", err=True)
+            if fail_fast:
+                raise click.ClickException(f"Failed row {line_no}: {e}") from e
+
+    return counts
+
+
+def _read_signal_import_rows(input_path: Path) -> list[tuple[int, dict]]:
+    suffix = input_path.suffix.lower()
+    if suffix == ".jsonl":
+        rows = []
+        with input_path.open("r", encoding="utf-8") as f:
+            for line_no, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as e:
+                    rows.append((line_no, {"__invalid_json__": str(e)}))
+                    continue
+                rows.append((line_no, row))
+        return rows
+
+    if suffix == ".csv":
+        with input_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            return [(line_no, row) for line_no, row in enumerate(reader, 2)]
+
+    raise click.ClickException("Input file must be .jsonl or .csv")
+
+
+def _signal_from_import_row(
+    row: dict,
+    *,
+    source_adapter: str | None,
+    source_type: str | None,
+    tags: list[str],
+):
+    from max.types.signal import Signal
+
+    if not isinstance(row, dict):
+        raise ValueError("row must be an object")
+    if "__invalid_json__" in row:
+        raise ValueError(f"invalid JSON: {row['__invalid_json__']}")
+
+    clean = {str(k): v for k, v in row.items() if v not in (None, "")}
+    missing = [field for field in ("title", "content", "url") if not str(clean.get(field, "")).strip()]
+    if missing:
+        raise ValueError(f"missing required field(s): {', '.join(missing)}")
+
+    metadata = _parse_import_metadata(clean.get("metadata"))
+    if clean.get("signal_role"):
+        metadata["signal_role"] = clean["signal_role"]
+
+    signal_kwargs = dict(
+        id=str(clean.get("id", "")),
+        source_type=str(source_type or clean.get("source_type") or "forum"),
+        source_adapter=str(source_adapter or clean.get("source_adapter") or "import"),
+        title=str(clean["title"]).strip(),
+        content=str(clean["content"]).strip(),
+        url=str(clean["url"]).strip(),
+        author=str(clean["author"]).strip() if clean.get("author") else None,
+        published_at=clean.get("published_at"),
+        tags=_merge_import_tags(tags, clean.get("tags")),
+        credibility=float(clean.get("credibility", 0.5)),
+        metadata=metadata,
+    )
+    if clean.get("fetched_at"):
+        signal_kwargs["fetched_at"] = clean["fetched_at"]
+    return Signal(**signal_kwargs)
+
+
+def _parse_import_metadata(value) -> dict:
+    if value in (None, ""):
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise ValueError("metadata must be a JSON object")
+        return parsed
+    raise ValueError("metadata must be an object")
+
+
+def _merge_import_tags(global_tags: list[str], row_tags) -> list[str]:
+    parsed: list[str] = []
+    if isinstance(row_tags, list):
+        parsed = [str(tag).strip() for tag in row_tags]
+    elif isinstance(row_tags, str) and row_tags.strip():
+        text = row_tags.strip()
+        if text.startswith("["):
+            loaded = json.loads(text)
+            if not isinstance(loaded, list):
+                raise ValueError("tags must be a list")
+            parsed = [str(tag).strip() for tag in loaded]
+        else:
+            parsed = [tag.strip() for tag in text.split(",")]
+
+    merged: list[str] = []
+    for tag in [*global_tags, *parsed]:
+        if tag and tag not in merged:
+            merged.append(tag)
+    return merged
 
 
 @main.command(name="archive-ideas")

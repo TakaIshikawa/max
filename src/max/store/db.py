@@ -268,6 +268,13 @@ class Store:
         ).fetchone()
         return _row_to_signal(row) if row else None
 
+    def get_signal_by_url(self, url: str) -> Signal | None:
+        """Get a single signal by URL."""
+        row = self.conn.execute(
+            "SELECT * FROM signals WHERE url = ?", (url,)
+        ).fetchone()
+        return _row_to_signal(row) if row else None
+
     def archive_signal(self, signal_id: str) -> bool:
         """Archive a signal by ID. Returns False if the signal does not exist."""
         cursor = self.conn.execute(

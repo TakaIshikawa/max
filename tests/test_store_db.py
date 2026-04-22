@@ -112,6 +112,16 @@ class TestSignalOperations:
         assert store.get_signal("sig-a") is not None
         assert store.get_signal("sig-b") is None
 
+    def test_get_signal_by_url(self, store: Store) -> None:
+        sig = _make_signal(sig_id="sig-url", url="https://example.com/by-url")
+        store.insert_signal(sig)
+
+        found = store.get_signal_by_url("https://example.com/by-url")
+
+        assert found is not None
+        assert found.id == "sig-url"
+        assert store.get_signal_by_url("https://example.com/missing") is None
+
     def test_get_signals_respects_limit(self, store: Store) -> None:
         for i in range(5):
             store.insert_signal(_make_signal(sig_id=f"sig-lim-{i}", url=f"https://example.com/lim-{i}"))

@@ -830,6 +830,121 @@ class TestExportIdeasCommand:
         assert "\"[\"\"sig-test001\"\"]\"" in csv_text
 
 
+# ── import-signals command ─────────────────────────────────────────
+
+
+class TestImportSignalsCommand:
+    """Tests for ``max import-signals``."""
+
+    @patch("max.store.db.Store")
+    def test_import_signals_jsonl_counts_created_duplicate_invalid(
+        self,
+        MockStore,
+        runner: CliRunner,
+        tmp_path: Path,
+    ) -> None:
+        input_path = tmp_path / "signals.jsonl"
+        input_path.write_text(
+            "\n".join(
+                [
+                    json.dumps({
+                        "title": "New signal",
+                        "content": "Useful evidence",
+                        "url": "https://example.com/new",
+                    }),
+                    json.dumps({
+                        "title": "Duplicate signal",
+                        "content": "Already known",
+                        "url": "https://example.com/dup",
+                    }),
+                    json.dumps({"title": "Missing content", "url": "https://example.com/bad"}),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        duplicate = Signal(
+            id="sig-existing",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="manual",
+            title="Existing",
+            content="Existing",
+            url="https://example.com/dup",
+        )
+        store = _mock_store()
+        store.get_signal_by_url.side_effect = (
+            lambda url: duplicate if url == "https://example.com/dup" else None
+        )
+
+        def insert_signal(signal: Signal) -> Signal:
+            signal.id = signal.id or "sig-created"
+            return signal
+
+        store.insert_signal.side_effect = insert_signal
+        store.get_signal.return_value = Signal(
+            id="sig-created",
+            source_type=SignalSourceType.ARTICLE,
+            source_adapter="manual",
+            title="New signal",
+            content="Useful evidence",
+            url="https://example.com/new",
+        )
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            [
+                "import-signals",
+                str(input_path),
+                "--source-adapter",
+                "manual",
+                "--source-type",
+                "article",
+                "--tag",
+                "imported",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "created:   1" in result.output
+        assert "duplicate: 1" in result.output
+        assert "invalid:   1" in result.output
+        assert "failed:    0" in result.output
+        store.insert_signal.assert_called_once()
+        imported = store.insert_signal.call_args.args[0]
+        assert imported.source_adapter == "manual"
+        assert imported.source_type == SignalSourceType.ARTICLE
+        assert imported.tags == ["imported"]
+        store.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    def test_import_signals_dry_run_does_not_insert(
+        self,
+        MockStore,
+        runner: CliRunner,
+        tmp_path: Path,
+    ) -> None:
+        input_path = tmp_path / "signals.csv"
+        input_path.write_text(
+            "title,content,url,tags\nCSV Signal,Body,https://example.com/csv,\"csv,manual\"\n",
+            encoding="utf-8",
+        )
+        store = _mock_store()
+        store.get_signal_by_url.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["import-signals", str(input_path), "--dry-run", "--tag", "imported"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "created:   1" in result.output
+        assert "Dry run: no changes applied." in result.output
+        store.insert_signal.assert_not_called()
+        store.close.assert_called_once()
+
+
 # ── inspect command ────────────────────────────────────────────────
 
 
