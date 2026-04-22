@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -21,6 +22,7 @@ from max.server.mcp_tools import (
     get_spec_preview,
     get_stats,
     list_design_briefs,
+    max_source_reliability,
     search_ideas,
     set_schedule,
     set_scheduler_ref,
@@ -572,6 +574,85 @@ def test_get_stats_seeded(seeded_mcp_db):
     assert result["signals_count"] == 1
     assert result["ideas_count"] == 1
     assert result["avg_score"] == 78.0
+
+
+def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    recent = datetime.now(timezone.utc) - timedelta(hours=1)
+    old = datetime.now(timezone.utc) - timedelta(days=10)
+    store.insert_signal(
+        Signal(
+            id="sig-reliable-1",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Recent forum signal",
+            content="Developers report a repeated problem.",
+            url="https://example.com/reliable-1",
+            fetched_at=recent,
+            tags=["mcp"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-reliable-2",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Another recent forum signal",
+            content="More developers report the same problem.",
+            url="https://example.com/reliable-2",
+            fetched_at=recent,
+            tags=["mcp"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-old",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Old forum signal",
+            content="Old evidence outside the requested window.",
+            url="https://example.com/old",
+            fetched_at=old,
+            tags=["mcp"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-other",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="other",
+            title="Filtered adapter signal",
+            content="Evidence from another profile adapter.",
+            url="https://example.com/other",
+            fetched_at=recent,
+            tags=["registry"],
+        )
+    )
+    store.close()
+
+    with patch("max.profiles.loader.load_profile", return_value=_mcp_mock_profile()):
+        result = max_source_reliability(
+            profile="devtools",
+            time_window="2d",
+            min_signal_count=2,
+        )
+
+    assert result["filters"]["profile"] == "devtools"
+    assert result["filters"]["domain"] == "developer-tools"
+    assert result["filters"]["source_adapters"] == ["test"]
+    assert result["filters"]["time_window"] == "2d"
+    assert result["filters"]["min_signal_count"] == 2
+    assert result["signal_limit"] == 99
+    assert result["total_signals"] == 2
+    assert len(result["source_types"]) == 1
+    assert result["source_types"][0]["source_type"] == "forum"
+    assert result["source_types"][0]["total_signals"] == 2
+
+
+def test_max_source_reliability_rejects_invalid_time_window(mcp_db):
+    assert max_source_reliability(time_window="soon") == {
+        "error": "time_window must be a duration like '24h', '7d', or '4w'"
+    }
 
 
 def test_set_schedule_pipeline_config():

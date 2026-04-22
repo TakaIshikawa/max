@@ -71,12 +71,22 @@ def build_source_reliability_report(
     store: Store,
     *,
     signal_limit: int = DEFAULT_SIGNAL_LIMIT,
+    source_adapters: set[str] | None = None,
+    fetched_since: datetime | None = None,
+    min_signal_count: int = 1,
 ) -> SourceReliabilityReport:
     """Build a deterministic source reliability report grouped by source type."""
     if signal_limit < 1:
         raise ValueError("signal_limit must be at least 1")
+    if min_signal_count < 1:
+        raise ValueError("min_signal_count must be at least 1")
 
     signals = store.get_signals(limit=signal_limit)
+    if source_adapters is not None:
+        signals = [signal for signal in signals if signal.source_adapter in source_adapters]
+    if fetched_since is not None:
+        cutoff = fetched_since if fetched_since.tzinfo else fetched_since.replace(tzinfo=timezone.utc)
+        signals = [signal for signal in signals if signal.fetched_at >= cutoff]
     if not signals:
         return SourceReliabilityReport(
             generated_at=_now_iso(),
@@ -112,6 +122,7 @@ def build_source_reliability_report(
             corroborated_signal_ids=corroborated_signal_ids,
         )
         for source_type, source_signals in signals_by_type.items()
+        if len(source_signals) >= min_signal_count
     ]
     rows.sort(key=lambda row: (-row.reliability_score, row.source_type))
 

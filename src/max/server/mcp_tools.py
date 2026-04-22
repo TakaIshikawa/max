@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
@@ -433,6 +434,94 @@ def get_stats() -> dict:
         }
 
 
+def max_source_reliability(
+    profile: str | None = None,
+    time_window: str | None = None,
+    min_signal_count: int = 1,
+    signal_limit: int | None = None,
+) -> dict:
+    """Return source reliability metrics grouped by signal source type.
+
+    Set profile to filter to enabled adapters from a named pipeline profile.
+    Set time_window to a compact duration such as "24h", "7d", or "4w".
+    Set min_signal_count to hide source types with fewer active signals.
+    """
+    from max.analysis.source_reliability import (
+        DEFAULT_SIGNAL_LIMIT,
+        build_source_reliability_report,
+    )
+    from max.profiles.loader import load_profile
+
+    adapters: set[str] | None = None
+    resolved_profile = None
+    resolved_signal_limit = signal_limit or DEFAULT_SIGNAL_LIMIT
+    if profile:
+        try:
+            resolved_profile = load_profile(profile)
+        except FileNotFoundError:
+            return {"error": f"Profile not found: {profile}"}
+        adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
+        if signal_limit is None:
+            resolved_signal_limit = resolved_profile.signal_limit
+
+    try:
+        fetched_since = _parse_time_window(time_window)
+        with _get_store() as store:
+            report = build_source_reliability_report(
+                store,
+                signal_limit=resolved_signal_limit,
+                source_adapters=adapters,
+                fetched_since=fetched_since,
+                min_signal_count=min_signal_count,
+            )
+    except ValueError as e:
+        return {"error": str(e)}
+
+    result = report.to_dict()
+    result["filters"] = {
+        "profile": resolved_profile.name if resolved_profile else profile,
+        "domain": resolved_profile.domain.name if resolved_profile else None,
+        "source_adapters": sorted(adapters) if adapters is not None else None,
+        "time_window": time_window,
+        "fetched_since": fetched_since.isoformat() if fetched_since else None,
+        "min_signal_count": min_signal_count,
+    }
+    return result
+
+
+def _parse_time_window(time_window: str | None) -> datetime | None:
+    if time_window is None or time_window.strip().lower() in ("", "all"):
+        return None
+
+    value = time_window.strip().lower()
+    unit = value[-1]
+    amount_text = value[:-1]
+    if unit.isdigit():
+        unit = "d"
+        amount_text = value
+
+    try:
+        amount = int(amount_text)
+    except ValueError as e:
+        raise ValueError("time_window must be a duration like '24h', '7d', or '4w'") from e
+    if amount < 1:
+        raise ValueError("time_window must be at least 1 unit")
+
+    if unit == "s":
+        delta = timedelta(seconds=amount)
+    elif unit == "m":
+        delta = timedelta(minutes=amount)
+    elif unit == "h":
+        delta = timedelta(hours=amount)
+    elif unit == "d":
+        delta = timedelta(days=amount)
+    elif unit == "w":
+        delta = timedelta(weeks=amount)
+    else:
+        raise ValueError("time_window must use one of: s, m, h, d, w")
+    return datetime.now(timezone.utc) - delta
+
+
 # ── Schedule tools ──────────────────────────────────────────────────
 
 
@@ -655,6 +744,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(evaluate_idea)
     mcp.tool(find_similar)
     mcp.tool(get_stats)
+    mcp.tool(max_source_reliability)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
