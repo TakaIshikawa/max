@@ -26,6 +26,7 @@ from max.ideation.quality_gate import quality_gate
 from max.ideation.revision import revise_ideas
 from max.llm.client import BudgetExceededError, TokenTracker, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
+from max.pipeline.manifest import build_run_manifest, utc_now_iso, write_run_manifest
 from max.quality.gate import enforce_domain_quality_gate
 from max.quality.rubric import rubric_context_text
 from max.quality.scorer import score_domain_quality
@@ -95,6 +96,7 @@ class PipelineResult:
     token_usage: dict[str, int] = field(default_factory=dict)
 
     # Per-adapter fetch metrics
+    source_counts: dict[str, int] = field(default_factory=dict)
     adapter_metrics: dict[str, dict] = field(default_factory=dict)
 
     # Meta-intelligence metrics
@@ -116,6 +118,9 @@ class PipelineResult:
     budget_exceeded: bool = False
     status: str = "completed"
     error_message: str = ""
+    generated_idea_ids: list[str] = field(default_factory=list)
+    evaluation_recommendations: list[dict] = field(default_factory=list)
+    publication_outputs: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -155,6 +160,7 @@ def run_pipeline(
     draft_count: int = 8,
     dry_run: bool = False,
     stages: list[str] | None = None,
+    manifest_path: Path | str | None = None,
 ) -> PipelineResult | DryRunReport:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate → spec → publish.
 
@@ -190,6 +196,11 @@ def run_pipeline(
         quality_loop_enabled = profile.quality_loop_enabled
         draft_count = profile.draft_count
 
+    if manifest_path is None:
+        from max.config import MAX_PIPELINE_MANIFEST
+
+        manifest_path = Path(MAX_PIPELINE_MANIFEST) if MAX_PIPELINE_MANIFEST else None
+
     token_tracker.reset()
     store = Store()
 
@@ -216,6 +227,7 @@ def run_pipeline(
     # Record pipeline run
     run_id = f"run-{uuid.uuid4().hex[:12]}"
     result.run_id = run_id
+    started_at = utc_now_iso()
     config = {
         "signal_limit": signal_limit,
         "min_score": min_score,
@@ -245,6 +257,7 @@ def run_pipeline(
                 signal_limit=signal_limit, store=store, source_configs=source_configs,
             )
             result.signals_fetched = len(signals)
+            result.source_counts = _count_signals_by_source(signals)
             result.fetch_allocation = fetch_alloc
             result.adapter_metrics = adapter_metrics
 
@@ -555,6 +568,7 @@ def run_pipeline(
                         evidence_rationale=unit.evidence_rationale,
                     )
             result.ideas_generated = len(units)
+            result.generated_idea_ids = [unit.id for unit in units]
 
         # 5. Evaluate (using selected weight profile, with evidence grounding)
         evaluated: list[tuple[BuildableUnit, UtilityEvaluation]] = []
@@ -568,6 +582,15 @@ def run_pipeline(
             result.ideas_evaluated = len(evaluated)
             if evaluated:
                 result.avg_idea_score = sum(e.overall_score for _, e in evaluated) / len(evaluated)
+            result.evaluation_recommendations = [
+                {
+                    "idea_id": unit.id,
+                    "title": unit.title,
+                    "score": evaluation.overall_score,
+                    "recommendation": evaluation.recommendation,
+                }
+                for unit, evaluation in evaluated
+            ]
 
         # Summary of top ideas
         result.top_ideas = [
@@ -642,6 +665,29 @@ def run_pipeline(
             status=result.status,
             error_message=result.error_message,
         )
+        if manifest_path is not None:
+            completed_at = utc_now_iso()
+            manifest = build_run_manifest(
+                result,
+                started_at=started_at,
+                completed_at=completed_at,
+                inputs={
+                    "profile_name": profile.name if profile else "",
+                    "domain": domain.name if domain else "",
+                    "output_dir": str(output_dir) if output_dir else None,
+                    "signal_limit": signal_limit,
+                    "min_score": min_score,
+                    "weight_profile": weight_profile,
+                    "ideation_mode": ideation_mode,
+                    "quality_loop_enabled": quality_loop_enabled,
+                    "draft_count": draft_count,
+                    "stages": active_stages,
+                    "dry_run": dry_run,
+                },
+                source_counts=result.source_counts,
+                publication_outputs=result.publication_outputs,
+            )
+            write_run_manifest(manifest_path, manifest)
         store.close()
 
     if pipeline_error is not None:
@@ -694,6 +740,15 @@ def _filter_insights_for_domain(
             matched.append(ins)
 
     return matched[:IDEATION_CONTEXT_LIMIT]
+
+
+def _count_signals_by_source(signals: list[Signal]) -> dict[str, int]:
+    """Count fetched signals by source adapter."""
+    counts: dict[str, int] = {}
+    for signal in signals:
+        source = signal.source_adapter or "unknown"
+        counts[source] = counts.get(source, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _unit_quality_record(unit: BuildableUnit) -> dict | None:

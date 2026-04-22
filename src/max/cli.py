@@ -32,6 +32,7 @@ def main() -> None:
 @click.option("--draft-count", type=int, default=None, help="Max draft ideas to pass through the quality loop")
 @click.option("--dry-run", is_flag=True, help="Simulate execution without LLM calls or writes")
 @click.option("--stages", type=str, default=None, help="Comma-separated list of stages to run (fetch,annotate,synthesize,detect_gaps,retrospective,ideate,evaluate)")
+@click.option("--manifest", "--manifest-path", "manifest_path", type=click.Path(), default=None, help="Write a JSON run manifest to this file or directory")
 @click.option("--include-all", is_flag=True, help="With --profile all, ignore focus filter and run every profile")
 def run(
     profile: str | None,
@@ -44,6 +45,7 @@ def run(
     draft_count: int | None,
     dry_run: bool,
     stages: str | None,
+    manifest_path: str | None,
     include_all: bool,
 ) -> None:
     """Run the full pipeline: fetch → synthesize → ideate → evaluate.
@@ -92,6 +94,7 @@ def run(
             _run_single_profile(
                 p, output, signal_limit, min_score, weight_profile, mode,
                 quality_loop, draft_count, dry_run, stages_list,
+                _profile_manifest_path(manifest_path, name) if manifest_path else None,
             )
             click.echo()
         click.echo(f"All {len(names)} profile(s) complete.")
@@ -106,7 +109,7 @@ def run(
 
     _run_single_profile(
         p, output, signal_limit, min_score, weight_profile, mode,
-        quality_loop, draft_count, dry_run, stages_list,
+        quality_loop, draft_count, dry_run, stages_list, manifest_path,
     )
     if not dry_run:
         _run_post_eval_stages(domain=p.domain.name)
@@ -123,6 +126,7 @@ def _run_single_profile(
     draft_count: int | None,
     dry_run: bool,
     stages_list: list[str] | None,
+    manifest_path: str | None = None,
 ) -> None:
     """Execute the pipeline for a single profile."""
     from max.pipeline.runner import run_pipeline
@@ -160,6 +164,8 @@ def _run_single_profile(
         click.echo(f"  Draft count:  {p.draft_count}")
     if stages_list:
         click.echo(f"  Stages:       {', '.join(stages_list)}")
+    if manifest_path:
+        click.echo(f"  Manifest:     {Path(manifest_path).resolve()}")
     click.echo()
 
     result = run_pipeline(
@@ -167,6 +173,7 @@ def _run_single_profile(
         output_dir=output_dir,
         dry_run=dry_run,
         stages=stages_list,
+        manifest_path=Path(manifest_path) if manifest_path else None,
     )
 
     # Handle dry-run output
@@ -225,6 +232,14 @@ def _run_single_profile(
         for idea in result.top_ideas:
             marker = "+" if idea["score"] >= p.evaluation.min_score else " "
             click.echo(f"  [{marker}] {idea['score']:5.1f}  {idea['title']}  ({idea['recommendation']})")
+
+
+def _profile_manifest_path(manifest_path: str, profile_name: str) -> str:
+    """Derive a per-profile manifest path for ``max run --profile all``."""
+    path = Path(manifest_path)
+    if path.suffix:
+        return str(path.with_name(f"{path.stem}-{profile_name}{path.suffix}"))
+    return str(path / f"{profile_name}-run-manifest.json")
 
 
 def _run_post_eval_stages(domain: str | None = None) -> None:

@@ -85,6 +85,10 @@ MAX_SCHEDULE_MODE: str = os.getenv("MAX_SCHEDULE_MODE", "direct")
 
 # Pipeline profile
 MAX_PROFILE: str = os.getenv("MAX_PROFILE", "")  # pipeline profile name (e.g. "devtools", "healthcare")
+MAX_PIPELINE_MANIFEST: str = os.getenv(
+    "MAX_PIPELINE_MANIFEST",
+    os.getenv("MAX_PIPELINE_MANIFEST_PATH", ""),
+)  # optional run manifest path
 
 # Adapters
 MAX_ADAPTERS: str = os.getenv("MAX_ADAPTERS", "all")  # comma-separated or "all"
