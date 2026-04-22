@@ -66,6 +66,17 @@ class FeedbackCreate(BaseModel):
     approval_score: int | None = Field(default=None, ge=1, le=10)
 
 
+class FeedbackBatchItem(BaseModel):
+    idea_id: str
+    outcome: Literal["approved", "rejected", "published", "abandoned"]
+    reason: str = ""
+    approval_score: int | None = Field(default=None, ge=1, le=10)
+
+
+class FeedbackBatchRequest(BaseModel):
+    items: list[FeedbackBatchItem] = Field(min_length=1)
+
+
 class PriorArtCheckRequest(BaseModel):
     force: bool = False
 
@@ -266,6 +277,18 @@ class IdeaEvaluateBatchItemResponse(BaseModel):
 
 class IdeaEvaluateBatchResponse(BaseModel):
     results: list[IdeaEvaluateBatchItemResponse]
+
+
+class FeedbackBatchItemResponse(BaseModel):
+    idea_id: str
+    outcome: Literal["approved", "rejected", "published", "abandoned"]
+    status: Literal["updated", "not_found", "invalid_transition"]
+    success: bool
+    error: str | None = None
+
+
+class FeedbackBatchResponse(BaseModel):
+    results: list[FeedbackBatchItemResponse]
 
 
 class IdeaStatusCountResponse(BaseModel):

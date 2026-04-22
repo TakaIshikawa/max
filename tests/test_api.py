@@ -1348,6 +1348,102 @@ def test_feedback_rejects_invalid_status_transition(client, db_path):
         store.close()
 
 
+def test_feedback_batch_mixed_success_failure_updates_statuses(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        for unit_id, status in [
+            ("bu-batch-approve", "evaluated"),
+            ("bu-batch-reject", "evaluated"),
+            ("bu-batch-published", "published"),
+        ]:
+            store.insert_buildable_unit(
+                BuildableUnit(
+                    id=unit_id,
+                    title=f"Idea {unit_id}",
+                    one_liner="Batch feedback idea",
+                    category=BuildableCategory.APPLICATION,
+                    problem="Problem",
+                    solution="Solution",
+                    value_proposition="Value",
+                    status=status,
+                )
+            )
+    finally:
+        store.close()
+
+    resp = client.post(
+        "/api/v1/ideas/feedback-batch",
+        json={
+            "items": [
+                {
+                    "idea_id": "bu-batch-approve",
+                    "outcome": "approved",
+                    "reason": "strong",
+                    "approval_score": 9,
+                },
+                {
+                    "idea_id": "bu-batch-reject",
+                    "outcome": "rejected",
+                    "reason": "weak buyer",
+                },
+                {
+                    "idea_id": "missing-batch-idea",
+                    "outcome": "approved",
+                },
+                {
+                    "idea_id": "bu-batch-published",
+                    "outcome": "rejected",
+                    "reason": "changed mind",
+                },
+            ]
+        },
+    )
+
+    assert resp.status_code == 200
+    results = {item["idea_id"]: item for item in resp.json()["results"]}
+    assert results["bu-batch-approve"] == {
+        "idea_id": "bu-batch-approve",
+        "outcome": "approved",
+        "status": "updated",
+        "success": True,
+        "error": None,
+    }
+    assert results["bu-batch-reject"]["status"] == "updated"
+    assert results["bu-batch-reject"]["success"] is True
+    assert results["missing-batch-idea"]["status"] == "not_found"
+    assert results["missing-batch-idea"]["success"] is False
+    assert "Idea not found" in results["missing-batch-idea"]["error"]
+    assert results["bu-batch-published"]["status"] == "invalid_transition"
+    assert results["bu-batch-published"]["success"] is False
+    assert "published -> rejected" in results["bu-batch-published"]["error"]
+
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        approved = store.get_buildable_unit("bu-batch-approve")
+        rejected = store.get_buildable_unit("bu-batch-reject")
+        published = store.get_buildable_unit("bu-batch-published")
+        assert approved is not None
+        assert approved.status == "approved"
+        assert rejected is not None
+        assert rejected.status == "rejected"
+        assert published is not None
+        assert published.status == "published"
+
+        feedback = store.get_latest_feedback("bu-batch-approve")
+        assert feedback is not None
+        assert feedback["outcome"] == "approved"
+        assert feedback["reason"] == "strong"
+        assert feedback["approval_score"] == 9
+        assert store.has_feedback("bu-batch-published") is False
+    finally:
+        store.close()
+
+
+def test_feedback_batch_requires_items(client):
+    resp = client.post("/api/v1/ideas/feedback-batch", json={"items": []})
+    assert resp.status_code == 422
+
+
 def test_feedback_trends_endpoint(seeded_client):
     feedback_resp = seeded_client.post(
         "/api/v1/ideas/bu-api001/feedback",

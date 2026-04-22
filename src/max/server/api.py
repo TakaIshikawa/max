@@ -34,6 +34,9 @@ from max.server.schemas import (
     EvaluationResponse,
     EvaluationSummaryResponse,
     EvaluationWeightProfileResponse,
+    FeedbackBatchItemResponse,
+    FeedbackBatchRequest,
+    FeedbackBatchResponse,
     FeedbackCreate,
     FeedbackTrendDomainResponse,
     FeedbackTrendResponse,
@@ -988,6 +991,60 @@ def create_feedback(
     store.insert_feedback(idea_id, body.outcome, body.reason, approval_score=body.approval_score)
     store.update_buildable_unit_status(idea_id, body.outcome)
     return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
+
+
+@router.post("/ideas/feedback-batch", response_model=FeedbackBatchResponse, status_code=200)
+def create_feedback_batch(
+    body: FeedbackBatchRequest,
+    store: Store = Depends(get_store),
+) -> FeedbackBatchResponse:
+    results: list[FeedbackBatchItemResponse] = []
+
+    for item in body.items:
+        unit = store.get_buildable_unit(item.idea_id)
+        if not unit:
+            results.append(
+                FeedbackBatchItemResponse(
+                    idea_id=item.idea_id,
+                    outcome=item.outcome,
+                    status="not_found",
+                    success=False,
+                    error=f"Idea not found: {item.idea_id}",
+                )
+            )
+            continue
+
+        try:
+            validate_buildable_unit_status_transition(unit.status, item.outcome)
+        except InvalidBuildableUnitStatusTransition as exc:
+            results.append(
+                FeedbackBatchItemResponse(
+                    idea_id=item.idea_id,
+                    outcome=item.outcome,
+                    status="invalid_transition",
+                    success=False,
+                    error=str(exc),
+                )
+            )
+            continue
+
+        store.insert_feedback(
+            item.idea_id,
+            item.outcome,
+            item.reason,
+            approval_score=item.approval_score,
+        )
+        store.update_buildable_unit_status(item.idea_id, item.outcome)
+        results.append(
+            FeedbackBatchItemResponse(
+                idea_id=item.idea_id,
+                outcome=item.outcome,
+                status="updated",
+                success=True,
+            )
+        )
+
+    return FeedbackBatchResponse(results=results)
 
 
 # ── Feedback Trends ────────────────────────────────────────────────
