@@ -1102,6 +1102,56 @@ def publish(entity_id: str, webhook_url: str, payload_type: str, timeout: float,
         store.close()
 
 
+@main.command(name="spec-preview")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "yaml"]),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write preview to file",
+)
+def spec_preview(idea_id: str, fmt: str, output: str | None) -> None:
+    """Preview a tact project spec without publishing."""
+    from max.spec.generator import generate_spec_preview
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        preview = generate_spec_preview(unit, store.get_evaluation(idea_id))
+        rendered = _render_spec_preview(preview, fmt=fmt)
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered, encoding="utf-8")
+            return
+        click.echo(rendered, nl=False)
+    finally:
+        store.close()
+
+
+def _render_spec_preview(preview: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(preview, indent=2) + "\n"
+    if fmt == "yaml":
+        import yaml
+
+        return yaml.safe_dump(preview, sort_keys=False, allow_unicode=True)
+    raise click.ClickException(f"Unsupported format: {fmt}")
+
+
 @main.command()
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))

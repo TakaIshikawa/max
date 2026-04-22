@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from max.cli import main
@@ -519,6 +520,64 @@ class TestBlueprintExportCommands:
 
         assert result.exit_code != 0
         assert "Design brief not found: dbf-missing" in result.output
+
+
+class TestSpecPreviewCommand:
+    @patch("max.store.db.Store")
+    def test_spec_preview_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-preview", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["kind"] == "tact.project_spec"
+        assert payload["source"]["idea_id"] == "bu-test001"
+        assert payload["evaluation"]["overall_score"] == 78.0
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_spec_preview_stdout_yaml(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-preview", "bu-test001", "--format", "yaml"])
+
+        assert result.exit_code == 0, result.output
+        payload = yaml.safe_load(result.output)
+        assert payload["schema_version"] == "tact-spec-preview/v1"
+        assert payload["source"]["idea_id"] == "bu-test001"
+        assert payload["project"]["title"] == "MCP Test Framework"
+
+    @patch("max.store.db.Store")
+    def test_spec_preview_writes_file(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                ["spec-preview", "bu-test001", "--output", "out/spec.json"],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert result.output == ""
+            payload = json.loads(Path("out/spec.json").read_text(encoding="utf-8"))
+            assert payload["source"]["idea_id"] == "bu-test001"
+            assert payload["evaluation"]["recommendation"] == "yes"
+
+    @patch("max.store.db.Store")
+    def test_spec_preview_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-preview", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
 
 
 class TestPublishCommand:
