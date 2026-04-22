@@ -864,6 +864,23 @@ class IdeaSimilarityResultResponse(BaseModel):
     overlapping_insight_ids: list[str] = Field(default_factory=list)
 
 
+class PortfolioOverlapReasonResponse(BaseModel):
+    type: str
+    description: str
+    score: float
+    shared_terms: list[str] = Field(default_factory=list)
+    shared_ids: list[str] = Field(default_factory=list)
+
+
+class PortfolioOverlapClusterResponse(BaseModel):
+    cluster_id: str
+    idea_ids: list[str]
+    representative_idea_ids: list[str]
+    overlap_score: float
+    overlap_reasons: list[PortfolioOverlapReasonResponse]
+    suggested_action: Literal["merge", "differentiate", "keep separate"]
+
+
 class StatsResponse(BaseModel):
     signals_count: int
     insights_count: int

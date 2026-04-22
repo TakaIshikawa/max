@@ -2636,6 +2636,57 @@ def test_similar_ideas_requires_one_query(client):
     assert resp.json()["detail"] == "Provide exactly one of idea_id or query"
 
 
+def test_get_portfolio_overlap_returns_clusters(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-overlap-a",
+                title="MCP Test Runner",
+                one_liner="MCP maintainers need protocol testing",
+                category=BuildableCategory.APPLICATION,
+                problem="MCP maintainers need repeatable protocol testing",
+                solution="Create a test runner",
+                target_users="devtools teams",
+                specific_user="platform engineer",
+                value_proposition="Find regressions earlier",
+                evidence_signals=["sig-shared", "sig-a"],
+                tech_approach="TypeScript CLI",
+                suggested_stack={"language": "typescript", "runtime": "node"},
+                status="evaluated",
+            )
+        )
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-overlap-b",
+                title="MCP Validator",
+                one_liner="MCP maintainers need validation testing",
+                category=BuildableCategory.APPLICATION,
+                problem="MCP maintainers need protocol validation testing",
+                solution="Create a validator",
+                target_users="devtools teams",
+                specific_user="platform engineer",
+                value_proposition="Reduce protocol bugs",
+                evidence_signals=["sig-shared", "sig-b"],
+                tech_approach="TypeScript service",
+                suggested_stack={"language": "typescript", "runtime": "node"},
+                status="evaluated",
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/ideas/portfolio-overlap?min_overlap_score=0.25")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["idea_ids"] == ["bu-overlap-a", "bu-overlap-b"]
+    assert data[0]["representative_idea_ids"] == ["bu-overlap-a", "bu-overlap-b"]
+    assert data[0]["suggested_action"] in {"merge", "differentiate"}
+    assert "evidence_signal_ids" in {reason["type"] for reason in data[0]["overlap_reasons"]}
+
+
 def test_similar_empty(client):
     resp = client.post(
         "/api/v1/similar",

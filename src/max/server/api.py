@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
 
@@ -15,6 +16,7 @@ from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.idea_similarity import find_similar_ideas
+from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -94,6 +96,7 @@ from max.server.schemas import (
     PipelineRunRequest,
     PipelineTrendResponse,
     PipelineTrendWindowResponse,
+    PortfolioOverlapClusterResponse,
     PublicationAttemptResponse,
     PriorArtCheckRequest,
     PriorArtResponse,
@@ -1217,6 +1220,22 @@ def get_idea_score_distribution(
             bucket_size=bucket_size,
         )
     )
+
+
+@router.get("/ideas/portfolio-overlap", response_model=list[PortfolioOverlapClusterResponse])
+def get_portfolio_overlap(
+    limit: int = Query(default=20, ge=1, le=100),
+    min_overlap_score: float = Query(default=0.35, ge=0.0, le=1.0),
+    include_archived: bool = False,
+    store: Store = Depends(get_store),
+) -> list[PortfolioOverlapClusterResponse]:
+    clusters = find_portfolio_overlap_clusters(
+        store,
+        limit=limit,
+        min_overlap_score=min_overlap_score,
+        include_archived=include_archived,
+    )
+    return [PortfolioOverlapClusterResponse(**asdict(cluster)) for cluster in clusters]
 
 
 def _idea_similarity_response(result) -> IdeaSimilarityResultResponse:
