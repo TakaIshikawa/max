@@ -489,6 +489,67 @@ def max_source_reliability(
     return result
 
 
+def max_signal_freshness(
+    max_age_days: int = 30,
+    source_adapter: str | list[str] | None = None,
+    profile: str | None = None,
+) -> dict:
+    """Return signal freshness and stale-source recommendations.
+
+    Set source_adapter to a comma-delimited string or list of adapter names.
+    Set profile to restrict the report to enabled adapters from a named profile.
+    """
+    from max.analysis.signal_freshness import build_signal_freshness_report
+    from max.profiles.loader import load_profile
+
+    requested_adapters = _normalize_source_adapter_filter(source_adapter)
+    resolved_profile = None
+    adapters = requested_adapters
+
+    if profile:
+        try:
+            resolved_profile = load_profile(profile)
+        except FileNotFoundError:
+            return {"error": f"Profile not found: {profile}"}
+
+        enabled_adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
+        if requested_adapters is None:
+            adapters = sorted(enabled_adapters)
+        else:
+            adapters = sorted(set(requested_adapters) & enabled_adapters)
+
+    try:
+        with _get_store() as store:
+            report = build_signal_freshness_report(
+                store,
+                max_age_days=max_age_days,
+                source_adapters=adapters,
+            )
+    except ValueError as e:
+        return {"error": str(e)}
+
+    result = report.to_dict()
+    result["filters"] = {
+        "profile": resolved_profile.name if resolved_profile else profile,
+        "domain": resolved_profile.domain.name if resolved_profile else None,
+        "source_adapters": adapters,
+        "max_age_days": max_age_days,
+    }
+    return result
+
+
+def _normalize_source_adapter_filter(source_adapter: str | list[str] | None) -> list[str] | None:
+    if source_adapter is None:
+        return None
+    values = [source_adapter] if isinstance(source_adapter, str) else source_adapter
+    adapters: set[str] = set()
+    for value in values:
+        if not value:
+            continue
+        adapters.update(part.strip() for part in value.split(",") if part.strip())
+    return sorted(adapters)
+
+
 def _parse_time_window(time_window: str | None) -> datetime | None:
     if time_window is None or time_window.strip().lower() in ("", "all"):
         return None
@@ -720,6 +781,11 @@ def design_brief_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief(brief_id), indent=2)
 
 
+def signal_freshness_detail() -> str:
+    """Browse the default signal freshness report."""
+    return json.dumps(max_signal_freshness(), indent=2)
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -745,6 +811,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(find_similar)
     mcp.tool(get_stats)
     mcp.tool(max_source_reliability)
+    mcp.tool(max_signal_freshness)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -757,5 +824,6 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
+    mcp.resource("signals://freshness")(signal_freshness_detail)
 
     return mcp

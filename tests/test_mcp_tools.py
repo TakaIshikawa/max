@@ -11,6 +11,7 @@ from max.analysis.portfolio_synthesis import build_candidates, synthesize_projec
 from max.server.mcp_tools import (
     contribute_idea,
     contribute_signal,
+    create_mcp_server,
     dry_run_pipeline,
     evidence_chain_detail,
     get_design_brief,
@@ -22,6 +23,7 @@ from max.server.mcp_tools import (
     get_spec_preview,
     get_stats,
     list_design_briefs,
+    max_signal_freshness,
     max_source_reliability,
     search_ideas,
     set_schedule,
@@ -574,6 +576,159 @@ def test_get_stats_seeded(seeded_mcp_db):
     assert result["signals_count"] == 1
     assert result["ideas_count"] == 1
     assert result["avg_score"] == 78.0
+
+
+def test_max_signal_freshness_default_output(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-mcp-1",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Fresh MCP signal",
+            content="Recent signal",
+            url="https://example.com/fresh-mcp-1",
+            fetched_at=datetime.now(timezone.utc) - timedelta(days=2),
+            tags=["mcp"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-mcp-2",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="other",
+            title="Stale MCP signal",
+            content="Older signal",
+            url="https://example.com/fresh-mcp-2",
+            fetched_at=datetime.now(timezone.utc) - timedelta(days=40),
+            tags=["registry"],
+        )
+    )
+    store.close()
+
+    result = max_signal_freshness()
+
+    assert result["max_age_days"] == 30
+    assert result["total_signals"] == 2
+    assert result["stale_signals"] == 1
+    assert result["filters"] == {
+        "profile": None,
+        "domain": None,
+        "source_adapters": None,
+        "max_age_days": 30,
+    }
+
+
+def test_max_signal_freshness_filters_source_adapter_string_and_list(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-filter-1",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Test adapter signal",
+            content="Adapter-filtered signal",
+            url="https://example.com/fresh-filter-1",
+            fetched_at=datetime.now(timezone.utc),
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-filter-2",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="other",
+            title="Other adapter signal",
+            content="Adapter-filtered signal",
+            url="https://example.com/fresh-filter-2",
+            fetched_at=datetime.now(timezone.utc),
+        )
+    )
+    store.close()
+
+    comma_result = max_signal_freshness(source_adapter="test, missing")
+    list_result = max_signal_freshness(source_adapter=["other"])
+
+    assert comma_result["filters"]["source_adapters"] == ["missing", "test"]
+    assert comma_result["source_adapter_filters"] == ["missing", "test"]
+    assert comma_result["total_signals"] == 1
+    assert comma_result["by_source_adapter"][0]["key"] == "test"
+    assert list_result["filters"]["source_adapters"] == ["other"]
+    assert list_result["total_signals"] == 1
+    assert list_result["by_source_adapter"][0]["key"] == "other"
+
+
+def test_max_signal_freshness_filters_profile_enabled_adapters(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-profile-1",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="test",
+            title="Profile adapter signal",
+            content="Included by profile",
+            url="https://example.com/fresh-profile-1",
+            fetched_at=datetime.now(timezone.utc),
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-fresh-profile-2",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="other",
+            title="Non-profile adapter signal",
+            content="Excluded by profile",
+            url="https://example.com/fresh-profile-2",
+            fetched_at=datetime.now(timezone.utc),
+        )
+    )
+    store.close()
+
+    with patch("max.profiles.loader.load_profile", return_value=_mcp_mock_profile()):
+        result = max_signal_freshness(
+            profile="devtools",
+            source_adapter=["test", "other"],
+        )
+
+    assert result["filters"]["profile"] == "devtools"
+    assert result["filters"]["domain"] == "developer-tools"
+    assert result["filters"]["source_adapters"] == ["test"]
+    assert result["total_signals"] == 1
+    assert result["by_source_adapter"][0]["key"] == "test"
+
+
+def test_max_signal_freshness_rejects_invalid_max_age_days(mcp_db):
+    assert max_signal_freshness(max_age_days=0) == {
+        "error": "max_age_days must be at least 1"
+    }
+
+
+def test_signal_freshness_resource_registered(monkeypatch):
+    class FakeMCP:
+        latest = None
+
+        def __init__(self, name):
+            self.name = name
+            self.tools = []
+            self.resources = {}
+            FakeMCP.latest = self
+
+        def tool(self, fn):
+            self.tools.append(fn.__name__)
+            return fn
+
+        def resource(self, uri):
+            def decorator(fn):
+                self.resources[uri] = fn.__name__
+                return fn
+
+            return decorator
+
+    monkeypatch.setattr("max.server.mcp_tools.FastMCP", FakeMCP)
+
+    create_mcp_server()
+
+    assert "max_signal_freshness" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
 
 
 def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
