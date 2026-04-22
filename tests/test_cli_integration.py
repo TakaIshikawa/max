@@ -128,6 +128,35 @@ def _mock_store(**overrides) -> MagicMock:
     return store
 
 
+def _seed_design_brief(db_path: Path) -> str:
+    """Seed a real isolated database with one design brief."""
+    from max.analysis.portfolio_synthesis import build_candidates, synthesize_project_briefs
+    from max.store.db import Store
+
+    unit = _make_unit(
+        id="bu-dbf001",
+        title="AgentAdversarialBench",
+        status="approved",
+        domain="developer-tools",
+    )
+    evaluation = _make_evaluation("bu-dbf001", score=82.0)
+    candidates = build_candidates(
+        [unit],
+        evaluations={unit.id: evaluation},
+        feedback={unit.id: {"approval_score": 8, "outcome": "approved"}},
+    )
+    brief = synthesize_project_briefs(candidates, top=1)[0]
+
+    store = Store(str(db_path))
+    try:
+        store.insert_buildable_unit(unit)
+        store.insert_evaluation(evaluation)
+        store.insert_feedback(unit.id, "approved", "integration seed", approval_score=8)
+        return store.insert_design_brief(brief)
+    finally:
+        store.close()
+
+
 # ── Integration Tests ──────────────────────────────────────────────────
 
 
@@ -254,6 +283,62 @@ class TestIdeasCommand:
 
         assert result.exit_code == 0, result.output
         store.close.assert_called_once()
+
+
+class TestDesignBriefsCommand:
+    """Integration tests for ``max design-briefs`` using an isolated database."""
+
+    def test_design_briefs_list_show_status_and_blueprint(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        runner: CliRunner,
+    ) -> None:
+        """The design-briefs group can list, show, update, and export from SQLite."""
+        from max.store.db import Store
+
+        db_path = tmp_path / "max.db"
+        brief_id = _seed_design_brief(db_path)
+        monkeypatch.setattr("max.store.db.Store", lambda: Store(str(db_path)))
+
+        list_result = runner.invoke(main, ["design-briefs", "list"])
+        assert list_result.exit_code == 0, list_result.output
+        assert brief_id in list_result.output
+        assert "AgentAdversarialBench" in list_result.output
+
+        legacy_list_result = runner.invoke(main, ["design-briefs", "--limit", "10"])
+        assert legacy_list_result.exit_code == 0, legacy_list_result.output
+        assert brief_id in legacy_list_result.output
+
+        show_result = runner.invoke(main, ["design-briefs", "show", brief_id])
+        assert show_result.exit_code == 0, show_result.output
+        assert "Concept:" in show_result.output
+        assert "Source ideas (1):" in show_result.output
+
+        status_result = runner.invoke(main, ["design-briefs", "status", brief_id, "designing"])
+        assert status_result.exit_code == 0, status_result.output
+        assert f"Updated {brief_id}: candidate -> designing" in status_result.output
+
+        store = Store(str(db_path))
+        try:
+            assert store.get_design_brief(brief_id)["design_status"] == "designing"
+        finally:
+            store.close()
+
+        stdout_result = runner.invoke(main, ["design-briefs", "blueprint", brief_id])
+        assert stdout_result.exit_code == 0, stdout_result.output
+        assert '"schema_version": "max.blueprint.source_brief.v1"' in stdout_result.output
+        assert '"id": "bu-dbf001"' in stdout_result.output
+
+        out_dir = tmp_path / "blueprints"
+        file_result = runner.invoke(
+            main,
+            ["design-briefs", "blueprint", brief_id, "--output", str(out_dir)],
+        )
+        assert file_result.exit_code == 0, file_result.output
+        exported = out_dir / f"{brief_id}.json"
+        assert exported.exists()
+        assert '"entity_type": "design_brief"' in exported.read_text()
 
 
 class TestInspectCommand:
