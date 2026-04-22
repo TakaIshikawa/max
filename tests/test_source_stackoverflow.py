@@ -29,6 +29,7 @@ MOCK_SE_RESPONSE = {
             "view_count": 1200,
             "answer_count": 2,
             "is_answered": True,
+            "accepted_answer_id": 1001,
             "creation_date": 1713100000,
             "owner": {"display_name": "dev_user"},
         },
@@ -115,16 +116,22 @@ class TestStackOverflowAdapter:
         adapter = StackOverflowAdapter()
         assert adapter.min_score == 5
         assert adapter.unanswered_only is False
+        assert adapter.include_answers is False
+        assert adapter.max_answers_per_question == 2
 
     def test_config_overrides(self) -> None:
         adapter = StackOverflowAdapter(config={
             "tags": ["rust", "wasm"],
             "min_score": 10,
             "unanswered_only": True,
+            "include_answers": True,
+            "max_answers_per_question": 4,
         })
         assert adapter.tags == ["rust", "wasm"]
         assert adapter.min_score == 10
         assert adapter.unanswered_only is True
+        assert adapter.include_answers is True
+        assert adapter.max_answers_per_question == 4
 
     @pytest.mark.asyncio
     @patch("max.sources.stackoverflow._get_api_key", return_value=None)
@@ -143,6 +150,10 @@ class TestStackOverflowAdapter:
         assert signals[0].title == "How to use LangChain with MCP servers?"
         assert "langchain" in signals[0].tags
         assert signals[0].metadata["question_id"] == 101
+        assert signals[0].metadata["answer_count"] == 2
+        assert signals[0].metadata["has_accepted_answer"] is True
+        assert signals[0].metadata["answer_excerpts"] == []
+        assert signals[0].metadata["top_answer"] is None
 
     @pytest.mark.asyncio
     @patch("max.sources.stackoverflow._get_api_key", return_value=None)
@@ -223,3 +234,127 @@ class TestStackOverflowAdapter:
         call_kwargs = mock_fetch.call_args
         params = call_kwargs.kwargs.get("params") or call_kwargs[1].get("params", {})
         assert params.get("key") == "test-key"
+
+    @pytest.mark.asyncio
+    @patch("max.sources.stackoverflow._get_api_key", return_value=None)
+    async def test_fetch_includes_answer_metadata_when_configured(self, _mock_key) -> None:
+        adapter = StackOverflowAdapter(config={
+            "tags": ["langchain"],
+            "include_answers": True,
+            "max_answers_per_question": 2,
+        })
+
+        question_resp = MagicMock()
+        question_resp.json.return_value = {"items": [MOCK_SE_RESPONSE["items"][0]]}
+
+        answer_resp = MagicMock()
+        answer_resp.json.return_value = {
+            "items": [
+                {
+                    "answer_id": 1002,
+                    "question_id": 101,
+                    "body": "<p>Use an async MCP client and set an explicit timeout.</p>",
+                    "score": 18,
+                    "is_accepted": False,
+                    "owner": {"display_name": "answerer"},
+                },
+                {
+                    "answer_id": 1001,
+                    "question_id": 101,
+                    "body": "<p>The accepted fix is to keep one server session per agent.</p>",
+                    "score": 12,
+                    "is_accepted": True,
+                    "owner": {"display_name": "maintainer"},
+                },
+            ]
+        }
+
+        with patch(
+            "max.sources.stackoverflow.fetch_with_retry",
+            new_callable=AsyncMock,
+            side_effect=[question_resp, answer_resp],
+        ) as mock_fetch:
+            signals = await adapter.fetch(limit=1)
+
+        assert len(signals) == 1
+        assert signals[0].content == "I'm trying to connect LangChain agents to MCP servers but keep getting timeout errors."
+        assert "accepted fix" not in signals[0].content
+        assert signals[0].metadata["has_accepted_answer"] is True
+        assert signals[0].metadata["accepted_answer_id"] == 1001
+        assert signals[0].metadata["answer_excerpts"] == [
+            {
+                "answer_id": 1002,
+                "score": 18,
+                "is_accepted": False,
+                "author": "answerer",
+                "excerpt": "Use an async MCP client and set an explicit timeout.",
+            },
+            {
+                "answer_id": 1001,
+                "score": 12,
+                "is_accepted": True,
+                "author": "maintainer",
+                "excerpt": "The accepted fix is to keep one server session per agent.",
+            },
+        ]
+        assert signals[0].metadata["top_answer"] == {
+            "answer_id": 1002,
+            "score": 18,
+            "is_accepted": False,
+            "author": "answerer",
+        }
+
+        answer_call = mock_fetch.call_args_list[1]
+        assert answer_call.args[0] == "https://api.stackexchange.com/2.3/questions/101/answers"
+        assert answer_call.kwargs["params"]["pagesize"] == 2
+
+    @pytest.mark.asyncio
+    @patch("max.sources.stackoverflow._get_api_key", return_value=None)
+    async def test_fetch_gets_accepted_answer_when_missing_from_top_answers(self, _mock_key) -> None:
+        adapter = StackOverflowAdapter(config={
+            "tags": ["langchain"],
+            "include_answers": True,
+            "max_answers_per_question": 1,
+        })
+
+        question_resp = MagicMock()
+        question_resp.json.return_value = {"items": [MOCK_SE_RESPONSE["items"][0]]}
+
+        top_answer_resp = MagicMock()
+        top_answer_resp.json.return_value = {
+            "items": [
+                {
+                    "answer_id": 1002,
+                    "body": "<p>Top voted answer.</p>",
+                    "score": 18,
+                    "is_accepted": False,
+                    "owner": {"display_name": "answerer"},
+                }
+            ]
+        }
+
+        accepted_answer_resp = MagicMock()
+        accepted_answer_resp.json.return_value = {
+            "items": [
+                {
+                    "answer_id": 1001,
+                    "body": "<p>Accepted answer.</p>",
+                    "score": 12,
+                    "is_accepted": True,
+                    "owner": {"display_name": "maintainer"},
+                }
+            ]
+        }
+
+        with patch(
+            "max.sources.stackoverflow.fetch_with_retry",
+            new_callable=AsyncMock,
+            side_effect=[question_resp, top_answer_resp, accepted_answer_resp],
+        ) as mock_fetch:
+            signals = await adapter.fetch(limit=1)
+
+        assert [answer["answer_id"] for answer in signals[0].metadata["answer_excerpts"]] == [
+            1002,
+            1001,
+        ]
+        assert mock_fetch.call_args_list[2].args[0] == "https://api.stackexchange.com/2.3/answers/1001"

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 SE_API = "https://api.stackexchange.com/2.3"
 
 _DEFAULT_TAGS = ["langchain", "openai", "llm", "mcp", "ai-agent"]
+_ANSWER_EXCERPT_CHARS = 500
 
 
 def _get_api_key() -> str | None:
@@ -84,6 +85,96 @@ class StackOverflowAdapter(SourceAdapter):
     def unanswered_only(self) -> bool:
         return self._config.get("unanswered_only", False)
 
+    @property
+    def include_answers(self) -> bool:
+        return self._config.get("include_answers", False)
+
+    @property
+    def max_answers_per_question(self) -> int:
+        value = self._config.get("max_answers_per_question", 2)
+        if not isinstance(value, int) or isinstance(value, bool):
+            return 2
+        return max(value, 0)
+
+    async def _fetch_answer_metadata(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        question_id: int,
+        accepted_answer_id: int | None,
+        api_key: str | None,
+    ) -> dict:
+        params: dict = {
+            "sort": "votes",
+            "order": "desc",
+            "site": "stackoverflow",
+            "filter": "withbody",
+            "pagesize": min(self.max_answers_per_question, 100),
+        }
+        if api_key:
+            params["key"] = api_key
+
+        answers: list[dict] = []
+        try:
+            resp = await fetch_with_retry(
+                f"{SE_API}/questions/{question_id}/answers",
+                client,
+                adapter_name=self.name,
+                params=params,
+            )
+            answers = list(resp.json().get("items", []))
+        except Exception:
+            logger.warning(
+                "StackOverflow answer fetch failed for question: %s",
+                question_id,
+                exc_info=True,
+            )
+
+        if accepted_answer_id and not any(
+            answer.get("answer_id") == accepted_answer_id for answer in answers
+        ):
+            accepted = await self._fetch_accepted_answer(
+                client,
+                answer_id=accepted_answer_id,
+                api_key=api_key,
+            )
+            if accepted:
+                answers.append(accepted)
+
+        return _build_answer_metadata(answers, accepted_answer_id)
+
+    async def _fetch_accepted_answer(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        answer_id: int,
+        api_key: str | None,
+    ) -> dict | None:
+        params: dict = {
+            "site": "stackoverflow",
+            "filter": "withbody",
+        }
+        if api_key:
+            params["key"] = api_key
+
+        try:
+            resp = await fetch_with_retry(
+                f"{SE_API}/answers/{answer_id}",
+                client,
+                adapter_name=self.name,
+                params=params,
+            )
+            items = resp.json().get("items", [])
+        except Exception:
+            logger.warning(
+                "StackOverflow accepted answer fetch failed for answer: %s",
+                answer_id,
+                exc_info=True,
+            )
+            return None
+
+        return items[0] if items else None
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_ids: set[int] = set()
@@ -137,6 +228,24 @@ class StackOverflowAdapter(SourceAdapter):
 
                     score = item.get("score", 0)
                     body = _strip_html(item.get("body", ""))[:1000]
+                    accepted_answer_id = item.get("accepted_answer_id")
+                    answer_metadata = {
+                        "has_accepted_answer": accepted_answer_id is not None,
+                        "accepted_answer_id": accepted_answer_id,
+                        "answer_excerpts": [],
+                        "top_answer": None,
+                    }
+                    if (
+                        self.include_answers
+                        and self.max_answers_per_question > 0
+                        and item.get("answer_count", 0) > 0
+                    ):
+                        answer_metadata = await self._fetch_answer_metadata(
+                            client,
+                            question_id=qid,
+                            accepted_answer_id=accepted_answer_id,
+                            api_key=api_key,
+                        )
 
                     signals.append(Signal(
                         source_type=SignalSourceType.FORUM,
@@ -156,6 +265,7 @@ class StackOverflowAdapter(SourceAdapter):
                             "view_count": item.get("view_count", 0),
                             "answer_count": item.get("answer_count", 0),
                             "is_answered": item.get("is_answered", False),
+                            **answer_metadata,
                         },
                     ))
 
@@ -163,3 +273,41 @@ class StackOverflowAdapter(SourceAdapter):
                         break
 
         return signals[:limit]
+
+
+def _build_answer_metadata(answers: list[dict], accepted_answer_id: int | None) -> dict:
+    answer_excerpts = []
+    for answer in answers:
+        answer_excerpts.append({
+            "answer_id": answer.get("answer_id"),
+            "score": answer.get("score", 0),
+            "is_accepted": answer.get("is_accepted", False),
+            "author": (answer.get("owner") or {}).get("display_name"),
+            "excerpt": _strip_html(answer.get("body", ""))[:_ANSWER_EXCERPT_CHARS],
+        })
+
+    top_answer = None
+    if answer_excerpts:
+        top = max(answer_excerpts, key=lambda answer: answer["score"])
+        top_answer = {
+            "answer_id": top["answer_id"],
+            "score": top["score"],
+            "is_accepted": top["is_accepted"],
+            "author": top["author"],
+        }
+
+    has_accepted_answer = accepted_answer_id is not None or any(
+        answer["is_accepted"] for answer in answer_excerpts
+    )
+    if accepted_answer_id is None:
+        for answer in answer_excerpts:
+            if answer["is_accepted"]:
+                accepted_answer_id = answer["answer_id"]
+                break
+
+    return {
+        "has_accepted_answer": has_accepted_answer,
+        "accepted_answer_id": accepted_answer_id,
+        "answer_excerpts": answer_excerpts,
+        "top_answer": top_answer,
+    }
