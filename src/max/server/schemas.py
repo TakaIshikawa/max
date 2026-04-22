@@ -402,6 +402,45 @@ class EvaluationWeightProfileResponse(BaseModel):
     adapted_weights: dict[str, float] | None = None
 
 
+class CalibrationScoreBucketResponse(BaseModel):
+    min_score: float
+    max_score: float
+    sample_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    rejection_rate: float
+
+
+class EvaluationCalibrationGroupResponse(BaseModel):
+    domain: str
+    recommendation: str
+    sample_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    rejection_rate: float
+    average_overall_score: float
+    score_buckets: list[CalibrationScoreBucketResponse]
+    high_score_sample_count: int
+    high_score_rejection_count: int
+    high_score_rejection_rate: float
+    low_score_sample_count: int
+    low_score_approval_count: int
+    low_score_approval_rate: float
+
+
+class EvaluationCalibrationResponse(BaseModel):
+    domain: str | None = None
+    min_samples: int
+    limit: int
+    high_score_threshold: float
+    low_score_threshold: float
+    total_groups: int
+    total_samples: int
+    groups: list[EvaluationCalibrationGroupResponse]
+
+
 class ReviewQueueItemResponse(IdeaSummaryResponse):
     evaluation: EvaluationSummaryResponse
     latest_critique: IdeaCritiqueResponse | None = None

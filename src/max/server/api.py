@@ -16,6 +16,7 @@ from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.evidence_density import build_evidence_density_report
+from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.run_comparison import (
@@ -52,6 +53,7 @@ from max.server.schemas import (
     EvidenceChainResponse,
     EvidenceDensityResponse,
     EvaluationExplanationResponse,
+    EvaluationCalibrationResponse,
     EvaluationResponse,
     EvaluationSummaryResponse,
     EvaluationWeightProfileResponse,
@@ -894,6 +896,22 @@ def get_evaluation_weight_profile(
         adapted=adapted,
         adapted_weights=adapted_weights if adapted else None,
     )
+
+
+@router.get("/evaluation/calibration", response_model=EvaluationCalibrationResponse)
+def get_evaluation_calibration(
+    domain: str | None = None,
+    min_samples: int = Query(default=1, ge=1, le=1000),
+    limit: int = Query(default=50, ge=1, le=500),
+    store: Store = Depends(get_store),
+) -> EvaluationCalibrationResponse:
+    report = build_evaluation_calibration_report(
+        store,
+        domain=domain,
+        min_samples=min_samples,
+        limit=limit,
+    )
+    return EvaluationCalibrationResponse(**asdict(report))
 
 
 # ── Signals ─────────────────────────────────────────────────────────

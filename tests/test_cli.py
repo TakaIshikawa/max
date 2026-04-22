@@ -1439,6 +1439,106 @@ class TestReviewThresholdsCommand:
         assert payload["recommendations"][0]["sufficient_samples"] is False
 
 
+class TestEvaluationCalibrationCommand:
+    @patch("max.analysis.evaluation_calibration.build_evaluation_calibration_report")
+    @patch("max.store.db.Store")
+    def test_evaluation_calibration_prints_table(
+        self,
+        MockStore: MagicMock,
+        mock_report: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.evaluation_calibration import (
+            CalibrationScoreBucket,
+            EvaluationCalibrationGroup,
+            EvaluationCalibrationReport,
+        )
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_report.return_value = EvaluationCalibrationReport(
+            domain="devtools",
+            min_samples=2,
+            limit=10,
+            high_score_threshold=80.0,
+            low_score_threshold=50.0,
+            total_groups=1,
+            total_samples=3,
+            groups=[
+                EvaluationCalibrationGroup(
+                    domain="devtools",
+                    recommendation="yes",
+                    sample_count=3,
+                    approved_count=2,
+                    rejected_count=1,
+                    approval_rate=0.6667,
+                    rejection_rate=0.3333,
+                    average_overall_score=74.0,
+                    score_buckets=[
+                        CalibrationScoreBucket(
+                            min_score=80.0,
+                            max_score=100.0,
+                            sample_count=2,
+                            approved_count=1,
+                            rejected_count=1,
+                            approval_rate=0.5,
+                            rejection_rate=0.5,
+                        )
+                    ],
+                    high_score_sample_count=2,
+                    high_score_rejection_count=1,
+                    high_score_rejection_rate=0.5,
+                    low_score_sample_count=1,
+                    low_score_approval_count=1,
+                    low_score_approval_rate=1.0,
+                )
+            ],
+        )
+
+        result = runner.invoke(
+            main,
+            ["evaluation-calibration", "--domain", "devtools", "--min-samples", "2", "--limit", "10"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Domain" in result.output
+        assert "devtools" in result.output
+        assert "66.7%" in result.output
+        assert "50.0%" in result.output
+        mock_report.assert_called_once_with(store, domain="devtools", min_samples=2, limit=10)
+        store.close.assert_called_once()
+
+    @patch("max.analysis.evaluation_calibration.build_evaluation_calibration_report")
+    @patch("max.store.db.Store")
+    def test_evaluation_calibration_prints_json(
+        self,
+        MockStore: MagicMock,
+        mock_report: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.evaluation_calibration import EvaluationCalibrationReport
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_report.return_value = EvaluationCalibrationReport(
+            domain=None,
+            min_samples=1,
+            limit=50,
+            high_score_threshold=80.0,
+            low_score_threshold=50.0,
+            total_groups=0,
+            total_samples=0,
+            groups=[],
+        )
+
+        result = runner.invoke(main, ["evaluation-calibration", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["min_samples"] == 1
+        assert payload["total_groups"] == 0
+
+
 # ── import-signals command ─────────────────────────────────────────
 
 

@@ -1560,6 +1560,65 @@ def test_get_idea_score_distribution_filters(client, db_path):
     ]
 
 
+def test_get_evaluation_calibration(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+
+    def _unit(unit_id: str, domain: str) -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=f"Idea {unit_id}",
+            one_liner="A calibration API idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Problem",
+            solution="Solution",
+            value_proposition="Value",
+            domain=domain,
+        )
+
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+    def _evaluation(unit_id: str, score: float, recommendation: str) -> UtilityEvaluation:
+        return UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(8.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(6.0),
+            composability=_score(7.0),
+            competitive_density=_score(8.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(6.0),
+            overall_score=score,
+            recommendation=recommendation,
+            weights_used={"pain_severity": 0.20},
+        )
+
+    for unit_id, score, outcome in [
+        ("bu-api-cal-1", 91.0, "approved"),
+        ("bu-api-cal-2", 84.0, "rejected"),
+        ("bu-api-cal-3", 44.0, "approved"),
+    ]:
+        store.insert_buildable_unit(_unit(unit_id, "devtools"))
+        store.insert_evaluation(_evaluation(unit_id, score, "yes"))
+        store.insert_feedback(unit_id, outcome)
+    store.close()
+
+    resp = client.get("/api/v1/evaluation/calibration?domain=devtools")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["domain"] == "devtools"
+    assert data["total_groups"] == 1
+    group = data["groups"][0]
+    assert group["domain"] == "devtools"
+    assert group["recommendation"] == "yes"
+    assert group["sample_count"] == 3
+    assert group["approval_rate"] == pytest.approx(0.6667)
+    assert group["high_score_rejection_rate"] == pytest.approx(0.5)
+    assert group["low_score_approval_rate"] == pytest.approx(1.0)
+
+
 def test_get_idea(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001")
     assert resp.status_code == 200

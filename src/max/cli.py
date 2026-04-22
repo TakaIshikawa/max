@@ -1651,6 +1651,70 @@ def review_thresholds(domain: str | None, min_samples: int | None, as_json: bool
         store.close()
 
 
+@main.command(name="evaluation-calibration")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--min-samples", type=int, default=1, help="Minimum samples per group")
+@click.option("--limit", type=int, default=50, help="Maximum groups to show")
+@click.option("--json", "as_json", is_flag=True, help="Print report as JSON")
+def evaluation_calibration(
+    domain: str | None,
+    min_samples: int,
+    limit: int,
+    as_json: bool,
+) -> None:
+    """Compare evaluation scores against feedback outcomes."""
+    from dataclasses import asdict
+
+    from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+    from max.store.db import Store
+
+    if min_samples < 1:
+        raise click.ClickException("--min-samples must be at least 1")
+    if limit < 1:
+        raise click.ClickException("--limit must be at least 1")
+
+    store = Store()
+    try:
+        report = build_evaluation_calibration_report(
+            store,
+            domain=domain,
+            min_samples=min_samples,
+            limit=limit,
+        )
+        payload = asdict(report)
+        if as_json:
+            click.echo(json.dumps(payload, indent=2))
+            return
+
+        if not report.groups:
+            click.echo("No reviewed evaluations found.")
+            return
+
+        click.echo(
+            f"{'Domain':<18s} {'Rec':<10s} {'Samples':>7s} {'Appr%':>7s} "
+            f"{'Rej%':>7s} {'Avg':>6s} {'High Rej%':>10s} {'Low Appr%':>10s}"
+        )
+        click.echo("-" * 88)
+        for group in report.groups:
+            click.echo(
+                f"{(group.domain or '-'):18.18s} "
+                f"{(group.recommendation or '-'):10.10s} "
+                f"{group.sample_count:7d} "
+                f"{group.approval_rate * 100:6.1f}% "
+                f"{group.rejection_rate * 100:6.1f}% "
+                f"{group.average_overall_score:6.1f} "
+                f"{group.high_score_rejection_rate * 100:9.1f}% "
+                f"{group.low_score_approval_rate * 100:9.1f}%"
+            )
+        click.echo(
+            f"\nGroups: {report.total_groups}; samples: {report.total_samples}; "
+            f"high score >= {report.high_score_threshold:.1f}; "
+            f"low score < {report.low_score_threshold:.1f}"
+        )
+    finally:
+        store.close()
+
+
 @main.command()
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--approve-threshold", type=float, default=68.0, help="Auto-approve score threshold (default: 68)")
