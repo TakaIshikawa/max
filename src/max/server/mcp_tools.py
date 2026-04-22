@@ -452,6 +452,56 @@ def set_schedule(
     return _scheduler.status()
 
 
+def dry_run_pipeline(
+    profile: str | None = None,
+    signal_limit: int | None = None,
+    min_score: float | None = None,
+    weight_profile: str | None = None,
+    ideation_mode: str | None = None,
+    quality_loop_enabled: bool | None = None,
+    draft_count: int | None = None,
+    stages: list[str] | None = None,
+) -> dict:
+    """Estimate a pipeline run without fetching, writing, or calling LLMs.
+
+    Set profile to use a named pipeline profile. Optional overrides mirror the
+    REST dry-run request where applicable and are applied before estimating
+    enabled adapters, fetch allocation, stage budgets, and token cost.
+    """
+    from pydantic import ValidationError
+
+    from max.server.api import run_pipeline_dry_run
+    from max.server.schemas import PipelineDryRunRequest
+
+    payload = {}
+    if profile is not None:
+        payload["profile"] = profile
+    if signal_limit is not None:
+        payload["signal_limit"] = signal_limit
+    if min_score is not None:
+        payload["min_score"] = min_score
+    if weight_profile is not None:
+        payload["weight_profile"] = weight_profile
+    if ideation_mode is not None:
+        payload["ideation_mode"] = ideation_mode
+    if quality_loop_enabled is not None:
+        payload["quality_loop_enabled"] = quality_loop_enabled
+    if draft_count is not None:
+        payload["draft_count"] = draft_count
+    if stages is not None:
+        payload["stages"] = stages
+
+    try:
+        response = run_pipeline_dry_run(PipelineDryRunRequest(**payload))
+    except FileNotFoundError:
+        return {"error": f"Profile not found: {profile or 'default'}"}
+    except ValidationError as e:
+        return {"error": str(e)}
+    except ValueError as e:
+        return {"error": str(e)}
+    return response.model_dump()
+
+
 # ── Resource functions ──────────────────────────────────────────────
 
 
@@ -571,6 +621,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_stats)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
+    mcp.tool(dry_run_pipeline)
 
     # Register resources
     mcp.resource("ideas://list")(ideas_list)

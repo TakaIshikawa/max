@@ -908,6 +908,8 @@ def _generate_dry_run_report(
     stage_summaries: list[StageSummary] = []
     total_llm_calls = 0
     dry_run_token_tracker = TokenTracker()
+    enabled_adapters: list[str] = []
+    fetch_allocation: dict[str, int] = {}
 
     def estimate_tokens(stage_name: str, llm_calls: int) -> tuple[int, int, int]:
         input_tokens = llm_calls * DRY_RUN_ESTIMATED_INPUT_TOKENS_PER_CALL
@@ -919,6 +921,7 @@ def _generate_dry_run_report(
     # Stage: fetch
     if 'fetch' in active_stages:
         adapters = get_all_adapters(source_configs)
+        enabled_adapters = [adapter.name for adapter in adapters]
         if store:
             from max.pipeline.fetch_strategy import compute_fetch_allocation
             adapter_names = [a.name for a in adapters]
@@ -926,6 +929,7 @@ def _generate_dry_run_report(
         else:
             per_adapter = max(signal_limit // len(adapters), 5) if adapters else signal_limit
             allocation = {a.name: per_adapter for a in adapters}
+        fetch_allocation = allocation
 
         total_to_fetch = sum(allocation.values())
         input_tokens, output_tokens, total_tokens = estimate_tokens('fetch', 0)
@@ -1157,6 +1161,8 @@ def _generate_dry_run_report(
         estimated_output_tokens=estimated_output_tokens,
         estimated_cost_usd=dry_run_token_tracker.estimated_cost_usd(),
         cost_by_stage=cost_by_stage,
+        enabled_adapters=enabled_adapters,
+        fetch_allocation=fetch_allocation,
     )
 
 

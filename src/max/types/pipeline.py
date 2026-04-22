@@ -31,3 +31,5 @@ class DryRunReport:
     estimated_output_tokens: int = 0
     estimated_cost_usd: float = 0.0
     cost_by_stage: dict[str, float] = field(default_factory=dict)
+    enabled_adapters: list[str] = field(default_factory=list)
+    fetch_allocation: dict[str, int] = field(default_factory=dict)

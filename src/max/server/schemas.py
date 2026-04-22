@@ -128,6 +128,13 @@ class PipelineRunRequest(BaseModel):
 class PipelineDryRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
+    min_score: float = Field(default=50.0, ge=0.0, le=100.0)
+    weight_profile: Literal[
+        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
+    ] = "default"
+    ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
+    quality_loop_enabled: bool = False
+    draft_count: int = Field(default=8, ge=1, le=50)
     stages: list[str] | None = None
 
 
@@ -993,7 +1000,21 @@ class StageSummaryResponse(BaseModel):
     estimated_cost_usd: float = 0.0
 
 
+class DryRunEffectiveConfigResponse(BaseModel):
+    signal_limit: int
+    min_score: float
+    weight_profile: str
+    ideation_mode: str
+    quality_loop_enabled: bool
+    draft_count: int
+
+
 class DryRunReportResponse(BaseModel):
+    profile_name: str | None = None
+    domain: str | None = None
+    enabled_adapters: list[str] = Field(default_factory=list)
+    fetch_allocation: dict[str, int] = Field(default_factory=dict)
+    effective_config: DryRunEffectiveConfigResponse | None = None
     stages: list[StageSummaryResponse]
     estimated_total_llm_calls: int
     estimated_token_budget: int

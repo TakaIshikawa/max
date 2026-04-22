@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from max.analysis.portfolio_synthesis import build_candidates, synthesize_project_briefs
 from max.server.mcp_tools import (
     contribute_idea,
     contribute_signal,
+    dry_run_pipeline,
     evidence_chain_detail,
     get_design_brief,
     get_design_brief_markdown,
@@ -28,6 +31,64 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
+
+
+def _mcp_mock_profile(name: str = "devtools", domain_name: str = "developer-tools"):
+    from max.profiles.schema import DomainContext, EvaluationConfig, PipelineProfile, SourceConfig
+
+    return PipelineProfile(
+        name=name,
+        domain=DomainContext(
+            name=domain_name,
+            description=f"{domain_name} domain",
+            categories=["cli_tool"],
+            target_user_types=["developers"],
+        ),
+        sources=[
+            SourceConfig(adapter="test", weight=2.0),
+            SourceConfig(adapter="unused", enabled=False, weight=0.5),
+        ],
+        evaluation=EvaluationConfig(weight_profile="default", min_score=70.0),
+        signal_limit=99,
+        ideation_mode="direct",
+        quality_loop_enabled=False,
+        draft_count=8,
+    )
+
+
+def _mcp_mock_dry_run_report():
+    from max.types.pipeline import DryRunReport, StageSummary
+
+    return DryRunReport(
+        stages=[
+            StageSummary(
+                name="fetch",
+                would_process=12,
+                estimated_llm_calls=0,
+                skipped=False,
+                reason="",
+            ),
+            StageSummary(
+                name="ideate",
+                would_process=3,
+                estimated_llm_calls=3,
+                skipped=False,
+                reason="",
+                estimated_input_tokens=4500,
+                estimated_output_tokens=1500,
+                estimated_total_tokens=6000,
+                estimated_cost_usd=0.01,
+            ),
+        ],
+        estimated_total_llm_calls=3,
+        estimated_token_budget=6000,
+        estimated_input_tokens=4500,
+        estimated_output_tokens=1500,
+        estimated_cost_usd=0.01,
+        cost_by_stage={"ideate": 0.01},
+        enabled_adapters=["test"],
+        fetch_allocation={"test": 12},
+    )
 
 
 @pytest.fixture
@@ -460,3 +521,87 @@ def test_set_schedule_pipeline_config():
     assert result["pipeline_config"]["weight_profile"] == "quick_wins"
     assert result["pipeline_config"]["ideation_mode"] == "refinement"
     assert result["pipeline_config"]["quality_loop_enabled"] is True
+
+
+def test_dry_run_pipeline_selects_profile_and_applies_overrides():
+    profile = _mcp_mock_profile()
+    report = _mcp_mock_dry_run_report()
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile) as mock_load,
+        patch("max.pipeline.runner.run_pipeline", return_value=report) as mock_run,
+    ):
+        result = dry_run_pipeline(
+            profile="devtools",
+            signal_limit=12,
+            min_score=62.5,
+            weight_profile="quick_wins",
+            ideation_mode="refinement",
+            quality_loop_enabled=True,
+            draft_count=4,
+            stages=["fetch", "ideate"],
+        )
+
+    mock_load.assert_called_once_with("devtools")
+    _, kwargs = mock_run.call_args
+    assert kwargs["dry_run"] is True
+    assert kwargs["stages"] == ["fetch", "ideate"]
+    assert kwargs["profile"].signal_limit == 12
+    assert kwargs["profile"].evaluation.min_score == 62.5
+    assert kwargs["profile"].evaluation.weight_profile == "quick_wins"
+    assert kwargs["profile"].ideation_mode == "refinement"
+    assert kwargs["profile"].quality_loop_enabled is True
+    assert kwargs["profile"].draft_count == 4
+    assert profile.signal_limit == 99
+    assert result["profile_name"] == "devtools"
+    assert result["domain"] == "developer-tools"
+
+
+def test_dry_run_pipeline_reports_budget_and_adapter_shape():
+    profile = _mcp_mock_profile()
+    report = _mcp_mock_dry_run_report()
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile),
+        patch("max.pipeline.runner.run_pipeline", return_value=report),
+    ):
+        result = dry_run_pipeline(profile="devtools", signal_limit=12)
+
+    assert result["enabled_adapters"] == ["test"]
+    assert result["fetch_allocation"] == {"test": 12}
+    assert result["effective_config"] == {
+        "signal_limit": 12,
+        "min_score": 70.0,
+        "weight_profile": "default",
+        "ideation_mode": "direct",
+        "quality_loop_enabled": False,
+        "draft_count": 8,
+    }
+    assert result["estimated_total_llm_calls"] == 3
+    assert result["estimated_token_budget"] == 6000
+    assert result["estimated_input_tokens"] == 4500
+    assert result["estimated_output_tokens"] == 1500
+    assert result["estimated_cost_usd"] == 0.01
+    assert result["cost_by_stage"] == {"ideate": 0.01}
+    assert result["stages"][0]["name"] == "fetch"
+    assert result["stages"][0]["would_process"] == 12
+    assert result["stages"][1]["estimated_total_tokens"] == 6000
+
+
+def test_dry_run_pipeline_returns_error_for_invalid_profile():
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        result = dry_run_pipeline(profile="missing")
+
+    assert result == {"error": "Profile not found: missing"}
+
+
+def test_dry_run_pipeline_returns_error_for_invalid_stages():
+    profile = _mcp_mock_profile()
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile),
+        patch("max.pipeline.runner.run_pipeline", side_effect=ValueError("Unknown stages: nope")),
+    ):
+        result = dry_run_pipeline(profile="devtools", stages=["nope"])
+
+    assert result == {"error": "Unknown stages: nope"}

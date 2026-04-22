@@ -39,6 +39,7 @@ from max.server.schemas import (
     DomainQualityMemoryResponse,
     DomainQualityScoreResponse,
     DimensionScoreResponse,
+    DryRunEffectiveConfigResponse,
     DryRunReportResponse,
     EvidenceChainResponse,
     EvaluationResponse,
@@ -1921,7 +1922,7 @@ def _pipeline_result_response(
     )
 
 
-def _apply_pipeline_request_overrides(profile, body: PipelineRunRequest):
+def _apply_pipeline_request_overrides(profile, body: PipelineRunRequest | PipelineDryRunRequest):
     """Apply explicit API fields to a loaded profile, mirroring CLI overrides."""
     fields_set = body.model_fields_set
     profile = profile.model_copy(deep=True)
@@ -2016,29 +2017,47 @@ async def run_post_pipeline_endpoint(
 
 @router.post("/pipeline/dry-run", response_model=DryRunReportResponse)
 async def dry_run_pipeline_endpoint(body: PipelineDryRunRequest) -> DryRunReportResponse:
-    from max.pipeline.runner import run_pipeline
-    from max.profiles.loader import get_default_profile, load_profile
-
     try:
-        profile = load_profile(body.profile) if body.profile else get_default_profile()
+        return await asyncio.to_thread(run_pipeline_dry_run, body)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Profile not found: {body.profile}")
-
-    profile = profile.model_copy(deep=True)
-    if "signal_limit" in body.model_fields_set:
-        profile.signal_limit = body.signal_limit
-
-    try:
-        result = await asyncio.to_thread(
-            run_pipeline,
-            profile=profile,
-            dry_run=True,
-            stages=body.stages,
+        raise HTTPException(
+            status_code=404,
+            detail=f"Profile not found: {body.profile or 'default'}",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+def run_pipeline_dry_run(body: PipelineDryRunRequest) -> DryRunReportResponse:
+    """Run the pipeline dry-run flow for REST and MCP callers."""
+    from max.pipeline.runner import run_pipeline
+    from max.profiles.loader import get_default_profile, load_profile
+
+    profile = load_profile(body.profile) if body.profile else get_default_profile()
+    profile = _apply_pipeline_request_overrides(profile, body)
+
+    result = run_pipeline(
+        profile=profile,
+        dry_run=True,
+        stages=body.stages,
+    )
+    return _dry_run_report_response(result, profile=profile)
+
+
+def _dry_run_report_response(result, *, profile) -> DryRunReportResponse:
     return DryRunReportResponse(
+        profile_name=profile.name if profile else None,
+        domain=profile.domain.name if profile else None,
+        enabled_adapters=result.enabled_adapters,
+        fetch_allocation=result.fetch_allocation,
+        effective_config=DryRunEffectiveConfigResponse(
+            signal_limit=profile.signal_limit,
+            min_score=profile.evaluation.min_score,
+            weight_profile=profile.evaluation.weight_profile,
+            ideation_mode=profile.ideation_mode,
+            quality_loop_enabled=profile.quality_loop_enabled,
+            draft_count=profile.draft_count,
+        ) if profile else None,
         stages=[
             StageSummaryResponse(
                 name=s.name,

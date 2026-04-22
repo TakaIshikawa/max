@@ -3014,6 +3014,18 @@ def test_pipeline_dry_run_loads_profile_applies_overrides_and_returns_report(cli
 
     assert resp.status_code == 200
     assert resp.json() == {
+        "profile_name": "devtools",
+        "domain": "developer-tools",
+        "enabled_adapters": [],
+        "fetch_allocation": {},
+        "effective_config": {
+            "signal_limit": 12,
+            "min_score": 50.0,
+            "weight_profile": "default",
+            "ideation_mode": "direct",
+            "quality_loop_enabled": False,
+            "draft_count": 8,
+        },
         "stages": [
             {
                 "name": "fetch",
