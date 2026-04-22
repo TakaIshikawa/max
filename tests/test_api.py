@@ -232,6 +232,26 @@ def multi_idea_client(multi_idea_db):
     return TestClient(app)
 
 
+def _mock_evaluation_output(recommendation: str = "yes"):
+    mock_dim = type("Dim", (), {"value": 8.0, "confidence": 0.8, "reasoning": "test"})()
+    return type(
+        "EvalOut",
+        (),
+        {
+            "pain_severity": mock_dim,
+            "addressable_scale": mock_dim,
+            "build_effort": mock_dim,
+            "composability": mock_dim,
+            "competitive_density": mock_dim,
+            "timing_fit": mock_dim,
+            "compounding_value": mock_dim,
+            "strengths": ["Strong"],
+            "weaknesses": ["Weak"],
+            "recommendation": recommendation,
+        },
+    )()
+
+
 # ── Profile endpoints ───────────────────────────────────────────────
 
 
@@ -1086,6 +1106,107 @@ def test_create_idea(client):
     assert data["title"] == "API Created Idea"
     assert data["id"].startswith("bu-")
     assert data["status"] == "draft"
+
+
+def test_evaluate_ideas_batch_evaluates_each_existing_idea_in_order(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    for unit_id, title in [("bu-batch-1", "Batch Alpha"), ("bu-batch-2", "Batch Beta")]:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id=unit_id,
+                title=title,
+                one_liner=f"{title} one liner",
+                category=BuildableCategory.APPLICATION,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+            )
+        )
+    store.close()
+
+    with patch("max.evaluation.engine.structured_call", return_value=_mock_evaluation_output()) as mock_call:
+        resp = client.post(
+            "/api/v1/ideas/evaluate-batch",
+            json={"idea_ids": ["bu-batch-1", "bu-missing", "bu-batch-2"]},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["idea_id"] for item in data["results"]] == [
+        "bu-batch-1",
+        "bu-missing",
+        "bu-batch-2",
+    ]
+    assert [item["status"] for item in data["results"]] == ["evaluated", "error", "evaluated"]
+    assert data["results"][0]["evaluation"]["recommendation"] == "yes"
+    assert "Idea not found" in data["results"][1]["error"]
+    assert mock_call.call_count == 2
+    prompts = [call.kwargs["prompt"] for call in mock_call.call_args_list]
+    assert "Batch Alpha" in prompts[0]
+    assert "Batch Beta" in prompts[1]
+
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        assert store.get_buildable_unit("bu-batch-1").status == "evaluated"
+        assert store.get_buildable_unit("bu-batch-2").status == "evaluated"
+        assert store.get_evaluation("bu-batch-1") is not None
+        assert store.get_evaluation("bu-batch-2") is not None
+    finally:
+        store.close()
+
+
+def test_evaluate_ideas_batch_skip_existing(client, db_path):
+    def _score(val):
+        return DimensionScore(value=val, confidence=0.7, reasoning="existing")
+
+    store = Store(db_path=db_path, wal_mode=True)
+    for unit_id in ["bu-existing-eval", "bu-needs-eval"]:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id=unit_id,
+                title=unit_id,
+                one_liner="one liner",
+                category=BuildableCategory.APPLICATION,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+            )
+        )
+    store.insert_evaluation(
+        UtilityEvaluation(
+            buildable_unit_id="bu-existing-eval",
+            pain_severity=_score(7.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(7.0),
+            composability=_score(7.0),
+            competitive_density=_score(7.0),
+            timing_fit=_score(7.0),
+            compounding_value=_score(7.0),
+            overall_score=70.0,
+            recommendation="maybe",
+        )
+    )
+    store.close()
+
+    with patch("max.evaluation.engine.structured_call", return_value=_mock_evaluation_output()) as mock_call:
+        resp = client.post(
+            "/api/v1/ideas/evaluate-batch",
+            json={"idea_ids": ["bu-existing-eval", "bu-needs-eval"], "skip_existing": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["status"] for item in data["results"]] == ["skipped", "evaluated"]
+    assert data["results"][0]["evaluation"]["overall_score"] == 70.0
+    assert mock_call.call_count == 1
+
+
+def test_evaluate_ideas_batch_rejects_oversized_batch(client):
+    resp = client.post(
+        "/api/v1/ideas/evaluate-batch",
+        json={"idea_ids": [f"bu-{i}" for i in range(26)]},
+    )
+    assert resp.status_code == 422
 
 
 # ── Feedback endpoint ───────────────────────────────────────────────

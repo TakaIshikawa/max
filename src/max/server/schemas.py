@@ -70,6 +70,11 @@ class PriorArtCheckRequest(BaseModel):
     force: bool = False
 
 
+class IdeaEvaluateBatchRequest(BaseModel):
+    idea_ids: list[str] = Field(min_length=1, max_length=25)
+    skip_existing: bool = False
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -238,6 +243,18 @@ class EvaluationSummaryResponse(BaseModel):
 class ReviewQueueItemResponse(IdeaSummaryResponse):
     evaluation: EvaluationSummaryResponse
     latest_critique: IdeaCritiqueResponse | None = None
+
+
+class IdeaEvaluateBatchItemResponse(BaseModel):
+    idea_id: str
+    status: Literal["evaluated", "skipped", "error"]
+    success: bool
+    evaluation: EvaluationSummaryResponse | None = None
+    error: str | None = None
+
+
+class IdeaEvaluateBatchResponse(BaseModel):
+    results: list[IdeaEvaluateBatchItemResponse]
 
 
 class IdeaStatusCountResponse(BaseModel):

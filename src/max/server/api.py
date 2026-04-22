@@ -35,6 +35,9 @@ from max.server.schemas import (
     IdeaCreate,
     IdeaCritiqueResponse,
     IdeaDetailResponse,
+    IdeaEvaluateBatchItemResponse,
+    IdeaEvaluateBatchRequest,
+    IdeaEvaluateBatchResponse,
     IdeaMemoryResponse,
     IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
@@ -626,6 +629,67 @@ def list_ideas(
 @router.get("/ideas/status-summary", response_model=IdeaStatusSummaryResponse)
 def get_idea_status_summary(store: Store = Depends(get_store)) -> IdeaStatusSummaryResponse:
     return IdeaStatusSummaryResponse(**store.get_idea_status_summary())
+
+
+def _evaluate_existing_idea(store: Store, idea_id: str) -> UtilityEvaluation:
+    """Evaluate an existing idea and persist the result."""
+    from max.evaluation.engine import evaluate
+    from max.pipeline.runner import _resolve_evidence_chain
+
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise ValueError(f"Idea not found: {idea_id}")
+
+    evidence = _resolve_evidence_chain(unit, store)
+    evaluation = evaluate(unit, evidence=evidence)
+    store.insert_evaluation(evaluation)
+    store.update_buildable_unit_status(idea_id, "evaluated")
+    return evaluation
+
+
+@router.post(
+    "/ideas/evaluate-batch",
+    response_model=IdeaEvaluateBatchResponse,
+)
+def evaluate_ideas_batch(
+    body: IdeaEvaluateBatchRequest,
+    store: Store = Depends(get_store),
+) -> IdeaEvaluateBatchResponse:
+    results: list[IdeaEvaluateBatchItemResponse] = []
+    for idea_id in body.idea_ids:
+        try:
+            existing = store.get_evaluation(idea_id)
+            if body.skip_existing and existing:
+                results.append(
+                    IdeaEvaluateBatchItemResponse(
+                        idea_id=idea_id,
+                        status="skipped",
+                        success=True,
+                        evaluation=_evaluation_summary_to_response(existing),
+                    )
+                )
+                continue
+
+            evaluation = _evaluate_existing_idea(store, idea_id)
+            results.append(
+                IdeaEvaluateBatchItemResponse(
+                    idea_id=idea_id,
+                    status="evaluated",
+                    success=True,
+                    evaluation=_evaluation_summary_to_response(evaluation),
+                )
+            )
+        except Exception as exc:
+            results.append(
+                IdeaEvaluateBatchItemResponse(
+                    idea_id=idea_id,
+                    status="error",
+                    success=False,
+                    error=str(exc),
+                )
+            )
+
+    return IdeaEvaluateBatchResponse(results=results)
 
 
 @router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)
