@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
+from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.idea_similarity import find_similar_ideas
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.run_comparison import (
@@ -49,6 +50,7 @@ from max.server.schemas import (
     DryRunEffectiveConfigResponse,
     DryRunReportResponse,
     EvidenceChainResponse,
+    EvidenceDensityResponse,
     EvaluationExplanationResponse,
     EvaluationResponse,
     EvaluationSummaryResponse,
@@ -1548,6 +1550,19 @@ def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> 
         signal_converter=lambda signal: _signal_to_response(signal).model_dump(),
     )
     return EvidenceChainResponse(**graph)
+
+
+@router.get("/ideas/{idea_id}/evidence-density", response_model=EvidenceDensityResponse)
+def get_idea_evidence_density(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> EvidenceDensityResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return EvidenceDensityResponse.model_validate(
+        build_evidence_density_report(unit, store)
+    )
 
 
 @router.get("/ideas/{idea_id}/lineage", response_model=LineageGraphResponse)

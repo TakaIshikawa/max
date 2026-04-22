@@ -1486,6 +1486,71 @@ def spec_readiness(idea_id: str, fmt: str) -> None:
         store.close()
 
 
+@main.command(name="evidence-density")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def evidence_density(idea_id: str, fmt: str) -> None:
+    """Show evidence density for one idea."""
+    from max.analysis.evidence_density import build_evidence_density_report
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        report = build_evidence_density_report(unit, store)
+        if fmt == "json":
+            click.echo(json.dumps(report, indent=2))
+            return
+        click.echo(_render_evidence_density(report), nl=False)
+    finally:
+        store.close()
+
+
+def _render_evidence_density(report: dict) -> str:
+    lines = [
+        f"Evidence density: {report['idea_id']}",
+        f"Density score:    {report['density_score']:.1f}",
+        f"Signals:          {report['signal_count']}",
+        f"Insights:         {report['insight_count']}",
+        f"Avg credibility:  {_format_optional_float(report['average_credibility'])}",
+        f"Newest evidence:  {report['newest_evidence_timestamp'] or '-'}",
+        f"Oldest evidence:  {report['oldest_evidence_timestamp'] or '-'}",
+        "",
+        "By source adapter:",
+        *_format_count_lines(report["counts_by_source_adapter"]),
+        "",
+        "By source type:",
+        *_format_count_lines(report["counts_by_source_type"]),
+        "",
+        "By signal role:",
+        *_format_count_lines(report["counts_by_signal_role"]),
+    ]
+    if report["missing_evidence_warnings"]:
+        lines.extend(["", "Warnings:"])
+        lines.extend(f"  - {warning}" for warning in report["missing_evidence_warnings"])
+    return "\n".join(lines) + "\n"
+
+
+def _format_count_lines(counts: dict[str, int]) -> list[str]:
+    if not counts:
+        return ["  - none: 0"]
+    return [f"  - {key}: {value}" for key, value in counts.items()]
+
+
+def _format_optional_float(value: float | None) -> str:
+    return "-" if value is None else f"{value:.3f}"
+
+
 @main.command()
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))

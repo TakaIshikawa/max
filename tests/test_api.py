@@ -1776,6 +1776,25 @@ def test_get_idea_evidence_chain(seeded_client):
     }
 
 
+def test_get_idea_evidence_density(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-density")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["idea_id"] == "bu-api001"
+    assert data["signal_count"] == 1
+    assert data["insight_count"] == 1
+    assert data["counts_by_source_adapter"] == {"test": 1}
+    assert data["counts_by_source_type"] == {"forum": 1}
+    assert data["average_credibility"] == 0.7
+    assert data["density_score"] > 0
+    assert data["missing_evidence_warnings"] == []
+
+
+def test_get_idea_evidence_density_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/evidence-density")
+    assert resp.status_code == 404
+
+
 def test_get_idea_evidence_chain_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent/evidence-chain")
     assert resp.status_code == 404

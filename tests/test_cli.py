@@ -18,6 +18,7 @@ from max.cli import main
 from max.publisher.webhook import WebhookPublishError
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
+from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
 
 
@@ -84,11 +85,37 @@ def _make_evaluation(unit_id: str = "bu-test001", score: float = 78.0) -> Utilit
     )
 
 
+def _make_signal(signal_id: str = "sig-test001") -> Signal:
+    return Signal(
+        id=signal_id,
+        source_type=SignalSourceType.FORUM,
+        source_adapter="test",
+        title="Test evidence",
+        content="Evidence content",
+        url=f"https://example.com/{signal_id}",
+        credibility=0.7,
+        metadata={"signal_role": "problem"},
+    )
+
+
+def _make_insight(insight_id: str = "ins-test001") -> Insight:
+    return Insight(
+        id=insight_id,
+        category=InsightCategory.GAP,
+        title="Test insight",
+        summary="Evidence supports the idea.",
+        evidence=["sig-test001"],
+        confidence=0.8,
+    )
+
+
 def _mock_store(**overrides) -> MagicMock:
     """Build a mock Store with sensible defaults. Override individual methods via kwargs."""
     store = MagicMock()
     store.get_buildable_units.return_value = overrides.get("units", [])
     store.get_buildable_unit.return_value = overrides.get("unit", None)
+    store.get_insight.return_value = overrides.get("insight", None)
+    store.get_signal.return_value = overrides.get("signal", None)
     store.get_evaluation.return_value = overrides.get("evaluation", None)
     store.get_latest_feedback.return_value = overrides.get("latest_feedback", None)
     store.get_idea_critiques.return_value = overrides.get("idea_critiques", [])
@@ -734,6 +761,49 @@ class TestSpecReadinessCommand:
         assert result.exit_code != 0
         assert "Idea not found: bu-missing" in result.output
         store.get_evaluation.assert_not_called()
+
+
+class TestEvidenceDensityCommand:
+    @patch("max.store.db.Store")
+    def test_evidence_density_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), insight=_make_insight(), signal=_make_signal())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["evidence-density", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["signal_count"] == 1
+        assert payload["insight_count"] == 1
+        assert payload["counts_by_source_adapter"] == {"test": 1}
+        assert payload["counts_by_signal_role"] == {"problem": 1}
+        assert payload["average_credibility"] == 0.7
+
+    @patch("max.store.db.Store")
+    def test_evidence_density_stdout_text(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), insight=_make_insight(), signal=_make_signal())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["evidence-density", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Evidence density: bu-test001" in result.output
+        assert "Density score:" in result.output
+        assert "By source adapter:" in result.output
+        assert "  - test: 1" in result.output
+
+    @patch("max.store.db.Store")
+    def test_evidence_density_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["evidence-density", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_insight.assert_not_called()
+        store.get_signal.assert_not_called()
 
 
 class TestPublishCommand:

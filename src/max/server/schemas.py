@@ -586,6 +586,22 @@ class EvidenceChainResponse(BaseModel):
     edges: list[EvidenceChainEdgeResponse]
 
 
+class EvidenceDensityResponse(BaseModel):
+    idea_id: str
+    signal_count: int
+    insight_count: int
+    counts_by_source_adapter: dict[str, int]
+    counts_by_source_type: dict[str, int]
+    counts_by_signal_role: dict[str, int]
+    average_credibility: float | None
+    newest_evidence_timestamp: str | None
+    oldest_evidence_timestamp: str | None
+    missing_evidence_warnings: list[str]
+    missing_insight_ids: list[str]
+    missing_signal_ids: list[str]
+    density_score: float
+
+
 class LineageGraphNodeResponse(BaseModel):
     id: str
     entity_id: str
