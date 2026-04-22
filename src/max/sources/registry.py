@@ -24,6 +24,10 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
+    "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
+    "arxiv": "max.sources.arxiv:ArxivAdapter",
+    "devto": "max.sources.devto:DevtoAdapter",
+    "pubmed": "max.sources.pubmed:PubMedAdapter",
 }
 
 

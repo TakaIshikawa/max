@@ -244,8 +244,8 @@ def test_all_deterministic_adapters_covered() -> None:
 
 
 def test_mixed_adapters_set_correct() -> None:
-    """MIXED_ADAPTERS should contain exactly hackernews and reddit."""
-    assert MIXED_ADAPTERS == {"hackernews", "reddit"}
+    """MIXED_ADAPTERS should contain adapters that mix pain and solution signals."""
+    assert MIXED_ADAPTERS == {"hackernews", "reddit", "devto"}
 
 
 def test_non_mixed_adapters_skip_keyword_check() -> None:

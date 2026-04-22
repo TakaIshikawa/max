@@ -384,6 +384,89 @@ class TestDedupCommand:
         store.insert_feedback.assert_not_called()
         store.update_buildable_unit_status.assert_not_called()
 
+    @patch("max.analysis.dedup.cluster_ideas")
+    @patch("max.store.db.Store")
+    def test_dedup_preserves_approved_in_cluster(
+        self, MockStore, mock_cluster, runner: CliRunner,
+    ) -> None:
+        """Approved members should remain representative; new evaluated peer marked as duplicate."""
+        from max.analysis.dedup import IdeaCluster
+
+        unit_approved = _make_unit(id="bu-app", title="Approved Idea", status="approved")
+        unit_new = _make_unit(id="bu-new", title="New Idea", status="evaluated")
+        ev_approved = _make_evaluation("bu-app", score=60.0)
+        ev_new = _make_evaluation("bu-new", score=90.0)
+
+        store = _mock_store(units=[unit_approved, unit_new])
+        store.get_evaluation.side_effect = lambda uid: {
+            "bu-app": ev_approved, "bu-new": ev_new,
+        }.get(uid)
+        MockStore.return_value = store
+
+        mock_cluster.return_value = [
+            IdeaCluster(
+                representative=unit_approved,
+                representative_eval=ev_approved,
+                members=[(unit_approved, ev_approved), (unit_new, ev_new)],
+                centroid=[],
+            ),
+        ]
+
+        result = runner.invoke(main, ["dedup"])
+
+        assert result.exit_code == 0
+        # Only the new evaluated idea should be marked
+        store.update_buildable_unit_status.assert_called_once_with("bu-new", "duplicate")
+        assert store.insert_feedback.call_count == 1
+        assert store.insert_feedback.call_args[0][0] == "bu-new"
+        assert "Marked 1" in result.output
+
+    @patch("max.analysis.dedup.cluster_ideas")
+    @patch("max.store.db.Store")
+    def test_dedup_skips_already_user_decided_duplicates(
+        self, MockStore, mock_cluster, runner: CliRunner,
+    ) -> None:
+        """Already-rejected duplicates should not be re-mutated; report as preserved."""
+        from max.analysis.dedup import IdeaCluster
+
+        unit_rep = _make_unit(id="bu-rep", title="Best", status="evaluated")
+        unit_already_rej = _make_unit(id="bu-rej", title="Old Reject", status="rejected")
+        unit_already_app = _make_unit(id="bu-app", title="Old Approve", status="approved")
+        ev_rep = _make_evaluation("bu-rep", score=72.0)
+        ev_rej = _make_evaluation("bu-rej", score=60.0)
+        ev_app = _make_evaluation("bu-app", score=68.0)
+
+        store = _mock_store(units=[unit_rep, unit_already_rej, unit_already_app])
+        store.get_evaluation.side_effect = lambda uid: {
+            "bu-rep": ev_rep, "bu-rej": ev_rej, "bu-app": ev_app,
+        }.get(uid)
+        MockStore.return_value = store
+
+        # Cluster: approved should be representative, then we have reps duplicates list
+        # (reordering happens in real cluster_ideas; we simulate the post-fix behavior)
+        mock_cluster.return_value = [
+            IdeaCluster(
+                representative=unit_already_app,
+                representative_eval=ev_app,
+                members=[
+                    (unit_already_app, ev_app),
+                    (unit_rep, ev_rep),
+                    (unit_already_rej, ev_rej),
+                ],
+                centroid=[],
+            ),
+        ]
+
+        result = runner.invoke(main, ["dedup"])
+
+        assert result.exit_code == 0
+        # bu-rej is already rejected — should NOT be updated
+        # bu-rep is evaluated — should be marked duplicate
+        update_calls = [c.args for c in store.update_buildable_unit_status.call_args_list]
+        assert ("bu-rep", "duplicate") in update_calls
+        assert ("bu-rej", "duplicate") not in update_calls
+        assert "Preserved 1" in result.output
+
     @patch("max.store.db.Store")
     def test_dedup_skips_existing_duplicates(self, MockStore, runner: CliRunner) -> None:
         """Ideas already marked as duplicate should be excluded from clustering."""
@@ -485,6 +568,76 @@ class TestIdeaClustering:
         assert len(clusters[0].duplicates) == 1
         assert clusters[0].duplicates[0][0].id == "bu-low"
 
+    @patch("max.analysis.dedup.embed_text")
+    def test_approved_member_wins_representative_over_higher_score(self, mock_embed) -> None:
+        """An approved member must be representative even if a higher-scored evaluated peer exists."""
+        from max.analysis.dedup import cluster_ideas
+
+        mock_embed.return_value = [1.0, 0.0, 0.0]
+
+        unit_approved = _make_unit(id="bu-app", title="Approved", status="approved")
+        unit_new = _make_unit(id="bu-new", title="New", status="evaluated")
+        ev_approved = _make_evaluation("bu-app", score=60.0)
+        ev_new = _make_evaluation("bu-new", score=85.0)  # higher score
+
+        clusters = cluster_ideas([(unit_approved, ev_approved), (unit_new, ev_new)])
+
+        assert len(clusters) == 1
+        assert clusters[0].representative.id == "bu-app"  # status wins over score
+        dup_ids = [u.id for u, _ in clusters[0].duplicates]
+        assert dup_ids == ["bu-new"]
+
+    @patch("max.analysis.dedup.embed_text")
+    def test_rejected_member_wins_over_evaluated(self, mock_embed) -> None:
+        """A rejected member outranks evaluated ideas (preserves user 'no')."""
+        from max.analysis.dedup import cluster_ideas
+
+        mock_embed.return_value = [1.0, 0.0, 0.0]
+
+        unit_rejected = _make_unit(id="bu-rej", title="Rejected", status="rejected")
+        unit_new = _make_unit(id="bu-new", title="New", status="evaluated")
+        ev_rejected = _make_evaluation("bu-rej", score=55.0)
+        ev_new = _make_evaluation("bu-new", score=90.0)
+
+        clusters = cluster_ideas([(unit_rejected, ev_rejected), (unit_new, ev_new)])
+
+        assert len(clusters) == 1
+        assert clusters[0].representative.id == "bu-rej"
+
+    @patch("max.analysis.dedup.embed_text")
+    def test_approved_beats_rejected(self, mock_embed) -> None:
+        """Approved outranks rejected when both exist in same cluster."""
+        from max.analysis.dedup import cluster_ideas
+
+        mock_embed.return_value = [1.0, 0.0, 0.0]
+
+        unit_rejected = _make_unit(id="bu-rej", title="Rejected", status="rejected")
+        unit_approved = _make_unit(id="bu-app", title="Approved", status="approved")
+        ev_rejected = _make_evaluation("bu-rej", score=80.0)  # higher score
+        ev_approved = _make_evaluation("bu-app", score=60.0)
+
+        clusters = cluster_ideas([(unit_rejected, ev_rejected), (unit_approved, ev_approved)])
+
+        assert len(clusters) == 1
+        assert clusters[0].representative.id == "bu-app"
+
+    @patch("max.analysis.dedup.embed_text")
+    def test_score_breaks_ties_within_same_status(self, mock_embed) -> None:
+        """Within same status priority, highest score still wins."""
+        from max.analysis.dedup import cluster_ideas
+
+        mock_embed.return_value = [1.0, 0.0, 0.0]
+
+        unit_a = _make_unit(id="bu-a", title="Approved A", status="approved")
+        unit_b = _make_unit(id="bu-b", title="Approved B", status="approved")
+        ev_a = _make_evaluation("bu-a", score=70.0)
+        ev_b = _make_evaluation("bu-b", score=85.0)
+
+        clusters = cluster_ideas([(unit_a, ev_a), (unit_b, ev_b)])
+
+        assert len(clusters) == 1
+        assert clusters[0].representative.id == "bu-b"  # higher score among approved
+
 
 # ── review command (cluster-based) ─────────────────────────────────
 
@@ -539,13 +692,14 @@ class TestReviewCommand:
             ),
         ]
 
-        result = runner.invoke(main, ["review"], input="a\n\n")
+        result = runner.invoke(main, ["review"], input="a\n7\n\n")
 
         assert result.exit_code == 0
         assert "Solo Idea" in result.output
         assert "approved" in result.output
         store.insert_feedback.assert_called_once()
         assert store.insert_feedback.call_args[0][1] == "approved"
+        assert store.insert_feedback.call_args[1]["approval_score"] == 7
 
     @patch("max.analysis.dedup.cluster_ideas")
     @patch("max.store.db.Store")
@@ -604,7 +758,7 @@ class TestReviewCommand:
             ),
         ]
 
-        result = runner.invoke(main, ["review"], input="a\n\n")
+        result = runner.invoke(main, ["review"], input="a\n8\n\n")
 
         assert result.exit_code == 0
         assert "approved best" in result.output
@@ -612,7 +766,8 @@ class TestReviewCommand:
         # Best approved, other rejected
         assert store.insert_feedback.call_count == 2
         calls = store.insert_feedback.call_args_list
-        assert calls[0][0] == ("bu-best", "approved", "")
+        assert calls[0][1]["approval_score"] == 8
+        assert calls[0][0][1] == "approved"
         assert calls[1][0][1] == "rejected"
 
     @patch("max.analysis.dedup.cluster_ideas")
@@ -641,13 +796,14 @@ class TestReviewCommand:
             ),
         ]
 
-        result = runner.invoke(main, ["review"], input="A\n\n")
+        result = runner.invoke(main, ["review"], input="A\n9\n\n")
 
         assert result.exit_code == 0
         assert "approved all 2 ideas" in result.output
         assert store.insert_feedback.call_count == 2
         for call in store.insert_feedback.call_args_list:
             assert call[0][1] == "approved"
+            assert call[1]["approval_score"] == 9
 
     @patch("max.analysis.dedup.cluster_ideas")
     @patch("max.store.db.Store")

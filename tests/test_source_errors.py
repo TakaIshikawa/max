@@ -19,6 +19,16 @@ from max.sources.pypi_registry import PyPIRegistryAdapter
 from max.sources.reddit import RedditAdapter
 
 
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep retry-path tests fast while still exercising retry behavior."""
+    async def sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("max.sources.retry.asyncio.sleep", sleep)
+    monkeypatch.setattr("max.sources.github_issues.asyncio.sleep", sleep)
+
+
 # ── Error Construction Tests ──────────────────────────────────────────
 
 
@@ -110,7 +120,7 @@ async def test_github_issues_raises_rate_limit_error() -> None:
     async def mock_get(url: str, **kwargs) -> MagicMock:
         response = MagicMock()
         response.status_code = 429
-        response.headers = {"Retry-After": "120"}
+        response.headers = {"Retry-After": "0"}
         raise httpx.HTTPStatusError(
             "Too Many Requests",
             request=MagicMock(),
@@ -129,7 +139,7 @@ async def test_github_issues_raises_rate_limit_error() -> None:
 
         error = exc_info.value
         assert error.adapter_name == "github_issues"
-        assert error.retry_after == 120.0
+        assert error.retry_after == 0.0
         assert "Rate limit exceeded" in error.message
 
 

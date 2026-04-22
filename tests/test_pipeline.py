@@ -19,7 +19,6 @@ from max.store.db import Store
 from max.synthesis.engine import SynthesisOutput, InsightOutput
 from max.ideation.engine import IdeationOutput, BuildableUnitOutput
 from max.evaluation.engine import EvaluationOutput, DimensionScoreOutput
-from max.spec.generator import SpecOutput, GoalOutput, TechStackOutput, PatternOutput, DecisionOutput, RequirementOutput
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
@@ -81,35 +80,6 @@ def _mock_evaluation_output() -> EvaluationOutput:
     )
 
 
-def _mock_spec_output() -> SpecOutput:
-    return SpecOutput(
-        name="mcp-test-runner",
-        vision="Automated MCP server testing",
-        goals=[GoalOutput(id="G-1", description="Validate MCP compliance", success_criteria="100% protocol coverage")],
-        tech_stack=TechStackOutput(languages=["TypeScript"], frameworks=["Node.js"], infrastructure=["npm"]),
-        constraints=["MVP scope only"],
-        patterns=[PatternOutput(name="Plugin", description="Pluggable test suites", scope=["tests"])],
-        invariants=["Tests must be deterministic"],
-        conventions=["kebab-case files"],
-        decisions=[DecisionOutput(id="ADR-1", title="Use stdio transport", decision="stdio", rationale="Most common")],
-        requirements=[
-            RequirementOutput(
-                title="Implement protocol validator",
-                priority="critical",
-                description="Core validation engine",
-                acceptance_criteria=["Validates initialize", "Validates tool listing"],
-            ),
-            RequirementOutput(
-                title="Add CLI interface",
-                priority="high",
-                description="CLI entry point",
-                acceptance_criteria=["Supports --verbose flag", "Returns exit code"],
-                dependencies=["Implement protocol validator"],
-            ),
-        ],
-    )
-
-
 # Track structured_call invocations — count + captured prompts by stage
 _call_count = 0
 _captured_calls: list[dict] = []
@@ -128,8 +98,6 @@ def _mock_structured_call(system, prompt, output_type, **kwargs):
         return _mock_ideation_output()
     elif type_name == "EvaluationOutput":
         return _mock_evaluation_output()
-    elif type_name == "SpecOutput":
-        return _mock_spec_output()
     else:
         raise ValueError(f"Unexpected output_type in mock: {type_name}")
 
@@ -152,7 +120,7 @@ def reset_call_count():
 def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
     """Run the full pipeline with mocked LLM and HTTP, verify output structure."""
     db_path = str(tmp_path / "test.db")
-    output_dir = tmp_path / ".tact"
+    output_dir = tmp_path / ".max-output"
 
     # Mock HTTP for source adapters
     hn_responses = {
@@ -183,7 +151,6 @@ def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: __import__("max.store.db", fromlist=["Store"]).Store(db_path=db_path)),
     ):
@@ -195,7 +162,6 @@ def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
     assert result.insights_generated == 1
     assert result.ideas_generated == 1
     assert result.ideas_evaluated == 1
-    assert result.specs_generated == 1
     assert len(result.top_ideas) == 1
     assert result.top_ideas[0]["title"] == "MCP Test Runner"
     assert result.top_ideas[0]["recommendation"] == "yes"
@@ -204,17 +170,9 @@ def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
     assert result.avg_insight_confidence > 0
     assert result.avg_idea_score > 0
 
-    # Verify output files
-    project_dir = output_dir / "mcp-test-runner"
-    assert project_dir.exists()
-    assert (project_dir / "product.yaml").exists()
-    assert (project_dir / "architecture.yaml").exists()
-    req_files = list((project_dir / "requirements").glob("REQ-*.yaml"))
-    assert len(req_files) == 2
-
     # Verify LLM was called for each stage
     global _call_count
-    assert _call_count == 4  # synthesis + ideation + evaluation + spec
+    assert _call_count == 3  # synthesis + ideation + evaluation
 
     # Verify new pipeline features
     assert result.weights_adapted is False  # No feedback seeded → static weights
@@ -338,7 +296,6 @@ def test_pipeline_with_feedback_adapts_weights(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -393,7 +350,6 @@ def test_pipeline_ideation_receives_existing_ideas(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -441,7 +397,6 @@ def test_pipeline_evaluation_receives_evidence(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -471,7 +426,7 @@ def test_pipeline_meta_intelligence_features(tmp_path: Path) -> None:
     - Ideation prompt includes gaps context when gaps are detected
     """
     db_path = str(tmp_path / "test_meta.db")
-    output_dir = tmp_path / ".tact"
+    output_dir = tmp_path / ".max-output"
 
     # Diverse signals from 5 adapters — designed to produce meaningful clusters and gaps.
     # NOTE: Clustering uses hash-based trigram embeddings (not real semantic embeddings).
@@ -540,7 +495,6 @@ def test_pipeline_meta_intelligence_features(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -601,19 +555,14 @@ def test_pipeline_meta_intelligence_features(tmp_path: Path) -> None:
     assert result.insights_generated == 1
     assert result.ideas_generated == 1
     assert result.ideas_evaluated == 1
-    assert result.specs_generated == 1
     assert result.avg_insight_confidence > 0
     assert result.avg_idea_score > 0
-
-    # Output files created
-    project_dir = output_dir / "mcp-test-runner"
-    assert project_dir.exists()
 
 
 # ── Profile-aware pipeline e2e tests ──────────────────────────────
 
 
-def _make_healthcare_profile(output_dir: str = ".tact") -> PipelineProfile:
+def _make_healthcare_profile(output_dir: str = ".max-output") -> PipelineProfile:
     """Construct a healthcare profile for testing (no YAML file dependency)."""
     return PipelineProfile(
         name="healthcare",
@@ -670,28 +619,6 @@ def _mock_healthcare_ideation_output() -> IdeationOutput:
     )
 
 
-def _mock_healthcare_spec_output() -> SpecOutput:
-    return SpecOutput(
-        name="fhir-data-sync",
-        vision="Automated EHR interoperability",
-        goals=[GoalOutput(id="G-1", description="Sync FHIR resources", success_criteria="Round-trip accuracy")],
-        tech_stack=TechStackOutput(languages=["Python"], frameworks=["FastAPI"], infrastructure=["Docker"]),
-        constraints=["HIPAA compliant"],
-        patterns=[],
-        invariants=["PHI must be encrypted at rest"],
-        conventions=["snake_case"],
-        decisions=[DecisionOutput(id="ADR-1", title="Use FHIR R4", decision="R4", rationale="Latest standard")],
-        requirements=[
-            RequirementOutput(
-                title="Implement FHIR sync",
-                priority="critical",
-                description="Core sync engine",
-                acceptance_criteria=["Supports Patient resource", "Supports Observation resource"],
-            ),
-        ],
-    )
-
-
 def _mock_healthcare_structured_call(system, prompt, output_type, **kwargs):
     """Structured call mock that returns healthcare-domain outputs."""
     global _call_count
@@ -705,8 +632,6 @@ def _mock_healthcare_structured_call(system, prompt, output_type, **kwargs):
         return _mock_healthcare_ideation_output()
     elif type_name == "EvaluationOutput":
         return _mock_evaluation_output()
-    elif type_name == "SpecOutput":
-        return _mock_healthcare_spec_output()
     else:
         raise ValueError(f"Unexpected output_type: {type_name}")
 
@@ -714,7 +639,7 @@ def _mock_healthcare_structured_call(system, prompt, output_type, **kwargs):
 def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
     """Profile's DomainContext appears in LLM system prompts for all stages."""
     db_path = str(tmp_path / "test_profile.db")
-    output_dir = tmp_path / ".tact"
+    output_dir = tmp_path / ".max-output"
     profile = _make_healthcare_profile(str(output_dir))
 
     hn_responses = {
@@ -747,7 +672,6 @@ def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -797,7 +721,6 @@ def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
     assert result.insights_generated == 1
     assert result.ideas_generated == 1
     assert result.ideas_evaluated == 1
-    assert result.specs_generated == 1
 
 
 def test_profile_source_configs_control_adapters(tmp_path: Path) -> None:
@@ -847,7 +770,6 @@ def test_profile_source_configs_control_adapters(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -864,7 +786,7 @@ def test_profile_source_configs_control_adapters(tmp_path: Path) -> None:
 def test_no_profile_matches_default_behavior(tmp_path: Path) -> None:
     """Running without a profile produces identical behavior to pre-profile code."""
     db_path = str(tmp_path / "test_default.db")
-    output_dir = tmp_path / ".tact"
+    output_dir = tmp_path / ".max-output"
 
     hn_responses = {
         "topstories.json": MagicMock(json=lambda: [1, 2], status_code=200),
@@ -894,7 +816,6 @@ def test_no_profile_matches_default_behavior(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
@@ -953,11 +874,10 @@ def test_profile_from_yaml_loads_and_runs(tmp_path: Path) -> None:
         patch("max.synthesis.engine.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.ideation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.evaluation.engine.structured_call", side_effect=_mock_healthcare_structured_call),
-        patch("max.spec.generator.structured_call", side_effect=_mock_healthcare_structured_call),
         patch("max.store.db.DB_PATH", db_path),
         patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
     ):
-        result = run_pipeline(profile=profile, output_dir=tmp_path / ".tact")
+        result = run_pipeline(profile=profile, output_dir=tmp_path / ".max-output")
 
     assert result.profile_name == "healthcare"
     assert result.insights_generated == 1

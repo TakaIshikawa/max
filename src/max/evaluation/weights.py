@@ -96,8 +96,11 @@ def adapt_weights(
     Each outcome dict should contain:
         - dimension_values: dict[str, float] — scores per dimension
         - success: bool — whether the idea was ultimately approved/published
+        - approval_score: int | None — 1-10 conviction score (optional)
 
     Dimensions that correlate with success get higher weights.
+    When approval_score is present, strongly-approved ideas (score=10)
+    contribute more to dimension averages than weakly-approved ones (score=5).
     """
     base = dict(base_weights or DEFAULT_WEIGHTS)
 
@@ -106,23 +109,27 @@ def adapt_weights(
 
     # Compute per-dimension success correlation
     adjustments: dict[str, float] = {dim: 0.0 for dim in base}
-    success_count = sum(1 for o in outcomes if o.get("success"))
-    failure_count = len(outcomes) - success_count
 
-    if success_count == 0 or failure_count == 0:
+    successes = [o for o in outcomes if o.get("success")]
+    failures = [o for o in outcomes if not o.get("success")]
+
+    if not successes or not failures:
         return base
 
     for dim in base:
+        # Score-weighted average for successes:
+        # approval_score defaults to 5 for legacy rows without a score
+        weights = [o.get("approval_score") or 5 for o in successes]
+        weight_total = sum(weights)
         success_avg = sum(
-            o["dimension_values"].get(dim, 0)
-            for o in outcomes
-            if o.get("success")
-        ) / success_count
+            o["dimension_values"].get(dim, 0) * w
+            for o, w in zip(successes, weights)
+        ) / weight_total
 
+        failure_count = len(failures)
         failure_avg = sum(
             o["dimension_values"].get(dim, 0)
-            for o in outcomes
-            if not o.get("success")
+            for o in failures
         ) / failure_count
 
         # Positive delta = dimension predicts success

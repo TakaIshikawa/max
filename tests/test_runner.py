@@ -7,9 +7,7 @@ and source adapters mocked at the function boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -20,14 +18,6 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
-from max.types.tact_spec import (
-    TactArchitecture,
-    TactGoal,
-    TactProduct,
-    TactRequirement,
-    TactSpec,
-    TactTechStack,
-)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -97,28 +87,6 @@ def _make_evaluation(unit_id: str, score: float) -> UtilityEvaluation:
     )
 
 
-def _make_spec(unit_id: str, name: str = "test-spec") -> TactSpec:
-    return TactSpec(
-        buildable_unit_id=unit_id,
-        product=TactProduct(
-            name=name,
-            vision="Test vision",
-            goals=[TactGoal(id="G-1", description="Goal", success_criteria="Done")],
-            tech_stack=TactTechStack(languages=["Python"], frameworks=[], infrastructure=[]),
-            constraints=[],
-        ),
-        architecture=TactArchitecture(patterns=[], invariants=[], conventions=[]),
-        requirements=[
-            TactRequirement(
-                title="Req",
-                priority="critical",
-                description="Desc",
-                acceptance_criteria=["AC1"],
-            ),
-        ],
-    )
-
-
 def _make_cluster(
     topic: str,
     signals: list[Signal],
@@ -162,11 +130,9 @@ def _base_patches(mock_store: MagicMock) -> dict[str, MagicMock | object]:
         f"{_R}.ideate_refinement": MagicMock(return_value=[]),
         f"{_R}.ideate_cross_domain": MagicMock(return_value=[]),
         f"{_R}.evaluate": MagicMock(),
-        f"{_R}.generate_spec": MagicMock(),
         f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=[], duplicates=0)),
         f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=[], duplicates=0)),
-        f"{_R}.write_tact_spec": MagicMock(),
-        f"{_R}._fetch_all_signals": MagicMock(return_value=([], {})),
+        f"{_R}._fetch_all_signals": MagicMock(return_value=([], {}, {})),
     }
 
 
@@ -186,7 +152,6 @@ def _make_mock_store() -> MagicMock:
     store.insert_buildable_unit = MagicMock()
     store.update_buildable_unit_status = MagicMock()
     store.insert_evaluation = MagicMock()
-    store.insert_tact_spec = MagicMock()
     store.close = MagicMock()
     store.get_signal = MagicMock(return_value=None)
     store.get_insight = MagicMock(return_value=None)
@@ -228,12 +193,11 @@ class TestRunPipelineEndToEnd:
     """Verify the pipeline calls each stage in order and returns a correct PipelineResult."""
 
     def test_calls_stages_in_order(self):
-        """Pipeline calls fetch → annotate → triangulate → synthesize → ideate → evaluate → spec."""
+        """Pipeline calls fetch → annotate → triangulate → synthesize → ideate → evaluate."""
         signals = [_make_signal("s1"), _make_signal("s2")]
         insights = [_make_insight("i1", evidence=["s1"])]
         units = [_make_unit("u1", insights=["i1"])]
         evaluation = _make_evaluation("u1", score=80.0)
-        spec = _make_spec("u1")
 
         mock_store = _make_mock_store()
         mock_store.count_signals = MagicMock(side_effect=[0, 2])
@@ -243,17 +207,16 @@ class TestRunPipelineEndToEnd:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {"hn": 2})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {"hn": 2}, {"hn": {"status": "ok", "signal_count": 2, "error_message": None, "duration_ms": 100}})),
             f"{_R}.synthesize": MagicMock(return_value=insights),
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=insights, duplicates=0)),
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": MagicMock(return_value=evaluation),
-            f"{_R}.generate_spec": MagicMock(return_value=spec),
             f"{_R}.triangulate": MagicMock(return_value=[]),
         }
 
-        with _PatchCtx(overrides) as ctx:
+        with _PatchCtx(overrides):
             result = run_pipeline(signal_limit=10, min_score=50.0)
 
         assert isinstance(result, PipelineResult)
@@ -262,7 +225,6 @@ class TestRunPipelineEndToEnd:
         assert result.insights_generated == 1
         assert result.ideas_generated == 1
         assert result.ideas_evaluated == 1
-        assert result.specs_generated == 1
 
     def test_returns_pipeline_result_type(self):
         with _PatchCtx():
@@ -277,7 +239,6 @@ class TestRunPipelineEndToEnd:
         assert result.signals_fetched == 0
         assert result.insights_generated == 0
         assert result.ideas_generated == 0
-        assert result.specs_generated == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -308,13 +269,13 @@ class TestFetchAllSignals:
                 [_make_signal("a1")],
                 [_make_signal("b1")],
             ]):
-                signals, alloc = _fetch_all_signals(signal_limit=10)
+                signals, alloc, _ = _fetch_all_signals(signal_limit=10)
 
         assert len(signals) == 2
         assert alloc["adapter_a"] > 0
         assert alloc["adapter_b"] > 0
 
-    def test_adapter_failure_caught_not_raised(self, capsys):
+    def test_adapter_failure_caught_not_raised(self):
         """If one adapter raises, the other's signals are still returned."""
         adapter_ok = MagicMock()
         adapter_ok.name = "ok_adapter"
@@ -329,13 +290,10 @@ class TestFetchAllSignals:
                 RuntimeError("network down"),
             ]),
         ):
-            signals, alloc = _fetch_all_signals(signal_limit=10)
+            signals, alloc, _ = _fetch_all_signals(signal_limit=10)
 
         assert len(signals) == 1
         assert signals[0].id == "ok1"
-        captured = capsys.readouterr()
-        assert "fail_adapter" in captured.out
-        assert "network down" in captured.out
 
     def test_adaptive_allocation_with_store(self):
         """When store is provided, compute_fetch_allocation is called."""
@@ -348,7 +306,7 @@ class TestFetchAllSignals:
             patch("max.pipeline.fetch_strategy.compute_fetch_allocation", return_value={"test_adapter": 15}) as mock_alloc,
             patch(f"{_R}.asyncio.run", return_value=[_make_signal("s1")]),
         ):
-            signals, alloc = _fetch_all_signals(signal_limit=30, store=mock_store)
+            signals, alloc, _ = _fetch_all_signals(signal_limit=30, store=mock_store)
 
         mock_alloc.assert_called_once_with(30, ["test_adapter"], mock_store)
         assert alloc == {"test_adapter": 15}
@@ -363,7 +321,7 @@ class TestFetchAllSignals:
             patch(f"{_R}.get_all_adapters", return_value=adapters),
             patch(f"{_R}.asyncio.run", return_value=[]),
         ):
-            _, alloc = _fetch_all_signals(signal_limit=30)
+            _, alloc, _ = _fetch_all_signals(signal_limit=30)
 
         assert alloc == {"a0": 10, "a1": 10, "a2": 10}
 
@@ -384,7 +342,7 @@ class TestSignalRoleAnnotation:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {}, {})),
         }
 
         with _PatchCtx(overrides) as ctx:
@@ -405,7 +363,7 @@ class TestSignalRoleAnnotation:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {}, {})),
             f"{_R}.annotate_signals": mock_annotate,
         }
 
@@ -436,12 +394,12 @@ class TestIncrementalSynthesis:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(all_signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(all_signals, {}, {})),
             f"{_R}.synthesize": mock_synthesize,
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=insights, duplicates=0)),
         }
 
-        with _PatchCtx(overrides) as ctx:
+        with _PatchCtx(overrides):
             result = run_pipeline()
 
         # synthesize received only unsynthesized signals
@@ -463,7 +421,7 @@ class TestIncrementalSynthesis:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(unsynthesized, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(unsynthesized, {}, {})),
             f"{_R}.synthesize": MagicMock(return_value=insights),
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=insights, duplicates=0)),
         }
@@ -483,7 +441,7 @@ class TestIncrementalSynthesis:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {}, {})),
         }
 
         with _PatchCtx(overrides) as ctx:
@@ -519,7 +477,7 @@ class TestTriangulationIntegration:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {}, {})),
             f"{_R}.triangulate": mock_triangulate,
             f"{_R}.format_cluster_context": mock_format,
             f"{_R}.synthesize": mock_synthesize,
@@ -527,7 +485,7 @@ class TestTriangulationIntegration:
         }
 
         with _PatchCtx(overrides):
-            result = run_pipeline()
+            run_pipeline()
 
         mock_triangulate.assert_called_once_with(signals)
         mock_format.assert_called_once_with(clusters)
@@ -554,7 +512,7 @@ class TestTriangulationIntegration:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=([s1, s2, s3], {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=([s1, s2, s3], {}, {})),
             f"{_R}.triangulate": MagicMock(return_value=[multi, single]),
             f"{_R}.synthesize": MagicMock(return_value=[]),
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=[], duplicates=0)),
@@ -707,7 +665,7 @@ class TestIdeationModes:
 class TestMinScoreFiltering:
     """Verify that only ideas above min_score get specs generated."""
 
-    def test_only_above_threshold_get_specs(self):
+    def test_only_above_threshold_get_approved(self):
         units = [_make_unit("u1"), _make_unit("u2"), _make_unit("u3")]
         evals = [
             _make_evaluation("u1", score=90.0),
@@ -720,48 +678,21 @@ class TestMinScoreFiltering:
 
         eval_iter = iter(evals)
         mock_evaluate = MagicMock(side_effect=lambda unit, **kw: next(eval_iter))
-        mock_generate_spec = MagicMock(side_effect=lambda u, e: _make_spec(u.id, u.title))
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": mock_evaluate,
-            f"{_R}.generate_spec": mock_generate_spec,
         }
 
         with _PatchCtx(overrides):
             result = run_pipeline(min_score=50.0)
 
         assert result.ideas_evaluated == 3
-        assert result.specs_generated == 2  # u1 (90) and u3 (70) pass, u2 (40) fails
-        assert mock_generate_spec.call_count == 2
 
-    def test_no_specs_when_all_below_threshold(self):
-        units = [_make_unit("u1")]
-        evals = [_make_evaluation("u1", score=30.0)]
-
-        mock_store = _make_mock_store()
-        mock_store.count_signals = MagicMock(side_effect=[0, 0])
-
-        mock_generate_spec = MagicMock()
-
-        overrides = {
-            f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
-            f"{_R}.ideate": MagicMock(return_value=units),
-            f"{_R}.evaluate": MagicMock(return_value=evals[0]),
-            f"{_R}.generate_spec": mock_generate_spec,
-        }
-
-        with _PatchCtx(overrides):
-            result = run_pipeline(min_score=50.0)
-
-        assert result.specs_generated == 0
-        mock_generate_spec.assert_not_called()
-
-    def test_unit_status_approved_only_for_passing(self):
-        """Units above threshold get status='approved', others stay at 'evaluated'."""
+    def test_unit_status_evaluated_after_scoring(self):
+        """All units get status='evaluated' after evaluate stage (approval is via triage/review)."""
         units = [_make_unit("u_pass"), _make_unit("u_fail")]
         evals = [
             _make_evaluation("u_pass", score=80.0),
@@ -778,19 +709,15 @@ class TestMinScoreFiltering:
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": MagicMock(side_effect=lambda unit, **kw: next(eval_iter)),
-            f"{_R}.generate_spec": MagicMock(side_effect=lambda u, e: _make_spec(u.id)),
         }
 
         with _PatchCtx(overrides):
             run_pipeline(min_score=50.0)
 
         status_calls = mock_store.update_buildable_unit_status.call_args_list
-        # Both get "evaluated" after evaluate(), but only u_pass gets "approved"
         statuses = [(c[0][0], c[0][1]) for c in status_calls]
         assert ("u_pass", "evaluated") in statuses
         assert ("u_fail", "evaluated") in statuses
-        assert ("u_pass", "approved") in statuses
-        assert ("u_fail", "approved") not in statuses
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -834,7 +761,7 @@ class TestPipelineResultMetrics:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {}, {})),
             f"{_R}.synthesize": MagicMock(return_value=insights),
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=insights, duplicates=0)),
         }
@@ -862,7 +789,6 @@ class TestPipelineResultMetrics:
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": MagicMock(side_effect=lambda unit, **kw: next(eval_iter)),
-            f"{_R}.generate_spec": MagicMock(side_effect=lambda u, e: _make_spec(u.id)),
         }
 
         with _PatchCtx(overrides):
@@ -894,7 +820,6 @@ class TestPipelineResultMetrics:
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": MagicMock(side_effect=lambda unit, **kw: next(eval_iter)),
-            f"{_R}.generate_spec": MagicMock(side_effect=lambda u, e: _make_spec(u.id)),
         }
 
         with _PatchCtx(overrides):
@@ -921,7 +846,7 @@ class TestPipelineRunRecording:
         overrides = {f"{_R}.Store": MagicMock(return_value=mock_store)}
 
         with _PatchCtx(overrides):
-            result = run_pipeline(signal_limit=20, min_score=55.0, weight_profile="aggressive")
+            run_pipeline(signal_limit=20, min_score=55.0, weight_profile="aggressive")
 
         mock_store.insert_pipeline_run.assert_called_once()
         run_id, config = mock_store.insert_pipeline_run.call_args[0]
@@ -949,6 +874,9 @@ class TestPipelineRunRecording:
 
         # update_pipeline_run still called (in finally block)
         mock_store.update_pipeline_run.assert_called_once()
+        _, kwargs = mock_store.update_pipeline_run.call_args
+        assert kwargs["status"] == "failed"
+        assert "RuntimeError: boom" in kwargs["error_message"]
         mock_store.close.assert_called_once()
 
     def test_update_pipeline_run_receives_metrics(self):
@@ -963,17 +891,16 @@ class TestPipelineRunRecording:
 
         overrides = {
             f"{_R}.Store": MagicMock(return_value=mock_store),
-            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {"hn": 1})),
+            f"{_R}._fetch_all_signals": MagicMock(return_value=(signals, {"hn": 1}, {"hn": {"status": "ok", "signal_count": 1, "error_message": None, "duration_ms": 50}})),
             f"{_R}.synthesize": MagicMock(return_value=insights),
             f"{_R}.dedup_insights": MagicMock(return_value=DedupResult(kept=insights, duplicates=0)),
             f"{_R}.dedup_buildable_units": MagicMock(return_value=DedupResult(kept=units, duplicates=0)),
             f"{_R}.ideate": MagicMock(return_value=units),
             f"{_R}.evaluate": MagicMock(return_value=evaluation),
-            f"{_R}.generate_spec": MagicMock(return_value=_make_spec("u1")),
         }
 
         with _PatchCtx(overrides):
-            result = run_pipeline(min_score=50.0)
+            run_pipeline(min_score=50.0)
 
         mock_store.update_pipeline_run.assert_called_once()
         _, kwargs = mock_store.update_pipeline_run.call_args
@@ -982,7 +909,6 @@ class TestPipelineRunRecording:
         assert kwargs["insights_generated"] == 1
         assert kwargs["ideas_generated"] == 1
         assert kwargs["ideas_evaluated"] == 1
-        assert kwargs["specs_generated"] == 1
         assert kwargs["avg_idea_score"] == 75.0
 
     def test_run_id_stored_in_result(self):
@@ -1007,3 +933,214 @@ class TestPipelineRunRecording:
             run_pipeline()
 
         mock_store.close.assert_called_once()
+
+
+# ── Post-eval dedup: preserves user decisions ────────────────────────
+
+
+class TestRunDedupPreservesUserDecisions:
+    """`_run_dedup` must not overwrite approved/rejected statuses."""
+
+    def _make_eval_unit(
+        self, id: str, status: str = "evaluated", score: float = 70.0,
+    ) -> tuple[BuildableUnit, UtilityEvaluation]:
+        unit = BuildableUnit(
+            id=id,
+            title=f"Unit {id}",
+            one_liner="similar idea",
+            category=BuildableCategory.CLI_TOOL,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="same problem",
+            solution="same solution",
+            value_proposition="value",
+            inspiring_insights=[],
+            evidence_signals=[],
+            status=status,
+        )
+        return unit, _make_evaluation(id, score=score)
+
+    def test_already_approved_member_not_marked_duplicate(self):
+        from max.analysis.dedup import IdeaCluster
+        from max.pipeline.runner import _run_dedup
+
+        unit_app, ev_app = self._make_eval_unit("bu-app", status="approved", score=60.0)
+        unit_new, ev_new = self._make_eval_unit("bu-new", status="evaluated", score=85.0)
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(return_value=[unit_app, unit_new])
+        store.get_evaluation = MagicMock(
+            side_effect=lambda uid: {"bu-app": ev_app, "bu-new": ev_new}.get(uid)
+        )
+
+        cluster = IdeaCluster(
+            representative=unit_app,  # approved wins as rep
+            representative_eval=ev_app,
+            members=[(unit_app, ev_app), (unit_new, ev_new)],
+            centroid=[],
+        )
+
+        with patch(
+            "max.analysis.dedup.cluster_ideas", return_value=[cluster],
+        ):
+            found, marked = _run_dedup(store, domain=None, threshold=0.85, limit=500)
+
+        assert found == 1  # 1 duplicate detected (the new evaluated one)
+        assert marked == 1  # only new one marked
+        # Only bu-new should be mutated; bu-app must be untouched
+        update_calls = [c.args for c in store.update_buildable_unit_status.call_args_list]
+        assert update_calls == [("bu-new", "duplicate")]
+        feedback_ids = [c.args[0] for c in store.insert_feedback.call_args_list]
+        assert feedback_ids == ["bu-new"]
+
+    def test_already_rejected_member_not_overwritten(self):
+        from max.analysis.dedup import IdeaCluster
+        from max.pipeline.runner import _run_dedup
+
+        unit_rep, ev_rep = self._make_eval_unit("bu-rep", status="evaluated", score=80.0)
+        unit_rej, ev_rej = self._make_eval_unit("bu-rej", status="rejected", score=70.0)
+        unit_new, ev_new = self._make_eval_unit("bu-new", status="evaluated", score=65.0)
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(
+            return_value=[unit_rep, unit_rej, unit_new],
+        )
+        store.get_evaluation = MagicMock(
+            side_effect=lambda uid: {
+                "bu-rep": ev_rep, "bu-rej": ev_rej, "bu-new": ev_new,
+            }.get(uid)
+        )
+
+        # Rejected wins over evaluated by status priority — bu-rej is rep
+        cluster = IdeaCluster(
+            representative=unit_rej,
+            representative_eval=ev_rej,
+            members=[(unit_rej, ev_rej), (unit_rep, ev_rep), (unit_new, ev_new)],
+            centroid=[],
+        )
+
+        with patch(
+            "max.analysis.dedup.cluster_ideas", return_value=[cluster],
+        ):
+            found, marked = _run_dedup(store, domain=None, threshold=0.85, limit=500)
+
+        assert found == 2  # rep and new are both "duplicates" of rejected
+        assert marked == 2  # both evaluated ones get marked
+        update_calls = {c.args[0] for c in store.update_buildable_unit_status.call_args_list}
+        assert update_calls == {"bu-rep", "bu-new"}
+        # bu-rej must not be re-mutated
+        assert "bu-rej" not in update_calls
+
+
+# ── Post-eval stages skip archived units ───────────────────────────
+
+
+def _make_unit_with_status(
+    id: str, status: str = "evaluated", domain: str = "developer-tools",
+) -> BuildableUnit:
+    return BuildableUnit(
+        id=id,
+        title=f"Unit {id}",
+        one_liner=f"One-liner {id}",
+        category=BuildableCategory.CLI_TOOL,
+        ideation_mode=IdeationMode.DIRECT,
+        problem=f"Problem {id}",
+        solution=f"Solution {id}",
+        value_proposition=f"Value {id}",
+        inspiring_insights=[],
+        evidence_signals=[],
+        status=status,
+        domain=domain,
+    )
+
+
+class TestPostEvalSkipsArchived:
+    """All post-eval stages must skip status='archived' units."""
+
+    def test_dedup_skips_archived(self):
+        from max.pipeline.runner import _run_dedup
+
+        u_arch = _make_unit_with_status("bu-arch", status="archived")
+        u_ok = _make_unit_with_status("bu-ok", status="evaluated")
+        ev = _make_evaluation("bu-ok", score=80.0)
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(return_value=[u_arch, u_ok])
+        store.get_evaluation = MagicMock(
+            side_effect=lambda uid: ev if uid == "bu-ok" else None,
+        )
+
+        with patch("max.analysis.dedup.cluster_ideas", return_value=[]) as mock_cluster:
+            _run_dedup(store, domain=None, threshold=0.85, limit=500)
+
+        # cluster_ideas should only receive bu-ok, not bu-arch
+        passed_ideas = mock_cluster.call_args.args[0]
+        passed_ids = {u.id for u, _ in passed_ideas}
+        assert passed_ids == {"bu-ok"}
+
+    def test_synthesize_skips_archived(self):
+        from max.pipeline.runner import _run_synthesize_ideas
+
+        u_arch = _make_unit_with_status("bu-arch", status="archived")
+        u_ok = _make_unit_with_status("bu-ok", status="evaluated")
+        ev = _make_evaluation("bu-ok", score=80.0)
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(return_value=[u_arch, u_ok])
+        store.get_evaluation = MagicMock(
+            side_effect=lambda uid: ev if uid == "bu-ok" else None,
+        )
+
+        with patch("max.analysis.dedup.cluster_ideas", return_value=[]) as mock_cluster:
+            _run_synthesize_ideas(store, domain=None, threshold=0.85, limit=500)
+
+        passed_ideas = mock_cluster.call_args.args[0]
+        passed_ids = {u.id for u, _ in passed_ideas}
+        assert passed_ids == {"bu-ok"}
+
+    def test_prior_art_skips_archived(self):
+        from max.pipeline.runner import _run_prior_art
+
+        u_arch = _make_unit_with_status("bu-arch", status="archived")
+        u_ok = _make_unit_with_status("bu-ok", status="evaluated")
+        u_arch.prior_art_status = "unchecked"
+        u_ok.prior_art_status = "unchecked"
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(return_value=[u_arch, u_ok])
+
+        with patch(
+            "max.analysis.prior_art.check_prior_art", return_value=[],
+        ) as mock_pa:
+            _run_prior_art(store, domain=None, auto_reject=False, limit=100)
+
+        # check_prior_art should only receive bu-ok
+        passed_units = mock_pa.call_args.args[0]
+        passed_ids = {u.id for u in passed_units}
+        assert passed_ids == {"bu-ok"}
+
+    def test_triage_skips_archived(self):
+        from max.pipeline.runner import _run_triage
+
+        u_arch = _make_unit_with_status("bu-arch", status="archived")
+        u_ok = _make_unit_with_status("bu-ok", status="evaluated")
+        ev = _make_evaluation("bu-ok", score=80.0)  # approves
+
+        store = _make_mock_store()
+        store.get_buildable_units = MagicMock(return_value=[u_arch, u_ok])
+        store.get_evaluation = MagicMock(
+            side_effect=lambda uid: ev if uid == "bu-ok" else None,
+        )
+        store.has_feedback = MagicMock(return_value=False)
+
+        approved, rejected, pending = _run_triage(
+            store,
+            domain=None,
+            approve_threshold=68.0,
+            reject_threshold=50.0,
+            limit=500,
+        )
+
+        assert approved == 1
+        # Only bu-ok gets mutated, bu-arch is silently skipped
+        update_calls = [c.args for c in store.update_buildable_unit_status.call_args_list]
+        assert update_calls == [("bu-ok", "approved")]

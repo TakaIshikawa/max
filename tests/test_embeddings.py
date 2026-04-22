@@ -62,7 +62,7 @@ class TestSimpleEmbed:
 
     def test_default_vocab_size(self):
         result = _simple_embed("hello world")
-        assert len(result) == 256
+        assert len(result) == 1024
 
     def test_custom_vocab_size(self):
         result = _simple_embed("hello world", vocab_size=64)
@@ -72,7 +72,8 @@ class TestSimpleEmbed:
         a = _simple_embed("machine learning algorithms")
         b = _simple_embed("machine learning algorithm")
         sim = _cosine_similarity(a, b)
-        assert sim > 0.8
+        # Word-level hashing: "algorithms" != "algorithm" but shared context raises similarity
+        assert sim > 0.5
 
     def test_dissimilar_texts_produce_lower_similarity(self):
         a = _simple_embed("machine learning algorithms for natural language processing")
@@ -87,25 +88,28 @@ class TestSimpleEmbed:
 
     def test_empty_string(self):
         result = _simple_embed("")
-        assert len(result) == 256
+        assert len(result) == 1024
         assert all(x == 0.0 for x in result)
 
     def test_short_string(self):
         result = _simple_embed("ab")
-        assert len(result) == 256
-        # "ab" has no trigrams, so all zeros
-        assert all(x == 0.0 for x in result)
+        assert len(result) == 1024
+        # "ab" is one word token — produces one nonzero entry
+        assert sum(1 for x in result if x > 0) == 1
 
-    def test_three_char_string_has_one_trigram(self):
+    def test_single_word_string(self):
         result = _simple_embed("abc")
-        assert len(result) == 256
+        assert len(result) == 1024
         assert sum(1 for x in result if x > 0) == 1
 
     def test_normalized_values(self):
         result = _simple_embed("hello world this is a test")
         nonzero = [x for x in result if x > 0]
         assert all(0.0 < x <= 1.0 for x in nonzero)
-        assert sum(result) == pytest.approx(1.0)
+        # L2-normalized: sum of squares == 1.0
+        import math
+        magnitude = math.sqrt(sum(x * x for x in result))
+        assert magnitude == pytest.approx(1.0)
 
 
 # ── embed_text / embed_texts ────────────────────────────────────
@@ -116,13 +120,13 @@ class TestEmbedTextFunctions:
         with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
             result = embed_text("hello world")
         assert isinstance(result, list)
-        assert len(result) == 256
+        assert len(result) == 1024
 
     def test_embed_texts_returns_list_of_lists(self):
         with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
             result = embed_texts(["hello", "world"])
         assert len(result) == 2
-        assert all(len(v) == 256 for v in result)
+        assert all(len(v) == 1024 for v in result)
 
     def test_embed_text_consistent(self):
         with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
@@ -143,7 +147,7 @@ class TestEmbedTextFunctions:
         with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
             result = embed_texts(["hello"])
         assert len(result) == 1
-        assert len(result[0]) == 256
+        assert len(result[0]) == 1024
 
 
 # ── SemanticIndex.index_entity ───────────────────────────────────
@@ -165,7 +169,7 @@ class TestIndexEntity:
         assert row["entity_type"] == "test_type"
         embedding = json.loads(row["embedding"])
         assert isinstance(embedding, list)
-        assert len(embedding) == 256
+        assert len(embedding) == 1024
 
     def test_replace_on_reindex(self, store: Store):
         idx = SemanticIndex(store)
@@ -382,7 +386,7 @@ class TestVoyageFallback:
             result = embed_texts(["hello world"])
 
         assert len(result) == 1
-        assert len(result[0]) == 256
+        assert len(result[0]) == 1024
 
     def test_try_voyage_embed_returns_none_on_import_error(self):
         """Verify _try_voyage_embed returns None when voyageai is not installed."""

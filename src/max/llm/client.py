@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Callable, TypeVar
 
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from max.config import ANTHROPIC_API_KEY, MODEL
 
@@ -227,6 +227,7 @@ def structured_call(
     max_tokens: int = 8192,
     temperature: float = 0.7,
     stage: str = "",
+    validation_attempts: int = 3,
 ) -> T:
     """Call Opus and parse the response into a Pydantic model.
 
@@ -238,13 +239,13 @@ def structured_call(
     client = get_client()
     schema = output_type.model_json_schema()
 
-    def _make_call():
+    def _make_call(prompt_text: str):
         return client.messages.create(
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             system=system,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt_text}],
             tools=[
                 {
                     "name": "structured_output",
@@ -255,43 +256,80 @@ def structured_call(
             tool_choice={"type": "tool", "name": "structured_output"},
         )
 
-    start_time = time.time()
-    response = _call_with_retry(_make_call)
-    latency = time.time() - start_time
+    validation_error: Exception | None = None
+    prompt_text = prompt
+    attempts = max(1, validation_attempts)
 
-    if stage and hasattr(response, "usage"):
-        token_tracker.record(
-            stage,
-            response.usage.input_tokens,
-            response.usage.output_tokens,
-        )
+    for attempt in range(attempts):
+        start_time = time.time()
+        response = _call_with_retry(lambda: _make_call(prompt_text))
+        latency = time.time() - start_time
 
-        # Log per-call token usage metrics
-        logger.debug(
-            "LLM call completed — stage=%s input_tokens=%d output_tokens=%d model=%s latency=%.2fs",
-            stage,
-            response.usage.input_tokens,
-            response.usage.output_tokens,
-            model,
-            latency,
-        )
-
-        # Check budget after recording tokens
-        if MAX_TOKEN_BUDGET > 0 and token_tracker.total() > MAX_TOKEN_BUDGET:
-            raise BudgetExceededError(
-                f"Token budget exceeded: {token_tracker.total()} > {MAX_TOKEN_BUDGET}"
-            )
-        if token_tracker.is_over_budget(MAX_COST_BUDGET):
-            cost = token_tracker.estimated_cost_usd()
-            raise BudgetExceededError(
-                f"Cost budget exceeded: ${cost:.4f} > ${MAX_COST_BUDGET:.4f}"
+        if stage and hasattr(response, "usage"):
+            token_tracker.record(
+                stage,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
             )
 
-    for block in response.content:
-        if block.type == "tool_use":
-            return output_type.model_validate(block.input)
+            # Log per-call token usage metrics
+            logger.debug(
+                "LLM call completed — stage=%s input_tokens=%d output_tokens=%d model=%s latency=%.2fs",
+                stage,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                model,
+                latency,
+            )
 
-    raise ValueError(f"No tool_use block in response: {response.content}")
+            # Check budget after recording tokens
+            if MAX_TOKEN_BUDGET > 0 and token_tracker.total() > MAX_TOKEN_BUDGET:
+                raise BudgetExceededError(
+                    f"Token budget exceeded: {token_tracker.total()} > {MAX_TOKEN_BUDGET}"
+                )
+            if token_tracker.is_over_budget(MAX_COST_BUDGET):
+                cost = token_tracker.estimated_cost_usd()
+                raise BudgetExceededError(
+                    f"Cost budget exceeded: ${cost:.4f} > ${MAX_COST_BUDGET:.4f}"
+                )
+
+        tool_input = None
+        for block in response.content:
+            if block.type == "tool_use":
+                tool_input = block.input
+                break
+
+        if tool_input is None:
+            validation_error = ValueError(f"No tool_use block in response: {response.content}")
+        elif not tool_input:
+            validation_error = ValueError(
+                f"Empty structured tool input for {output_type.__name__}"
+            )
+        else:
+            try:
+                return output_type.model_validate(tool_input)
+            except ValidationError as e:
+                validation_error = e
+
+        if attempt < attempts - 1:
+            logger.warning(
+                "Structured LLM output failed validation for %s at stage=%s; retrying (%d/%d): %s",
+                output_type.__name__,
+                stage or "unknown",
+                attempt + 1,
+                attempts,
+                validation_error,
+            )
+            prompt_text = (
+                f"{prompt}\n\n"
+                "The previous response did not match the required tool schema. "
+                f"Return a non-empty valid {output_type.__name__} object using the "
+                "`structured_output` tool. Include every required field."
+            )
+
+    if validation_error is not None:
+        raise validation_error
+    raise RuntimeError("Structured call failed without a captured validation error")
 
 
 def text_call(

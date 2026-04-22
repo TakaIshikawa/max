@@ -13,14 +13,6 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationM
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
-from max.types.tact_spec import (
-    TactArchitecture,
-    TactGoal,
-    TactProduct,
-    TactRequirement,
-    TactSpec,
-    TactTechStack,
-)
 
 
 @pytest.fixture
@@ -121,53 +113,6 @@ def seeded_client(seeded_db):
 
     def override():
         store = Store(db_path=seeded_db, wal_mode=True)
-        try:
-            yield store
-        finally:
-            store.close()
-
-    app.dependency_overrides[get_store] = override
-    return TestClient(app)
-
-
-@pytest.fixture
-def seeded_db_with_spec(seeded_db):
-    """DB pre-populated with test data including a TactSpec."""
-    store = Store(db_path=seeded_db, wal_mode=True)
-    spec = TactSpec(
-        buildable_unit_id="bu-api001",
-        product=TactProduct(
-            name="test-product",
-            vision="A test product",
-            goals=[TactGoal(id="G-1", description="Test goal", success_criteria="Passes")],
-            tech_stack=TactTechStack(languages=["Python"], frameworks=["FastAPI"]),
-        ),
-        architecture=TactArchitecture(
-            invariants=["Tests must pass"],
-            conventions=["snake_case"],
-        ),
-        requirements=[
-            TactRequirement(
-                title="Core feature",
-                priority="critical",
-                description="Implement core",
-                acceptance_criteria=["It works"],
-            ),
-        ],
-    )
-    store.insert_tact_spec(spec)
-    store.close()
-    return seeded_db
-
-
-@pytest.fixture
-def spec_client(seeded_db_with_spec):
-    from max.server.dependencies import get_store
-
-    app = create_app()
-
-    def override():
-        store = Store(db_path=seeded_db_with_spec, wal_mode=True)
         try:
             yield store
         finally:
@@ -471,32 +416,6 @@ def test_create_idea(client):
     assert data["status"] == "draft"
 
 
-# ── Spec endpoint ───────────────────────────────────────────────────
-
-
-def test_get_spec_not_found(seeded_client):
-    resp = seeded_client.get("/api/v1/ideas/bu-api001/spec")
-    assert resp.status_code == 404
-
-
-def test_get_spec_exists(spec_client):
-    """Verify spec is returned when one exists."""
-    resp = spec_client.get("/api/v1/ideas/bu-api001/spec")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["buildable_unit_id"] == "bu-api001"
-    assert data["product"]["name"] == "test-product"
-    assert data["product"]["vision"] == "A test product"
-    assert len(data["requirements"]) == 1
-    assert data["requirements"][0]["title"] == "Core feature"
-
-
-def test_get_spec_idea_not_found(client):
-    """Verify 404 when the idea itself doesn't exist."""
-    resp = client.get("/api/v1/ideas/nonexistent/spec")
-    assert resp.status_code == 404
-
-
 # ── Feedback endpoint ───────────────────────────────────────────────
 
 
@@ -666,7 +585,6 @@ def pipeline_runs_db(db_path):
                 insights_generated=i * 2,
                 ideas_generated=i,
                 ideas_evaluated=i,
-                specs_generated=0,
             )
     store.close()
     return db_path

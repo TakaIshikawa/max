@@ -1,0 +1,141 @@
+name: supply-chain
+
+domain:
+  name: supply-chain
+  description: >-
+    Supply chain management, logistics, and trade operations.
+    Focus on inventory forecasting, route optimization, supplier risk monitoring,
+    customs/trade compliance, warehouse automation, and procurement analytics
+  categories:
+    - inventory_forecasting
+    - route_optimization
+    - supplier_risk
+    - trade_compliance
+    - warehouse_automation
+    - procurement_tool
+    - tracking_system
+    - application
+    - library
+  target_user_types:
+    - supply_chain_managers
+    - logistics_coordinators
+    - procurement_officers
+    - warehouse_operators
+    - both
+  target_segments:
+    - mid-market manufacturers
+    - distributors
+    - logistics operations teams
+  workflows:
+    - supplier risk review
+    - inventory exception handling
+    - procurement follow-up
+    - trade compliance checks
+  buyer_roles:
+    - supply chain director
+    - procurement lead
+    - operations manager
+  hard_constraints:
+    - integrate with spreadsheet or ERP exports
+    - provide auditable exception history
+    - avoid requiring real-time tier-n supplier coverage for MVP
+  bad_idea_patterns:
+    - generic supply chain dashboard
+    - forecasting tool without action workflow
+    - full ERP replacement
+  good_idea_criteria:
+    - reduces stockout, delay, or compliance risk
+    - has clear operations owner
+    - testable with one SKU, lane, or supplier workflow in 2 weeks
+  extra_instructions: >-
+    Supply chains are fragmented across ERP, WMS, TMS, and spreadsheets.
+    COVID exposed how brittle single-source dependencies are — supplier risk
+    monitoring is now a board-level concern. Most tooling assumes enterprise
+    scale but mid-market manufacturers and distributors have the same problems
+    with smaller budgets. Real-time visibility across tiers remains unsolved.
+    Trade compliance (tariffs, sanctions, export controls) changes constantly
+    and is mostly tracked manually. Consider interoperability with SAP, Oracle,
+    NetSuite as a key differentiator.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - supplychain
+        - logistics
+        - procurement
+        - warehousing
+        - manufacturing
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - supply chain
+        - logistics
+        - inventory
+        - warehouse
+        - procurement
+        - shipping
+        - freight
+        - tariff
+        - trade
+        - manufacturing
+
+  - adapter: github
+    params:
+      topics:
+        - supply-chain
+        - logistics
+        - inventory-management
+        - warehouse
+        - erp
+        - procurement
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"supply chain" OR "inventory" is:issue label:enhancement is:open'
+        - '"logistics" OR "warehouse" is:issue is:open'
+        - '"procurement" OR "sourcing" is:issue is:open'
+        - '"shipping" OR "freight" is:issue is:open'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - supply-chain
+        - logistics
+        - inventory
+        - warehouse
+        - procurement
+        - shipping
+        - freight
+        - barcode
+        - edi
+        - forecasting
+        - optimization
+        - routing
+        - erp
+        - tracking
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - inventory management
+        - supply chain
+        - shipping tracking
+        - barcode scanner
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - logistics
+        - productivity
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .max-output
+signal_limit: 25
+ideation_mode: direct

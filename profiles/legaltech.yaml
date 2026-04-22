@@ -1,0 +1,139 @@
+name: legaltech
+
+domain:
+  name: legaltech
+  description: >-
+    Legal technology and regulatory compliance automation.
+    Focus on contract analysis, legal research, compliance monitoring,
+    regulatory tracking, document automation, and access-to-justice tools
+  categories:
+    - contract_analysis
+    - compliance_automation
+    - legal_research
+    - document_automation
+    - regulatory_tracker
+    - case_management
+    - application
+    - library
+  target_user_types:
+    - lawyers
+    - paralegals
+    - compliance_officers
+    - legal_ops
+    - both
+  target_segments:
+    - solo and small law firms
+    - in-house legal operations teams
+    - compliance-heavy SMBs
+  workflows:
+    - contract review
+    - regulatory change tracking
+    - document drafting
+    - matter intake
+  buyer_roles:
+    - managing partner
+    - general counsel
+    - legal operations lead
+  hard_constraints:
+    - protect attorney-client privileged data
+    - provide citations or source traceability
+    - avoid unauthorized practice of law
+  bad_idea_patterns:
+    - generic legal chatbot
+    - contract review without redline workflow
+    - research tool without citation traceability
+  good_idea_criteria:
+    - saves billable or compliance review time
+    - has clear human lawyer review point
+    - testable with non-confidential documents in 2 weeks
+  extra_instructions: >-
+    Legal is still heavily paper-based and manual. Contract review alone
+    costs firms billions in associate hours. Every jurisdiction has different
+    rules, creating fragmentation that AI can bridge. Prioritize tools that
+    serve solo practitioners, small firms, and in-house counsel — large firms
+    have enterprise solutions but the long tail is underserved. Regulatory
+    change tracking is a constant pain point across all firm sizes. Consider
+    privacy regulations (GDPR, CCPA) as a cross-cutting concern.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - LawFirm
+        - legaltech
+        - law
+        - LegalAdvice
+        - compliance
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - legal
+        - contract
+        - compliance
+        - regulation
+        - gdpr
+        - litigation
+        - lawyer
+        - paralegal
+        - court
+        - patent
+
+  - adapter: github
+    params:
+      topics:
+        - legal-tech
+        - contract-analysis
+        - nlp
+        - document-analysis
+        - compliance
+        - regulation
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"contract" "analysis" is:issue label:enhancement is:open'
+        - '"legal" "document" is:issue is:open'
+        - '"compliance" "regulation" is:issue is:open'
+        - '"gdpr" OR "ccpa" is:issue is:open'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - legal
+        - contract
+        - compliance
+        - regulation
+        - gdpr
+        - ccpa
+        - nlp
+        - spacy
+        - document
+        - pdf
+        - ocr
+        - clause
+        - litigation
+        - patent
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - contract analysis
+        - legal document
+        - compliance checker
+        - regulation tracker
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - legal
+        - productivity
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .max-output
+signal_limit: 25
+ideation_mode: direct

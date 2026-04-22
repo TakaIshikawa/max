@@ -30,6 +30,7 @@ def main() -> None:
 @click.option("--draft-count", type=int, default=None, help="Max draft ideas to pass through the quality loop")
 @click.option("--dry-run", is_flag=True, help="Simulate execution without LLM calls or writes")
 @click.option("--stages", type=str, default=None, help="Comma-separated list of stages to run (fetch,annotate,synthesize,detect_gaps,retrospective,ideate,evaluate)")
+@click.option("--include-all", is_flag=True, help="With --profile all, ignore focus filter and run every profile")
 def run(
     profile: str | None,
     output: str | None,
@@ -41,12 +42,17 @@ def run(
     draft_count: int | None,
     dry_run: bool,
     stages: str | None,
+    include_all: bool,
 ) -> None:
-    """Run the full pipeline: fetch → synthesize → ideate → evaluate."""
+    """Run the full pipeline: fetch → synthesize → ideate → evaluate.
+
+    Use --profile all to run across all configured domain profiles.
+    With focus configured, out-of-focus profiles are skipped unless
+    --include-all is passed.
+    """
     from max.config import MAX_PROFILE
-    from max.pipeline.runner import run_pipeline
-    from max.profiles.loader import get_default_profile, load_profile
-    from max.types.pipeline import DryRunReport
+    from max.focus import load_focus_domains
+    from max.profiles.loader import get_default_profile, list_profiles, load_profile
 
     # Parse stages parameter
     stages_list = None
@@ -55,6 +61,57 @@ def run(
 
     # Resolve profile: CLI flag > env var > default
     profile_name = profile or MAX_PROFILE or None
+
+    if profile_name == "all":
+        all_names = list_profiles()
+        if not all_names:
+            click.echo("No profiles found in profiles/ directory.")
+            return
+
+        focus_domains = None if include_all else load_focus_domains()
+        if focus_domains is None:
+            names = all_names
+        else:
+            names = []
+            skipped = []
+            for name in all_names:
+                try:
+                    p = load_profile(name)
+                except Exception:
+                    names.append(name)
+                    continue
+                if p.domain.name in focus_domains:
+                    names.append(name)
+                else:
+                    skipped.append(name)
+            if skipped:
+                click.echo(
+                    f"Focus domains: {', '.join(focus_domains)}. "
+                    f"Skipping {len(skipped)} out-of-focus profile(s): {', '.join(skipped)}"
+                )
+                click.echo("  (use --include-all to run every profile)")
+                click.echo()
+            if not names:
+                click.echo("No profiles match focus. Use 'max focus clear' or --include-all.")
+                return
+
+        click.echo(f"Running pipeline across {len(names)} profile(s): {', '.join(names)}")
+        click.echo()
+        for i, name in enumerate(names, 1):
+            click.echo(f"{'=' * 80}")
+            click.echo(f"[{i}/{len(names)}] Profile: {name}")
+            click.echo(f"{'=' * 80}")
+            p = load_profile(name)
+            _run_single_profile(
+                p, output, signal_limit, min_score, weight_profile, mode,
+                quality_loop, draft_count, dry_run, stages_list,
+            )
+            click.echo()
+        click.echo(f"All {len(names)} profile(s) complete.")
+        if not dry_run:
+            _run_post_eval_stages()
+        return
+
     if profile_name:
         p = load_profile(profile_name)
     else:
@@ -168,13 +225,13 @@ def _run_single_profile(
         cost = result.estimated_cost_usd
         click.echo(f"Token usage:        {total_input:,}in / {total_output:,}out (~${cost:.4f})")
     if result.budget_exceeded:
-        click.echo("⚠️  Budget exceeded - pipeline stopped early with partial results")
+        click.echo("Budget exceeded - pipeline stopped early with partial results")
     click.echo()
 
     if result.top_ideas:
         click.echo("Top ideas:")
         for idea in result.top_ideas:
-            marker = "✓" if idea["score"] >= p.evaluation.min_score else " "
+            marker = "+" if idea["score"] >= p.evaluation.min_score else " "
             click.echo(f"  [{marker}] {idea['score']:5.1f}  {idea['title']}  ({idea['recommendation']})")
 
 
@@ -248,6 +305,200 @@ def profiles() -> None:
             click.echo(f"  {name:20s}  (error: {e})")
     click.echo()
     click.echo("Usage: max run --profile <name>")
+
+
+def _known_profile_domains() -> dict[str, str]:
+    """Return {domain_name: profile_name} for all valid profiles."""
+    from max.profiles.loader import list_profiles, load_profile
+
+    mapping: dict[str, str] = {}
+    for name in list_profiles():
+        try:
+            p = load_profile(name)
+        except Exception:
+            continue
+        mapping[p.domain.name] = name
+    return mapping
+
+
+def _validate_focus_domains(domains: list[str]) -> list[str]:
+    """Validate domain names against known profile domains.
+
+    Raises click.ClickException on invalid names. Returns the (possibly
+    deduplicated) list in original order.
+    """
+    known = _known_profile_domains()
+    seen: set[str] = set()
+    clean: list[str] = []
+    invalid: list[str] = []
+    for d in domains:
+        d = d.strip()
+        if not d or d in seen:
+            continue
+        seen.add(d)
+        if d not in known:
+            invalid.append(d)
+        clean.append(d)
+    if invalid:
+        available = ", ".join(sorted(known.keys()))
+        raise click.ClickException(
+            f"Unknown domain(s): {', '.join(invalid)}. Available: {available}"
+        )
+    return clean
+
+
+@main.group(name="focus")
+def focus() -> None:
+    """Manage reviewer focus domains.
+
+    When focus is set, `max run --profile all` skips out-of-focus profiles
+    and `max archive-ideas` moves pending out-of-focus ideas to archived.
+    """
+
+
+@focus.command(name="list")
+def focus_list() -> None:
+    """Show current focus domains and available profile domains."""
+    from max.focus import get_focus_config_path, load_focus_domains
+
+    current = load_focus_domains()
+    known = _known_profile_domains()
+
+    if current is None:
+        click.echo("Focus: (not configured — all domains included)")
+    else:
+        click.echo(f"Focus domains ({len(current)}):")
+        for d in current:
+            marker = "" if d in known else "  (UNKNOWN — no matching profile)"
+            click.echo(f"  {d}{marker}")
+
+    click.echo()
+    click.echo("Available profile domains:")
+    for domain in sorted(known.keys()):
+        in_focus_marker = "  [focused]" if current and domain in current else ""
+        click.echo(f"  {domain:22s}  (profile: {known[domain]}){in_focus_marker}")
+
+    click.echo()
+    click.echo(f"Config: {get_focus_config_path()}")
+
+
+@focus.command(name="set")
+@click.argument("domains", nargs=-1, required=True)
+def focus_set(domains: tuple[str, ...]) -> None:
+    """Replace focus domains with the given list."""
+    from max.focus import save_focus_domains
+
+    clean = _validate_focus_domains(list(domains))
+    save_focus_domains(clean)
+    click.echo(f"Focus set to: {', '.join(clean)}")
+
+
+@focus.command(name="add")
+@click.argument("domain")
+def focus_add(domain: str) -> None:
+    """Add a domain to the focus list."""
+    from max.focus import load_focus_domains, save_focus_domains
+
+    current = load_focus_domains() or []
+    if domain in current:
+        click.echo(f"Already focused: {domain}")
+        return
+    clean = _validate_focus_domains([*current, domain])
+    save_focus_domains(clean)
+    click.echo(f"Added: {domain}. Focus: {', '.join(clean)}")
+
+
+@focus.command(name="remove")
+@click.argument("domain")
+def focus_remove(domain: str) -> None:
+    """Remove a domain from the focus list."""
+    from max.focus import load_focus_domains, save_focus_domains
+
+    current = load_focus_domains()
+    if not current or domain not in current:
+        click.echo(f"Not in focus: {domain}")
+        return
+    updated = [d for d in current if d != domain]
+    save_focus_domains(updated if updated else None)
+    if updated:
+        click.echo(f"Removed: {domain}. Focus: {', '.join(updated)}")
+    else:
+        click.echo(f"Removed: {domain}. Focus cleared (all domains included).")
+
+
+@focus.command(name="clear")
+def focus_clear() -> None:
+    """Clear the focus filter (include all domains)."""
+    from max.focus import load_focus_domains, save_focus_domains
+
+    if load_focus_domains() is None:
+        click.echo("Focus is already cleared.")
+        return
+    save_focus_domains(None)
+    click.echo("Focus cleared. All domains included.")
+
+
+@main.command(name="archive-ideas")
+@click.option("--dry-run", is_flag=True, help="Show what would be archived without modifying data")
+@click.option("--limit", type=int, default=10000, help="Max ideas to consider")
+def archive_ideas(dry_run: bool, limit: int) -> None:
+    """Archive pending ideas in out-of-focus domains.
+
+    Only ideas with status='evaluated' and no existing feedback are archived.
+    Approved/rejected/duplicate/synthesized ideas are preserved. Run
+    `max focus set <domains>` first to configure focus.
+    """
+    from max.focus import load_focus_domains
+    from max.store.db import Store
+
+    focus_domains = load_focus_domains()
+    if focus_domains is None:
+        raise click.ClickException(
+            "No focus domains configured. Run `max focus set <domain1> <domain2> ...` first."
+        )
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit)
+
+        # Filter: out-of-focus, evaluated, no feedback
+        candidates = []
+        for unit in units:
+            if not unit.domain or unit.domain in focus_domains:
+                continue
+            if unit.status != "evaluated":
+                continue
+            if store.has_feedback(unit.id):
+                continue
+            candidates.append(unit)
+
+        if not candidates:
+            click.echo(f"No pending ideas to archive. Focus: {', '.join(focus_domains)}")
+            return
+
+        # Group by domain for reporting
+        by_domain: dict[str, list] = {}
+        for unit in candidates:
+            by_domain.setdefault(unit.domain, []).append(unit)
+
+        click.echo(f"Focus: {', '.join(focus_domains)}")
+        click.echo(f"Candidates to archive: {len(candidates)} ideas across {len(by_domain)} domain(s)")
+        for domain in sorted(by_domain.keys()):
+            click.echo(f"  [{domain}] {len(by_domain[domain])} ideas")
+
+        if dry_run:
+            click.echo("\nDRY RUN: No changes applied.")
+            return
+
+        archived = 0
+        for unit in candidates:
+            store.insert_feedback(unit.id, "archived", "out-of-focus domain")
+            store.update_buildable_unit_status(unit.id, "archived")
+            archived += 1
+
+        click.echo(f"\nArchived {archived} ideas.")
+    finally:
+        store.close()
 
 
 @main.command()
@@ -390,9 +641,18 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))
 @click.option("--reason", "-r", type=str, default="", help="Reason for the feedback")
-def feedback(unit_id: str, outcome: str, reason: str) -> None:
+@click.option("--score", "-s", type=int, default=None, help="Approval score 1-10 (only for approved)")
+def feedback(unit_id: str, outcome: str, reason: str, score: int | None) -> None:
     """Record feedback on a buildable unit (approved/rejected/abandoned)."""
     from max.store.db import Store
+
+    if score is not None:
+        if outcome != "approved":
+            click.echo("Error: --score is only valid for 'approved' outcome.")
+            return
+        if not 1 <= score <= 10:
+            click.echo("Error: --score must be between 1 and 10.")
+            return
 
     store = Store()
     try:
@@ -401,9 +661,13 @@ def feedback(unit_id: str, outcome: str, reason: str) -> None:
             click.echo(f"Not found: {unit_id}")
             return
 
-        store.insert_feedback(unit_id, outcome, reason)
+        if score is None:
+            store.insert_feedback(unit_id, outcome, reason)
+        else:
+            store.insert_feedback(unit_id, outcome, reason, approval_score=score)
         store.update_buildable_unit_status(unit_id, outcome)
-        click.echo(f"Recorded: {unit.title} → {outcome}")
+        score_label = f" ({score}/10)" if score is not None else ""
+        click.echo(f"Recorded: {unit.title} → {outcome}{score_label}")
     finally:
         store.close()
 
@@ -414,7 +678,8 @@ def feedback(unit_id: str, outcome: str, reason: str) -> None:
 @click.option("--reject-threshold", type=float, default=50.0, help="Auto-reject score threshold (default: 50)")
 @click.option("--dry-run", is_flag=True, help="Show what would be triaged without applying changes")
 @click.option("--limit", type=int, default=500, help="Max ideas to consider")
-def triage(domain: str | None, approve_threshold: float, reject_threshold: float, dry_run: bool, limit: int) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+def triage(domain: str | None, approve_threshold: float, reject_threshold: float, dry_run: bool, limit: int, include_archived: bool) -> None:
     """Auto-approve/reject ideas by score thresholds.
 
     Default thresholds: auto-approve >= 68 with rec=yes, auto-reject < 50 or rec=no.
@@ -425,6 +690,8 @@ def triage(domain: str | None, approve_threshold: float, reject_threshold: float
     store = Store()
     try:
         units = store.get_buildable_units(limit=limit, domain=domain)
+        if not include_archived:
+            units = [u for u in units if u.status != "archived"]
         if not units:
             click.echo("No ideas found.")
             return
@@ -490,7 +757,8 @@ def triage(domain: str | None, approve_threshold: float, reject_threshold: float
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--dry-run", is_flag=True, help="Show duplicates without marking them")
 @click.option("--limit", type=int, default=500, help="Max ideas to consider")
-def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int, include_archived: bool) -> None:
     """Find and mark duplicate ideas across domains.
 
     Clusters ideas by semantic similarity. Within each cluster, keeps the
@@ -508,8 +776,9 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
 
         # Build (unit, eval) pairs — only evaluated, non-duplicate ideas
         ideas = []
+        skip_statuses = {"duplicate"} if include_archived else {"duplicate", "archived"}
         for unit in units:
-            if unit.status == "duplicate":
+            if unit.status in skip_statuses:
                 continue
             ev = store.get_evaluation(unit.id)
             if not ev:
@@ -537,27 +806,40 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
             rep = cluster.representative
             rep_ev = cluster.representative_eval
             rep_score = rep_ev.overall_score if rep_ev else 0.0
+            rep_tag = f" ({rep.status})" if rep.status in ("approved", "rejected") else ""
             click.echo(f"  Cluster {i} ({cluster.size} ideas, domains: {', '.join(sorted(cluster.domains))})")
-            click.echo(f"    KEEP: {rep_score:5.1f}  [{rep.domain}]  {rep.title}")
+            click.echo(f"    KEEP: {rep_score:5.1f}  [{rep.domain}]  {rep.title}{rep_tag}")
             for unit, ev in cluster.duplicates:
                 score = ev.overall_score if ev else 0.0
-                click.echo(f"    DUP:  {score:5.1f}  [{unit.domain}]  {unit.title}")
+                # Show whether this duplicate's existing status will be preserved
+                if unit.status in ("approved", "rejected"):
+                    marker = f"SKIP({unit.status})"
+                else:
+                    marker = "DUP "
+                click.echo(f"    {marker}: {score:5.1f}  [{unit.domain}]  {unit.title}")
             click.echo()
 
         if dry_run:
             click.echo("DRY RUN: No changes applied.")
             return
 
-        # Mark duplicates
+        # Mark duplicates — preserve prior user decisions (approved/rejected)
         marked = 0
+        preserved = 0
         for cluster in dup_clusters:
             for unit, ev in cluster.duplicates:
+                if unit.status in ("approved", "rejected"):
+                    preserved += 1
+                    continue
                 reason = f"duplicate of {cluster.representative.id} ({cluster.representative.title[:50]})"
                 store.insert_feedback(unit.id, "rejected", f"auto-dedup: {reason}")
                 store.update_buildable_unit_status(unit.id, "duplicate")
                 marked += 1
 
-        click.echo(f"Marked {marked} ideas as duplicate.")
+        msg = f"Marked {marked} ideas as duplicate."
+        if preserved:
+            msg += f" Preserved {preserved} with existing user feedback."
+        click.echo(msg)
     finally:
         store.close()
 
@@ -569,7 +851,8 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int) -> No
 @click.option("--max-cross-groups", type=int, default=5, help="Maximum cross-cluster groups to synthesize (default: 5)")
 @click.option("--dry-run", is_flag=True, help="Show clusters without LLM calls")
 @click.option("--limit", type=int, default=500, help="Max ideas to consider")
-def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cross_groups: int, dry_run: bool, limit: int) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cross_groups: int, dry_run: bool, limit: int, include_archived: bool) -> None:
     """Synthesize clustered ideas into superior combined ideas.
 
     For each cluster with multiple similar ideas, uses LLM to merge them
@@ -586,9 +869,12 @@ def synthesize(threshold: float, domain: str | None, cross_cluster: bool, max_cr
     try:
         units = store.get_buildable_units(limit=limit, domain=domain)
         # Only consider evaluated ideas that aren't rejected/duplicate/synthesized
+        skip_statuses = {"rejected", "duplicate", "synthesized"}
+        if not include_archived:
+            skip_statuses.add("archived")
         active = [
             u for u in units
-            if u.status not in ("rejected", "duplicate", "synthesized")
+            if u.status not in skip_statuses
         ]
 
         if not active:
@@ -761,7 +1047,8 @@ def design_briefs(domain: str | None, status: str | None, limit: int) -> None:
 @click.option("--re-scan", is_flag=True, help="Re-check ideas that already have results")
 @click.option("--auto-reject", is_flag=True, help="Auto-reject ideas with strong matches")
 @click.option("--dry-run", is_flag=True, help="Show queries without making API calls")
-def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, dry_run: bool) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, dry_run: bool, include_archived: bool) -> None:
     """Check for existing implementations matching generated ideas.
 
     Searches GitHub, npm, PyPI, and Product Hunt for prior art.
@@ -781,8 +1068,11 @@ def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, 
         if not re_scan:
             units = [u for u in units if u.prior_art_status == "unchecked"]
 
-        # Filter to evaluated/approved (not rejected/duplicate)
-        units = [u for u in units if u.status not in ("rejected", "duplicate")]
+        # Filter to evaluated/approved (not rejected/duplicate/archived)
+        skip_statuses = {"rejected", "duplicate"}
+        if not include_archived:
+            skip_statuses.add("archived")
+        units = [u for u in units if u.status not in skip_statuses]
 
         if not units:
             click.echo("No ideas to check.")
@@ -871,7 +1161,8 @@ def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, 
 @click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
 @click.option("--limit", type=int, default=50, help="Max ideas to review")
 @click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
-def review(domain: str | None, min_score: float, limit: int, threshold: float) -> None:
+@click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
+def review(domain: str | None, min_score: float, limit: int, threshold: float, include_archived: bool) -> None:
     """Interactively review ideas in clusters.
 
     Similar ideas are grouped together for batch review. For each cluster:
@@ -892,6 +1183,8 @@ def review(domain: str | None, min_score: float, limit: int, threshold: float) -
         # Build review queue: evaluated, no feedback yet, sorted by score desc
         queue = []
         for unit in units:
+            if not include_archived and unit.status == "archived":
+                continue
             ev = store.get_evaluation(unit.id)
             if not ev:
                 continue
@@ -973,24 +1266,30 @@ def review(domain: str | None, min_score: float, limit: int, threshold: float) -
 
                     if choice == "a":
                         # Approve best, reject rest
+                        score = click.prompt("  Score (1-10, 10=highest conviction)", type=int)
+                        while not 1 <= score <= 10:
+                            score = click.prompt("  Must be 1-10", type=int)
                         reason = click.prompt("  Reason (optional)", default="", show_default=False)
-                        store.insert_feedback(rep.id, "approved", reason)
+                        store.insert_feedback(rep.id, "approved", reason, approval_score=score)
                         store.update_buildable_unit_status(rep.id, "approved")
                         approved += 1
                         for unit, ev in cluster.duplicates:
                             store.insert_feedback(unit.id, "rejected", f"cluster-review: kept {rep.id}")
                             store.update_buildable_unit_status(unit.id, "rejected")
                             rejected += 1
-                        click.echo(f"  -> approved best, rejected {len(cluster.duplicates)} others")
+                        click.echo(f"  -> approved best ({score}/10), rejected {len(cluster.duplicates)} others")
                         break
                     elif choice == "A":
                         # Approve all in cluster
+                        score = click.prompt("  Score (1-10, 10=highest conviction)", type=int)
+                        while not 1 <= score <= 10:
+                            score = click.prompt("  Must be 1-10", type=int)
                         reason = click.prompt("  Reason (optional)", default="", show_default=False)
                         for unit, ev in cluster.members:
-                            store.insert_feedback(unit.id, "approved", reason)
+                            store.insert_feedback(unit.id, "approved", reason, approval_score=score)
                             store.update_buildable_unit_status(unit.id, "approved")
                             approved += 1
-                        click.echo(f"  -> approved all {cluster.size} ideas")
+                        click.echo(f"  -> approved all {cluster.size} ideas ({score}/10)")
                         break
                     elif choice in ("r", "R"):
                         reason = click.prompt("  Reason (optional)", default="", show_default=False)
@@ -1101,10 +1400,13 @@ def _single_review_prompt(store, unit: BuildableUnit, ev: UtilityEvaluation | No
         ).strip().lower()
 
         if choice in ("a", "approve"):
+            score = click.prompt("  Score (1-10, 10=highest conviction)", type=int)
+            while not 1 <= score <= 10:
+                score = click.prompt("  Must be 1-10", type=int)
             reason = click.prompt("  Reason (optional)", default="", show_default=False)
-            store.insert_feedback(unit.id, "approved", reason)
+            store.insert_feedback(unit.id, "approved", reason, approval_score=score)
             store.update_buildable_unit_status(unit.id, "approved")
-            click.echo("  -> approved")
+            click.echo(f"  -> approved ({score}/10)")
             return "approved"
         elif choice in ("r", "reject"):
             reason = click.prompt("  Reason (optional)", default="", show_default=False)
@@ -1156,13 +1458,15 @@ def feedback_log(limit: int) -> None:
             click.echo("No feedback recorded yet.")
             return
 
-        click.echo(f"{'Outcome':<10s} {'Score':>5s} {'Domain':<16s} {'Title':<50s} {'Reason'}")
-        click.echo("-" * 110)
+        click.echo(f"{'Outcome':<10s} {'Score':>5s} {'Appr':>4s} {'Domain':<16s} {'Title':<48s} {'Reason'}")
+        click.echo("-" * 115)
         for r in records:
             score = f"{r['score']:.1f}" if r["score"] else "  -"
+            approval_score = r.get("approval_score")
+            appr = f"{approval_score:>2d}" if approval_score is not None else "  -"
             domain = f"[{r['domain']}]" if r["domain"] else ""
-            reason = r["reason"][:30] if r["reason"] else ""
-            click.echo(f"{r['outcome']:<10s} {score:>5s} {domain:<16s} {r['title'][:50]:<50s} {reason}")
+            reason = r["reason"][:28] if r["reason"] else ""
+            click.echo(f"{r['outcome']:<10s} {score:>5s} {appr:>4s} {domain:<16s} {r['title'][:48]:<48s} {reason}")
 
         # Summary counts
         approved = sum(1 for r in records if r["outcome"] == "approved")

@@ -1,0 +1,145 @@
+name: hr
+
+domain:
+  name: hr-people-ops
+  description: >-
+    Human resources, people operations, and workforce management.
+    Focus on recruiting automation, performance analytics, compensation
+    benchmarking, employee onboarding, compliance (labor law), and
+    workforce planning tools
+  categories:
+    - recruiting_automation
+    - performance_analytics
+    - compensation_tool
+    - onboarding_workflow
+    - compliance_automation
+    - workforce_planning
+    - employee_engagement
+    - application
+    - library
+  target_user_types:
+    - hr_managers
+    - recruiters
+    - people_ops
+    - hiring_managers
+    - both
+  target_segments:
+    - mid-market people teams
+    - recruiting agencies
+    - distributed workforce operators
+  workflows:
+    - candidate screening
+    - interview scheduling
+    - onboarding task tracking
+    - compensation benchmarking
+    - labor law compliance review
+  buyer_roles:
+    - head of people
+    - recruiting manager
+    - HR operations lead
+  hard_constraints:
+    - mitigate bias in hiring workflows
+    - preserve employee and candidate privacy
+    - integrate with existing ATS or HRIS
+  bad_idea_patterns:
+    - generic HR chatbot
+    - resume ranker without auditability
+    - HRIS replacement for first MVP
+  good_idea_criteria:
+    - reduces recruiter or HR operations workload
+    - has auditable decision support
+    - testable with one hiring or onboarding workflow in 2 weeks
+  extra_instructions: >-
+    Every company hires, onboards, and manages people — yet HR tooling is
+    fragmented across ATS, HRIS, payroll, and benefits systems. Recruiting
+    is the biggest pain: resume screening, interview scheduling, and candidate
+    communication are still heavily manual. Compensation benchmarking relies
+    on stale surveys. Labor law compliance varies by state/country and changes
+    frequently. Mid-market companies (50-500 employees) are underserved —
+    too big for manual processes, too small for Workday. Consider integrations
+    with major ATS (Greenhouse, Lever) and HRIS (BambooHR, Rippling) as table
+    stakes. AI bias in hiring is a regulatory hot topic — build with fairness
+    auditing in mind.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - humanresources
+        - recruiting
+        - AskHR
+        - managers
+        - remotework
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - hiring
+        - recruiting
+        - onboarding
+        - compensation
+        - payroll
+        - remote work
+        - hr
+        - workforce
+        - talent
+        - interview
+
+  - adapter: github
+    params:
+      topics:
+        - hr
+        - recruiting
+        - applicant-tracking
+        - onboarding
+        - payroll
+        - workforce
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"recruiting" OR "hiring" is:issue label:enhancement is:open'
+        - '"onboarding" OR "employee" is:issue is:open'
+        - '"payroll" OR "compensation" is:issue is:open'
+        - '"hr" "workflow" is:issue is:open'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - hr
+        - recruiting
+        - hiring
+        - onboarding
+        - payroll
+        - compensation
+        - workforce
+        - talent
+        - resume
+        - interview
+        - employee
+        - attendance
+        - timesheet
+        - scheduling
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - recruiting tool
+        - hr management
+        - employee onboarding
+        - payroll integration
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - human-resources
+        - hiring-and-recruiting
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .max-output
+signal_limit: 25
+ideation_mode: direct

@@ -26,23 +26,31 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot / (mag_a * mag_b)
 
 
-def _simple_embed(text: str, vocab_size: int = 256) -> list[float]:
-    """Simple hash-based embedding for when no external API is available.
+def _simple_embed(text: str, vocab_size: int = 1024) -> list[float]:
+    """Hybrid embedding for when no external API is available.
 
-    Uses character trigram hashing for a lightweight semantic fingerprint.
-    This is NOT as good as real embeddings but provides basic dedup capability.
+    Combines word unigrams (semantic matching) with character 4-grams
+    (fuzzy matching for word variants like "server"/"servers").
     """
+    import re
+
     text = text.lower().strip()
-    trigrams = [text[i : i + 3] for i in range(len(text) - 2)]
+    words = re.findall(r"[a-z0-9]+", text)
+
     counts: Counter[int] = Counter()
-    for tri in trigrams:
-        h = hash(tri) % vocab_size
+    # Word unigrams — primary semantic signal
+    for w in words:
+        h = hash(w) % vocab_size
+        counts[h] += 1
+    # Character 4-grams — catches word variants and morphological similarity
+    for i in range(len(text) - 3):
+        h = hash(text[i : i + 4]) % vocab_size
         counts[h] += 1
 
     vec = [0.0] * vocab_size
-    total = sum(counts.values()) or 1
+    mag = math.sqrt(sum(c * c for c in counts.values())) or 1.0
     for idx, count in counts.items():
-        vec[idx] = count / total
+        vec[idx] = count / mag
 
     return vec
 
@@ -68,19 +76,30 @@ def _resolve_voyage_api_key() -> str | None:
     return None
 
 
+_voyage_disabled = False  # Auto-disable on rate limit to avoid slowdown
+
+
 def _try_voyage_embed(texts: list[str]) -> list[list[float]] | None:
-    """Try to use Voyage AI embeddings. Returns None if unavailable."""
+    """Try to use Voyage AI embeddings. Returns None if unavailable or rate-limited."""
+    global _voyage_disabled  # noqa: PLW0603
+    if _voyage_disabled:
+        return None
     try:
         import voyageai  # type: ignore[import-untyped]
 
         api_key = _resolve_voyage_api_key()
         if not api_key:
             return None
-        client = voyageai.Client(api_key=api_key)
+        client = voyageai.Client(api_key=api_key, max_retries=1, timeout=15)
         result = client.embed(texts, model="voyage-3-lite")
         return result.embeddings
-    except Exception:
-        logger.debug("Voyage AI embedding unavailable, using fallback", exc_info=True)
+    except Exception as e:
+        err_msg = str(e)
+        if "rate limit" in err_msg.lower() or "payment method" in err_msg.lower():
+            _voyage_disabled = True
+            logger.warning("Voyage rate-limited — falling back to local embeddings for this session")
+        else:
+            logger.debug("Voyage AI embedding unavailable, using fallback", exc_info=True)
         return None
 
 

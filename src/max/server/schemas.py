@@ -41,7 +41,7 @@ class IdeaCreate(BaseModel):
     category: str = Field(default="application", min_length=1)
     problem: str
     solution: str
-    target_users: str = "both"
+    target_users: str = Field(default="both", min_length=1)
     value_proposition: str
     specific_user: str = ""
     buyer: str = ""
@@ -177,6 +177,12 @@ class IdeaSummaryResponse(BaseModel):
     category: str
     domain: str = ""
     status: str
+    review_state: str = "pending"
+    feedback_outcome: str | None = None
+    feedback_reason: str = ""
+    reviewed_at: str | None = None
+    graph_labels: list[str] = Field(default_factory=list)
+    is_approved: bool = False
     target_users: str
     specific_user: str = ""
     buyer: str = ""
@@ -220,6 +226,12 @@ class IdeaDetailResponse(BaseModel):
     suggested_stack: dict
     composability_notes: str
     status: str
+    review_state: str = "pending"
+    feedback_outcome: str | None = None
+    feedback_reason: str = ""
+    reviewed_at: str | None = None
+    graph_labels: list[str] = Field(default_factory=list)
+    is_approved: bool = False
     created_at: str
     updated_at: str
     latest_critique: IdeaCritiqueResponse | None = None

@@ -1,0 +1,178 @@
+name: ai-infra
+
+domain:
+  name: ai-infrastructure
+  description: >-
+    AI infrastructure, model serving, and ML operations.
+    Focus on inference optimization, fine-tuning platforms, distributed training,
+    vector databases, evaluation frameworks, and production ML pipelines
+  categories:
+    - inference_server
+    - serving_platform
+    - fine_tuning_tool
+    - training_orchestrator
+    - vector_database
+    - eval_framework
+    - observability_tool
+    - data_pipeline
+    - library
+    - application
+  target_user_types:
+    - ml_engineers
+    - platform_engineers
+    - researchers
+    - both
+  target_segments:
+    - mid-market AI product teams
+    - platform teams running self-hosted models
+    - research teams moving models to production
+  workflows:
+    - model evaluation
+    - inference deployment
+    - fine-tuning operations
+    - GPU cost monitoring
+  buyer_roles:
+    - head of ML platform
+    - VP engineering
+    - infrastructure lead
+  hard_constraints:
+    - measurable latency or cost improvement required
+    - must fit existing CI/CD or Kubernetes workflows
+    - avoid requiring proprietary model weights
+  bad_idea_patterns:
+    - generic LLM observability dashboard
+    - model router without evaluation proof
+    - tool requiring full platform migration
+  good_idea_criteria:
+    - has clear cost or reliability metric
+    - testable on open models within 2 weeks
+    - integrates with existing serving stacks
+  extra_instructions: >-
+    Prioritize tools that reduce inference latency, simplify fine-tuning workflows,
+    or improve model observability. Cost-per-inference and GPU utilization are key metrics.
+    Container orchestration (K8s) is assumed infrastructure.
+    Open-source model weight distribution and eval frameworks are strong distribution channels.
+    Consider multi-model and multi-provider patterns (routing, fallback, load balancing).
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - inference
+        - model serving
+        - vllm
+        - fine-tuning
+        - quantization
+        - gguf
+        - mlops
+        - vector database
+        - gpu
+        - cuda
+        - triton
+        - onnx
+
+  - adapter: reddit
+    params:
+      subreddits:
+        - mlops
+        - deeplearning
+        - MLQuestions
+        - dataengineering
+        - selfhosted
+
+  - adapter: github
+    params:
+      topics:
+        - mlops
+        - llm-inference
+        - model-serving
+        - vector-database
+        - fine-tuning
+        - machine-learning
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"model serving" OR "inference" label:enhancement is:issue is:open'
+        - '"fine-tuning" OR "fine-tune" is:issue is:open'
+        - '"vector database" OR "embedding store" is:issue is:open'
+        - '"gpu" OR "cuda" label:bug is:issue is:open'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - vllm
+        - litellm
+        - mlflow
+        - wandb
+        - ray
+        - triton
+        - onnx
+        - tensorrt
+        - lmql
+        - chromadb
+        - qdrant
+        - weaviate
+        - milvus
+        - lance
+        - safetensors
+        - accelerate
+        - deepspeed
+        - unsloth
+        - axolotl
+        - trl
+
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - pip
+      severities:
+        - critical
+        - high
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - artificial-intelligence
+        - machine-learning
+
+  - adapter: stackoverflow
+    params:
+      tags:
+        - pytorch
+        - tensorflow
+        - mlops
+        - cuda
+        - onnx
+        - huggingface
+        - model-serving
+      min_score: 5
+
+  - adapter: arxiv
+    params:
+      categories:
+        - cs.LG
+        - cs.DC
+        - cs.AI
+      queries:
+        - "ti:inference AND (ti:optimization OR ti:serving)"
+        - "ti:fine-tuning OR ti:fine-tune"
+        - "abs:vector database OR abs:embedding retrieval"
+        - "ti:quantization AND ti:language model"
+
+  - adapter: devto
+    params:
+      tags:
+        - mlops
+        - machinelearning
+        - ai
+        - python
+        - deeplearning
+
+evaluation:
+  weight_profile: default
+  min_score: 50.0
+
+output_dir: .max-output
+signal_limit: 30
+ideation_mode: direct

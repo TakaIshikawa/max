@@ -600,6 +600,8 @@ class TestPipelineRuns:
         assert runs[0]["id"] == "run-test-1"
         assert runs[0]["config"] == {"profile": "default"}
         assert runs[0]["completed_at"] is None
+        assert runs[0]["status"] == "running"
+        assert runs[0]["error_message"] == ""
 
     def test_update_pipeline_run(self, store: Store) -> None:
         store.insert_pipeline_run("run-test-2", {})
@@ -608,6 +610,18 @@ class TestPipelineRuns:
         assert runs[0]["completed_at"] is not None
         assert runs[0]["signals_fetched"] == 10
         assert runs[0]["signals_new"] == 5
+        assert runs[0]["status"] == "completed"
+
+    def test_update_pipeline_run_failed_status(self, store: Store) -> None:
+        store.insert_pipeline_run("run-test-failed", {})
+        store.update_pipeline_run(
+            "run-test-failed",
+            status="failed",
+            error_message="ValidationError: ideas missing",
+        )
+        runs = store.get_pipeline_runs()
+        assert runs[0]["status"] == "failed"
+        assert runs[0]["error_message"] == "ValidationError: ideas missing"
 
     def test_get_pipeline_runs_empty(self, store: Store) -> None:
         assert store.get_pipeline_runs() == []
@@ -1086,7 +1100,7 @@ class TestContextManager:
         db_path = str(tmp_path / "ctx_suppress.db")
 
         with pytest.raises(ValueError, match="Test exception"):
-            with Store(db_path=db_path) as s:
+            with Store(db_path=db_path):
                 raise ValueError("Test exception")
 
 

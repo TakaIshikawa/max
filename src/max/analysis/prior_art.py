@@ -80,15 +80,44 @@ def _extract_keywords(text: str, max_tokens: int = 6) -> list[str]:
     return unique[:max_tokens]
 
 
+_MAX_QUERY_LEN = 64  # npm registry rejects queries >= 65 chars
+
+
+def _sanitize_title(title: str) -> str:
+    """Clean title for use as a search query.
+
+    Strips em-dash subtitles (e.g. "Name — Long Subtitle" → "Name")
+    and non-ASCII characters that break some search APIs (npm).
+    Truncates to _MAX_QUERY_LEN on a word boundary.
+    """
+    # Strip everything after em-dash separator
+    title = re.split(r"\s*[—–]\s*", title, maxsplit=1)[0]
+    # Remove non-ASCII characters
+    title = title.encode("ascii", "ignore").decode("ascii").strip()
+    # Truncate on word boundary
+    if len(title) > _MAX_QUERY_LEN:
+        title = title[:_MAX_QUERY_LEN].rsplit(" ", 1)[0]
+    return title
+
+
 def build_search_queries(unit: BuildableUnit) -> list[str]:
     """Generate search queries for a buildable unit."""
     queries: list[str] = []
-    # Query 1: title directly
-    queries.append(unit.title)
-    # Query 2: keywords from title + one_liner
+    # Query 1: sanitized title (project name only)
+    clean_title = _sanitize_title(unit.title)
+    if clean_title:
+        queries.append(clean_title)
+    # Query 2: keywords from title + one_liner, within length limit
     keywords = _extract_keywords(f"{unit.title} {unit.one_liner}")
     if keywords:
-        queries.append(" ".join(keywords))
+        query = ""
+        for kw in keywords:
+            candidate = f"{query} {kw}".strip() if query else kw
+            if len(candidate) > _MAX_QUERY_LEN:
+                break
+            query = candidate
+        if query:
+            queries.append(query)
     return queries
 
 

@@ -40,6 +40,7 @@ def quality_client(tmp_path):
         quality_score=7.0,
     )
     store.insert_buildable_unit(unit)
+    store.insert_feedback("bu-quality001", "approved", "graph sync label")
     store.insert_idea_critique(
         "bu-quality001",
         {
@@ -86,6 +87,11 @@ def test_idea_detail_includes_quality_fields(quality_client):
     assert data["novelty_score"] == 6.0
     assert data["usefulness_score"] == 8.0
     assert data["quality_score"] == 7.0
+    assert data["review_state"] == "approved"
+    assert data["feedback_outcome"] == "approved"
+    assert data["feedback_reason"] == "graph sync label"
+    assert data["is_approved"] is True
+    assert "ReviewApproved" in data["graph_labels"]
     assert data["latest_critique"]["dimensions"]["buyer_clarity"] == 7
 
 
@@ -97,6 +103,8 @@ def test_idea_summary_includes_quality_fields(quality_client):
     assert item["buyer"] == "VP engineering"
     assert item["workflow_context"] == "release validation"
     assert item["quality_score"] == 7.0
+    assert item["review_state"] == "approved"
+    assert "ReviewApproved" in item["graph_labels"]
     assert item["latest_critique"]["dimensions"]["usefulness"] == 8
 
 

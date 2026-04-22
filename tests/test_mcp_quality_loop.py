@@ -35,6 +35,7 @@ def test_mcp_exposes_quality_fields_and_evidence_pack(tmp_path):
         usefulness_score=8.0,
     )
     store.insert_buildable_unit(unit)
+    store.insert_feedback(unit.id, "rejected", "not enough buyer pull")
     store.insert_idea_critique(
         unit.id,
         {
@@ -60,9 +61,14 @@ def test_mcp_exposes_quality_fields_and_evidence_pack(tmp_path):
     try:
         results = search_ideas()
         assert results[0]["quality_score"] == 7.2
+        assert results[0]["review_state"] == "rejected"
+        assert results[0]["feedback_outcome"] == "rejected"
+        assert "ReviewRejected" in results[0]["graph_labels"]
 
         detail = get_idea(unit.id)
         assert detail["buyer"] == "VP engineering"
+        assert detail["review_state"] == "rejected"
+        assert detail["feedback_reason"] == "not enough buyer pull"
         assert detail["latest_critique"]["dimensions"]["buyer_clarity"] == 8
 
         critique = get_idea_critique(unit.id)

@@ -357,82 +357,6 @@ class TestInspectCommand:
         assert "Overall Score" not in result.output
 
 
-# ── publish command ────────────────────────────────────────────────
-
-
-class TestPublishCommand:
-    """Tests for ``max publish``."""
-
-    @patch("max.store.db.Store")
-    def test_publish_not_found(self, MockStore, runner: CliRunner) -> None:
-        MockStore.return_value = _mock_store(unit=None)
-        result = runner.invoke(main, ["publish", "bu-nonexistent"])
-        assert result.exit_code == 0
-        assert "Not found: bu-nonexistent" in result.output
-
-    @patch("max.store.db.Store")
-    def test_publish_no_evaluation(self, MockStore, runner: CliRunner) -> None:
-        store = _mock_store(unit=_make_unit(), evaluation=None)
-        MockStore.return_value = store
-
-        result = runner.invoke(main, ["publish", "bu-test001"])
-
-        assert result.exit_code == 0
-        assert "No evaluation for bu-test001" in result.output
-
-    @patch("max.publisher.file_writer.write_tact_spec")
-    @patch("max.spec.generator.generate_spec")
-    @patch("max.store.db.Store")
-    def test_publish_generates_and_writes(self, MockStore, mock_gen, mock_write, runner: CliRunner) -> None:
-        unit = _make_unit()
-        evaluation = _make_evaluation()
-        spec = _make_tact_spec()
-
-        store = _mock_store(unit=unit, evaluation=evaluation, tact_spec=None)
-        MockStore.return_value = store
-        mock_gen.return_value = spec
-
-        result = runner.invoke(main, ["publish", "bu-test001", "--output", "/tmp/specs"])
-
-        assert result.exit_code == 0, result.output
-        mock_gen.assert_called_once_with(unit, evaluation)
-        store.insert_tact_spec.assert_called_once_with(spec)
-        mock_write.assert_called_once()
-        write_call_args = mock_write.call_args
-        assert write_call_args[0][0] is spec
-        assert "mcp-test-framework" in str(write_call_args[0][1])
-        store.update_buildable_unit_status.assert_called_once_with("bu-test001", "published")
-
-    @patch("max.publisher.file_writer.write_tact_spec")
-    @patch("max.spec.generator.generate_spec")
-    @patch("max.store.db.Store")
-    def test_publish_uses_existing_spec(self, MockStore, mock_gen, mock_write, runner: CliRunner) -> None:
-        """When spec already exists in DB, skip generation."""
-        spec = _make_tact_spec()
-        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation(), tact_spec=spec)
-        MockStore.return_value = store
-
-        result = runner.invoke(main, ["publish", "bu-test001"])
-
-        assert result.exit_code == 0
-        assert "Using existing spec" in result.output
-        mock_gen.assert_not_called()
-
-    @patch("max.spec.generator.generate_spec")
-    @patch("max.store.db.Store")
-    def test_publish_dry_run(self, MockStore, mock_gen, runner: CliRunner) -> None:
-        spec = _make_tact_spec()
-        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation(), tact_spec=None)
-        MockStore.return_value = store
-        mock_gen.return_value = spec
-
-        result = runner.invoke(main, ["publish", "bu-test001", "--dry-run"])
-
-        assert result.exit_code == 0
-        assert "mcp-test-framework" in result.output
-        store.update_buildable_unit_status.assert_not_called()
-
-
 # ── feedback command ───────────────────────────────────────────────
 
 
@@ -446,7 +370,7 @@ class TestFeedbackCommand:
         assert result.exit_code == 0
         assert "Not found: bu-missing" in result.output
 
-    @pytest.mark.parametrize("outcome", ["approved", "rejected", "published", "abandoned"])
+    @pytest.mark.parametrize("outcome", ["approved", "rejected", "abandoned"])
     @patch("max.store.db.Store")
     def test_feedback_valid_outcomes(self, MockStore, outcome: str, runner: CliRunner) -> None:
         unit = _make_unit()
@@ -458,7 +382,7 @@ class TestFeedbackCommand:
         assert result.exit_code == 0
         store.insert_feedback.assert_called_once_with("bu-test001", outcome, "")
         store.update_buildable_unit_status.assert_called_once_with("bu-test001", outcome)
-        assert f"Recorded: MCP Test Framework" in result.output
+        assert "Recorded: MCP Test Framework" in result.output
         store.close.assert_called_once()
 
     @patch("max.store.db.Store")
@@ -470,6 +394,22 @@ class TestFeedbackCommand:
 
         assert result.exit_code == 0
         store.insert_feedback.assert_called_once_with("bu-test001", "rejected", "Too niche")
+
+    @patch("max.store.db.Store")
+    def test_feedback_with_score(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["feedback", "bu-test001", "approved", "-s", "8"])
+
+        assert result.exit_code == 0
+        store.insert_feedback.assert_called_once_with("bu-test001", "approved", "", approval_score=8)
+        assert "(8/10)" in result.output
+
+    @patch("max.store.db.Store")
+    def test_feedback_score_rejected_error(self, MockStore, runner: CliRunner) -> None:
+        result = runner.invoke(main, ["feedback", "bu-test001", "rejected", "-s", "5"])
+        assert "only valid for 'approved'" in result.output
 
     def test_feedback_invalid_outcome(self, runner: CliRunner) -> None:
         result = runner.invoke(main, ["feedback", "bu-test001", "invalid"])
@@ -672,3 +612,261 @@ class TestServeCommand:
 
         assert result.exit_code == 0, result.output
         assert "disabled" in result.output
+
+
+# ── focus command group ────────────────────────────────────────────
+
+
+@pytest.fixture
+def isolated_focus(tmp_path, monkeypatch):
+    """Redirect focus config to a tmp location."""
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    monkeypatch.setattr("max.focus.get_profiles_dir", lambda: profiles_dir)
+    return tmp_path / ".max" / "focus.yaml"
+
+
+def _mock_profile(name: str, domain_name: str):
+    from max.profiles.schema import DomainContext, PipelineProfile
+
+    return PipelineProfile(
+        name=name,
+        domain=DomainContext(
+            name=domain_name,
+            description=f"{domain_name} domain",
+            categories=["cli_tool"],
+            target_user_types=["developers"],
+        ),
+    )
+
+
+class TestFocusCommand:
+    """Tests for ``max focus`` group."""
+
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.profiles.loader.load_profile")
+    def test_list_when_no_config(
+        self, mock_load, mock_list, runner: CliRunner, isolated_focus,
+    ) -> None:
+        mock_list.return_value = ["devtools", "healthcare"]
+        mock_load.side_effect = lambda n: _mock_profile(n, {"devtools": "developer-tools", "healthcare": "healthcare"}[n])
+
+        result = runner.invoke(main, ["focus", "list"])
+
+        assert result.exit_code == 0, result.output
+        assert "not configured" in result.output
+        assert "developer-tools" in result.output
+        assert "healthcare" in result.output
+
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.profiles.loader.load_profile")
+    def test_set_valid_domains(
+        self, mock_load, mock_list, runner: CliRunner, isolated_focus,
+    ) -> None:
+        mock_list.return_value = ["devtools", "healthcare"]
+        mock_load.side_effect = lambda n: _mock_profile(n, {"devtools": "developer-tools", "healthcare": "healthcare"}[n])
+
+        result = runner.invoke(main, ["focus", "set", "developer-tools", "healthcare"])
+
+        assert result.exit_code == 0, result.output
+        assert "Focus set to" in result.output
+
+        from max.focus import load_focus_domains
+        assert load_focus_domains() == ["developer-tools", "healthcare"]
+
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.profiles.loader.load_profile")
+    def test_set_rejects_unknown_domain(
+        self, mock_load, mock_list, runner: CliRunner, isolated_focus,
+    ) -> None:
+        mock_list.return_value = ["devtools"]
+        mock_load.side_effect = lambda n: _mock_profile(n, "developer-tools")
+
+        result = runner.invoke(main, ["focus", "set", "bogus-domain"])
+
+        assert result.exit_code != 0
+        assert "Unknown domain" in result.output
+        from max.focus import load_focus_domains
+        assert load_focus_domains() is None  # unchanged
+
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.profiles.loader.load_profile")
+    def test_add_domain(
+        self, mock_load, mock_list, runner: CliRunner, isolated_focus,
+    ) -> None:
+        from max.focus import save_focus_domains
+
+        mock_list.return_value = ["devtools", "healthcare"]
+        mock_load.side_effect = lambda n: _mock_profile(n, {"devtools": "developer-tools", "healthcare": "healthcare"}[n])
+        save_focus_domains(["developer-tools"])
+
+        result = runner.invoke(main, ["focus", "add", "healthcare"])
+
+        assert result.exit_code == 0, result.output
+        from max.focus import load_focus_domains
+        assert load_focus_domains() == ["developer-tools", "healthcare"]
+
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.profiles.loader.load_profile")
+    def test_remove_domain(
+        self, mock_load, mock_list, runner: CliRunner, isolated_focus,
+    ) -> None:
+        from max.focus import save_focus_domains
+
+        mock_list.return_value = ["devtools", "healthcare"]
+        mock_load.side_effect = lambda n: _mock_profile(n, {"devtools": "developer-tools", "healthcare": "healthcare"}[n])
+        save_focus_domains(["developer-tools", "healthcare"])
+
+        result = runner.invoke(main, ["focus", "remove", "healthcare"])
+
+        assert result.exit_code == 0, result.output
+        from max.focus import load_focus_domains
+        assert load_focus_domains() == ["developer-tools"]
+
+    def test_remove_last_clears_filter(
+        self, runner: CliRunner, isolated_focus,
+    ) -> None:
+        from max.focus import save_focus_domains
+
+        save_focus_domains(["developer-tools"])
+
+        result = runner.invoke(main, ["focus", "remove", "developer-tools"])
+
+        assert result.exit_code == 0, result.output
+        from max.focus import load_focus_domains
+        assert load_focus_domains() is None
+
+    def test_clear(self, runner: CliRunner, isolated_focus) -> None:
+        from max.focus import save_focus_domains
+
+        save_focus_domains(["developer-tools"])
+
+        result = runner.invoke(main, ["focus", "clear"])
+
+        assert result.exit_code == 0, result.output
+        from max.focus import load_focus_domains
+        assert load_focus_domains() is None
+
+    def test_clear_when_already_clear(
+        self, runner: CliRunner, isolated_focus,
+    ) -> None:
+        result = runner.invoke(main, ["focus", "clear"])
+
+        assert result.exit_code == 0, result.output
+        assert "already cleared" in result.output
+
+
+# ── run --profile all focus filter ─────────────────────────────────
+
+
+class TestRunAllWithFocus:
+    """Tests for ``max run --profile all`` focus filtering."""
+
+    @patch("max.pipeline.runner.run_post_pipeline")
+    @patch("max.pipeline.runner.run_pipeline")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_filters_out_of_focus_profiles(
+        self,
+        mock_list,
+        mock_load,
+        mock_run_pipeline,
+        mock_post,
+        runner: CliRunner,
+        isolated_focus,
+    ) -> None:
+        from max.focus import save_focus_domains
+        from max.pipeline.runner import PipelineResult, PostPipelineResult
+
+        profiles = {
+            "devtools": "developer-tools",
+            "healthcare": "healthcare",
+            "legaltech": "legaltech",
+            "fintech": "fintech",
+        }
+        mock_list.return_value = list(profiles.keys())
+        mock_load.side_effect = lambda n: _mock_profile(n, profiles[n])
+        mock_run_pipeline.return_value = PipelineResult(
+            avg_insight_confidence=0.8, avg_idea_score=70.0, top_ideas=[],
+        )
+        mock_post.return_value = PostPipelineResult()
+        save_focus_domains(["developer-tools", "healthcare"])
+
+        result = runner.invoke(main, ["run", "--profile", "all"])
+
+        assert result.exit_code == 0, result.output
+        assert "Skipping 2 out-of-focus profile(s)" in result.output
+        assert "legaltech" in result.output
+        assert "fintech" in result.output
+        # Only devtools + healthcare pipelines should run
+        assert mock_run_pipeline.call_count == 2
+
+    @patch("max.pipeline.runner.run_post_pipeline")
+    @patch("max.pipeline.runner.run_pipeline")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_include_all_bypasses_focus(
+        self,
+        mock_list,
+        mock_load,
+        mock_run_pipeline,
+        mock_post,
+        runner: CliRunner,
+        isolated_focus,
+    ) -> None:
+        from max.focus import save_focus_domains
+        from max.pipeline.runner import PipelineResult, PostPipelineResult
+
+        profiles = {
+            "devtools": "developer-tools",
+            "legaltech": "legaltech",
+            "fintech": "fintech",
+        }
+        mock_list.return_value = list(profiles.keys())
+        mock_load.side_effect = lambda n: _mock_profile(n, profiles[n])
+        mock_run_pipeline.return_value = PipelineResult(
+            avg_insight_confidence=0.8, avg_idea_score=70.0, top_ideas=[],
+        )
+        mock_post.return_value = PostPipelineResult()
+        save_focus_domains(["developer-tools"])
+
+        result = runner.invoke(main, ["run", "--profile", "all", "--include-all"])
+
+        assert result.exit_code == 0, result.output
+        assert "Skipping" not in result.output
+        assert mock_run_pipeline.call_count == 3
+
+    @patch("max.pipeline.runner.run_post_pipeline")
+    @patch("max.pipeline.runner.run_pipeline")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.profiles.loader.list_profiles")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_no_focus_runs_all_as_before(
+        self,
+        mock_list,
+        mock_load,
+        mock_run_pipeline,
+        mock_post,
+        runner: CliRunner,
+        isolated_focus,
+    ) -> None:
+        from max.pipeline.runner import PipelineResult, PostPipelineResult
+
+        profiles = {
+            "devtools": "developer-tools",
+            "legaltech": "legaltech",
+        }
+        mock_list.return_value = list(profiles.keys())
+        mock_load.side_effect = lambda n: _mock_profile(n, profiles[n])
+        mock_run_pipeline.return_value = PipelineResult(
+            avg_insight_confidence=0.8, avg_idea_score=70.0, top_ideas=[],
+        )
+        mock_post.return_value = PostPipelineResult()
+
+        result = runner.invoke(main, ["run", "--profile", "all"])
+
+        assert result.exit_code == 0, result.output
+        assert "Skipping" not in result.output
+        assert mock_run_pipeline.call_count == 2

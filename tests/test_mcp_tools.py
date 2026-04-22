@@ -8,7 +8,6 @@ from max.server.mcp_tools import (
     contribute_idea,
     contribute_signal,
     get_idea,
-    get_spec,
     get_stats,
     search_ideas,
     set_store_factory,
@@ -165,6 +164,3 @@ def test_get_stats_seeded(seeded_mcp_db):
     assert result["avg_score"] == 78.0
 
 
-def test_get_spec_not_found(mcp_db):
-    result = get_spec(id="nonexistent")
-    assert "error" in result

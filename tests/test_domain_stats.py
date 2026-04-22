@@ -69,8 +69,8 @@ def _make_evaluation(unit_id: str = "bu-test001", overall_score: float = 72.0) -
 
 
 class TestMigration:
-    def test_schema_version_is_11(self) -> None:
-        assert SCHEMA_VERSION == 11
+    def test_schema_version_is_16(self) -> None:
+        assert SCHEMA_VERSION == 16
 
     def test_fresh_schema_creates_pipeline_run_domains_table(self, tmp_path: Path) -> None:
         db_path = str(tmp_path / "fresh.db")
@@ -200,11 +200,6 @@ class TestMigration:
                 recommendation TEXT NOT NULL DEFAULT 'maybe',
                 weights_used TEXT NOT NULL DEFAULT '{}'
             );
-            CREATE TABLE tact_specs (
-                buildable_unit_id TEXT PRIMARY KEY,
-                spec_json TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
             CREATE TABLE feedback (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 buildable_unit_id TEXT NOT NULL,
@@ -245,7 +240,7 @@ class TestMigration:
 
         # Verify version is updated
         version = conn.execute("SELECT version FROM schema_version").fetchone()[0]
-        assert version == 11
+        assert version == 16
 
         conn.close()
 
@@ -398,11 +393,6 @@ class TestPipelineRunnerDomainStats:
         from max.synthesis.engine import SynthesisOutput, InsightOutput
         from max.ideation.engine import IdeationOutput, BuildableUnitOutput
         from max.evaluation.engine import EvaluationOutput, DimensionScoreOutput
-        from max.spec.generator import (
-            SpecOutput, GoalOutput, TechStackOutput, PatternOutput,
-            DecisionOutput, RequirementOutput,
-        )
-
         db_path = str(tmp_path / "test_domain_stats.db")
 
         def score(v: float) -> DimensionScoreOutput:
@@ -440,18 +430,6 @@ class TestPipelineRunnerDomainStats:
                     strengths=["Good"], weaknesses=["Bad"],
                     recommendation="yes",
                 )
-            elif type_name == "SpecOutput":
-                return SpecOutput(
-                    name="health-tool", vision="Health tool vision",
-                    goals=[GoalOutput(id="G-1", description="Goal", success_criteria="Criteria")],
-                    tech_stack=TechStackOutput(languages=["Python"], frameworks=[], infrastructure=[]),
-                    constraints=[], patterns=[], invariants=[], conventions=[],
-                    decisions=[DecisionOutput(id="ADR-1", title="D", decision="D", rationale="R")],
-                    requirements=[RequirementOutput(
-                        title="Req", priority="critical",
-                        description="Desc", acceptance_criteria=["AC"],
-                    )],
-                )
             raise ValueError(f"Unexpected: {type_name}")
 
         profile = PipelineProfile(
@@ -485,7 +463,6 @@ class TestPipelineRunnerDomainStats:
             patch("max.synthesis.engine.structured_call", side_effect=mock_structured_call),
             patch("max.ideation.engine.structured_call", side_effect=mock_structured_call),
             patch("max.evaluation.engine.structured_call", side_effect=mock_structured_call),
-            patch("max.spec.generator.structured_call", side_effect=mock_structured_call),
             patch("max.store.db.DB_PATH", db_path),
             patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
         ):
@@ -514,10 +491,6 @@ class TestPipelineRunnerDomainStats:
         from max.synthesis.engine import SynthesisOutput, InsightOutput
         from max.ideation.engine import IdeationOutput, BuildableUnitOutput
         from max.evaluation.engine import EvaluationOutput, DimensionScoreOutput
-        from max.spec.generator import (
-            SpecOutput, GoalOutput, TechStackOutput, DecisionOutput, RequirementOutput,
-        )
-
         db_path = str(tmp_path / "test_empty_domain.db")
 
         def score(v: float) -> DimensionScoreOutput:
@@ -554,18 +527,6 @@ class TestPipelineRunnerDomainStats:
                     strengths=["Good"], weaknesses=["Bad"],
                     recommendation="yes",
                 )
-            elif type_name == "SpecOutput":
-                return SpecOutput(
-                    name="generic-tool", vision="Vision",
-                    goals=[GoalOutput(id="G-1", description="Goal", success_criteria="Criteria")],
-                    tech_stack=TechStackOutput(languages=["Python"], frameworks=[], infrastructure=[]),
-                    constraints=[], patterns=[], invariants=[], conventions=[],
-                    decisions=[DecisionOutput(id="ADR-1", title="D", decision="D", rationale="R")],
-                    requirements=[RequirementOutput(
-                        title="Req", priority="critical",
-                        description="Desc", acceptance_criteria=["AC"],
-                    )],
-                )
             raise ValueError(f"Unexpected: {type_name}")
 
         mock_signals = [
@@ -586,7 +547,6 @@ class TestPipelineRunnerDomainStats:
             patch("max.synthesis.engine.structured_call", side_effect=mock_structured_call),
             patch("max.ideation.engine.structured_call", side_effect=mock_structured_call),
             patch("max.evaluation.engine.structured_call", side_effect=mock_structured_call),
-            patch("max.spec.generator.structured_call", side_effect=mock_structured_call),
             patch("max.store.db.DB_PATH", db_path),
             patch("max.pipeline.runner.Store", lambda: _make_store(db_path)),
         ):

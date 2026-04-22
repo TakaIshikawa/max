@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     fetch_allocation TEXT NOT NULL DEFAULT '{}',
     token_usage TEXT NOT NULL DEFAULT '{}',
     adapter_metrics TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'running',
+    error_message TEXT NOT NULL DEFAULT '',
     archived_at TEXT DEFAULT NULL
 );
 
@@ -470,6 +472,24 @@ def _migrate_v13_to_v14(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_v14_to_v15(conn: sqlite3.Connection) -> None:
+    """Add pipeline run status and error text for failed-run inspection."""
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()}
+    changed = False
+    if "status" not in columns:
+        conn.execute(
+            "ALTER TABLE pipeline_runs ADD COLUMN status TEXT NOT NULL DEFAULT 'completed'"
+        )
+        changed = True
+    if "error_message" not in columns:
+        conn.execute(
+            "ALTER TABLE pipeline_runs ADD COLUMN error_message TEXT NOT NULL DEFAULT ''"
+        )
+        changed = True
+    if changed:
+        conn.commit()
+
+
+def _migrate_v15_to_v16(conn: sqlite3.Connection) -> None:
     """Add persisted design brief tables."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS design_briefs (
@@ -571,6 +591,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 15:
         _migrate_v14_to_v15(conn)
+
+    if current < 16:
+        _migrate_v15_to_v16(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

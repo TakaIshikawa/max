@@ -41,6 +41,23 @@ def _get_store() -> Store:
     return _store_factory()
 
 
+def _review_metadata(unit, latest_feedback: dict | None = None) -> dict:
+    """Return explicit review fields for graph/MCP consumers."""
+    outcome = latest_feedback["outcome"] if latest_feedback else None
+    state = outcome or unit.status or "pending"
+    if state == "evaluated":
+        state = "pending_review"
+    graph_state = "".join(part.capitalize() for part in state.replace("-", "_").split("_"))
+    return {
+        "review_state": state,
+        "feedback_outcome": outcome,
+        "feedback_reason": latest_feedback["reason"] if latest_feedback else "",
+        "reviewed_at": latest_feedback["created_at"] if latest_feedback else None,
+        "graph_labels": ["Idea", f"Review{graph_state}"],
+        "is_approved": state in ("approved", "published"),
+    }
+
+
 # ── Tool functions (callable directly for testing) ──────────────────
 
 
@@ -77,6 +94,7 @@ def search_ideas(
                 "category": unit.category,
                 "domain": unit.domain,
                 "status": unit.status,
+                **_review_metadata(unit, store.get_latest_feedback(unit.id)),
                 "target_users": unit.target_users,
                 "specific_user": unit.specific_user,
                 "buyer": unit.buyer,
@@ -128,6 +146,7 @@ def get_idea(id: str) -> dict:
             "rejection_tags": unit.rejection_tags,
             "tech_approach": unit.tech_approach,
             "status": unit.status,
+            **_review_metadata(unit, store.get_latest_feedback(id)),
         }
         critiques = store.get_idea_critiques(id)
         if critiques:
@@ -356,6 +375,7 @@ def ideas_list() -> str:
                 "category": unit.category,
                 "domain": unit.domain,
                 "status": unit.status,
+                **_review_metadata(unit, store.get_latest_feedback(unit.id)),
                 "quality_score": unit.quality_score,
                 "novelty_score": unit.novelty_score,
                 "usefulness_score": unit.usefulness_score,
@@ -397,6 +417,7 @@ def idea_detail(idea_id: str) -> str:
             "usefulness_score": unit.usefulness_score,
             "rejection_tags": unit.rejection_tags,
             "status": unit.status,
+            **_review_metadata(unit, store.get_latest_feedback(idea_id)),
         }
         critiques = store.get_idea_critiques(idea_id)
         if critiques:

@@ -31,7 +31,7 @@ def _insert_run(store: Store, run_id: str, started: str, completed: str, signals
            completed_at = ?,
            signals_fetched = ?, signals_new = ?,
            insights_generated = 0, ideas_generated = 0,
-           ideas_evaluated = 0, specs_generated = 0,
+           ideas_evaluated = 0,
            clusters_found = 0, gaps_detected = 0,
            avg_idea_score = 0.0,
            fetch_allocation = '{}', token_usage = '{}',

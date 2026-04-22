@@ -94,7 +94,12 @@ class TestIdeaCreateTargetUsers:
         m = IdeaCreate(**self.REQUIRED, target_users=val)
         assert m.target_users == val
 
-    @pytest.mark.parametrize("val", ["everyone", "HUMANS", ""])
+    @pytest.mark.parametrize("val", ["everyone", "HUMANS", "clinicians"])
+    def test_accepts_profile_defined_values(self, val):
+        m = IdeaCreate(**self.REQUIRED, target_users=val)
+        assert m.target_users == val
+
+    @pytest.mark.parametrize("val", [""])
     def test_rejects_invalid(self, val):
         with pytest.raises(ValidationError):
             IdeaCreate(**self.REQUIRED, target_users=val)

@@ -1,0 +1,144 @@
+name: proptech
+
+domain:
+  name: proptech
+  description: >-
+    Real estate technology and property management.
+    Focus on property valuation, lease management, tenant screening,
+    building maintenance automation, real estate analytics, and
+    transaction workflow tools
+  categories:
+    - property_valuation
+    - lease_management
+    - tenant_screening
+    - maintenance_automation
+    - transaction_workflow
+    - real_estate_analytics
+    - property_management
+    - application
+    - library
+  target_user_types:
+    - property_managers
+    - real_estate_agents
+    - landlords
+    - developers
+    - both
+  target_segments:
+    - small property management firms
+    - commercial real estate operators
+    - independent landlords
+  workflows:
+    - maintenance request triage
+    - lease abstraction
+    - tenant screening
+    - rent roll reconciliation
+  buyer_roles:
+    - property management owner
+    - asset manager
+    - brokerage operations lead
+  hard_constraints:
+    - protect tenant personal data
+    - fit email/text-heavy operating workflows
+    - avoid dependence on unavailable MLS data for first MVP
+  bad_idea_patterns:
+    - generic real estate chatbot
+    - valuation dashboard without data access
+    - marketplace without acquisition wedge
+  good_idea_criteria:
+    - reduces property operations workload
+    - has clear portfolio or unit-level ROI
+    - testable with one property workflow in 2 weeks
+  extra_instructions: >-
+    Real estate is one of the last major industries to digitize. Property
+    management still relies on spreadsheets and phone calls. Lease abstraction
+    (extracting key terms from PDF leases) is a massive manual effort for
+    commercial RE. Tenant screening involves pulling from multiple fragmented
+    data sources. Maintenance request workflows are often email/text-based
+    with no tracking. Property valuation (comps analysis) is still surprisingly
+    manual even for institutional investors. Consider the split between
+    residential (high volume, lower complexity) and commercial (lower volume,
+    higher complexity) — different pain points and willingness to pay.
+    MLS data access is a key moat/barrier.
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - realestateinvesting
+        - CommercialRealEstate
+        - PropertyManagement
+        - RealEstateTechnology
+        - landlord
+
+  - adapter: hackernews
+    enabled: true
+    params:
+      filter_keywords:
+        - real estate
+        - property
+        - tenant
+        - lease
+        - mortgage
+        - rental
+        - housing
+        - proptech
+        - mls
+        - valuation
+
+  - adapter: github
+    params:
+      topics:
+        - real-estate
+        - property-management
+        - proptech
+        - rental
+        - mortgage
+        - housing
+
+  - adapter: github_issues
+    params:
+      queries:
+        - '"property" "management" is:issue is:open'
+        - '"real estate" OR "rental" is:issue is:open'
+        - '"lease" OR "tenant" is:issue label:enhancement is:open'
+        - '"mortgage" OR "valuation" is:issue is:open'
+
+  - adapter: pypi_registry
+    params:
+      keywords:
+        - real-estate
+        - property
+        - rental
+        - mortgage
+        - lease
+        - tenant
+        - housing
+        - valuation
+        - geospatial
+        - gis
+        - zillow
+        - mls
+        - geocoding
+        - address
+
+  - adapter: npm_registry
+    params:
+      queries:
+        - property management
+        - real estate
+        - rental platform
+        - mortgage calculator
+
+  - adapter: product_hunt
+    params:
+      topics:
+        - real-estate
+        - productivity
+
+evaluation:
+  weight_profile: default
+  min_score: 45.0
+
+output_dir: .max-output
+signal_limit: 25
+ideation_mode: direct

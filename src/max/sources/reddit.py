@@ -24,7 +24,22 @@ _DEFAULT_SUBREDDITS = [
     "ExperiencedDevs",
 ]
 
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
+_BROWSER_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
 
 
 class RedditAdapter(SourceAdapter):
@@ -53,7 +68,7 @@ class RedditAdapter(SourceAdapter):
                 await asyncio.sleep(2)
             async with httpx.AsyncClient(
                 timeout=30,
-                headers={"User-Agent": USER_AGENT},
+                headers=_BROWSER_HEADERS,
                 follow_redirects=True,
             ) as client:
                 try:

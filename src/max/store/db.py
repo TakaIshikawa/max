@@ -198,10 +198,10 @@ class Store:
         return signals, next_cursor
 
     def count_signals(self, *, source_type: str | None = None) -> int:
-        query = "SELECT COUNT(*) FROM signals"
+        query = "SELECT COUNT(*) FROM signals WHERE archived_at IS NULL"
         params: list = []
         if source_type:
-            query += " WHERE source_type = ?"
+            query += " AND source_type = ?"
             params.append(source_type)
         return self.conn.execute(query, params).fetchone()[0]
 
@@ -1053,8 +1053,8 @@ class Store:
     def insert_pipeline_run(self, run_id: str, config: dict) -> None:
         """Record a new pipeline run."""
         self.conn.execute(
-            "INSERT INTO pipeline_runs (id, started_at, config) VALUES (?, ?, ?)",
-            (run_id, _now_iso(), json.dumps(config)),
+            "INSERT INTO pipeline_runs (id, started_at, config, status) VALUES (?, ?, ?, ?)",
+            (run_id, _now_iso(), json.dumps(config), "running"),
         )
         self._commit()
 
@@ -1069,7 +1069,8 @@ class Store:
                clusters_found = ?, gaps_detected = ?,
                avg_idea_score = ?,
                fetch_allocation = ?, token_usage = ?,
-               adapter_metrics = ?
+               adapter_metrics = ?,
+               status = ?, error_message = ?
                WHERE id = ?""",
             (
                 _now_iso(),
@@ -1084,6 +1085,8 @@ class Store:
                 json.dumps(metrics.get("fetch_allocation", {})),
                 json.dumps(metrics.get("token_usage", {})),
                 json.dumps(metrics.get("adapter_metrics", {})),
+                metrics.get("status", "completed"),
+                metrics.get("error_message", ""),
                 run_id,
             ),
         )
@@ -1113,6 +1116,10 @@ class Store:
                 "fetch_allocation": json.loads(row["fetch_allocation"]),
                 "token_usage": json.loads(row["token_usage"]),
                 "adapter_metrics": json.loads(row["adapter_metrics"]),
+                "status": row["status"] if "status" in row.keys() else "completed",
+                "error_message": (
+                    row["error_message"] if "error_message" in row.keys() else ""
+                ),
             }
             for row in rows
         ]

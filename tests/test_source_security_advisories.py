@@ -930,9 +930,8 @@ async def test_security_advisories_adapter_api_parameters() -> None:
 @pytest.mark.asyncio
 async def test_security_advisories_adapter_indentation_bug_line_90() -> None:
     """Security Advisories adapter processes advisories correctly with nested loops."""
-    # This test verifies the behavior of the indentation issue on line 90
-    # where `for adv in advisories:` is at the same level as `for ecosystem`
-    # This means only the last ecosystem/severity combination's advisories are processed
+    # Regression coverage: advisories from earlier ecosystem/severity calls
+    # should not be dropped while processing later calls.
     adapter = SecurityAdvisoriesAdapter()
 
     call_count = 0
@@ -941,8 +940,6 @@ async def test_security_advisories_adapter_indentation_bug_line_90() -> None:
         nonlocal call_count
         call_count += 1
 
-        # Return advisories on first call, but due to indentation bug,
-        # only the LAST call's advisories will be processed
         if call_count == 1:
             return MagicMock(json=lambda: [MOCK_ADVISORY_1])
         elif call_count == 6:  # Last call for go/high
@@ -953,10 +950,11 @@ async def test_security_advisories_adapter_indentation_bug_line_90() -> None:
     with patch("max.sources.security_advisories.fetch_with_retry", mock_fetch):
         signals = await adapter.fetch(limit=10)
 
-    # Due to indentation bug, only advisories from the last fetch are processed
-    # The last fetch (go/high) returns MOCK_ADVISORY_5_GO
-    assert len(signals) == 1
-    assert signals[0].metadata["ghsa_id"] == "GHSA-jjjj-kkkk-llll"
+    assert len(signals) == 2
+    assert {signal.metadata["ghsa_id"] for signal in signals} == {
+        "GHSA-xxxx-yyyy-zzzz",
+        "GHSA-jjjj-kkkk-llll",
+    }
 
 
 @pytest.mark.asyncio

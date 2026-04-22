@@ -146,7 +146,7 @@ def list_profiles() -> list[str]:
         return []
     names = []
     for path in sorted(profiles_dir.iterdir()):
-        if path.suffix in (".yaml", ".yml"):
+        if path.suffix in (".yaml", ".yml") and path.stem != "schema":
             names.append(path.stem)
     return names
 

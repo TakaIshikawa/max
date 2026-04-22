@@ -382,7 +382,6 @@ def test_pipeline_endpoint_has_expensive_limit():
             insights_generated=0,
             ideas_generated=0,
             ideas_evaluated=0,
-            specs_generated=0,
             avg_insight_confidence=0.0,
             avg_idea_score=0.0,
             token_usage={},

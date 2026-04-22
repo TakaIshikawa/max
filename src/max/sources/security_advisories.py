@@ -53,7 +53,7 @@ class SecurityAdvisoriesAdapter(SourceAdapter):
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     token = result.stdout.strip()
-            except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+            except Exception as e:
                 logger.warning(
                     "%s: failed to retrieve token from vault: %s",
                     self.name,

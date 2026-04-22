@@ -99,7 +99,6 @@ def test_pipeline_run_update(store: Store) -> None:
         insights_generated=5,
         ideas_generated=3,
         ideas_evaluated=3,
-        specs_generated=1,
         clusters_found=4,
         gaps_detected=2,
         avg_idea_score=65.5,
@@ -113,7 +112,6 @@ def test_pipeline_run_update(store: Store) -> None:
     assert run["signals_new"] == 10
     assert run["insights_generated"] == 5
     assert run["ideas_generated"] == 3
-    assert run["specs_generated"] == 1
     assert run["clusters_found"] == 4
     assert run["gaps_detected"] == 2
     assert run["avg_idea_score"] == 65.5

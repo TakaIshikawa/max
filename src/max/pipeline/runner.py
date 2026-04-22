@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+IDEATION_CONTEXT_LIMIT = 12
+
 # Pipeline stage execution order
 STAGE_ORDER = [
     'fetch',
@@ -104,6 +106,8 @@ class PipelineResult:
     estimated_cost_usd: float = 0.0
     cost_by_stage: dict[str, float] = field(default_factory=dict)
     budget_exceeded: bool = False
+    status: str = "completed"
+    error_message: str = ""
 
 
 @dataclass
@@ -186,7 +190,10 @@ def run_pipeline(
             active_stages=active_stages,
             signal_limit=signal_limit,
             ideation_mode=ideation_mode,
+            quality_loop_enabled=quality_loop_enabled,
+            draft_count=draft_count,
             source_configs=source_configs,
+            domain=domain,
         )
         store.close()
         return report
@@ -209,6 +216,7 @@ def run_pipeline(
         "profile": profile.name if profile else None,
     }
     store.insert_pipeline_run(run_id, config)
+    pipeline_error: BaseException | None = None
 
     # Adapt weights from feedback history
     feedback_outcomes = store.get_feedback_outcomes()
@@ -299,11 +307,12 @@ def run_pipeline(
         units: list[BuildableUnit] = []
         rejected_by_quality_gate: list[BuildableUnit] = []
         critique_records_by_title: dict[str, dict] = {}
+        critique_records_by_unit_id: dict[str, dict] = {}
         evidence_pack_json: str | None = None
         if 'ideate' in active_stages:
             # Prefer current-run insights; fall back to domain-filtered store insights
             if insights:
-                recent_insights = insights
+                recent_insights = insights[:IDEATION_CONTEXT_LIMIT]
             else:
                 all_insights = store.get_insights(limit=50)
                 recent_insights = _filter_insights_for_domain(all_insights, domain)
@@ -361,6 +370,17 @@ def run_pipeline(
                     recent_insights,
                 )
                 revised_units = apply_critiques(revised_units, critiques)
+                for i, unit in enumerate(revised_units):
+                    if i >= len(critiques):
+                        continue
+                    critique = critiques[i]
+                    critique_record = critique_to_record(critique)
+                    critique_records_by_unit_id[unit.id] = critique_record
+                    if unit.quality_score == 0.0:
+                        unit.novelty_score = max(0.0, min(10.0, critique.novelty))
+                        unit.usefulness_score = max(0.0, min(10.0, critique.usefulness))
+                        unit.quality_score = max(0.0, min(10.0, critique.quality_score))
+                        unit.rejection_tags = critique.rejection_tags
                 kept_units, rejected_units = quality_gate(revised_units)
                 rejected_by_quality_gate = rejected_units
                 units = kept_units
@@ -401,7 +421,11 @@ def run_pipeline(
                 rejected.domain = domain_name
                 rejected.status = "rejected"
                 store.insert_buildable_unit(rejected)
-                critique = critique_records_by_title.get(rejected.title.lower())
+                critique = critique_records_by_unit_id.get(
+                    rejected.id
+                ) or critique_records_by_title.get(
+                    rejected.title.lower()
+                ) or _unit_quality_record(rejected)
                 if critique:
                     store.insert_idea_critique(
                         rejected.id,
@@ -422,7 +446,11 @@ def run_pipeline(
             for unit in units:
                 unit.domain = domain_name
                 store.insert_buildable_unit(unit)
-                critique = critique_records_by_title.get(unit.title.lower())
+                critique = critique_records_by_unit_id.get(
+                    unit.id
+                ) or critique_records_by_title.get(
+                    unit.title.lower()
+                ) or _unit_quality_record(unit)
                 if critique:
                     store.insert_idea_critique(
                         unit.id,
@@ -498,7 +526,14 @@ def run_pipeline(
     except BudgetExceededError as e:
         logger.warning("Budget exceeded during pipeline: %s", e)
         result.budget_exceeded = True
+        result.status = "budget_exceeded"
+        result.error_message = str(e)
         # Partial results are preserved and will be recorded in finally block
+    except Exception as e:
+        logger.exception("Pipeline failed during run %s", run_id)
+        result.status = "failed"
+        result.error_message = f"{type(e).__name__}: {e}"
+        pipeline_error = e
 
     finally:
         # Populate cost metrics from token tracker
@@ -518,8 +553,13 @@ def run_pipeline(
             fetch_allocation=result.fetch_allocation,
             token_usage=result.token_usage,
             adapter_metrics=result.adapter_metrics,
+            status=result.status,
+            error_message=result.error_message,
         )
         store.close()
+
+    if pipeline_error is not None:
+        raise pipeline_error
 
     return result
 
@@ -533,10 +573,10 @@ def _filter_insights_for_domain(
     domain name.  Only insight ``domains`` entries are checked (not titles),
     reducing false matches from generic words.
 
-    Returns up to 20 matching insights, or an empty list if nothing matches.
+    Returns up to the ideation context limit, or an empty list if nothing matches.
     """
     if domain is None or not insights:
-        return insights[:20]
+        return insights[:IDEATION_CONTEXT_LIMIT]
 
     # Map profile domain names to strict keyword sets for insight domain matching
     _DOMAIN_KEYWORDS: dict[str, set[str]] = {
@@ -567,7 +607,33 @@ def _filter_insights_for_domain(
         if ins_domains_lower & match_terms:
             matched.append(ins)
 
-    return matched[:20]
+    return matched[:IDEATION_CONTEXT_LIMIT]
+
+
+def _unit_quality_record(unit: BuildableUnit) -> dict | None:
+    """Build a persistence record from scores already copied onto a unit."""
+    if (
+        unit.quality_score == 0.0
+        and unit.novelty_score == 0.0
+        and unit.usefulness_score == 0.0
+        and not unit.rejection_tags
+    ):
+        return None
+    return {
+        "urgency": 0.0,
+        "buyer_clarity": 0.0,
+        "specificity": 0.0,
+        "evidence_support": 0.0,
+        "feasibility": 0.0,
+        "differentiation": 0.0,
+        "distribution_path": 0.0,
+        "domain_risk": 0.0,
+        "novelty": unit.novelty_score,
+        "usefulness": unit.usefulness_score,
+        "quality_score": unit.quality_score,
+        "reasoning": unit.evidence_rationale,
+        "rejection_tags": unit.rejection_tags,
+    }
 
 
 def _resolve_evidence_chain(unit: BuildableUnit, store: Store) -> str | None:
@@ -692,7 +758,10 @@ def _generate_dry_run_report(
     active_stages: list[str],
     signal_limit: int,
     ideation_mode: str,
+    quality_loop_enabled: bool = False,
+    draft_count: int = 8,
     source_configs: list | None = None,
+    domain: DomainContext | None = None,
 ) -> DryRunReport:
     """Generate a dry-run report simulating pipeline execution without LLM calls or writes."""
     stage_summaries: list[StageSummary] = []
@@ -810,7 +879,8 @@ def _generate_dry_run_report(
 
     # Stage: ideate
     if 'ideate' in active_stages:
-        recent_insights = store.get_insights(limit=20)
+        all_insights = store.get_insights(limit=50)
+        recent_insights = _filter_insights_for_domain(all_insights, domain)
         # Estimate LLM calls based on ideation mode
         modes_count = {
             'direct': 1,
@@ -819,6 +889,9 @@ def _generate_dry_run_report(
             'all': 3,
         }.get(ideation_mode, 1)
         llm_calls = modes_count * max(1, len(recent_insights) // 10)  # Rough estimate
+        if quality_loop_enabled and recent_insights:
+            # critique + revision; quality gate itself is deterministic.
+            llm_calls += 2
         total_llm_calls += llm_calls
         stage_summaries.append(StageSummary(
             name='ideate',
@@ -841,8 +914,9 @@ def _generate_dry_run_report(
         # Estimate new ideas to evaluate (rough estimate based on ideation)
         ideate_summary = next((s for s in stage_summaries if s.name == 'ideate'), None)
         if ideate_summary and not ideate_summary.skipped:
-            # Estimate ~2 ideas per 10 insights
             estimated_ideas = max(ideate_summary.would_process // 5, 1)
+            if quality_loop_enabled:
+                estimated_ideas = min(estimated_ideas, max(1, draft_count))
         else:
             estimated_ideas = 0
         llm_calls = estimated_ideas  # 1 LLM call per idea for evaluation

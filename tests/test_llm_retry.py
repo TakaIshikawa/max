@@ -228,6 +228,44 @@ class TestStructuredCallRetry:
             # Budget tracking should be called with successful response tokens
             mock_tracker.record.assert_called_once_with("test_stage", 1000, 500)
 
+    def test_structured_call_retries_empty_tool_input(self):
+        """Should retry when Anthropic returns an empty structured tool payload."""
+        class DummyOutput(BaseModel):
+            result: str
+
+        empty_response = MagicMock()
+        empty_response.usage.input_tokens = 100
+        empty_response.usage.output_tokens = 10
+        empty_response.content = [MagicMock(type="tool_use", input={})]
+
+        valid_response = MagicMock()
+        valid_response.usage.input_tokens = 120
+        valid_response.usage.output_tokens = 30
+        valid_response.content = [MagicMock(type="tool_use", input={"result": "ok"})]
+
+        with (
+            patch("max.llm.client.get_client") as mock_get_client,
+            patch("max.llm.client.token_tracker") as mock_tracker,
+            patch("max.config.MAX_TOKEN_BUDGET", 0),
+            patch("max.config.MAX_COST_BUDGET", 0.0),
+        ):
+            mock_client = MagicMock()
+            mock_client.messages.create.side_effect = [empty_response, valid_response]
+            mock_get_client.return_value = mock_client
+            mock_tracker.total.return_value = 0
+            mock_tracker.is_over_budget.return_value = False
+
+            result = structured_call(
+                system="test",
+                prompt="test",
+                output_type=DummyOutput,
+                stage="ideation",
+            )
+
+        assert result.result == "ok"
+        assert mock_client.messages.create.call_count == 2
+        assert mock_tracker.record.call_count == 2
+
 
 class TestTextCallRetry:
     """Tests for retry logic in text_call."""

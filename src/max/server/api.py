@@ -127,7 +127,26 @@ def _insight_to_response(ins: Insight) -> InsightResponse:
     )
 
 
-def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
+def _review_metadata(unit, latest_feedback: dict | None = None) -> dict:
+    """Return explicit review fields for graph/API consumers."""
+    outcome = latest_feedback["outcome"] if latest_feedback else None
+    state = outcome or unit.status or "pending"
+    if state == "evaluated":
+        state = "pending_review"
+    elif state == "draft":
+        state = "draft"
+    graph_state = "".join(part.capitalize() for part in state.replace("-", "_").split("_"))
+    return {
+        "review_state": state,
+        "feedback_outcome": outcome,
+        "feedback_reason": latest_feedback["reason"] if latest_feedback else "",
+        "reviewed_at": latest_feedback["created_at"] if latest_feedback else None,
+        "graph_labels": ["Idea", f"Review{graph_state}"],
+        "is_approved": state in ("approved", "published"),
+    }
+
+
+def _unit_summary(unit, evaluation=None, latest_feedback=None) -> IdeaSummaryResponse:
     return IdeaSummaryResponse(
         id=unit.id,
         title=unit.title,
@@ -135,6 +154,7 @@ def _unit_summary(unit, evaluation=None) -> IdeaSummaryResponse:
         category=unit.category,
         domain=unit.domain,
         status=unit.status,
+        **_review_metadata(unit, latest_feedback),
         target_users=unit.target_users,
         specific_user=unit.specific_user,
         buyer=unit.buyer,
@@ -183,7 +203,12 @@ def _evaluation_to_response(ev: UtilityEvaluation) -> EvaluationResponse:
     )
 
 
-def _unit_detail(unit, evaluation=None, latest_critique=None) -> IdeaDetailResponse:
+def _unit_detail(
+    unit,
+    evaluation=None,
+    latest_critique=None,
+    latest_feedback=None,
+) -> IdeaDetailResponse:
     return IdeaDetailResponse(
         id=unit.id,
         title=unit.title,
@@ -214,6 +239,7 @@ def _unit_detail(unit, evaluation=None, latest_critique=None) -> IdeaDetailRespo
         suggested_stack=unit.suggested_stack,
         composability_notes=unit.composability_notes,
         status=unit.status,
+        **_review_metadata(unit, latest_feedback),
         created_at=unit.created_at.isoformat() if hasattr(unit.created_at, "isoformat") else unit.created_at,
         updated_at=unit.updated_at.isoformat() if hasattr(unit.updated_at, "isoformat") else unit.updated_at,
         latest_critique=_critique_to_response(latest_critique) if latest_critique else None,
@@ -347,7 +373,7 @@ def list_ideas(
         evaluation = store.get_evaluation(unit.id)
         if min_score is not None and (evaluation is None or evaluation.overall_score < min_score):
             continue
-        summary = _unit_summary(unit, evaluation)
+        summary = _unit_summary(unit, evaluation, store.get_latest_feedback(unit.id))
         critiques = store.get_idea_critiques(unit.id)
         if critiques:
             summary.latest_critique = _critique_to_response(critiques[0])
@@ -372,7 +398,12 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     evaluation = store.get_evaluation(idea_id)
     critiques = store.get_idea_critiques(idea_id)
-    return _unit_detail(unit, evaluation, latest_critique=critiques[0] if critiques else None)
+    return _unit_detail(
+        unit,
+        evaluation,
+        latest_critique=critiques[0] if critiques else None,
+        latest_feedback=store.get_latest_feedback(idea_id),
+    )
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])

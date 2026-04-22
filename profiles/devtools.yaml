@@ -46,6 +46,21 @@ domain:
 sources:
   - adapter: hackernews
     enabled: true
+    params:
+      filter_keywords:
+        - developer
+        - programming
+        - api
+        - cli
+        - sdk
+        - agent
+        - llm
+        - mcp
+        - open source
+        - devtools
+        - compiler
+        - ide
+        - git
 
   - adapter: reddit
     params:
@@ -125,10 +140,43 @@ sources:
         - developer-tools
         - artificial-intelligence
 
+  - adapter: stackoverflow
+    params:
+      tags:
+        - langchain
+        - openai
+        - llm
+        - mcp
+        - ai-agent
+        - anthropic
+        - claude
+      min_score: 5
+
+  - adapter: arxiv
+    params:
+      categories:
+        - cs.AI
+        - cs.CL
+        - cs.SE
+      queries:
+        - "ti:agent AND ti:tool"
+        - "ti:LLM OR ti:language model"
+        - "abs:developer AND abs:workflow"
+
+  - adapter: devto
+    params:
+      tags:
+        - ai
+        - llm
+        - mcp
+        - developer-tools
+        - python
+        - typescript
+
 evaluation:
   weight_profile: default
   min_score: 50.0
 
-output_dir: .tact
+output_dir: .max-output
 signal_limit: 30
 ideation_mode: direct
