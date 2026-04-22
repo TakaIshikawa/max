@@ -1564,6 +1564,66 @@ def _render_implementation_plan(plan: dict, *, fmt: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+@main.command(name="launch-checklist")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def launch_checklist(idea_id: str, fmt: str) -> None:
+    """Generate a launch checklist for an approved idea."""
+    from max.spec.generator import generate_spec_preview
+    from max.spec.launch_checklist import generate_launch_checklist
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        evaluation = store.get_evaluation(idea_id)
+        tact_spec = generate_spec_preview(unit, evaluation)
+        checklist = generate_launch_checklist(unit, evaluation, tact_spec)
+        click.echo(_render_launch_checklist(checklist, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
+def _render_launch_checklist(checklist: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(checklist, indent=2) + "\n"
+    if fmt != "text":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    summary = checklist["summary"]
+    lines = [
+        f"Launch checklist: {summary['title']}",
+        f"Idea: {checklist['idea_id']}",
+        f"Gate: {summary['launch_gate']}",
+    ]
+    recommendation = summary.get("recommendation")
+    if recommendation:
+        lines.append(f"Evaluation: {recommendation} ({summary.get('overall_score', 0.0):.1f})")
+
+    for section in checklist["sections"]:
+        lines.append(f"\n{section['title']}:")
+        for item in section["items"]:
+            lines.append(f"- {item['id']}: {item['task']}")
+            lines.append(f"  Evidence: {item['evidence']}")
+
+    if checklist["risks"]:
+        lines.append("\nRisks:")
+        for risk in checklist["risks"]:
+            lines.append(f"- [{risk['source']}] {risk['description']}")
+
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="evidence-density")
 @click.argument("idea_id")
 @click.option(

@@ -89,6 +89,7 @@ from max.server.schemas import (
     LLMUsageResponse,
     LLMUsageRunResponse,
     LLMBudgetUsageResponse,
+    LaunchChecklistResponse,
     LineageGraphEdgeResponse,
     LineageGraphNodeResponse,
     LineageGraphResponse,
@@ -138,6 +139,7 @@ from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_wei
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
+from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.registry import list_adapter_metadata, list_adapters
@@ -1554,6 +1556,18 @@ def get_idea_implementation_plan(idea_id: str, store: Store = Depends(get_store)
     evaluation = store.get_evaluation(idea_id)
     spec_preview = generate_spec_preview(unit, evaluation)
     return generate_implementation_plan(unit, evaluation, spec_preview)
+
+
+@router.get("/ideas/{idea_id}/launch-checklist", response_model=LaunchChecklistResponse)
+def get_idea_launch_checklist(idea_id: str, store: Store = Depends(get_store)) -> LaunchChecklistResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    return LaunchChecklistResponse.model_validate(
+        generate_launch_checklist(unit, evaluation, tact_spec)
+    )
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])

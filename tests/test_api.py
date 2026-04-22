@@ -1852,6 +1852,34 @@ def test_get_idea_implementation_plan_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_launch_checklist(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/launch-checklist")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max-launch-checklist/v1"
+    assert data["kind"] == "max.launch_checklist"
+    assert data["idea_id"] == "bu-api001"
+    assert data["source"]["tact_spec_schema_version"] == "tact-spec-preview/v1"
+    assert data["summary"]["title"] == "Test Idea"
+    assert data["summary"]["recommendation"] == "yes"
+    assert [section["id"] for section in data["sections"]] == [
+        "repository_setup",
+        "mvp_validation",
+        "release_readiness",
+        "telemetry",
+        "risk_review",
+        "feedback_capture",
+    ]
+    assert any(item["id"] == "LC1" for item in data["checklist_items"])
+    assert data["risks"]
+
+
+def test_get_idea_launch_checklist_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/launch-checklist")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_evidence_chain(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
     assert resp.status_code == 200

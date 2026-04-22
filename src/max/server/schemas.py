@@ -507,6 +507,36 @@ class IdeaEvaluateBatchResponse(BaseModel):
     results: list[IdeaEvaluateBatchItemResponse]
 
 
+class LaunchChecklistItemResponse(BaseModel):
+    id: str
+    task: str
+    rationale: str
+    evidence: str
+    owner: str
+    status: str
+    required: bool
+    section_id: str | None = None
+    section_title: str | None = None
+
+
+class LaunchChecklistSectionResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    items: list[LaunchChecklistItemResponse]
+
+
+class LaunchChecklistResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    sections: list[LaunchChecklistSectionResponse]
+    checklist_items: list[LaunchChecklistItemResponse]
+    risks: list[dict[str, str]]
+
+
 class FeedbackBatchItemResponse(BaseModel):
     idea_id: str
     outcome: Literal["approved", "rejected", "published", "abandoned"]

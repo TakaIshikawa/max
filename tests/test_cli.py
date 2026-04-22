@@ -882,6 +882,63 @@ class TestImplementationPlanCommand:
         store.get_evaluation.assert_not_called()
 
 
+class TestLaunchChecklistCommand:
+    @patch("max.store.db.Store")
+    def test_launch_checklist_stdout_json(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        unit = _make_unit(status="approved")
+        store = _mock_store(unit=unit, evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["launch-checklist", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-launch-checklist/v1"
+        assert payload["kind"] == "max.launch_checklist"
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["summary"]["launch_gate"] == "ready_for_launch_review"
+        assert [section["id"] for section in payload["sections"]] == [
+            "repository_setup",
+            "mvp_validation",
+            "release_readiness",
+            "telemetry",
+            "risk_review",
+            "feedback_capture",
+        ]
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_launch_checklist_stdout_text(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(status="approved"), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["launch-checklist", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Launch checklist: MCP Test Framework" in result.output
+        assert "Repository Setup:" in result.output
+        assert "MVP Validation:" in result.output
+        assert "Feedback Capture:" in result.output
+
+    @patch("max.store.db.Store")
+    def test_launch_checklist_missing_idea(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["launch-checklist", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
 class TestEvidenceDensityCommand:
     @patch("max.store.db.Store")
     def test_evidence_density_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
