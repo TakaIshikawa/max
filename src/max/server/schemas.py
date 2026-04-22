@@ -588,9 +588,17 @@ class StageSummaryResponse(BaseModel):
     estimated_llm_calls: int
     skipped: bool
     reason: str
+    estimated_input_tokens: int = 0
+    estimated_output_tokens: int = 0
+    estimated_total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
 
 
 class DryRunReportResponse(BaseModel):
     stages: list[StageSummaryResponse]
     estimated_total_llm_calls: int
     estimated_token_budget: int
+    estimated_input_tokens: int = 0
+    estimated_output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    cost_by_stage: dict[str, float] = Field(default_factory=dict)

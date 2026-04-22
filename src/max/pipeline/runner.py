@@ -23,7 +23,7 @@ from max.ideation.evidence import build_evidence_pack
 from max.ideation.engine import ideate, ideate_cross_domain, ideate_refinement
 from max.ideation.quality_gate import quality_gate
 from max.ideation.revision import revise_ideas
-from max.llm.client import BudgetExceededError, token_tracker
+from max.llm.client import BudgetExceededError, TokenTracker, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
 from max.quality.gate import enforce_domain_quality_gate
 from max.quality.rubric import rubric_context_text
@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 IDEATION_CONTEXT_LIMIT = 12
+DRY_RUN_ESTIMATED_INPUT_TOKENS_PER_CALL = 1500
+DRY_RUN_ESTIMATED_OUTPUT_TOKENS_PER_CALL = 500
 
 # Pipeline stage execution order
 STAGE_ORDER = [
@@ -849,6 +851,14 @@ def _generate_dry_run_report(
     """Generate a dry-run report simulating pipeline execution without LLM calls or writes."""
     stage_summaries: list[StageSummary] = []
     total_llm_calls = 0
+    dry_run_token_tracker = TokenTracker()
+
+    def estimate_tokens(stage_name: str, llm_calls: int) -> tuple[int, int, int]:
+        input_tokens = llm_calls * DRY_RUN_ESTIMATED_INPUT_TOKENS_PER_CALL
+        output_tokens = llm_calls * DRY_RUN_ESTIMATED_OUTPUT_TOKENS_PER_CALL
+        if input_tokens or output_tokens:
+            dry_run_token_tracker.record(stage_name, input_tokens, output_tokens)
+        return input_tokens, output_tokens, input_tokens + output_tokens
 
     # Stage: fetch
     if 'fetch' in active_stages:
@@ -862,40 +872,56 @@ def _generate_dry_run_report(
             allocation = {a.name: per_adapter for a in adapters}
 
         total_to_fetch = sum(allocation.values())
+        input_tokens, output_tokens, total_tokens = estimate_tokens('fetch', 0)
         stage_summaries.append(StageSummary(
             name='fetch',
             would_process=total_to_fetch,
             estimated_llm_calls=0,  # No LLM calls in fetch
             skipped=total_to_fetch == 0,
             reason='no adapters configured' if total_to_fetch == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('fetch', 0)
         stage_summaries.append(StageSummary(
             name='fetch',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: annotate
     if 'annotate' in active_stages:
         # Estimate based on fetch count
         fetch_count = stage_summaries[0].would_process if stage_summaries else 0
+        input_tokens, output_tokens, total_tokens = estimate_tokens('annotate', 0)
         stage_summaries.append(StageSummary(
             name='annotate',
             would_process=fetch_count,
             estimated_llm_calls=0,  # Role annotation uses heuristics, not LLM
             skipped=fetch_count == 0,
             reason='no signals to annotate' if fetch_count == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('annotate', 0)
         stage_summaries.append(StageSummary(
             name='annotate',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: synthesize
@@ -905,59 +931,83 @@ def _generate_dry_run_report(
         # Estimate LLM calls: ~1 call per batch of 5 signals (rough estimate)
         llm_calls = max((unsynthesized_count + 4) // 5, 0)
         total_llm_calls += llm_calls
+        input_tokens, output_tokens, total_tokens = estimate_tokens('synthesize', llm_calls)
         stage_summaries.append(StageSummary(
             name='synthesize',
             would_process=unsynthesized_count,
             estimated_llm_calls=llm_calls,
             skipped=unsynthesized_count == 0,
             reason='no new signals since last run' if unsynthesized_count == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('synthesize', 0)
         stage_summaries.append(StageSummary(
             name='synthesize',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: detect_gaps
     if 'detect_gaps' in active_stages:
         # Gap detection analyzes existing insights, no new LLM calls
         recent_insights = store.get_insights(limit=20)
+        input_tokens, output_tokens, total_tokens = estimate_tokens('detect_gaps', 0)
         stage_summaries.append(StageSummary(
             name='detect_gaps',
             would_process=len(recent_insights),
             estimated_llm_calls=0,
             skipped=len(recent_insights) == 0,
             reason='no insights to analyze' if len(recent_insights) == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('detect_gaps', 0)
         stage_summaries.append(StageSummary(
             name='detect_gaps',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: retrospective
     if 'retrospective' in active_stages:
         feedback_outcomes = store.get_feedback_outcomes()
+        input_tokens, output_tokens, total_tokens = estimate_tokens('retrospective', 0)
         stage_summaries.append(StageSummary(
             name='retrospective',
             would_process=len(feedback_outcomes),
             estimated_llm_calls=0,
             skipped=len(feedback_outcomes) == 0,
             reason='no feedback history' if len(feedback_outcomes) == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('retrospective', 0)
         stage_summaries.append(StageSummary(
             name='retrospective',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: ideate
@@ -976,20 +1026,28 @@ def _generate_dry_run_report(
             # critique + revision; quality gate itself is deterministic.
             llm_calls += 2
         total_llm_calls += llm_calls
+        input_tokens, output_tokens, total_tokens = estimate_tokens('ideate', llm_calls)
         stage_summaries.append(StageSummary(
             name='ideate',
             would_process=len(recent_insights),
             estimated_llm_calls=llm_calls,
             skipped=len(recent_insights) == 0,
             reason='no insights to ideate from' if len(recent_insights) == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('ideate', 0)
         stage_summaries.append(StageSummary(
             name='ideate',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
     # Stage: evaluate
@@ -1004,29 +1062,45 @@ def _generate_dry_run_report(
             estimated_ideas = 0
         llm_calls = estimated_ideas  # 1 LLM call per idea for evaluation
         total_llm_calls += llm_calls
+        input_tokens, output_tokens, total_tokens = estimate_tokens('evaluate', llm_calls)
         stage_summaries.append(StageSummary(
             name='evaluate',
             would_process=estimated_ideas,
             estimated_llm_calls=llm_calls,
             skipped=estimated_ideas == 0,
             reason='no ideas to evaluate' if estimated_ideas == 0 else '',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
     else:
+        input_tokens, output_tokens, total_tokens = estimate_tokens('evaluate', 0)
         stage_summaries.append(StageSummary(
             name='evaluate',
             would_process=0,
             estimated_llm_calls=0,
             skipped=True,
             reason='stage not selected',
+            estimated_input_tokens=input_tokens,
+            estimated_output_tokens=output_tokens,
+            estimated_total_tokens=total_tokens,
         ))
 
-    # Estimate token budget (rough: 2000 tokens per LLM call on average)
-    estimated_tokens = total_llm_calls * 2000
+    estimated_input_tokens = dry_run_token_tracker.usage["input"]
+    estimated_output_tokens = dry_run_token_tracker.usage["output"]
+    estimated_tokens = estimated_input_tokens + estimated_output_tokens
+    cost_by_stage = dry_run_token_tracker.cost_by_stage()
+    for summary in stage_summaries:
+        summary.estimated_cost_usd = cost_by_stage.get(summary.name, 0.0)
 
     return DryRunReport(
         stages=stage_summaries,
         estimated_total_llm_calls=total_llm_calls,
         estimated_token_budget=estimated_tokens,
+        estimated_input_tokens=estimated_input_tokens,
+        estimated_output_tokens=estimated_output_tokens,
+        estimated_cost_usd=dry_run_token_tracker.estimated_cost_usd(),
+        cost_by_stage=cost_by_stage,
     )
 
 

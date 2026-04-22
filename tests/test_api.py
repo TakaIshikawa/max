@@ -1684,10 +1684,18 @@ def test_pipeline_dry_run_loads_profile_applies_overrides_and_returns_report(cli
                 estimated_llm_calls=0,
                 skipped=False,
                 reason="",
+                estimated_input_tokens=0,
+                estimated_output_tokens=0,
+                estimated_total_tokens=0,
+                estimated_cost_usd=0.0,
             )
         ],
         estimated_total_llm_calls=0,
         estimated_token_budget=0,
+        estimated_input_tokens=0,
+        estimated_output_tokens=0,
+        estimated_cost_usd=0.0,
+        cost_by_stage={},
     )
 
     with (
@@ -1708,10 +1716,18 @@ def test_pipeline_dry_run_loads_profile_applies_overrides_and_returns_report(cli
                 "estimated_llm_calls": 0,
                 "skipped": False,
                 "reason": "",
+                "estimated_input_tokens": 0,
+                "estimated_output_tokens": 0,
+                "estimated_total_tokens": 0,
+                "estimated_cost_usd": 0.0,
             }
         ],
         "estimated_total_llm_calls": 0,
         "estimated_token_budget": 0,
+        "estimated_input_tokens": 0,
+        "estimated_output_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "cost_by_stage": {},
     }
     mock_load.assert_called_once_with("devtools")
     _, kwargs = mock_run.call_args

@@ -14,6 +14,10 @@ class StageSummary:
     estimated_llm_calls: int
     skipped: bool
     reason: str  # e.g., 'no new signals since last run'
+    estimated_input_tokens: int = 0
+    estimated_output_tokens: int = 0
+    estimated_total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
 
 
 @dataclass
@@ -23,3 +27,7 @@ class DryRunReport:
     stages: list[StageSummary]
     estimated_total_llm_calls: int
     estimated_token_budget: int
+    estimated_input_tokens: int = 0
+    estimated_output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    cost_by_stage: dict[str, float] = field(default_factory=dict)

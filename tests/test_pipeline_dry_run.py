@@ -25,6 +25,10 @@ def test_dry_run_returns_report(store):
     assert len(result.stages) == len(STAGE_ORDER)
     assert result.estimated_total_llm_calls >= 0
     assert result.estimated_token_budget >= 0
+    assert result.estimated_input_tokens >= 0
+    assert result.estimated_output_tokens >= 0
+    assert result.estimated_cost_usd >= 0
+    assert isinstance(result.cost_by_stage, dict)
 
 
 def test_dry_run_does_not_write_to_store(store):
@@ -58,6 +62,10 @@ def test_dry_run_stage_summaries(store):
         assert isinstance(stage.estimated_llm_calls, int)
         assert isinstance(stage.skipped, bool)
         assert isinstance(stage.reason, str)
+        assert isinstance(stage.estimated_input_tokens, int)
+        assert isinstance(stage.estimated_output_tokens, int)
+        assert isinstance(stage.estimated_total_tokens, int)
+        assert isinstance(stage.estimated_cost_usd, float)
 
 
 def test_stages_filter_valid(store):
@@ -70,8 +78,6 @@ def test_stages_filter_valid(store):
 
     assert isinstance(result, DryRunReport)
 
-    # Only the requested stages should be marked as not skipped (or ready)
-    active_stages = [s for s in result.stages if not s.skipped]
     requested = {'fetch', 'synthesize'}
 
     # Some stages might still be skipped if they have no data, but at minimum
@@ -158,6 +164,13 @@ def test_dry_run_estimates_llm_calls(store):
     total_from_stages = sum(s.estimated_llm_calls for s in result.stages)
     assert result.estimated_total_llm_calls == total_from_stages
 
+    input_from_stages = sum(s.estimated_input_tokens for s in result.stages)
+    output_from_stages = sum(s.estimated_output_tokens for s in result.stages)
+    tokens_from_stages = sum(s.estimated_total_tokens for s in result.stages)
+    assert result.estimated_input_tokens == input_from_stages
+    assert result.estimated_output_tokens == output_from_stages
+    assert result.estimated_token_budget == tokens_from_stages
+
 
 def test_dry_run_token_budget_estimate(store):
     """Test that dry-run estimates token budget."""
@@ -168,6 +181,9 @@ def test_dry_run_token_budget_estimate(store):
     # Rough estimate: ~2000 tokens per call
     expected_min = result.estimated_total_llm_calls * 1000
     assert result.estimated_token_budget >= expected_min
+    assert result.estimated_token_budget == (
+        result.estimated_input_tokens + result.estimated_output_tokens
+    )
 
 
 def test_normal_run_without_dry_run_flag(store):

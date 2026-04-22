@@ -1127,11 +1127,19 @@ async def dry_run_pipeline_endpoint(body: PipelineDryRunRequest) -> DryRunReport
                 estimated_llm_calls=s.estimated_llm_calls,
                 skipped=s.skipped,
                 reason=s.reason,
+                estimated_input_tokens=s.estimated_input_tokens,
+                estimated_output_tokens=s.estimated_output_tokens,
+                estimated_total_tokens=s.estimated_total_tokens,
+                estimated_cost_usd=s.estimated_cost_usd,
             )
             for s in result.stages
         ],
         estimated_total_llm_calls=result.estimated_total_llm_calls,
         estimated_token_budget=result.estimated_token_budget,
+        estimated_input_tokens=result.estimated_input_tokens,
+        estimated_output_tokens=result.estimated_output_tokens,
+        estimated_cost_usd=result.estimated_cost_usd,
+        cost_by_stage=result.cost_by_stage,
     )
 
 
