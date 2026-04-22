@@ -11,6 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
 
 from max import config
+from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -693,6 +694,36 @@ def get_review_queue(
             )
         )
     return items
+
+
+@router.get("/exports/ideas", response_class=Response)
+def export_ideas(
+    fmt: Literal["jsonl", "csv"] = "jsonl",
+    status: str | None = None,
+    domain: str | None = None,
+    min_score: float | None = Query(default=None, ge=0.0, le=100.0),
+    include_archived: bool = False,
+    limit: int = Query(default=100, ge=1, le=1000),
+    store: Store = Depends(get_store),
+) -> Response:
+    """Export filtered idea summaries as JSON Lines or CSV."""
+    units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+    if not include_archived and status != "archived":
+        units = [unit for unit in units if unit.status != "archived"]
+
+    records = idea_export_records(
+        units,
+        get_evaluation=store.get_evaluation,
+        get_latest_feedback=store.get_latest_feedback,
+        min_score=min_score,
+    )
+    media_type = "text/csv" if fmt == "csv" else "text/plain"
+    filename = f"ideas-export.{fmt}"
+    return Response(
+        content=render_idea_export(records, fmt=fmt),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/ideas")

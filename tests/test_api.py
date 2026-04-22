@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import csv
+import json
 from datetime import datetime
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from max.analysis.export import IDEA_EXPORT_FIELDS
 from max.analysis.prior_art import PriorArtMatch, PriorArtResult
 from max.evaluation.weights import WEIGHT_PROFILES, get_weights
 from max.server.app import create_app
@@ -252,6 +256,50 @@ def _mock_evaluation_output(recommendation: str = "yes"):
             "recommendation": recommendation,
         },
     )()
+
+
+def _api_dimension_score(value: float) -> DimensionScore:
+    return DimensionScore(value=value, confidence=0.7, reasoning="test")
+
+
+def _api_evaluation(unit_id: str, score: float, recommendation: str = "yes") -> UtilityEvaluation:
+    return UtilityEvaluation(
+        buildable_unit_id=unit_id,
+        pain_severity=_api_dimension_score(8.0),
+        addressable_scale=_api_dimension_score(7.0),
+        build_effort=_api_dimension_score(7.5),
+        composability=_api_dimension_score(8.5),
+        competitive_density=_api_dimension_score(9.0),
+        timing_fit=_api_dimension_score(8.0),
+        compounding_value=_api_dimension_score(7.0),
+        overall_score=score,
+        strengths=["Good"],
+        weaknesses=["Limited"],
+        recommendation=recommendation,
+        weights_used={"pain_severity": 0.20},
+    )
+
+
+def _api_buildable_unit(unit_id: str, *, status: str, domain: str) -> BuildableUnit:
+    return BuildableUnit(
+        id=unit_id,
+        title=f"Export {unit_id}",
+        one_liner=f"One liner for {unit_id}",
+        category=BuildableCategory.CLI_TOOL,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="Problem",
+        solution="Solution",
+        value_proposition="Value",
+        status=status,
+        domain=domain,
+        quality_score=7.0,
+        novelty_score=6.0,
+        usefulness_score=8.0,
+        rejection_tags=["too_broad"] if status == "rejected" else [],
+        inspiring_insights=["ins-export"],
+        evidence_signals=["sig-export"],
+        source_idea_ids=["bu-source"],
+    )
 
 
 # ── Profile endpoints ───────────────────────────────────────────────
@@ -839,6 +887,83 @@ def test_list_ideas_filter_status(multi_idea_client):
     resp = multi_idea_client.get("/api/v1/ideas?status=nonexistent")
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 0
+
+
+def test_export_ideas_jsonl_response_shape(seeded_client):
+    resp = seeded_client.get("/api/v1/exports/ideas")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/plain")
+    assert resp.headers["content-disposition"] == 'attachment; filename="ideas-export.jsonl"'
+
+    lines = resp.text.splitlines()
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert list(row.keys()) == list(IDEA_EXPORT_FIELDS)
+    assert row["id"] == "bu-api001"
+    assert row["evaluation_score"] == 78.0
+    assert row["recommendation"] == "yes"
+    assert row["inspiring_insight_ids"] == ["ins-api001"]
+    assert row["evidence_signal_ids"] == ["sig-api001"]
+
+
+def test_export_ideas_filters_status_domain_score_archived_and_limit(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        rows = [
+            ("bu-export-high", "evaluated", "ai", 91.0),
+            ("bu-export-low", "evaluated", "ai", 60.0),
+            ("bu-export-other-domain", "evaluated", "ops", 95.0),
+            ("bu-export-draft", "draft", "ai", None),
+            ("bu-export-archived", "archived", "ai", 99.0),
+        ]
+        for unit_id, status, domain, score in rows:
+            store.insert_buildable_unit(_api_buildable_unit(unit_id, status=status, domain=domain))
+            if score is not None:
+                store.insert_evaluation(_api_evaluation(unit_id, score))
+    finally:
+        store.close()
+
+    resp = client.get(
+        "/api/v1/exports/ideas?fmt=jsonl&status=evaluated&domain=ai&min_score=80&limit=10"
+    )
+    assert resp.status_code == 200
+    records = [json.loads(line) for line in resp.text.splitlines()]
+    assert [row["id"] for row in records] == ["bu-export-high"]
+
+    resp = client.get("/api/v1/exports/ideas?fmt=jsonl&domain=ai&min_score=90&limit=10")
+    assert resp.status_code == 200
+    ids = {json.loads(line)["id"] for line in resp.text.splitlines()}
+    assert ids == {"bu-export-high"}
+
+    resp = client.get(
+        "/api/v1/exports/ideas?fmt=jsonl&domain=ai&min_score=90&include_archived=true&limit=10"
+    )
+    assert resp.status_code == 200
+    ids = {json.loads(line)["id"] for line in resp.text.splitlines()}
+    assert ids == {"bu-export-high", "bu-export-archived"}
+
+    resp = client.get("/api/v1/exports/ideas?fmt=jsonl&include_archived=true&limit=1")
+    assert resp.status_code == 200
+    assert len(resp.text.splitlines()) == 1
+
+
+def test_export_ideas_csv_header_output(seeded_client):
+    resp = seeded_client.get("/api/v1/exports/ideas?fmt=csv")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert resp.headers["content-disposition"] == 'attachment; filename="ideas-export.csv"'
+
+    reader = csv.DictReader(StringIO(resp.text))
+    assert reader.fieldnames == list(IDEA_EXPORT_FIELDS)
+    rows = list(reader)
+    assert rows[0]["id"] == "bu-api001"
+    assert rows[0]["evaluation_score"] == "78.0"
+    assert json.loads(rows[0]["inspiring_insight_ids"]) == ["ins-api001"]
+
+
+def test_export_ideas_invalid_fmt_returns_validation_error(client):
+    resp = client.get("/api/v1/exports/ideas?fmt=xml")
+    assert resp.status_code == 422
 
 
 def test_get_review_queue_returns_unreviewed_evaluated_ideas(client, db_path):
