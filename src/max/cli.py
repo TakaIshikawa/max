@@ -1899,9 +1899,29 @@ def prior_art(domain: str | None, limit: int, re_scan: bool, auto_reject: bool, 
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--min-score", type=float, default=0.0, help="Minimum score to include")
 @click.option("--limit", type=int, default=50, help="Max ideas to review")
+@click.option(
+    "--auto-approve-score",
+    type=float,
+    default=None,
+    help="Automatically approve ideas at or above this score",
+)
+@click.option(
+    "--auto-reject-score",
+    type=float,
+    default=None,
+    help="Automatically reject ideas at or below this score",
+)
 @click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
 @click.option("--include-archived", is_flag=True, help="Include archived out-of-focus ideas")
-def review(domain: str | None, min_score: float, limit: int, threshold: float, include_archived: bool) -> None:
+def review(
+    domain: str | None,
+    min_score: float,
+    limit: int,
+    auto_approve_score: float | None,
+    auto_reject_score: float | None,
+    threshold: float,
+    include_archived: bool,
+) -> None:
     """Interactively review ideas in clusters.
 
     Similar ideas are grouped together for batch review. For each cluster:
@@ -1912,32 +1932,58 @@ def review(domain: str | None, min_score: float, limit: int, threshold: float, i
     from max.evaluation.weights import adapt_weights as do_adapt, get_weights
     from max.store.db import Store
 
+    if limit < 1:
+        click.echo("Error: --limit must be at least 1.")
+        return
+    if (
+        auto_approve_score is not None
+        and auto_reject_score is not None
+        and auto_reject_score >= auto_approve_score
+    ):
+        click.echo("Error: --auto-reject-score must be lower than --auto-approve-score.")
+        return
+
     store = Store()
     try:
-        units = store.get_buildable_units(limit=limit * 3, domain=domain)
-        if not units:
+        queue = _get_review_queue(
+            store,
+            domain=domain,
+            min_score=min_score,
+            limit=limit,
+            include_archived=include_archived,
+        )
+        if queue is None:
             click.echo("No ideas found.")
             return
 
-        # Build review queue: evaluated, no feedback yet, sorted by score desc
-        queue = []
-        for unit in units:
-            if not include_archived and unit.status == "archived":
-                continue
-            ev = store.get_evaluation(unit.id)
-            if not ev:
-                continue
-            if ev.overall_score < min_score:
-                continue
-            if store.has_feedback(unit.id):
-                continue
-            queue.append((unit, ev))
+        auto_approved = 0
+        auto_rejected = 0
+        manual_queue = []
+        for unit, ev in queue:
+            score = ev.overall_score if ev else 0.0
+            if auto_approve_score is not None and score >= auto_approve_score:
+                reason = f"auto-review: score {score:.1f} >= {auto_approve_score:.1f}"
+                store.insert_feedback(unit.id, "approved", reason)
+                store.update_buildable_unit_status(unit.id, "approved")
+                auto_approved += 1
+            elif auto_reject_score is not None and score <= auto_reject_score:
+                reason = f"auto-review: score {score:.1f} <= {auto_reject_score:.1f}"
+                store.insert_feedback(unit.id, "rejected", reason)
+                store.update_buildable_unit_status(unit.id, "rejected")
+                auto_rejected += 1
+            else:
+                manual_queue.append((unit, ev))
 
-        queue.sort(key=lambda x: x[1].overall_score, reverse=True)
-        queue = queue[:limit]
+        queue = manual_queue
 
         if not queue:
-            click.echo("No ideas pending review (all have feedback or don't meet criteria).")
+            if auto_approved or auto_rejected:
+                click.echo(
+                    "Review summary: "
+                    f"reviewed=0, skipped=0, auto-approved={auto_approved}, auto-rejected={auto_rejected}"
+                )
+            else:
+                click.echo("No ideas pending review (all have feedback or don't meet criteria).")
             return
 
         # Cluster similar ideas for batch review
@@ -2067,6 +2113,12 @@ def review(domain: str | None, min_score: float, limit: int, threshold: float, i
 
         # Summary
         click.echo()
+        reviewed = approved + rejected
+        click.echo(
+            "Review summary: "
+            f"reviewed={reviewed}, skipped={skipped}, "
+            f"auto-approved={auto_approved}, auto-rejected={auto_rejected}"
+        )
         click.echo(f"Review complete: {approved} approved, {rejected} rejected, {skipped} skipped")
 
         # Auto-adapt weights if we have enough feedback diversity
@@ -2091,6 +2143,44 @@ def review(domain: str | None, min_score: float, limit: int, threshold: float, i
             click.echo(f"\n{len(total_outcomes)} total feedback records. Need both approved + rejected for weight adaptation.")
     finally:
         store.close()
+
+
+def _get_review_queue(
+    store,
+    *,
+    domain: str | None,
+    min_score: float,
+    limit: int,
+    include_archived: bool,
+) -> list[tuple[BuildableUnit, UtilityEvaluation | None]] | None:
+    """Return pending review items, preferring Store.get_review_queue when usable."""
+    get_review_queue = getattr(store, "get_review_queue", None)
+    if callable(get_review_queue) and not include_archived:
+        rows = get_review_queue(domain=domain, min_score=min_score, limit=limit)
+        if isinstance(rows, list):
+            return [(row["unit"], row.get("evaluation")) for row in rows]
+
+    units = store.get_buildable_units(limit=limit * 3, domain=domain)
+    if not units:
+        return None
+
+    queue = []
+    for unit in units:
+        if not include_archived and unit.status == "archived":
+            continue
+        if unit.status != "evaluated" and not include_archived:
+            continue
+        ev = store.get_evaluation(unit.id)
+        if not ev:
+            continue
+        if ev.overall_score < min_score:
+            continue
+        if store.has_feedback(unit.id):
+            continue
+        queue.append((unit, ev))
+
+    queue.sort(key=lambda x: x[1].overall_score if x[1] else 0.0, reverse=True)
+    return queue[:limit]
 
 
 def _display_idea_card(
