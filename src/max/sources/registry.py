@@ -55,6 +55,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -201,6 +202,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "queries", "include_tags"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "mcp_registry": AdapterMetadata(
+        name="mcp_registry",
+        config_keys=["base_url", "endpoint", "queries", "categories", "min_stars", "min_score"],
+        required_keys=[],
+        description="Fetches MCP server registry discovery, package, capability, and trust signals.",
     ),
 }
 

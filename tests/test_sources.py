@@ -234,6 +234,7 @@ def test_list_adapters() -> None:
     assert "hackernews" in adapters
     assert "npm_registry" in adapters
     assert "dockerhub" in adapters
+    assert "mcp_registry" in adapters
 
 
 def test_get_adapter() -> None:
@@ -253,6 +254,7 @@ def test_get_all_adapters() -> None:
     assert "hackernews" in names
     assert "npm_registry" in names
     assert "dockerhub" in names
+    assert "mcp_registry" in names
 
 
 # ── PyPI Registry ────────────────────────────────────────────────────

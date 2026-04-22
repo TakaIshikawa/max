@@ -246,12 +246,12 @@ def test_list_adapters_returns_strings():
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
-    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed,crates_io,dockerhub"), \
+    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed,crates_io,dockerhub,mcp_registry"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
         metadata = get_adapter_metadata()
 
-    assert set(metadata) == {"hackernews", "rss_feed", "crates_io", "dockerhub"}
+    assert set(metadata) == {"hackernews", "rss_feed", "crates_io", "dockerhub", "mcp_registry"}
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
     assert "Hacker News" in metadata["hackernews"].description
@@ -264,6 +264,16 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description
+    assert metadata["mcp_registry"].config_keys == [
+        "base_url",
+        "endpoint",
+        "queries",
+        "categories",
+        "min_stars",
+        "min_score",
+    ]
+    assert metadata["mcp_registry"].required_keys == []
+    assert "MCP server registry" in metadata["mcp_registry"].description
 
 
 def test_get_adapter_returns_instance():
