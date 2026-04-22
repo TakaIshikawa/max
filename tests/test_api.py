@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from max.analysis.prior_art import PriorArtMatch, PriorArtResult
+from max.evaluation.weights import WEIGHT_PROFILES, get_weights
 from max.server.app import create_app
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
@@ -344,6 +345,60 @@ def test_get_profile_returns_404_for_unknown_profile(client):
 
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Profile not found: missing"
+
+
+# ── Evaluation weight endpoints ─────────────────────────────────────
+
+
+def test_list_evaluation_weight_profiles_returns_all_built_ins(client):
+    resp = client.get("/api/v1/evaluation/weights")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [profile["name"] for profile in data] == list(WEIGHT_PROFILES)
+    for profile in data:
+        assert profile["weights"] == get_weights(profile["name"])
+        assert profile["adapted"] is False
+        assert profile["adapted_weights"] is None
+
+
+def test_get_evaluation_weight_profile_matches_static_weights(client):
+    resp = client.get("/api/v1/evaluation/weights/agent_first")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "agent_first"
+    assert data["weights"] == get_weights("agent_first")
+    assert data["adapted"] is False
+    assert data["adapted_weights"] is None
+
+
+def test_get_evaluation_weight_profile_returns_adapted_weights_when_available(client):
+    adapted_weights = {
+        "pain_severity": 0.3,
+        "addressable_scale": 0.1,
+        "build_effort": 0.1,
+        "composability": 0.2,
+        "competitive_density": 0.05,
+        "timing_fit": 0.1,
+        "compounding_value": 0.15,
+    }
+
+    with patch("max.server.api.get_adapted_weights", return_value=(adapted_weights, True)):
+        resp = client.get("/api/v1/evaluation/weights/default")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["weights"] == get_weights("default")
+    assert data["adapted"] is True
+    assert data["adapted_weights"] == adapted_weights
+
+
+def test_get_evaluation_weight_profile_returns_404_for_unknown_profile(client):
+    resp = client.get("/api/v1/evaluation/weights/unknown_profile_xyz")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Evaluation weight profile not found: unknown_profile_xyz"
 
 
 # ── Signal endpoints ────────────────────────────────────────────────

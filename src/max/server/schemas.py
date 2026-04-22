@@ -244,6 +244,13 @@ class EvaluationSummaryResponse(BaseModel):
     weaknesses: list[str]
 
 
+class EvaluationWeightProfileResponse(BaseModel):
+    name: str
+    weights: dict[str, float]
+    adapted: bool = False
+    adapted_weights: dict[str, float] | None = None
+
+
 class ReviewQueueItemResponse(IdeaSummaryResponse):
     evaluation: EvaluationSummaryResponse
     latest_critique: IdeaCritiqueResponse | None = None

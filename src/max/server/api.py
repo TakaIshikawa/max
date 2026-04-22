@@ -33,6 +33,7 @@ from max.server.schemas import (
     EvidenceChainResponse,
     EvaluationResponse,
     EvaluationSummaryResponse,
+    EvaluationWeightProfileResponse,
     FeedbackCreate,
     FeedbackTrendDomainResponse,
     FeedbackTrendResponse,
@@ -78,6 +79,7 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
 from max.sources.base import snapshot_circuit_breakers
@@ -328,6 +330,15 @@ def _evaluation_summary_to_response(ev: UtilityEvaluation) -> EvaluationSummaryR
     )
 
 
+def _weight_profile_or_404(profile_name: str) -> dict[str, float]:
+    if profile_name not in WEIGHT_PROFILES:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Evaluation weight profile not found: {profile_name}",
+        )
+    return get_weights(profile_name)
+
+
 def _unit_detail(
     unit,
     evaluation=None,
@@ -472,6 +483,32 @@ def list_pipeline_profiles() -> list[ProfileSummaryResponse]:
 @router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)
 def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
     return _profile_detail_to_response(_load_profile_or_404(profile_name))
+
+
+# ── Evaluation Weights ──────────────────────────────────────────────
+
+
+@router.get("/evaluation/weights", response_model=list[EvaluationWeightProfileResponse])
+def list_evaluation_weight_profiles() -> list[EvaluationWeightProfileResponse]:
+    return [
+        EvaluationWeightProfileResponse(name=name, weights=get_weights(name))
+        for name in WEIGHT_PROFILES
+    ]
+
+
+@router.get("/evaluation/weights/{profile_name}", response_model=EvaluationWeightProfileResponse)
+def get_evaluation_weight_profile(
+    profile_name: str,
+    store: Store = Depends(get_store),
+) -> EvaluationWeightProfileResponse:
+    weights = _weight_profile_or_404(profile_name)
+    adapted_weights, adapted = get_adapted_weights(profile_name, store.get_feedback_outcomes())
+    return EvaluationWeightProfileResponse(
+        name=profile_name,
+        weights=weights,
+        adapted=adapted,
+        adapted_weights=adapted_weights if adapted else None,
+    )
 
 
 # ── Signals ─────────────────────────────────────────────────────────
