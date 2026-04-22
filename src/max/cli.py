@@ -2644,6 +2644,117 @@ def archive(days: int | None, purge: bool, purge_days: int, dry_run: bool) -> No
 
 
 @main.command()
+@click.option("--entity", type=click.Choice(["signal", "insight", "idea"]), default=None, help="Entity type to restore")
+@click.option("--id", "ids", multiple=True, help="Restore a specific entity ID; repeat for multiple IDs")
+@click.option("--before", type=str, default=None, help="Only restore records archived before this ISO timestamp or YYYY-MM-DD date")
+@click.option("--dry-run", is_flag=True, help="Show what would be restored without modifying data")
+@click.option("--limit", type=int, default=100, show_default=True, help="Maximum records to restore")
+def restore(
+    entity: str | None,
+    ids: tuple[str, ...],
+    before: str | None,
+    dry_run: bool,
+    limit: int,
+) -> None:
+    """Restore archived signals, insights, and ideas."""
+    from max.store.db import Store
+
+    if limit < 1:
+        raise click.ClickException("--limit must be at least 1")
+
+    before_value = _normalize_restore_before(before)
+    entity_types = [entity] if entity else ["signal", "insight", "idea"]
+    requested_ids = list(ids)
+
+    store = Store()
+    try:
+        candidates: dict[str, list[str]] = {}
+        remaining = limit
+        for entity_type in entity_types:
+            if remaining <= 0:
+                candidates[entity_type] = []
+                continue
+            candidates[entity_type] = _restore_candidates(
+                store,
+                entity_type,
+                before=before_value,
+                ids=requested_ids or None,
+                limit=remaining,
+            )
+            remaining -= len(candidates[entity_type])
+
+        total = sum(len(entity_ids) for entity_ids in candidates.values())
+        if total > limit:
+            raise click.ClickException(f"Refusing to restore {total} records; limit is {limit}")
+
+        action = "Would restore" if dry_run else "Restored"
+        if total == 0:
+            click.echo("No archived records matched.")
+            return
+
+        if dry_run:
+            click.echo("DRY RUN: No changes applied.")
+
+        restored: dict[str, int] = dict.fromkeys(entity_types, 0)
+        if not dry_run:
+            for entity_type, entity_ids in candidates.items():
+                restore_one = _restore_one(store, entity_type)
+                for entity_id in entity_ids:
+                    if restore_one(entity_id):
+                        restored[entity_type] += 1
+        else:
+            restored = {entity_type: len(entity_ids) for entity_type, entity_ids in candidates.items()}
+
+        click.echo(f"{action} {sum(restored.values())} archived record(s):")
+        for entity_type in entity_types:
+            click.echo(f"  {entity_type}s: {restored.get(entity_type, 0):6d}")
+    finally:
+        store.close()
+
+
+def _normalize_restore_before(before: str | None) -> str | None:
+    if not before:
+        return None
+    from datetime import datetime, timezone
+
+    value = before.strip()
+    if not value:
+        return None
+    if len(value) == 10:
+        try:
+            return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).isoformat()
+        except ValueError:
+            pass
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).isoformat()
+    except ValueError:
+        raise click.ClickException("--before must be an ISO timestamp or YYYY-MM-DD date")
+
+
+def _restore_candidates(
+    store,
+    entity_type: str,
+    *,
+    before: str | None,
+    ids: list[str] | None,
+    limit: int,
+) -> list[str]:
+    if entity_type == "signal":
+        return store.get_archived_signal_ids(before=before, ids=ids, limit=limit)
+    if entity_type == "insight":
+        return store.get_archived_insight_ids(before=before, ids=ids, limit=limit)
+    return store.get_archived_idea_ids(before=before, ids=ids, limit=limit)
+
+
+def _restore_one(store, entity_type: str):
+    if entity_type == "signal":
+        return store.restore_signal
+    if entity_type == "insight":
+        return store.restore_insight
+    return store.restore_archived_idea
+
+
+@main.command()
 @click.option("--host", type=str, default=None, help="Bind host (default: MAX_HOST or 0.0.0.0)")
 @click.option("--port", type=int, default=None, help="Bind port (default: MAX_PORT or 8000)")
 @click.option("--reload", is_flag=True, help="Enable auto-reload for development")

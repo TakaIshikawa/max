@@ -293,6 +293,28 @@ class Store:
         self._commit()
         return cursor.rowcount > 0
 
+    def get_archived_signal_ids(
+        self,
+        *,
+        before: str | None = None,
+        ids: list[str] | None = None,
+        limit: int = 100,
+    ) -> list[str]:
+        """Return archived signal IDs eligible for restore."""
+        query = "SELECT id FROM signals WHERE archived_at IS NOT NULL"
+        params: list = []
+        if before:
+            query += " AND archived_at < ?"
+            params.append(before)
+        if ids:
+            placeholders = ",".join("?" for _ in ids)
+            query += f" AND id IN ({placeholders})"
+            params.extend(ids)
+        query += " ORDER BY archived_at ASC, id ASC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [row["id"] for row in rows]
+
     def update_signal_role(self, signal_id: str, role: str) -> None:
         """Update the signal_role for a signal."""
         self.conn.execute(
@@ -468,12 +490,52 @@ class Store:
         ).fetchone()
         return _row_to_insight(row) if row else None
 
+    def archive_insight(self, insight_id: str) -> bool:
+        """Archive an insight by ID. Returns False if the insight does not exist."""
+        cursor = self.conn.execute(
+            "UPDATE insights SET archived_at = ? WHERE id = ?",
+            (_now_iso(), insight_id),
+        )
+        self._commit()
+        return cursor.rowcount > 0
+
+    def restore_insight(self, insight_id: str) -> bool:
+        """Restore an archived insight by ID. Returns False if the insight does not exist."""
+        cursor = self.conn.execute(
+            "UPDATE insights SET archived_at = NULL WHERE id = ?",
+            (insight_id,),
+        )
+        self._commit()
+        return cursor.rowcount > 0
+
+    def get_archived_insight_ids(
+        self,
+        *,
+        before: str | None = None,
+        ids: list[str] | None = None,
+        limit: int = 100,
+    ) -> list[str]:
+        """Return archived insight IDs eligible for restore."""
+        query = "SELECT id FROM insights WHERE archived_at IS NOT NULL"
+        params: list = []
+        if before:
+            query += " AND archived_at < ?"
+            params.append(before)
+        if ids:
+            placeholders = ",".join("?" for _ in ids)
+            query += f" AND id IN ({placeholders})"
+            params.extend(ids)
+        query += " ORDER BY archived_at ASC, id ASC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [row["id"] for row in rows]
+
     def count_insights(
         self, *, domain: str | None = None, category: str | None = None
     ) -> int:
         query = "SELECT COUNT(*) FROM insights"
         params: list = []
-        conditions: list[str] = []
+        conditions: list[str] = ["archived_at IS NULL"]
 
         if domain:
             conditions.append(
@@ -490,8 +552,7 @@ class Store:
             conditions.append("category = ?")
             params.append(category)
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+        query += " WHERE " + " AND ".join(conditions)
 
         return self.conn.execute(query, params).fetchone()[0]
 
@@ -627,6 +688,43 @@ class Store:
             (status, _now_iso(), unit_id),
         )
         self._commit()
+
+    def restore_archived_idea(self, unit_id: str) -> bool:
+        """Restore an archived idea to evaluated status."""
+        cursor = self.conn.execute(
+            """UPDATE buildable_units
+               SET status = 'evaluated', updated_at = ?
+               WHERE id = ? AND status = 'archived'""",
+            (_now_iso(), unit_id),
+        )
+        self._commit()
+        return cursor.rowcount > 0
+
+    def restore_idea(self, unit_id: str) -> bool:
+        """Restore an archived idea to evaluated status."""
+        return self.restore_archived_idea(unit_id)
+
+    def get_archived_idea_ids(
+        self,
+        *,
+        before: str | None = None,
+        ids: list[str] | None = None,
+        limit: int = 100,
+    ) -> list[str]:
+        """Return archived idea IDs eligible for restore."""
+        query = "SELECT id FROM buildable_units WHERE status = 'archived'"
+        params: list = []
+        if before:
+            query += " AND updated_at < ?"
+            params.append(before)
+        if ids:
+            placeholders = ",".join("?" for _ in ids)
+            query += f" AND id IN ({placeholders})"
+            params.extend(ids)
+        query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [row["id"] for row in rows]
 
     def count_buildable_units(self, *, status: str | None = None, domain: str | None = None) -> int:
         query = "SELECT COUNT(*) FROM buildable_units"

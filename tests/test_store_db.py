@@ -296,6 +296,37 @@ class TestInsightOperations:
         assert retrieved.implications == ["Testing framework opportunity", "Quality gap in ecosystem"]
         assert retrieved.time_horizon == "near_term"
 
+    def test_restore_insight_returns_archived_insight_to_lists_and_counts(
+        self, store: Store, sample_insight: Insight
+    ) -> None:
+        store.insert_insight(sample_insight)
+        assert store.archive_insight(sample_insight.id) is True
+        assert store.get_insights() == []
+        assert store.count_insights() == 0
+
+        assert store.restore_insight(sample_insight.id) is True
+
+        assert [ins.id for ins in store.get_insights(limit=100)] == [sample_insight.id]
+        assert store.count_insights() == 1
+
+    def test_get_archived_insight_ids_respects_limit(self, store: Store) -> None:
+        for i in range(3):
+            ins = Insight(
+                id=f"ins-arch-{i}",
+                category=InsightCategory.GAP,
+                title=f"Insight {i}",
+                summary="Summary",
+                evidence=[],
+                confidence=0.5,
+                domains=[],
+                implications=[],
+                time_horizon="near_term",
+            )
+            store.insert_insight(ins)
+            store.archive_insight(ins.id)
+
+        assert len(store.get_archived_insight_ids(limit=2)) == 2
+
 
 # ── BuildableUnit operations ─────────────────────────────────────────
 
@@ -348,6 +379,18 @@ class TestBuildableUnitOperations:
         assert updated.status == "evaluated"
         # updated_at should be at least as recent as original
         assert updated.updated_at >= original.updated_at
+
+    def test_restore_archived_idea_returns_to_evaluated(self, store: Store, sample_unit: BuildableUnit) -> None:
+        store.insert_buildable_unit(sample_unit)
+        store.update_buildable_unit_status(sample_unit.id, "archived")
+
+        assert store.get_archived_idea_ids(limit=10) == [sample_unit.id]
+        assert store.restore_archived_idea(sample_unit.id) is True
+
+        restored = store.get_buildable_unit(sample_unit.id)
+        assert restored is not None
+        assert restored.status == "evaluated"
+        assert store.get_archived_idea_ids(limit=10) == []
 
     def test_buildable_unit_roundtrip_fields(self, store: Store, sample_unit: BuildableUnit) -> None:
         store.insert_buildable_unit(sample_unit)

@@ -128,6 +128,55 @@ def _design_brief_dict(brief_id: str = "dbf-test001") -> dict:
     }
 
 
+class TestRestoreCommand:
+    @patch("max.store.db.Store")
+    def test_restore_dry_run_groups_summary_and_respects_limit(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = MagicMock()
+        store.get_archived_signal_ids.return_value = ["sig-1"]
+        store.get_archived_insight_ids.return_value = ["ins-1"]
+        store.get_archived_idea_ids.return_value = []
+        store.close.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["restore", "--dry-run", "--limit", "2"])
+
+        assert result.exit_code == 0, result.output
+        assert "DRY RUN: No changes applied." in result.output
+        assert "Would restore 2 archived record(s):" in result.output
+        assert "signals:" in result.output
+        assert "insights:" in result.output
+        assert "ideas:" in result.output
+        store.get_archived_signal_ids.assert_called_once()
+        store.get_archived_insight_ids.assert_called_once()
+        store.get_archived_idea_ids.assert_not_called()
+        store.restore_signal.assert_not_called()
+
+    @patch("max.store.db.Store")
+    def test_restore_specific_archived_idea(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = MagicMock()
+        store.get_archived_idea_ids.return_value = ["bu-1"]
+        store.restore_archived_idea.return_value = True
+        store.close.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["restore", "--entity", "idea", "--id", "bu-1", "--before", "2026-04-22"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Restored 1 archived record(s):" in result.output
+        store.get_archived_idea_ids.assert_called_once()
+        _, kwargs = store.get_archived_idea_ids.call_args
+        assert kwargs["ids"] == ["bu-1"]
+        assert kwargs["limit"] == 100
+        store.restore_archived_idea.assert_called_once_with("bu-1")
+
+
 # ── run command ────────────────────────────────────────────────────
 
 
