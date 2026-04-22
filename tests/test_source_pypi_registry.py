@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -908,6 +908,79 @@ def test_pypi_adapter_keywords_custom() -> None:
     custom_keywords = ["database", "sql", "postgres"]
     adapter = PyPIRegistryAdapter(config={"keywords": custom_keywords})
     assert adapter.keywords == set(custom_keywords)
+
+
+def test_pypi_adapter_release_trend_config() -> None:
+    """PyPI adapter exposes release trend config with safe defaults."""
+    adapter = PyPIRegistryAdapter(
+        config={
+            "include_release_trends": True,
+            "lookback_days": 14,
+            "min_releases": 2,
+        }
+    )
+
+    assert adapter.include_release_trends is True
+    assert adapter.lookback_days == 14
+    assert adapter.min_releases == 2
+
+
+@pytest.mark.asyncio
+async def test_pypi_adapter_emits_release_trend_signal_when_enabled() -> None:
+    """PyPI adapter emits an extra trend signal for recent release velocity."""
+    adapter = PyPIRegistryAdapter(
+        config={
+            "include_release_trends": True,
+            "lookback_days": 14,
+            "min_releases": 2,
+        }
+    )
+    now = datetime.now(timezone.utc)
+
+    async def mock_get(url: str, **kwargs) -> MagicMock:
+        if "rss" in url:
+            return MagicMock(text=MOCK_RSS_XML, raise_for_status=lambda: None)
+        if "pypi.org/pypi/langchain-agent" in url:
+            payload = {
+                **MOCK_PYPI_JSON_LANGCHAIN,
+                "releases": {
+                    "0.1.0": [
+                        {"upload_time_iso_8601": (now - timedelta(days=20)).isoformat()}
+                    ],
+                    "0.2.0": [
+                        {"upload_time_iso_8601": (now - timedelta(days=5)).isoformat()}
+                    ],
+                    "0.2.1": [
+                        {"upload_time_iso_8601": (now - timedelta(days=1)).isoformat()}
+                    ],
+                },
+            }
+            return MagicMock(json=lambda: payload, raise_for_status=lambda: None)
+        if "pypistats.org" in url:
+            return MagicMock(json=lambda: MOCK_PYPISTATS_LOW_DOWNLOADS, raise_for_status=lambda: None)
+        return MagicMock(raise_for_status=lambda: None, json=lambda: {}, text="")
+
+    with patch("max.sources.pypi_registry.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_cls.return_value = mock_client
+
+        signals = await adapter.fetch(limit=10)
+
+    package_signal = next(
+        signal for signal in signals if signal.metadata.get("signal_kind") != "release_trend"
+    )
+    trend_signal = next(
+        signal for signal in signals if signal.metadata.get("signal_kind") == "release_trend"
+    )
+
+    assert package_signal.source_type == SignalSourceType.REGISTRY
+    assert package_signal.metadata["release_trend"]["recent_release_count"] == 2
+    assert trend_signal.source_type == SignalSourceType.TRENDING
+    assert trend_signal.metadata["release_trend"]["is_trending"] is True
+    assert trend_signal.metadata["release_trend"]["reasons"] == ["release_velocity"]
 
 
 # ── Error Handling Tests ─────────────────────────────────────────────

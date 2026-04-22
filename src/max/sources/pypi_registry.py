@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -45,6 +46,18 @@ class PyPIRegistryAdapter(SourceAdapter):
     @property
     def keywords(self) -> set[str]:
         return set(self._configured_terms("keywords", _DEFAULT_KEYWORDS))
+
+    @property
+    def include_release_trends(self) -> bool:
+        return bool(self._config.get("include_release_trends", False))
+
+    @property
+    def lookback_days(self) -> int:
+        return max(int(self._config.get("lookback_days", 30)), 1)
+
+    @property
+    def min_releases(self) -> int:
+        return max(int(self._config.get("min_releases", 3)), 1)
 
     @with_retry(max_retries=3, base_delay=1.0, adapter_name="pypi_registry")
     async def _fetch_rss(self, client: httpx.AsyncClient, rss_url: str) -> list[tuple[str, str, datetime | None]]:
@@ -130,6 +143,11 @@ class PyPIRegistryAdapter(SourceAdapter):
                     )
 
                     tags = _build_tags(info, normalized)
+                    release_trend = _analyze_release_trend(
+                        info,
+                        lookback_days=self.lookback_days,
+                        min_releases=self.min_releases,
+                    )
 
                     signals.append(
                         Signal(
@@ -149,9 +167,39 @@ class PyPIRegistryAdapter(SourceAdapter):
                                 "requires_python": info.get("requires_python"),
                                 "downloads_week": downloads_week,
                                 "project_urls": info.get("project_urls") or {},
+                                "release_trend": release_trend,
                             },
                         )
                     )
+
+                    if (
+                        self.include_release_trends
+                        and release_trend["is_trending"]
+                        and len(signals) < limit
+                    ):
+                        trend_tags = sorted({*tags, "release-trend"})[:10]
+                        signals.append(
+                            Signal(
+                                source_type=SignalSourceType.TRENDING,
+                                source_adapter=self.name,
+                                title=f"{info['name']} release velocity spike",
+                                content=_format_release_trend_content(info, release_trend),
+                                url=info.get("package_url") or pkg_link,
+                                author=info.get("author"),
+                                published_at=_parse_iso_datetime(release_trend["latest_release_at"])
+                                or pub_date,
+                                tags=trend_tags,
+                                credibility=max(credibility, 0.6),
+                                metadata={
+                                    "signal_kind": "release_trend",
+                                    "pypi_name": info["name"],
+                                    "version": info["version"],
+                                    "downloads_week": downloads_week,
+                                    "project_urls": info.get("project_urls") or {},
+                                    "release_trend": release_trend,
+                                },
+                            )
+                        )
 
         return signals[:limit]
 
@@ -207,6 +255,7 @@ async def _fetch_package_info(client: httpx.AsyncClient, name: str) -> dict | No
             "package_url": info.get("package_url"),
             "project_urls": info.get("project_urls"),
             "keywords": info.get("keywords") or "",
+            "releases": data.get("releases", {}),
         }
     except httpx.HTTPError:
         # Any HTTP error (status or network) — log but return None (package may not exist or be unavailable)
@@ -267,6 +316,123 @@ def _build_tags(info: dict, pkg_name: str) -> list[str]:
 
     tags.add("python")
     return sorted(tags)[:10]
+
+
+def _analyze_release_trend(
+    info: dict,
+    *,
+    lookback_days: int,
+    min_releases: int,
+    now: datetime | None = None,
+) -> dict:
+    """Summarize recent PyPI release velocity from JSON API release history."""
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+    cutoff = current_time - timedelta(days=max(lookback_days, 1))
+
+    releases = info.get("releases") or {}
+    release_events = _release_events(releases)
+    recent_events = [
+        event for event in release_events if cutoff <= event["uploaded_at"] <= current_time
+    ]
+    recent_events.sort(key=lambda event: event["uploaded_at"], reverse=True)
+
+    recent_count = len(recent_events)
+    version_spike = _has_version_spike(release_events, cutoff)
+    is_trending = recent_count >= min_releases or version_spike
+    latest_release_at = recent_events[0]["uploaded_at"] if recent_events else None
+
+    reasons: list[str] = []
+    if recent_count >= min_releases:
+        reasons.append("release_velocity")
+    if version_spike:
+        reasons.append("version_spike")
+
+    return {
+        "is_trending": is_trending,
+        "reasons": reasons,
+        "lookback_days": max(lookback_days, 1),
+        "min_releases": max(min_releases, 1),
+        "recent_release_count": recent_count,
+        "recent_versions": [event["version"] for event in recent_events[:10]],
+        "latest_release_at": latest_release_at.isoformat() if latest_release_at else None,
+        "version_spike": version_spike,
+    }
+
+
+def _release_events(releases: dict) -> list[dict]:
+    """Return one upload timestamp per version, sorted from oldest to newest."""
+    events: list[dict] = []
+    for version, files in releases.items():
+        uploaded_times: list[datetime] = []
+        if isinstance(files, list):
+            for file_info in files:
+                if not isinstance(file_info, dict):
+                    continue
+                uploaded_at = _parse_iso_datetime(
+                    file_info.get("upload_time_iso_8601") or file_info.get("upload_time")
+                )
+                if uploaded_at is not None:
+                    uploaded_times.append(uploaded_at)
+        if uploaded_times:
+            events.append({"version": str(version), "uploaded_at": max(uploaded_times)})
+
+    events.sort(key=lambda event: event["uploaded_at"])
+    return events
+
+
+def _has_version_spike(release_events: list[dict], cutoff: datetime) -> bool:
+    """Detect large version movement where the newer release landed inside the lookback."""
+    previous_version: tuple[int, int, int] | None = None
+    for event in release_events:
+        version = _version_tuple(event["version"])
+        if version is None:
+            continue
+        if event["uploaded_at"] >= cutoff and previous_version is not None:
+            major_delta = version[0] - previous_version[0]
+            minor_delta = version[1] - previous_version[1] if major_delta == 0 else 0
+            patch_delta = version[2] - previous_version[2] if major_delta == 0 and minor_delta == 0 else 0
+            if major_delta >= 1 or minor_delta >= 2 or patch_delta >= 5:
+                return True
+        previous_version = version
+    return False
+
+
+def _version_tuple(version: str) -> tuple[int, int, int] | None:
+    """Extract a simple major/minor/patch tuple from common Python versions."""
+    match = re.match(r"^\D*(\d+)(?:\.(\d+))?(?:\.(\d+))?", version)
+    if not match:
+        return None
+    major, minor, patch = match.groups(default="0")
+    return int(major), int(minor), int(patch)
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    """Parse PyPI JSON upload timestamps."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _format_release_trend_content(info: dict, release_trend: dict) -> str:
+    """Build concise trend signal copy."""
+    recent_count = release_trend["recent_release_count"]
+    lookback_days = release_trend["lookback_days"]
+    versions = ", ".join(release_trend["recent_versions"][:5])
+    summary = info.get("summary") or info["name"]
+    details = f"{recent_count} releases in the last {lookback_days} days"
+    if release_trend["version_spike"]:
+        details += " with a notable version jump"
+    if versions:
+        details += f" ({versions})"
+    return f"{info['name']} shows release momentum: {details}. {summary}"[:500]
 
 
 def _parse_rfc822(date_str: str) -> datetime | None:
