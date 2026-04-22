@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +25,30 @@ class SignalCreate(BaseModel):
     tags: list[str] = Field(default_factory=list)
     credibility: float = Field(default=0.5, ge=0.0, le=1.0)
     metadata: dict = Field(default_factory=dict)
+
+
+class SignalImportRow(BaseModel):
+    id: str | None = None
+    title: Any = None
+    content: Any = None
+    url: Any = None
+    source_type: str | None = None
+    source_adapter: str | None = None
+    signal_role: str | None = None
+    author: Any = None
+    published_at: Any = None
+    fetched_at: Any = None
+    tags: list[Any] | str | None = None
+    credibility: Any = None
+    metadata: dict[str, Any] | str | None = None
+
+
+class SignalImportRequest(BaseModel):
+    rows: list[SignalImportRow] = Field(min_length=1)
+    source_adapter: str | None = None
+    source_type: str | None = None
+    credibility: float | None = Field(default=None, ge=0.0, le=1.0)
+    tags: list[str] = Field(default_factory=list)
 
 
 class InsightCreate(BaseModel):
@@ -155,6 +179,20 @@ class SignalResponse(BaseModel):
 
 class SignalCreateResponse(SignalResponse):
     status: Literal["created", "duplicate"]
+
+
+class SignalImportRowResult(BaseModel):
+    index: int
+    signal_id: str | None = None
+    duplicate_id: str | None = None
+    error: str | None = None
+
+
+class SignalImportResponse(BaseModel):
+    inserted_count: int
+    duplicate_count: int
+    error_count: int
+    results: list[SignalImportRowResult]
 
 
 class InsightResponse(BaseModel):

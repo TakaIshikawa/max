@@ -503,6 +503,69 @@ def test_create_signal_duplicate_returns_existing_signal(client):
     assert data["title"] == "Original Signal"
 
 
+def test_import_signals_reports_inserted_duplicate_and_invalid_rows(client):
+    resp = client.post(
+        "/api/v1/signals/import",
+        json={
+            "source_adapter": "manual",
+            "source_type": "article",
+            "credibility": 0.8,
+            "tags": ["batch"],
+            "rows": [
+                {
+                    "title": "Imported Signal",
+                    "content": "Imported content",
+                    "url": "https://example.com/imported-signal",
+                    "tags": "row,batch",
+                    "metadata": "{\"channel\": \"api\"}",
+                    "signal_role": "problem",
+                },
+                {
+                    "title": "Duplicate Imported Signal",
+                    "content": "Different content",
+                    "url": "https://example.com/imported-signal",
+                },
+                {
+                    "title": "Invalid Imported Signal",
+                    "url": "https://example.com/invalid-imported-signal",
+                },
+            ],
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["inserted_count"] == 1
+    assert data["duplicate_count"] == 1
+    assert data["error_count"] == 1
+
+    inserted = data["results"][0]
+    duplicate = data["results"][1]
+    invalid = data["results"][2]
+    assert inserted["index"] == 0
+    assert inserted["signal_id"].startswith("sig-")
+    assert inserted["duplicate_id"] is None
+    assert inserted["error"] is None
+    assert duplicate == {
+        "index": 1,
+        "signal_id": None,
+        "duplicate_id": inserted["signal_id"],
+        "error": None,
+    }
+    assert invalid["index"] == 2
+    assert invalid["signal_id"] is None
+    assert invalid["duplicate_id"] is None
+    assert "missing required field(s): content" in invalid["error"]
+
+    list_resp = client.get("/api/v1/signals")
+    item = list_resp.json()["items"][0]
+    assert item["source_adapter"] == "manual"
+    assert item["source_type"] == "article"
+    assert item["credibility"] == 0.8
+    assert item["tags"] == ["batch", "row"]
+    assert item["metadata"] == {"channel": "api", "signal_role": "problem"}
+
+
 def test_list_signals_after_create(client):
     client.post(
         "/api/v1/signals",

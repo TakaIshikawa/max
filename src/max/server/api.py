@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
+from pydantic import ValidationError
 
 from max import config
 from max.analysis.export import idea_export_records, render_idea_export
@@ -80,6 +81,9 @@ from max.server.schemas import (
     ScheduleUpdateRequest,
     SignalCreate,
     SignalCreateResponse,
+    SignalImportRequest,
+    SignalImportResponse,
+    SignalImportRowResult,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -216,6 +220,82 @@ def _signal_to_response(sig: Signal) -> SignalResponse:
         credibility=sig.credibility,
         metadata=sig.metadata,
     )
+
+
+def _parse_signal_import_metadata(value) -> dict:
+    if value in (None, ""):
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise ValueError("metadata must be a JSON object")
+        return parsed
+    raise ValueError("metadata must be an object")
+
+
+def _merge_signal_import_tags(default_tags: list[str], row_tags) -> list[str]:
+    parsed: list[str] = []
+    if isinstance(row_tags, list):
+        parsed = [str(tag).strip() for tag in row_tags]
+    elif isinstance(row_tags, str) and row_tags.strip():
+        text = row_tags.strip()
+        if text.startswith("["):
+            loaded = json.loads(text)
+            if not isinstance(loaded, list):
+                raise ValueError("tags must be a list")
+            parsed = [str(tag).strip() for tag in loaded]
+        else:
+            parsed = [tag.strip() for tag in text.split(",")]
+
+    merged: list[str] = []
+    for tag in [*default_tags, *parsed]:
+        normalized = str(tag).strip()
+        if normalized and normalized not in merged:
+            merged.append(normalized)
+    return merged
+
+
+def _signal_from_import_row(row, body: SignalImportRequest) -> Signal:
+    clean = {
+        key: value
+        for key, value in row.model_dump().items()
+        if value not in (None, "")
+    }
+    missing = [
+        field
+        for field in ("title", "content", "url")
+        if not str(clean.get(field, "")).strip()
+    ]
+    if missing:
+        raise ValueError(f"missing required field(s): {', '.join(missing)}")
+
+    metadata = _parse_signal_import_metadata(clean.get("metadata"))
+    if clean.get("signal_role"):
+        metadata["signal_role"] = str(clean["signal_role"]).strip()
+
+    signal_kwargs = dict(
+        id=str(clean.get("id", "")),
+        source_type=str(clean.get("source_type") or body.source_type or "forum"),
+        source_adapter=str(clean.get("source_adapter") or body.source_adapter or "import"),
+        title=str(clean["title"]).strip(),
+        content=str(clean["content"]).strip(),
+        url=str(clean["url"]).strip(),
+        author=str(clean["author"]).strip() if clean.get("author") else None,
+        published_at=clean.get("published_at"),
+        tags=_merge_signal_import_tags(body.tags, clean.get("tags")),
+        credibility=float(
+            clean.get(
+                "credibility",
+                body.credibility if body.credibility is not None else 0.5,
+            )
+        ),
+        metadata=metadata,
+    )
+    if clean.get("fetched_at"):
+        signal_kwargs["fetched_at"] = clean["fetched_at"]
+    return Signal(**signal_kwargs)
 
 
 def _insight_to_response(ins: Insight) -> InsightResponse:
@@ -586,6 +666,40 @@ def create_signal(
     return SignalCreateResponse(
         **_signal_to_response(result.signal).model_dump(),
         status=result.status,
+    )
+
+
+@router.post("/signals/import", response_model=SignalImportResponse)
+def import_signals(
+    body: SignalImportRequest,
+    store: Store = Depends(get_store),
+) -> SignalImportResponse:
+    results: list[SignalImportRowResult] = []
+    inserted_count = 0
+    duplicate_count = 0
+    error_count = 0
+
+    for index, row in enumerate(body.rows):
+        try:
+            signal = _signal_from_import_row(row, body)
+            result = store.insert_signal_result(signal)
+        except (TypeError, ValueError, ValidationError) as e:
+            error_count += 1
+            results.append(SignalImportRowResult(index=index, error=str(e)))
+            continue
+
+        if result.created:
+            inserted_count += 1
+            results.append(SignalImportRowResult(index=index, signal_id=result.signal.id))
+        else:
+            duplicate_count += 1
+            results.append(SignalImportRowResult(index=index, duplicate_id=result.signal.id))
+
+    return SignalImportResponse(
+        inserted_count=inserted_count,
+        duplicate_count=duplicate_count,
+        error_count=error_count,
+        results=results,
     )
 
 
