@@ -988,6 +988,40 @@ class PipelineRunHistoryResponse(BaseModel):
     status: str
 
 
+class PipelineRunComparisonRunResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None = None
+    status: str
+
+
+class PipelineRunMetricDeltaResponse(BaseModel):
+    base: int | float
+    target: int | float
+    delta: int | float
+
+
+class PipelineRunAdapterDeltaResponse(BaseModel):
+    adapter: str
+    base_status: str | None = None
+    target_status: str | None = None
+    status_changed: bool
+    metrics: dict[str, PipelineRunMetricDeltaResponse] = Field(default_factory=dict)
+    base_error_message: str | None = None
+    target_error_message: str | None = None
+
+
+class PipelineRunComparisonResponse(BaseModel):
+    base_run: PipelineRunComparisonRunResponse
+    target_run: PipelineRunComparisonRunResponse
+    fetched_signals: dict[str, PipelineRunMetricDeltaResponse]
+    insights: dict[str, PipelineRunMetricDeltaResponse]
+    generated_ideas: dict[str, PipelineRunMetricDeltaResponse]
+    approved_published_outputs: dict[str, PipelineRunMetricDeltaResponse]
+    budget_usage: dict[str, PipelineRunMetricDeltaResponse]
+    adapter_metrics: list[PipelineRunAdapterDeltaResponse]
+
+
 class StageSummaryResponse(BaseModel):
     name: str
     would_process: int

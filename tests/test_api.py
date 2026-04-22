@@ -312,6 +312,32 @@ def multi_idea_db(db_path):
     return db_path
 
 
+def _seed_api_pipeline_run(
+    db_path: str,
+    run_id: str,
+    *,
+    signals_fetched: int,
+    ideas_generated: int,
+    adapter_metrics: dict,
+) -> None:
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_pipeline_run(run_id, {"model": "gpt-4o-mini"})
+        store.update_pipeline_run(
+            run_id,
+            signals_fetched=signals_fetched,
+            signals_new=signals_fetched,
+            insights_generated=1,
+            ideas_generated=ideas_generated,
+            ideas_evaluated=ideas_generated,
+            token_usage={"input": 100, "output": 50, "estimated_cost_usd": 0.01},
+            adapter_metrics=adapter_metrics,
+            status="completed",
+        )
+    finally:
+        store.close()
+
+
 @pytest.fixture
 def multi_idea_client(multi_idea_db):
     from max.server.dependencies import get_store
@@ -2791,6 +2817,52 @@ def test_list_pipeline_runs_empty(client):
     resp = client.get("/api/v1/pipeline/runs")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_compare_pipeline_runs_endpoint(client, db_path):
+    _seed_api_pipeline_run(
+        db_path,
+        "run-compare-base",
+        signals_fetched=4,
+        ideas_generated=1,
+        adapter_metrics={"github": {"status": "ok", "signal_count": 4, "duration_ms": 50}},
+    )
+    _seed_api_pipeline_run(
+        db_path,
+        "run-compare-target",
+        signals_fetched=9,
+        ideas_generated=3,
+        adapter_metrics={"github": {"status": "ok", "signal_count": 9, "duration_ms": 70}},
+    )
+
+    resp = client.get(
+        "/api/v1/pipeline/runs/compare"
+        "?base_run_id=run-compare-base&target_run_id=run-compare-target"
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["fetched_signals"]["signals_fetched"]["delta"] == 5
+    assert data["generated_ideas"]["ideas_generated"]["delta"] == 2
+    assert data["adapter_metrics"][0]["metrics"]["signal_count"]["delta"] == 5
+
+
+def test_compare_pipeline_runs_endpoint_missing_run_returns_404(client, db_path):
+    _seed_api_pipeline_run(
+        db_path,
+        "run-compare-base",
+        signals_fetched=4,
+        ideas_generated=1,
+        adapter_metrics={},
+    )
+
+    resp = client.get(
+        "/api/v1/pipeline/runs/compare"
+        "?base_run_id=run-compare-base&target_run_id=run-not-found"
+    )
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["missing_run_ids"] == ["run-not-found"]
 
 
 def test_llm_usage_aggregates_pipeline_runs(pipeline_runs_client):

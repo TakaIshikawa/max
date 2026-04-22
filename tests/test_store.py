@@ -82,6 +82,36 @@ def test_insert_and_get_evaluation(store: Store, sample_unit: BuildableUnit, sam
     assert evaluation.recommendation == "yes"
 
 
+def test_get_pipeline_run_by_id(store: Store) -> None:
+    store.insert_pipeline_run("run-test001", {"signal_limit": 10})
+    store.update_pipeline_run(
+        "run-test001",
+        signals_fetched=7,
+        signals_new=5,
+        token_usage={"input": 100, "output": 50},
+        adapter_metrics={"github": {"status": "ok", "signal_count": 7}},
+    )
+
+    run = store.get_pipeline_run("run-test001")
+
+    assert run is not None
+    assert run["id"] == "run-test001"
+    assert run["signals_fetched"] == 7
+    assert run["adapter_metrics"]["github"]["signal_count"] == 7
+    assert store.get_pipeline_run("run-missing") is None
+
+
+def test_get_pipeline_run_output_counts(store: Store) -> None:
+    store.insert_feedback("bu-out-1", "approved", pipeline_run_id="run-test001")
+    store.insert_feedback("bu-out-2", "published", pipeline_run_id="run-test001")
+    store.insert_feedback("bu-out-3", "rejected", pipeline_run_id="run-test001")
+    store.insert_feedback("bu-out-4", "approved", pipeline_run_id="run-other")
+
+    counts = store.get_pipeline_run_output_counts("run-test001")
+
+    assert counts == {"approved": 1, "published": 1, "approved_or_published": 2}
+
+
 # ── By-ID lookups ─────────────────────────────────────────────────
 
 

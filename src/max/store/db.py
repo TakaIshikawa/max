@@ -1741,6 +1741,7 @@ class Store:
         outcome: str,
         reason: str = "",
         approval_score: int | None = None,
+        pipeline_run_id: str | None = None,
     ) -> None:
         """Record feedback on a buildable unit.
 
@@ -1763,9 +1764,18 @@ class Store:
 
         self.conn.execute(
             """INSERT INTO feedback
-               (buildable_unit_id, outcome, reason, dimension_values, approval_score, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (unit_id, outcome, reason, json.dumps(dimension_values), approval_score, _now_iso()),
+               (buildable_unit_id, outcome, reason, dimension_values, approval_score, created_at,
+                pipeline_run_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                unit_id,
+                outcome,
+                reason,
+                json.dumps(dimension_values),
+                approval_score,
+                _now_iso(),
+                pipeline_run_id,
+            ),
         )
         if outcome in ("approved", "published", "rejected", "abandoned"):
             row = self.conn.execute(
@@ -1933,30 +1943,33 @@ class Store:
                ORDER BY started_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
-        return [
-            {
-                "id": row["id"],
-                "started_at": row["started_at"],
-                "completed_at": row["completed_at"],
-                "config": json.loads(row["config"]),
-                "signals_fetched": row["signals_fetched"],
-                "signals_new": row["signals_new"],
-                "insights_generated": row["insights_generated"],
-                "ideas_generated": row["ideas_generated"],
-                "ideas_evaluated": row["ideas_evaluated"],
-                "clusters_found": row["clusters_found"],
-                "gaps_detected": row["gaps_detected"],
-                "avg_idea_score": row["avg_idea_score"],
-                "fetch_allocation": json.loads(row["fetch_allocation"]),
-                "token_usage": json.loads(row["token_usage"]),
-                "adapter_metrics": json.loads(row["adapter_metrics"]),
-                "status": row["status"] if "status" in row.keys() else "completed",
-                "error_message": (
-                    row["error_message"] if "error_message" in row.keys() else ""
-                ),
-            }
-            for row in rows
-        ]
+        return [_row_to_pipeline_run(row) for row in rows]
+
+    def get_pipeline_run(self, run_id: str) -> dict | None:
+        """Get a single active pipeline run by ID."""
+        row = self.conn.execute(
+            "SELECT * FROM pipeline_runs WHERE id = ? AND archived_at IS NULL",
+            (run_id,),
+        ).fetchone()
+        return _row_to_pipeline_run(row) if row else None
+
+    def get_pipeline_run_output_counts(self, run_id: str) -> dict[str, int]:
+        """Count approved/published feedback attributed to a pipeline run."""
+        rows = self.conn.execute(
+            """SELECT outcome, COUNT(*) AS count
+               FROM feedback
+               WHERE pipeline_run_id = ?
+               AND outcome IN ('approved', 'published')
+               GROUP BY outcome""",
+            (run_id,),
+        ).fetchall()
+        counts = {"approved": 0, "published": 0, "approved_or_published": 0}
+        for row in rows:
+            outcome = row["outcome"]
+            count = int(row["count"])
+            counts[outcome] = count
+            counts["approved_or_published"] += count
+        return counts
 
     # ── Pipeline Run Domains ────────────────────────────────────────────
 
@@ -2336,6 +2349,28 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
+
+
+def _row_to_pipeline_run(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "started_at": row["started_at"],
+        "completed_at": row["completed_at"],
+        "config": json.loads(row["config"]),
+        "signals_fetched": row["signals_fetched"],
+        "signals_new": row["signals_new"],
+        "insights_generated": row["insights_generated"],
+        "ideas_generated": row["ideas_generated"],
+        "ideas_evaluated": row["ideas_evaluated"],
+        "clusters_found": row["clusters_found"],
+        "gaps_detected": row["gaps_detected"],
+        "avg_idea_score": row["avg_idea_score"],
+        "fetch_allocation": json.loads(row["fetch_allocation"]),
+        "token_usage": json.loads(row["token_usage"]),
+        "adapter_metrics": json.loads(row["adapter_metrics"]),
+        "status": row["status"] if "status" in row.keys() else "completed",
+        "error_message": row["error_message"] if "error_message" in row.keys() else "",
+    }
 
 
 def _row_to_evaluation(row: sqlite3.Row) -> UtilityEvaluation:

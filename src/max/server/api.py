@@ -15,6 +15,10 @@ from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.idea_similarity import find_similar_ideas
+from max.analysis.run_comparison import (
+    PipelineRunComparisonNotFound,
+    compare_pipeline_runs,
+)
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -84,6 +88,7 @@ from max.server.schemas import (
     PipelineDryRunRequest,
     PipelinePostRunRequest,
     PipelinePostRunResponse,
+    PipelineRunComparisonResponse,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
@@ -171,6 +176,29 @@ def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> li
         )
         for r in runs
     ]
+
+
+@router.get("/pipeline/runs/compare", response_model=PipelineRunComparisonResponse)
+def compare_pipeline_runs_endpoint(
+    base_run_id: str = Query(..., min_length=1),
+    target_run_id: str = Query(..., min_length=1),
+    store: Store = Depends(get_store),
+) -> PipelineRunComparisonResponse:
+    try:
+        comparison = compare_pipeline_runs(
+            store,
+            base_run_id=base_run_id,
+            target_run_id=target_run_id,
+        )
+    except PipelineRunComparisonNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "Pipeline run ID not found",
+                "missing_run_ids": exc.missing_run_ids,
+            },
+        ) from exc
+    return PipelineRunComparisonResponse.model_validate(comparison)
 
 
 # ── LLM Usage ───────────────────────────────────────────────────────
