@@ -5,6 +5,7 @@ Covers methods and edge cases not exercised by test_store.py or test_attribution
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -902,6 +903,42 @@ class TestSchemaAndMigrations:
 
 
 # ── Domain Quality ──────────────────────────────────────────────────
+
+
+class TestDesignBriefStore:
+    def test_update_design_brief_status_updates_status_and_timestamp(self, store: Store) -> None:
+        from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
+
+        unit = _make_unit(unit_id="bu-design-brief-status")
+        store.insert_buildable_unit(unit)
+        brief_id = store.insert_design_brief(
+            ProjectBrief(
+                title="Lifecycle Brief",
+                domain="developer-tools",
+                theme="workflow",
+                lead=Candidate(unit=unit),
+                readiness_score=80.0,
+                why_this_now="Teams need a clear lifecycle.",
+                merged_product_concept="A lifecycle-managed brief.",
+                synthesis_rationale="Single source idea.",
+                mvp_scope=["Expose status updates"],
+                first_milestones=["Add PATCH endpoint"],
+                validation_plan="Update the brief status.",
+                risks=["Status drift"],
+                source_idea_ids=[unit.id],
+                design_status="draft",
+            )
+        )
+        original = store.get_design_brief(brief_id)
+        assert original is not None
+        original_updated_at = datetime.fromisoformat(original["updated_at"])
+
+        store.update_design_brief_status(brief_id, "published")
+
+        updated = store.get_design_brief(brief_id)
+        assert updated is not None
+        assert updated["design_status"] == "published"
+        assert datetime.fromisoformat(updated["updated_at"]) > original_updated_at
 
 
 class TestDomainQualityStore:

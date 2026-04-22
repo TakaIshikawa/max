@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -1354,6 +1355,35 @@ def test_get_design_brief(seeded_client):
     assert data["mvp_scope"] == ["Export packet"]
 
 
+def test_update_design_brief_status(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief = list_resp.json()[0]
+    original_updated_at = datetime.fromisoformat(brief["updated_at"])
+
+    resp = seeded_client.patch(
+        f"/api/v1/design-briefs/{brief['id']}/status",
+        json={"status": "approved"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == brief["id"]
+    assert data["design_status"] == "approved"
+    assert datetime.fromisoformat(data["updated_at"]) > original_updated_at
+
+
+def test_update_design_brief_status_rejects_invalid_status(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.patch(
+        f"/api/v1/design-briefs/{brief_id}/status",
+        json={"status": "designing"},
+    )
+
+    assert resp.status_code == 422
+
+
 def test_get_design_brief_blueprint(seeded_client):
     list_resp = seeded_client.get("/api/v1/design-briefs")
     brief_id = list_resp.json()[0]["id"]
@@ -1469,6 +1499,14 @@ def test_get_design_brief_markdown_not_found(client):
 
 def test_get_design_brief_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing")
+    assert resp.status_code == 404
+
+
+def test_update_design_brief_status_not_found(client):
+    resp = client.patch(
+        "/api/v1/design-briefs/dbf-missing/status",
+        json={"status": "approved"},
+    )
     assert resp.status_code == 404
 
 

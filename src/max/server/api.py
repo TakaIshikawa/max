@@ -25,6 +25,7 @@ from max.server.schemas import (
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     DesignBriefResponse,
+    DesignBriefStatusUpdate,
     DomainQualityMemoryResponse,
     DomainQualityScoreResponse,
     DimensionScoreResponse,
@@ -1043,6 +1044,23 @@ def get_design_brief(brief_id: str, store: Store = Depends(get_store)) -> Design
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return _design_brief_to_response(brief)
+
+
+@router.patch("/design-briefs/{brief_id}/status", response_model=DesignBriefResponse)
+def update_design_brief_status(
+    brief_id: str,
+    update: DesignBriefStatusUpdate,
+    store: Store = Depends(get_store),
+) -> DesignBriefResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    store.update_design_brief_status(brief_id, update.status)
+    updated = store.get_design_brief(brief_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_to_response(updated)
 
 
 @router.get("/design-briefs/{brief_id}/blueprint", response_model=BlueprintSourceBriefResponse)

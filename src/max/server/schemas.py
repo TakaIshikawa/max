@@ -400,6 +400,10 @@ class DesignBriefResponse(BaseModel):
     sources: list[DesignBriefSourceResponse]
 
 
+class DesignBriefStatusUpdate(BaseModel):
+    status: Literal["draft", "approved", "published", "archived", "rejected"]
+
+
 class FeedbackTrendDomainResponse(BaseModel):
     domain: str
     total_count: int
