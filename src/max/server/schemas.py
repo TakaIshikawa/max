@@ -690,6 +690,27 @@ class ProfileDetailResponse(BaseModel):
     draft_count: int
 
 
+class ProfileValidationIssueResponse(BaseModel):
+    severity: str
+    code: str
+    message: str
+    path: str
+
+
+class ProfileValidationResultResponse(BaseModel):
+    name: str
+    path: str
+    ok: bool
+    errors: list[ProfileValidationIssueResponse]
+    warnings: list[ProfileValidationIssueResponse]
+
+
+class ProfileValidationResponse(BaseModel):
+    ok: bool
+    profile: str | None = None
+    results: list[ProfileValidationResultResponse]
+
+
 class ProfileCoverageTermResponse(BaseModel):
     term: str
     term_type: str

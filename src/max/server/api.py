@@ -95,6 +95,9 @@ from max.server.schemas import (
     ProfileCoverageGapsResponse,
     ProfileCoverageTermResponse,
     ProfileSummaryResponse,
+    ProfileValidationIssueResponse,
+    ProfileValidationResponse,
+    ProfileValidationResultResponse,
     ReviewQueueItemResponse,
     ReviewThresholdRecommendationResponse,
     ReviewThresholdsResponse,
@@ -534,6 +537,32 @@ def _profile_detail_to_response(profile) -> ProfileDetailResponse:
     )
 
 
+def _profile_validation_to_response(result) -> ProfileValidationResultResponse:
+    return ProfileValidationResultResponse(
+        name=result.name,
+        path=str(result.path),
+        ok=result.ok,
+        errors=[
+            ProfileValidationIssueResponse(
+                severity=issue.severity,
+                code=issue.code,
+                message=issue.message,
+                path=issue.path,
+            )
+            for issue in result.error_issues
+        ],
+        warnings=[
+            ProfileValidationIssueResponse(
+                severity=issue.severity,
+                code=issue.code,
+                message=issue.message,
+                path=issue.path,
+            )
+            for issue in result.warning_issues
+        ],
+    )
+
+
 def _profile_coverage_gaps_to_response(report) -> ProfileCoverageGapsResponse:
     return ProfileCoverageGapsResponse(
         profile_name=report.profile_name,
@@ -751,9 +780,33 @@ def list_pipeline_profiles() -> list[ProfileSummaryResponse]:
     return [_profile_summary_to_response(_load_profile_or_404(name)) for name in list_profiles()]
 
 
+@router.get("/profiles/validate", response_model=ProfileValidationResponse)
+def validate_pipeline_profiles(
+    profile: str | None = Query(default=None, description="Optional profile name to validate"),
+) -> ProfileValidationResponse:
+    from max.profiles.loader import validate_profile_files
+
+    try:
+        results = validate_profile_files(profile=profile)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {profile}")
+
+    response_results = [_profile_validation_to_response(result) for result in results]
+    return ProfileValidationResponse(
+        ok=all(result.ok for result in results),
+        profile=profile,
+        results=response_results,
+    )
+
+
 @router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)
 def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
     return _profile_detail_to_response(_load_profile_or_404(profile_name))
+
+
+@router.get("/profiles/{profile_name}/validate", response_model=ProfileValidationResponse)
+def validate_pipeline_profile(profile_name: str) -> ProfileValidationResponse:
+    return validate_pipeline_profiles(profile=profile_name)
 
 
 @router.get("/profiles/{profile_name}/coverage-gaps", response_model=ProfileCoverageGapsResponse)

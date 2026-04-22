@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +13,12 @@ from max.profiles.schema import (
     EvaluationConfig,
     PipelineProfile,
     SourceConfig,
+)
+from max.profiles.validation import (
+    ProfileFileValidationResult,
+    load_profile_json_schema,
+    validate_profile_file as validate_profile_file_result,
+    validate_profile_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,19 +37,6 @@ class ProfileValidationError(Exception):
         return f"Profile validation failed with {len(self.issues)} errors:\n" + "\n".join(
             f"  - {issue}" for issue in self.issues
         )
-
-
-@dataclass(frozen=True)
-class ProfileFileValidationResult:
-    """Validation result for a single profile YAML file."""
-
-    name: str
-    path: Path
-    errors: list[str]
-
-    @property
-    def ok(self) -> bool:
-        return not self.errors
 
 
 def get_profiles_dir() -> Path:
@@ -210,17 +202,7 @@ def list_profile_paths() -> list[Path]:
 
 def _load_profile_json_schema() -> dict:
     """Load profiles/schema.yaml as a JSON Schema document."""
-    schema_path = get_profiles_dir() / "schema.yaml"
-    with open(schema_path) as f:
-        schema = yaml.safe_load(f)
-    if not isinstance(schema, dict):
-        raise ValueError(f"Invalid profile schema YAML (expected dict): {schema_path}")
-    try:
-        from jsonschema import Draft7Validator
-    except ModuleNotFoundError:
-        return schema
-    Draft7Validator.check_schema(schema)
-    return schema
+    return load_profile_json_schema(get_profiles_dir())
 
 
 def _format_json_schema_error(error) -> str:
@@ -322,32 +304,8 @@ def _validate_against_json_schema(data: dict, schema: dict) -> list[str]:
 
 def validate_profile_file(path: Path, schema: dict | None = None) -> ProfileFileValidationResult:
     """Validate one profile YAML file against JSON Schema and the profile loader."""
-    errors: list[str] = []
     schema_data = schema if schema is not None else _load_profile_json_schema()
-
-    try:
-        with open(path) as f:
-            data = yaml.safe_load(f)
-    except Exception as e:
-        return ProfileFileValidationResult(path.stem, path, [f"YAML: {e}"])
-
-    if not isinstance(data, dict):
-        errors.append(f"YAML: expected mapping/object, got {type(data).__name__}")
-    else:
-        schema_errors = _validate_against_json_schema(data, schema_data)
-        errors.extend(f"schema: {error}" for error in schema_errors)
-
-    logger_was_disabled = logger.disabled
-    logger.disabled = True
-    try:
-        try:
-            _load_yaml(path)
-        except Exception as e:
-            errors.append(f"loader: {e}")
-    finally:
-        logger.disabled = logger_was_disabled
-
-    return ProfileFileValidationResult(path.stem, path, errors)
+    return validate_profile_file_result(path, schema=schema_data, profiles_dir=get_profiles_dir())
 
 
 def validate_profile_files(profile: str | None = None) -> list[ProfileFileValidationResult]:
@@ -370,57 +328,9 @@ def validate_profile(profile: PipelineProfile) -> list[str]:
         warnings with "WARNING:".
     """
     issues: list[str] = []
-
-    # Import here to avoid circular dependency
-    from max.sources.registry import list_adapters
-
-    # Get available adapters
-    try:
-        available_adapters = set(list_adapters())
-    except Exception as e:
-        logger.warning("Failed to load adapter registry: %s", e)
-        available_adapters = set()
-
-    # Validate adapter names
-    for source in profile.sources:
-        if source.adapter not in available_adapters:
-            issues.append(
-                f"ERROR: Unknown adapter '{source.adapter}'. "
-                f"Available adapters: {sorted(available_adapters)}"
-            )
-
-    # Validate weight values
-    for source in profile.sources:
-        weight = source.weight
-        if not isinstance(weight, (int, float)):
-            issues.append(
-                f"ERROR: Invalid weight type for adapter '{source.adapter}': "
-                f"{type(weight).__name__} (expected numeric)"
-            )
-        elif weight < 0.0 or weight > 10.0:
-            issues.append(
-                f"ERROR: Weight {weight} for adapter '{source.adapter}' is out of range "
-                f"(must be between 0.0 and 10.0)"
-            )
-
-    # Validate category names (warning only)
-    # Use DEFAULT_DOMAIN_CONTEXT categories as reference
-    known_categories = set(DEFAULT_DOMAIN_CONTEXT.categories)
-    profile_categories = set(profile.domain.categories)
-    unknown_categories = profile_categories - known_categories
-
-    if unknown_categories:
-        logger.warning(
-            "Profile '%s' uses unknown categories: %s. Known categories: %s",
-            profile.name,
-            sorted(unknown_categories),
-            sorted(known_categories),
-        )
-        issues.append(
-            f"WARNING: Unknown categories in profile '{profile.name}': "
-            f"{sorted(unknown_categories)}"
-        )
-
+    for issue in validate_profile_model(profile):
+        prefix = "ERROR" if issue.severity == "error" else "WARNING"
+        issues.append(f"{prefix}: {issue.message}")
     return issues
 
 

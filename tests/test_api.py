@@ -6,6 +6,7 @@ import csv
 import json
 from datetime import datetime
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -483,6 +484,37 @@ def test_get_profile_returns_404_for_unknown_profile(client):
 
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Profile not found: missing"
+
+
+def test_validate_profiles_returns_structured_results(client):
+    from max.profiles.validation import ProfileFileValidationResult, ProfileValidationIssue
+
+    validation_result = ProfileFileValidationResult.from_issues(
+        "devtools",
+        Path("profiles/devtools.yaml"),
+        [
+            ProfileValidationIssue(
+                severity="warning",
+                code="duplicate_category",
+                message="Duplicate category 'cli_tool'",
+                path="domain.categories",
+            )
+        ],
+    )
+
+    with patch("max.profiles.loader.validate_profile_files", return_value=[validation_result]):
+        resp = client.get("/api/v1/profiles/validate?profile=devtools")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["profile"] == "devtools"
+    assert data["results"][0]["warnings"][0] == {
+        "severity": "warning",
+        "code": "duplicate_category",
+        "message": "Duplicate category 'cli_tool'",
+        "path": "domain.categories",
+    }
 
 
 def test_get_profile_coverage_gaps_returns_uncovered_terms(client, db_path):

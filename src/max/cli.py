@@ -384,7 +384,7 @@ def profiles(ctx: click.Context) -> None:
 @profiles.command(name="validate")
 @click.option("--profile", "-p", type=str, default=None, help="Validate one profile by name")
 def profiles_validate(profile: str | None) -> None:
-    """Validate profile YAML files against the loader and JSON schema."""
+    """Validate profile YAML files against schema and semantic checks."""
     from max.profiles.loader import validate_profile_files
 
     try:
@@ -394,12 +394,15 @@ def profiles_validate(profile: str | None) -> None:
 
     has_errors = False
     for result in results:
-        if result.ok:
+        if result.ok and not result.warnings:
             click.echo(f"{result.name}: OK")
             continue
 
-        has_errors = True
-        click.echo(f"{result.name}: ERROR - {'; '.join(result.errors)}")
+        if result.errors:
+            has_errors = True
+            click.echo(f"{result.name}: ERROR - {'; '.join(result.errors)}")
+        if result.warnings:
+            click.echo(f"{result.name}: WARNING - {'; '.join(result.warnings)}")
 
     if has_errors:
         raise click.exceptions.Exit(1)
