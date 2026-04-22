@@ -51,6 +51,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
+    "lobsters": "max.sources.lobsters:LobstersAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -173,6 +174,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "categories"],
         required_keys=[],
         description="Searches Crates.io for Rust packages matching configured queries and categories.",
+    ),
+    "lobsters": AdapterMetadata(
+        name="lobsters",
+        config_keys=["tags", "page", "limit"],
+        required_keys=[],
+        description="Fetches Lobsters developer forum stories from newest or tag-specific JSON pages.",
     ),
 }
 

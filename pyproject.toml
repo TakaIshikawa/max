@@ -44,6 +44,7 @@ devto = "max.sources.devto:DevtoAdapter"
 pubmed = "max.sources.pubmed:PubMedAdapter"
 rss_feed = "max.sources.rss_feed:RssFeedAdapter"
 crates_io = "max.sources.crates_io:CratesIoAdapter"
+lobsters = "max.sources.lobsters:LobstersAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]
