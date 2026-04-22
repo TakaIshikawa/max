@@ -885,6 +885,27 @@ def test_get_idea_not_found(client):
     assert resp.status_code == 404
 
 
+def test_get_idea_spec_preview(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/spec-preview")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "tact-spec-preview/v1"
+    assert data["kind"] == "tact.project_spec"
+    assert data["source"]["idea_id"] == "bu-api001"
+    assert data["project"]["title"] == "Test Idea"
+    assert data["problem"]["statement"] == "No test ideas"
+    assert data["solution"]["approach"] == "Create a test idea"
+    assert data["evidence"]["insight_ids"] == ["ins-api001"]
+    assert data["evaluation"]["overall_score"] == 78.0
+    assert data["evaluation"]["recommendation"] == "yes"
+
+
+def test_get_idea_spec_preview_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/spec-preview")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_evidence_chain(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
     assert resp.status_code == 200

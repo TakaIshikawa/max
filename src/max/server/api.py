@@ -56,6 +56,7 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.spec.generator import generate_spec_preview
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.registry import list_adapters
 from max.store.db import Store
@@ -586,6 +587,14 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
         latest_critique=critiques[0] if critiques else None,
         latest_feedback=store.get_latest_feedback(idea_id),
     )
+
+
+@router.get("/ideas/{idea_id}/spec-preview")
+def get_idea_spec_preview(idea_id: str, store: Store = Depends(get_store)) -> dict:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return generate_spec_preview(unit, store.get_evaluation(idea_id))
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])
