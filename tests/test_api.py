@@ -325,6 +325,7 @@ def test_list_signals_filters_by_signal_role_and_source_type(client):
             "content": "C1",
             "url": "https://example.com/forum-problem",
             "source_type": "forum",
+            "source_adapter": "hackernews",
             "signal_role": "problem",
         },
     )
@@ -335,6 +336,7 @@ def test_list_signals_filters_by_signal_role_and_source_type(client):
             "content": "C2",
             "url": "https://example.com/registry-problem",
             "source_type": "registry",
+            "source_adapter": "npm",
             "signal_role": "problem",
         },
     )
@@ -345,17 +347,21 @@ def test_list_signals_filters_by_signal_role_and_source_type(client):
             "content": "C3",
             "url": "https://example.com/forum-solution",
             "source_type": "forum",
+            "source_adapter": "reddit",
             "signal_role": "solution",
         },
     )
 
-    resp = client.get("/api/v1/signals?source_type=forum&signal_role=problem")
+    resp = client.get(
+        "/api/v1/signals?source_type=forum&source_adapter=hackernews&signal_role=problem"
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["pagination"]["total_count"] == 1
     assert len(data["items"]) == 1
     assert data["items"][0]["title"] == "Forum Problem"
     assert data["items"][0]["source_type"] == "forum"
+    assert data["items"][0]["source_adapter"] == "hackernews"
     assert data["items"][0]["signal_role"] == "problem"
 
 

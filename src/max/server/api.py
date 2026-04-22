@@ -267,6 +267,7 @@ def list_signals(
     cursor: str | None = None,
     limit: int = 20,
     source_type: str | None = None,
+    source_adapter: str | None = None,
     signal_role: str | None = None,
     store: Store = Depends(get_store),
 ) -> PaginatedResponse[SignalResponse]:
@@ -275,12 +276,20 @@ def list_signals(
 
     try:
         signals, next_cursor = store.get_signals_paginated(
-            cursor=cursor, limit=limit, source_type=source_type, signal_role=signal_role
+            cursor=cursor,
+            limit=limit,
+            source_type=source_type,
+            source_adapter=source_adapter,
+            signal_role=signal_role,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    total_count = store.count_signals(source_type=source_type, signal_role=signal_role)
+    total_count = store.count_signals(
+        source_type=source_type,
+        source_adapter=source_adapter,
+        signal_role=signal_role,
+    )
 
     return PaginatedResponse[SignalResponse](
         items=[_signal_to_response(s) for s in signals],

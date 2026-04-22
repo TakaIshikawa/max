@@ -1042,12 +1042,40 @@ class TestSignalsPagination:
         assert next_cursor is None
         assert all(s.signal_role == "problem" for s in signals)
 
+    def test_pagination_with_source_adapter_filter(self, store: Store) -> None:
+        """Pagination with source_adapter filter should only return filtered signals."""
+        for i in range(3):
+            store.insert_signal(
+                _make_signal(
+                    adapter="hackernews",
+                    sig_id=f"sig-hn-{i}",
+                    url=f"https://a.com/hn-{i}",
+                )
+            )
+        for i in range(2):
+            store.insert_signal(
+                _make_signal(
+                    adapter="reddit",
+                    sig_id=f"sig-reddit-{i}",
+                    url=f"https://a.com/reddit-{i}",
+                )
+            )
+
+        signals, next_cursor = store.get_signals_paginated(
+            source_adapter="hackernews", limit=10
+        )
+
+        assert len(signals) == 3
+        assert next_cursor is None
+        assert all(s.source_adapter == "hackernews" for s in signals)
+
     def test_pagination_with_source_type_and_signal_role_filter(self, store: Store) -> None:
-        """Pagination should combine source_type and signal_role filters."""
+        """Pagination should combine source_type, source_adapter, and signal_role filters."""
         store.insert_signal(
             _make_signal(
                 sig_id="sig-forum-problem",
                 url="https://a.com/forum-problem",
+                adapter="hackernews",
                 source_type=SignalSourceType.FORUM,
                 metadata={"signal_role": "problem"},
             )
@@ -1056,6 +1084,7 @@ class TestSignalsPagination:
             _make_signal(
                 sig_id="sig-registry-problem",
                 url="https://a.com/registry-problem",
+                adapter="npm",
                 source_type=SignalSourceType.REGISTRY,
                 metadata={"signal_role": "problem"},
             )
@@ -1064,24 +1093,35 @@ class TestSignalsPagination:
             _make_signal(
                 sig_id="sig-forum-solution",
                 url="https://a.com/forum-solution",
+                adapter="reddit",
                 source_type=SignalSourceType.FORUM,
                 metadata={"signal_role": "solution"},
             )
         )
+        store.insert_signal(
+            _make_signal(
+                sig_id="sig-forum-problem-reddit",
+                url="https://a.com/forum-problem-reddit",
+                adapter="reddit",
+                source_type=SignalSourceType.FORUM,
+                metadata={"signal_role": "problem"},
+            )
+        )
 
         signals, next_cursor = store.get_signals_paginated(
-            source_type="forum", signal_role="problem", limit=10
+            source_type="forum", source_adapter="hackernews", signal_role="problem", limit=10
         )
 
         assert next_cursor is None
         assert [s.id for s in signals] == ["sig-forum-problem"]
 
     def test_count_signals_with_signal_role_filter(self, store: Store) -> None:
-        """Count should combine source_type and signal_role filters."""
+        """Count should combine source_type, source_adapter, and signal_role filters."""
         store.insert_signal(
             _make_signal(
                 sig_id="sig-count-forum-problem",
                 url="https://a.com/count-forum-problem",
+                adapter="hackernews",
                 source_type=SignalSourceType.FORUM,
                 metadata={"signal_role": "problem"},
             )
@@ -1090,6 +1130,7 @@ class TestSignalsPagination:
             _make_signal(
                 sig_id="sig-count-registry-problem",
                 url="https://a.com/count-registry-problem",
+                adapter="npm",
                 source_type=SignalSourceType.REGISTRY,
                 metadata={"signal_role": "problem"},
             )
@@ -1098,13 +1139,29 @@ class TestSignalsPagination:
             _make_signal(
                 sig_id="sig-count-forum-solution",
                 url="https://a.com/count-forum-solution",
+                adapter="reddit",
                 source_type=SignalSourceType.FORUM,
                 metadata={"signal_role": "solution"},
             )
         )
+        store.insert_signal(
+            _make_signal(
+                sig_id="sig-count-forum-problem-reddit",
+                url="https://a.com/count-forum-problem-reddit",
+                adapter="reddit",
+                source_type=SignalSourceType.FORUM,
+                metadata={"signal_role": "problem"},
+            )
+        )
 
-        assert store.count_signals(signal_role="problem") == 2
-        assert store.count_signals(source_type="forum", signal_role="problem") == 1
+        assert store.count_signals(signal_role="problem") == 3
+        assert store.count_signals(source_adapter="reddit") == 2
+        assert (
+            store.count_signals(
+                source_type="forum", source_adapter="hackernews", signal_role="problem"
+            )
+            == 1
+        )
 
     def test_invalid_cursor_raises_value_error(self, store: Store) -> None:
         """Invalid cursor string should raise ValueError."""

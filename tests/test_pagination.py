@@ -161,6 +161,39 @@ def test_signals_with_source_type_filter(store: Store):
     assert count == 3
 
 
+def test_signals_with_source_adapter_filter(store: Store):
+    """Test pagination and count with source_adapter filter."""
+    for i in range(3):
+        store.insert_signal(
+            Signal(
+                source_type=SignalSourceType.FORUM,
+                source_adapter="hackernews",
+                title=f"HN {i}",
+                content=f"Content {i}",
+                url=f"https://example.com/hn/{i}",
+            )
+        )
+    for i in range(2):
+        store.insert_signal(
+            Signal(
+                source_type=SignalSourceType.FORUM,
+                source_adapter="reddit",
+                title=f"Reddit {i}",
+                content=f"Content {i}",
+                url=f"https://example.com/reddit/{i}",
+            )
+        )
+
+    signals, next_cursor = store.get_signals_paginated(
+        cursor=None, limit=10, source_adapter="hackernews"
+    )
+
+    assert len(signals) == 3
+    assert all(s.source_adapter == "hackernews" for s in signals)
+    assert next_cursor is None
+    assert store.count_signals(source_adapter="hackernews") == 3
+
+
 def test_signals_stable_pagination_with_inserts(store: Store):
     """Test that pagination is stable when new items are inserted."""
     # Create initial 3 signals

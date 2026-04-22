@@ -161,6 +161,7 @@ class Store:
         cursor: str | None = None,
         limit: int = 20,
         source_type: str | None = None,
+        source_adapter: str | None = None,
         signal_role: str | None = None,
     ) -> tuple[list[Signal], str | None]:
         """Get signals with cursor-based pagination.
@@ -174,6 +175,10 @@ class Store:
         if source_type:
             conditions.append("source_type = ?")
             params.append(source_type)
+
+        if source_adapter:
+            conditions.append("source_adapter = ?")
+            params.append(source_adapter)
 
         if signal_role:
             conditions.append("signal_role = ?")
@@ -206,13 +211,20 @@ class Store:
         return signals, next_cursor
 
     def count_signals(
-        self, *, source_type: str | None = None, signal_role: str | None = None
+        self,
+        *,
+        source_type: str | None = None,
+        source_adapter: str | None = None,
+        signal_role: str | None = None,
     ) -> int:
         query = "SELECT COUNT(*) FROM signals WHERE archived_at IS NULL"
         params: list = []
         if source_type:
             query += " AND source_type = ?"
             params.append(source_type)
+        if source_adapter:
+            query += " AND source_adapter = ?"
+            params.append(source_adapter)
         if signal_role:
             query += " AND signal_role = ?"
             params.append(signal_role)
