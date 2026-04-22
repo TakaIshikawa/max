@@ -16,6 +16,8 @@ from max.server.mcp_tools import (
     get_design_brief_markdown,
     get_evidence_chain,
     get_idea,
+    get_implementation_plan,
+    get_spec_readiness,
     get_spec_preview,
     get_stats,
     list_design_briefs,
@@ -371,6 +373,80 @@ def test_get_spec_preview_missing_evaluation(mcp_db):
     result = get_spec_preview(id="bu-noeval001")
 
     assert result == {"error": "Evaluation not found for idea: bu-noeval001"}
+
+
+def test_get_spec_readiness_success(seeded_mcp_db):
+    result = get_spec_readiness(id="bu-mcp001")
+
+    assert result["idea_id"] == "bu-mcp001"
+    assert result["status"] == "fail"
+    assert result["passed"] is False
+    assert "target_user" in result["failed_check_ids"]
+
+
+def test_get_spec_readiness_missing_idea(mcp_db):
+    result = get_spec_readiness(id="missing")
+
+    assert result == {"error": "Idea not found: missing"}
+
+
+def test_get_spec_readiness_missing_evaluation(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-noeval-readiness",
+        title="Unevaluated Readiness Idea",
+        one_liner="A test idea without evaluation",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No evaluation exists",
+        solution="Return a clear error",
+        value_proposition="Better MCP errors",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = get_spec_readiness(id="bu-noeval-readiness")
+
+    assert result == {"error": "Evaluation not found for idea: bu-noeval-readiness"}
+
+
+def test_get_implementation_plan_success(seeded_mcp_db):
+    result = get_implementation_plan(id="bu-mcp001")
+
+    assert result["schema_version"] == "max-implementation-plan/v1"
+    assert result["kind"] == "max.implementation_plan"
+    assert result["idea_id"] == "bu-mcp001"
+    assert result["summary"]["title"] == "MCP Test Idea"
+    assert result["summary"]["recommendation"] == "yes"
+    assert result["source"]["spec_preview_schema_version"] == "tact-spec-preview/v1"
+    assert [milestone["id"] for milestone in result["milestones"]] == ["M1", "M2", "M3", "M4"]
+    assert any(task["id"] == "T3" for task in result["task_breakdown"])
+
+
+def test_get_implementation_plan_missing_idea(mcp_db):
+    result = get_implementation_plan(id="missing")
+
+    assert result == {"error": "Idea not found: missing"}
+
+
+def test_get_implementation_plan_missing_evaluation(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-noeval-plan",
+        title="Unevaluated Plan Idea",
+        one_liner="A test idea without evaluation",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No evaluation exists",
+        solution="Return a clear error",
+        value_proposition="Better MCP errors",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = get_implementation_plan(id="bu-noeval-plan")
+
+    assert result == {"error": "Evaluation not found for idea: bu-noeval-plan"}
 
 
 def test_spec_preview_resource(seeded_mcp_db):

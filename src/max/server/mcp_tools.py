@@ -195,6 +195,40 @@ def get_spec_preview(id: str) -> dict:
         }
 
 
+def get_spec_readiness(id: str) -> dict:
+    """Evaluate whether an idea is ready for spec handoff."""
+    from max.spec.readiness import evaluate_spec_readiness
+
+    with _get_store() as store:
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+
+        evaluation = store.get_evaluation(id)
+        if not evaluation:
+            return {"error": f"Evaluation not found for idea: {id}"}
+
+        return evaluate_spec_readiness(unit, evaluation)
+
+
+def get_implementation_plan(id: str) -> dict:
+    """Generate an implementation handoff plan for an evaluated idea."""
+    from max.spec.generator import generate_spec_preview
+    from max.spec.implementation_plan import generate_implementation_plan
+
+    with _get_store() as store:
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+
+        evaluation = store.get_evaluation(id)
+        if not evaluation:
+            return {"error": f"Evaluation not found for idea: {id}"}
+
+        spec_preview = generate_spec_preview(unit, evaluation)
+        return generate_implementation_plan(unit, evaluation, spec_preview)
+
+
 def get_idea_critique(id: str) -> dict:
     """Get persisted quality-loop critique details for an idea."""
     with _get_store() as store:
@@ -608,6 +642,8 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(search_ideas)
     mcp.tool(get_idea)
     mcp.tool(get_spec_preview)
+    mcp.tool(get_spec_readiness)
+    mcp.tool(get_implementation_plan)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
     mcp.tool(get_design_brief)
