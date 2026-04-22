@@ -13,6 +13,7 @@ DEFAULT_ROLE_MAP: dict[str, str] = {
     "npm_registry": "solution",
     "pypi_registry": "solution",
     "github": "solution",
+    "github_funding": "market",
     "product_hunt": "market",
     "hackernews": "market",
     "reddit": "market",

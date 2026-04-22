@@ -38,6 +38,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
     "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
+    "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
@@ -90,6 +91,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches release notes from configured GitHub repositories.",
+    ),
+    "github_funding": AdapterMetadata(
+        name="github_funding",
+        config_keys=["repositories", "github_token", "token"],
+        required_keys=[],
+        description="Fetches funding and sponsorship links from configured GitHub repositories.",
     ),
     "pypi_registry": AdapterMetadata(
         name="pypi_registry",
