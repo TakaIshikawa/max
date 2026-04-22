@@ -481,6 +481,28 @@ class CircuitBreakerStateResponse(BaseModel):
     retry_after: float
 
 
+class AdapterHealthItemResponse(BaseModel):
+    adapter_name: str
+    registered: bool
+    enabled_for_profile: bool | None = None
+    circuit_breaker: CircuitBreakerStateResponse | None = None
+    total_signals: int = 0
+    insight_hit_rate: float = 0.0
+    idea_hit_rate: float = 0.0
+    total_feedbacked: int = 0
+    approved: int = 0
+    rejected: int = 0
+    approval_rate: float = 0.0
+
+
+class AdapterHealthResponse(BaseModel):
+    profile: str | None = None
+    registered_adapters: list[str]
+    enabled_profile_sources: list[str] = Field(default_factory=list)
+    circuit_breakers: list[CircuitBreakerStateResponse]
+    adapters: list[AdapterHealthItemResponse]
+
+
 class PipelineResultSummary(BaseModel):
     signals_fetched: int
     signals_new: int

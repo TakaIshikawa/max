@@ -14,6 +14,8 @@ from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
+    AdapterHealthItemResponse,
+    AdapterHealthResponse,
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     DesignBriefResponse,
@@ -1107,6 +1109,73 @@ def get_adapter_circuit_breakers() -> list[CircuitBreakerStateResponse]:
         )
         for s in snapshots
     ]
+
+
+@router.get("/adapters/health", response_model=AdapterHealthResponse)
+def get_adapter_health(
+    profile: str | None = Query(default=None, description="Optional profile name for enabled sources"),
+    store: Store = Depends(get_store),
+) -> AdapterHealthResponse:
+    registered_adapters = sorted(list_adapters())
+    enabled_profile_sources: list[str] = []
+
+    if profile:
+        profile_config = _load_profile_or_404(profile)
+        enabled_profile_sources = sorted(
+            source.adapter for source in profile_config.sources if source.enabled
+        )
+
+    circuit_breakers = [
+        CircuitBreakerStateResponse(
+            adapter_name=s.adapter_name,
+            state=s.state,
+            failure_count=s.failure_count,
+            last_failure_at=s.last_failure_at,
+            retry_after=s.retry_after,
+        )
+        for s in snapshot_circuit_breakers(adapter_names=registered_adapters)
+    ]
+    circuit_by_adapter = {cb.adapter_name: cb for cb in circuit_breakers}
+
+    quality_stats = store.get_adapter_quality_stats()
+    approval_stats = store.get_adapter_approval_stats()
+    adapter_names = sorted(
+        set(registered_adapters)
+        | set(enabled_profile_sources)
+        | set(circuit_by_adapter)
+        | set(quality_stats)
+        | set(approval_stats)
+    )
+    registered = set(registered_adapters)
+    enabled = set(enabled_profile_sources)
+
+    adapters = []
+    for adapter_name in adapter_names:
+        quality = quality_stats.get(adapter_name, {})
+        approval = approval_stats.get(adapter_name, {})
+        adapters.append(
+            AdapterHealthItemResponse(
+                adapter_name=adapter_name,
+                registered=adapter_name in registered,
+                enabled_for_profile=(adapter_name in enabled) if profile else None,
+                circuit_breaker=circuit_by_adapter.get(adapter_name),
+                total_signals=quality.get("total_signals", 0),
+                insight_hit_rate=quality.get("insight_hit_rate", 0.0),
+                idea_hit_rate=quality.get("idea_hit_rate", 0.0),
+                total_feedbacked=approval.get("total_feedbacked", 0),
+                approved=approval.get("approved", 0),
+                rejected=approval.get("rejected", 0),
+                approval_rate=approval.get("approval_rate", 0.0),
+            )
+        )
+
+    return AdapterHealthResponse(
+        profile=profile,
+        registered_adapters=registered_adapters,
+        enabled_profile_sources=enabled_profile_sources,
+        circuit_breakers=circuit_breakers,
+        adapters=adapters,
+    )
 
 
 # ── Similarity ──────────────────────────────────────────────────────

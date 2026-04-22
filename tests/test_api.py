@@ -1195,6 +1195,65 @@ def test_adapter_circuit_breakers_include_known_and_registry_adapters(client):
     assert by_name[registry_only]["retry_after"] > 0
 
 
+def test_adapter_health_reports_registry_stats_breakers_and_approval_rates(seeded_client):
+    from max.sources.base import get_circuit_breaker
+
+    cb = get_circuit_breaker("test")
+    cb.record_failure()
+
+    seeded_client.post(
+        "/api/v1/ideas/bu-api001/feedback",
+        json={"outcome": "approved", "reason": "useful"},
+    )
+
+    with patch("max.server.api.list_adapters", return_value=["test", "unused"]):
+        resp = seeded_client.get("/api/v1/adapters/health")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] is None
+    assert data["registered_adapters"] == ["test", "unused"]
+    assert data["enabled_profile_sources"] == []
+
+    by_name = {row["adapter_name"]: row for row in data["adapters"]}
+    assert by_name["test"]["registered"] is True
+    assert by_name["test"]["enabled_for_profile"] is None
+    assert by_name["test"]["total_signals"] == 1
+    assert by_name["test"]["insight_hit_rate"] == 1.0
+    assert by_name["test"]["idea_hit_rate"] == 1.0
+    assert by_name["test"]["total_feedbacked"] == 1
+    assert by_name["test"]["approved"] == 1
+    assert by_name["test"]["approval_rate"] == 1.0
+    assert by_name["test"]["circuit_breaker"]["failure_count"] == 1
+    assert by_name["unused"]["total_signals"] == 0
+
+
+def test_adapter_health_resolves_enabled_profile_sources(client):
+    profile = _profile_endpoint_fixture("devtools", "developer-tools")
+
+    with (
+        patch("max.server.api.list_adapters", return_value=["hackernews", "reddit"]),
+        patch("max.profiles.loader.load_profile", return_value=profile),
+    ):
+        resp = client.get("/api/v1/adapters/health?profile=devtools")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] == "devtools"
+    assert data["enabled_profile_sources"] == ["hackernews"]
+    by_name = {row["adapter_name"]: row for row in data["adapters"]}
+    assert by_name["hackernews"]["enabled_for_profile"] is True
+    assert by_name["reddit"]["enabled_for_profile"] is False
+
+
+def test_adapter_health_unknown_profile_returns_404(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/adapters/health?profile=missing")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
 # ── Similarity endpoint ────────────────────────────────────────────
 
 
