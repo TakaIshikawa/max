@@ -531,6 +531,25 @@ class FeedbackTrendResponse(BaseModel):
     windows: list[FeedbackTrendWindowResponse]
 
 
+class InsightTrendItemResponse(BaseModel):
+    category: str
+    domain: str
+    time_horizon: str
+    count: int
+    average_confidence: float
+    newest_insight_at: str
+    top_evidence_signal_ids: list[str]
+
+
+class InsightTrendResponse(BaseModel):
+    days: int | None
+    domain: str | None
+    category: str | None
+    total_insights: int
+    trend_count: int
+    trends: list[InsightTrendItemResponse]
+
+
 class PipelineTrendWindowResponse(BaseModel):
     window_start: str
     window_end: str

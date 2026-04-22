@@ -882,6 +882,57 @@ def test_insight_response_schema(seeded_client):
     assert isinstance(data["created_at"], str)
 
 
+def test_insight_trends_response_ordering_and_limit(client):
+    for i, confidence in enumerate([0.6, 0.7, 0.8], start=1):
+        client.post(
+            "/api/v1/insights",
+            json={
+                "category": "gap",
+                "title": f"Devtools Gap {i}",
+                "summary": "Summary",
+                "evidence": [f"sig-dev-{i}", "sig-shared"],
+                "confidence": confidence,
+                "domains": ["devtools"],
+                "time_horizon": "near_term",
+            },
+        )
+    for i, confidence in enumerate([0.95, 0.9], start=1):
+        client.post(
+            "/api/v1/insights",
+            json={
+                "category": "trend",
+                "title": f"Healthcare Trend {i}",
+                "summary": "Summary",
+                "evidence": [f"sig-health-{i}"],
+                "confidence": confidence,
+                "domains": ["healthcare"],
+                "time_horizon": "near_term",
+            },
+        )
+    client.post(
+        "/api/v1/insights",
+        json={
+            "category": "gap",
+            "title": "AI Gap",
+            "summary": "Summary",
+            "domains": ["ai"],
+        },
+    )
+
+    resp = client.get("/api/v1/trends/insights?limit=2")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_insights"] == 6
+    assert data["trend_count"] == 2
+    assert [(trend["category"], trend["domain"], trend["count"]) for trend in data["trends"]] == [
+        ("gap", "devtools", 3),
+        ("trend", "healthcare", 2),
+    ]
+    assert data["trends"][0]["average_confidence"] == pytest.approx(0.7)
+    assert data["trends"][0]["top_evidence_signal_ids"][0] == "sig-shared"
+
+
 def test_get_insight_detail_resolves_evidence_signals(seeded_client):
     resp = seeded_client.get("/api/v1/insights/ins-api001")
     assert resp.status_code == 200

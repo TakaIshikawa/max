@@ -59,6 +59,8 @@ from max.server.schemas import (
     InsightCreate,
     InsightDetailResponse,
     InsightResponse,
+    InsightTrendItemResponse,
+    InsightTrendResponse,
     LLMUsageResponse,
     LLMUsageRunResponse,
     PaginatedResponse,
@@ -1357,6 +1359,44 @@ def get_pipeline_trends(
                 avg_idea_score=window.avg_idea_score,
             )
             for window in trends.windows
+        ],
+    )
+
+
+@router.get("/trends/insights", response_model=InsightTrendResponse)
+def get_insight_trends(
+    domain: str | None = None,
+    category: str | None = None,
+    days: int | None = Query(default=None, ge=1, le=3650),
+    limit: int = Query(default=20, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> InsightTrendResponse:
+    from max.analysis.insight_trends import analyze_insight_trends
+
+    summary = analyze_insight_trends(
+        store,
+        domain=domain,
+        category=category,
+        days=days,
+        limit=limit,
+    )
+    return InsightTrendResponse(
+        days=summary.days,
+        domain=summary.domain,
+        category=summary.category,
+        total_insights=summary.total_insights,
+        trend_count=len(summary.trends),
+        trends=[
+            InsightTrendItemResponse(
+                category=trend.category,
+                domain=trend.domain,
+                time_horizon=trend.time_horizon,
+                count=trend.count,
+                average_confidence=trend.average_confidence,
+                newest_insight_at=trend.newest_insight_at.isoformat(),
+                top_evidence_signal_ids=trend.top_evidence_signal_ids,
+            )
+            for trend in summary.trends
         ],
     )
 

@@ -453,6 +453,43 @@ class Store:
         ).fetchall()
         return [_row_to_insight(row) for row in rows]
 
+    def get_active_insights(
+        self,
+        *,
+        domain: str | None = None,
+        category: str | None = None,
+        created_since: str | None = None,
+    ) -> list[Insight]:
+        """Return active insights matching optional analytics filters."""
+        query = "SELECT * FROM insights"
+        params: list = []
+        conditions: list[str] = ["archived_at IS NULL"]
+
+        if domain:
+            conditions.append(
+                """EXISTS (
+                   SELECT 1 FROM json_each(
+                       CASE WHEN json_valid(insights.domains) THEN insights.domains ELSE '[]' END
+                   )
+                   WHERE json_each.value = ?
+                )"""
+            )
+            params.append(domain)
+
+        if category:
+            conditions.append("category = ?")
+            params.append(category)
+
+        if created_since:
+            conditions.append("created_at >= ?")
+            params.append(created_since)
+
+        query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC, id DESC"
+
+        rows = self.conn.execute(query, params).fetchall()
+        return [_row_to_insight(row) for row in rows]
+
     def get_insights_paginated(
         self,
         *,
@@ -467,7 +504,7 @@ class Store:
         """
         query = "SELECT * FROM insights"
         params: list = []
-        conditions: list[str] = []
+        conditions: list[str] = ["archived_at IS NULL"]
 
         if domain:
             conditions.append(
@@ -489,8 +526,7 @@ class Store:
             conditions.append("(created_at, id) < (?, ?)")
             params.extend([cursor_timestamp, cursor_id])
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+        query += " WHERE " + " AND ".join(conditions)
 
         query += " ORDER BY created_at DESC, id DESC LIMIT ?"
         params.append(limit + 1)
