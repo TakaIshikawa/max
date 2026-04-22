@@ -169,6 +169,32 @@ def get_idea(id: str) -> dict:
         return result
 
 
+def get_spec_preview(id: str) -> dict:
+    """Generate a tact project spec preview for an evaluated idea."""
+    from max.spec.generator import generate_spec_preview
+
+    with _get_store() as store:
+        unit = store.get_buildable_unit(id)
+        if not unit:
+            return {"error": f"Idea not found: {id}"}
+
+        evaluation = store.get_evaluation(id)
+        if not evaluation:
+            return {"error": f"Evaluation not found for idea: {id}"}
+
+        return {
+            "id": unit.id,
+            "title": unit.title,
+            "one_liner": unit.one_liner,
+            "category": unit.category,
+            "domain": unit.domain,
+            "status": unit.status,
+            "score": evaluation.overall_score,
+            "recommendation": evaluation.recommendation,
+            "preview": generate_spec_preview(unit, evaluation),
+        }
+
+
 def get_idea_critique(id: str) -> dict:
     """Get persisted quality-loop critique details for an idea."""
     with _get_store() as store:
@@ -506,6 +532,11 @@ def evidence_chain_detail(idea_id: str) -> str:
     return json.dumps(get_evidence_chain(idea_id), indent=2)
 
 
+def spec_preview_detail(idea_id: str) -> str:
+    """Get tact spec preview details for a specific idea."""
+    return json.dumps(get_spec_preview(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -526,6 +557,7 @@ def create_mcp_server() -> FastMCP:
     # Register tools
     mcp.tool(search_ideas)
     mcp.tool(get_idea)
+    mcp.tool(get_spec_preview)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
     mcp.tool(get_design_brief)
@@ -545,6 +577,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}")(idea_detail)
     mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
     mcp.resource("ideas://{idea_id}/evidence-chain")(evidence_chain_detail)
+    mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
 

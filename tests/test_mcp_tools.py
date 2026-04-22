@@ -13,12 +13,14 @@ from max.server.mcp_tools import (
     get_design_brief_markdown,
     get_evidence_chain,
     get_idea,
+    get_spec_preview,
     get_stats,
     list_design_briefs,
     search_ideas,
     set_schedule,
     set_scheduler_ref,
     set_store_factory,
+    spec_preview_detail,
 )
 from max.server.scheduler import Scheduler
 from max.store.db import Store
@@ -270,6 +272,52 @@ def test_get_idea_found(seeded_mcp_db):
 def test_get_idea_not_found(mcp_db):
     result = get_idea(id="nonexistent")
     assert "error" in result
+
+
+def test_get_spec_preview_success(seeded_mcp_db):
+    result = get_spec_preview(id="bu-mcp001")
+
+    assert result["id"] == "bu-mcp001"
+    assert result["title"] == "MCP Test Idea"
+    assert result["score"] == 78.0
+    assert result["recommendation"] == "yes"
+    assert result["preview"]["kind"] == "tact.project_spec"
+    assert result["preview"]["source"]["idea_id"] == "bu-mcp001"
+    assert result["preview"]["evaluation"]["overall_score"] == 78.0
+
+
+def test_get_spec_preview_missing_idea(mcp_db):
+    result = get_spec_preview(id="missing")
+
+    assert result == {"error": "Idea not found: missing"}
+
+
+def test_get_spec_preview_missing_evaluation(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-noeval001",
+        title="Unevaluated Idea",
+        one_liner="A test idea without evaluation",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No evaluation exists",
+        solution="Return a clear error",
+        value_proposition="Better MCP errors",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = get_spec_preview(id="bu-noeval001")
+
+    assert result == {"error": "Evaluation not found for idea: bu-noeval001"}
+
+
+def test_spec_preview_resource(seeded_mcp_db):
+    result = spec_preview_detail("bu-mcp001")
+
+    assert '"id": "bu-mcp001"' in result
+    assert '"kind": "tact.project_spec"' in result
+    assert '"overall_score": 78.0' in result
 
 
 def test_get_evidence_chain_graph(seeded_evidence_chain_db):
