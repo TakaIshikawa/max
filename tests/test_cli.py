@@ -698,6 +698,44 @@ class TestSpecPreviewCommand:
         store.get_evaluation.assert_not_called()
 
 
+class TestSpecReadinessCommand:
+    @patch("max.store.db.Store")
+    def test_spec_readiness_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        unit = _make_unit().model_copy(
+            update={
+                "specific_user": "MCP server maintainer",
+                "workflow_context": "pre-release CI validation",
+                "validation_plan": "run against five open-source MCP servers",
+                "domain_risks": ["protocol churn"],
+                "evidence_rationale": "Insight shows lack of standardized testing.",
+            }
+        )
+        store = _mock_store(unit=unit, evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-readiness", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["score"] == 100.0
+        assert payload["status"] == "pass"
+        assert payload["failed_check_ids"] == []
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_spec_readiness_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-readiness", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
 class TestPublishCommand:
     @patch("max.publisher.webhook.WebhookPublisher")
     @patch("max.store.db.Store")

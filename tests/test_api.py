@@ -1722,6 +1722,24 @@ def test_get_idea_spec_preview_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_spec_readiness_reports_incomplete_seeded_idea(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/spec-readiness")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["idea_id"] == "bu-api001"
+    assert data["status"] == "fail"
+    assert data["passed"] is False
+    assert "target_user" in data["failed_check_ids"]
+    assert "validation_plan" in data["failed_check_ids"]
+    assert "Name a specific user persona" in data["remediation"]
+
+
+def test_get_idea_spec_readiness_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/spec-readiness")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_evidence_chain(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-chain")
     assert resp.status_code == 200

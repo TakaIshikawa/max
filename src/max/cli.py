@@ -1354,6 +1354,33 @@ def _render_spec_preview(preview: dict, *, fmt: str) -> str:
     raise click.ClickException(f"Unsupported format: {fmt}")
 
 
+@main.command(name="spec-readiness")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "yaml"]),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
+def spec_readiness(idea_id: str, fmt: str) -> None:
+    """Evaluate whether an idea is ready for tact spec generation."""
+    from max.spec.readiness import evaluate_spec_readiness
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        readiness = evaluate_spec_readiness(unit, store.get_evaluation(idea_id))
+        click.echo(_render_spec_preview(readiness, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @main.command()
 @click.argument("unit_id")
 @click.argument("outcome", type=click.Choice(["approved", "rejected", "abandoned"]))

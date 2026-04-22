@@ -123,6 +123,7 @@ from max.server.schemas import (
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
+from max.spec.readiness import evaluate_spec_readiness
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.registry import list_adapter_metadata, list_adapters
 from max.store.db import Store
@@ -1405,6 +1406,14 @@ def get_idea_spec_preview(idea_id: str, store: Store = Depends(get_store)) -> di
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return generate_spec_preview(unit, store.get_evaluation(idea_id))
+
+
+@router.get("/ideas/{idea_id}/spec-readiness")
+def get_idea_spec_readiness(idea_id: str, store: Store = Depends(get_store)) -> dict:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return evaluate_spec_readiness(unit, store.get_evaluation(idea_id))
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])
