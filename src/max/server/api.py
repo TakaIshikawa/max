@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
 
 from max import config
 from max.server.dependencies import get_store
@@ -46,6 +46,8 @@ from max.server.schemas import (
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
+    PriorArtCheckRequest,
+    PriorArtResponse,
     ProfileDetailResponse,
     ProfileSummaryResponse,
     ReviewQueueItemResponse,
@@ -330,6 +332,52 @@ def _profile_detail_to_response(profile) -> ProfileDetailResponse:
     )
 
 
+def _prior_art_response(unit: BuildableUnit, matches: list[dict]) -> PriorArtResponse:
+    return PriorArtResponse(
+        idea_id=unit.id,
+        prior_art_status=unit.prior_art_status,
+        matches=matches,
+    )
+
+
+def run_prior_art_check_for_idea(store: Store, idea_id: str, *, force: bool = False) -> PriorArtResponse:
+    """Check prior art for a single idea and persist the latest result."""
+    from max.analysis.prior_art import PriorArtResult, check_prior_art
+
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise ValueError(f"Idea not found: {idea_id}")
+
+    matches = store.get_prior_art_matches(idea_id)
+    if not force and (unit.prior_art_status != "unchecked" or matches):
+        return _prior_art_response(unit, matches)
+
+    if force:
+        store.delete_prior_art_matches(idea_id)
+
+    results = check_prior_art([unit], dry_run=False)
+    result = results[0] if results else PriorArtResult(
+        buildable_unit_id=idea_id,
+        matches=[],
+        status="clear",
+    )
+
+    for match in result.matches:
+        store.insert_prior_art_match(idea_id, {
+            "source": match.source,
+            "title": match.title,
+            "url": match.url,
+            "description": match.description,
+            "relevance_score": match.relevance_score,
+            "match_signals": match.match_signals,
+            "search_query": match.search_query,
+        })
+
+    store.update_prior_art_status(idea_id, result.status)
+    refreshed = store.get_buildable_unit(idea_id) or unit
+    return _prior_art_response(refreshed, store.get_prior_art_matches(idea_id))
+
+
 def _load_profile_or_404(profile_name: str):
     from max.profiles.loader import load_profile
 
@@ -589,6 +637,31 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
         latest_critique=critiques[0] if critiques else None,
         latest_feedback=store.get_latest_feedback(idea_id),
     )
+
+
+@router.get("/ideas/{idea_id}/prior-art", response_model=PriorArtResponse)
+def get_idea_prior_art(idea_id: str, store: Store = Depends(get_store)) -> PriorArtResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return _prior_art_response(unit, store.get_prior_art_matches(idea_id))
+
+
+@router.post("/ideas/{idea_id}/prior-art/check", response_model=PriorArtResponse)
+def check_idea_prior_art(
+    idea_id: str,
+    force: bool = Query(False),
+    body: PriorArtCheckRequest | None = Body(default=None),
+    store: Store = Depends(get_store),
+) -> PriorArtResponse:
+    try:
+        return run_prior_art_check_for_idea(
+            store,
+            idea_id,
+            force=force or (body.force if body else False),
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
 
 @router.get("/ideas/{idea_id}/spec-preview")

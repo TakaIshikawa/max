@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from max.analysis.prior_art import PriorArtMatch, PriorArtResult
 from max.server.app import create_app
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
@@ -156,6 +157,19 @@ def seeded_db(db_path):
         score=76.0,
         evidence_rationale="seeded",
     )
+    store.insert_prior_art_match(
+        "bu-api001",
+        {
+            "source": "github",
+            "title": "Existing Test Idea",
+            "url": "https://github.com/example/existing-test-idea",
+            "description": "A persisted match for API tests.",
+            "relevance_score": 0.88,
+            "match_signals": {"stars": 42},
+            "search_query": "test idea",
+        },
+    )
+    store.update_prior_art_status("bu-api001", "weak_match")
     store.close()
     return db_path
 
@@ -883,6 +897,92 @@ def test_get_idea(seeded_client):
 def test_get_idea_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent")
     assert resp.status_code == 404
+
+
+def test_get_idea_prior_art(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/prior-art")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["idea_id"] == "bu-api001"
+    assert data["prior_art_status"] == "weak_match"
+    assert data["matches"][0]["source"] == "github"
+    assert data["matches"][0]["relevance_score"] == 0.88
+    assert data["matches"][0]["match_signals"] == {"stars": 42}
+
+
+def test_get_idea_prior_art_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/prior-art")
+    assert resp.status_code == 404
+
+
+def test_check_idea_prior_art_runs_checker(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-prior001",
+        title="Prior Art API Idea",
+        one_liner="Check one idea through REST",
+        category=BuildableCategory.CLI_TOOL,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No prior art API",
+        solution="Expose prior art through REST",
+        value_proposition="API clients can inspect novelty",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = PriorArtResult(
+        buildable_unit_id="bu-prior001",
+        matches=[
+            PriorArtMatch(
+                source="github",
+                title="prior-art-api",
+                url="https://github.com/example/prior-art-api",
+                description="Existing implementation.",
+                relevance_score=0.91,
+                match_signals={"stars": 100},
+                search_query="prior art api",
+            )
+        ],
+        status="strong_match",
+    )
+
+    with patch("max.analysis.prior_art.check_prior_art", return_value=[result]) as mock_check:
+        resp = client.post("/api/v1/ideas/bu-prior001/prior-art/check")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["prior_art_status"] == "strong_match"
+    assert data["matches"][0]["title"] == "prior-art-api"
+    mock_check.assert_called_once()
+
+
+def test_check_idea_prior_art_force_replaces_matches(seeded_client):
+    result = PriorArtResult(
+        buildable_unit_id="bu-api001",
+        matches=[
+            PriorArtMatch(
+                source="npm",
+                title="new-prior-art",
+                url="https://npmjs.com/package/new-prior-art",
+                description="Replacement match.",
+                relevance_score=0.72,
+                match_signals={"downloads": 5},
+                search_query="new prior art",
+            )
+        ],
+        status="weak_match",
+    )
+
+    with patch("max.analysis.prior_art.check_prior_art", return_value=[result]):
+        resp = seeded_client.post(
+            "/api/v1/ideas/bu-api001/prior-art/check",
+            json={"force": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [match["title"] for match in data["matches"]] == ["new-prior-art"]
+    assert data["matches"][0]["source"] == "npm"
 
 
 def test_get_idea_spec_preview(seeded_client):

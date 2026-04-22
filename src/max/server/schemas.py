@@ -66,6 +66,10 @@ class FeedbackCreate(BaseModel):
     approval_score: int | None = Field(default=None, ge=1, le=10)
 
 
+class PriorArtCheckRequest(BaseModel):
+    force: bool = False
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -309,6 +313,25 @@ class IdeaDetailResponse(BaseModel):
     updated_at: str
     latest_critique: IdeaCritiqueResponse | None = None
     evaluation: EvaluationResponse | None = None
+
+
+class PriorArtMatchResponse(BaseModel):
+    id: str
+    buildable_unit_id: str
+    source: str
+    title: str
+    url: str
+    description: str
+    relevance_score: float
+    match_signals: dict
+    search_query: str
+    created_at: str
+
+
+class PriorArtResponse(BaseModel):
+    idea_id: str
+    prior_art_status: str
+    matches: list[PriorArtMatchResponse]
 
 
 class EvidenceChainEdgeResponse(BaseModel):
