@@ -7,6 +7,43 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
 
+_WATCHLIST_PARAM_KEYS = {
+    "arxiv": "queries",
+    "devto": "tags",
+    "github": "topics",
+    "github_issues": "queries",
+    "hackernews": "filter_keywords",
+    "npm_registry": "queries",
+    "nvd_cve": "keywords",
+    "product_hunt": "topics",
+    "pubmed": "queries",
+    "pypi_registry": "keywords",
+    "reddit": "subreddits",
+    "stackoverflow": "tags",
+}
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
+
+
+def _validate_string_list(value: Any, field_name: str) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list of strings")
+    terms: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{field_name} must be a list of non-empty strings")
+        terms.append(item.strip())
+    return terms
+
 
 class SourceConfig(BaseModel):
     """Per-adapter configuration within a profile."""
@@ -14,6 +51,7 @@ class SourceConfig(BaseModel):
     adapter: str  # adapter name (e.g. "reddit", "github")
     enabled: bool = True
     weight: float = 1.0  # relative fetch budget weight
+    watchlist: list[str] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
     # params vary by adapter:
     #   reddit: {"subreddits": [...]}
@@ -29,6 +67,8 @@ class SourceConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_adapter_params(self) -> "SourceConfig":
+        self.watchlist = _validate_string_list(self.watchlist, "watchlist")
+
         if self.adapter != "rss_feed":
             return self
 
@@ -51,6 +91,31 @@ class SourceConfig(BaseModel):
                 raise ValueError("rss_feed params.max_age_days must be at least 1")
 
         return self
+
+    @property
+    def normalized_params(self) -> dict[str, Any]:
+        """Adapter params with watchlist terms normalized into query/filter keys."""
+        params = dict(self.params)
+        watchlist_terms = _dedupe_strings(self.watchlist)
+        if not watchlist_terms:
+            return params
+
+        params["watchlist_terms"] = watchlist_terms
+
+        param_key = _WATCHLIST_PARAM_KEYS.get(self.adapter)
+        if param_key is None:
+            return params
+
+        existing = params.get(param_key)
+        if existing is None:
+            existing_terms: list[str] = []
+        else:
+            existing_terms = _validate_string_list(
+                existing,
+                f"params.{param_key}",
+            )
+        params[param_key] = _dedupe_strings(existing_terms + watchlist_terms)
+        return params
 
 
 class DomainContext(BaseModel):

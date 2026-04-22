@@ -122,7 +122,7 @@ class PubMedAdapter(SourceAdapter):
 
     @property
     def queries(self) -> list[str]:
-        return self._config.get("queries", _DEFAULT_QUERIES)
+        return self._configured_terms("queries", _DEFAULT_QUERIES)
 
     @property
     def max_results_per_query(self) -> int:

@@ -268,6 +268,24 @@ class SourceAdapter(ABC):
     def __init__(self, config: dict | None = None) -> None:
         self._config = config or {}
 
+    def _configured_terms(self, key: str, default: Iterable[str]) -> list[str]:
+        """Return a string-list config value plus normalized watchlist terms."""
+        configured = self._config.get(key)
+        values = list(default) if configured is None else list(configured)
+        watchlist_terms = list(self._config.get("watchlist_terms", []))
+
+        seen: set[str] = set()
+        terms: list[str] = []
+        for value in values + watchlist_terms:
+            if not isinstance(value, str):
+                continue
+            term = value.strip()
+            if not term or term in seen:
+                continue
+            seen.add(term)
+            terms.append(term)
+        return terms
+
     @property
     @abstractmethod
     def name(self) -> str:

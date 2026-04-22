@@ -74,7 +74,7 @@ class StackOverflowAdapter(SourceAdapter):
 
     @property
     def tags(self) -> list[str]:
-        return self._config.get("tags", _DEFAULT_TAGS)
+        return self._configured_terms("tags", _DEFAULT_TAGS)
 
     @property
     def min_score(self) -> int:

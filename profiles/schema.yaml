@@ -224,6 +224,16 @@ properties:
           maximum: 10.0
           default: 1.0
 
+        watchlist:
+          type: array
+          description: Domain terms to append to this source's query/category filter
+          default: []
+          items:
+            type: string
+            minLength: 1
+          examples:
+            - ["fhir", "clinical documentation", "prior authorization"]
+
         params:
           type: object
           description: Adapter-specific parameters (structure varies by adapter)
@@ -239,6 +249,8 @@ properties:
           # product_hunt: {"topics": ["developer-tools", "artificial-intelligence"]}
           # hackernews: {"filter_keywords": ["security", "vulnerability"]}
           # rss_feed: {"feeds": ["https://example.com/feed.xml"], "max_age_days": 14}
+          # watchlist terms are normalized by the loader into the relevant
+          # adapter filter key (queries/topics/keywords/tags/subreddits)
 
       allOf:
         - if:

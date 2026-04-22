@@ -53,7 +53,7 @@ class RedditAdapter(SourceAdapter):
 
     @property
     def subreddits(self) -> list[str]:
-        return self._config.get("subreddits", _DEFAULT_SUBREDDITS)
+        return self._configured_terms("subreddits", _DEFAULT_SUBREDDITS)
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []

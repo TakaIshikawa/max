@@ -44,10 +44,7 @@ class PyPIRegistryAdapter(SourceAdapter):
 
     @property
     def keywords(self) -> set[str]:
-        configured = self._config.get("keywords")
-        if configured is not None:
-            return set(configured)
-        return _DEFAULT_KEYWORDS
+        return set(self._configured_terms("keywords", _DEFAULT_KEYWORDS))
 
     @with_retry(max_retries=3, base_delay=1.0, adapter_name="pypi_registry")
     async def _fetch_rss(self, client: httpx.AsyncClient, rss_url: str) -> list[tuple[str, str, datetime | None]]:

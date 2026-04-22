@@ -28,7 +28,7 @@ class HackerNewsAdapter(SourceAdapter):
     @property
     def filter_keywords(self) -> list[str]:
         """Optional post-fetch keyword filter. Empty means no filtering."""
-        return self._config.get("filter_keywords", [])
+        return self._configured_terms("filter_keywords", [])
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         # Fetch extra stories when filtering to compensate for filtered-out results

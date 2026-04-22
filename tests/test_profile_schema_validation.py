@@ -191,6 +191,15 @@ class TestSchemaProperties:
         assert weight_prop["minimum"] == 0.0
         assert weight_prop["maximum"] == 10.0
 
+    def test_schema_documents_source_watchlist(self, schema: dict):
+        """Test that source watchlist field is documented."""
+        sources = schema["properties"]["sources"]
+        watchlist_prop = sources["items"]["properties"]["watchlist"]
+
+        assert watchlist_prop["type"] == "array"
+        assert watchlist_prop["items"]["type"] == "string"
+        assert watchlist_prop["items"]["minLength"] == 1
+
     def test_schema_documents_rss_feed_params_shape(self, schema: dict):
         """Test that rss_feed adapter params are documented."""
         source_item = schema["properties"]["sources"]["items"]

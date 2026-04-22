@@ -55,12 +55,32 @@ class TestSourceConfig:
             adapter="github",
             enabled=False,
             weight=2.5,
+            watchlist=["rag"],
             params={"topics": ["ai", "ml"]},
         )
         assert config.adapter == "github"
         assert config.enabled is False
         assert config.weight == 2.5
+        assert config.watchlist == ["rag"]
         assert config.params == {"topics": ["ai", "ml"]}
+
+    def test_watchlist_normalized_into_adapter_filter(self):
+        """Test SourceConfig normalizes watchlist into adapter params."""
+        config = SourceConfig(
+            adapter="npm_registry",
+            watchlist=["fhir", "ehr", "fhir"],
+            params={"queries": ["hl7", "fhir"]},
+        )
+
+        assert config.normalized_params == {
+            "queries": ["hl7", "fhir", "ehr"],
+            "watchlist_terms": ["fhir", "ehr"],
+        }
+
+    def test_invalid_watchlist_fails(self):
+        """Test SourceConfig rejects malformed watchlist entries."""
+        with pytest.raises(ValidationError):
+            SourceConfig(adapter="github", watchlist=["valid", ""])
 
     def test_valid_rss_feed_params(self):
         """Test SourceConfig accepts RSS feed URLs and max age."""

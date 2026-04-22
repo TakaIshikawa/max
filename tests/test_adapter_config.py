@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from max.profiles.schema import SourceConfig
+from max.sources.arxiv import ArxivAdapter
+from max.sources.devto import DevtoAdapter
 from max.sources.github import GitHubAdapter, _DEFAULT_TOPICS
 from max.sources.github_issues import GitHubIssuesAdapter, _DEFAULT_QUERIES as GH_DEFAULT_QUERIES
 from max.sources.hackernews import HackerNewsAdapter
+from max.sources.nvd_cve import NvdCveAdapter
 from max.sources.npm_registry import NpmRegistryAdapter, _DEFAULT_QUERIES as NPM_DEFAULT_QUERIES
 from max.sources.product_hunt import ProductHuntAdapter, _DEFAULT_TOPICS as PH_DEFAULT_TOPICS
+from max.sources.pubmed import PubMedAdapter
 from max.sources.pypi_registry import PyPIRegistryAdapter, _DEFAULT_KEYWORDS
 from max.sources.reddit import RedditAdapter, _DEFAULT_SUBREDDITS
 from max.sources.registry import get_all_adapters, reload_registry
@@ -109,6 +113,41 @@ def test_hackernews_custom_filter():
     assert adapter.filter_keywords == ["health", "medical"]
 
 
+def test_query_adapters_include_normalized_watchlist_terms():
+    watchlist_config = {"watchlist_terms": ["fhir", "prior auth"]}
+
+    assert GitHubIssuesAdapter(config=watchlist_config).queries == [
+        *GH_DEFAULT_QUERIES,
+        "fhir",
+        "prior auth",
+    ]
+    assert NpmRegistryAdapter(config=watchlist_config).queries == [
+        *NPM_DEFAULT_QUERIES,
+        "fhir",
+        "prior auth",
+    ]
+    assert "fhir" in ArxivAdapter(config=watchlist_config).queries
+    assert "prior auth" in PubMedAdapter(config=watchlist_config).queries
+
+
+def test_category_filter_adapters_include_normalized_watchlist_terms():
+    watchlist_config = {"watchlist_terms": ["fhir", "clinical"]}
+
+    assert GitHubAdapter(config=watchlist_config).topics == [
+        *_DEFAULT_TOPICS,
+        "fhir",
+        "clinical",
+    ]
+    assert ProductHuntAdapter(config=watchlist_config).topics == [
+        *PH_DEFAULT_TOPICS,
+        "fhir",
+        "clinical",
+    ]
+    assert HackerNewsAdapter(config=watchlist_config).filter_keywords == ["fhir", "clinical"]
+    assert DevtoAdapter(config=watchlist_config).tags[-2:] == ["fhir", "clinical"]
+    assert NvdCveAdapter(config=watchlist_config).keywords == ["fhir", "clinical"]
+
+
 # --- Registry with source configs ---
 
 
@@ -127,6 +166,21 @@ def test_registry_with_source_configs():
     # Verify config was passed through
     reddit = next(a for a in adapters if a.name == "reddit")
     assert reddit.subreddits == ["test"]
+
+
+def test_registry_passes_normalized_watchlist_config():
+    reload_registry()
+    configs = [
+        SourceConfig(
+            adapter="npm_registry",
+            watchlist=["fhir", "ehr"],
+            params={"queries": ["hl7"]},
+        ),
+    ]
+    adapters = get_all_adapters(source_configs=configs)
+
+    assert len(adapters) == 1
+    assert adapters[0].queries == ["hl7", "fhir", "ehr"]
 
 
 def test_registry_disabled_adapter_skipped():

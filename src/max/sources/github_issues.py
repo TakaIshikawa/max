@@ -42,7 +42,7 @@ class GitHubIssuesAdapter(SourceAdapter):
 
     @property
     def queries(self) -> list[str]:
-        return self._config.get("queries", _DEFAULT_QUERIES)
+        return self._configured_terms("queries", _DEFAULT_QUERIES)
 
     @with_retry(max_retries=3, base_delay=1.0, adapter_name="github_issues")
     async def _fetch_query(

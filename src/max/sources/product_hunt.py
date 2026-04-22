@@ -61,7 +61,7 @@ class ProductHuntAdapter(SourceAdapter):
 
     @property
     def topics(self) -> list[str]:
-        return self._config.get("topics", _DEFAULT_TOPICS)
+        return self._configured_terms("topics", _DEFAULT_TOPICS)
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         token = os.environ.get("PRODUCT_HUNT_TOKEN")

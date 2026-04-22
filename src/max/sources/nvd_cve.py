@@ -36,7 +36,7 @@ class NvdCveAdapter(SourceAdapter):
 
     @property
     def keywords(self) -> list[str]:
-        return list(self._config.get("keywords", _DEFAULT_KEYWORDS))
+        return self._configured_terms("keywords", _DEFAULT_KEYWORDS)
 
     @property
     def severities(self) -> list[str]:

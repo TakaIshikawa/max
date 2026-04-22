@@ -58,7 +58,7 @@ class DevtoAdapter(SourceAdapter):
 
     @property
     def tags(self) -> list[str]:
-        return self._config.get("tags", _DEFAULT_TAGS)
+        return self._configured_terms("tags", _DEFAULT_TAGS)
 
     @property
     def period(self) -> int:

@@ -125,7 +125,7 @@ class ArxivAdapter(SourceAdapter):
 
     @property
     def queries(self) -> list[str]:
-        return self._config.get("queries", _DEFAULT_QUERIES)
+        return self._configured_terms("queries", _DEFAULT_QUERIES)
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []

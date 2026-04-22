@@ -131,7 +131,12 @@ def get_all_adapters(
         # Accept both SourceConfig objects and plain dicts
         adapter_name = sc.adapter if hasattr(sc, "adapter") else sc.get("adapter", "")
         enabled = sc.enabled if hasattr(sc, "enabled") else sc.get("enabled", True)
-        params = sc.params if hasattr(sc, "params") else sc.get("params", {})
+        if hasattr(sc, "normalized_params"):
+            params = sc.normalized_params
+        elif hasattr(sc, "params"):
+            params = sc.params
+        else:
+            params = sc.get("params", {})
 
         if not enabled:
             continue
