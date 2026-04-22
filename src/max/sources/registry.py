@@ -54,6 +54,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
+    "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -194,6 +195,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "package_names", "include_prerelease"],
         required_keys=[],
         description="Fetches NuGet package metadata and recent version activity for configured packages and search terms.",
+    ),
+    "dockerhub": AdapterMetadata(
+        name="dockerhub",
+        config_keys=["repositories", "queries", "include_tags"],
+        required_keys=[],
+        description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
     ),
 }
 
