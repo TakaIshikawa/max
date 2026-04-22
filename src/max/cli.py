@@ -327,6 +327,53 @@ def profiles_validate(profile: str | None) -> None:
         raise click.exceptions.Exit(1)
 
 
+@main.group(name="sources")
+def sources_group() -> None:
+    """Inspect source adapter configuration."""
+
+
+@sources_group.command(name="list")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+def sources_list(fmt: str) -> None:
+    """List source adapters and supported configuration keys."""
+    from max.sources.registry import list_adapter_metadata
+
+    metadata = list_adapter_metadata()
+
+    if fmt == "json":
+        payload = [
+            {
+                "name": item.name,
+                "config_keys": item.config_keys,
+                "required_keys": item.required_keys,
+                "description": item.description,
+            }
+            for item in metadata
+        ]
+        click.echo(json.dumps(payload, indent=2))
+        return
+
+    if not metadata:
+        click.echo("No source adapters found.")
+        return
+
+    click.echo("Available source adapters:")
+    click.echo()
+    for item in metadata:
+        config_keys = ", ".join(item.config_keys) if item.config_keys else "(none)"
+        required_keys = ", ".join(item.required_keys) if item.required_keys else "(none)"
+        click.echo(f"  {item.name}")
+        click.echo(f"    Description: {item.description}")
+        click.echo(f"    Config keys: {config_keys}")
+        click.echo(f"    Required:    {required_keys}")
+
+
 def _known_profile_domains() -> dict[str, str]:
     """Return {domain_name: profile_name} for all valid profiles."""
     from max.profiles.loader import list_profiles, load_profile

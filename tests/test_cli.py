@@ -404,6 +404,55 @@ class TestProfilesCommand:
         assert "Profile 'missing' not found" in result.output
 
 
+class TestSourcesCommand:
+    @patch("max.sources.registry.list_adapter_metadata")
+    def test_sources_list_table(self, mock_metadata, runner: CliRunner) -> None:
+        from max.sources.registry import AdapterMetadata
+
+        mock_metadata.return_value = [
+            AdapterMetadata(
+                name="rss_feed",
+                config_keys=["feeds", "tags", "max_age_days"],
+                required_keys=["feeds"],
+                description="Fetches RSS or Atom entries.",
+            )
+        ]
+
+        result = runner.invoke(main, ["sources", "list"])
+
+        assert result.exit_code == 0, result.output
+        assert "Available source adapters:" in result.output
+        assert "rss_feed" in result.output
+        assert "Config keys: feeds, tags, max_age_days" in result.output
+        assert "Required:    feeds" in result.output
+
+    @patch("max.sources.registry.list_adapter_metadata")
+    def test_sources_list_json(self, mock_metadata, runner: CliRunner) -> None:
+        from max.sources.registry import AdapterMetadata
+
+        mock_metadata.return_value = [
+            AdapterMetadata(
+                name="hackernews",
+                config_keys=["filter_keywords"],
+                required_keys=[],
+                description="Fetches Hacker News stories.",
+            )
+        ]
+
+        result = runner.invoke(main, ["sources", "list", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload == [
+            {
+                "name": "hackernews",
+                "config_keys": ["filter_keywords"],
+                "required_keys": [],
+                "description": "Fetches Hacker News stories.",
+            }
+        ]
+
+
 class TestBlueprintExportCommands:
     @patch("max.store.db.Store")
     def test_export_design_brief_stdout_json(self, MockStore, runner: CliRunner) -> None:

@@ -12,6 +12,7 @@ from max.sources.registry import (
     _discover_adapters,
     _filter_adapters,
     _get_registry,
+    get_adapter_metadata,
     get_adapter,
     get_all_adapters,
     list_adapters,
@@ -242,6 +243,21 @@ def test_list_adapters_returns_strings():
     assert isinstance(names, list)
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
+
+
+def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
+    with patch("max.config.MAX_ADAPTERS", "hackernews,rss_feed"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"hackernews", "rss_feed"}
+    assert metadata["hackernews"].config_keys == ["filter_keywords"]
+    assert metadata["hackernews"].required_keys == []
+    assert "Hacker News" in metadata["hackernews"].description
+    assert metadata["rss_feed"].config_keys == ["feeds", "tags", "max_age_days"]
+    assert metadata["rss_feed"].required_keys == ["feeds"]
+    assert "RSS" in metadata["rss_feed"].description
 
 
 def test_get_adapter_returns_instance():

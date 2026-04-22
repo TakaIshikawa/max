@@ -21,6 +21,7 @@ from max.server.rate_limit import rate_limit
 from max.server.schemas import (
     AdapterHealthItemResponse,
     AdapterHealthResponse,
+    AdapterMetadataResponse,
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     DesignBriefResponse,
@@ -79,7 +80,7 @@ from max.server.schemas import (
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
 from max.sources.base import snapshot_circuit_breakers
-from max.sources.registry import list_adapters
+from max.sources.registry import list_adapter_metadata, list_adapters
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
@@ -1366,6 +1367,19 @@ def get_stats(store: Store = Depends(get_store)) -> StatsResponse:
 
 
 # ── Adapters ────────────────────────────────────────────────────────
+
+
+@router.get("/adapters", response_model=list[AdapterMetadataResponse])
+def get_adapters() -> list[AdapterMetadataResponse]:
+    return [
+        AdapterMetadataResponse(
+            name=item.name,
+            config_keys=item.config_keys,
+            required_keys=item.required_keys,
+            description=item.description,
+        )
+        for item in list_adapter_metadata()
+    ]
 
 
 @router.get("/adapters/circuit-breakers", response_model=list[CircuitBreakerStateResponse])

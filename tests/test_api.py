@@ -1496,6 +1496,34 @@ def test_stats_seeded(seeded_client):
 # ── Adapter endpoints ───────────────────────────────────────────────
 
 
+def test_adapters_endpoint_reports_config_metadata(client):
+    from max.sources.registry import AdapterMetadata
+
+    with patch(
+        "max.server.api.list_adapter_metadata",
+        return_value=[
+            AdapterMetadata(
+                name="rss_feed",
+                config_keys=["feeds", "tags", "max_age_days"],
+                required_keys=["feeds"],
+                description="Fetches RSS or Atom entries.",
+            )
+        ],
+    ):
+        resp = client.get("/api/v1/adapters")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == [
+        {
+            "name": "rss_feed",
+            "config_keys": ["feeds", "tags", "max_age_days"],
+            "required_keys": ["feeds"],
+            "description": "Fetches RSS or Atom entries.",
+        }
+    ]
+
+
 def test_adapter_circuit_breakers_include_known_and_registry_adapters(client):
     from max.sources.base import get_circuit_breaker
 

@@ -570,6 +570,13 @@ class StatsResponse(BaseModel):
     avg_score: float | None = None
 
 
+class AdapterMetadataResponse(BaseModel):
+    name: str
+    config_keys: list[str]
+    required_keys: list[str]
+    description: str
+
+
 class CircuitBreakerStateResponse(BaseModel):
     adapter_name: str
     state: str

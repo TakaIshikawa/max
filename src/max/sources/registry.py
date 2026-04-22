@@ -9,10 +9,27 @@ from __future__ import annotations
 import importlib
 import importlib.metadata
 import logging
+from dataclasses import dataclass
 
 from max.sources.base import SourceAdapter
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class AdapterMetadata:
+    """Human-readable adapter configuration metadata."""
+
+    name: str
+    config_keys: list[str]
+    required_keys: list[str]
+    description: str
+
+    @property
+    def supported_config_keys(self) -> list[str]:
+        """Alias for callers that prefer the full metadata term."""
+        return self.config_keys
+
 
 # Fallback mapping for dev mode (when package is not pip-installed).
 _BUILTIN_ADAPTERS: dict[str, str] = {
@@ -31,6 +48,105 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "devto": "max.sources.devto:DevtoAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
+}
+
+_BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
+    "hackernews": AdapterMetadata(
+        name="hackernews",
+        config_keys=["filter_keywords"],
+        required_keys=[],
+        description="Fetches Hacker News stories and optionally filters them by keywords.",
+    ),
+    "npm_registry": AdapterMetadata(
+        name="npm_registry",
+        config_keys=["queries"],
+        required_keys=[],
+        description="Searches the npm registry for packages matching configured query terms.",
+    ),
+    "reddit": AdapterMetadata(
+        name="reddit",
+        config_keys=["subreddits"],
+        required_keys=[],
+        description="Fetches posts from configured public subreddit names.",
+    ),
+    "github": AdapterMetadata(
+        name="github",
+        config_keys=["topics"],
+        required_keys=[],
+        description="Searches GitHub repositories for configured topics.",
+    ),
+    "github_releases": AdapterMetadata(
+        name="github_releases",
+        config_keys=[
+            "repositories",
+            "include_drafts",
+            "include_prereleases",
+            "github_token",
+            "token",
+        ],
+        required_keys=[],
+        description="Fetches release notes from configured GitHub repositories.",
+    ),
+    "pypi_registry": AdapterMetadata(
+        name="pypi_registry",
+        config_keys=["keywords"],
+        required_keys=[],
+        description="Fetches PyPI package signals matching configured keywords.",
+    ),
+    "github_issues": AdapterMetadata(
+        name="github_issues",
+        config_keys=["queries"],
+        required_keys=[],
+        description="Searches GitHub issues for configured query strings.",
+    ),
+    "security_advisories": AdapterMetadata(
+        name="security_advisories",
+        config_keys=["ecosystems", "severities"],
+        required_keys=[],
+        description="Fetches GitHub Security Advisory signals by ecosystem and severity.",
+    ),
+    "nvd_cve": AdapterMetadata(
+        name="nvd_cve",
+        config_keys=["keywords", "severities", "cvss_min", "max_age_days", "api_key_env"],
+        required_keys=[],
+        description="Fetches recent NVD CVE vulnerability signals matching configured filters.",
+    ),
+    "product_hunt": AdapterMetadata(
+        name="product_hunt",
+        config_keys=["topics"],
+        required_keys=[],
+        description="Fetches Product Hunt posts for configured topic slugs.",
+    ),
+    "stackoverflow": AdapterMetadata(
+        name="stackoverflow",
+        config_keys=["tags", "min_score", "unanswered_only"],
+        required_keys=[],
+        description="Fetches Stack Overflow questions for configured tags and score filters.",
+    ),
+    "arxiv": AdapterMetadata(
+        name="arxiv",
+        config_keys=["categories", "queries"],
+        required_keys=[],
+        description="Fetches arXiv papers matching configured categories and query expressions.",
+    ),
+    "devto": AdapterMetadata(
+        name="devto",
+        config_keys=["tags", "period"],
+        required_keys=[],
+        description="Fetches DEV Community articles for configured tags and time period.",
+    ),
+    "pubmed": AdapterMetadata(
+        name="pubmed",
+        config_keys=["queries", "max_results_per_query", "recent_days"],
+        required_keys=[],
+        description="Fetches PubMed article signals matching configured search queries.",
+    ),
+    "rss_feed": AdapterMetadata(
+        name="rss_feed",
+        config_keys=["feeds", "tags", "max_age_days"],
+        required_keys=["feeds"],
+        description="Fetches RSS or Atom entries from explicitly configured feed URLs.",
+    ),
 }
 
 
@@ -107,6 +223,40 @@ def get_adapter(name: str) -> SourceAdapter:
 def list_adapters() -> list[str]:
     """List names of all available adapters."""
     return list(_get_registry())
+
+
+def _metadata_from_class(name: str, cls: type[SourceAdapter]) -> AdapterMetadata:
+    """Return registry metadata for an adapter class."""
+    builtin = _BUILTIN_ADAPTER_METADATA.get(name)
+    if builtin is not None:
+        return builtin
+
+    description = getattr(cls, "description", None)
+    if not isinstance(description, str) or not description.strip():
+        description = (cls.__doc__ or "").strip().splitlines()[0] if cls.__doc__ else ""
+
+    config_keys = getattr(cls, "config_keys", getattr(cls, "supported_config_keys", []))
+    required_keys = getattr(cls, "required_keys", getattr(cls, "required_config_keys", []))
+
+    return AdapterMetadata(
+        name=name,
+        config_keys=list(config_keys or []),
+        required_keys=list(required_keys or []),
+        description=description,
+    )
+
+
+def get_adapter_metadata() -> dict[str, AdapterMetadata]:
+    """Return supported config keys, required keys, and descriptions for adapters."""
+    return {
+        name: _metadata_from_class(name, cls)
+        for name, cls in _get_registry().items()
+    }
+
+
+def list_adapter_metadata() -> list[AdapterMetadata]:
+    """Return adapter metadata as a sorted list."""
+    return sorted(get_adapter_metadata().values(), key=lambda item: item.name)
 
 
 def get_all_adapters(
