@@ -705,6 +705,131 @@ class TestIdeasCommand:
         assert payload[0]["recommendation"] is None
 
 
+class TestExportIdeasCommand:
+    """Tests for ``max export ideas``."""
+
+    @patch("max.store.db.Store")
+    def test_export_ideas_jsonl_stdout(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit(id="bu-001", title="Idea Alpha", status="evaluated")
+        unit.domain = "devtools"
+        unit.quality_score = 7.5
+        unit.novelty_score = 7.0
+        unit.usefulness_score = 8.0
+        unit.rejection_tags = ["too_broad"]
+        evaluation = _make_evaluation("bu-001", score=78.0)
+        store = _mock_store(
+            units=[unit],
+            latest_feedback={
+                "outcome": "approved",
+                "reason": "strong candidate",
+                "approval_score": 9,
+                "created_at": "2026-04-22T00:00:00+00:00",
+            },
+        )
+        store.get_evaluation.return_value = evaluation
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["export", "ideas", "--format", "jsonl"])
+
+        assert result.exit_code == 0, result.output
+        rows = [json.loads(line) for line in result.output.splitlines()]
+        assert rows == [
+            {
+                "id": "bu-001",
+                "title": "Idea Alpha",
+                "one_liner": "Standardized testing for MCP servers",
+                "category": "cli_tool",
+                "domain": "devtools",
+                "status": "evaluated",
+                "evaluation_score": 78.0,
+                "recommendation": "yes",
+                "latest_feedback_outcome": "approved",
+                "latest_feedback_reason": "strong candidate",
+                "latest_feedback_score": 9,
+                "latest_feedback_at": "2026-04-22T00:00:00+00:00",
+                "quality_score": 7.5,
+                "novelty_score": 7.0,
+                "usefulness_score": 8.0,
+                "rejection_tags": ["too_broad"],
+                "inspiring_insight_ids": ["ins-test001"],
+                "evidence_signal_ids": ["sig-test001"],
+                "source_idea_ids": [],
+                "created_at": unit.created_at.isoformat(),
+                "updated_at": unit.updated_at.isoformat(),
+            }
+        ]
+        store.get_buildable_units.assert_called_once_with(limit=100, status=None, domain=None)
+        store.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    def test_export_ideas_filters_and_writes_csv(
+        self,
+        MockStore,
+        runner: CliRunner,
+        tmp_path: Path,
+    ) -> None:
+        strong = _make_unit(id="bu-strong", title="Strong Idea", status="evaluated")
+        weak = _make_unit(id="bu-weak", title="Weak Idea", status="evaluated")
+        store = _mock_store(units=[strong, weak])
+        store.get_evaluation.side_effect = lambda uid: {
+            "bu-strong": _make_evaluation("bu-strong", score=82.0),
+            "bu-weak": _make_evaluation("bu-weak", score=49.0),
+        }[uid]
+        store.get_latest_feedback.return_value = None
+        MockStore.return_value = store
+        output_path = tmp_path / "ideas.csv"
+
+        result = runner.invoke(
+            main,
+            [
+                "export",
+                "ideas",
+                "--format",
+                "csv",
+                "--status",
+                "evaluated",
+                "--domain",
+                "devtools",
+                "--min-score",
+                "75",
+                "--limit",
+                "5",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output == f"Wrote 1 idea(s) to {output_path}\n"
+        csv_text = output_path.read_text(encoding="utf-8")
+        assert "evaluation_score,recommendation" in csv_text
+        assert "bu-strong" in csv_text
+        assert "bu-weak" not in csv_text
+        store.get_buildable_units.assert_called_once_with(
+            limit=5,
+            status="evaluated",
+            domain="devtools",
+        )
+
+    def test_idea_export_helpers_render_jsonl_and_csv(self) -> None:
+        from max.analysis.export import idea_export_record, render_idea_export
+
+        unit = _make_unit(id="bu-001")
+        record = idea_export_record(
+            unit,
+            _make_evaluation("bu-001", score=88.0),
+            {"outcome": "approved", "reason": "ship it", "approval_score": 10, "created_at": "now"},
+        )
+
+        jsonl = render_idea_export([record], fmt="jsonl")
+        assert json.loads(jsonl)["evaluation_score"] == 88.0
+        assert json.loads(jsonl)["evidence_signal_ids"] == ["sig-test001"]
+
+        csv_text = render_idea_export([record], fmt="csv")
+        assert csv_text.splitlines()[0].startswith("id,title,one_liner")
+        assert "\"[\"\"sig-test001\"\"]\"" in csv_text
+
+
 # ── inspect command ────────────────────────────────────────────────
 
 

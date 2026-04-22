@@ -656,6 +656,64 @@ def _idea_critique_json(row: dict) -> dict:
     }
 
 
+@main.group(name="export")
+def export_group() -> None:
+    """Export Max data for downstream analysis."""
+
+
+@export_group.command(name="ideas")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["jsonl", "csv"]),
+    default="jsonl",
+    show_default=True,
+)
+@click.option("--status", type=str, default=None, help="Filter by status")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--min-score", type=float, default=None, help="Minimum evaluation score")
+@click.option("--limit", type=int, default=100, help="Max ideas to scan")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write export to file",
+)
+def export_ideas(
+    fmt: str,
+    status: str | None,
+    domain: str | None,
+    min_score: float | None,
+    limit: int,
+    output: str | None,
+) -> None:
+    """Export idea summaries as JSON Lines or CSV."""
+    from max.analysis.export import idea_export_records, render_idea_export, write_idea_export
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+        records = idea_export_records(
+            units,
+            get_evaluation=store.get_evaluation,
+            get_latest_feedback=lambda unit_id: _get_latest_feedback(store, unit_id),
+            min_score=min_score,
+        )
+        if not records:
+            click.echo("No ideas found.")
+            return
+        if output:
+            output_path = Path(output)
+            write_idea_export(output_path, records, fmt=fmt)
+            click.echo(f"Wrote {len(records)} idea(s) to {output_path}")
+            return
+        click.echo(render_idea_export(records, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @main.command()
 @click.argument("unit_id")
 @click.option("--evidence-pack", is_flag=True, help="Show persisted or reconstructed evidence pack")
