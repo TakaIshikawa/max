@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
+from max.analysis.idea_similarity import find_similar_ideas
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
@@ -60,6 +61,8 @@ from max.server.schemas import (
     IdeaEvaluateBatchRequest,
     IdeaEvaluateBatchResponse,
     IdeaMemoryResponse,
+    IdeaSimilarityRequest,
+    IdeaSimilarityResultResponse,
     IdeaScoreDistributionResponse,
     IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
@@ -1130,6 +1133,71 @@ def get_idea_score_distribution(
             status=status,
             bucket_size=bucket_size,
         )
+    )
+
+
+def _idea_similarity_response(result) -> IdeaSimilarityResultResponse:
+    return IdeaSimilarityResultResponse(
+        idea_id=result.idea_id,
+        title=result.title,
+        problem_summary=result.problem_summary,
+        similarity_score=result.similarity_score,
+        overlapping_evidence_ids=result.overlapping_evidence_ids,
+        overlapping_insight_ids=result.overlapping_insight_ids,
+    )
+
+
+def _find_similar_ideas_response(
+    store: Store,
+    *,
+    idea_id: str | None,
+    query: str | None,
+    threshold: float,
+    limit: int,
+) -> list[IdeaSimilarityResultResponse]:
+    try:
+        results = find_similar_ideas(
+            store,
+            idea_id=idea_id,
+            query=query,
+            threshold=threshold,
+            limit=limit,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return [_idea_similarity_response(result) for result in results]
+
+
+@router.get("/ideas/similar", response_model=list[IdeaSimilarityResultResponse])
+def get_similar_ideas(
+    idea_id: str | None = None,
+    query: str | None = None,
+    threshold: float = Query(default=0.1, ge=0.0, le=1.0),
+    limit: int = Query(default=5, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> list[IdeaSimilarityResultResponse]:
+    return _find_similar_ideas_response(
+        store,
+        idea_id=idea_id,
+        query=query,
+        threshold=threshold,
+        limit=limit,
+    )
+
+
+@router.post("/ideas/similar", response_model=list[IdeaSimilarityResultResponse])
+def post_similar_ideas(
+    body: IdeaSimilarityRequest,
+    store: Store = Depends(get_store),
+) -> list[IdeaSimilarityResultResponse]:
+    return _find_similar_ideas_response(
+        store,
+        idea_id=body.idea_id,
+        query=body.query,
+        threshold=body.threshold,
+        limit=body.limit,
     )
 
 

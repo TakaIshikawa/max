@@ -2470,6 +2470,96 @@ def test_fetch_allocation_explain_unknown_profile_returns_404(client):
 # ── Similarity endpoint ────────────────────────────────────────────
 
 
+def test_get_similar_ideas_by_query(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-similar-api",
+                title="MCP Test Runner",
+                one_liner="MCP server testing for CI",
+                category=BuildableCategory.APPLICATION,
+                problem="MCP servers need repeatable CI testing",
+                solution="Create a protocol test runner",
+                value_proposition="Find MCP server regressions earlier",
+            )
+        )
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-different-api",
+                title="Payroll Exporter",
+                one_liner="Payroll CSV cleanup",
+                category=BuildableCategory.APPLICATION,
+                problem="Payroll teams need cleaner exports",
+                solution="Normalize payroll CSV files",
+                value_proposition="Reduce payroll corrections",
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/ideas/similar?query=MCP%20server%20testing&threshold=0.2")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["idea_id"] for item in data] == ["bu-similar-api"]
+    assert data[0]["title"] == "MCP Test Runner"
+    assert data[0]["problem_summary"] == "MCP servers need repeatable CI testing"
+    assert data[0]["similarity_score"] > 0.2
+    assert data[0]["overlapping_evidence_ids"] == []
+    assert data[0]["overlapping_insight_ids"] == []
+
+
+def test_post_similar_ideas_by_idea_id_reports_overlap(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-similar-query",
+                title="MCP Test Runner",
+                one_liner="MCP server testing",
+                category=BuildableCategory.APPLICATION,
+                problem="MCP servers need repeatable testing",
+                solution="Create a test runner",
+                value_proposition="Find regressions earlier",
+                inspiring_insights=["ins-shared", "ins-query"],
+                evidence_signals=["sig-shared", "sig-query"],
+            )
+        )
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-similar-match",
+                title="MCP Validator",
+                one_liner="MCP server validation",
+                category=BuildableCategory.APPLICATION,
+                problem="MCP servers need protocol validation testing",
+                solution="Create a validator",
+                value_proposition="Reduce protocol bugs",
+                inspiring_insights=["ins-shared"],
+                evidence_signals=["sig-shared"],
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.post(
+        "/api/v1/ideas/similar",
+        json={"idea_id": "bu-similar-query", "threshold": 0.1, "limit": 5},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["idea_id"] == "bu-similar-match"
+    assert data[0]["overlapping_evidence_ids"] == ["sig-shared"]
+    assert data[0]["overlapping_insight_ids"] == ["ins-shared"]
+
+
+def test_similar_ideas_requires_one_query(client):
+    resp = client.get("/api/v1/ideas/similar")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Provide exactly one of idea_id or query"
+
+
 def test_similar_empty(client):
     resp = client.post(
         "/api/v1/similar",

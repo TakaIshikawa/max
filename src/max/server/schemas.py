@@ -142,6 +142,13 @@ class SimilarityRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=100)
 
 
+class IdeaSimilarityRequest(BaseModel):
+    idea_id: str | None = None
+    query: str | None = None
+    threshold: float = Field(default=0.1, ge=0.0, le=1.0)
+    limit: int = Field(default=5, ge=1, le=100)
+
+
 class PaginationParams(BaseModel):
     cursor: str | None = None
     limit: int = Field(default=20, ge=1, le=100)
@@ -818,6 +825,15 @@ class PipelinePostRunResponse(BaseModel):
 class SimilarityResult(BaseModel):
     entity_id: str
     score: float
+
+
+class IdeaSimilarityResultResponse(BaseModel):
+    idea_id: str
+    title: str
+    problem_summary: str
+    similarity_score: float
+    overlapping_evidence_ids: list[str] = Field(default_factory=list)
+    overlapping_insight_ids: list[str] = Field(default_factory=list)
 
 
 class StatsResponse(BaseModel):
