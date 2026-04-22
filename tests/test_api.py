@@ -1574,6 +1574,25 @@ def test_get_idea_not_found(client):
     assert resp.status_code == 404
 
 
+def test_get_idea_evaluation_explanation(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/evaluation-explanation")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["idea_id"] == "bu-api001"
+    assert data["overall_score"] == 78.0
+    assert data["recommendation"] == "yes"
+    assert data["top_positive_drivers"]
+    assert data["top_negative_drivers"]
+    assert len(data["dimension_notes"]) == 7
+    assert data["evidence_diversity"]["signal_count"] == 1
+    assert data["recommended_next_evidence"]
+
+
+def test_get_idea_evaluation_explanation_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/evaluation-explanation")
+    assert resp.status_code == 404
+
+
 def test_get_idea_prior_art(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/prior-art")
     assert resp.status_code == 200

@@ -48,6 +48,7 @@ from max.server.schemas import (
     DryRunEffectiveConfigResponse,
     DryRunReportResponse,
     EvidenceChainResponse,
+    EvaluationExplanationResponse,
     EvaluationResponse,
     EvaluationSummaryResponse,
     EvaluationWeightProfileResponse,
@@ -123,6 +124,7 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.evaluation.explain import explain_evaluation
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.generator import generate_spec_preview
@@ -1376,6 +1378,47 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
         evaluation,
         latest_critique=critiques[0] if critiques else None,
         latest_feedback=store.get_latest_feedback(idea_id),
+    )
+
+
+@router.get(
+    "/ideas/{idea_id}/evaluation-explanation",
+    response_model=EvaluationExplanationResponse,
+)
+def get_idea_evaluation_explanation(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> EvaluationExplanationResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    insights = [
+        insight
+        for insight_id in unit.inspiring_insights
+        if (insight := store.get_insight(insight_id))
+    ]
+    signal_ids = list(dict.fromkeys(
+        [
+            *unit.evidence_signals,
+            *(signal_id for insight in insights for signal_id in insight.evidence),
+        ]
+    ))
+    signals = [
+        signal
+        for signal_id in signal_ids
+        if (signal := store.get_signal(signal_id))
+    ]
+    return EvaluationExplanationResponse.model_validate(
+        explain_evaluation(
+            unit,
+            evaluation,
+            insights=insights,
+            signals=signals,
+        )
     )
 
 

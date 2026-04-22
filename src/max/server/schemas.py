@@ -250,6 +250,62 @@ class EvaluationResponse(BaseModel):
     weights_used: dict[str, float]
 
 
+class EvaluationDriverResponse(BaseModel):
+    dimension: str
+    label: str
+    score: float | None = None
+    confidence: float | None = None
+    weight: float
+    weighted_contribution: float
+    reason: str
+
+
+class EvaluationDimensionNoteResponse(BaseModel):
+    dimension: str
+    label: str
+    score: float
+    confidence: float
+    weight: float
+    weighted_contribution: float
+    sentiment: Literal["positive", "mixed", "negative"]
+    note: str
+
+
+class EvaluationEvidenceDiversityResponse(BaseModel):
+    signal_count: int
+    insight_count: int
+    source_count: int
+    sources: list[str]
+    source_types: list[str]
+    signal_roles: dict[str, int]
+    avg_credibility: float
+    evidence_types: dict[str, int]
+    diversity_score: float
+    note: str
+
+
+class EvaluationMissingFieldPenaltyResponse(BaseModel):
+    field: str
+    label: str
+    severity: Literal["high", "medium", "low"]
+    penalty: float
+    note: str
+
+
+class EvaluationExplanationResponse(BaseModel):
+    idea_id: str
+    overall_score: float
+    recommendation: str
+    summary: str
+    top_positive_drivers: list[EvaluationDriverResponse]
+    top_negative_drivers: list[EvaluationDriverResponse]
+    dimension_notes: list[EvaluationDimensionNoteResponse]
+    evidence_diversity: EvaluationEvidenceDiversityResponse
+    triangulation_hints: list[str]
+    missing_field_penalties: list[EvaluationMissingFieldPenaltyResponse]
+    recommended_next_evidence: list[str]
+
+
 class IdeaCritiqueResponse(BaseModel):
     id: str
     buildable_unit_id: str
