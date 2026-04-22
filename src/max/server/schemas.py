@@ -379,6 +379,38 @@ class DesignBriefResponse(BaseModel):
     sources: list[DesignBriefSourceResponse]
 
 
+class FeedbackTrendDomainResponse(BaseModel):
+    domain: str
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+
+
+class FeedbackTrendWindowResponse(BaseModel):
+    window_start: str
+    window_end: str
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+    domains: list[FeedbackTrendDomainResponse]
+
+
+class FeedbackTrendResponse(BaseModel):
+    days: int
+    bucket: Literal["day", "week", "month"]
+    window_count: int
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+    windows: list[FeedbackTrendWindowResponse]
+
+
 class BlueprintSourceBriefResponse(BaseModel):
     schema_version: str
     source: dict

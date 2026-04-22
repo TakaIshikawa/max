@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
-from max.analysis.retrospective import detect_trends
+from max.analysis.retrospective import detect_feedback_trends, detect_trends
 from max.cli import main
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
@@ -49,6 +49,7 @@ def _seed_feedback_at(
     created_at: str,
     *,
     eval_score: float = 70.0,
+    domain: str = "",
 ) -> None:
     """Seed a signal + unit + evaluation + feedback at a specific timestamp."""
     sig_id = f"sig-{unit_id}"
@@ -75,6 +76,7 @@ def _seed_feedback_at(
         value_proposition="Test value",
         evidence_signals=[sig_id],
         target_users="both",
+        domain=domain,
     )
     store.insert_buildable_unit(unit)
 
@@ -362,6 +364,65 @@ def test_published_counts_as_approved(store: Store) -> None:
     points = detect_trends(store, window=5)
     assert len(points) == 1
     assert abs(points[0].approval_rate - 2 / 3) < 0.01
+
+
+# ── Feedback trends by time bucket ─────────────────────────────────
+
+
+def test_feedback_trends_daily_counts_scores_and_domains(store: Store) -> None:
+    base = _base_time()
+    now = base + timedelta(days=3)
+
+    _seed_feedback_at(
+        store,
+        "bu-ft-a",
+        "approved",
+        _iso(base + timedelta(days=1, hours=1)),
+        eval_score=80.0,
+        domain="ai",
+    )
+    _seed_feedback_at(
+        store,
+        "bu-ft-r",
+        "rejected",
+        _iso(base + timedelta(days=1, hours=2)),
+        eval_score=40.0,
+        domain="ai",
+    )
+    _seed_feedback_at(
+        store,
+        "bu-ft-p",
+        "published",
+        _iso(base + timedelta(days=2, hours=1)),
+        eval_score=90.0,
+        domain="devtools",
+    )
+
+    trends = detect_feedback_trends(store, days=3, bucket="day", now=now)
+
+    assert trends.window_count == 3
+    assert trends.total_count == 3
+    assert trends.approved_count == 2
+    assert trends.rejected_count == 1
+    assert trends.approval_rate == 2 / 3
+    assert trends.avg_score == 70.0
+
+    active_windows = [window for window in trends.windows if window.total_count]
+    assert [window.total_count for window in active_windows] == [2, 1]
+    assert active_windows[0].approval_rate == 0.5
+    assert active_windows[0].avg_score == 60.0
+    assert active_windows[0].domains[0].domain == "ai"
+    assert active_windows[0].domains[0].total_count == 2
+    assert active_windows[1].domains[0].domain == "devtools"
+
+
+def test_feedback_trends_validates_bucket(store: Store) -> None:
+    try:
+        detect_feedback_trends(store, bucket="hour")  # type: ignore[arg-type]
+    except ValueError as exc:
+        assert "bucket" in str(exc)
+    else:
+        raise AssertionError("Expected invalid bucket to raise ValueError")
 
 
 # ── CLI command ──────────────────────────────────────────────────

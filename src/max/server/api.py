@@ -6,6 +6,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
 
@@ -27,6 +28,9 @@ from max.server.schemas import (
     EvaluationResponse,
     EvaluationSummaryResponse,
     FeedbackCreate,
+    FeedbackTrendDomainResponse,
+    FeedbackTrendResponse,
+    FeedbackTrendWindowResponse,
     HealthResponse,
     IdeaCreate,
     IdeaCritiqueResponse,
@@ -805,6 +809,53 @@ def create_feedback(
     store.insert_feedback(idea_id, body.outcome, body.reason, approval_score=body.approval_score)
     store.update_buildable_unit_status(idea_id, body.outcome)
     return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
+
+
+# ── Feedback Trends ────────────────────────────────────────────────
+
+
+@router.get("/trends/feedback", response_model=FeedbackTrendResponse)
+def get_feedback_trends(
+    days: int = Query(default=30, ge=1, le=3650),
+    bucket: Literal["day", "week", "month"] = Query(default="day"),
+    store: Store = Depends(get_store),
+) -> FeedbackTrendResponse:
+    from max.analysis.retrospective import detect_feedback_trends
+
+    trends = detect_feedback_trends(store, days=days, bucket=bucket)
+    return FeedbackTrendResponse(
+        days=trends.days,
+        bucket=trends.bucket,
+        window_count=trends.window_count,
+        total_count=trends.total_count,
+        approved_count=trends.approved_count,
+        rejected_count=trends.rejected_count,
+        approval_rate=trends.approval_rate,
+        avg_score=trends.avg_score,
+        windows=[
+            FeedbackTrendWindowResponse(
+                window_start=window.window_start.isoformat(),
+                window_end=window.window_end.isoformat(),
+                total_count=window.total_count,
+                approved_count=window.approved_count,
+                rejected_count=window.rejected_count,
+                approval_rate=window.approval_rate,
+                avg_score=window.avg_score,
+                domains=[
+                    FeedbackTrendDomainResponse(
+                        domain=domain.domain,
+                        total_count=domain.total_count,
+                        approved_count=domain.approved_count,
+                        rejected_count=domain.rejected_count,
+                        approval_rate=domain.approval_rate,
+                        avg_score=domain.avg_score,
+                    )
+                    for domain in window.domains
+                ],
+            )
+            for window in trends.windows
+        ],
+    )
 
 
 # ── Design Briefs ───────────────────────────────────────────────────

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from max.store.db import Store
 from max.types.trends import TrendPoint
@@ -22,6 +22,164 @@ class RetrospectiveContext:
     avg_approved_score: float = 0.0
     avg_rejected_score: float = 0.0
     pattern_count: int = 0
+
+
+FeedbackTrendBucket = Literal["day", "week", "month"]
+
+
+@dataclass
+class FeedbackTrendDomainPoint:
+    """Feedback metrics for one domain within a time window."""
+
+    domain: str
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+
+
+@dataclass
+class FeedbackTrendPoint:
+    """Feedback metrics for a single time window."""
+
+    window_start: datetime
+    window_end: datetime
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+    domains: list[FeedbackTrendDomainPoint] = field(default_factory=list)
+
+
+@dataclass
+class FeedbackTrendSummary:
+    """Time-windowed feedback trend metrics."""
+
+    days: int
+    bucket: FeedbackTrendBucket
+    window_count: int
+    total_count: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+    avg_score: float
+    windows: list[FeedbackTrendPoint] = field(default_factory=list)
+
+
+def _bucket_delta(bucket: FeedbackTrendBucket) -> timedelta:
+    if bucket == "day":
+        return timedelta(days=1)
+    if bucket == "week":
+        return timedelta(days=7)
+    if bucket == "month":
+        return timedelta(days=30)
+    raise ValueError("bucket must be one of: day, week, month")
+
+
+def _feedback_metrics(rows: list[dict]) -> tuple[int, int, int, float, float]:
+    total = len(rows)
+    approved = sum(1 for row in rows if row["outcome"] in ("approved", "published"))
+    rejected = sum(1 for row in rows if row["outcome"] in ("rejected", "abandoned"))
+    approval_rate = approved / total if total else 0.0
+    scores = [row["overall_score"] for row in rows if row["overall_score"] is not None]
+    avg_score = sum(scores) / len(scores) if scores else 0.0
+    return total, approved, rejected, approval_rate, avg_score
+
+
+def detect_feedback_trends(
+    store: Store,
+    *,
+    days: int = 30,
+    bucket: FeedbackTrendBucket = "day",
+    now: datetime | None = None,
+) -> FeedbackTrendSummary:
+    """Compute feedback metrics across rolling time windows.
+
+    Buckets cover the last *days* days, include empty windows, and use
+    evaluation overall scores for score averages.
+    """
+    if days < 1:
+        raise ValueError("days must be at least 1")
+
+    delta = _bucket_delta(bucket)
+    end = now or datetime.now(UTC)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=UTC)
+    start = end - timedelta(days=days)
+
+    rows = store.conn.execute(
+        """SELECT f.outcome, f.created_at,
+                  COALESCE(NULLIF(bu.domain, ''), 'unassigned') AS domain,
+                  e.overall_score
+           FROM feedback f
+           JOIN buildable_units bu ON f.buildable_unit_id = bu.id
+           LEFT JOIN evaluations e
+             ON f.buildable_unit_id = e.buildable_unit_id
+           WHERE f.created_at >= ? AND f.created_at <= ?
+           ORDER BY f.created_at ASC""",
+        (start.isoformat(), end.isoformat()),
+    ).fetchall()
+    feedback_rows = [dict(row) for row in rows]
+
+    windows: list[FeedbackTrendPoint] = []
+    window_start = start
+    while window_start < end:
+        window_end = min(window_start + delta, end)
+        bucket_rows = [
+            row for row in feedback_rows
+            if window_start.isoformat() <= row["created_at"] < window_end.isoformat()
+        ]
+        total, approved, rejected, approval_rate, avg_score = _feedback_metrics(bucket_rows)
+
+        domain_points: list[FeedbackTrendDomainPoint] = []
+        for domain in sorted({row["domain"] for row in bucket_rows}):
+            domain_rows = [row for row in bucket_rows if row["domain"] == domain]
+            (
+                domain_total,
+                domain_approved,
+                domain_rejected,
+                domain_approval_rate,
+                domain_avg_score,
+            ) = _feedback_metrics(domain_rows)
+            domain_points.append(
+                FeedbackTrendDomainPoint(
+                    domain=domain,
+                    total_count=domain_total,
+                    approved_count=domain_approved,
+                    rejected_count=domain_rejected,
+                    approval_rate=domain_approval_rate,
+                    avg_score=domain_avg_score,
+                )
+            )
+
+        windows.append(
+            FeedbackTrendPoint(
+                window_start=window_start,
+                window_end=window_end,
+                total_count=total,
+                approved_count=approved,
+                rejected_count=rejected,
+                approval_rate=approval_rate,
+                avg_score=avg_score,
+                domains=domain_points,
+            )
+        )
+        window_start = window_end
+
+    total, approved, rejected, approval_rate, avg_score = _feedback_metrics(feedback_rows)
+    return FeedbackTrendSummary(
+        days=days,
+        bucket=bucket,
+        window_count=len(windows),
+        total_count=total,
+        approved_count=approved,
+        rejected_count=rejected,
+        approval_rate=approval_rate,
+        avg_score=avg_score,
+        windows=windows,
+    )
 
 
 def analyze_retrospective(

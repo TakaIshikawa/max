@@ -82,6 +82,7 @@ def seeded_db(db_path):
         value_proposition="Better testing",
         inspiring_insights=["ins-api001"],
         evidence_signals=["sig-api001"],
+        domain="testing",
     )
     store.insert_buildable_unit(unit)
 
@@ -1105,6 +1106,43 @@ def test_feedback_not_found(client):
         json={"outcome": "rejected"},
     )
     assert resp.status_code == 404
+
+
+def test_feedback_trends_endpoint(seeded_client):
+    feedback_resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/feedback",
+        json={"outcome": "approved", "reason": "Great idea"},
+    )
+    assert feedback_resp.status_code == 201
+
+    resp = seeded_client.get("/api/v1/trends/feedback?days=1&bucket=day")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["days"] == 1
+    assert data["bucket"] == "day"
+    assert data["total_count"] == 1
+    assert data["approved_count"] == 1
+    assert data["rejected_count"] == 0
+    assert data["approval_rate"] == 1.0
+    assert data["avg_score"] == 78.0
+
+    active_windows = [window for window in data["windows"] if window["total_count"]]
+    assert len(active_windows) == 1
+    assert active_windows[0]["domains"] == [
+        {
+            "domain": "testing",
+            "total_count": 1,
+            "approved_count": 1,
+            "rejected_count": 0,
+            "approval_rate": 1.0,
+            "avg_score": 78.0,
+        }
+    ]
+
+
+def test_feedback_trends_endpoint_validates_query(client):
+    assert client.get("/api/v1/trends/feedback?days=0").status_code == 422
+    assert client.get("/api/v1/trends/feedback?bucket=hour").status_code == 422
 
 
 # ── Design brief endpoints ─────────────────────────────────────────
