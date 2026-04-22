@@ -982,6 +982,74 @@ class TestEvidenceDensityCommand:
         store.get_signal.assert_not_called()
 
 
+class TestContradictionsCommand:
+    @patch("max.store.db.Store")
+    def test_contradictions_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        unit = _make_unit()
+        insight = _make_insight()
+        positive = _make_signal("sig-test001")
+        positive.metadata.update({
+            "normalized_claim": "Audit logs are required",
+            "sentiment": "positive",
+        })
+        negative = _make_signal("sig-test002")
+        negative.source_adapter = "other"
+        negative.metadata.update({
+            "normalized_claim": "Audit logs are required",
+            "sentiment": "negative",
+        })
+        unit.evidence_signals = ["sig-test001", "sig-test002"]
+        insight.evidence = ["sig-test001", "sig-test002"]
+        store = _mock_store(unit=unit, insight=insight)
+        store.get_signal.side_effect = lambda signal_id: {
+            "sig-test001": positive,
+            "sig-test002": negative,
+        }.get(signal_id)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["contradictions", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["entity_type"] == "idea"
+        assert payload["contradiction_count"] == 1
+        assert set(payload["contradictions"][0]["involved_signal_ids"]) == {
+            "sig-test001",
+            "sig-test002",
+        }
+
+    @patch("max.store.db.Store")
+    def test_contradictions_stdout_text(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None, insight=_make_insight())
+        positive = _make_signal("sig-test001")
+        positive.metadata.update({"normalized_claim": "Claim", "sentiment": "positive"})
+        negative = _make_signal("sig-test002")
+        negative.metadata.update({"normalized_claim": "Claim", "sentiment": "negative"})
+        store.get_insight.return_value.evidence = ["sig-test001", "sig-test002"]
+        store.get_signal.side_effect = lambda signal_id: {
+            "sig-test001": positive,
+            "sig-test002": negative,
+        }.get(signal_id)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["contradictions", "ins-test001", "--entity-type", "insight"])
+
+        assert result.exit_code == 0, result.output
+        assert "Contradictions: insight ins-test001" in result.output
+        assert "Conflicts:      1" in result.output
+        assert "Signals: sig-test001, sig-test002" in result.output
+
+    @patch("max.store.db.Store")
+    def test_contradictions_missing_entity(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None, insight=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["contradictions", "missing"])
+
+        assert result.exit_code != 0
+        assert "Idea or insight not found: missing" in result.output
+
+
 class TestRoiForecastCommand:
     @patch("max.store.db.Store")
     def test_roi_forecast_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:

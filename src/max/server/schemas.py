@@ -701,6 +701,27 @@ class EvidenceDensityResponse(BaseModel):
     density_score: float
 
 
+class ContradictionSummaryResponse(BaseModel):
+    group_type: Literal["claim", "source_claim", "role_claim"]
+    group_key: str
+    claim: str
+    normalized_claim: str
+    severity: Literal["high", "medium", "low"]
+    involved_signal_ids: list[str]
+    sources: list[str]
+    sentiments: dict[str, list[str]]
+    roles: dict[str, list[str]]
+    suggested_review_note: str
+
+
+class ContradictionReportResponse(BaseModel):
+    entity_type: Literal["idea", "insight"]
+    entity_id: str
+    signal_count: int
+    contradiction_count: int
+    contradictions: list[ContradictionSummaryResponse]
+
+
 class LineageGraphNodeResponse(BaseModel):
     id: str
     entity_id: str

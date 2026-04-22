@@ -1679,6 +1679,83 @@ def _render_evidence_density(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+@main.command(name="contradictions")
+@click.argument("entity_id")
+@click.option(
+    "--entity-type",
+    type=click.Choice(["auto", "idea", "insight"]),
+    default="auto",
+    show_default=True,
+    help="Evidence entity type",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def contradictions(entity_id: str, entity_type: str, fmt: str) -> None:
+    """Show contradictory evidence for an idea or insight."""
+    from max.analysis.contradictions import (
+        build_idea_contradiction_report,
+        build_insight_contradiction_report,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        report: dict | None = None
+        if entity_type in ("auto", "idea"):
+            unit = store.get_buildable_unit(entity_id)
+            if unit:
+                report = build_idea_contradiction_report(unit, store)
+            elif entity_type == "idea":
+                raise click.ClickException(f"Idea not found: {entity_id}")
+
+        if report is None and entity_type in ("auto", "insight"):
+            insight = store.get_insight(entity_id)
+            if insight:
+                report = build_insight_contradiction_report(insight, store)
+            elif entity_type == "insight":
+                raise click.ClickException(f"Insight not found: {entity_id}")
+
+        if report is None:
+            raise click.ClickException(f"Idea or insight not found: {entity_id}")
+
+        if fmt == "json":
+            click.echo(json.dumps(report, indent=2))
+            return
+        click.echo(_render_contradictions(report), nl=False)
+    finally:
+        store.close()
+
+
+def _render_contradictions(report: dict) -> str:
+    lines = [
+        f"Contradictions: {report['entity_type']} {report['entity_id']}",
+        f"Signals:        {report['signal_count']}",
+        f"Conflicts:      {report['contradiction_count']}",
+    ]
+    contradictions = report["contradictions"]
+    if not contradictions:
+        lines.extend(["", "No contradictions detected."])
+        return "\n".join(lines) + "\n"
+
+    for item in contradictions:
+        lines.extend(
+            [
+                "",
+                f"- {item['severity'].upper()} {item['group_type']}: {item['claim']}",
+                f"  Signals: {', '.join(item['involved_signal_ids'])}",
+                f"  Sources: {', '.join(item['sources'])}",
+                f"  Note: {item['suggested_review_note']}",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _format_count_lines(counts: dict[str, int]) -> list[str]:
     if not counts:
         return ["  - none: 0"]

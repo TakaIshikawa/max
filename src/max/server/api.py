@@ -15,6 +15,10 @@ from pydantic import ValidationError
 from max import config
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
+from max.analysis.contradictions import (
+    build_idea_contradiction_report,
+    build_insight_contradiction_report,
+)
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
@@ -44,6 +48,7 @@ from max.server.schemas import (
     AdapterMetadataResponse,
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
+    ContradictionReportResponse,
     DesignBriefResponse,
     DesignBriefStatusUpdate,
     DesignBriefValidationPlanResponse,
@@ -1146,6 +1151,19 @@ def get_insight(insight_id: str, store: Store = Depends(get_store)) -> InsightDe
     return _insight_detail_to_response(insight, store)
 
 
+@router.get("/insights/{insight_id}/contradictions", response_model=ContradictionReportResponse)
+def get_insight_contradictions(
+    insight_id: str,
+    store: Store = Depends(get_store),
+) -> ContradictionReportResponse:
+    insight = store.get_insight(insight_id)
+    if not insight:
+        raise HTTPException(status_code=404, detail=f"Insight not found: {insight_id}")
+    return ContradictionReportResponse.model_validate(
+        build_insight_contradiction_report(insight, store)
+    )
+
+
 # ── Ideas ───────────────────────────────────────────────────────────
 
 
@@ -1636,6 +1654,19 @@ def get_idea_evidence_density(
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return EvidenceDensityResponse.model_validate(
         build_evidence_density_report(unit, store)
+    )
+
+
+@router.get("/ideas/{idea_id}/contradictions", response_model=ContradictionReportResponse)
+def get_idea_contradictions(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> ContradictionReportResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return ContradictionReportResponse.model_validate(
+        build_idea_contradiction_report(unit, store)
     )
 
 

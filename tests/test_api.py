@@ -1911,6 +1911,71 @@ def test_get_idea_evidence_density(seeded_client):
     assert data["missing_evidence_warnings"] == []
 
 
+def test_get_idea_contradictions(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        for signal_id, adapter, sentiment in [
+            ("sig-conflict-positive", "forum-a", "positive"),
+            ("sig-conflict-negative", "forum-b", "negative"),
+        ]:
+            store.insert_signal(
+                Signal(
+                    id=signal_id,
+                    source_type=SignalSourceType.FORUM,
+                    source_adapter=adapter,
+                    title="Audit logs are required",
+                    content="Evidence about audit logs",
+                    url=f"https://example.com/{signal_id}",
+                    credibility=0.8,
+                    metadata={
+                        "normalized_claim": "Audit logs are required",
+                        "sentiment": sentiment,
+                        "signal_role": "problem",
+                    },
+                )
+            )
+        store.insert_insight(
+            Insight(
+                id="ins-conflict-api",
+                category=InsightCategory.GAP,
+                title="Audit conflict",
+                summary="Signals disagree",
+                evidence=["sig-conflict-positive", "sig-conflict-negative"],
+            )
+        )
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-conflict-api",
+                title="Conflict Idea",
+                one_liner="Conflicting evidence",
+                category=BuildableCategory.APPLICATION,
+                problem="Conflicting evidence",
+                solution="Review it",
+                value_proposition="Better confidence",
+                inspiring_insights=["ins-conflict-api"],
+                evidence_signals=["sig-conflict-positive", "sig-conflict-negative"],
+            )
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/ideas/bu-conflict-api/contradictions")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["entity_type"] == "idea"
+    assert data["contradiction_count"] == 1
+    assert data["contradictions"][0]["severity"] == "medium"
+    assert set(data["contradictions"][0]["involved_signal_ids"]) == {
+        "sig-conflict-positive",
+        "sig-conflict-negative",
+    }
+
+
+def test_get_insight_contradictions_not_found(client):
+    resp = client.get("/api/v1/insights/nonexistent/contradictions")
+    assert resp.status_code == 404
+
+
 def test_get_idea_evidence_density_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent/evidence-density")
     assert resp.status_code == 404
