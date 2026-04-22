@@ -1022,11 +1022,28 @@ def design_candidates(
         store.close()
 
 
-@main.command(name="design-briefs")
+@main.group(name="design-briefs", invoke_without_command=True)
+@click.pass_context
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--status", type=str, default=None, help="Filter by design status")
 @click.option("--limit", type=int, default=20, help="Max briefs to list")
-def design_briefs(domain: str | None, status: str | None, limit: int) -> None:
+def design_briefs(ctx: click.Context, domain: str | None, status: str | None, limit: int) -> None:
+    """Inspect and export persisted design briefs."""
+    if ctx.invoked_subcommand is not None:
+        return
+    _list_design_briefs(domain=domain, status=status, limit=limit)
+
+
+@design_briefs.command(name="list")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--status", type=str, default=None, help="Filter by design status")
+@click.option("--limit", type=int, default=20, help="Max briefs to list")
+def design_briefs_list(domain: str | None, status: str | None, limit: int) -> None:
+    """List persisted design briefs."""
+    _list_design_briefs(domain=domain, status=status, limit=limit)
+
+
+def _list_design_briefs(domain: str | None, status: str | None, limit: int) -> None:
     """List persisted design briefs."""
     from max.store.db import Store
 
@@ -1042,6 +1059,110 @@ def design_briefs(domain: str | None, status: str | None, limit: int) -> None:
                 f"[{brief['design_status']}] [{brief['domain']}] {brief['title']}"
             )
             click.echo(f"  Lead: {brief['lead_idea_id']} | Sources: {len(brief['source_idea_ids'])}")
+    finally:
+        store.close()
+
+
+@design_briefs.command(name="show")
+@click.argument("design_brief_id")
+def design_briefs_show(design_brief_id: str) -> None:
+    """Show a persisted design brief."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+
+        click.echo(f"ID:          {brief['id']}")
+        click.echo(f"Title:       {brief['title']}")
+        click.echo(f"Domain:      {brief['domain']}")
+        click.echo(f"Theme:       {brief['theme']}")
+        click.echo(f"Status:      {brief['design_status']}")
+        click.echo(f"Readiness:   {brief['readiness_score']:.1f}")
+        click.echo(f"Lead idea:   {brief['lead_idea_id']}")
+        click.echo(f"Buyer:       {brief['buyer'] or '-'}")
+        click.echo(f"User:        {brief['specific_user'] or '-'}")
+        click.echo(f"Workflow:    {brief['workflow_context'] or '-'}")
+        click.echo()
+        click.echo(f"Why now:     {brief['why_this_now']}")
+        click.echo(f"Concept:     {brief['merged_product_concept']}")
+        click.echo(f"Rationale:   {brief['synthesis_rationale']}")
+        click.echo(f"Validation:  {brief['validation_plan']}")
+
+        if brief["mvp_scope"]:
+            click.echo()
+            click.echo("MVP scope:")
+            for item in brief["mvp_scope"]:
+                click.echo(f"  - {item}")
+        if brief["first_milestones"]:
+            click.echo("First milestones:")
+            for item in brief["first_milestones"]:
+                click.echo(f"  - {item}")
+        if brief["risks"]:
+            click.echo("Risks:")
+            for item in brief["risks"]:
+                click.echo(f"  - {item}")
+
+        click.echo()
+        click.echo(f"Source ideas ({len(brief['source_idea_ids'])}):")
+        for source_id in brief["source_idea_ids"]:
+            click.echo(f"  {source_id}")
+    finally:
+        store.close()
+
+
+@design_briefs.command(name="status")
+@click.argument("design_brief_id")
+@click.argument("status")
+def design_briefs_status(design_brief_id: str, status: str) -> None:
+    """Update design workflow status for a brief."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        store.update_design_brief_status(design_brief_id, status)
+        click.echo(f"Updated {design_brief_id}: {brief['design_status']} -> {status}")
+    finally:
+        store.close()
+
+
+@design_briefs.command(name="blueprint")
+@click.argument("design_brief_id")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(file_okay=False),
+    default=None,
+    help="Write JSON packet to this directory",
+)
+def design_briefs_blueprint(design_brief_id: str, output: str | None) -> None:
+    """Export one design brief as Blueprint JSON."""
+    from max.analysis.blueprint_export import (
+        blueprint_filename,
+        build_blueprint_source_brief,
+        render_blueprint_packet,
+        write_blueprint_packet,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        packet = build_blueprint_source_brief(store, brief)
+        if output:
+            output_dir = Path(output)
+            path = output_dir / blueprint_filename(brief, fmt="json")
+            write_blueprint_packet(path, packet, fmt="json")
+            click.echo(f"Wrote Blueprint source brief to {path}")
+            return
+        click.echo(render_blueprint_packet(packet, fmt="json"), nl=False)
     finally:
         store.close()
 
