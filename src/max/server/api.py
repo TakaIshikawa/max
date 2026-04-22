@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 
 from max import config
 from max.server.dependencies import get_store
@@ -699,6 +699,29 @@ def list_design_briefs(
     limit = min(limit, 100)
     briefs = store.get_design_briefs(domain=domain, status=status, limit=limit)
     return [_design_brief_to_response(brief) for brief in briefs]
+
+
+@router.post("/design-briefs/synthesize", response_model=list[DesignBriefResponse], status_code=201)
+def synthesize_design_briefs(
+    domain: str | None = None,
+    top: int = Query(default=8, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> list[DesignBriefResponse]:
+    from max.analysis.portfolio_synthesis import build_candidates, synthesize_project_briefs
+
+    units = store.get_buildable_units(limit=500, domain=domain)
+    evaluations = {unit.id: store.get_evaluation(unit.id) for unit in units}
+    feedback = {unit.id: store.get_latest_feedback(unit.id) for unit in units}
+    candidates = build_candidates(units, evaluations=evaluations, feedback=feedback)
+    briefs = synthesize_project_briefs(candidates, top=top)
+
+    persisted: list[DesignBriefResponse] = []
+    for brief in briefs:
+        brief_id = store.insert_design_brief(brief)
+        stored = store.get_design_brief(brief_id)
+        if stored:
+            persisted.append(_design_brief_to_response(stored))
+    return persisted
 
 
 @router.get("/design-briefs/{brief_id}", response_model=DesignBriefResponse)

@@ -958,6 +958,86 @@ def test_get_design_brief_markdown(seeded_client):
     assert "`bu-api001`" in resp.text
 
 
+def test_synthesize_design_briefs_persists_approved_and_published(client, db_path):
+    def _score(value: float) -> DimensionScore:
+        return DimensionScore(value=value, confidence=0.8, reasoning="seeded")
+
+    def _unit(unit_id: str, title: str, *, domain: str, status: str) -> BuildableUnit:
+        return BuildableUnit(
+            id=unit_id,
+            title=title,
+            one_liner="Adversarial API workflow benchmark for tool-using agents",
+            category=BuildableCategory.APPLICATION,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="Teams cannot validate agent workflow security before deployment.",
+            solution="Run API workflow fixtures with embedded attack payloads.",
+            value_proposition="Ship safer agents with repeatable release checks.",
+            specific_user="platform engineer deploying AI agents",
+            buyer="engineering manager",
+            workflow_context="CI gate before agent production deployment",
+            current_workaround="Manual prompt testing",
+            why_now="MCP adoption makes agent tool security urgent.",
+            validation_plan="Run against three agent frameworks and publish scorecards.",
+            first_10_customers="Agent framework maintainers and platform teams",
+            tech_approach="Python service with YAML fixtures and a REST API",
+            domain=domain,
+            status=status,
+            quality_score=8.0,
+            domain_risks=["Framework APIs may change quickly"],
+        )
+
+    def _evaluation(unit_id: str, score: float) -> UtilityEvaluation:
+        return UtilityEvaluation(
+            buildable_unit_id=unit_id,
+            pain_severity=_score(8.0),
+            addressable_scale=_score(7.0),
+            build_effort=_score(8.0),
+            composability=_score(7.5),
+            competitive_density=_score(7.0),
+            timing_fit=_score(8.0),
+            compounding_value=_score(7.0),
+            overall_score=score,
+            strengths=["clear buyer"],
+            weaknesses=[],
+            recommendation="yes",
+            weights_used={"pain_severity": 0.2},
+        )
+
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        seeds = [
+            (_unit("bu-synth-approved", "AgentAdversarialBench", domain="testing", status="approved"), 84, "approved", 9),
+            (_unit("bu-synth-published", "AgentAPIProbe", domain="testing", status="published"), 78, "published", 8),
+            (_unit("bu-synth-rejected", "Rejected Agent Probe", domain="testing", status="rejected"), 91, "rejected", None),
+            (_unit("bu-synth-other", "Other Domain Agent Probe", domain="other", status="approved"), 88, "approved", 10),
+        ]
+        for unit, score, outcome, approval_score in seeds:
+            store.insert_buildable_unit(unit)
+            store.insert_evaluation(_evaluation(unit.id, score))
+            store.insert_feedback(unit.id, outcome, "seeded review", approval_score=approval_score)
+    finally:
+        store.close()
+
+    resp = client.post("/api/v1/design-briefs/synthesize?domain=testing&top=1")
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert len(data) == 1
+    brief = data[0]
+    assert brief["domain"] == "testing"
+    assert brief["lead_idea_id"] in {"bu-synth-approved", "bu-synth-published"}
+    assert set(brief["source_idea_ids"]) == {"bu-synth-approved", "bu-synth-published"}
+    assert {source["idea_id"] for source in brief["sources"]} == {
+        "bu-synth-approved",
+        "bu-synth-published",
+    }
+
+    list_resp = client.get("/api/v1/design-briefs?domain=testing")
+    assert list_resp.status_code == 200
+    persisted = list_resp.json()
+    assert [item["id"] for item in persisted] == [brief["id"]]
+
+
 def test_get_design_brief_markdown_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing/markdown")
     assert resp.status_code == 404
