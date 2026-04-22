@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from max.server.schemas import (
+    BlueprintSourceBriefResponse,
+    DesignBriefResponse,
     FeedbackCreate,
     IdeaCreate,
     InsightCreate,
@@ -338,3 +340,39 @@ class TestComposition:
         assert d["enabled"] is True
         assert d["interval_seconds"] == 7200
         assert d["trigger_now"] is True
+
+    def test_design_brief_response(self):
+        m = DesignBriefResponse(
+            id="dbf-1",
+            title="Brief",
+            domain="devtools",
+            theme="agent-ops",
+            readiness_score=80.0,
+            lead_idea_id="bu-1",
+            buyer="VP Engineering",
+            specific_user="platform engineer",
+            workflow_context="release validation",
+            why_this_now="timely",
+            merged_product_concept="concept",
+            synthesis_rationale="rationale",
+            mvp_scope=["scope"],
+            first_milestones=["milestone"],
+            validation_plan="validate",
+            risks=["risk"],
+            source_idea_ids=["bu-1"],
+            design_status="candidate",
+            created_at="2026-04-22T00:00:00+00:00",
+            updated_at="2026-04-22T00:00:00+00:00",
+            sources=[{"idea_id": "bu-1", "role": "lead", "rank": 0}],
+        )
+        assert m.sources[0].role == "lead"
+
+    def test_blueprint_source_brief_response(self):
+        m = BlueprintSourceBriefResponse(
+            schema_version="max.blueprint.source_brief.v1",
+            source={"project": "max"},
+            design_brief={"id": "dbf-1"},
+            source_ideas=[{"id": "bu-1"}],
+            blueprint_import_hints={"recommended_source_priority": "design_brief"},
+        )
+        assert m.schema_version == "max.blueprint.source_brief.v1"

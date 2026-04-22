@@ -54,6 +54,61 @@ domain:
     Open-source model weight distribution and eval frameworks are strong distribution channels.
     Consider multi-model and multi-provider patterns (routing, fallback, load balancing).
 
+domain_quality:
+  enabled: true
+  min_score: 69.0
+  required_fields:
+    - buyer
+    - specific_user
+    - workflow_context
+    - validation_plan
+    - tech_approach
+  scoring_dimensions:
+    workflow_specificity:
+      weight: 1.3
+      description: Owns a concrete AI infrastructure workflow such as deployment, evaluation, serving, tuning, or monitoring.
+    buyer_clarity:
+      weight: 1.2
+      description: Names the ML platform, infrastructure, or engineering buyer.
+    evidence_support:
+      weight: 1.4
+      description: Ties to repeated infra pain such as GPU cost, latency, reliability, eval failures, or serving complexity.
+    measurable_infra_impact:
+      weight: 1.5
+      description: Has a measurable latency, cost, utilization, throughput, reliability, or quality metric.
+    deployment_fit:
+      weight: 1.2
+      description: Fits existing Kubernetes, CI/CD, model serving, or MLOps workflows without full platform migration.
+    differentiation:
+      weight: 1.0
+      description: Avoids generic observability, routing, and dashboard ideas without eval-backed proof.
+    validation_feasibility:
+      weight: 1.1
+      description: Can be tested with open models, public benchmarks, or local serving stacks in two weeks.
+    domain_risk_control:
+      weight: 1.0
+      description: Handles model compatibility, data safety, infra cost, and operational reliability risks.
+  hard_rejections:
+    - missing_buyer
+    - missing_workflow
+    - weak_evidence
+    - full_platform_migration
+    - no_measurable_metric
+  preferred_patterns:
+    - inference cost or latency optimizer
+    - eval-backed model router
+    - GPU utilization or capacity planner
+    - model serving reliability tool
+    - fine-tuning workflow automation
+    - open-model benchmark or regression harness
+    - vector retrieval quality evaluator
+  rejected_patterns:
+    - generic LLM observability dashboard
+    - model router without evaluation proof
+    - tool requiring full platform migration
+    - wrapper around existing serving stack without measurable improvement
+    - vector database without retrieval quality workflow
+
 sources:
   - adapter: hackernews
     params:

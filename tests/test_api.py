@@ -82,6 +82,26 @@ def seeded_db(db_path):
     )
     store.insert_buildable_unit(unit)
 
+    from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
+
+    store.insert_design_brief(
+        ProjectBrief(
+            title="Test Design Brief",
+            domain="testing",
+            theme="api-testing",
+            lead=Candidate(unit=unit),
+            readiness_score=82.0,
+            why_this_now="API clients need a stable handoff.",
+            merged_product_concept="A testable design brief export.",
+            synthesis_rationale="Single approved source idea.",
+            mvp_scope=["Export packet"],
+            first_milestones=["Add endpoint"],
+            validation_plan="Call the API.",
+            risks=["None"],
+            source_idea_ids=["bu-api001"],
+        )
+    )
+
     def _score(val):
         return DimensionScore(value=val, confidence=0.7, reasoning="test")
 
@@ -101,6 +121,30 @@ def seeded_db(db_path):
         weights_used={"pain_severity": 0.20},
     )
     store.insert_evaluation(evaluation)
+    from max.quality.scorer import DomainQualityScore
+
+    store.insert_domain_quality_score(
+        DomainQualityScore(
+            buildable_unit_id="bu-api001",
+            domain="testing",
+            profile_name="test",
+            rubric_version="v1",
+            dimensions={"buyer_clarity": 8.0},
+            overall_score=76.0,
+            passed_gate=True,
+            rejection_tags=[],
+            reasoning="Specific test idea.",
+        )
+    )
+    store.insert_domain_quality_memory(
+        domain="testing",
+        outcome="approved",
+        pattern="Test Idea: A test idea for the API",
+        source_idea_id="bu-api001",
+        tags=[],
+        score=76.0,
+        notes="seeded",
+    )
     store.close()
     return db_path
 
@@ -398,6 +442,22 @@ def test_get_idea_not_found(client):
     assert resp.status_code == 404
 
 
+def test_get_idea_domain_quality(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/domain-quality")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["overall_score"] == 76.0
+    assert data[0]["passed_gate"] is True
+
+
+def test_get_domain_quality_memory(seeded_client):
+    resp = seeded_client.get("/api/v1/domains/testing/quality-memory")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["pattern"] == "Test Idea: A test idea for the API"
+    assert data[0]["outcome"] == "approved"
+
+
 def test_create_idea(client):
     resp = client.post(
         "/api/v1/ideas",
@@ -433,6 +493,50 @@ def test_feedback_not_found(client):
         "/api/v1/ideas/nonexistent/feedback",
         json={"outcome": "rejected"},
     )
+    assert resp.status_code == 404
+
+
+# ── Design brief endpoints ─────────────────────────────────────────
+
+
+def test_list_design_briefs(seeded_client):
+    resp = seeded_client.get("/api/v1/design-briefs")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Test Design Brief"
+    assert data[0]["lead_idea_id"] == "bu-api001"
+    assert data[0]["sources"][0]["idea_id"] == "bu-api001"
+
+
+def test_get_design_brief(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == brief_id
+    assert data["mvp_scope"] == ["Export packet"]
+
+
+def test_get_design_brief_blueprint(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/blueprint")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max.blueprint.source_brief.v1"
+    assert data["source"]["id"] == brief_id
+    assert data["design_brief"]["title"] == "Test Design Brief"
+    assert data["source_ideas"][0]["id"] == "bu-api001"
+
+
+def test_get_design_brief_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing")
     assert resp.status_code == 404
 
 

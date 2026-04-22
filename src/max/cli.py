@@ -213,11 +213,16 @@ def _run_single_profile(
             f"{result.ideas_revised} revised, "
             f"{result.ideas_rejected_by_quality_gate} rejected"
         )
-        if result.avg_novelty_score or result.avg_usefulness_score:
-            click.echo(
-                f"Quality scores:     novelty {result.avg_novelty_score:.1f}, "
-                f"usefulness {result.avg_usefulness_score:.1f}"
-            )
+    if result.ideas_rejected_by_domain_quality or result.avg_domain_quality_score:
+        click.echo(
+            f"Domain quality:     avg {result.avg_domain_quality_score:.1f}, "
+            f"{result.ideas_rejected_by_domain_quality} rejected"
+        )
+    if result.avg_novelty_score or result.avg_usefulness_score:
+        click.echo(
+            f"Quality scores:     novelty {result.avg_novelty_score:.1f}, "
+            f"usefulness {result.avg_usefulness_score:.1f}"
+        )
     click.echo(f"Ideas evaluated:    {result.ideas_evaluated} (avg score: {result.avg_idea_score:.1f})")
     if result.token_usage:
         total_input = result.token_usage.get("total_input", 0)
@@ -1039,6 +1044,261 @@ def design_briefs(domain: str | None, status: str | None, limit: int) -> None:
             click.echo(f"  Lead: {brief['lead_idea_id']} | Sources: {len(brief['source_idea_ids'])}")
     finally:
         store.close()
+
+
+@main.command(name="export-design-brief")
+@click.argument("design_brief_id")
+@click.option("--format", "fmt", type=click.Choice(["json", "yaml"]), default="json")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write packet to file")
+def export_design_brief(design_brief_id: str, fmt: str, output: str | None) -> None:
+    """Export one design brief as a Blueprint source-brief packet."""
+    from max.analysis.blueprint_export import (
+        build_blueprint_source_brief,
+        render_blueprint_packet,
+        write_blueprint_packet,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        packet = build_blueprint_source_brief(store, brief)
+        if output:
+            write_blueprint_packet(Path(output), packet, fmt=fmt)
+            click.echo(f"Wrote Blueprint source brief to {output}")
+            return
+        click.echo(render_blueprint_packet(packet, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
+@main.command(name="export-design-briefs")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--status", type=str, default=None, help="Filter by design status")
+@click.option("--limit", type=int, default=20, help="Max briefs to export")
+@click.option("--format", "fmt", type=click.Choice(["json", "yaml"]), default="json")
+@click.option("--output", "-o", type=click.Path(file_okay=False), required=True, help="Output directory")
+def export_design_briefs(
+    domain: str | None,
+    status: str | None,
+    limit: int,
+    fmt: str,
+    output: str,
+) -> None:
+    """Export multiple design briefs as Blueprint source-brief packets."""
+    from max.analysis.blueprint_export import (
+        blueprint_filename,
+        build_blueprint_source_brief,
+        write_blueprint_packet,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        briefs = store.get_design_briefs(domain=domain, status=status, limit=limit)
+        if not briefs:
+            click.echo("No design briefs found.")
+            return
+        output_dir = Path(output)
+        for brief in briefs:
+            packet = build_blueprint_source_brief(store, brief)
+            write_blueprint_packet(output_dir / blueprint_filename(brief, fmt=fmt), packet, fmt=fmt)
+        click.echo(f"Wrote {len(briefs)} Blueprint source brief(s) to {output_dir}")
+    finally:
+        store.close()
+
+
+@main.group(name="domain-quality")
+def domain_quality() -> None:
+    """Inspect domain quality scores and memory."""
+
+
+@domain_quality.command(name="score")
+@click.argument("idea_id")
+def domain_quality_score(idea_id: str) -> None:
+    """Show domain quality scores for one idea."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+        scores = store.get_domain_quality_scores(idea_id)
+        if not scores:
+            click.echo("No domain quality scores found.")
+            return
+        for score in scores:
+            passed = "passed" if score["passed_gate"] else "rejected"
+            click.echo(
+                f"{score['created_at']}  {score['overall_score']:.1f}  "
+                f"[{passed}] [{score['domain']}] {unit.title}"
+            )
+            if score["rejection_tags"]:
+                click.echo(f"  Tags: {', '.join(score['rejection_tags'])}")
+            click.echo(f"  {score['reasoning']}")
+    finally:
+        store.close()
+
+
+@domain_quality.command(name="memory")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--outcome", type=click.Choice(["approved", "rejected"]), default=None)
+@click.option("--limit", type=int, default=20)
+def domain_quality_memory(domain: str | None, outcome: str | None, limit: int) -> None:
+    """List domain quality memory patterns."""
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        rows = store.get_domain_quality_memory(domain=domain, outcome=outcome, limit=limit)
+        if not rows:
+            click.echo("No domain quality memory found.")
+            return
+        for row in rows:
+            click.echo(
+                f"{row['created_at']}  [{row['outcome']}] "
+                f"[{row['domain']}] {row['pattern']}"
+            )
+            if row["tags"]:
+                click.echo(f"  Tags: {', '.join(row['tags'])}")
+    finally:
+        store.close()
+
+
+@domain_quality.command(name="eval")
+@click.option("--profile", "-p", type=str, required=True, help="Profile to evaluate")
+@click.option("--signal-limit", type=int, default=None, help="Override profile signal limit")
+@click.option("--draft-count", type=int, default=None, help="Override profile draft count")
+@click.option("--quality-loop/--no-quality-loop", default=True, help="Run existing critique/revision loop")
+@click.option("--stages", type=str, default="ideate,evaluate", help="Comma-separated pipeline stages")
+@click.option("--notes", type=str, default="", help="Notes to store on the eval run")
+def domain_quality_eval(
+    profile: str,
+    signal_limit: int | None,
+    draft_count: int | None,
+    quality_loop: bool,
+    stages: str,
+    notes: str,
+) -> None:
+    """Run baseline and rubric cohorts and persist a domain quality eval."""
+    from datetime import datetime, timezone
+
+    from max.pipeline.runner import run_pipeline
+    from max.profiles.loader import load_profile
+    from max.store.db import Store
+
+    base_profile = load_profile(profile)
+    if signal_limit is not None:
+        base_profile.signal_limit = signal_limit
+    if draft_count is not None:
+        base_profile.draft_count = draft_count
+    base_profile.quality_loop_enabled = quality_loop
+    active_stages = [stage.strip() for stage in stages.split(",") if stage.strip()]
+    domain_name = base_profile.domain.name
+    started_at = datetime.now(timezone.utc).isoformat()
+
+    baseline_profile = base_profile.model_copy(deep=True)
+    baseline_profile.domain_quality.enabled = False
+    rubric_profile = base_profile.model_copy(deep=True)
+    rubric_profile.domain_quality.enabled = True
+
+    before = _domain_idea_ids(domain_name)
+    click.echo(f"Running baseline cohort for {profile} ({domain_name})...")
+    baseline_result = run_pipeline(profile=baseline_profile, stages=active_stages)
+    after_baseline = _domain_idea_ids(domain_name)
+    baseline_ids = sorted(after_baseline - before)
+
+    click.echo(f"Running rubric cohort for {profile} ({domain_name})...")
+    rubric_result = run_pipeline(profile=rubric_profile, stages=active_stages)
+    after_rubric = _domain_idea_ids(domain_name)
+    rubric_ids = sorted(after_rubric - after_baseline)
+
+    completed_at = datetime.now(timezone.utc).isoformat()
+    store = Store()
+    try:
+        eval_run_id = store.insert_domain_quality_eval_run(
+            profile_name=profile,
+            domain=domain_name,
+            rubric_version=rubric_profile.domain_quality.rubric_version,
+            baseline_pipeline_run_id=baseline_result.run_id,
+            rubric_pipeline_run_id=rubric_result.run_id,
+            baseline_ideas=len(baseline_ids),
+            rubric_ideas=len(rubric_ids),
+            started_at=started_at,
+            completed_at=completed_at,
+            notes=notes,
+        )
+        baseline_items = _persist_domain_quality_eval_items(
+            store,
+            eval_run_id=eval_run_id,
+            cohort="baseline",
+            idea_ids=baseline_ids,
+        )
+        rubric_items = _persist_domain_quality_eval_items(
+            store,
+            eval_run_id=eval_run_id,
+            cohort="rubric",
+            idea_ids=rubric_ids,
+        )
+    finally:
+        store.close()
+
+    click.echo()
+    click.echo(f"Domain quality eval: {eval_run_id}")
+    click.echo(f"Profile: {profile} | Domain: {domain_name}")
+    click.echo()
+    click.echo(f"{'Metric':<34s} {'baseline':>10s} {'rubric':>10s}")
+    click.echo("-" * 58)
+    click.echo(f"{'Draft ideas':<34s} {baseline_result.draft_ideas_generated:>10d} {rubric_result.draft_ideas_generated:>10d}")
+    click.echo(f"{'Ideas stored':<34s} {len(baseline_ids):>10d} {len(rubric_ids):>10d}")
+    click.echo(f"{'Domain quality rejects':<34s} {0:>10d} {rubric_result.ideas_rejected_by_domain_quality:>10d}")
+    click.echo(f"{'Avg domain quality':<34s} {'n/a':>10s} {rubric_result.avg_domain_quality_score:>10.1f}")
+    click.echo(f"{'Ideas evaluated':<34s} {baseline_result.ideas_evaluated:>10d} {rubric_result.ideas_evaluated:>10d}")
+    click.echo(f"{'Avg eval score':<34s} {baseline_result.avg_idea_score:>10.1f} {rubric_result.avg_idea_score:>10.1f}")
+    click.echo(f"{'Stored eval items':<34s} {len(baseline_items):>10d} {len(rubric_items):>10d}")
+    click.echo()
+    click.echo("Review both cohorts, then compare approval rate and design brief readiness.")
+
+
+def _domain_idea_ids(domain: str) -> set[str]:
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        return {unit.id for unit in store.get_buildable_units(limit=10000, domain=domain)}
+    finally:
+        store.close()
+
+
+def _persist_domain_quality_eval_items(
+    store,
+    *,
+    eval_run_id: str,
+    cohort: str,
+    idea_ids: list[str],
+) -> list[str]:
+    item_ids: list[str] = []
+    for idea_id in idea_ids:
+        evaluation = store.get_evaluation(idea_id)
+        feedback = store.get_latest_feedback(idea_id)
+        quality_scores = store.get_domain_quality_scores(idea_id)
+        latest_quality = quality_scores[0] if quality_scores else None
+        item_ids.append(
+            store.insert_domain_quality_eval_item(
+                eval_run_id=eval_run_id,
+                buildable_unit_id=idea_id,
+                cohort=cohort,
+                domain_quality_score=latest_quality["overall_score"] if latest_quality else None,
+                passed_gate=latest_quality["passed_gate"] if latest_quality else None,
+                evaluation_score=evaluation.overall_score if evaluation else None,
+                review_outcome=feedback["outcome"] if feedback else None,
+                approval_score=feedback["approval_score"] if feedback else None,
+            )
+        )
+    return item_ids
 
 
 @main.command(name="prior-art")

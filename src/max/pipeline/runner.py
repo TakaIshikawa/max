@@ -25,6 +25,9 @@ from max.ideation.quality_gate import quality_gate
 from max.ideation.revision import revise_ideas
 from max.llm.client import BudgetExceededError, token_tracker
 from max.pipeline.dedup import dedup_buildable_units, dedup_insights
+from max.quality.gate import enforce_domain_quality_gate
+from max.quality.rubric import rubric_context_text
+from max.quality.scorer import score_domain_quality
 from max.sources.base import AdapterCircuitOpenError
 from max.sources.registry import get_all_adapters
 from max.store.db import Store
@@ -77,6 +80,8 @@ class PipelineResult:
     draft_ideas_generated: int = 0
     ideas_revised: int = 0
     ideas_rejected_by_quality_gate: int = 0
+    ideas_rejected_by_domain_quality: int = 0
+    avg_domain_quality_score: float = 0.0
     avg_novelty_score: float = 0.0
     avg_usefulness_score: float = 0.0
 
@@ -169,8 +174,10 @@ def run_pipeline(
     # Extract params from profile (explicit kwargs take precedence)
     domain: DomainContext | None = None
     source_configs = None
+    domain_quality_config = None
     if profile is not None:
         domain = profile.domain
+        domain_quality_config = profile.domain_quality
         source_configs = profile.sources or None
         output_dir = output_dir or Path(profile.output_dir)
         signal_limit = profile.signal_limit
@@ -303,8 +310,36 @@ def run_pipeline(
                     len(retrospective.successful_categories),
                 )
 
+        domain_quality_memory = []
+        domain_quality_context = ""
+        if domain and domain_quality_config and domain_quality_config.enabled:
+            domain_quality_memory = store.get_domain_quality_memory(domain=domain.name, limit=20)
+            domain_quality_context = rubric_context_text(domain, domain_quality_config)
+            if domain_quality_memory:
+                approved_patterns = [
+                    row["pattern"] for row in domain_quality_memory if row["outcome"] == "approved"
+                ][:5]
+                rejected_patterns = [
+                    row["pattern"] for row in domain_quality_memory if row["outcome"] == "rejected"
+                ][:5]
+                memory_lines = []
+                if approved_patterns:
+                    memory_lines.append("Prefer recent approved domain patterns:")
+                    memory_lines.extend(f"- {pattern}" for pattern in approved_patterns)
+                if rejected_patterns:
+                    memory_lines.append("Avoid recent rejected domain patterns:")
+                    memory_lines.extend(f"- {pattern}" for pattern in rejected_patterns)
+                if memory_lines:
+                    domain_quality_context = "\n".join(
+                        part for part in [domain_quality_context, "\n".join(memory_lines)] if part
+                    )
+            if domain_quality_context:
+                learned_ctx = "\n\n".join(part for part in [learned_ctx, domain_quality_context] if part)
+
         # 4. Ideate (supports multiple modes, with memory of existing ideas)
         units: list[BuildableUnit] = []
+        rejected_by_domain_quality: list[BuildableUnit] = []
+        domain_quality_scores = []
         rejected_by_quality_gate: list[BuildableUnit] = []
         critique_records_by_title: dict[str, dict] = {}
         critique_records_by_unit_id: dict[str, dict] = {}
@@ -347,6 +382,34 @@ def run_pipeline(
                 ))
 
             result.draft_ideas_generated = len(units)
+
+            if domain and domain_quality_config and domain_quality_config.enabled and units:
+                for unit in units:
+                    if not unit.id:
+                        unit.id = f"bu-{uuid.uuid4().hex[:12]}"
+                evidence_pack = build_evidence_pack(
+                    insights=recent_insights,
+                    store=store,
+                    domain=domain,
+                    gaps=gaps,
+                )
+                domain_quality_scores = score_domain_quality(
+                    units,
+                    domain=domain,
+                    config=domain_quality_config,
+                    profile_name=profile.name if profile else "",
+                    evidence_pack=evidence_pack,
+                    memory=domain_quality_memory,
+                )
+                units, rejected_by_domain_quality = enforce_domain_quality_gate(
+                    units,
+                    domain_quality_scores,
+                )
+                result.ideas_rejected_by_domain_quality = len(rejected_by_domain_quality)
+                if domain_quality_scores:
+                    result.avg_domain_quality_score = sum(
+                        score.overall_score for score in domain_quality_scores
+                    ) / len(domain_quality_scores)
 
             if quality_loop_enabled and units:
                 evidence_pack = build_evidence_pack(
@@ -417,6 +480,23 @@ def run_pipeline(
             units = dedup.kept
             result.ideas_duplicates_skipped = dedup.duplicates
             domain_name = domain.name if domain else ""
+            score_by_unit_id = {score.buildable_unit_id: score for score in domain_quality_scores}
+            for rejected in rejected_by_domain_quality:
+                rejected.domain = domain_name
+                rejected.status = "rejected"
+                store.insert_buildable_unit(rejected)
+                score = score_by_unit_id.get(rejected.id)
+                if score:
+                    store.insert_domain_quality_score(score)
+                store.insert_domain_quality_memory(
+                    domain=domain_name,
+                    outcome="rejected",
+                    pattern=f"{rejected.title}: {rejected.one_liner or rejected.problem}",
+                    source_idea_id=rejected.id,
+                    tags=rejected.rejection_tags,
+                    score=rejected.quality_score,
+                    notes=score.reasoning if score else "domain quality gate rejected",
+                )
             for rejected in rejected_by_quality_gate:
                 rejected.domain = domain_name
                 rejected.status = "rejected"
@@ -446,6 +526,9 @@ def run_pipeline(
             for unit in units:
                 unit.domain = domain_name
                 store.insert_buildable_unit(unit)
+                score = score_by_unit_id.get(unit.id)
+                if score:
+                    store.insert_domain_quality_score(score)
                 critique = critique_records_by_unit_id.get(
                     unit.id
                 ) or critique_records_by_title.get(

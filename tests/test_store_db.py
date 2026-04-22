@@ -735,6 +735,10 @@ class TestSchemaAndMigrations:
             "idea_memory",
             "design_briefs",
             "design_brief_sources",
+            "domain_quality_scores",
+            "domain_quality_memory",
+            "domain_quality_eval_runs",
+            "domain_quality_eval_items",
             "embeddings",
         }
 
@@ -764,9 +768,102 @@ class TestSchemaAndMigrations:
             "idx_design_briefs_domain",
             "idx_design_briefs_status",
             "idx_design_brief_sources_idea",
+            "idx_domain_quality_scores_unit",
+            "idx_domain_quality_scores_domain",
+            "idx_domain_quality_memory_domain",
+            "idx_domain_quality_memory_outcome",
+            "idx_domain_quality_eval_items_run",
+            "idx_domain_quality_eval_items_idea",
         }
 
         assert expected.issubset(indexes)
+
+
+# ── Domain Quality ──────────────────────────────────────────────────
+
+
+class TestDomainQualityStore:
+    def test_insert_and_get_domain_quality_score(self, store: Store) -> None:
+        from max.quality.scorer import DomainQualityScore
+
+        unit = _make_unit(unit_id="bu-dq-1")
+        store.insert_buildable_unit(unit)
+        score = DomainQualityScore(
+            buildable_unit_id="bu-dq-1",
+            domain="developer-tools",
+            profile_name="devtools",
+            rubric_version="v1",
+            dimensions={"buyer_clarity": 8.0},
+            overall_score=78.0,
+            passed_gate=True,
+            rejection_tags=[],
+            reasoning="Good domain fit.",
+        )
+
+        score_id = store.insert_domain_quality_score(score)
+        rows = store.get_domain_quality_scores("bu-dq-1")
+
+        assert rows[0]["id"] == score_id
+        assert rows[0]["dimensions"] == {"buyer_clarity": 8.0}
+        assert rows[0]["passed_gate"] is True
+
+    def test_insert_feedback_writes_domain_quality_memory(self, store: Store) -> None:
+        unit = _make_unit(unit_id="bu-dqm-1")
+        unit.domain = "developer-tools"
+        unit.rejection_tags = ["missing_buyer"]
+        store.insert_buildable_unit(unit)
+
+        store.insert_feedback("bu-dqm-1", "rejected", "unclear buyer")
+        rows = store.get_domain_quality_memory(domain="developer-tools", outcome="rejected")
+
+        assert len(rows) == 1
+        assert rows[0]["source_idea_id"] == "bu-dqm-1"
+        assert rows[0]["tags"] == ["missing_buyer"]
+
+    def test_insert_and_get_domain_quality_eval_run(self, store: Store) -> None:
+        unit = _make_unit(unit_id="bu-dqe-1")
+        store.insert_buildable_unit(unit)
+        evaluation = _make_evaluation(unit_id="bu-dqe-1", overall_score=81.0)
+        store.insert_evaluation(evaluation)
+
+        eval_run_id = store.insert_domain_quality_eval_run(
+            profile_name="devtools",
+            domain="developer-tools",
+            rubric_version="v1",
+            baseline_pipeline_run_id="run-baseline",
+            rubric_pipeline_run_id="run-rubric",
+            baseline_ideas=1,
+            rubric_ideas=1,
+            started_at="2026-04-22T00:00:00+00:00",
+            completed_at="2026-04-22T00:01:00+00:00",
+            notes="smoke",
+        )
+        item_id = store.insert_domain_quality_eval_item(
+            eval_run_id=eval_run_id,
+            buildable_unit_id="bu-dqe-1",
+            cohort="rubric",
+            domain_quality_score=74.0,
+            passed_gate=True,
+            evaluation_score=81.0,
+            review_outcome="approved",
+            approval_score=4,
+        )
+
+        row = store.get_domain_quality_eval_run(eval_run_id)
+
+        assert row is not None
+        assert row["id"] == eval_run_id
+        assert row["profile_name"] == "devtools"
+        assert row["baseline_pipeline_run_id"] == "run-baseline"
+        assert row["rubric_pipeline_run_id"] == "run-rubric"
+        assert row["notes"] == "smoke"
+        assert row["items"][0]["id"] == item_id
+        assert row["items"][0]["cohort"] == "rubric"
+        assert row["items"][0]["domain_quality_score"] == 74.0
+        assert row["items"][0]["passed_gate"] is True
+        assert row["items"][0]["evaluation_score"] == 81.0
+        assert row["items"][0]["review_outcome"] == "approved"
+        assert row["items"][0]["approval_score"] == 4
 
 
 # ── Cursor Encoding/Decoding ─────────────────────────────────────────

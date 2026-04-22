@@ -39,6 +39,26 @@ class DomainContext(BaseModel):
     good_idea_criteria: list[str] = Field(default_factory=list)
 
 
+class DomainQualityDimension(BaseModel):
+    """A domain-local quality dimension and its relative weight."""
+
+    weight: float = 1.0
+    description: str = ""
+
+
+class DomainQualityConfig(BaseModel):
+    """Domain-specific idea scoring and enforcement rules."""
+
+    enabled: bool = False
+    min_score: float = 65.0
+    required_fields: list[str] = Field(default_factory=list)
+    scoring_dimensions: dict[str, DomainQualityDimension] = Field(default_factory=dict)
+    hard_rejections: list[str] = Field(default_factory=list)
+    preferred_patterns: list[str] = Field(default_factory=list)
+    rejected_patterns: list[str] = Field(default_factory=list)
+    rubric_version: str = "v1"
+
+
 class EvaluationConfig(BaseModel):
     """Evaluation parameters from profile."""
 
@@ -52,6 +72,7 @@ class PipelineProfile(BaseModel):
 
     name: str
     domain: DomainContext
+    domain_quality: DomainQualityConfig = Field(default_factory=DomainQualityConfig)
     sources: list[SourceConfig] = Field(default_factory=list)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     output_dir: str = ".max-output"

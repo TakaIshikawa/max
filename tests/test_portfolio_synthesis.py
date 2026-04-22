@@ -5,6 +5,7 @@ from max.analysis.portfolio_synthesis import (
     render_markdown,
     synthesize_project_briefs,
 )
+from max.analysis.blueprint_export import SCHEMA_VERSION, build_blueprint_source_brief
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -128,5 +129,63 @@ def test_store_persists_design_brief_with_sources(tmp_path) -> None:
 
         store.update_design_brief_status(brief_id, "designing")
         assert store.get_design_brief(brief_id)["design_status"] == "designing"
+    finally:
+        store.close()
+
+
+def test_blueprint_export_includes_design_brief_and_source_ideas(tmp_path) -> None:
+    first = _unit("bu-1", title="AgentAdversarialBench")
+    second = _unit("bu-2", title="AgentAPIProbe")
+    candidates = build_candidates(
+        [first, second],
+        evaluations={"bu-1": _evaluation("bu-1", 75), "bu-2": _evaluation("bu-2", 70)},
+        feedback={"bu-1": {"approval_score": 8}, "bu-2": {"approval_score": 6}},
+    )
+    brief = synthesize_project_briefs(candidates, top=1)[0]
+
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        store.insert_buildable_unit(first)
+        store.insert_buildable_unit(second)
+        store.insert_evaluation(_evaluation("bu-1", 75))
+        store.insert_feedback("bu-1", "approved", "strong candidate", approval_score=8)
+        brief_id = store.insert_design_brief(brief)
+        stored = store.get_design_brief(brief_id)
+
+        packet = build_blueprint_source_brief(
+            store,
+            stored,
+            exported_at="2026-04-22T00:00:00+00:00",
+        )
+
+        assert packet["schema_version"] == SCHEMA_VERSION
+        assert packet["source"]["project"] == "max"
+        assert packet["source"]["id"] == brief_id
+        assert packet["design_brief"]["title"] == "AgentAdversarialBench"
+        assert packet["design_brief"]["source_idea_ids"] == ["bu-1", "bu-2"]
+        lead = next(item for item in packet["source_ideas"] if item["role"] == "lead")
+        assert lead["id"] == "bu-1"
+        assert lead["evaluation_score"] == 75
+        assert lead["feedback_outcome"] == "approved"
+        assert packet["blueprint_import_hints"]["recommended_source_priority"] == "design_brief"
+    finally:
+        store.close()
+
+
+def test_blueprint_export_marks_missing_source_ideas(tmp_path) -> None:
+    first = _unit("bu-1", title="AgentAdversarialBench")
+    candidates = build_candidates(
+        [first],
+        evaluations={"bu-1": _evaluation("bu-1")},
+        feedback={"bu-1": {"approval_score": 8}},
+    )
+    brief = synthesize_project_briefs(candidates, top=1)[0]
+
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = store.insert_design_brief(brief)
+        packet = build_blueprint_source_brief(store, store.get_design_brief(brief_id))
+        assert packet["source_ideas"][0]["id"] == "bu-1"
+        assert packet["source_ideas"][0]["missing"] is True
     finally:
         store.close()

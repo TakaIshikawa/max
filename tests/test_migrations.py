@@ -37,6 +37,10 @@ EXPECTED_TABLES = {
     "idea_memory",
     "design_briefs",
     "design_brief_sources",
+    "domain_quality_scores",
+    "domain_quality_memory",
+    "domain_quality_eval_runs",
+    "domain_quality_eval_items",
 }
 
 
@@ -237,6 +241,53 @@ class TestFreshSchema:
         assert {"brief_id", "idea_id", "role", "rank"}.issubset(
             _get_columns(conn, "design_brief_sources")
         )
+        conn.close()
+
+    def test_fresh_db_domain_quality_tables(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        assert {
+            "id",
+            "buildable_unit_id",
+            "domain",
+            "dimensions",
+            "overall_score",
+            "passed_gate",
+            "rejection_tags",
+        }.issubset(_get_columns(conn, "domain_quality_scores"))
+        assert {
+            "id",
+            "domain",
+            "outcome",
+            "pattern",
+            "source_idea_id",
+            "source_design_brief_id",
+        }.issubset(_get_columns(conn, "domain_quality_memory"))
+        assert {
+            "id",
+            "profile_name",
+            "domain",
+            "rubric_version",
+            "baseline_pipeline_run_id",
+            "rubric_pipeline_run_id",
+            "baseline_ideas",
+            "rubric_ideas",
+            "started_at",
+            "completed_at",
+            "notes",
+        }.issubset(_get_columns(conn, "domain_quality_eval_runs"))
+        assert {
+            "id",
+            "eval_run_id",
+            "buildable_unit_id",
+            "cohort",
+            "domain_quality_score",
+            "passed_gate",
+            "evaluation_score",
+            "review_outcome",
+            "approval_score",
+            "created_at",
+        }.issubset(_get_columns(conn, "domain_quality_eval_items"))
         conn.close()
 
 

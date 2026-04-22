@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 18
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -232,6 +232,73 @@ CREATE TABLE IF NOT EXISTS design_brief_sources (
 CREATE INDEX IF NOT EXISTS idx_design_briefs_domain ON design_briefs(domain);
 CREATE INDEX IF NOT EXISTS idx_design_briefs_status ON design_briefs(design_status);
 CREATE INDEX IF NOT EXISTS idx_design_brief_sources_idea ON design_brief_sources(idea_id);
+
+CREATE TABLE IF NOT EXISTS domain_quality_scores (
+    id TEXT PRIMARY KEY,
+    buildable_unit_id TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    profile_name TEXT NOT NULL DEFAULT '',
+    rubric_version TEXT NOT NULL DEFAULT 'v1',
+    dimensions TEXT NOT NULL DEFAULT '{}',
+    overall_score REAL NOT NULL DEFAULT 0.0,
+    passed_gate INTEGER NOT NULL DEFAULT 0,
+    rejection_tags TEXT NOT NULL DEFAULT '[]',
+    reasoning TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE TABLE IF NOT EXISTS domain_quality_memory (
+    id TEXT PRIMARY KEY,
+    domain TEXT NOT NULL DEFAULT '',
+    outcome TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    source_idea_id TEXT DEFAULT NULL,
+    source_design_brief_id TEXT DEFAULT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    score REAL NOT NULL DEFAULT 0.0,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (source_idea_id) REFERENCES buildable_units(id),
+    FOREIGN KEY (source_design_brief_id) REFERENCES design_briefs(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_domain_quality_scores_unit ON domain_quality_scores(buildable_unit_id);
+CREATE INDEX IF NOT EXISTS idx_domain_quality_scores_domain ON domain_quality_scores(domain);
+CREATE INDEX IF NOT EXISTS idx_domain_quality_memory_domain ON domain_quality_memory(domain);
+CREATE INDEX IF NOT EXISTS idx_domain_quality_memory_outcome ON domain_quality_memory(outcome);
+
+CREATE TABLE IF NOT EXISTS domain_quality_eval_runs (
+    id TEXT PRIMARY KEY,
+    profile_name TEXT NOT NULL DEFAULT '',
+    domain TEXT NOT NULL DEFAULT '',
+    rubric_version TEXT NOT NULL DEFAULT 'v1',
+    baseline_pipeline_run_id TEXT NOT NULL DEFAULT '',
+    rubric_pipeline_run_id TEXT NOT NULL DEFAULT '',
+    baseline_ideas INTEGER NOT NULL DEFAULT 0,
+    rubric_ideas INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS domain_quality_eval_items (
+    id TEXT PRIMARY KEY,
+    eval_run_id TEXT NOT NULL,
+    buildable_unit_id TEXT NOT NULL,
+    cohort TEXT NOT NULL,
+    domain_quality_score REAL DEFAULT NULL,
+    passed_gate INTEGER DEFAULT NULL,
+    evaluation_score REAL DEFAULT NULL,
+    review_outcome TEXT DEFAULT NULL,
+    approval_score INTEGER DEFAULT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (eval_run_id) REFERENCES domain_quality_eval_runs(id),
+    FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_domain_quality_eval_items_run ON domain_quality_eval_items(eval_run_id);
+CREATE INDEX IF NOT EXISTS idx_domain_quality_eval_items_idea ON domain_quality_eval_items(buildable_unit_id);
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT NOT NULL,
@@ -534,6 +601,97 @@ def _migrate_v15_to_v16(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
+    """Add domain quality score and memory tables."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS domain_quality_scores (
+            id TEXT PRIMARY KEY,
+            buildable_unit_id TEXT NOT NULL,
+            domain TEXT NOT NULL DEFAULT '',
+            profile_name TEXT NOT NULL DEFAULT '',
+            rubric_version TEXT NOT NULL DEFAULT 'v1',
+            dimensions TEXT NOT NULL DEFAULT '{}',
+            overall_score REAL NOT NULL DEFAULT 0.0,
+            passed_gate INTEGER NOT NULL DEFAULT 0,
+            rejection_tags TEXT NOT NULL DEFAULT '[]',
+            reasoning TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS domain_quality_memory (
+            id TEXT PRIMARY KEY,
+            domain TEXT NOT NULL DEFAULT '',
+            outcome TEXT NOT NULL,
+            pattern TEXT NOT NULL,
+            source_idea_id TEXT DEFAULT NULL,
+            source_design_brief_id TEXT DEFAULT NULL,
+            tags TEXT NOT NULL DEFAULT '[]',
+            score REAL NOT NULL DEFAULT 0.0,
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (source_idea_id) REFERENCES buildable_units(id),
+            FOREIGN KEY (source_design_brief_id) REFERENCES design_briefs(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_scores_unit ON domain_quality_scores(buildable_unit_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_scores_domain ON domain_quality_scores(domain)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_memory_domain ON domain_quality_memory(domain)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_memory_outcome ON domain_quality_memory(outcome)"
+    )
+    conn.commit()
+
+
+def _migrate_v17_to_v18(conn: sqlite3.Connection) -> None:
+    """Add domain quality eval run tables."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS domain_quality_eval_runs (
+            id TEXT PRIMARY KEY,
+            profile_name TEXT NOT NULL DEFAULT '',
+            domain TEXT NOT NULL DEFAULT '',
+            rubric_version TEXT NOT NULL DEFAULT 'v1',
+            baseline_pipeline_run_id TEXT NOT NULL DEFAULT '',
+            rubric_pipeline_run_id TEXT NOT NULL DEFAULT '',
+            baseline_ideas INTEGER NOT NULL DEFAULT 0,
+            rubric_ideas INTEGER NOT NULL DEFAULT 0,
+            started_at TEXT NOT NULL,
+            completed_at TEXT NOT NULL,
+            notes TEXT NOT NULL DEFAULT ''
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS domain_quality_eval_items (
+            id TEXT PRIMARY KEY,
+            eval_run_id TEXT NOT NULL,
+            buildable_unit_id TEXT NOT NULL,
+            cohort TEXT NOT NULL,
+            domain_quality_score REAL DEFAULT NULL,
+            passed_gate INTEGER DEFAULT NULL,
+            evaluation_score REAL DEFAULT NULL,
+            review_outcome TEXT DEFAULT NULL,
+            approval_score INTEGER DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (eval_run_id) REFERENCES domain_quality_eval_runs(id),
+            FOREIGN KEY (buildable_unit_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_eval_items_run ON domain_quality_eval_items(eval_run_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_domain_quality_eval_items_idea ON domain_quality_eval_items(buildable_unit_id)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -594,6 +752,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 16:
         _migrate_v15_to_v16(conn)
+
+    if current < 17:
+        _migrate_v16_to_v17(conn)
+
+    if current < 18:
+        _migrate_v17_to_v18(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

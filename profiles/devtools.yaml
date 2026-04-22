@@ -43,6 +43,53 @@ domain:
     - can be validated in a public repo within 2 weeks
     - has clear integration or distribution path
 
+domain_quality:
+  enabled: true
+  min_score: 68.0
+  required_fields:
+    - buyer
+    - specific_user
+    - workflow_context
+    - validation_plan
+  scoring_dimensions:
+    workflow_specificity:
+      weight: 1.4
+      description: Owns a concrete developer workflow moment.
+    buyer_clarity:
+      weight: 1.2
+      description: Names a buyer or adopting team.
+    evidence_support:
+      weight: 1.4
+      description: Ties back to repeated evidence or concrete signals.
+    implementation_feasibility:
+      weight: 1.1
+      description: Can be prototyped without ecosystem migration.
+    differentiation:
+      weight: 1.0
+      description: Avoids generic assistant or dashboard patterns.
+    distribution_path:
+      weight: 1.0
+      description: Has an adoption path through CLI, API, OSS, or existing workflow.
+    domain_risk_control:
+      weight: 0.9
+      description: Handles trust, security, and integration risks explicitly.
+  hard_rejections:
+    - missing_buyer
+    - missing_workflow
+    - generic_ai_assistant
+    - weak_evidence
+  preferred_patterns:
+    - CLI-first workflow tool
+    - evaluation harness
+    - security or proxy layer
+    - observability for agent runs
+    - local-first developer utility
+  rejected_patterns:
+    - generic coding assistant
+    - dashboard without developer action
+    - marketplace without distribution proof
+    - prompt library without workflow ownership
+
 sources:
   - adapter: hackernews
     enabled: true

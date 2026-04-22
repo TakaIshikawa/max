@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from max.store.db import Store
-from max.store.migrations import SCHEMA_VERSION, _migrate_v7_to_v8, ensure_schema
+from max.store.migrations import SCHEMA_VERSION, _migrate_v7_to_v8
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
@@ -174,9 +174,9 @@ class TestSchemaV8Migration:
 
         conn.close()
 
-    def test_schema_version_is_16(self) -> None:
-        """Current schema version should be 16."""
-        assert SCHEMA_VERSION == 16
+    def test_schema_version_is_18(self) -> None:
+        """Current schema version should be 18."""
+        assert SCHEMA_VERSION == 18
 
 
 # ── Archive operations tests ─────────────────────────────────────────

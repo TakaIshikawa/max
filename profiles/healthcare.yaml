@@ -55,6 +55,56 @@ domain:
     Prioritize ideas that reduce clinician burnout or improve patient outcomes.
     Consider regulatory pathways (FDA, CE marking) for clinical decision support tools.
 
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  required_fields:
+    - buyer
+    - specific_user
+    - workflow_context
+    - current_workaround
+    - validation_plan
+  scoring_dimensions:
+    workflow_specificity:
+      weight: 1.5
+      description: Owns a specific clinical, admin, or revenue workflow.
+    buyer_clarity:
+      weight: 1.4
+      description: Names the economic buyer and operator.
+    evidence_support:
+      weight: 1.3
+      description: Uses repeated evidence-backed pain, not generic digital health trends.
+    compliance_fit:
+      weight: 1.5
+      description: Respects HIPAA, auditability, and human review boundaries.
+    ehr_dependency_risk:
+      weight: 1.3
+      description: Avoids requiring full EHR replacement or impossible access.
+    admin_roi:
+      weight: 1.2
+      description: Improves measurable admin burden, leakage, or throughput.
+    validation_feasibility:
+      weight: 1.2
+      description: Can be tested in two weeks without deep clinical risk.
+  hard_rejections:
+    - autonomous_diagnosis
+    - impossible_ehr_access
+    - no_clear_buyer
+    - consumer_app_without_distribution
+    - missing_workflow
+  preferred_patterns:
+    - prior authorization workflow
+    - compliance traceability
+    - patient intake automation
+    - revenue-cycle administrative ROI
+    - human-reviewed eligibility or documentation support
+  rejected_patterns:
+    - generic AI doctor
+    - EHR replacement
+    - diagnosis without physician review
+    - consumer wellness app without distribution
+    - dashboard without workflow ownership
+
 sources:
   - adapter: reddit
     params:

@@ -680,6 +680,240 @@ class Store:
             for row in rows
         ]
 
+    # ── Domain Quality ──────────────────────────────────────────────
+
+    def insert_domain_quality_score(self, score) -> str:
+        """Persist a domain quality score record."""
+        score_id = _gen_id("dqs")
+        self.conn.execute(
+            """INSERT INTO domain_quality_scores
+               (id, buildable_unit_id, domain, profile_name, rubric_version,
+                dimensions, overall_score, passed_gate, rejection_tags,
+                reasoning, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                score_id,
+                score.buildable_unit_id,
+                score.domain,
+                score.profile_name,
+                score.rubric_version,
+                json.dumps(score.dimensions),
+                score.overall_score,
+                1 if score.passed_gate else 0,
+                json.dumps(score.rejection_tags),
+                score.reasoning,
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return score_id
+
+    def get_domain_quality_scores(self, unit_id: str) -> list[dict]:
+        """Return domain quality scores for an idea, newest first."""
+        rows = self.conn.execute(
+            """SELECT * FROM domain_quality_scores
+               WHERE buildable_unit_id = ?
+               ORDER BY created_at DESC""",
+            (unit_id,),
+        ).fetchall()
+        return [self._row_to_domain_quality_score(row) for row in rows]
+
+    def insert_domain_quality_memory(
+        self,
+        *,
+        domain: str,
+        outcome: str,
+        pattern: str,
+        source_idea_id: str | None = None,
+        source_design_brief_id: str | None = None,
+        tags: list[str] | None = None,
+        score: float = 0.0,
+        notes: str = "",
+    ) -> str:
+        """Persist domain-local success/rejection memory."""
+        memory_id = _gen_id("dqm")
+        self.conn.execute(
+            """INSERT INTO domain_quality_memory
+               (id, domain, outcome, pattern, source_idea_id,
+                source_design_brief_id, tags, score, notes, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                memory_id,
+                domain or "",
+                outcome,
+                pattern,
+                source_idea_id,
+                source_design_brief_id,
+                json.dumps(tags or []),
+                score,
+                notes,
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return memory_id
+
+    def get_domain_quality_memory(
+        self,
+        *,
+        domain: str | None = None,
+        outcome: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Return domain quality memory rows."""
+        query = "SELECT * FROM domain_quality_memory"
+        conditions: list[str] = []
+        params: list = []
+        if domain:
+            conditions.append("(domain = ? OR domain = '')")
+            params.append(domain)
+        if outcome:
+            conditions.append("outcome = ?")
+            params.append(outcome)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [self._row_to_domain_quality_memory(row) for row in rows]
+
+    def _row_to_domain_quality_score(self, row: sqlite3.Row) -> dict:
+        return {
+            "id": row["id"],
+            "buildable_unit_id": row["buildable_unit_id"],
+            "domain": row["domain"],
+            "profile_name": row["profile_name"],
+            "rubric_version": row["rubric_version"],
+            "dimensions": json.loads(row["dimensions"]),
+            "overall_score": row["overall_score"],
+            "passed_gate": bool(row["passed_gate"]),
+            "rejection_tags": json.loads(row["rejection_tags"]),
+            "reasoning": row["reasoning"],
+            "created_at": row["created_at"],
+        }
+
+    def _row_to_domain_quality_memory(self, row: sqlite3.Row) -> dict:
+        return {
+            "id": row["id"],
+            "domain": row["domain"],
+            "outcome": row["outcome"],
+            "pattern": row["pattern"],
+            "source_idea_id": row["source_idea_id"],
+            "source_design_brief_id": row["source_design_brief_id"],
+            "tags": json.loads(row["tags"]),
+            "score": row["score"],
+            "notes": row["notes"],
+            "created_at": row["created_at"],
+        }
+
+    def insert_domain_quality_eval_run(
+        self,
+        *,
+        profile_name: str,
+        domain: str,
+        rubric_version: str,
+        baseline_pipeline_run_id: str,
+        rubric_pipeline_run_id: str,
+        baseline_ideas: int,
+        rubric_ideas: int,
+        started_at: str,
+        completed_at: str,
+        notes: str = "",
+    ) -> str:
+        """Persist a domain-quality baseline-vs-rubric eval run."""
+        eval_run_id = _gen_id("dqeval")
+        self.conn.execute(
+            """INSERT INTO domain_quality_eval_runs
+               (id, profile_name, domain, rubric_version,
+                baseline_pipeline_run_id, rubric_pipeline_run_id,
+                baseline_ideas, rubric_ideas, started_at, completed_at, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                eval_run_id,
+                profile_name,
+                domain,
+                rubric_version,
+                baseline_pipeline_run_id,
+                rubric_pipeline_run_id,
+                baseline_ideas,
+                rubric_ideas,
+                started_at,
+                completed_at,
+                notes,
+            ),
+        )
+        self._commit()
+        return eval_run_id
+
+    def insert_domain_quality_eval_item(
+        self,
+        *,
+        eval_run_id: str,
+        buildable_unit_id: str,
+        cohort: str,
+        domain_quality_score: float | None = None,
+        passed_gate: bool | None = None,
+        evaluation_score: float | None = None,
+        review_outcome: str | None = None,
+        approval_score: int | None = None,
+    ) -> str:
+        """Persist one idea in a domain-quality eval cohort."""
+        item_id = _gen_id("dqitem")
+        self.conn.execute(
+            """INSERT INTO domain_quality_eval_items
+               (id, eval_run_id, buildable_unit_id, cohort,
+                domain_quality_score, passed_gate, evaluation_score,
+                review_outcome, approval_score, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                item_id,
+                eval_run_id,
+                buildable_unit_id,
+                cohort,
+                domain_quality_score,
+                None if passed_gate is None else 1 if passed_gate else 0,
+                evaluation_score,
+                review_outcome,
+                approval_score,
+                _now_iso(),
+            ),
+        )
+        self._commit()
+        return item_id
+
+    def get_domain_quality_eval_run(self, eval_run_id: str) -> dict | None:
+        """Return an eval run with its cohort items."""
+        row = self.conn.execute(
+            "SELECT * FROM domain_quality_eval_runs WHERE id = ?", (eval_run_id,)
+        ).fetchone()
+        if not row:
+            return None
+        items = self.conn.execute(
+            """SELECT * FROM domain_quality_eval_items
+               WHERE eval_run_id = ?
+               ORDER BY cohort, created_at""",
+            (eval_run_id,),
+        ).fetchall()
+        result = dict(row)
+        result["items"] = [
+            {
+                "id": item["id"],
+                "eval_run_id": item["eval_run_id"],
+                "buildable_unit_id": item["buildable_unit_id"],
+                "cohort": item["cohort"],
+                "domain_quality_score": item["domain_quality_score"],
+                "passed_gate": None
+                if item["passed_gate"] is None
+                else bool(item["passed_gate"]),
+                "evaluation_score": item["evaluation_score"],
+                "review_outcome": item["review_outcome"],
+                "approval_score": item["approval_score"],
+                "created_at": item["created_at"],
+            }
+            for item in items
+        ]
+        return result
+
     # ── Design Briefs ───────────────────────────────────────────────
 
     def insert_design_brief(self, brief) -> str:
@@ -970,6 +1204,15 @@ class Store:
                         row["evidence_rationale"],
                         _now_iso(),
                     ),
+                )
+                self.insert_domain_quality_memory(
+                    domain=row["domain"],
+                    outcome=memory_outcome,
+                    pattern=pattern,
+                    source_idea_id=unit_id,
+                    tags=json.loads(row["rejection_tags"]),
+                    score=row["quality_score"],
+                    notes=reason,
                 )
         self._commit()
 

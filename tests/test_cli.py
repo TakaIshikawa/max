@@ -87,10 +87,43 @@ def _mock_store(**overrides) -> MagicMock:
     store.get_buildable_units.return_value = overrides.get("units", [])
     store.get_buildable_unit.return_value = overrides.get("unit", None)
     store.get_evaluation.return_value = overrides.get("evaluation", None)
+    store.get_latest_feedback.return_value = overrides.get("latest_feedback", None)
     store.get_feedback_outcomes.return_value = overrides.get("feedback_outcomes", [])
     store.get_signals.return_value = overrides.get("signals", [])
+    store.get_design_brief.return_value = overrides.get("design_brief", None)
+    store.get_design_briefs.return_value = overrides.get("design_briefs", [])
+    store.get_domain_quality_scores.return_value = overrides.get("domain_quality_scores", [])
+    store.get_domain_quality_memory.return_value = overrides.get("domain_quality_memory", [])
+    store.insert_domain_quality_eval_run.return_value = overrides.get("eval_run_id", "dqeval-test001")
+    store.insert_domain_quality_eval_item.return_value = overrides.get("eval_item_id", "dqitem-test001")
     store.close.return_value = None
     return store
+
+
+def _design_brief_dict(brief_id: str = "dbf-test001") -> dict:
+    return {
+        "id": brief_id,
+        "title": "AgentAdversarialBench",
+        "domain": "developer-tools",
+        "theme": "agent-security-evaluation",
+        "readiness_score": 86.0,
+        "lead_idea_id": "bu-test001",
+        "buyer": "engineering manager",
+        "specific_user": "platform engineer",
+        "workflow_context": "CI gate before deployment",
+        "why_this_now": "Agent tool use is growing.",
+        "merged_product_concept": "Run adversarial workflow fixtures.",
+        "synthesis_rationale": "Strong lead idea.",
+        "mvp_scope": ["CLI runner"],
+        "first_milestones": ["Prototype CLI"],
+        "validation_plan": "Run with three teams.",
+        "risks": ["Framework churn"],
+        "source_idea_ids": ["bu-test001"],
+        "design_status": "candidate",
+        "created_at": "2026-04-22T00:00:00+00:00",
+        "updated_at": "2026-04-22T00:00:00+00:00",
+        "sources": [{"idea_id": "bu-test001", "role": "lead", "rank": 0}],
+    }
 
 
 # ── run command ────────────────────────────────────────────────────
@@ -254,6 +287,242 @@ class TestRunCommand:
         assert "Token usage:" in result.output
         assert "Top ideas:" in result.output
         assert "Cool Idea" in result.output
+
+
+class TestBlueprintExportCommands:
+    @patch("max.store.db.Store")
+    def test_export_design_brief_stdout_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["export-design-brief", "dbf-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert '"schema_version": "max.blueprint.source_brief.v1"' in result.output
+        assert '"entity_type": "design_brief"' in result.output
+        assert '"source_ideas"' in result.output
+        store.get_design_brief.assert_called_once_with("dbf-test001")
+
+    @patch("max.store.db.Store")
+    def test_export_design_brief_writes_yaml(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                [
+                    "export-design-brief",
+                    "dbf-test001",
+                    "--format",
+                    "yaml",
+                    "--output",
+                    "brief.yaml",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            assert Path("brief.yaml").exists()
+            assert "schema_version: max.blueprint.source_brief.v1" in Path("brief.yaml").read_text()
+
+    @patch("max.store.db.Store")
+    def test_export_design_briefs_batch(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_briefs.return_value = [
+            _design_brief_dict("dbf-one"),
+            _design_brief_dict("dbf-two"),
+        ]
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                ["export-design-briefs", "--output", "out", "--format", "json"],
+            )
+            assert result.exit_code == 0, result.output
+            assert Path("out/dbf-one.json").exists()
+            assert Path("out/dbf-two.json").exists()
+            assert "Wrote 2 Blueprint source brief(s)" in result.output
+
+    @patch("max.store.db.Store")
+    def test_export_design_brief_not_found(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["export-design-brief", "dbf-missing"])
+
+        assert result.exit_code != 0
+        assert "Design brief not found: dbf-missing" in result.output
+
+
+class TestDomainQualityCommands:
+    @patch("max.store.db.Store")
+    def test_domain_quality_score(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(
+            unit=_make_unit(),
+            domain_quality_scores=[
+                {
+                    "id": "dqs-1",
+                    "buildable_unit_id": "bu-test001",
+                    "domain": "developer-tools",
+                    "profile_name": "devtools",
+                    "rubric_version": "v1",
+                    "dimensions": {"buyer_clarity": 8.0},
+                    "overall_score": 78.0,
+                    "passed_gate": True,
+                    "rejection_tags": [],
+                    "reasoning": "Good domain fit.",
+                    "created_at": "2026-04-22T00:00:00+00:00",
+                }
+            ],
+        )
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["domain-quality", "score", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "78.0" in result.output
+        assert "[passed]" in result.output
+        assert "Good domain fit." in result.output
+
+    @patch("max.store.db.Store")
+    def test_domain_quality_memory(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(
+            domain_quality_memory=[
+                {
+                    "id": "dqm-1",
+                    "domain": "healthcare",
+                    "outcome": "rejected",
+                    "pattern": "AI doctor: diagnosis without review",
+                    "source_idea_id": "bu-1",
+                    "source_design_brief_id": None,
+                    "tags": ["autonomous_diagnosis"],
+                    "score": 30.0,
+                    "notes": "unsafe",
+                    "created_at": "2026-04-22T00:00:00+00:00",
+                }
+            ],
+        )
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["domain-quality", "memory", "--domain", "healthcare"])
+
+        assert result.exit_code == 0, result.output
+        assert "AI doctor" in result.output
+        assert "autonomous_diagnosis" in result.output
+
+    @patch("max.pipeline.runner.run_pipeline")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.store.db.Store")
+    def test_domain_quality_eval_runs_baseline_and_rubric(
+        self,
+        MockStore,
+        mock_load_profile,
+        mock_run_pipeline,
+        runner: CliRunner,
+    ) -> None:
+        from max.pipeline.runner import PipelineResult
+        from max.profiles.schema import (
+            DomainContext,
+            DomainQualityConfig,
+            DomainQualityDimension,
+            EvaluationConfig,
+            PipelineProfile,
+        )
+
+        profile = PipelineProfile(
+            name="devtools",
+            domain=DomainContext(
+                name="developer-tools",
+                description="Developer tools",
+                categories=["cli_tool"],
+                target_user_types=["developers"],
+            ),
+            domain_quality=DomainQualityConfig(
+                enabled=True,
+                rubric_version="v1",
+                scoring_dimensions={
+                    "buyer_clarity": DomainQualityDimension(weight=1.0),
+                },
+            ),
+            evaluation=EvaluationConfig(min_score=50.0),
+            quality_loop_enabled=True,
+            draft_count=8,
+        )
+        mock_load_profile.return_value = profile
+
+        baseline_unit = _make_unit(id="bu-baseline", title="Baseline Idea")
+        baseline_unit.domain = "developer-tools"
+        rubric_unit = _make_unit(id="bu-rubric", title="Rubric Idea")
+        rubric_unit.domain = "developer-tools"
+
+        store = _mock_store(evaluation=_make_evaluation(score=82.0))
+        store.get_buildable_units.side_effect = [
+            [],
+            [baseline_unit],
+            [baseline_unit, rubric_unit],
+        ]
+        store.get_domain_quality_scores.side_effect = [
+            [],
+            [
+                {
+                    "overall_score": 74.0,
+                    "passed_gate": True,
+                }
+            ],
+        ]
+        MockStore.return_value = store
+
+        mock_run_pipeline.side_effect = [
+            PipelineResult(
+                run_id="run-baseline",
+                draft_ideas_generated=4,
+                ideas_evaluated=1,
+                avg_idea_score=70.0,
+            ),
+            PipelineResult(
+                run_id="run-rubric",
+                draft_ideas_generated=4,
+                ideas_evaluated=1,
+                avg_idea_score=82.0,
+                avg_domain_quality_score=74.0,
+                ideas_rejected_by_domain_quality=1,
+            ),
+        ]
+
+        result = runner.invoke(
+            main,
+            [
+                "domain-quality",
+                "eval",
+                "--profile",
+                "devtools",
+                "--draft-count",
+                "4",
+                "--stages",
+                "ideate,evaluate",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Domain quality eval: dqeval-test001" in result.output
+        assert "baseline" in result.output
+        assert "rubric" in result.output
+        assert mock_run_pipeline.call_count == 2
+        assert mock_run_pipeline.call_args_list[0].kwargs["profile"].domain_quality.enabled is False
+        assert mock_run_pipeline.call_args_list[1].kwargs["profile"].domain_quality.enabled is True
+        store.insert_domain_quality_eval_run.assert_called_once()
+        assert store.insert_domain_quality_eval_item.call_count == 2
+        first_item = store.insert_domain_quality_eval_item.call_args_list[0].kwargs
+        second_item = store.insert_domain_quality_eval_item.call_args_list[1].kwargs
+        assert first_item["buildable_unit_id"] == "bu-baseline"
+        assert first_item["cohort"] == "baseline"
+        assert first_item["domain_quality_score"] is None
+        assert second_item["buildable_unit_id"] == "bu-rubric"
+        assert second_item["cohort"] == "rubric"
+        assert second_item["domain_quality_score"] == 74.0
 
 
 # ── ideas command ──────────────────────────────────────────────────

@@ -238,6 +238,71 @@ class IdeaDetailResponse(BaseModel):
     evaluation: EvaluationResponse | None = None
 
 
+class DesignBriefSourceResponse(BaseModel):
+    idea_id: str
+    role: str
+    rank: int
+
+
+class DesignBriefResponse(BaseModel):
+    id: str
+    title: str
+    domain: str
+    theme: str
+    readiness_score: float
+    lead_idea_id: str
+    buyer: str
+    specific_user: str
+    workflow_context: str
+    why_this_now: str
+    merged_product_concept: str
+    synthesis_rationale: str
+    mvp_scope: list[str]
+    first_milestones: list[str]
+    validation_plan: str
+    risks: list[str]
+    source_idea_ids: list[str]
+    design_status: str
+    created_at: str
+    updated_at: str
+    sources: list[DesignBriefSourceResponse]
+
+
+class BlueprintSourceBriefResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    source_ideas: list[dict]
+    blueprint_import_hints: dict
+
+
+class DomainQualityScoreResponse(BaseModel):
+    id: str
+    buildable_unit_id: str
+    domain: str
+    profile_name: str
+    rubric_version: str
+    dimensions: dict[str, float]
+    overall_score: float
+    passed_gate: bool
+    rejection_tags: list[str]
+    reasoning: str
+    created_at: str
+
+
+class DomainQualityMemoryResponse(BaseModel):
+    id: str
+    domain: str
+    outcome: str
+    pattern: str
+    source_idea_id: str | None = None
+    source_design_brief_id: str | None = None
+    tags: list[str]
+    score: float
+    notes: str
+    created_at: str
+
+
 class PipelineResultResponse(BaseModel):
     signals_fetched: int
     signals_new: int
@@ -247,6 +312,8 @@ class PipelineResultResponse(BaseModel):
     draft_ideas_generated: int = 0
     ideas_revised: int = 0
     ideas_rejected_by_quality_gate: int = 0
+    ideas_rejected_by_domain_quality: int = 0
+    avg_domain_quality_score: float = 0.0
     avg_novelty_score: float = 0.0
     avg_usefulness_score: float = 0.0
     avg_insight_confidence: float

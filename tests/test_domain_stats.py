@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from max.store.db import Store
 from max.store.migrations import SCHEMA_VERSION, ensure_schema
@@ -69,8 +67,8 @@ def _make_evaluation(unit_id: str = "bu-test001", overall_score: float = 72.0) -
 
 
 class TestMigration:
-    def test_schema_version_is_16(self) -> None:
-        assert SCHEMA_VERSION == 16
+    def test_schema_version_is_18(self) -> None:
+        assert SCHEMA_VERSION == 18
 
     def test_fresh_schema_creates_pipeline_run_domains_table(self, tmp_path: Path) -> None:
         db_path = str(tmp_path / "fresh.db")
@@ -240,7 +238,7 @@ class TestMigration:
 
         # Verify version is updated
         version = conn.execute("SELECT version FROM schema_version").fetchone()[0]
-        assert version == 16
+        assert version == 18
 
         conn.close()
 

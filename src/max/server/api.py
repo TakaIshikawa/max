@@ -13,6 +13,10 @@ from max import config
 from max.server.dependencies import get_store
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
+    BlueprintSourceBriefResponse,
+    DesignBriefResponse,
+    DomainQualityMemoryResponse,
+    DomainQualityScoreResponse,
     DimensionScoreResponse,
     DryRunReportResponse,
     EvaluationResponse,
@@ -247,6 +251,10 @@ def _unit_detail(
     )
 
 
+def _design_brief_to_response(brief: dict) -> DesignBriefResponse:
+    return DesignBriefResponse(**brief)
+
+
 # ── Signals ─────────────────────────────────────────────────────────
 
 
@@ -436,6 +444,17 @@ def get_idea_evidence_pack(idea_id: str, store: Store = Depends(get_store)) -> d
     return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
 
 
+@router.get("/ideas/{idea_id}/domain-quality", response_model=list[DomainQualityScoreResponse])
+def get_idea_domain_quality(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> list[DomainQualityScoreResponse]:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return [DomainQualityScoreResponse(**row) for row in store.get_domain_quality_scores(idea_id)]
+
+
 def _evaluate_idea_background(idea_id: str) -> None:
     """Run evaluation in background (blocking LLM call)."""
     from max.evaluation.engine import evaluate
@@ -504,6 +523,57 @@ def create_feedback(
     return {"status": "ok", "idea_id": idea_id, "outcome": body.outcome}
 
 
+# ── Design Briefs ───────────────────────────────────────────────────
+
+
+@router.get("/design-briefs", response_model=list[DesignBriefResponse])
+def list_design_briefs(
+    domain: str | None = None,
+    status: str | None = None,
+    limit: int = 20,
+    store: Store = Depends(get_store),
+) -> list[DesignBriefResponse]:
+    limit = min(limit, 100)
+    briefs = store.get_design_briefs(domain=domain, status=status, limit=limit)
+    return [_design_brief_to_response(brief) for brief in briefs]
+
+
+@router.get("/design-briefs/{brief_id}", response_model=DesignBriefResponse)
+def get_design_brief(brief_id: str, store: Store = Depends(get_store)) -> DesignBriefResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_to_response(brief)
+
+
+@router.get("/design-briefs/{brief_id}/blueprint", response_model=BlueprintSourceBriefResponse)
+def get_design_brief_blueprint(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> BlueprintSourceBriefResponse:
+    from max.analysis.blueprint_export import build_blueprint_source_brief
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return BlueprintSourceBriefResponse(**build_blueprint_source_brief(store, brief))
+
+
+# ── Domain Quality ──────────────────────────────────────────────────
+
+
+@router.get("/domains/{domain}/quality-memory", response_model=list[DomainQualityMemoryResponse])
+def get_domain_quality_memory(
+    domain: str,
+    outcome: str | None = None,
+    limit: int = 50,
+    store: Store = Depends(get_store),
+) -> list[DomainQualityMemoryResponse]:
+    limit = min(limit, 100)
+    rows = store.get_domain_quality_memory(domain=domain, outcome=outcome, limit=limit)
+    return [DomainQualityMemoryResponse(**row) for row in rows]
+
+
 # ── Pipeline ────────────────────────────────────────────────────────
 
 
@@ -536,6 +606,8 @@ async def run_pipeline_endpoint(body: PipelineRunRequest) -> PipelineResultRespo
         draft_ideas_generated=result.draft_ideas_generated,
         ideas_revised=result.ideas_revised,
         ideas_rejected_by_quality_gate=result.ideas_rejected_by_quality_gate,
+        ideas_rejected_by_domain_quality=result.ideas_rejected_by_domain_quality,
+        avg_domain_quality_score=result.avg_domain_quality_score,
         avg_novelty_score=result.avg_novelty_score,
         avg_usefulness_score=result.avg_usefulness_score,
         avg_insight_confidence=result.avg_insight_confidence,
