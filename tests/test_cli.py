@@ -289,6 +289,70 @@ class TestRunCommand:
         assert "Cool Idea" in result.output
 
 
+# ── profiles command ────────────────────────────────────────────────
+
+
+class TestProfilesCommand:
+    """Tests for ``max profiles`` commands."""
+
+    @patch("max.profiles.loader.validate_profile_files")
+    def test_profiles_validate_all_success(self, mock_validate, runner: CliRunner) -> None:
+        from max.profiles.loader import ProfileFileValidationResult
+
+        mock_validate.return_value = [
+            ProfileFileValidationResult("devtools", Path("profiles/devtools.yaml"), []),
+            ProfileFileValidationResult("healthcare", Path("profiles/healthcare.yaml"), []),
+        ]
+
+        result = runner.invoke(main, ["profiles", "validate"])
+
+        assert result.exit_code == 0, result.output
+        assert "devtools: OK" in result.output
+        assert "healthcare: OK" in result.output
+        mock_validate.assert_called_once_with(profile=None)
+
+    @patch("max.profiles.loader.validate_profile_files")
+    def test_profiles_validate_single_profile(self, mock_validate, runner: CliRunner) -> None:
+        from max.profiles.loader import ProfileFileValidationResult
+
+        mock_validate.return_value = [
+            ProfileFileValidationResult("devtools", Path("profiles/devtools.yaml"), []),
+        ]
+
+        result = runner.invoke(main, ["profiles", "validate", "--profile", "devtools"])
+
+        assert result.exit_code == 0, result.output
+        assert result.output.strip() == "devtools: OK"
+        mock_validate.assert_called_once_with(profile="devtools")
+
+    @patch("max.profiles.loader.validate_profile_files")
+    def test_profiles_validate_error_exits_nonzero(self, mock_validate, runner: CliRunner) -> None:
+        from max.profiles.loader import ProfileFileValidationResult
+
+        mock_validate.return_value = [
+            ProfileFileValidationResult(
+                "bad",
+                Path("profiles/bad.yaml"),
+                ["schema: sources.0.adapter: 'bogus' is not one of ['reddit']"],
+            ),
+        ]
+
+        result = runner.invoke(main, ["profiles", "validate"])
+
+        assert result.exit_code == 1
+        assert "bad: ERROR" in result.output
+        assert "schema: sources.0.adapter" in result.output
+
+    @patch("max.profiles.loader.validate_profile_files")
+    def test_profiles_validate_missing_profile(self, mock_validate, runner: CliRunner) -> None:
+        mock_validate.side_effect = FileNotFoundError("Profile 'missing' not found")
+
+        result = runner.invoke(main, ["profiles", "validate", "--profile", "missing"])
+
+        assert result.exit_code != 0
+        assert "Profile 'missing' not found" in result.output
+
+
 class TestBlueprintExportCommands:
     @patch("max.store.db.Store")
     def test_export_design_brief_stdout_json(self, MockStore, runner: CliRunner) -> None:

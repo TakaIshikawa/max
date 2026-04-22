@@ -23,6 +23,8 @@ from max.profiles.loader import (
     get_profiles_dir,
     list_profiles,
     load_profile,
+    validate_profile_file,
+    validate_profile_files,
 )
 from max.profiles.schema import (
     DEFAULT_DOMAIN_CONTEXT,
@@ -349,6 +351,114 @@ class TestListProfiles:
         """Test that list_profiles returns sorted names."""
         profiles = list_profiles()
         assert profiles == sorted(profiles)
+
+
+class TestProfileFileValidation:
+    """Tests for validating profile YAML files against schema and loader."""
+
+    def test_validate_profile_file_validates_schema_and_loader(self, tmp_path: Path, monkeypatch):
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+
+        schema_data = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["name", "domain"],
+            "properties": {
+                "name": {"type": "string"},
+                "domain": {
+                    "type": "object",
+                    "required": ["name", "description", "categories", "target_user_types"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "categories": {"type": "array", "items": {"type": "string"}},
+                        "target_user_types": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["adapter"],
+                        "properties": {
+                            "adapter": {"type": "string", "enum": ["hackernews"]},
+                            "weight": {"type": "number", "minimum": 0.0, "maximum": 10.0},
+                        },
+                    },
+                },
+            },
+        }
+        profile_data = {
+            "name": "invalid",
+            "domain": {
+                "name": "test",
+                "description": "Test",
+                "categories": ["mcp_server"],
+                "target_user_types": ["users"],
+            },
+            "sources": [{"adapter": "bogus"}],
+        }
+
+        with open(profiles_dir / "schema.yaml", "w") as f:
+            yaml.dump(schema_data, f)
+        profile_path = profiles_dir / "invalid.yaml"
+        with open(profile_path, "w") as f:
+            yaml.dump(profile_data, f)
+
+        monkeypatch.setattr("max.profiles.loader.get_profiles_dir", lambda: profiles_dir)
+
+        result = validate_profile_file(profile_path)
+
+        assert result.name == "invalid"
+        assert result.ok is False
+        assert any(error.startswith("schema: sources.0.adapter") for error in result.errors)
+        assert any(error.startswith("loader:") for error in result.errors)
+
+    def test_validate_profile_files_supports_single_profile(self, tmp_path: Path, monkeypatch):
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+
+        schema_data = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["name", "domain"],
+            "properties": {
+                "name": {"type": "string"},
+                "domain": {
+                    "type": "object",
+                    "required": ["name", "description", "categories", "target_user_types"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "categories": {"type": "array", "items": {"type": "string"}},
+                        "target_user_types": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+        }
+        profile_data = {
+            "name": "minimal",
+            "domain": {
+                "name": "test",
+                "description": "Test",
+                "categories": ["mcp_server"],
+                "target_user_types": ["users"],
+            },
+        }
+
+        with open(profiles_dir / "schema.yaml", "w") as f:
+            yaml.dump(schema_data, f)
+        with open(profiles_dir / "minimal.yaml", "w") as f:
+            yaml.dump(profile_data, f)
+
+        monkeypatch.setattr("max.profiles.loader.get_profiles_dir", lambda: profiles_dir)
+
+        results = validate_profile_files(profile="minimal")
+
+        assert len(results) == 1
+        assert results[0].name == "minimal"
+        assert results[0].ok is True
 
 
 class TestLoadProfile:

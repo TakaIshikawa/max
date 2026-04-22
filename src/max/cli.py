@@ -273,9 +273,13 @@ def _run_post_eval_stages(domain: str | None = None) -> None:
     click.echo("Ready for: max review")
 
 
-@main.command()
-def profiles() -> None:
+@main.group(invoke_without_command=True)
+@click.pass_context
+def profiles(ctx: click.Context) -> None:
     """List available pipeline profiles."""
+    if ctx.invoked_subcommand is not None:
+        return
+
     from max.profiles.loader import list_profiles, load_profile
 
     names = list_profiles()
@@ -295,6 +299,30 @@ def profiles() -> None:
             click.echo(f"  {name:20s}  (error: {e})")
     click.echo()
     click.echo("Usage: max run --profile <name>")
+
+
+@profiles.command(name="validate")
+@click.option("--profile", "-p", type=str, default=None, help="Validate one profile by name")
+def profiles_validate(profile: str | None) -> None:
+    """Validate profile YAML files against the loader and JSON schema."""
+    from max.profiles.loader import validate_profile_files
+
+    try:
+        results = validate_profile_files(profile=profile)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
+
+    has_errors = False
+    for result in results:
+        if result.ok:
+            click.echo(f"{result.name}: OK")
+            continue
+
+        has_errors = True
+        click.echo(f"{result.name}: ERROR - {'; '.join(result.errors)}")
+
+    if has_errors:
+        raise click.exceptions.Exit(1)
 
 
 def _known_profile_domains() -> dict[str, str]:
