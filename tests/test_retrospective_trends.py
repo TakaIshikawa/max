@@ -7,7 +7,11 @@ from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
-from max.analysis.retrospective import detect_feedback_trends, detect_trends
+from max.analysis.retrospective import (
+    detect_feedback_trends,
+    detect_pipeline_trends,
+    detect_trends,
+)
 from max.cli import main
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
@@ -20,24 +24,51 @@ def _make_score(value: float = 7.0) -> DimensionScore:
     return DimensionScore(value=value, confidence=0.7, reasoning="test")
 
 
-def _insert_run(store: Store, run_id: str, started: str, completed: str, signals: int = 10) -> None:
+def _insert_run(
+    store: Store,
+    run_id: str,
+    started: str,
+    completed: str | None,
+    signals: int = 10,
+    *,
+    signals_new: int | None = None,
+    insights_generated: int = 0,
+    ideas_generated: int = 0,
+    ideas_evaluated: int = 0,
+    avg_idea_score: float = 0.0,
+    status: str = "completed",
+    estimated_cost_usd: float = 0.0,
+    archived_at: str | None = None,
+) -> None:
     """Insert a pipeline run with given timestamps."""
     store.conn.execute(
-        "INSERT INTO pipeline_runs (id, started_at, config) VALUES (?, ?, ?)",
-        (run_id, started, json.dumps({"profile": "test"})),
+        """INSERT INTO pipeline_runs
+           (id, started_at, config, status, archived_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        (run_id, started, json.dumps({"profile": "test"}), status, archived_at),
     )
     store.conn.execute(
         """UPDATE pipeline_runs SET
            completed_at = ?,
            signals_fetched = ?, signals_new = ?,
-           insights_generated = 0, ideas_generated = 0,
-           ideas_evaluated = 0,
+           insights_generated = ?, ideas_generated = ?,
+           ideas_evaluated = ?,
            clusters_found = 0, gaps_detected = 0,
-           avg_idea_score = 0.0,
-           fetch_allocation = '{}', token_usage = '{}',
+           avg_idea_score = ?,
+           fetch_allocation = '{}', token_usage = ?,
            adapter_metrics = '{}'
            WHERE id = ?""",
-        (completed, signals, signals, run_id),
+        (
+            completed,
+            signals,
+            signals if signals_new is None else signals_new,
+            insights_generated,
+            ideas_generated,
+            ideas_evaluated,
+            avg_idea_score,
+            json.dumps({"estimated_cost_usd": estimated_cost_usd}),
+            run_id,
+        ),
     )
     store.conn.commit()
 
@@ -419,6 +450,94 @@ def test_feedback_trends_daily_counts_scores_and_domains(store: Store) -> None:
 def test_feedback_trends_validates_bucket(store: Store) -> None:
     try:
         detect_feedback_trends(store, bucket="hour")  # type: ignore[arg-type]
+    except ValueError as exc:
+        assert "bucket" in str(exc)
+    else:
+        raise AssertionError("Expected invalid bucket to raise ValueError")
+
+
+# ── Pipeline throughput trends by time bucket ──────────────────────
+
+
+def test_pipeline_trends_daily_counts_boundaries_failures_archives_and_totals(
+    store: Store,
+) -> None:
+    base = _base_time()
+    now = base + timedelta(days=3)
+
+    _insert_run(
+        store,
+        "run-day-1",
+        _iso(base + timedelta(hours=23, minutes=59)),
+        _iso(base + timedelta(days=1)),
+        signals=10,
+        signals_new=8,
+        insights_generated=2,
+        ideas_generated=1,
+        ideas_evaluated=1,
+        avg_idea_score=80.0,
+        estimated_cost_usd=0.10,
+    )
+    _insert_run(
+        store,
+        "run-boundary",
+        _iso(base + timedelta(days=1)),
+        _iso(base + timedelta(days=1, minutes=30)),
+        signals=20,
+        signals_new=15,
+        insights_generated=3,
+        ideas_generated=2,
+        ideas_evaluated=2,
+        avg_idea_score=70.0,
+        estimated_cost_usd=0.20,
+    )
+    _insert_run(
+        store,
+        "run-failed",
+        _iso(base + timedelta(days=2, hours=1)),
+        _iso(base + timedelta(days=2, hours=1, minutes=5)),
+        signals=5,
+        signals_new=4,
+        status="failed",
+        estimated_cost_usd=0.05,
+    )
+    _insert_run(
+        store,
+        "run-archived",
+        _iso(base + timedelta(days=2, hours=2)),
+        _iso(base + timedelta(days=2, hours=2, minutes=30)),
+        signals=999,
+        signals_new=999,
+        status="completed",
+        avg_idea_score=100.0,
+        estimated_cost_usd=9.99,
+        archived_at=_iso(now),
+    )
+
+    trends = detect_pipeline_trends(store, days=3, bucket="day", now=now)
+
+    assert trends.window_count == 3
+    assert trends.run_count == 3
+    assert trends.completed_count == 2
+    assert trends.failed_count == 1
+    assert trends.signals_fetched == 35
+    assert trends.signals_new == 27
+    assert trends.insights_generated == 5
+    assert trends.ideas_generated == 3
+    assert trends.ideas_evaluated == 3
+    assert abs(trends.estimated_cost_usd - 0.35) < 0.0001
+    assert trends.avg_idea_score == 75.0
+
+    assert [window.run_count for window in trends.windows] == [1, 1, 1]
+    assert trends.windows[0].signals_fetched == 10
+    assert trends.windows[1].signals_fetched == 20
+    assert trends.windows[2].failed_count == 1
+    assert trends.windows[2].signals_fetched == 5
+
+
+def test_pipeline_trends_validates_bucket(store: Store) -> None:
+    try:
+        detect_pipeline_trends(store, bucket="hour")  # type: ignore[arg-type]
     except ValueError as exc:
         assert "bucket" in str(exc)
     else:

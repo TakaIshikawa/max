@@ -68,6 +68,8 @@ from max.server.schemas import (
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
+    PipelineTrendResponse,
+    PipelineTrendWindowResponse,
     PriorArtCheckRequest,
     PriorArtResponse,
     ProfileDetailResponse,
@@ -1105,6 +1107,49 @@ def get_feedback_trends(
                     )
                     for domain in window.domains
                 ],
+            )
+            for window in trends.windows
+        ],
+    )
+
+
+@router.get("/trends/pipeline", response_model=PipelineTrendResponse)
+def get_pipeline_trends(
+    days: int = Query(default=30, ge=1, le=3650),
+    bucket: Literal["day", "week", "month"] = Query(default="day"),
+    store: Store = Depends(get_store),
+) -> PipelineTrendResponse:
+    from max.analysis.retrospective import detect_pipeline_trends
+
+    trends = detect_pipeline_trends(store, days=days, bucket=bucket)
+    return PipelineTrendResponse(
+        days=trends.days,
+        bucket=trends.bucket,
+        window_count=trends.window_count,
+        run_count=trends.run_count,
+        completed_count=trends.completed_count,
+        failed_count=trends.failed_count,
+        signals_fetched=trends.signals_fetched,
+        signals_new=trends.signals_new,
+        insights_generated=trends.insights_generated,
+        ideas_generated=trends.ideas_generated,
+        ideas_evaluated=trends.ideas_evaluated,
+        estimated_cost_usd=trends.estimated_cost_usd,
+        avg_idea_score=trends.avg_idea_score,
+        windows=[
+            PipelineTrendWindowResponse(
+                window_start=window.window_start.isoformat(),
+                window_end=window.window_end.isoformat(),
+                run_count=window.run_count,
+                completed_count=window.completed_count,
+                failed_count=window.failed_count,
+                signals_fetched=window.signals_fetched,
+                signals_new=window.signals_new,
+                insights_generated=window.insights_generated,
+                ideas_generated=window.ideas_generated,
+                ideas_evaluated=window.ideas_evaluated,
+                estimated_cost_usd=window.estimated_cost_usd,
+                avg_idea_score=window.avg_idea_score,
             )
             for window in trends.windows
         ],

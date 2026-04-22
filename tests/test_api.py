@@ -1611,6 +1611,35 @@ def test_feedback_trends_endpoint_validates_query(client):
     assert client.get("/api/v1/trends/feedback?bucket=hour").status_code == 422
 
 
+def test_pipeline_trends_endpoint(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/trends/pipeline?days=1&bucket=day")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["days"] == 1
+    assert data["bucket"] == "day"
+    assert data["window_count"] == 1
+    assert data["run_count"] == 7
+    assert data["completed_count"] == 5
+    assert data["failed_count"] == 0
+    assert data["signals_fetched"] == 150
+    assert data["signals_new"] == 0
+    assert data["insights_generated"] == 30
+    assert data["ideas_generated"] == 15
+    assert data["ideas_evaluated"] == 15
+    assert data["estimated_cost_usd"] == pytest.approx(0.3375)
+    assert data["avg_idea_score"] == 0.0
+
+    assert len(data["windows"]) == 1
+    assert data["windows"][0]["run_count"] == 7
+    assert data["windows"][0]["completed_count"] == 5
+
+
+def test_pipeline_trends_endpoint_validates_query(client):
+    assert client.get("/api/v1/trends/pipeline?days=0").status_code == 422
+    assert client.get("/api/v1/trends/pipeline?bucket=hour").status_code == 422
+
+
 # ── Design brief endpoints ─────────────────────────────────────────
 
 

@@ -68,6 +68,44 @@ class FeedbackTrendSummary:
     windows: list[FeedbackTrendPoint] = field(default_factory=list)
 
 
+@dataclass
+class PipelineThroughputTrendPoint:
+    """Pipeline execution metrics for a single time window."""
+
+    window_start: datetime
+    window_end: datetime
+    run_count: int
+    completed_count: int
+    failed_count: int
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    estimated_cost_usd: float
+    avg_idea_score: float
+
+
+@dataclass
+class PipelineThroughputTrendSummary:
+    """Time-windowed pipeline execution throughput metrics."""
+
+    days: int
+    bucket: FeedbackTrendBucket
+    window_count: int
+    run_count: int
+    completed_count: int
+    failed_count: int
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    estimated_cost_usd: float
+    avg_idea_score: float
+    windows: list[PipelineThroughputTrendPoint] = field(default_factory=list)
+
+
 def _bucket_delta(bucket: FeedbackTrendBucket) -> timedelta:
     if bucket == "day":
         return timedelta(days=1)
@@ -86,6 +124,152 @@ def _feedback_metrics(rows: list[dict]) -> tuple[int, int, int, float, float]:
     scores = [row["overall_score"] for row in rows if row["overall_score"] is not None]
     avg_score = sum(scores) / len(scores) if scores else 0.0
     return total, approved, rejected, approval_rate, avg_score
+
+
+def _pipeline_run_cost(row: dict) -> float:
+    from max import config
+    from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
+
+    token_usage = row.get("token_usage") or {}
+    stored_cost = token_usage.get("estimated_cost_usd")
+    if isinstance(stored_cost, (int, float)):
+        return float(stored_cost)
+
+    input_tokens, output_tokens = token_counts_from_usage(token_usage)
+    model = str((row.get("config") or {}).get("model") or config.MODEL)
+    return estimate_token_cost_usd(input_tokens, output_tokens, model=model)
+
+
+def _pipeline_metrics(rows: list[dict]) -> tuple[int, int, int, int, int, int, int, int, float, float]:
+    run_count = len(rows)
+    completed_count = sum(1 for row in rows if row["status"] == "completed")
+    failed_count = sum(1 for row in rows if row["status"] == "failed")
+    signals_fetched = sum(row["signals_fetched"] for row in rows)
+    signals_new = sum(row["signals_new"] for row in rows)
+    insights_generated = sum(row["insights_generated"] for row in rows)
+    ideas_generated = sum(row["ideas_generated"] for row in rows)
+    ideas_evaluated = sum(row["ideas_evaluated"] for row in rows)
+    estimated_cost_usd = sum(_pipeline_run_cost(row) for row in rows)
+    scores = [row["avg_idea_score"] for row in rows if row["avg_idea_score"] > 0]
+    avg_idea_score = sum(scores) / len(scores) if scores else 0.0
+    return (
+        run_count,
+        completed_count,
+        failed_count,
+        signals_fetched,
+        signals_new,
+        insights_generated,
+        ideas_generated,
+        ideas_evaluated,
+        estimated_cost_usd,
+        avg_idea_score,
+    )
+
+
+def detect_pipeline_trends(
+    store: Store,
+    *,
+    days: int = 30,
+    bucket: FeedbackTrendBucket = "day",
+    now: datetime | None = None,
+) -> PipelineThroughputTrendSummary:
+    """Compute pipeline execution throughput across rolling time windows.
+
+    Buckets cover the last *days* days, include empty windows, and exclude
+    archived pipeline runs.
+    """
+    if days < 1:
+        raise ValueError("days must be at least 1")
+
+    delta = _bucket_delta(bucket)
+    end = now or datetime.now(UTC)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=UTC)
+    start = end - timedelta(days=days)
+
+    rows = store.conn.execute(
+        """SELECT *
+           FROM pipeline_runs
+           WHERE archived_at IS NULL
+             AND started_at >= ? AND started_at <= ?
+           ORDER BY started_at ASC""",
+        (start.isoformat(), end.isoformat()),
+    ).fetchall()
+    run_rows = [dict(row) for row in rows]
+
+    import json
+
+    for row in run_rows:
+        row["config"] = json.loads(row["config"] or "{}")
+        row["token_usage"] = json.loads(row["token_usage"] or "{}")
+
+    windows: list[PipelineThroughputTrendPoint] = []
+    window_start = start
+    while window_start < end:
+        window_end = min(window_start + delta, end)
+        bucket_rows = [
+            row for row in run_rows
+            if window_start.isoformat() <= row["started_at"] < window_end.isoformat()
+        ]
+        (
+            run_count,
+            completed_count,
+            failed_count,
+            signals_fetched,
+            signals_new,
+            insights_generated,
+            ideas_generated,
+            ideas_evaluated,
+            estimated_cost_usd,
+            avg_idea_score,
+        ) = _pipeline_metrics(bucket_rows)
+
+        windows.append(
+            PipelineThroughputTrendPoint(
+                window_start=window_start,
+                window_end=window_end,
+                run_count=run_count,
+                completed_count=completed_count,
+                failed_count=failed_count,
+                signals_fetched=signals_fetched,
+                signals_new=signals_new,
+                insights_generated=insights_generated,
+                ideas_generated=ideas_generated,
+                ideas_evaluated=ideas_evaluated,
+                estimated_cost_usd=estimated_cost_usd,
+                avg_idea_score=avg_idea_score,
+            )
+        )
+        window_start = window_end
+
+    (
+        run_count,
+        completed_count,
+        failed_count,
+        signals_fetched,
+        signals_new,
+        insights_generated,
+        ideas_generated,
+        ideas_evaluated,
+        estimated_cost_usd,
+        avg_idea_score,
+    ) = _pipeline_metrics(run_rows)
+    return PipelineThroughputTrendSummary(
+        days=days,
+        bucket=bucket,
+        window_count=len(windows),
+        run_count=run_count,
+        completed_count=completed_count,
+        failed_count=failed_count,
+        signals_fetched=signals_fetched,
+        signals_new=signals_new,
+        insights_generated=insights_generated,
+        ideas_generated=ideas_generated,
+        ideas_evaluated=ideas_evaluated,
+        estimated_cost_usd=estimated_cost_usd,
+        avg_idea_score=avg_idea_score,
+        windows=windows,
+    )
 
 
 def detect_feedback_trends(

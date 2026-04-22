@@ -482,6 +482,38 @@ class FeedbackTrendResponse(BaseModel):
     windows: list[FeedbackTrendWindowResponse]
 
 
+class PipelineTrendWindowResponse(BaseModel):
+    window_start: str
+    window_end: str
+    run_count: int
+    completed_count: int
+    failed_count: int
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    estimated_cost_usd: float
+    avg_idea_score: float
+
+
+class PipelineTrendResponse(BaseModel):
+    days: int
+    bucket: Literal["day", "week", "month"]
+    window_count: int
+    run_count: int
+    completed_count: int
+    failed_count: int
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    estimated_cost_usd: float
+    avg_idea_score: float
+    windows: list[PipelineTrendWindowResponse]
+
+
 class BlueprintSourceBriefResponse(BaseModel):
     schema_version: str
     source: dict
