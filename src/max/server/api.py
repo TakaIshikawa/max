@@ -17,6 +17,12 @@ from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
     validate_buildable_unit_status_transition,
 )
+from max.analysis.thresholds import (
+    DEFAULT_APPROVE_THRESHOLD,
+    DEFAULT_MIN_SAMPLES,
+    DEFAULT_REJECT_THRESHOLD,
+    recommend_review_thresholds,
+)
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
@@ -82,6 +88,8 @@ from max.server.schemas import (
     ProfileCoverageTermResponse,
     ProfileSummaryResponse,
     ReviewQueueItemResponse,
+    ReviewThresholdRecommendationResponse,
+    ReviewThresholdsResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -855,6 +863,28 @@ def get_review_queue(
             )
         )
     return items
+
+
+@router.get("/review-thresholds", response_model=ReviewThresholdsResponse)
+def get_review_thresholds(
+    domain: str | None = None,
+    min_samples: int = Query(default=DEFAULT_MIN_SAMPLES, ge=1, le=1000),
+    store: Store = Depends(get_store),
+) -> ReviewThresholdsResponse:
+    recommendations = recommend_review_thresholds(
+        store,
+        domain=domain,
+        min_samples=min_samples,
+    )
+    return ReviewThresholdsResponse(
+        min_samples=min_samples,
+        default_approve_threshold=DEFAULT_APPROVE_THRESHOLD,
+        default_reject_threshold=DEFAULT_REJECT_THRESHOLD,
+        recommendations=[
+            ReviewThresholdRecommendationResponse(**item.__dict__)
+            for item in recommendations
+        ],
+    )
 
 
 @router.get("/exports/ideas", response_class=Response)

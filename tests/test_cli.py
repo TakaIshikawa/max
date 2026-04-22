@@ -1138,6 +1138,82 @@ class TestExportIdeasCommand:
         assert "\"[\"\"sig-test001\"\"]\"" in csv_text
 
 
+class TestReviewThresholdsCommand:
+    @patch("max.analysis.thresholds.recommend_review_thresholds")
+    @patch("max.store.db.Store")
+    def test_review_thresholds_prints_table(
+        self,
+        MockStore: MagicMock,
+        mock_recommend: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.thresholds import ReviewThresholdRecommendation
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_recommend.return_value = [
+            ReviewThresholdRecommendation(
+                domain="devtools",
+                approve_threshold=75.0,
+                reject_threshold=45.0,
+                sample_count=6,
+                approved_count=3,
+                rejected_count=3,
+                sufficient_samples=True,
+                fallback_used=False,
+                reason="computed from approved and rejected feedback",
+            )
+        ]
+
+        result = runner.invoke(
+            main,
+            ["review-thresholds", "--domain", "devtools", "--min-samples", "4"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Domain" in result.output
+        assert "devtools" in result.output
+        assert "75.0" in result.output
+        assert "45.0" in result.output
+        assert "history" in result.output
+        mock_recommend.assert_called_once_with(store, domain="devtools", min_samples=4)
+        store.close.assert_called_once()
+
+    @patch("max.analysis.thresholds.recommend_review_thresholds")
+    @patch("max.store.db.Store")
+    def test_review_thresholds_prints_json(
+        self,
+        MockStore: MagicMock,
+        mock_recommend: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.thresholds import ReviewThresholdRecommendation
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_recommend.return_value = [
+            ReviewThresholdRecommendation(
+                domain="legaltech",
+                approve_threshold=68.0,
+                reject_threshold=50.0,
+                sample_count=1,
+                approved_count=1,
+                rejected_count=0,
+                sufficient_samples=False,
+                fallback_used=True,
+                reason="insufficient samples: 1 < 5",
+            )
+        ]
+
+        result = runner.invoke(main, ["review-thresholds", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["min_samples"] == 5
+        assert payload["recommendations"][0]["domain"] == "legaltech"
+        assert payload["recommendations"][0]["sufficient_samples"] is False
+
+
 # ── import-signals command ─────────────────────────────────────────
 
 

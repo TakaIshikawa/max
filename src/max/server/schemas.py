@@ -305,6 +305,25 @@ class ReviewQueueItemResponse(IdeaSummaryResponse):
     latest_critique: IdeaCritiqueResponse | None = None
 
 
+class ReviewThresholdRecommendationResponse(BaseModel):
+    domain: str
+    approve_threshold: float
+    reject_threshold: float
+    sample_count: int
+    approved_count: int
+    rejected_count: int
+    sufficient_samples: bool
+    fallback_used: bool
+    reason: str
+
+
+class ReviewThresholdsResponse(BaseModel):
+    min_samples: int
+    default_approve_threshold: float
+    default_reject_threshold: float
+    recommendations: list[ReviewThresholdRecommendationResponse]
+
+
 class IdeaEvaluateBatchItemResponse(BaseModel):
     idea_id: str
     status: Literal["evaluated", "skipped", "error"]

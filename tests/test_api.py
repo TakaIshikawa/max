@@ -181,6 +181,96 @@ def seeded_db(db_path):
     return db_path
 
 
+def _threshold_unit(unit_id: str, domain: str) -> BuildableUnit:
+    return BuildableUnit(
+        id=unit_id,
+        title=f"Threshold Idea {unit_id}",
+        one_liner="A threshold test idea",
+        category=BuildableCategory.APPLICATION,
+        problem="Problem",
+        solution="Solution",
+        value_proposition="Value",
+        domain=domain,
+    )
+
+
+def _threshold_evaluation(unit_id: str, score: float) -> UtilityEvaluation:
+    dim = DimensionScore(value=7.0, confidence=0.7, reasoning="test")
+    return UtilityEvaluation(
+        buildable_unit_id=unit_id,
+        pain_severity=dim,
+        addressable_scale=dim,
+        build_effort=dim,
+        composability=dim,
+        competitive_density=dim,
+        timing_fit=dim,
+        compounding_value=dim,
+        overall_score=score,
+        recommendation="yes" if score >= 68 else "no",
+    )
+
+
+def _seed_threshold_feedback(
+    db_path: str,
+    unit_id: str,
+    domain: str,
+    score: float,
+    outcome: str,
+) -> None:
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(_threshold_unit(unit_id, domain))
+        store.insert_evaluation(_threshold_evaluation(unit_id, score))
+        store.insert_feedback(unit_id, outcome)
+    finally:
+        store.close()
+
+
+def test_review_thresholds_returns_recommendations(client, db_path) -> None:
+    for idx, score in enumerate([70.0, 80.0, 90.0], 1):
+        _seed_threshold_feedback(db_path, f"bu-api-ap-{idx}", "devtools", score, "approved")
+    for idx, score in enumerate([30.0, 40.0, 50.0], 1):
+        _seed_threshold_feedback(db_path, f"bu-api-rj-{idx}", "devtools", score, "rejected")
+
+    response = client.get("/api/v1/review-thresholds?min_samples=4")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["min_samples"] == 4
+    assert payload["default_approve_threshold"] == 68.0
+    assert payload["default_reject_threshold"] == 50.0
+    assert payload["recommendations"] == [
+        {
+            "domain": "devtools",
+            "approve_threshold": 75.0,
+            "reject_threshold": 45.0,
+            "sample_count": 6,
+            "approved_count": 3,
+            "rejected_count": 3,
+            "sufficient_samples": True,
+            "fallback_used": False,
+            "reason": "computed from approved and rejected feedback",
+        }
+    ]
+
+
+def test_review_thresholds_domain_filter_and_insufficient_samples(client, db_path) -> None:
+    _seed_threshold_feedback(db_path, "bu-api-one", "legaltech", 88.0, "approved")
+    _seed_threshold_feedback(db_path, "bu-api-other", "devtools", 42.0, "rejected")
+
+    response = client.get("/api/v1/review-thresholds?domain=legaltech&min_samples=2")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["recommendations"]) == 1
+    rec = payload["recommendations"][0]
+    assert rec["domain"] == "legaltech"
+    assert rec["sample_count"] == 1
+    assert rec["sufficient_samples"] is False
+    assert rec["approve_threshold"] == 68.0
+    assert rec["reject_threshold"] == 50.0
+
+
 @pytest.fixture
 def seeded_client(seeded_db):
     from max.server.dependencies import get_store

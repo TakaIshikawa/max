@@ -1204,6 +1204,71 @@ def feedback(unit_id: str, outcome: str, reason: str, score: int | None) -> None
         store.close()
 
 
+@main.command(name="review-thresholds")
+@click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
+@click.option("--min-samples", type=int, default=None, help="Minimum feedback samples before adapting")
+@click.option("--json", "as_json", is_flag=True, help="Print recommendations as JSON")
+def review_thresholds(domain: str | None, min_samples: int | None, as_json: bool) -> None:
+    """Recommend review thresholds from historical feedback."""
+    from max.analysis.thresholds import (
+        DEFAULT_APPROVE_THRESHOLD,
+        DEFAULT_MIN_SAMPLES,
+        DEFAULT_REJECT_THRESHOLD,
+        recommend_review_thresholds,
+    )
+    from max.store.db import Store
+
+    effective_min_samples = min_samples or DEFAULT_MIN_SAMPLES
+    if effective_min_samples < 1:
+        raise click.ClickException("--min-samples must be at least 1")
+
+    store = Store()
+    try:
+        recommendations = recommend_review_thresholds(
+            store,
+            domain=domain,
+            min_samples=effective_min_samples,
+        )
+        payload = {
+            "min_samples": effective_min_samples,
+            "default_approve_threshold": DEFAULT_APPROVE_THRESHOLD,
+            "default_reject_threshold": DEFAULT_REJECT_THRESHOLD,
+            "recommendations": [item.__dict__ for item in recommendations],
+        }
+        if as_json:
+            click.echo(json.dumps(payload, indent=2))
+            return
+
+        if not recommendations:
+            click.echo("No reviewed evaluations found.")
+            return
+
+        click.echo(
+            f"{'Domain':<20s} {'Approve':>8s} {'Reject':>8s} "
+            f"{'Samples':>8s} {'Approved':>8s} {'Rejected':>8s} {'Source'}"
+        )
+        click.echo("-" * 88)
+        for item in recommendations:
+            source = "fallback" if item.fallback_used else "history"
+            if not item.sufficient_samples:
+                source = "insufficient"
+            click.echo(
+                f"{(item.domain or '-'):20.20s} "
+                f"{item.approve_threshold:8.1f} "
+                f"{item.reject_threshold:8.1f} "
+                f"{item.sample_count:8d} "
+                f"{item.approved_count:8d} "
+                f"{item.rejected_count:8d} "
+                f"{source}"
+            )
+        click.echo(
+            f"\nDefaults: approve >= {DEFAULT_APPROVE_THRESHOLD:.1f}, "
+            f"reject < {DEFAULT_REJECT_THRESHOLD:.1f}; min samples: {effective_min_samples}"
+        )
+    finally:
+        store.close()
+
+
 @main.command()
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--approve-threshold", type=float, default=68.0, help="Auto-approve score threshold (default: 68)")
