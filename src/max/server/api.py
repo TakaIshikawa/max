@@ -15,6 +15,7 @@ from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
 from max.server.schemas import (
     BlueprintSourceBriefResponse,
+    CircuitBreakerStateResponse,
     DesignBriefResponse,
     DomainQualityMemoryResponse,
     DomainQualityScoreResponse,
@@ -52,6 +53,8 @@ from max.server.schemas import (
     StageSummaryResponse,
     StatsResponse,
 )
+from max.sources.base import snapshot_circuit_breakers
+from max.sources.registry import list_adapters
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
@@ -1010,6 +1013,24 @@ def get_stats(store: Store = Depends(get_store)) -> StatsResponse:
         evaluated_count=evaluated_count,
         avg_score=avg_score,
     )
+
+
+# ── Adapters ────────────────────────────────────────────────────────
+
+
+@router.get("/adapters/circuit-breakers", response_model=list[CircuitBreakerStateResponse])
+def get_adapter_circuit_breakers() -> list[CircuitBreakerStateResponse]:
+    snapshots = snapshot_circuit_breakers(adapter_names=list_adapters())
+    return [
+        CircuitBreakerStateResponse(
+            adapter_name=s.adapter_name,
+            state=s.state,
+            failure_count=s.failure_count,
+            last_failure_at=s.last_failure_at,
+            retry_after=s.retry_after,
+        )
+        for s in snapshots
+    ]
 
 
 # ── Similarity ──────────────────────────────────────────────────────

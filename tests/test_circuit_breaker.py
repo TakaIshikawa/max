@@ -15,6 +15,7 @@ from max.sources.base import (
     CircuitState,
     fetch_with_retry,
     get_circuit_breaker,
+    snapshot_circuit_breakers,
 )
 
 
@@ -142,6 +143,47 @@ class TestGetCircuitBreaker:
         cb1 = get_circuit_breaker("adapter_a")
         cb2 = get_circuit_breaker("adapter_b")
         assert cb1 is not cb2
+
+
+class TestSnapshotCircuitBreakers:
+    """Test non-mutating circuit breaker snapshots."""
+
+    def test_includes_known_adapters_without_creating_breakers(self) -> None:
+        adapter_name = f"known_adapter_{time.monotonic()}"
+
+        snapshots = snapshot_circuit_breakers(adapter_names=[adapter_name])
+
+        snap = next(s for s in snapshots if s.adapter_name == adapter_name)
+        assert snap.state == "closed"
+        assert snap.failure_count == 0
+        assert snap.last_failure_at is None
+        assert snap.retry_after == 0.0
+
+    def test_includes_registry_adapters_not_in_known_list(self) -> None:
+        adapter_name = f"registry_only_{time.monotonic()}"
+        cb = get_circuit_breaker(adapter_name)
+        cb.record_failure()
+
+        snapshots = snapshot_circuit_breakers(adapter_names=["known_only"])
+
+        names = {s.adapter_name for s in snapshots}
+        assert "known_only" in names
+        assert adapter_name in names
+
+    def test_expired_open_circuit_reports_half_open_without_mutating(self) -> None:
+        adapter_name = f"expired_open_{time.monotonic()}"
+        cb = get_circuit_breaker(adapter_name)
+        cb.failure_threshold = 1
+        cb.recovery_timeout = 0.1
+        cb.record_failure()
+
+        time.sleep(0.15)
+        snapshots = snapshot_circuit_breakers(adapter_names=[adapter_name])
+
+        snap = next(s for s in snapshots if s.adapter_name == adapter_name)
+        assert snap.state == "half_open"
+        assert snap.retry_after == 0.0
+        assert cb.state == CircuitState.OPEN
 
 
 # ── AdapterCircuitOpenError ──────────────────────────────────────────

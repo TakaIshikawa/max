@@ -445,6 +445,14 @@ class StatsResponse(BaseModel):
     avg_score: float | None = None
 
 
+class CircuitBreakerStateResponse(BaseModel):
+    adapter_name: str
+    state: str
+    failure_count: int
+    last_failure_at: float | None = None
+    retry_after: float
+
+
 class PipelineResultSummary(BaseModel):
     signals_fetched: int
     signals_new: int

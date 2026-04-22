@@ -8,6 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Iterable
 
 import httpx
 
@@ -86,6 +87,17 @@ class CircuitBreaker:
         return max(0.0, self.recovery_timeout - elapsed)
 
 
+@dataclass(frozen=True)
+class CircuitBreakerSnapshot:
+    """Read-only view of an adapter circuit breaker."""
+
+    adapter_name: str
+    state: str
+    failure_count: int
+    last_failure_at: float | None
+    retry_after: float
+
+
 # Module-level circuit breaker registry keyed by adapter name
 _circuit_breakers: dict[str, CircuitBreaker] = {}
 
@@ -95,6 +107,54 @@ def get_circuit_breaker(adapter_name: str) -> CircuitBreaker:
     if adapter_name not in _circuit_breakers:
         _circuit_breakers[adapter_name] = CircuitBreaker()
     return _circuit_breakers[adapter_name]
+
+
+def snapshot_circuit_breakers(
+    adapter_names: Iterable[str] | None = None,
+) -> list[CircuitBreakerSnapshot]:
+    """Return circuit breaker state without creating or mutating breakers.
+
+    ``CircuitBreaker.can_execute()`` may transition an open circuit to
+    ``HALF_OPEN`` after the recovery timeout. This helper derives the current
+    observable state and retry interval without changing the registry.
+    """
+    now = time.monotonic()
+    names = set(adapter_names or ()) | set(_circuit_breakers)
+    snapshots: list[CircuitBreakerSnapshot] = []
+
+    for name in sorted(names):
+        circuit_breaker = _circuit_breakers.get(name)
+        if circuit_breaker is None:
+            snapshots.append(
+                CircuitBreakerSnapshot(
+                    adapter_name=name,
+                    state=CircuitState.CLOSED.value,
+                    failure_count=0,
+                    last_failure_at=None,
+                    retry_after=0.0,
+                )
+            )
+            continue
+
+        state = circuit_breaker.state
+        retry_after = 0.0
+        if circuit_breaker.last_failure_at is not None:
+            elapsed = now - circuit_breaker.last_failure_at
+            retry_after = max(0.0, circuit_breaker.recovery_timeout - elapsed)
+            if state == CircuitState.OPEN and retry_after == 0.0:
+                state = CircuitState.HALF_OPEN
+
+        snapshots.append(
+            CircuitBreakerSnapshot(
+                adapter_name=name,
+                state=state.value,
+                failure_count=circuit_breaker.failure_count,
+                last_failure_at=circuit_breaker.last_failure_at,
+                retry_after=retry_after,
+            )
+        )
+
+    return snapshots
 
 
 class AdapterFetchError(Exception):

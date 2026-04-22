@@ -989,6 +989,30 @@ def test_stats_seeded(seeded_client):
     assert data["avg_score"] == 78.0
 
 
+# ── Adapter endpoints ───────────────────────────────────────────────
+
+
+def test_adapter_circuit_breakers_include_known_and_registry_adapters(client):
+    from max.sources.base import get_circuit_breaker
+
+    registry_only = "api_registry_only"
+    cb = get_circuit_breaker(registry_only)
+    cb.record_failure()
+
+    with patch("max.server.api.list_adapters", return_value=["known_adapter"]):
+        resp = client.get("/api/v1/adapters/circuit-breakers")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    by_name = {row["adapter_name"]: row for row in data}
+    assert by_name["known_adapter"]["state"] == "closed"
+    assert by_name["known_adapter"]["failure_count"] == 0
+    assert by_name[registry_only]["state"] == "closed"
+    assert by_name[registry_only]["failure_count"] == 1
+    assert by_name[registry_only]["last_failure_at"] is not None
+    assert by_name[registry_only]["retry_after"] > 0
+
+
 # ── Similarity endpoint ────────────────────────────────────────────
 
 
