@@ -258,6 +258,24 @@ class Store:
         ).fetchone()
         return _row_to_signal(row) if row else None
 
+    def archive_signal(self, signal_id: str) -> bool:
+        """Archive a signal by ID. Returns False if the signal does not exist."""
+        cursor = self.conn.execute(
+            "UPDATE signals SET archived_at = ? WHERE id = ?",
+            (_now_iso(), signal_id),
+        )
+        self._commit()
+        return cursor.rowcount > 0
+
+    def restore_signal(self, signal_id: str) -> bool:
+        """Restore an archived signal by ID. Returns False if the signal does not exist."""
+        cursor = self.conn.execute(
+            "UPDATE signals SET archived_at = NULL WHERE id = ?",
+            (signal_id,),
+        )
+        self._commit()
+        return cursor.rowcount > 0
+
     def update_signal_role(self, signal_id: str, role: str) -> None:
         """Update the signal_role for a signal."""
         self.conn.execute(

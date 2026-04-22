@@ -396,6 +396,28 @@ def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> Sign
     return _signal_to_response(signal)
 
 
+@router.post("/signals/{signal_id}/archive", response_model=SignalResponse)
+def archive_signal(signal_id: str, store: Store = Depends(get_store)) -> SignalResponse:
+    if not store.archive_signal(signal_id):
+        raise HTTPException(status_code=404, detail=f"Signal not found: {signal_id}")
+
+    signal = store.get_signal(signal_id)
+    if not signal:
+        raise HTTPException(status_code=404, detail=f"Signal not found: {signal_id}")
+    return _signal_to_response(signal)
+
+
+@router.post("/signals/{signal_id}/restore", response_model=SignalResponse)
+def restore_signal(signal_id: str, store: Store = Depends(get_store)) -> SignalResponse:
+    if not store.restore_signal(signal_id):
+        raise HTTPException(status_code=404, detail=f"Signal not found: {signal_id}")
+
+    signal = store.get_signal(signal_id)
+    if not signal:
+        raise HTTPException(status_code=404, detail=f"Signal not found: {signal_id}")
+    return _signal_to_response(signal)
+
+
 # ── Insights ────────────────────────────────────────────────────────
 
 

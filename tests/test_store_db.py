@@ -136,6 +136,35 @@ class TestSignalOperations:
     def test_get_signal_not_found(self, store: Store) -> None:
         assert store.get_signal("nonexistent") is None
 
+    def test_archive_signal_hides_from_lists_and_counts_but_preserves_direct_lookup(self, store: Store) -> None:
+        active = _make_signal(sig_id="sig-active", url="https://a.com/active")
+        archived = _make_signal(sig_id="sig-archived", url="https://a.com/archived")
+        store.insert_signal(active)
+        store.insert_signal(archived)
+
+        assert store.archive_signal(archived.id) is True
+
+        assert [sig.id for sig in store.get_signals(limit=100)] == [active.id]
+        assert store.count_signals() == 1
+        direct = store.get_signal(archived.id)
+        assert direct is not None
+        assert direct.id == archived.id
+
+    def test_restore_signal_returns_archived_signal_to_lists_and_counts(self, store: Store) -> None:
+        signal = _make_signal(sig_id="sig-restore", url="https://a.com/restore")
+        store.insert_signal(signal)
+        store.archive_signal(signal.id)
+        assert store.count_signals() == 0
+
+        assert store.restore_signal(signal.id) is True
+
+        assert store.count_signals() == 1
+        assert [sig.id for sig in store.get_signals(limit=100)] == [signal.id]
+
+    def test_archive_and_restore_signal_return_false_for_missing_signal(self, store: Store) -> None:
+        assert store.archive_signal("sig-missing") is False
+        assert store.restore_signal("sig-missing") is False
+
 
 class TestSynthesizedSignals:
     def test_unsynthesized_returns_all_initially(self, store: Store, sample_signal: Signal) -> None:

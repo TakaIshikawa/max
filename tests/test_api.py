@@ -460,6 +460,47 @@ def test_list_signals_filters_by_signal_role_and_source_type(client):
     assert data["items"][0]["signal_role"] == "problem"
 
 
+def test_archive_signal_hides_from_list_but_returns_signal(seeded_client):
+    resp = seeded_client.post("/api/v1/signals/sig-api001/archive")
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "sig-api001"
+
+    list_resp = seeded_client.get("/api/v1/signals")
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert data["items"] == []
+    assert data["pagination"]["total_count"] == 0
+
+
+def test_restore_signal_returns_signal_to_list(seeded_client):
+    seeded_client.post("/api/v1/signals/sig-api001/archive")
+
+    resp = seeded_client.post("/api/v1/signals/sig-api001/restore")
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "sig-api001"
+
+    list_resp = seeded_client.get("/api/v1/signals")
+    data = list_resp.json()
+    assert [item["id"] for item in data["items"]] == ["sig-api001"]
+    assert data["pagination"]["total_count"] == 1
+
+
+def test_archive_signal_not_found_returns_404(seeded_client):
+    resp = seeded_client.post("/api/v1/signals/sig-missing/archive")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Signal not found: sig-missing"
+
+
+def test_restore_signal_not_found_returns_404(seeded_client):
+    resp = seeded_client.post("/api/v1/signals/sig-missing/restore")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Signal not found: sig-missing"
+
+
 # ── Insight endpoints ───────────────────────────────────────────────
 
 
