@@ -1164,6 +1164,77 @@ def test_pipeline_run_all_include_all_bypasses_focus_and_aggregates(
     assert mock_run.call_count == 2
 
 
+def test_pipeline_dry_run_loads_profile_applies_overrides_and_returns_report(client):
+    from max.types.pipeline import DryRunReport, StageSummary
+
+    profile = _api_mock_profile("devtools", "developer-tools")
+    profile.signal_limit = 99
+    report = DryRunReport(
+        stages=[
+            StageSummary(
+                name="fetch",
+                would_process=12,
+                estimated_llm_calls=0,
+                skipped=False,
+                reason="",
+            )
+        ],
+        estimated_total_llm_calls=0,
+        estimated_token_budget=0,
+    )
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile) as mock_load,
+        patch("max.pipeline.runner.run_pipeline", return_value=report) as mock_run,
+    ):
+        resp = client.post(
+            "/api/v1/pipeline/dry-run",
+            json={"profile": "devtools", "signal_limit": 12, "stages": ["fetch"]},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "stages": [
+            {
+                "name": "fetch",
+                "would_process": 12,
+                "estimated_llm_calls": 0,
+                "skipped": False,
+                "reason": "",
+            }
+        ],
+        "estimated_total_llm_calls": 0,
+        "estimated_token_budget": 0,
+    }
+    mock_load.assert_called_once_with("devtools")
+    _, kwargs = mock_run.call_args
+    assert kwargs["dry_run"] is True
+    assert kwargs["stages"] == ["fetch"]
+    assert kwargs["profile"].signal_limit == 12
+    assert profile.signal_limit == 99
+
+
+def test_pipeline_dry_run_returns_404_for_unknown_profile(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.post("/api/v1/pipeline/dry-run", json={"profile": "missing"})
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
+def test_pipeline_dry_run_returns_400_for_invalid_stages(client):
+    profile = _api_mock_profile("devtools", "developer-tools")
+
+    with (
+        patch("max.profiles.loader.get_default_profile", return_value=profile),
+        patch("max.pipeline.runner.run_pipeline", side_effect=ValueError("Unknown stages: nope")),
+    ):
+        resp = client.post("/api/v1/pipeline/dry-run", json={"stages": ["nope"]})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Unknown stages: nope"
+
+
 def test_pipeline_post_run_invokes_runner(client):
     from max.pipeline.runner import PostPipelineResult
 

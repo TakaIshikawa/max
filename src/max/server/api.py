@@ -905,19 +905,24 @@ async def dry_run_pipeline_endpoint(body: PipelineDryRunRequest) -> DryRunReport
     from max.pipeline.runner import run_pipeline
     from max.profiles.loader import get_default_profile, load_profile
 
-    # Resolve profile
-    if body.profile:
-        profile = load_profile(body.profile)
-    else:
-        profile = get_default_profile()
+    try:
+        profile = load_profile(body.profile) if body.profile else get_default_profile()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {body.profile}")
 
-    result = await asyncio.to_thread(
-        run_pipeline,
-        profile=profile,
-        signal_limit=body.signal_limit,
-        dry_run=True,
-        stages=body.stages,
-    )
+    profile = profile.model_copy(deep=True)
+    if "signal_limit" in body.model_fields_set:
+        profile.signal_limit = body.signal_limit
+
+    try:
+        result = await asyncio.to_thread(
+            run_pipeline,
+            profile=profile,
+            dry_run=True,
+            stages=body.stages,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return DryRunReportResponse(
         stages=[
