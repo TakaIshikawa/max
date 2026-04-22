@@ -147,6 +147,15 @@ def seeded_db(db_path):
         score=76.0,
         notes="seeded",
     )
+    store.insert_idea_memory(
+        unit_id="bu-api001",
+        domain="testing",
+        outcome="approved",
+        pattern="Test Idea: A test idea for the API",
+        rejection_tags=[],
+        score=76.0,
+        evidence_rationale="seeded",
+    )
     store.close()
     return db_path
 
@@ -831,6 +840,31 @@ def test_get_domain_quality_memory(seeded_client):
     data = resp.json()
     assert data[0]["pattern"] == "Test Idea: A test idea for the API"
     assert data[0]["outcome"] == "approved"
+
+
+def test_get_idea_memory(seeded_client):
+    resp = seeded_client.get("/api/v1/idea-memory?domain=testing&outcome=approved")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["buildable_unit_id"] == "bu-api001"
+    assert data[0]["domain"] == "testing"
+    assert data[0]["outcome"] == "approved"
+    assert data[0]["rejection_tags"] == []
+
+
+def test_get_idea_memory_limit_clamped(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    for i in range(101):
+        store.insert_idea_memory(
+            outcome="approved",
+            pattern=f"Memory {i}",
+            domain="testing",
+        )
+    store.close()
+
+    resp = client.get("/api/v1/idea-memory?limit=150")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 100
 
 
 def test_create_idea(client):

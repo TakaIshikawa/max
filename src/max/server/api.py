@@ -26,6 +26,7 @@ from max.server.schemas import (
     IdeaCreate,
     IdeaCritiqueResponse,
     IdeaDetailResponse,
+    IdeaMemoryResponse,
     IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
     InsightCreate,
@@ -555,6 +556,18 @@ def get_idea_critiques(
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return [_critique_to_response(row) for row in store.get_idea_critiques(idea_id)]
+
+
+@router.get("/idea-memory", response_model=list[IdeaMemoryResponse])
+def list_idea_memory(
+    domain: str | None = None,
+    outcome: str | None = None,
+    limit: int = 50,
+    store: Store = Depends(get_store),
+) -> list[IdeaMemoryResponse]:
+    limit = min(limit, 100)
+    rows = store.get_idea_memory(domain=domain, outcome=outcome, limit=limit)
+    return [IdeaMemoryResponse(**row) for row in rows]
 
 
 @router.get("/ideas/{idea_id}/evidence-pack")

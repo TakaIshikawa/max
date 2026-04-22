@@ -21,6 +21,7 @@ from max.server.schemas import (
     HealthResponse,
     IdeaCreate,
     IdeaDetailResponse,
+    IdeaMemoryResponse,
     IdeaSummaryResponse,
     InsightCreate,
     InsightDetailResponse,
@@ -1167,6 +1168,49 @@ class TestIdeaDetailResponse:
         assert dumped["id"] == "idea_789"
         assert dumped["ideation_mode"] == "cross_domain"
         assert dumped["evaluation"] is None
+
+
+class TestIdeaMemoryResponse:
+    """Tests for IdeaMemoryResponse model."""
+
+    def test_valid_construction(self):
+        memory = IdeaMemoryResponse(
+            id="mem-001",
+            buildable_unit_id="bu-001",
+            domain="healthcare",
+            outcome="rejected",
+            pattern="Broad assistant: weak buyer",
+            rejection_tags=["weak_evidence"],
+            score=3.0,
+            evidence_rationale="No supporting signals",
+            created_at="2026-01-01T00:00:00+00:00",
+        )
+        assert memory.id == "mem-001"
+        assert memory.buildable_unit_id == "bu-001"
+        assert memory.rejection_tags == ["weak_evidence"]
+
+    def test_valid_construction_without_unit(self):
+        memory = IdeaMemoryResponse(
+            id="mem-002",
+            domain="",
+            outcome="quality_rejected",
+            pattern="Generic assistant",
+            rejection_tags=[],
+            score=0.0,
+            evidence_rationale="",
+            created_at="2026-01-01T00:00:00+00:00",
+        )
+        assert memory.buildable_unit_id is None
+        assert memory.domain == ""
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            IdeaMemoryResponse()
+        missing_fields = {e["loc"][0] for e in exc_info.value.errors()}
+        assert "id" in missing_fields
+        assert "outcome" in missing_fields
+        assert "pattern" in missing_fields
+        assert "created_at" in missing_fields
 
 
 class TestProfileSummaryResponse:

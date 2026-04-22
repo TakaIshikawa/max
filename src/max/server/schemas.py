@@ -185,6 +185,18 @@ class IdeaCritiqueResponse(BaseModel):
     created_at: str
 
 
+class IdeaMemoryResponse(BaseModel):
+    id: str
+    buildable_unit_id: str | None = None
+    domain: str
+    outcome: str
+    pattern: str
+    rejection_tags: list[str]
+    score: float
+    evidence_rationale: str
+    created_at: str
+
+
 class IdeaSummaryResponse(BaseModel):
     id: str
     title: str
