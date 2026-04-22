@@ -104,6 +104,59 @@ def _mock_store(**overrides) -> MagicMock:
     return store
 
 
+def _source_sim_profile(name: str = "devtools"):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    return PipelineProfile(
+        name=name,
+        domain=DomainContext(
+            name="developer-tools",
+            description="Developer tools",
+            categories=["cli_tool"],
+            target_user_types=["developers"],
+        ),
+        signal_limit=30,
+        sources=[
+            SourceConfig(
+                adapter="hackernews",
+                weight=2.0,
+                watchlist=["mcp"],
+                params={"filter_keywords": ["agents"]},
+            ),
+            SourceConfig(
+                adapter="reddit",
+                enabled=False,
+                params={"subreddits": ["LocalLLaMA"]},
+            ),
+        ],
+    )
+
+
+def _source_sim_store() -> MagicMock:
+    store = MagicMock()
+    store.get_adapter_quality_stats.return_value = {
+        "hackernews": {
+            "total_signals": 10,
+            "insight_hit_rate": 0.4,
+            "idea_hit_rate": 0.2,
+        }
+    }
+    store.get_adapter_approval_stats.return_value = {
+        "hackernews": {
+            "total_feedbacked": 3,
+            "approved": 2,
+            "rejected": 1,
+            "approval_rate": 2 / 3,
+        }
+    }
+    return store
+
+
+def _patch_store_context(MockStore: MagicMock, store: MagicMock) -> None:
+    MockStore.return_value.__enter__.return_value = store
+    MockStore.return_value.__exit__.return_value = False
+
+
 def _design_brief_dict(brief_id: str = "dbf-test001") -> dict:
     return {
         "id": brief_id,
@@ -453,6 +506,70 @@ class TestSourcesCommand:
                 "description": "Fetches Hacker News stories.",
             }
         ]
+
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.get_default_profile")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_sources_simulate_default_profile(
+        self, mock_default_profile, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        mock_default_profile.return_value = _source_sim_profile()
+        _patch_store_context(MockStore, _source_sim_store())
+
+        result = runner.invoke(main, ["sources", "simulate"])
+
+        assert result.exit_code == 0, result.output
+        assert "Source allocation simulation" in result.output
+        assert "Profile: devtools" in result.output
+        assert "Budget: 30" in result.output
+        assert "hackernews" in result.output
+        mock_default_profile.assert_called_once_with()
+
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_sources_simulate_explicit_profile_and_budget(
+        self, mock_load_profile, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        _patch_store_context(MockStore, _source_sim_store())
+
+        result = runner.invoke(
+            main, ["sources", "simulate", "--profile", "devtools", "--budget", "80"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Profile: devtools" in result.output
+        assert "Budget: 80" in result.output
+        assert "Total allocated: 80" in result.output
+        mock_load_profile.assert_called_once_with("devtools")
+
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.config.MAX_PROFILE", "")
+    def test_sources_simulate_json_output(
+        self, mock_load_profile, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        _patch_store_context(MockStore, _source_sim_store())
+
+        result = runner.invoke(
+            main,
+            ["sources", "simulate", "--profile", "devtools", "--budget", "80", "--json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["profile"] == "devtools"
+        assert payload["total_budget"] == 80
+        assert payload["allocation"] == {"hackernews": 80}
+        by_adapter = {source["adapter"]: source for source in payload["sources"]}
+        assert by_adapter["hackernews"]["quality"]["total_signals"] == 10
+        assert by_adapter["hackernews"]["approval"]["approval_rate"] == pytest.approx(
+            2 / 3
+        )
+        assert by_adapter["reddit"]["enabled"] is False
+        assert by_adapter["reddit"]["allocated_limit"] == 0
 
 
 class TestBlueprintExportCommands:

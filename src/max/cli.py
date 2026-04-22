@@ -470,6 +470,95 @@ def sources_list(fmt: str) -> None:
         click.echo(f"    Required:    {required_keys}")
 
 
+@sources_group.command(name="simulate")
+@click.option(
+    "--profile",
+    "-p",
+    type=str,
+    default=None,
+    help="Pipeline profile name (defaults to MAX_PROFILE or devtools)",
+)
+@click.option(
+    "--budget",
+    type=int,
+    default=None,
+    help="Total fetch signal budget (defaults to profile signal_limit)",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def sources_simulate(profile: str | None, budget: int | None, as_json: bool) -> None:
+    """Simulate profile source allocation before a run."""
+    from max.analysis.source_simulation import simulate_source_allocation
+    from max.config import MAX_PROFILE
+    from max.profiles.loader import get_default_profile, load_profile
+    from max.store.db import Store
+
+    if budget is not None and budget < 1:
+        raise click.ClickException("--budget must be at least 1")
+
+    profile_name = profile or MAX_PROFILE or None
+    try:
+        p = load_profile(profile_name) if profile_name else get_default_profile()
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
+
+    with Store() as store:
+        report = simulate_source_allocation(p, store, budget=budget)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_source_simulation(report)
+
+
+def _render_source_simulation(report) -> None:
+    """Render source allocation simulation as a compact table."""
+    click.echo("Source allocation simulation")
+    click.echo(
+        f"Profile: {report.profile}  "
+        f"Domain: {report.domain}  "
+        f"Budget: {report.total_budget}"
+    )
+    click.echo()
+    click.echo(
+        f"{'Adapter':<22s} {'On':<3s} {'Weight':>6s} {'Signals':>7s} "
+        f"{'Ins%':>6s} {'Idea%':>6s} {'Fb':>4s} {'Appr%':>6s} "
+        f"{'CB':<9s} {'Alloc':>6s} Params"
+    )
+    click.echo("-" * 116)
+    for source in report.sources:
+        params = _format_source_params(source.params)
+        approval = _format_rate(source.approval_rate)
+        click.echo(
+            f"{source.adapter[:22]:<22s} "
+            f"{'yes' if source.enabled else 'no':<3s} "
+            f"{source.configured_weight:>6.2f} "
+            f"{source.total_signals:>7d} "
+            f"{_format_rate(source.insight_hit_rate):>6s} "
+            f"{_format_rate(source.idea_hit_rate):>6s} "
+            f"{source.total_feedbacked:>4d} "
+            f"{approval:>6s} "
+            f"{source.circuit_state:<9s} "
+            f"{source.allocated_limit:>6d} "
+            f"{params}"
+        )
+    click.echo("-" * 116)
+    click.echo(f"Total allocated: {sum(report.allocation.values())}")
+
+
+def _format_rate(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.0%}"
+
+
+def _format_source_params(params: dict) -> str:
+    if not params:
+        return "{}"
+    encoded = json.dumps(params, sort_keys=True, separators=(",", ":"))
+    return encoded if len(encoded) <= 42 else f"{encoded[:39]}..."
+
+
 def _known_profile_domains() -> dict[str, str]:
     """Return {domain_name: profile_name} for all valid profiles."""
     from max.profiles.loader import list_profiles, load_profile
