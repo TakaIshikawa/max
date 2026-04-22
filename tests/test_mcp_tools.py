@@ -347,6 +347,24 @@ def test_contribute_signal(mcp_db):
     assert result["id"].startswith("sig-")
 
 
+def test_contribute_signal_duplicate(mcp_db):
+    first = contribute_signal(
+        title="Test Signal via MCP",
+        content="Some content",
+        url="https://example.com/mcp-duplicate",
+    )
+    second = contribute_signal(
+        title="Duplicate Signal via MCP",
+        content="Different content",
+        url="https://example.com/mcp-duplicate",
+    )
+
+    assert first["status"] == "created"
+    assert second["status"] == "duplicate"
+    assert second["id"] == first["id"]
+    assert second["title"] == "Test Signal via MCP"
+
+
 def test_contribute_idea(mcp_db):
     result = contribute_idea(
         title="Test Idea via MCP",

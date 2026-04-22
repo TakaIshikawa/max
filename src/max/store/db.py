@@ -6,6 +6,7 @@ import base64
 import json
 import sqlite3
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from max.analysis.status import validate_buildable_unit_status_transition
@@ -25,6 +26,16 @@ IDEA_STATUS_SUMMARY_STATUSES = (
     "duplicate",
     "synthesized",
 )
+
+
+@dataclass(frozen=True)
+class InsertSignalResult:
+    signal: Signal
+    created: bool
+
+    @property
+    def status(self) -> str:
+        return "created" if self.created else "duplicate"
 
 
 def _now_iso() -> str:
@@ -123,7 +134,7 @@ class Store:
 
     # ── Signals ──────────────────────────────────────────────────────
 
-    def insert_signal(self, signal: Signal) -> Signal:
+    def _insert_signal_row(self, signal: Signal) -> bool:
         if not signal.id:
             signal.id = _gen_id("sig")
         try:
@@ -150,9 +161,23 @@ class Store:
                 ),
             )
             self._commit()
+            return True
         except sqlite3.IntegrityError:
-            pass  # duplicate URL — skip
+            return False
+
+    def insert_signal(self, signal: Signal) -> Signal:
+        self._insert_signal_row(signal)
         return signal
+
+    def insert_signal_result(self, signal: Signal) -> InsertSignalResult:
+        created = self._insert_signal_row(signal)
+        if created:
+            return InsertSignalResult(signal=signal, created=True)
+
+        existing = self.get_signal_by_url(signal.url)
+        if existing is None and signal.id:
+            existing = self.get_signal(signal.id)
+        return InsertSignalResult(signal=existing or signal, created=False)
 
     def get_signals(self, *, limit: int = 100, source_type: str | None = None) -> list[Signal]:
         query = "SELECT * FROM signals WHERE archived_at IS NULL"

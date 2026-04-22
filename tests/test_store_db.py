@@ -113,6 +113,21 @@ class TestSignalOperations:
         assert store.get_signal("sig-a") is not None
         assert store.get_signal("sig-b") is None
 
+    def test_insert_signal_result_reports_created_and_duplicate(self, store: Store) -> None:
+        sig1 = _make_signal(sig_id="sig-created", url="https://example.com/result-dup")
+        sig2 = _make_signal(sig_id="sig-skipped", url="https://example.com/result-dup")
+
+        first = store.insert_signal_result(sig1)
+        second = store.insert_signal_result(sig2)
+
+        assert first.created is True
+        assert first.status == "created"
+        assert first.signal.id == "sig-created"
+        assert second.created is False
+        assert second.status == "duplicate"
+        assert second.signal.id == "sig-created"
+        assert store.get_signal("sig-skipped") is None
+
     def test_get_signal_by_url(self, store: Store) -> None:
         sig = _make_signal(sig_id="sig-url", url="https://example.com/by-url")
         store.insert_signal(sig)

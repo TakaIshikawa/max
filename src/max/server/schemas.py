@@ -142,6 +142,10 @@ class SignalResponse(BaseModel):
     metadata: dict
 
 
+class SignalCreateResponse(SignalResponse):
+    status: Literal["created", "duplicate"]
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str

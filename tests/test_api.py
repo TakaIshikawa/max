@@ -370,6 +370,33 @@ def test_create_signal(client):
     data = resp.json()
     assert data["title"] == "New Signal"
     assert data["id"].startswith("sig-")
+    assert data["status"] == "created"
+
+
+def test_create_signal_duplicate_returns_existing_signal(client):
+    first = client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Original Signal",
+            "content": "Signal content",
+            "url": "https://example.com/duplicate-api",
+        },
+    )
+    second = client.post(
+        "/api/v1/signals",
+        json={
+            "title": "Duplicate Signal",
+            "content": "Different content",
+            "url": "https://example.com/duplicate-api",
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 200
+    data = second.json()
+    assert data["status"] == "duplicate"
+    assert data["id"] == first.json()["id"]
+    assert data["title"] == "Original Signal"
 
 
 def test_list_signals_after_create(client):

@@ -265,8 +265,12 @@ def contribute_signal(
             url=url,
             tags=tags or [],
         )
-        signal = store.insert_signal(signal)
-        return {"id": signal.id, "title": signal.title, "status": "created"}
+        result = store.insert_signal_result(signal)
+        return {
+            "id": result.signal.id,
+            "title": result.signal.title,
+            "status": result.status,
+        }
 
 
 def contribute_idea(

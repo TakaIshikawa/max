@@ -67,6 +67,7 @@ from max.server.schemas import (
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
+    SignalCreateResponse,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -457,8 +458,12 @@ def list_signals(
     )
 
 
-@router.post("/signals", response_model=SignalResponse, status_code=201)
-def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> SignalResponse:
+@router.post("/signals", response_model=SignalCreateResponse, status_code=201)
+def create_signal(
+    body: SignalCreate,
+    response: Response,
+    store: Store = Depends(get_store),
+) -> SignalCreateResponse:
     metadata = dict(body.metadata)
     if body.signal_role is not None:
         metadata["signal_role"] = body.signal_role
@@ -474,8 +479,12 @@ def create_signal(body: SignalCreate, store: Store = Depends(get_store)) -> Sign
         credibility=body.credibility,
         metadata=metadata,
     )
-    signal = store.insert_signal(signal)
-    return _signal_to_response(signal)
+    result = store.insert_signal_result(signal)
+    response.status_code = 201 if result.created else 200
+    return SignalCreateResponse(
+        **_signal_to_response(result.signal).model_dump(),
+        status=result.status,
+    )
 
 
 @router.post("/signals/{signal_id}/archive", response_model=SignalResponse)
