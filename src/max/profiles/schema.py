@@ -14,6 +14,7 @@ _WATCHLIST_PARAM_KEYS = {
     "github": "topics",
     "github_discussions": "search_terms",
     "github_issues": "queries",
+    "gitlab_releases": "query_terms",
     "hackernews": "filter_keywords",
     "huggingface": "queries",
     "nuget": "queries",

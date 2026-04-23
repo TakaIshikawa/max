@@ -43,6 +43,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
+    "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
@@ -140,6 +141,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "labels", "project_ids", "state", "min_upvotes"],
         required_keys=[],
         description="Searches public GitLab issues for configured query strings and filters.",
+    ),
+    "gitlab_releases": AdapterMetadata(
+        name="gitlab_releases",
+        config_keys=[
+            "projects",
+            "gitlab_base_url",
+            "token_env",
+            "include_prerelease",
+            "max_age_days",
+            "tags",
+            "query_terms",
+        ],
+        required_keys=["projects"],
+        description="Fetches release activity from configured GitLab projects.",
     ),
     "security_advisories": AdapterMetadata(
         name="security_advisories",
