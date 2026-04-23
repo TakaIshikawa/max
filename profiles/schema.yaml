@@ -202,6 +202,7 @@ properties:
             - reddit
             - github
             - github_issues
+            - github_discussions
             - nuget
             - npm_registry
             - pypi_registry

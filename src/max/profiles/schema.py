@@ -12,6 +12,7 @@ _WATCHLIST_PARAM_KEYS = {
     "bluesky": "queries",
     "devto": "tags",
     "github": "topics",
+    "github_discussions": "search_terms",
     "github_issues": "queries",
     "hackernews": "filter_keywords",
     "huggingface": "queries",
