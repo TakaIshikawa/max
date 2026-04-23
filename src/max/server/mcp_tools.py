@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import asdict
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -36,6 +37,13 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
         def http_app(self, path: str = "/mcp"):
             return FastAPI(title=self.name)
 
+from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.thresholds import (
+    DEFAULT_APPROVE_THRESHOLD,
+    DEFAULT_MIN_SAMPLES as DEFAULT_THRESHOLD_MIN_SAMPLES,
+    DEFAULT_REJECT_THRESHOLD,
+    recommend_review_thresholds,
+)
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.store.db import Store
 
@@ -507,6 +515,42 @@ def get_stats() -> dict:
         }
 
 
+def get_evaluation_calibration(
+    domain: str | None = None,
+    min_samples: int = 1,
+    limit: int = 50,
+) -> dict:
+    """Return score-vs-feedback calibration grouped by domain and recommendation."""
+    with _get_store() as store:
+        report = build_evaluation_calibration_report(
+            store,
+            domain=domain,
+            min_samples=min_samples,
+            limit=limit,
+        )
+        return asdict(report)
+
+
+def get_review_thresholds(
+    domain: str | None = None,
+    min_samples: int = DEFAULT_THRESHOLD_MIN_SAMPLES,
+) -> dict:
+    """Return review threshold recommendations grouped by domain."""
+    with _get_store() as store:
+        recommendations = recommend_review_thresholds(
+            store,
+            domain=domain,
+            min_samples=min_samples,
+        )
+        return {
+            "domain": domain,
+            "min_samples": min_samples,
+            "default_approve_threshold": DEFAULT_APPROVE_THRESHOLD,
+            "default_reject_threshold": DEFAULT_REJECT_THRESHOLD,
+            "recommendations": [asdict(item) for item in recommendations],
+        }
+
+
 def max_source_reliability(
     profile: str | None = None,
     time_window: str | None = None,
@@ -888,6 +932,8 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(evaluate_idea)
     mcp.tool(find_similar)
     mcp.tool(get_stats)
+    mcp.tool(get_evaluation_calibration)
+    mcp.tool(get_review_thresholds)
     mcp.tool(max_source_reliability)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
