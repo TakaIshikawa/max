@@ -462,10 +462,10 @@ async def check_prior_art_batch(
     units: list[BuildableUnit],
     *,
     dry_run: bool = False,
+    max_concurrency: int = 1,
+    sources_override: list[str] | None = None,
 ) -> list[PriorArtResult]:
     """Check prior art for a batch of buildable units."""
-    results: list[PriorArtResult] = []
-
     # Build semaphores per source
     semaphores = {
         source: asyncio.Semaphore(limit)
@@ -487,51 +487,88 @@ async def check_prior_art_batch(
     }
 
     async with httpx.AsyncClient(timeout=30, headers=shared_headers) as client:
-        for unit in units:
-            queries = build_search_queries(unit)
-            sources = select_sources(unit)
+        unit_semaphore = asyncio.Semaphore(max(1, max_concurrency))
 
-            if dry_run:
-                results.append(PriorArtResult(
-                    buildable_unit_id=unit.id,
-                    matches=[],
-                    status="unchecked",
-                ))
-                continue
-
-            # Search all sources concurrently for this unit
-            tasks = []
-            for source in sources:
-                _, delay = _RATE_LIMITS.get(source, (3, 1.0))
-                kwargs: dict[str, object] = {}
-                if source == "github":
-                    kwargs["extra_headers"] = gh_headers
-                tasks.append(
-                    _search_source(source, queries, client, semaphores[source], delay, **kwargs)
+        async def check_unit(unit: BuildableUnit) -> PriorArtResult:
+            async with unit_semaphore:
+                return await _check_prior_art_unit(
+                    unit,
+                    client=client,
+                    semaphores=semaphores,
+                    gh_headers=gh_headers,
+                    dry_run=dry_run,
+                    sources_override=sources_override,
                 )
 
-            source_results = await asyncio.gather(*tasks)
-            raw_matches: list[PriorArtMatch] = []
-            for matches in source_results:
-                raw_matches.extend(matches)
+        return await asyncio.gather(*(check_unit(unit) for unit in units))
 
-            # Score and filter
-            scored = score_matches(unit, raw_matches)
-            status = determine_status(scored)
 
-            results.append(PriorArtResult(
-                buildable_unit_id=unit.id,
-                matches=scored,
-                status=status,
-            ))
+async def _check_prior_art_unit(
+    unit: BuildableUnit,
+    *,
+    client: httpx.AsyncClient,
+    semaphores: dict[str, asyncio.Semaphore],
+    gh_headers: dict[str, str],
+    dry_run: bool,
+    sources_override: list[str] | None,
+) -> PriorArtResult:
+    queries = build_search_queries(unit)
+    sources = list(sources_override) if sources_override is not None else select_sources(unit)
 
-    return results
+    if dry_run:
+        return PriorArtResult(
+            buildable_unit_id=unit.id,
+            matches=[],
+            status="unchecked",
+        )
+
+    # Search all sources concurrently for this unit
+    tasks = []
+    for source in sources:
+        _, delay = _RATE_LIMITS.get(source, (3, 1.0))
+        kwargs: dict[str, object] = {}
+        if source == "github":
+            kwargs["extra_headers"] = gh_headers
+        tasks.append(
+            _search_source(
+                source,
+                queries,
+                client,
+                semaphores.get(source, asyncio.Semaphore(3)),
+                delay,
+                **kwargs,
+            )
+        )
+
+    source_results = await asyncio.gather(*tasks)
+    raw_matches: list[PriorArtMatch] = []
+    for matches in source_results:
+        raw_matches.extend(matches)
+
+    # Score and filter
+    scored = score_matches(unit, raw_matches)
+    status = determine_status(scored)
+
+    return PriorArtResult(
+        buildable_unit_id=unit.id,
+        matches=scored,
+        status=status,
+    )
 
 
 def check_prior_art(
     units: list[BuildableUnit],
     *,
     dry_run: bool = False,
+    max_concurrency: int = 1,
+    sources_override: list[str] | None = None,
 ) -> list[PriorArtResult]:
     """Sync wrapper around check_prior_art_batch."""
-    return asyncio.run(check_prior_art_batch(units, dry_run=dry_run))
+    return asyncio.run(
+        check_prior_art_batch(
+            units,
+            dry_run=dry_run,
+            max_concurrency=max_concurrency,
+            sources_override=sources_override,
+        )
+    )

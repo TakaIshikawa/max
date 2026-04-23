@@ -1876,6 +1876,155 @@ def test_check_idea_prior_art_force_replaces_matches(seeded_client):
     assert data["matches"][0]["source"] == "npm"
 
 
+def _insert_prior_art_batch_unit(db_path: str, unit_id: str, title: str | None = None) -> None:
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id=unit_id,
+                title=title or unit_id,
+                one_liner="Batch prior art one liner",
+                category=BuildableCategory.APPLICATION,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+            )
+        )
+    finally:
+        store.close()
+
+
+def test_check_ideas_prior_art_batch_partial_failures_and_response_shape(client, db_path):
+    _insert_prior_art_batch_unit(db_path, "bu-batch-pa-1", "Batch Prior Art One")
+
+    result = PriorArtResult(
+        buildable_unit_id="bu-batch-pa-1",
+        matches=[
+            PriorArtMatch(
+                source="github",
+                title="batch-prior-art",
+                url="https://github.com/example/batch-prior-art",
+                description="Existing batch checker.",
+                relevance_score=0.9,
+                match_signals={"stars": 77},
+                search_query="batch prior art",
+            )
+        ],
+        status="strong_match",
+    )
+
+    with patch("max.analysis.prior_art.check_prior_art", return_value=[result]) as mock_check:
+        resp = client.post(
+            "/api/v1/ideas/prior-art/batch",
+            json={"idea_ids": ["bu-batch-pa-1", "bu-missing-pa"]},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["idea_id"] for item in data["results"]] == ["bu-batch-pa-1", "bu-missing-pa"]
+    assert data["results"][0]["status"] == "checked"
+    assert data["results"][0]["prior_art_status"] == "strong_match"
+    assert data["results"][0]["skipped"] is False
+    assert data["results"][0]["error"] is None
+    assert data["results"][0]["matches"][0]["title"] == "batch-prior-art"
+    assert data["results"][1]["status"] == "error"
+    assert data["results"][1]["matches"] == []
+    assert data["results"][1]["skipped"] is False
+    assert "Idea not found" in data["results"][1]["error"]
+    mock_check.assert_called_once()
+
+
+def test_check_ideas_prior_art_batch_skips_existing_without_force(seeded_client):
+    with patch("max.analysis.prior_art.check_prior_art") as mock_check:
+        resp = seeded_client.post(
+            "/api/v1/ideas/prior-art/batch",
+            json={"idea_ids": ["bu-api001"]},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    item = data["results"][0]
+    assert item["status"] == "skipped"
+    assert item["skipped"] is True
+    assert item["prior_art_status"] == "weak_match"
+    assert item["matches"][0]["title"] == "Existing Test Idea"
+    mock_check.assert_not_called()
+
+
+def test_check_ideas_prior_art_batch_force_rechecks_existing(seeded_client):
+    result = PriorArtResult(
+        buildable_unit_id="bu-api001",
+        matches=[
+            PriorArtMatch(
+                source="pypi",
+                title="forced-prior-art",
+                url="https://pypi.org/project/forced-prior-art/",
+                description="Forced replacement.",
+                relevance_score=0.7,
+                match_signals={"version": "1.0.0"},
+                search_query="forced prior art",
+            )
+        ],
+        status="weak_match",
+    )
+
+    with patch("max.analysis.prior_art.check_prior_art", return_value=[result]) as mock_check:
+        resp = seeded_client.post(
+            "/api/v1/ideas/prior-art/batch",
+            json={"idea_ids": ["bu-api001"], "force": True},
+        )
+
+    assert resp.status_code == 200
+    item = resp.json()["results"][0]
+    assert item["status"] == "checked"
+    assert item["skipped"] is False
+    assert [match["title"] for match in item["matches"]] == ["forced-prior-art"]
+    mock_check.assert_called_once()
+
+
+def test_check_ideas_prior_art_batch_passes_sources_override_and_concurrency(client, db_path):
+    _insert_prior_art_batch_unit(db_path, "bu-batch-pa-sources")
+    result = PriorArtResult(
+        buildable_unit_id="bu-batch-pa-sources",
+        matches=[],
+        status="clear",
+    )
+
+    with patch("max.analysis.prior_art.check_prior_art", return_value=[result]) as mock_check:
+        resp = client.post(
+            "/api/v1/ideas/prior-art/batch",
+            json={
+                "idea_ids": ["bu-batch-pa-sources"],
+                "max_concurrency": 4,
+                "sources": ["github", "npm"],
+            },
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["results"][0]["prior_art_status"] == "clear"
+    assert mock_check.call_args.kwargs["max_concurrency"] == 4
+    assert mock_check.call_args.kwargs["sources_override"] == ["github", "npm"]
+
+
+def test_check_ideas_prior_art_batch_request_validation(client):
+    too_many = client.post(
+        "/api/v1/ideas/prior-art/batch",
+        json={"idea_ids": [f"bu-pa-{idx}" for idx in range(26)]},
+    )
+    bad_source = client.post(
+        "/api/v1/ideas/prior-art/batch",
+        json={"idea_ids": ["bu-pa-1"], "sources": ["unknown"]},
+    )
+    bad_concurrency = client.post(
+        "/api/v1/ideas/prior-art/batch",
+        json={"idea_ids": ["bu-pa-1"], "max_concurrency": 0},
+    )
+
+    assert too_many.status_code == 422
+    assert bad_source.status_code == 422
+    assert bad_concurrency.status_code == 422
+
+
 def test_get_idea_spec_preview(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/spec-preview")
     assert resp.status_code == 200

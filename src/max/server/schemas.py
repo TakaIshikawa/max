@@ -115,6 +115,16 @@ class PriorArtCheckRequest(BaseModel):
     force: bool = False
 
 
+PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
+
+
+class BatchPriorArtCheckRequest(BaseModel):
+    idea_ids: list[str] = Field(min_length=1, max_length=25)
+    force: bool = False
+    max_concurrency: int = Field(default=3, ge=1, le=25)
+    sources: list[PriorArtSource] | None = Field(default=None, min_length=1)
+
+
 class IdeaEvaluateBatchRequest(BaseModel):
     idea_ids: list[str] = Field(min_length=1, max_length=25)
     skip_existing: bool = False
@@ -741,6 +751,19 @@ class PriorArtResponse(BaseModel):
     idea_id: str
     prior_art_status: str
     matches: list[PriorArtMatchResponse]
+
+
+class BatchPriorArtCheckItemResponse(BaseModel):
+    idea_id: str
+    status: Literal["checked", "skipped", "error"]
+    prior_art_status: str | None = None
+    matches: list[PriorArtMatchResponse] = Field(default_factory=list)
+    error: str | None = None
+    skipped: bool = False
+
+
+class BatchPriorArtCheckResponse(BaseModel):
+    results: list[BatchPriorArtCheckItemResponse]
 
 
 class PublicationAttemptResponse(BaseModel):

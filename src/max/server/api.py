@@ -61,6 +61,9 @@ from max.server.schemas import (
     AdapterHealthItemResponse,
     AdapterHealthResponse,
     AdapterMetadataResponse,
+    BatchPriorArtCheckItemResponse,
+    BatchPriorArtCheckRequest,
+    BatchPriorArtCheckResponse,
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
@@ -799,28 +802,11 @@ def _lineage_graph_response(unit: BuildableUnit, store: Store) -> LineageGraphRe
     return LineageGraphResponse(idea_id=unit.id, nodes=nodes, edges=edges)
 
 
-def run_prior_art_check_for_idea(store: Store, idea_id: str, *, force: bool = False) -> PriorArtResponse:
-    """Check prior art for a single idea and persist the latest result."""
-    from max.analysis.prior_art import PriorArtResult, check_prior_art
+def _has_cached_prior_art(unit: BuildableUnit, matches: list[dict]) -> bool:
+    return unit.prior_art_status != "unchecked" or bool(matches)
 
-    unit = store.get_buildable_unit(idea_id)
-    if not unit:
-        raise ValueError(f"Idea not found: {idea_id}")
 
-    matches = store.get_prior_art_matches(idea_id)
-    if not force and (unit.prior_art_status != "unchecked" or matches):
-        return _prior_art_response(unit, matches)
-
-    if force:
-        store.delete_prior_art_matches(idea_id)
-
-    results = check_prior_art([unit], dry_run=False)
-    result = results[0] if results else PriorArtResult(
-        buildable_unit_id=idea_id,
-        matches=[],
-        status="clear",
-    )
-
+def _persist_prior_art_result(store: Store, idea_id: str, result) -> PriorArtResponse:
     for match in result.matches:
         store.insert_prior_art_match(idea_id, {
             "source": match.source,
@@ -833,8 +819,47 @@ def run_prior_art_check_for_idea(store: Store, idea_id: str, *, force: bool = Fa
         })
 
     store.update_prior_art_status(idea_id, result.status)
-    refreshed = store.get_buildable_unit(idea_id) or unit
+    refreshed = store.get_buildable_unit(idea_id)
+    if refreshed is None:
+        raise ValueError(f"Idea not found: {idea_id}")
     return _prior_art_response(refreshed, store.get_prior_art_matches(idea_id))
+
+
+def run_prior_art_check_for_idea(
+    store: Store,
+    idea_id: str,
+    *,
+    force: bool = False,
+    max_concurrency: int = 1,
+    sources_override: list[str] | None = None,
+) -> PriorArtResponse:
+    """Check prior art for a single idea and persist the latest result."""
+    from max.analysis.prior_art import PriorArtResult, check_prior_art
+
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise ValueError(f"Idea not found: {idea_id}")
+
+    matches = store.get_prior_art_matches(idea_id)
+    if not force and _has_cached_prior_art(unit, matches):
+        return _prior_art_response(unit, matches)
+
+    if force:
+        store.delete_prior_art_matches(idea_id)
+
+    results = check_prior_art(
+        [unit],
+        dry_run=False,
+        max_concurrency=max_concurrency,
+        sources_override=sources_override,
+    )
+    result = results[0] if results else PriorArtResult(
+        buildable_unit_id=idea_id,
+        matches=[],
+        status="clear",
+    )
+
+    return _persist_prior_art_result(store, idea_id, result)
 
 
 def _load_profile_or_404(profile_name: str):
@@ -1572,6 +1597,94 @@ def evaluate_ideas_batch(
             )
 
     return IdeaEvaluateBatchResponse(results=results)
+
+
+@router.post(
+    "/ideas/prior-art/batch",
+    response_model=BatchPriorArtCheckResponse,
+)
+def check_ideas_prior_art_batch(
+    body: BatchPriorArtCheckRequest,
+    store: Store = Depends(get_store),
+) -> BatchPriorArtCheckResponse:
+    from max.analysis.prior_art import PriorArtResult, check_prior_art
+
+    results: list[BatchPriorArtCheckItemResponse | None] = [None] * len(body.idea_ids)
+    units_to_check: list[BuildableUnit] = []
+    pending_indexes: list[int] = []
+
+    for index, idea_id in enumerate(body.idea_ids):
+        try:
+            unit = store.get_buildable_unit(idea_id)
+            if not unit:
+                results[index] = (
+                    BatchPriorArtCheckItemResponse(
+                        idea_id=idea_id,
+                        status="error",
+                        error=f"Idea not found: {idea_id}",
+                    )
+                )
+                continue
+
+            matches = store.get_prior_art_matches(idea_id)
+            if not body.force and _has_cached_prior_art(unit, matches):
+                cached = _prior_art_response(unit, matches)
+                results[index] = (
+                    BatchPriorArtCheckItemResponse(
+                        idea_id=idea_id,
+                        status="skipped",
+                        prior_art_status=cached.prior_art_status,
+                        matches=cached.matches,
+                        skipped=True,
+                    )
+                )
+                continue
+
+            if body.force:
+                store.delete_prior_art_matches(idea_id)
+            units_to_check.append(unit)
+            pending_indexes.append(index)
+        except Exception as exc:
+            results[index] = (
+                BatchPriorArtCheckItemResponse(
+                    idea_id=idea_id,
+                    status="error",
+                    error=str(exc),
+                )
+            )
+
+    if units_to_check:
+        try:
+            checked_results = check_prior_art(
+                units_to_check,
+                dry_run=False,
+                max_concurrency=body.max_concurrency,
+                sources_override=list(body.sources) if body.sources is not None else None,
+            )
+            results_by_id = {result.buildable_unit_id: result for result in checked_results}
+            for index, unit in zip(pending_indexes, units_to_check, strict=True):
+                result = results_by_id.get(unit.id) or PriorArtResult(
+                    buildable_unit_id=unit.id,
+                    matches=[],
+                    status="clear",
+                )
+                checked = _persist_prior_art_result(store, unit.id, result)
+                results[index] = BatchPriorArtCheckItemResponse(
+                    idea_id=unit.id,
+                    status="checked",
+                    prior_art_status=checked.prior_art_status,
+                    matches=checked.matches,
+                    skipped=False,
+                )
+        except Exception as exc:
+            for index, unit in zip(pending_indexes, units_to_check, strict=True):
+                results[index] = BatchPriorArtCheckItemResponse(
+                    idea_id=unit.id,
+                    status="error",
+                    error=str(exc),
+                )
+
+    return BatchPriorArtCheckResponse(results=[result for result in results if result is not None])
 
 
 @router.get("/ideas/{idea_id}", response_model=IdeaDetailResponse)
