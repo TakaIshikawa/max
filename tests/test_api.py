@@ -597,6 +597,55 @@ def test_get_profile_coverage_gaps_returns_404_for_unknown_profile(client):
     assert resp.json()["detail"] == "Profile not found: missing"
 
 
+def test_get_profile_source_recommendations_response_shape(client):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    profile = PipelineProfile(
+        name="recommendations",
+        domain=DomainContext(
+            name="testing",
+            description="testing domain",
+            categories=["application"],
+            target_user_types=["developers"],
+        ),
+        sources=[SourceConfig(adapter="hackernews", enabled=True, weight=1.0)],
+    )
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile),
+        patch(
+            "max.analysis.profile_source_recommendations.list_adapters",
+            return_value=["hackernews"],
+        ),
+    ):
+        resp = client.get("/api/v1/profiles/recommendations/source-recommendations")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile_name"] == "recommendations"
+    assert data["domain"] == "testing"
+    assert data["max_age_days"] == 30
+    assert len(data["recommendations"]) == 1
+    rec = data["recommendations"][0]
+    assert rec["adapter"] == "hackernews"
+    assert rec["action"] == "keep"
+    assert rec["current_weight"] == 1.0
+    assert rec["suggested_weight"] == 1.0
+    assert rec["evidence"]["registered"] is True
+    assert set(rec) == {
+        "adapter",
+        "action",
+        "severity",
+        "enabled",
+        "registered",
+        "configured",
+        "current_weight",
+        "suggested_weight",
+        "reasons",
+        "evidence",
+    }
+
+
 # ── Evaluation weight endpoints ─────────────────────────────────────
 
 

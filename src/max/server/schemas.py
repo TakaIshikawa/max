@@ -272,6 +272,34 @@ class SourceReliabilityResponse(BaseModel):
     source_types: list[SourceReliabilityTypeResponse]
 
 
+class ProfileSourceRecommendationResponse(BaseModel):
+    adapter: str
+    action: Literal[
+        "increase_weight",
+        "decrease_weight",
+        "enable",
+        "disable",
+        "investigate",
+        "keep",
+    ]
+    severity: Literal["low", "medium", "high"]
+    enabled: bool
+    registered: bool
+    configured: bool
+    current_weight: float
+    suggested_weight: float
+    reasons: list[str]
+    evidence: dict[str, Any]
+
+
+class ProfileSourceRecommendationsResponse(BaseModel):
+    generated_at: str
+    profile_name: str
+    domain: str
+    max_age_days: int
+    recommendations: list[ProfileSourceRecommendationResponse]
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str

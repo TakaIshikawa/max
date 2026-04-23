@@ -32,6 +32,10 @@ from max.analysis.profile_drift import (
     DEFAULT_UNIT_LIMIT as DEFAULT_PROFILE_DRIFT_UNIT_LIMIT,
     build_profile_drift_report,
 )
+from max.analysis.profile_source_recommendations import (
+    DEFAULT_MAX_AGE_DAYS as DEFAULT_SOURCE_RECOMMENDATION_MAX_AGE_DAYS,
+    build_profile_source_recommendations_for_profile,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -132,6 +136,7 @@ from max.server.schemas import (
     ProfileCoverageGapsResponse,
     ProfileCoverageTermResponse,
     ProfileDriftResponse,
+    ProfileSourceRecommendationsResponse,
     ProfileSummaryResponse,
     ProfileValidationIssueResponse,
     ProfileValidationResponse,
@@ -919,6 +924,24 @@ def get_profile_drift(
         insight_limit=insight_limit,
     )
     return ProfileDriftResponse.model_validate(report.to_dict())
+
+
+@router.get(
+    "/profiles/{profile_name}/source-recommendations",
+    response_model=ProfileSourceRecommendationsResponse,
+)
+def get_profile_source_recommendations(
+    profile_name: str,
+    max_age_days: int = Query(DEFAULT_SOURCE_RECOMMENDATION_MAX_AGE_DAYS, ge=1),
+    store: Store = Depends(get_store),
+) -> ProfileSourceRecommendationsResponse:
+    profile = _load_profile_or_404(profile_name)
+    report = build_profile_source_recommendations_for_profile(
+        profile,
+        store,
+        max_age_days=max_age_days,
+    )
+    return ProfileSourceRecommendationsResponse.model_validate(report.to_dict())
 
 
 # ── Evaluation Weights ──────────────────────────────────────────────

@@ -599,6 +599,88 @@ class TestSourcesCommand:
         assert by_adapter["reddit"]["allocated_limit"] == 0
 
 
+class TestProfileSourceRecommendationsCommand:
+    @patch("max.store.db.Store")
+    @patch("max.analysis.profile_source_recommendations.build_profile_source_recommendations")
+    def test_text_rendering(
+        self,
+        mock_build,
+        MockStore: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.profile_source_recommendations import (
+            ProfileSourceRecommendation,
+            ProfileSourceRecommendationsReport,
+        )
+
+        mock_build.return_value = ProfileSourceRecommendationsReport(
+            generated_at="2026-01-31T00:00:00+00:00",
+            profile_name="devtools",
+            domain="developer-tools",
+            max_age_days=30,
+            recommendations=[
+                ProfileSourceRecommendation(
+                    adapter="github",
+                    action="decrease_weight",
+                    severity="medium",
+                    enabled=True,
+                    registered=True,
+                    configured=True,
+                    current_weight=2.0,
+                    suggested_weight=1.0,
+                    reasons=["Approval rate is 0.20 across 5 feedback records."],
+                    evidence={
+                        "quality": {"total_signals": 10, "quality_score": 0.08},
+                        "approval": {"approval_rate": 0.2},
+                        "freshness": {"stale_count": 0, "total_count": 10},
+                    },
+                )
+            ],
+        )
+
+        result = runner.invoke(main, ["profile-source-recommendations", "devtools"])
+
+        assert result.exit_code == 0, result.output
+        assert "Profile source recommendations" in result.output
+        assert "Profile: devtools" in result.output
+        assert "github" in result.output
+        assert "decrease_weight" in result.output
+        assert "evidence: signals=10" in result.output
+        mock_build.assert_called_once()
+        MockStore.return_value.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    @patch("max.analysis.profile_source_recommendations.build_profile_source_recommendations")
+    def test_json_rendering(
+        self,
+        mock_build,
+        MockStore: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.profile_source_recommendations import (
+            ProfileSourceRecommendationsReport,
+        )
+
+        mock_build.return_value = ProfileSourceRecommendationsReport(
+            generated_at="2026-01-31T00:00:00+00:00",
+            profile_name="devtools",
+            domain="developer-tools",
+            max_age_days=30,
+            recommendations=[],
+        )
+
+        result = runner.invoke(
+            main,
+            ["profile-source-recommendations", "devtools", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["profile_name"] == "devtools"
+        assert payload["recommendations"] == []
+        MockStore.return_value.close.assert_called_once()
+
+
 class TestBlueprintExportCommands:
     @patch("max.store.db.Store")
     def test_export_design_brief_stdout_json(self, MockStore, runner: CliRunner) -> None:

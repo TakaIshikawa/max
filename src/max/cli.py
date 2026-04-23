@@ -826,6 +826,77 @@ def _render_source_reliability(report) -> None:
     click.echo("-" * 78)
 
 
+@main.command(name="profile-source-recommendations")
+@click.argument("profile")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+def profile_source_recommendations(profile: str, fmt: str) -> None:
+    """Recommend source configuration changes for a profile."""
+    from max.analysis.profile_source_recommendations import (
+        build_profile_source_recommendations,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        report = build_profile_source_recommendations(profile, store)
+    except FileNotFoundError as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+
+    if fmt == "json":
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_profile_source_recommendations(report)
+
+
+def _render_profile_source_recommendations(report) -> None:
+    click.echo("Profile source recommendations")
+    click.echo(f"Profile: {report.profile_name}  Domain: {report.domain}")
+    click.echo()
+    if not report.recommendations:
+        click.echo("No source adapters found.")
+        return
+
+    click.echo(
+        f"{'Adapter':<24s} {'Action':<16s} {'Severity':<8s} "
+        f"{'Enabled':<7s} {'Weight':>8s} {'Suggested':>9s}"
+    )
+    click.echo("-" * 78)
+    for rec in report.recommendations:
+        click.echo(
+            f"{rec.adapter[:24]:<24s} "
+            f"{rec.action:<16s} "
+            f"{rec.severity:<8s} "
+            f"{str(rec.enabled):<7s} "
+            f"{rec.current_weight:>8.3f} "
+            f"{rec.suggested_weight:>9.3f}"
+        )
+        for reason in rec.reasons:
+            click.echo(f"  - {reason}")
+        quality = rec.evidence.get("quality", {})
+        approval = rec.evidence.get("approval", {})
+        freshness = rec.evidence.get("freshness", {})
+        approval_rate = approval.get("approval_rate")
+        approval_text = "-" if approval_rate is None else _format_rate(approval_rate)
+        click.echo(
+            "  evidence: "
+            f"signals={quality.get('total_signals', 0)} "
+            f"quality={_format_rate(quality.get('quality_score', 0.0))} "
+            f"approval={approval_text} "
+            f"stale={freshness.get('stale_count', 0)}/{freshness.get('total_count', 0)} "
+            f"registered={rec.registered}"
+        )
+    click.echo("-" * 78)
+
+
 @main.command(name="profile-drift")
 @click.argument("profile")
 @click.option(
