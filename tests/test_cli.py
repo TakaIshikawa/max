@@ -120,6 +120,7 @@ def _mock_store(**overrides) -> MagicMock:
     store.get_latest_feedback.return_value = overrides.get("latest_feedback", None)
     store.get_idea_critiques.return_value = overrides.get("idea_critiques", [])
     store.get_prior_art_matches.return_value = overrides.get("prior_art_matches", [])
+    store.get_feedback_log.return_value = overrides.get("feedback_log", [])
     store.get_feedback_outcomes.return_value = overrides.get("feedback_outcomes", [])
     store.get_signals.return_value = overrides.get("signals", [])
     store.get_design_brief.return_value = overrides.get("design_brief", None)
@@ -2066,6 +2067,201 @@ class TestEvaluationCalibrationCommand:
         payload = json.loads(result.output)
         assert payload["min_samples"] == 1
         assert payload["total_groups"] == 0
+
+
+class TestDiagnosticsCommand:
+    @patch("max.analysis.evaluation_calibration.build_evaluation_calibration_report")
+    @patch("max.analysis.profile_coverage.compute_profile_coverage_gaps")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.store.db.Store")
+    def test_diagnostics_prints_combined_table(
+        self,
+        MockStore: MagicMock,
+        mock_load_profile: MagicMock,
+        mock_coverage: MagicMock,
+        mock_calibration: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.evaluation_calibration import (
+            CalibrationScoreBucket,
+            EvaluationCalibrationGroup,
+            EvaluationCalibrationReport,
+        )
+        from max.analysis.profile_coverage import (
+            ProfileCoverageReport,
+            ProfileCoverageTerm,
+        )
+
+        store = _mock_store(
+            feedback_log=[
+                {
+                    "outcome": "approved",
+                    "score": 78.0,
+                    "approval_score": 8,
+                    "domain": "devtools",
+                    "title": "Test Idea",
+                    "reason": "Good fit",
+                }
+            ]
+        )
+        MockStore.return_value = store
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        mock_coverage.return_value = ProfileCoverageReport(
+            profile_name="devtools",
+            domain="developer-tools",
+            low_coverage_threshold=1,
+            enabled_adapters=["hackernews", "reddit"],
+            terms=[
+                ProfileCoverageTerm(
+                    term="agent testing",
+                    term_type="watchlist",
+                    total_count=0,
+                    adapter_counts={"hackernews": 0, "reddit": 0},
+                    enabled_adapters=["hackernews", "reddit"],
+                    suggested_source_adapters=["hackernews", "reddit"],
+                )
+            ],
+        )
+        mock_calibration.return_value = EvaluationCalibrationReport(
+            domain="developer-tools",
+            min_samples=1,
+            limit=2,
+            high_score_threshold=80.0,
+            low_score_threshold=50.0,
+            total_groups=1,
+            total_samples=1,
+            groups=[
+                EvaluationCalibrationGroup(
+                    domain="devtools",
+                    recommendation="yes",
+                    sample_count=1,
+                    approved_count=1,
+                    rejected_count=0,
+                    approval_rate=1.0,
+                    rejection_rate=0.0,
+                    average_overall_score=78.0,
+                    score_buckets=[
+                        CalibrationScoreBucket(
+                            min_score=60.0,
+                            max_score=80.0,
+                            sample_count=1,
+                            approved_count=1,
+                            rejected_count=0,
+                            approval_rate=1.0,
+                            rejection_rate=0.0,
+                        )
+                    ],
+                    high_score_sample_count=0,
+                    high_score_rejection_count=0,
+                    high_score_rejection_rate=0.0,
+                    low_score_sample_count=0,
+                    low_score_approval_count=0,
+                    low_score_approval_rate=0.0,
+                )
+            ],
+        )
+
+        result = runner.invoke(
+            main,
+            ["diagnostics", "--profile", "devtools", "--domain", "developer-tools", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Diagnostics" in result.output
+        assert "Feedback history" in result.output
+        assert "Profile coverage gaps" in result.output
+        assert "Evaluation calibration" in result.output
+        assert "agent testing" in result.output
+        assert "Test Idea" in result.output
+        mock_load_profile.assert_called_once_with("devtools")
+        store.get_feedback_log.assert_called_once_with(limit=2)
+        mock_coverage.assert_called_once_with(mock_load_profile.return_value, store)
+        mock_calibration.assert_called_once_with(store, domain="developer-tools", limit=2)
+        store.close.assert_called_once()
+
+    @patch("max.analysis.evaluation_calibration.build_evaluation_calibration_report")
+    @patch("max.analysis.profile_coverage.compute_profile_coverage_gaps")
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.store.db.Store")
+    def test_diagnostics_prints_json(
+        self,
+        MockStore: MagicMock,
+        mock_load_profile: MagicMock,
+        mock_coverage: MagicMock,
+        mock_calibration: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.evaluation_calibration import EvaluationCalibrationReport
+        from max.analysis.profile_coverage import ProfileCoverageReport
+
+        store = _mock_store(
+            feedback_log=[
+                {
+                    "outcome": "rejected",
+                    "score": 42.0,
+                    "approval_score": None,
+                    "domain": "legaltech",
+                    "title": "Another Idea",
+                    "reason": "Not enough signal",
+                }
+            ]
+        )
+        MockStore.return_value = store
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        mock_coverage.return_value = ProfileCoverageReport(
+            profile_name="devtools",
+            domain="developer-tools",
+            low_coverage_threshold=1,
+            enabled_adapters=["hackernews"],
+            terms=[],
+        )
+        mock_calibration.return_value = EvaluationCalibrationReport(
+            domain="developer-tools",
+            min_samples=1,
+            limit=2,
+            high_score_threshold=80.0,
+            low_score_threshold=50.0,
+            total_groups=0,
+            total_samples=0,
+            groups=[],
+        )
+
+        result = runner.invoke(
+            main,
+            ["diagnostics", "--profile", "devtools", "--domain", "developer-tools", "--limit", "2", "--json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["selectors"] == {
+            "profile": "devtools",
+            "domain": "developer-tools",
+            "limit": 2,
+        }
+        assert payload["feedback_history"]["count"] == 1
+        assert payload["feedback_history"]["records"][0]["outcome"] == "rejected"
+        assert payload["profile_coverage"]["profile_name"] == "devtools"
+        assert payload["profile_coverage"]["terms"] == []
+        assert payload["evaluation_calibration"]["total_groups"] == 0
+        store.get_feedback_log.assert_called_once_with(limit=2)
+
+    @patch("max.profiles.loader.load_profile")
+    @patch("max.store.db.Store")
+    def test_diagnostics_invalid_profile_fails_cleanly(
+        self,
+        MockStore: MagicMock,
+        mock_load_profile: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        mock_load_profile.side_effect = FileNotFoundError(
+            "Profile 'missing' not found in /tmp/profiles. Available: none"
+        )
+
+        result = runner.invoke(main, ["diagnostics", "--profile", "missing"])
+
+        assert result.exit_code != 0
+        assert "Profile 'missing' not found" in result.output
+        MockStore.assert_not_called()
 
 
 # ── import-signals command ─────────────────────────────────────────
