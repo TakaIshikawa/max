@@ -87,6 +87,7 @@ from max.server.schemas import (
     FeedbackBatchRequest,
     FeedbackBatchResponse,
     FeedbackCreate,
+    FeedbackLogEntryResponse,
     FeedbackTrendDomainResponse,
     FeedbackTrendResponse,
     FeedbackTrendWindowResponse,
@@ -2202,6 +2203,20 @@ def create_feedback_batch(
         )
 
     return FeedbackBatchResponse(results=results)
+
+
+# ── Feedback Log ───────────────────────────────────────────────────
+
+
+@router.get("/feedback/log", response_model=list[FeedbackLogEntryResponse])
+def get_feedback_log(
+    limit: int = Query(default=50, ge=1, le=500),
+    store: Store = Depends(get_store),
+) -> list[FeedbackLogEntryResponse]:
+    return [
+        FeedbackLogEntryResponse.model_validate(row)
+        for row in store.get_feedback_log(limit=limit)
+    ]
 
 
 # ── Feedback Trends ────────────────────────────────────────────────
