@@ -235,6 +235,123 @@ def _run_single_profile(
             click.echo(f"  [{marker}] {idea['score']:5.1f}  {idea['title']}  ({idea['recommendation']})")
 
 
+@main.command(name="compare-runs")
+@click.argument("base_run_id", type=str)
+@click.argument("target_run_id", type=str)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def compare_runs(base_run_id: str, target_run_id: str, as_json: bool) -> None:
+    """Compare two persisted pipeline runs without re-running work."""
+    from max.analysis.run_comparison import (
+        PipelineRunComparisonNotFound,
+        compare_pipeline_runs,
+    )
+    from max.store.db import Store
+
+    with Store() as store:
+        try:
+            comparison = compare_pipeline_runs(
+                store,
+                base_run_id=base_run_id,
+                target_run_id=target_run_id,
+            )
+        except PipelineRunComparisonNotFound as exc:
+            missing = ", ".join(exc.missing_run_ids)
+            raise click.ClickException(f"Pipeline run ID not found: {missing}") from exc
+
+    if as_json:
+        click.echo(json.dumps(comparison, indent=2))
+        return
+
+    _render_run_comparison(comparison)
+
+
+def _render_run_comparison(comparison: dict[str, object]) -> None:
+    """Render a run comparison as a compact terminal report."""
+    base_run = comparison["base_run"]
+    target_run = comparison["target_run"]
+
+    click.echo("Pipeline run comparison")
+    click.echo(f"Base:   {base_run['id']}  ({base_run['status']})")
+    click.echo(f"Target: {target_run['id']}  ({target_run['status']})")
+    click.echo()
+
+    _render_comparison_section("Signals", comparison["fetched_signals"])
+    _render_comparison_section("Insights", comparison["insights"])
+    _render_comparison_section("Ideas", comparison["generated_ideas"])
+    _render_comparison_section(
+        "Approval / publish outputs",
+        comparison["approved_published_outputs"],
+    )
+    _render_comparison_section("Budget usage", comparison["budget_usage"])
+    _render_adapter_comparison(comparison["adapter_metrics"])
+
+
+def _render_comparison_section(title: str, metrics: dict[str, dict[str, int | float]]) -> None:
+    click.echo(title)
+    click.echo(f"{'Metric':<28s} {'Base':>12s} {'Target':>12s} {'Delta':>12s}")
+    click.echo("-" * 68)
+    for metric_name, delta in metrics.items():
+        click.echo(
+            f"{metric_name:<28s} "
+            f"{_format_comparison_value(delta['base']):>12s} "
+            f"{_format_comparison_value(delta['target']):>12s} "
+            f"{_format_comparison_delta(delta['delta']):>12s}"
+        )
+    click.echo()
+
+
+def _render_adapter_comparison(adapters: list[dict[str, object]]) -> None:
+    click.echo("Adapter changes")
+    click.echo(
+        f"{'Adapter':<18s} {'Base':<10s} {'Target':<10s} {'Changed':<8s} "
+        f"{'Metric deltas':<36s} Errors"
+    )
+    click.echo("-" * 120)
+    for row in adapters:
+        metric_deltas = ", ".join(
+            f"{name}={_format_comparison_delta(metric['delta'])}"
+            for name, metric in row["metrics"].items()
+        ) or "-"
+        errors = _format_adapter_errors(row["base_error_message"], row["target_error_message"])
+        click.echo(
+            f"{row['adapter']:<18s} "
+            f"{_format_optional_text(row['base_status']):<10s} "
+            f"{_format_optional_text(row['target_status']):<10s} "
+            f"{'yes' if row['status_changed'] else 'no':<8s} "
+            f"{metric_deltas:<36s} "
+            f"{errors}"
+        )
+
+
+def _format_adapter_errors(base_error: object, target_error: object) -> str:
+    parts = []
+    if base_error:
+        parts.append(f"base={base_error}")
+    if target_error:
+        parts.append(f"target={target_error}")
+    return "; ".join(parts) if parts else "-"
+
+
+def _format_optional_text(value: object) -> str:
+    return str(value) if value is not None else "-"
+
+
+def _format_comparison_value(value: int | float) -> str:
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def _format_comparison_delta(value: int | float) -> str:
+    if isinstance(value, float):
+        if value.is_integer():
+            return f"{value:+.0f}"
+        return f"{value:+.4f}".rstrip("0").rstrip(".")
+    return f"{value:+d}"
+
+
 def _profile_manifest_path(manifest_path: str, profile_name: str) -> str:
     """Derive a per-profile manifest path for ``max run --profile all``."""
     path = Path(manifest_path)
