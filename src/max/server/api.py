@@ -2890,6 +2890,7 @@ async def update_schedule(body: ScheduleUpdateRequest, request: Request) -> Sche
         interval_seconds=body.interval_seconds,
         profile=body.profile,
         include_all=body.include_all,
+        max_execution_seconds=body.max_execution_seconds,
         signal_limit=body.signal_limit,
         min_score=body.min_score,
         weight_profile=body.weight_profile,

@@ -1365,6 +1365,7 @@ class ScheduleStatusResponse(BaseModel):
     interval_seconds: int
     profile: str | None = None
     include_all: bool = False
+    max_execution_seconds: int
     running: bool
     last_run_at: str | None = None
     next_run_at: str | None = None
@@ -1382,6 +1383,7 @@ class ScheduleUpdateRequest(BaseModel):
     interval_seconds: int | None = Field(default=None, ge=60)
     profile: str | None = None
     include_all: bool | None = None
+    max_execution_seconds: int | None = Field(default=None, ge=1)
     signal_limit: int | None = Field(default=None, ge=1, le=500)
     min_score: float | None = Field(default=None, ge=0.0, le=100.0)
     weight_profile: Literal[

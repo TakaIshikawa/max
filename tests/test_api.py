@@ -3294,6 +3294,7 @@ def schedule_client(db_path):
     app.state.scheduler = Scheduler(
         interval_seconds=21600,
         enabled=True,
+        max_execution_seconds=1800,
         pipeline_kwargs={"signal_limit": 30, "min_score": 50.0},
     )
     return TestClient(app)
@@ -3305,6 +3306,7 @@ def test_get_schedule(schedule_client):
     data = resp.json()
     assert data["enabled"] is True
     assert data["interval_seconds"] == 21600
+    assert data["max_execution_seconds"] == 1800
     assert data["running"] is False
     assert data["run_count"] == 0
 
@@ -3325,6 +3327,16 @@ def test_update_schedule_interval(schedule_client):
     )
     assert resp.status_code == 200
     assert resp.json()["interval_seconds"] == 3600
+
+
+def test_update_schedule_max_execution_seconds(schedule_client):
+    resp = schedule_client.post(
+        "/api/v1/schedule",
+        json={"max_execution_seconds": 900},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["max_execution_seconds"] == 900
 
 
 def test_update_schedule_pipeline_config(schedule_client):
