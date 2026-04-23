@@ -272,6 +272,42 @@ def test_review_thresholds_domain_filter_and_insufficient_samples(client, db_pat
     assert rec["reject_threshold"] == 50.0
 
 
+def test_get_revision_brief_returns_feedback_driven_payload(seeded_client, seeded_db) -> None:
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        store.insert_feedback("bu-api001", "rejected", "Needs clearer buyer")
+        store.insert_idea_critique(
+            "bu-api001",
+            {
+                "buyer_clarity": 4.0,
+                "evidence_support": 5.0,
+                "reasoning": "Buyer is too broad.",
+                "rejection_tags": ["no_clear_buyer"],
+            },
+            evidence_pack={},
+        )
+    finally:
+        store.close()
+
+    response = seeded_client.get("/api/v1/ideas/bu-api001/revision-brief")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "max-revision-brief/v1"
+    assert payload["idea_id"] == "bu-api001"
+    assert payload["latest_feedback"]["outcome"] == "rejected"
+    assert payload["current_state"]["prior_art_status"] == "weak_match"
+    assert any(item["field"] == "buyer" for item in payload["fields_to_update"])
+    assert "agent_prompt" in payload
+
+
+def test_get_revision_brief_returns_404_for_missing_idea(seeded_client) -> None:
+    response = seeded_client.get("/api/v1/ideas/bu-missing/revision-brief")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Idea not found: bu-missing"
+
+
 @pytest.fixture
 def seeded_client(seeded_db):
     from max.server.dependencies import get_store

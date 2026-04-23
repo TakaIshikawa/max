@@ -1943,6 +1943,76 @@ def implementation_plan(idea_id: str, fmt: str) -> None:
         store.close()
 
 
+@main.command(name="revision-brief")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def revision_brief(idea_id: str, fmt: str) -> None:
+    """Build an actionable revision brief for an idea."""
+    from max.analysis.revision_brief import build_revision_brief
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        try:
+            brief = build_revision_brief(store, idea_id)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        if fmt == "json":
+            click.echo(json.dumps(brief, indent=2))
+            return
+        click.echo(_render_revision_brief(brief), nl=False)
+    finally:
+        store.close()
+
+
+def _render_revision_brief(brief: dict) -> str:
+    state = brief["current_state"]
+    lines = [
+        f"Revision brief: {state['title']}",
+        f"Idea:           {brief['idea_id']}",
+        f"Status:         {state['status']}",
+        f"Prior art:      {state['prior_art_status']} ({state['prior_art_match_count']} match(es))",
+    ]
+    evaluation = state.get("evaluation")
+    if evaluation:
+        lines.append(
+            f"Evaluation:     {evaluation['overall_score']:.1f} ({evaluation['recommendation']})"
+        )
+    feedback = brief.get("latest_feedback")
+    if feedback:
+        suffix = f" - {feedback['reason']}" if feedback.get("reason") else ""
+        lines.append(f"Feedback:       {feedback['outcome']}{suffix}")
+    lines.append("")
+
+    lines.append("Key defects:")
+    if brief["key_defects"]:
+        for defect in brief["key_defects"]:
+            lines.append(f"  - [{defect['severity']}] {defect['field']}: {defect['issue']}")
+    else:
+        lines.append("  - None detected")
+
+    lines.append("")
+    lines.append("Recommended changes:")
+    for change in brief["recommended_changes"]:
+        lines.append(f"  {change['priority']}. {change['field']}: {change['instruction']}")
+
+    lines.append("")
+    lines.append("Evidence to collect:")
+    for item in brief["evidence_to_collect"]:
+        lines.append(f"  {item['priority']}. {item['question']}")
+        lines.append(f"     Method: {item['method']}")
+
+    lines.extend(["", "Agent prompt:", brief["agent_prompt"]])
+    return "\n".join(lines) + "\n"
+
+
 def _render_implementation_plan(plan: dict, *, fmt: str) -> str:
     if fmt == "json":
         return json.dumps(plan, indent=2) + "\n"

@@ -119,6 +119,7 @@ def _mock_store(**overrides) -> MagicMock:
     store.get_evaluation.return_value = overrides.get("evaluation", None)
     store.get_latest_feedback.return_value = overrides.get("latest_feedback", None)
     store.get_idea_critiques.return_value = overrides.get("idea_critiques", [])
+    store.get_prior_art_matches.return_value = overrides.get("prior_art_matches", [])
     store.get_feedback_outcomes.return_value = overrides.get("feedback_outcomes", [])
     store.get_signals.return_value = overrides.get("signals", [])
     store.get_design_brief.return_value = overrides.get("design_brief", None)
@@ -2179,6 +2180,78 @@ class TestImportSignalsCommand:
         assert "created:   1" in result.output
         assert "Dry run: no changes applied." in result.output
         store.insert_signal.assert_not_called()
+        store.close.assert_called_once()
+
+
+class TestRevisionBriefCommand:
+    @patch("max.store.db.Store")
+    def test_revision_brief_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        unit = _make_unit()
+        unit.prior_art_status = "weak_match"
+        store = _mock_store(
+            unit=unit,
+            evaluation=_make_evaluation(),
+            latest_feedback={
+                "buildable_unit_id": "bu-test001",
+                "outcome": "rejected",
+                "reason": "Too generic",
+                "approval_score": None,
+                "created_at": "2026-04-22T00:00:00+00:00",
+            },
+            idea_critiques=[
+                {
+                    "id": "crit-test001",
+                    "buildable_unit_id": "bu-test001",
+                    "pipeline_run_id": None,
+                    "stage": "ideation_critique",
+                    "dimensions": {"buyer_clarity": 4.0},
+                    "reasoning": "Buyer unclear",
+                    "rejection_tags": ["no_clear_buyer"],
+                    "created_at": "2026-04-22T00:00:00+00:00",
+                }
+            ],
+            prior_art_matches=[
+                {
+                    "title": "Existing MCP Tester",
+                    "source": "github",
+                    "url": "https://example.com",
+                    "description": "Similar",
+                    "relevance_score": 0.8,
+                }
+            ],
+        )
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["revision-brief", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-revision-brief/v1"
+        assert payload["latest_feedback"]["outcome"] == "rejected"
+        assert any(item["field"] == "buyer" for item in payload["fields_to_update"])
+        store.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    def test_revision_brief_stdout_text(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["revision-brief", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Revision brief: MCP Test Framework" in result.output
+        assert "Key defects:" in result.output
+        assert "Agent prompt:" in result.output
+
+    @patch("max.store.db.Store")
+    def test_revision_brief_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["revision-brief", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
         store.close.assert_called_once()
 
 

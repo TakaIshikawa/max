@@ -41,6 +41,7 @@ from max.analysis.run_comparison import (
     compare_pipeline_runs,
 )
 from max.analysis.roi_forecast import generate_roi_forecast
+from max.analysis.revision_brief import build_revision_brief
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
 from max.analysis.source_reliability import DEFAULT_SIGNAL_LIMIT, build_source_reliability_report
 from max.analysis.status import (
@@ -1635,6 +1636,14 @@ def get_idea_prior_art(idea_id: str, store: Store = Depends(get_store)) -> Prior
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return _prior_art_response(unit, store.get_prior_art_matches(idea_id))
+
+
+@router.get("/ideas/{idea_id}/revision-brief")
+def get_idea_revision_brief(idea_id: str, store: Store = Depends(get_store)) -> dict:
+    try:
+        return build_revision_brief(store, idea_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
 
 @router.get("/ideas/{idea_id}/publications", response_model=list[PublicationAttemptResponse])

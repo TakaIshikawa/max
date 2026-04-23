@@ -662,8 +662,8 @@ class Store:
                 domain_risks, evidence_rationale, novelty_score, usefulness_score,
                 quality_score, rejection_tags, inspiring_insights, evidence_signals,
                 tech_approach, suggested_stack, composability_notes, status, domain,
-                source_idea_ids, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                prior_art_status, source_idea_ids, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 unit.id,
                 unit.title,
@@ -694,6 +694,7 @@ class Store:
                 unit.composability_notes,
                 unit.status,
                 unit.domain,
+                unit.prior_art_status,
                 json.dumps(unit.source_idea_ids),
                 unit.created_at.isoformat(),
                 unit.updated_at.isoformat(),
