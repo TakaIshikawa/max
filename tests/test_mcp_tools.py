@@ -14,6 +14,7 @@ from max.server.mcp_tools import (
     contribute_signal,
     create_mcp_server,
     dry_run_pipeline,
+    get_evaluation_calibration,
     evidence_chain_detail,
     get_design_brief,
     get_design_brief_markdown,
@@ -23,6 +24,7 @@ from max.server.mcp_tools import (
     get_spec_readiness,
     get_spec_preview,
     get_stats,
+    get_review_thresholds,
     list_design_briefs,
     max_portfolio_overlap,
     max_signal_freshness,
@@ -129,6 +131,60 @@ def _mcp_overlap_unit(
         usefulness_score=8.0,
         status=status,
     )
+
+
+def _seed_feedback_analytics(
+    db_path: str,
+    *,
+    domain: str = "devtools",
+) -> None:
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        def _unit(unit_id: str) -> BuildableUnit:
+            return BuildableUnit(
+                id=unit_id,
+                title=f"Idea {unit_id}",
+                one_liner="Analytics idea",
+                category=BuildableCategory.CLI_TOOL,
+                ideation_mode=IdeationMode.DIRECT,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+                domain=domain,
+            )
+
+        def _score(val: float) -> DimensionScore:
+            return DimensionScore(value=val, confidence=0.7, reasoning="test")
+
+        for unit_id, score, outcome in [
+            ("bu-mcp-cal-1", 90.0, "approved"),
+            ("bu-mcp-cal-2", 82.0, "approved"),
+            ("bu-mcp-cal-3", 76.0, "approved"),
+            ("bu-mcp-cal-4", 48.0, "rejected"),
+            ("bu-mcp-cal-5", 40.0, "rejected"),
+            ("bu-mcp-cal-6", 32.0, "rejected"),
+        ]:
+            store.insert_buildable_unit(_unit(unit_id))
+            store.insert_evaluation(
+                UtilityEvaluation(
+                    buildable_unit_id=unit_id,
+                    pain_severity=_score(8.0),
+                    addressable_scale=_score(7.0),
+                    build_effort=_score(6.0),
+                    composability=_score(7.0),
+                    competitive_density=_score(8.0),
+                    timing_fit=_score(7.0),
+                    compounding_value=_score(6.0),
+                    overall_score=score,
+                    recommendation="yes",
+                    strengths=["Testable"],
+                    weaknesses=["Narrow scope"],
+                    weights_used={"pain_severity": 0.20},
+                )
+            )
+            store.insert_feedback(unit_id, outcome)
+    finally:
+        store.close()
 
 
 @pytest.fixture
@@ -878,6 +934,82 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert "max_signal_freshness" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert "max_portfolio_overlap" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
+
+
+def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
+    _seed_feedback_analytics(mcp_db)
+
+    payload = get_evaluation_calibration(domain="devtools", min_samples=2, limit=10)
+
+    assert payload["domain"] == "devtools"
+    assert payload["min_samples"] == 2
+    assert payload["limit"] == 10
+    assert payload["total_groups"] == 1
+    assert payload["total_samples"] == 6
+    group = payload["groups"][0]
+    assert group["domain"] == "devtools"
+    assert group["recommendation"] == "yes"
+    assert group["sample_count"] == 6
+    assert group["approved_count"] == 3
+    assert group["rejected_count"] == 3
+    assert group["score_buckets"]
+    assert group["score_buckets"][0]["sample_count"] >= 1
+
+
+def test_review_thresholds_returns_machine_readable_payload(mcp_db):
+    _seed_feedback_analytics(mcp_db)
+
+    payload = get_review_thresholds(domain="devtools", min_samples=4)
+
+    assert payload["domain"] == "devtools"
+    assert payload["min_samples"] == 4
+    assert payload["default_approve_threshold"] == 68.0
+    assert payload["default_reject_threshold"] == 50.0
+    assert payload["recommendations"] == [
+        {
+            "domain": "devtools",
+            "approve_threshold": 79.0,
+            "reject_threshold": 44.0,
+            "sample_count": 6,
+            "approved_count": 3,
+            "rejected_count": 3,
+            "sufficient_samples": True,
+            "fallback_used": False,
+            "reason": "computed from approved and rejected feedback",
+        }
+    ]
+
+
+def test_calibration_and_threshold_tools_registered(monkeypatch):
+    class FakeMCP:
+        latest = None
+
+        def __init__(self, name):
+            self.name = name
+            self.tools = []
+            self.resources = {}
+            FakeMCP.latest = self
+
+        def tool(self, fn):
+            self.tools.append(fn.__name__)
+            return fn
+
+        def resource(self, uri):
+            def decorator(fn):
+                self.resources[uri] = fn.__name__
+                return fn
+
+            return decorator
+
+    monkeypatch.setattr("max.server.mcp_tools.FastMCP", FakeMCP)
+
+    create_mcp_server()
+
+    assert "get_evaluation_calibration" in FakeMCP.latest.tools
+    assert "get_review_thresholds" in FakeMCP.latest.tools
+    assert "max_signal_freshness" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
 
 
