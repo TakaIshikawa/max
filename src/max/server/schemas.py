@@ -1363,6 +1363,44 @@ class FetchAllocationExplainResponse(BaseModel):
     adapters: list[FetchAllocationAdapterExplainResponse]
 
 
+class FetchAllocationSimulationQualityResponse(BaseModel):
+    total_signals: int
+    insight_hit_rate: float
+    idea_hit_rate: float
+
+
+class FetchAllocationSimulationApprovalResponse(BaseModel):
+    total_feedbacked: int
+    approved: int
+    rejected: int
+    approval_rate: float | None = None
+
+
+class FetchAllocationSimulationCircuitBreakerResponse(BaseModel):
+    state: str
+    failure_count: int
+    retry_after_seconds: float | None = None
+
+
+class FetchAllocationSimulationSourceResponse(BaseModel):
+    adapter: str
+    enabled: bool
+    configured_weight: float
+    params: dict[str, Any] = Field(default_factory=dict)
+    quality: FetchAllocationSimulationQualityResponse
+    approval: FetchAllocationSimulationApprovalResponse
+    circuit_breaker: FetchAllocationSimulationCircuitBreakerResponse
+    allocated_limit: int
+
+
+class FetchAllocationSimulationResponse(BaseModel):
+    profile: str
+    domain: str
+    total_budget: int
+    allocation: dict[str, int]
+    sources: list[FetchAllocationSimulationSourceResponse]
+
+
 class PipelineResultSummary(BaseModel):
     signals_fetched: int
     signals_new: int
