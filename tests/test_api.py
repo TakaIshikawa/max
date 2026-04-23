@@ -1026,6 +1026,32 @@ def test_restore_signal_not_found_returns_404(seeded_client):
     assert resp.json()["detail"] == "Signal not found: sig-missing"
 
 
+def test_restore_insight_returns_insight_to_list(seeded_client, seeded_db):
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        store.archive_insight("ins-api001")
+    finally:
+        store.close()
+
+    resp = seeded_client.post("/api/v1/insights/ins-api001/restore")
+
+    assert resp.status_code == 200
+    assert resp.json()["id"] == "ins-api001"
+
+    list_resp = seeded_client.get("/api/v1/insights")
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    assert [item["id"] for item in data["items"]] == ["ins-api001"]
+    assert data["pagination"]["total_count"] == 1
+
+
+def test_restore_insight_not_found_returns_404(seeded_client):
+    resp = seeded_client.post("/api/v1/insights/ins-missing/restore")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Insight not found: ins-missing"
+
+
 # ── Insight endpoints ───────────────────────────────────────────────
 
 
@@ -1725,9 +1751,35 @@ def test_get_idea(seeded_client):
     assert data["evaluation"]["recommendation"] == "yes"
 
 
+def test_restore_idea_returns_idea_detail(seeded_client, seeded_db):
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        store.update_buildable_unit_status("bu-api001", "archived")
+    finally:
+        store.close()
+
+    resp = seeded_client.post("/api/v1/ideas/bu-api001/restore")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "bu-api001"
+    assert data["status"] == "evaluated"
+
+    get_resp = seeded_client.get("/api/v1/ideas/bu-api001")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["status"] == "evaluated"
+
+
 def test_get_idea_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent")
     assert resp.status_code == 404
+
+
+def test_restore_idea_not_found_returns_404(seeded_client):
+    resp = seeded_client.post("/api/v1/ideas/bu-missing/restore")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: bu-missing"
 
 
 def test_get_idea_evaluation_explanation(seeded_client):
