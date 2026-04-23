@@ -212,6 +212,128 @@ def _design_brief_dict(brief_id: str = "dbf-test001") -> dict:
     }
 
 
+def _run_comparison_dict() -> dict:
+    return {
+        "base_run": {
+            "id": "run-base",
+            "started_at": "2026-04-23T00:00:00+00:00",
+            "finished_at": "2026-04-23T00:10:00+00:00",
+            "status": "completed",
+        },
+        "target_run": {
+            "id": "run-target",
+            "started_at": "2026-04-24T00:00:00+00:00",
+            "finished_at": "2026-04-24T00:12:00+00:00",
+            "status": "completed",
+        },
+        "fetched_signals": {
+            "signals_fetched": {"base": 10, "target": 18, "delta": 8},
+            "signals_new": {"base": 6, "target": 11, "delta": 5},
+        },
+        "insights": {
+            "insights_generated": {"base": 3, "target": 5, "delta": 2},
+            "clusters_found": {"base": 2, "target": 4, "delta": 2},
+            "gaps_detected": {"base": 1, "target": 2, "delta": 1},
+        },
+        "generated_ideas": {
+            "ideas_generated": {"base": 2, "target": 4, "delta": 2},
+            "ideas_evaluated": {"base": 1, "target": 3, "delta": 2},
+            "avg_idea_score": {"base": 70.0, "target": 76.5, "delta": 6.5},
+        },
+        "approved_published_outputs": {
+            "approved": {"base": 0, "target": 1, "delta": 1},
+            "published": {"base": 1, "target": 2, "delta": 1},
+            "approved_or_published": {"base": 1, "target": 3, "delta": 2},
+        },
+        "budget_usage": {
+            "input_tokens": {"base": 100, "target": 175, "delta": 75},
+            "output_tokens": {"base": 25, "target": 40, "delta": 15},
+            "total_tokens": {"base": 125, "target": 215, "delta": 90},
+            "estimated_cost_usd": {"base": 0.01, "target": 0.02, "delta": 0.01},
+        },
+        "adapter_metrics": [
+            {
+                "adapter": "github",
+                "base_status": "ok",
+                "target_status": "ok",
+                "status_changed": False,
+                "metrics": {
+                    "signal_count": {"base": 6, "target": 9, "delta": 3},
+                    "duration_ms": {"base": 100, "target": 130, "delta": 30},
+                },
+                "base_error_message": None,
+                "target_error_message": None,
+            },
+            {
+                "adapter": "reddit",
+                "base_status": None,
+                "target_status": "error",
+                "status_changed": True,
+                "metrics": {
+                    "signal_count": {"base": 0, "target": 4, "delta": 4},
+                },
+                "base_error_message": None,
+                "target_error_message": "timeout",
+            },
+        ],
+    }
+
+
+class TestCompareRunsCommand:
+    @patch("max.store.db.Store")
+    @patch("max.analysis.run_comparison.compare_pipeline_runs")
+    def test_text_rendering(self, mock_compare, MockStore: MagicMock, runner: CliRunner) -> None:
+        mock_compare.return_value = _run_comparison_dict()
+        _patch_store_context(MockStore, MagicMock())
+
+        result = runner.invoke(main, ["compare-runs", "run-base", "run-target"])
+
+        assert result.exit_code == 0, result.output
+        assert "Pipeline run comparison" in result.output
+        assert "Base:   run-base" in result.output
+        assert "Target: run-target" in result.output
+        assert "Signals" in result.output
+        assert "Budget usage" in result.output
+        assert "Adapter changes" in result.output
+        assert "github" in result.output
+        assert "target=timeout" in result.output
+        mock_compare.assert_called_once_with(
+            MockStore.return_value.__enter__.return_value,
+            base_run_id="run-base",
+            target_run_id="run-target",
+        )
+
+    @patch("max.store.db.Store")
+    @patch("max.analysis.run_comparison.compare_pipeline_runs")
+    def test_json_output(self, mock_compare, MockStore: MagicMock, runner: CliRunner) -> None:
+        mock_compare.return_value = _run_comparison_dict()
+        _patch_store_context(MockStore, MagicMock())
+
+        result = runner.invoke(
+            main,
+            ["compare-runs", "run-base", "run-target", "--json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["base_run"]["id"] == "run-base"
+        assert payload["generated_ideas"]["avg_idea_score"]["delta"] == pytest.approx(6.5)
+        assert payload["adapter_metrics"][1]["target_error_message"] == "timeout"
+
+    @patch("max.store.db.Store")
+    @patch("max.analysis.run_comparison.compare_pipeline_runs")
+    def test_missing_runs(self, mock_compare, MockStore: MagicMock, runner: CliRunner) -> None:
+        from max.analysis.run_comparison import PipelineRunComparisonNotFound
+
+        mock_compare.side_effect = PipelineRunComparisonNotFound(["run-missing"])
+        _patch_store_context(MockStore, MagicMock())
+
+        result = runner.invoke(main, ["compare-runs", "run-base", "run-missing"])
+
+        assert result.exit_code != 0
+        assert "Pipeline run ID not found: run-missing" in result.output
+
+
 class TestRestoreCommand:
     @patch("max.store.db.Store")
     def test_restore_dry_run_groups_summary_and_respects_limit(
