@@ -116,7 +116,18 @@ def validate_profile_file(
     except Exception as e:
         issues.append(ProfileValidationIssue("error", "profile_parse", f"loader: {e}"))
     else:
-        issues.extend(validate_profile_model(profile))
+        for issue in validate_profile_model(profile):
+            if issue.severity == "error":
+                issues.append(
+                    ProfileValidationIssue(
+                        issue.severity,
+                        issue.code,
+                        f"loader: {issue.message}",
+                        "",
+                    )
+                )
+            else:
+                issues.append(issue)
 
     return ProfileFileValidationResult.from_issues(path.stem, path, _dedupe_issues(issues))
 
@@ -191,7 +202,7 @@ def validate_profile_model(profile: PipelineProfile) -> list[ProfileValidationIs
         )
 
     evaluation = profile.evaluation
-    if evaluation.weight_profile not in WEIGHT_PROFILES:
+    if evaluation.weight_profile != "custom" and evaluation.weight_profile not in WEIGHT_PROFILES:
         issues.append(
             ProfileValidationIssue(
                 "error",
@@ -202,7 +213,13 @@ def validate_profile_model(profile: PipelineProfile) -> list[ProfileValidationIs
         )
 
     if evaluation.custom_weights is not None:
-        issues.extend(_custom_weight_issues(evaluation.custom_weights, "evaluation.custom_weights"))
+        issues.extend(
+            _custom_weight_issues(
+                evaluation.custom_weights,
+                "evaluation.custom_weights",
+                allow_unknown_dimensions=evaluation.weight_profile == "custom",
+            )
+        )
 
     return issues
 
@@ -234,12 +251,17 @@ def _profile_semantic_issues(data: dict[str, Any], *, path: Path) -> list[Profil
     return issues
 
 
-def _custom_weight_issues(weights: dict[str, Any], path: str) -> list[ProfileValidationIssue]:
+def _custom_weight_issues(
+    weights: dict[str, Any],
+    path: str,
+    *,
+    allow_unknown_dimensions: bool = False,
+) -> list[ProfileValidationIssue]:
     issues: list[ProfileValidationIssue] = []
     valid_dimensions = set(DEFAULT_WEIGHTS)
     for dimension, value in weights.items():
         dimension_path = f"{path}.{dimension}"
-        if dimension not in valid_dimensions:
+        if not allow_unknown_dimensions and dimension not in valid_dimensions:
             issues.append(
                 ProfileValidationIssue(
                     "error",

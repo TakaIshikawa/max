@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -2640,8 +2641,6 @@ def evaluation_calibration(
     as_json: bool,
 ) -> None:
     """Compare evaluation scores against feedback outcomes."""
-    from dataclasses import asdict
-
     from max.analysis.evaluation_calibration import build_evaluation_calibration_report
     from max.store.db import Store
 
@@ -2658,35 +2657,78 @@ def evaluation_calibration(
             min_samples=min_samples,
             limit=limit,
         )
-        payload = asdict(report)
         if as_json:
+            click.echo(json.dumps(asdict(report), indent=2))
+            return
+
+        _render_evaluation_calibration(report)
+    finally:
+        store.close()
+
+
+@main.command(name="diagnostics")
+@click.option("--profile", "-p", type=str, default=None, help="Profile name for coverage analysis")
+@click.option("--domain", "-d", type=str, default=None, help="Domain filter for calibration")
+@click.option("--limit", type=int, default=20, show_default=True, help="Rows to include per section")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def diagnostics(profile: str | None, domain: str | None, limit: int, fmt: str, as_json: bool) -> None:
+    """Show combined feedback, coverage, and calibration diagnostics."""
+    from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+    from max.analysis.profile_coverage import compute_profile_coverage_gaps
+    from max.config import MAX_PROFILE
+    from max.profiles.loader import get_default_profile, load_profile
+    from max.store.db import Store
+
+    if limit < 1:
+        raise click.ClickException("--limit must be at least 1")
+
+    profile_name = profile or MAX_PROFILE or None
+    try:
+        pipeline_profile = load_profile(profile_name) if profile_name else get_default_profile()
+    except FileNotFoundError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    store = Store()
+    try:
+        feedback_log = store.get_feedback_log(limit=limit)
+        coverage_report = compute_profile_coverage_gaps(pipeline_profile, store)
+        calibration_report = build_evaluation_calibration_report(
+            store,
+            domain=domain,
+            limit=limit,
+        )
+        payload = {
+            "selectors": {
+                "profile": pipeline_profile.name,
+                "domain": domain,
+                "limit": limit,
+            },
+            "feedback_history": {
+                "limit": limit,
+                "count": len(feedback_log),
+                "records": feedback_log,
+            },
+            "profile_coverage": asdict(coverage_report),
+            "evaluation_calibration": asdict(calibration_report),
+        }
+        if as_json or fmt == "json":
             click.echo(json.dumps(payload, indent=2))
             return
 
-        if not report.groups:
-            click.echo("No reviewed evaluations found.")
-            return
-
-        click.echo(
-            f"{'Domain':<18s} {'Rec':<10s} {'Samples':>7s} {'Appr%':>7s} "
-            f"{'Rej%':>7s} {'Avg':>6s} {'High Rej%':>10s} {'Low Appr%':>10s}"
-        )
-        click.echo("-" * 88)
-        for group in report.groups:
-            click.echo(
-                f"{(group.domain or '-'):18.18s} "
-                f"{(group.recommendation or '-'):10.10s} "
-                f"{group.sample_count:7d} "
-                f"{group.approval_rate * 100:6.1f}% "
-                f"{group.rejection_rate * 100:6.1f}% "
-                f"{group.average_overall_score:6.1f} "
-                f"{group.high_score_rejection_rate * 100:9.1f}% "
-                f"{group.low_score_approval_rate * 100:9.1f}%"
-            )
-        click.echo(
-            f"\nGroups: {report.total_groups}; samples: {report.total_samples}; "
-            f"high score >= {report.high_score_threshold:.1f}; "
-            f"low score < {report.low_score_threshold:.1f}"
+        _render_diagnostics_report(
+            pipeline_profile,
+            domain=domain,
+            limit=limit,
+            feedback_log=feedback_log,
+            coverage_report=coverage_report,
+            calibration_report=calibration_report,
         )
     finally:
         store.close()
@@ -3981,26 +4023,114 @@ def feedback_log(limit: int) -> None:
     store = Store()
     try:
         records = store.get_feedback_log(limit=limit)
-        if not records:
-            click.echo("No feedback recorded yet.")
-            return
-
-        click.echo(f"{'Outcome':<10s} {'Score':>5s} {'Appr':>4s} {'Domain':<16s} {'Title':<48s} {'Reason'}")
-        click.echo("-" * 115)
-        for r in records:
-            score = f"{r['score']:.1f}" if r["score"] else "  -"
-            approval_score = r.get("approval_score")
-            appr = f"{approval_score:>2d}" if approval_score is not None else "  -"
-            domain = f"[{r['domain']}]" if r["domain"] else ""
-            reason = r["reason"][:28] if r["reason"] else ""
-            click.echo(f"{r['outcome']:<10s} {score:>5s} {appr:>4s} {domain:<16s} {r['title'][:48]:<48s} {reason}")
-
-        # Summary counts
-        approved = sum(1 for r in records if r["outcome"] == "approved")
-        rejected = sum(1 for r in records if r["outcome"] in ("rejected", "abandoned"))
-        click.echo(f"\n{len(records)} records: {approved} approved, {rejected} rejected")
+        _render_feedback_history(records)
     finally:
         store.close()
+
+
+def _render_diagnostics_report(
+    profile,
+    *,
+    domain: str | None,
+    limit: int,
+    feedback_log: list[dict],
+    coverage_report,
+    calibration_report,
+) -> None:
+    click.echo("Diagnostics")
+    click.echo(f"Profile: {profile.name}  Domain: {profile.domain.name}")
+    if domain:
+        click.echo(f"Calibration domain: {domain}")
+    click.echo(f"Section limit: {limit}")
+
+    click.echo()
+    _render_feedback_history(feedback_log)
+
+    click.echo()
+    _render_profile_coverage_gaps(coverage_report)
+
+    click.echo()
+    _render_evaluation_calibration(calibration_report)
+
+
+def _render_feedback_history(records: list[dict]) -> None:
+    click.echo("Feedback history")
+    if not records:
+        click.echo("No feedback recorded yet.")
+        return
+
+    click.echo(f"{'Outcome':<10s} {'Score':>5s} {'Appr':>4s} {'Domain':<16s} {'Title':<48s} {'Reason'}")
+    click.echo("-" * 115)
+    for r in records:
+        score = f"{r['score']:.1f}" if r["score"] else "  -"
+        approval_score = r.get("approval_score")
+        appr = f"{approval_score:>2d}" if approval_score is not None else "  -"
+        domain = f"[{r['domain']}]" if r["domain"] else ""
+        reason = r["reason"][:28] if r["reason"] else ""
+        click.echo(f"{r['outcome']:<10s} {score:>5s} {appr:>4s} {domain:<16s} {r['title'][:48]:<48s} {reason}")
+
+    approved = sum(1 for r in records if r["outcome"] == "approved")
+    rejected = sum(1 for r in records if r["outcome"] in ("rejected", "abandoned"))
+    click.echo(f"\n{len(records)} records: {approved} approved, {rejected} rejected")
+
+
+def _render_profile_coverage_gaps(report) -> None:
+    click.echo("Profile coverage gaps")
+    click.echo(f"Profile: {report.profile_name}  Domain: {report.domain}")
+    click.echo(f"Threshold: {report.low_coverage_threshold}")
+    enabled_adapters = ", ".join(report.enabled_adapters) if report.enabled_adapters else "(none)"
+    click.echo(f"Enabled adapters: {enabled_adapters}")
+    click.echo()
+
+    if not report.terms:
+        click.echo("No profile coverage gaps found.")
+        return
+
+    click.echo(f"{'Term':<24s} {'Type':<16s} {'Count':>5s} {'Adapter counts':<32s} {'Suggested'}")
+    click.echo("-" * 100)
+    for term in report.terms:
+        adapter_counts = ", ".join(f"{adapter}={count}" for adapter, count in term.adapter_counts.items())
+        suggested = ", ".join(term.suggested_source_adapters) if term.suggested_source_adapters else "-"
+        click.echo(
+            f"{term.term[:24]:<24s} "
+            f"{term.term_type[:16]:<16s} "
+            f"{term.total_count:>5d} "
+            f"{adapter_counts[:32]:<32s} "
+            f"{suggested}"
+        )
+
+
+def _render_evaluation_calibration(report) -> None:
+    click.echo("Evaluation calibration")
+    click.echo(
+        f"Domain filter: {report.domain or '(none)'}  Min samples: {report.min_samples}  "
+        f"Limit: {report.limit}"
+    )
+    if not report.groups:
+        click.echo("No reviewed evaluations found.")
+        return
+
+    click.echo(
+        f"{'Domain':<18s} {'Rec':<10s} {'Samples':>7s} {'Appr%':>7s} "
+        f"{'Rej%':>7s} {'Avg':>6s} {'High Rej%':>10s} {'Low Appr%':>10s}"
+    )
+    click.echo("-" * 88)
+    for group in report.groups:
+        click.echo(
+            f"{(group.domain or '-'):18.18s} "
+            f"{(group.recommendation or '-'):10.10s} "
+            f"{group.sample_count:7d} "
+            f"{group.approval_rate * 100:6.1f}% "
+            f"{group.rejection_rate * 100:6.1f}% "
+            f"{group.average_overall_score:6.1f} "
+            f"{group.high_score_rejection_rate * 100:9.1f}% "
+            f"{group.low_score_approval_rate * 100:9.1f}%"
+        )
+    click.echo(
+        f"\nGroups: {report.total_groups}; samples: {report.total_samples}; "
+        f"high score >= {report.high_score_threshold:.1f}; "
+        f"low score < {report.low_score_threshold:.1f}"
+    )
 
 
 @main.command()
