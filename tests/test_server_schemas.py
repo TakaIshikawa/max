@@ -18,6 +18,7 @@ from max.server.schemas import (
     DryRunReportResponse,
     EvaluationResponse,
     FeedbackCreate,
+    FeedbackLogEntryResponse,
     FeedbackWebhookRequest,
     FeedbackWebhookResponse,
     HealthResponse,
@@ -398,6 +399,51 @@ class TestFeedbackWebhookRequest:
             "outcome": "published",
             "external_run_id": "run-123",
         }
+
+
+class TestFeedbackLogEntryResponse:
+    """Tests for FeedbackLogEntryResponse model."""
+
+    def test_valid_construction(self):
+        entry = FeedbackLogEntryResponse(
+            unit_id="bu-log-1",
+            title="Test Idea",
+            domain="testing",
+            category="application",
+            outcome="approved",
+            reason="strong fit",
+            approval_score=9,
+            score=82.5,
+            recommendation="yes",
+            created_at="2026-04-23T00:00:00+00:00",
+        )
+
+        assert entry.unit_id == "bu-log-1"
+        assert entry.title == "Test Idea"
+        assert entry.domain == "testing"
+        assert entry.category == "application"
+        assert entry.outcome == "approved"
+        assert entry.reason == "strong fit"
+        assert entry.approval_score == 9
+        assert entry.score == 82.5
+        assert entry.recommendation == "yes"
+
+    def test_serialization(self):
+        entry = FeedbackLogEntryResponse(
+            unit_id="bu-log-1",
+            title="Test Idea",
+            domain="testing",
+            category="application",
+            outcome="rejected",
+            reason="too narrow",
+            created_at="2026-04-23T00:00:00+00:00",
+        )
+
+        dumped = entry.model_dump()
+        assert dumped["unit_id"] == "bu-log-1"
+        assert dumped["title"] == "Test Idea"
+        assert dumped["reason"] == "too narrow"
+        assert dumped["created_at"] == "2026-04-23T00:00:00+00:00"
 
 
 class TestPipelineRunRequest:

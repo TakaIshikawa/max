@@ -643,6 +643,19 @@ class FeedbackWebhookResponse(BaseModel):
     external_run_id: str
 
 
+class FeedbackLogEntryResponse(BaseModel):
+    unit_id: str
+    title: str
+    domain: str
+    category: str
+    outcome: str
+    reason: str
+    approval_score: int | None = None
+    score: float | None = None
+    recommendation: str | None = None
+    created_at: str
+
+
 class IdeaStatusCountResponse(BaseModel):
     status: str
     count: int

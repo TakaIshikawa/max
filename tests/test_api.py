@@ -2603,6 +2603,86 @@ def test_feedback_batch_requires_items(client):
     assert resp.status_code == 422
 
 
+def test_feedback_log_endpoint_returns_recent_rows(seeded_client, seeded_db):
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        store.insert_buildable_unit(
+            BuildableUnit(
+                id="bu-api002",
+                title="Second Idea",
+                one_liner="Another API test idea",
+                category=BuildableCategory.APPLICATION,
+                problem="Problem",
+                solution="Solution",
+                value_proposition="Value",
+                domain="testing",
+            )
+        )
+        store.insert_evaluation(_threshold_evaluation("bu-api002", 91.0))
+        store.conn.execute(
+            """INSERT INTO feedback
+               (buildable_unit_id, outcome, reason, dimension_values, approval_score, created_at, pipeline_run_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "bu-api001",
+                "approved",
+                "first review",
+                "{}",
+                8,
+                "2026-04-23T00:00:00+00:00",
+                None,
+            ),
+        )
+        store.conn.execute(
+            """INSERT INTO feedback
+               (buildable_unit_id, outcome, reason, dimension_values, approval_score, created_at, pipeline_run_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "bu-api002",
+                "rejected",
+                "second review",
+                "{}",
+                None,
+                "2026-04-23T00:00:01+00:00",
+                None,
+            ),
+        )
+        store.conn.commit()
+    finally:
+        store.close()
+
+    resp = seeded_client.get("/api/v1/feedback/log?limit=1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    row = data[0]
+    assert row["unit_id"] == "bu-api002"
+    assert row["title"] == "Second Idea"
+    assert row["domain"] == "testing"
+    assert row["category"] == "application"
+    assert row["outcome"] == "rejected"
+    assert row["reason"] == "second review"
+    assert row["approval_score"] is None
+    assert row["score"] == 91.0
+    assert row["recommendation"] == "yes"
+    assert row["created_at"] == "2026-04-23T00:00:01+00:00"
+
+    resp = seeded_client.get("/api/v1/feedback/log?limit=2")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [row["unit_id"] for row in data] == ["bu-api002", "bu-api001"]
+    assert data[1]["approval_score"] == 8
+
+    invalid = seeded_client.get("/api/v1/feedback/log?limit=0")
+    assert invalid.status_code == 422
+
+    openapi = seeded_client.get("/openapi.json")
+    assert openapi.status_code == 200
+    feedback_log_spec = openapi.json()["paths"]["/api/v1/feedback/log"]["get"]
+    assert feedback_log_spec["parameters"][0]["name"] == "limit"
+    assert feedback_log_spec["responses"]["200"]["content"]["application/json"]["schema"]["type"] == "array"
+
+
 def test_feedback_trends_endpoint(seeded_client):
     feedback_resp = seeded_client.post(
         "/api/v1/ideas/bu-api001/feedback",

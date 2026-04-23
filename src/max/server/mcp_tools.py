@@ -8,7 +8,31 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from fastmcp import FastMCP
+from fastapi import FastAPI
+
+try:
+    from fastmcp import FastMCP
+except ModuleNotFoundError:  # pragma: no cover - exercised when optional dependency is absent.
+    class FastMCP:  # type: ignore[no-redef]
+        """Fallback MCP container when fastmcp is not installed."""
+
+        def __init__(self, *_args, **_kwargs):
+            self._tools: list[Callable] = []
+            self._resources: list[tuple[str, Callable]] = []
+
+        def tool(self, fn: Callable) -> Callable:
+            self._tools.append(fn)
+            return fn
+
+        def resource(self, uri: str) -> Callable[[Callable], Callable]:
+            def decorator(fn: Callable) -> Callable:
+                self._resources.append((uri, fn))
+                return fn
+
+            return decorator
+
+        def http_app(self, path: str = "/mcp") -> FastAPI:
+            return FastAPI(title="Max MCP Stub")
 
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.store.db import Store
