@@ -95,6 +95,7 @@ from max.server.schemas import (
     FeedbackWebhookResponse,
     FetchAllocationAdapterExplainResponse,
     FetchAllocationExplainResponse,
+    FetchAllocationSimulationResponse,
     HealthResponse,
     IdeaCreate,
     IdeaCritiqueResponse,
@@ -2902,6 +2903,41 @@ def get_fetch_allocation_explain(
         allocation=allocation,
         adapters=adapters,
     )
+
+
+@router.get("/fetch/allocation-simulation", response_model=FetchAllocationSimulationResponse)
+def get_fetch_allocation_simulation(
+    profile: str | None = Query(
+        default=None,
+        description="Optional profile name to simulate; defaults to MAX_PROFILE or devtools",
+    ),
+    budget: int | None = Query(
+        default=None,
+        description="Optional total fetch signal budget to simulate",
+    ),
+    store: Store = Depends(get_store),
+) -> FetchAllocationSimulationResponse:
+    from max.analysis.source_simulation import simulate_source_allocation
+    from max.config import MAX_PROFILE
+    from max.profiles.loader import get_default_profile, load_profile
+
+    if budget is not None and budget < 1:
+        raise HTTPException(status_code=400, detail="budget must be at least 1")
+
+    profile_name = profile or MAX_PROFILE or None
+    try:
+        pipeline_profile = (
+            load_profile(profile_name) if profile_name else get_default_profile()
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {profile_name}")
+
+    try:
+        report = simulate_source_allocation(pipeline_profile, store, budget=budget)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return FetchAllocationSimulationResponse.model_validate(report.to_dict())
 
 
 # ── Similarity ──────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -3219,6 +3219,185 @@ def test_fetch_allocation_explain_unknown_profile_returns_404(client):
 
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Profile not found: missing"
+
+
+def test_fetch_allocation_simulation_uses_explicit_profile_and_budget(client):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    profile = PipelineProfile(
+        name="simulation",
+        domain=DomainContext(
+            name="testing",
+            description="testing domain",
+            categories=["application"],
+            target_user_types=["developers"],
+        ),
+        sources=[
+            SourceConfig(adapter="test", weight=2.5),
+            SourceConfig(adapter="unused", enabled=False, weight=0.25),
+        ],
+    )
+    report = {
+        "profile": "simulation",
+        "domain": "testing",
+        "total_budget": 17,
+        "allocation": {"test": 17},
+        "sources": [
+            {
+                "adapter": "test",
+                "enabled": True,
+                "configured_weight": 2.5,
+                "params": {"topics": ["mcp"]},
+                "quality": {
+                    "total_signals": 1,
+                    "insight_hit_rate": 1.0,
+                    "idea_hit_rate": 1.0,
+                },
+                "approval": {
+                    "total_feedbacked": 1,
+                    "approved": 1,
+                    "rejected": 0,
+                    "approval_rate": 1.0,
+                },
+                "circuit_breaker": {
+                    "state": "closed",
+                    "failure_count": 0,
+                    "retry_after_seconds": 0.0,
+                },
+                "allocated_limit": 17,
+            },
+            {
+                "adapter": "unused",
+                "enabled": False,
+                "configured_weight": 0.25,
+                "params": {},
+                "quality": {
+                    "total_signals": 0,
+                    "insight_hit_rate": 0.0,
+                    "idea_hit_rate": 0.0,
+                },
+                "approval": {
+                    "total_feedbacked": 0,
+                    "approved": 0,
+                    "rejected": 0,
+                    "approval_rate": None,
+                },
+                "circuit_breaker": {
+                    "state": "closed",
+                    "failure_count": 0,
+                    "retry_after_seconds": 0.0,
+                },
+                "allocated_limit": 0,
+            },
+        ],
+    }
+
+    with (
+        patch("max.profiles.loader.load_profile", return_value=profile) as mock_load_profile,
+        patch(
+            "max.analysis.source_simulation.simulate_source_allocation",
+            return_value=MagicMock(to_dict=MagicMock(return_value=report)),
+        ) as mock_simulation,
+    ):
+        resp = client.get(
+            "/api/v1/fetch/allocation-simulation?profile=simulation&budget=17"
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile"] == "simulation"
+    assert data["domain"] == "testing"
+    assert data["total_budget"] == 17
+    assert data["allocation"] == {"test": 17}
+    mock_load_profile.assert_called_once_with("simulation")
+    mock_simulation.assert_called_once()
+    assert mock_simulation.call_args.args[1] is not None
+    assert mock_simulation.call_args.kwargs["budget"] == 17
+
+    by_name = {row["adapter"]: row for row in data["sources"]}
+    assert by_name["test"]["quality"]["total_signals"] == 1
+    assert by_name["test"]["approval"]["approved"] == 1
+    assert by_name["test"]["circuit_breaker"]["state"] == "closed"
+    assert by_name["test"]["allocated_limit"] == 17
+    assert by_name["unused"]["enabled"] is False
+    assert by_name["unused"]["approval"]["approval_rate"] is None
+
+
+def test_fetch_allocation_simulation_uses_default_profile_when_profile_is_omitted(client):
+    from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
+
+    profile = PipelineProfile(
+        name="devtools",
+        domain=DomainContext(
+            name="testing",
+            description="testing domain",
+            categories=["application"],
+            target_user_types=["developers"],
+        ),
+        sources=[SourceConfig(adapter="test", weight=1.0)],
+    )
+    report = {
+        "profile": "devtools",
+        "domain": "testing",
+        "total_budget": 30,
+        "allocation": {"test": 30},
+        "sources": [
+            {
+                "adapter": "test",
+                "enabled": True,
+                "configured_weight": 1.0,
+                "params": {},
+                "quality": {
+                    "total_signals": 0,
+                    "insight_hit_rate": 0.0,
+                    "idea_hit_rate": 0.0,
+                },
+                "approval": {
+                    "total_feedbacked": 0,
+                    "approved": 0,
+                    "rejected": 0,
+                    "approval_rate": None,
+                },
+                "circuit_breaker": {
+                    "state": "closed",
+                    "failure_count": 0,
+                    "retry_after_seconds": 0.0,
+                },
+                "allocated_limit": 30,
+            }
+        ],
+    }
+
+    with (
+        patch("max.server.api.config.MAX_PROFILE", ""),
+        patch("max.profiles.loader.get_default_profile", return_value=profile) as mock_default,
+        patch(
+            "max.analysis.source_simulation.simulate_source_allocation",
+            return_value=MagicMock(to_dict=MagicMock(return_value=report)),
+        ) as mock_simulation,
+    ):
+        resp = client.get("/api/v1/fetch/allocation-simulation")
+
+    assert resp.status_code == 200
+    assert resp.json()["profile"] == "devtools"
+    mock_default.assert_called_once()
+    mock_simulation.assert_called_once()
+    assert mock_simulation.call_args.kwargs["budget"] is None
+
+
+def test_fetch_allocation_simulation_unknown_profile_returns_404(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/fetch/allocation-simulation?profile=missing")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
+def test_fetch_allocation_simulation_invalid_budget_returns_400(client):
+    resp = client.get("/api/v1/fetch/allocation-simulation?budget=0")
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "budget must be at least 1"
 
 
 # ── Similarity endpoint ────────────────────────────────────────────

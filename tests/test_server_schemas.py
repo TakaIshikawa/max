@@ -41,6 +41,11 @@ from max.server.schemas import (
     PipelineRunRequest,
     ProfileDetailResponse,
     ProfileSummaryResponse,
+    FetchAllocationSimulationApprovalResponse,
+    FetchAllocationSimulationCircuitBreakerResponse,
+    FetchAllocationSimulationQualityResponse,
+    FetchAllocationSimulationResponse,
+    FetchAllocationSimulationSourceResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -1881,3 +1886,59 @@ class TestDryRunReportResponse:
         dumped = report.model_dump()
         assert len(dumped["stages"]) == 1
         assert dumped["estimated_total_llm_calls"] == 5
+
+
+class TestFetchAllocationSimulationResponse:
+    """Tests for FetchAllocationSimulationResponse model."""
+
+    def test_valid_construction(self):
+        response = FetchAllocationSimulationResponse(
+            profile="devtools",
+            domain="developer-tools",
+            total_budget=30,
+            allocation={"hackernews": 30},
+            sources=[
+                FetchAllocationSimulationSourceResponse(
+                    adapter="hackernews",
+                    enabled=True,
+                    configured_weight=1.0,
+                    params={"topics": ["mcp"]},
+                    quality=FetchAllocationSimulationQualityResponse(
+                        total_signals=5,
+                        insight_hit_rate=0.4,
+                        idea_hit_rate=0.2,
+                    ),
+                    approval=FetchAllocationSimulationApprovalResponse(
+                        total_feedbacked=3,
+                        approved=2,
+                        rejected=1,
+                        approval_rate=2 / 3,
+                    ),
+                    circuit_breaker=FetchAllocationSimulationCircuitBreakerResponse(
+                        state="closed",
+                        failure_count=0,
+                        retry_after_seconds=0.0,
+                    ),
+                    allocated_limit=30,
+                )
+            ],
+        )
+
+        assert response.profile == "devtools"
+        assert response.domain == "developer-tools"
+        assert response.total_budget == 30
+        assert response.sources[0].approval.approval_rate == pytest.approx(2 / 3)
+
+    def test_serialization(self):
+        response = FetchAllocationSimulationResponse(
+            profile="devtools",
+            domain="developer-tools",
+            total_budget=30,
+            allocation={"hackernews": 30},
+            sources=[],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["profile"] == "devtools"
+        assert dumped["allocation"] == {"hackernews": 30}
+        assert dumped["sources"] == []
