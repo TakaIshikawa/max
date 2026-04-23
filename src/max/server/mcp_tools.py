@@ -19,17 +19,22 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
         def __init__(self, name: str):
             self.name = name
+            self._tools: list[Callable] = []
+            self._resources: list[tuple[str, Callable]] = []
 
         def tool(self, fn=None, *args, **kwargs):
             if fn is None:
                 def decorator(inner_fn):
+                    self._tools.append(inner_fn)
                     return inner_fn
 
                 return decorator
+            self._tools.append(fn)
             return fn
 
         def resource(self, path: str):
             def decorator(fn):
+                self._resources.append((path, fn))
                 return fn
 
             return decorator
