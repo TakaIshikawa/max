@@ -1190,6 +1190,17 @@ def restore_signal(signal_id: str, store: Store = Depends(get_store)) -> SignalR
     return _signal_to_response(signal)
 
 
+@router.post("/insights/{insight_id}/restore", response_model=InsightResponse)
+def restore_insight(insight_id: str, store: Store = Depends(get_store)) -> InsightResponse:
+    if not store.restore_insight(insight_id):
+        raise HTTPException(status_code=404, detail=f"Insight not found: {insight_id}")
+
+    insight = store.get_insight(insight_id)
+    if not insight:
+        raise HTTPException(status_code=404, detail=f"Insight not found: {insight_id}")
+    return _insight_to_response(insight)
+
+
 # ── Insights ────────────────────────────────────────────────────────
 
 
@@ -1692,6 +1703,28 @@ def get_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailRespo
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    critiques = store.get_idea_critiques(idea_id)
+    return _unit_detail(
+        unit,
+        evaluation,
+        latest_critique=critiques[0] if critiques else None,
+        latest_feedback=store.get_latest_feedback(idea_id),
+    )
+
+
+@router.post("/ideas/{idea_id}/restore", response_model=IdeaDetailResponse)
+def restore_idea(idea_id: str, store: Store = Depends(get_store)) -> IdeaDetailResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    store.restore_archived_idea(idea_id)
+
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
     evaluation = store.get_evaluation(idea_id)
     critiques = store.get_idea_critiques(idea_id)
     return _unit_detail(

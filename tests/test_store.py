@@ -137,3 +137,27 @@ def test_get_insight_by_id(store: Store, sample_insight: Insight) -> None:
 
 def test_get_insight_not_found(store: Store) -> None:
     assert store.get_insight("ins-nonexistent") is None
+
+
+def test_restore_insight_brings_back_archived_record(store: Store, sample_insight: Insight) -> None:
+    store.insert_insight(sample_insight)
+    store.archive_insight("ins-test001")
+
+    assert store.get_insights() == []
+    assert store.restore_insight("ins-test001") is True
+
+    insights = store.get_insights()
+    assert len(insights) == 1
+    assert insights[0].id == "ins-test001"
+
+
+def test_restore_archived_idea_sets_status_to_evaluated(store: Store, sample_unit: BuildableUnit) -> None:
+    store.insert_buildable_unit(sample_unit)
+    store.update_buildable_unit_status("bu-test001", "archived")
+
+    restored = store.restore_archived_idea("bu-test001")
+
+    assert restored is True
+    unit = store.get_buildable_unit("bu-test001")
+    assert unit is not None
+    assert unit.status == "evaluated"
