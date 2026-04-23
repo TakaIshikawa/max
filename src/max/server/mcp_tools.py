@@ -8,7 +8,33 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from fastmcp import FastMCP
+from fastapi import FastAPI
+
+try:
+    from fastmcp import FastMCP
+except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
+    class FastMCP:  # type: ignore[no-redef]
+        """Minimal FastMCP stand-in used when the optional dependency is absent."""
+
+        def __init__(self, name: str):
+            self.name = name
+
+        def tool(self, fn=None, *args, **kwargs):
+            if fn is None:
+                def decorator(inner_fn):
+                    return inner_fn
+
+                return decorator
+            return fn
+
+        def resource(self, path: str):
+            def decorator(fn):
+                return fn
+
+            return decorator
+
+        def http_app(self, path: str = "/mcp"):
+            return FastAPI(title=self.name)
 
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.store.db import Store

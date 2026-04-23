@@ -33,6 +33,7 @@ def _get_schedule_config() -> dict:
         "enabled": _env_bool("MAX_SCHEDULE_ENABLED", True),
         "profile": os.getenv("MAX_SCHEDULE_PIPELINE_PROFILE"),
         "include_all": _env_bool("MAX_SCHEDULE_INCLUDE_ALL", False),
+        "max_execution_seconds": int(os.getenv("MAX_SCHEDULE_MAX_EXECUTION_SECONDS", "1800")),
         "signal_limit": int(os.getenv("MAX_SCHEDULE_SIGNAL_LIMIT", "30")),
         "min_score": float(os.getenv("MAX_SCHEDULE_MIN_SCORE", "50.0")),
         "weight_profile": os.getenv("MAX_SCHEDULE_PROFILE", "default"),
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
                 enabled=cfg["enabled"],
                 profile=cfg["profile"],
                 include_all=cfg["include_all"],
+                max_execution_seconds=cfg["max_execution_seconds"],
                 pipeline_kwargs={
                     "signal_limit": cfg["signal_limit"],
                     "min_score": cfg["min_score"],

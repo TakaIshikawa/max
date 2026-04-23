@@ -655,6 +655,7 @@ class TestScheduleUpdateRequest:
         assert request.interval_seconds is None
         assert request.profile is None
         assert request.include_all is None
+        assert request.max_execution_seconds is None
         assert request.signal_limit is None
         assert request.min_score is None
         assert request.weight_profile is None
@@ -670,6 +671,7 @@ class TestScheduleUpdateRequest:
             interval_seconds=3600,
             profile="devtools",
             include_all=True,
+            max_execution_seconds=2400,
             signal_limit=50,
             min_score=70.0,
             weight_profile="quick_wins",
@@ -682,6 +684,7 @@ class TestScheduleUpdateRequest:
         assert request.interval_seconds == 3600
         assert request.profile == "devtools"
         assert request.include_all is True
+        assert request.max_execution_seconds == 2400
         assert request.signal_limit == 50
         assert request.min_score == 70.0
         assert request.weight_profile == "quick_wins"
@@ -1575,12 +1578,14 @@ class TestScheduleStatusResponse:
             enabled=True,
             interval_seconds=3600,
             running=False,
+            max_execution_seconds=1800,
             run_count=0,
             pipeline_config={},
         )
         assert status.enabled is True
         assert status.profile is None
         assert status.include_all is False
+        assert status.max_execution_seconds == 1800
         assert status.last_run_at is None
         assert status.failure_streak == 0
         assert status.max_consecutive_failures == 3
@@ -1601,6 +1606,7 @@ class TestScheduleStatusResponse:
             interval_seconds=7200,
             profile="all",
             include_all=True,
+            max_execution_seconds=2400,
             running=True,
             last_run_at="2024-01-01T12:00:00Z",
             next_run_at="2024-01-01T14:00:00Z",
@@ -1615,6 +1621,7 @@ class TestScheduleStatusResponse:
         assert status.running is True
         assert status.profile == "all"
         assert status.include_all is True
+        assert status.max_execution_seconds == 2400
         assert status.run_count == 42
         assert status.last_result is not None
         assert status.last_result.avg_idea_score == 82.0
@@ -1634,6 +1641,7 @@ class TestScheduleStatusResponse:
         status = ScheduleStatusResponse(
             enabled=False,
             interval_seconds=1800,
+            max_execution_seconds=1200,
             running=False,
             run_count=5,
             pipeline_config={"min_score": 50.0},
@@ -1641,6 +1649,7 @@ class TestScheduleStatusResponse:
         dumped = status.model_dump()
         assert dumped["enabled"] is False
         assert dumped["interval_seconds"] == 1800
+        assert dumped["max_execution_seconds"] == 1200
         assert dumped["pipeline_config"] == {"min_score": 50.0}
 
 
