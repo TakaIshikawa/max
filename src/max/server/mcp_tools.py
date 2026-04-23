@@ -340,6 +340,41 @@ def max_portfolio_overlap(
     return [_portfolio_overlap_cluster_to_dict(cluster) for cluster in clusters]
 
 
+def simulate_source_allocation(
+    profile: str | None = None,
+    budget: int | None = None,
+) -> dict:
+    """Simulate fetch allocation for a profile before a run.
+
+    Set profile to use a named pipeline profile. Set budget to override the
+    profile's signal limit when exploring allocation changes.
+    """
+    from max.analysis.source_simulation import (
+        simulate_source_allocation as build_source_allocation,
+    )
+    from max.config import MAX_PROFILE
+    from max.profiles.loader import get_default_profile, load_profile
+
+    if budget is not None and budget < 1:
+        return {"error": "budget must be at least 1"}
+
+    profile_name = profile or MAX_PROFILE or None
+    try:
+        pipeline_profile = (
+            load_profile(profile_name) if profile_name else get_default_profile()
+        )
+    except FileNotFoundError as e:
+        return {"error": str(e)}
+
+    try:
+        with _get_store() as store:
+            report = build_source_allocation(pipeline_profile, store, budget=budget)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    return report.to_dict()
+
+
 def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
     return {
         "cluster_id": cluster.cluster_id,
@@ -913,6 +948,11 @@ def portfolio_overlap_detail() -> str:
     return json.dumps(max_portfolio_overlap(), indent=2)
 
 
+def source_allocation_detail() -> str:
+    """Browse the default source allocation simulation report."""
+    return json.dumps(simulate_source_allocation(), indent=2)
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -942,6 +982,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_source_reliability)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
+    mcp.tool(simulate_source_allocation)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -956,5 +997,6 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
+    mcp.resource("sources://allocation-simulation")(source_allocation_detail)
 
     return mcp

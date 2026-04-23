@@ -30,6 +30,8 @@ from max.server.mcp_tools import (
     max_signal_freshness,
     max_source_reliability,
     portfolio_overlap_detail,
+    simulate_source_allocation,
+    source_allocation_detail,
     search_ideas,
     set_schedule,
     set_scheduler_ref,
@@ -730,6 +732,38 @@ def test_portfolio_overlap_resource_returns_default_report(seeded_mcp_db):
     assert result == []
 
 
+def test_simulate_source_allocation_uses_profile_and_budget(mcp_db, monkeypatch):
+    monkeypatch.setattr(
+        "max.profiles.loader.load_profile",
+        lambda name: _mcp_mock_profile(),
+    )
+
+    result = simulate_source_allocation(profile="devtools", budget=12)
+
+    assert result["profile"] == "devtools"
+    assert result["domain"] == "developer-tools"
+    assert result["total_budget"] == 12
+    assert result["allocation"] == {"test": 12}
+    assert [source["adapter"] for source in result["sources"]] == ["test", "unused"]
+    assert result["sources"][0]["allocated_limit"] == 12
+    assert result["sources"][1]["allocated_limit"] == 0
+
+
+def test_source_allocation_resource_returns_default_report(mcp_db, monkeypatch):
+    monkeypatch.setattr("max.config.MAX_PROFILE", "devtools")
+    monkeypatch.setattr(
+        "max.profiles.loader.load_profile",
+        lambda name: _mcp_mock_profile(),
+    )
+
+    result = json.loads(source_allocation_detail())
+
+    assert result["profile"] == "devtools"
+    assert result["domain"] == "developer-tools"
+    assert result["total_budget"] == 99
+    assert result["allocation"] == {"test": 99}
+
+
 def test_contribute_signal(mcp_db):
     result = contribute_signal(
         title="Test Signal via MCP",
@@ -935,6 +969,8 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert "max_portfolio_overlap" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
+    assert "simulate_source_allocation" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
 
 
 def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
@@ -1009,8 +1045,10 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert "get_evaluation_calibration" in FakeMCP.latest.tools
     assert "get_review_thresholds" in FakeMCP.latest.tools
     assert "max_signal_freshness" in FakeMCP.latest.tools
+    assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
+    assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
 
 
 def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
