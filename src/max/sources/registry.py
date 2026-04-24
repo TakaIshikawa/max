@@ -74,6 +74,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
+    "glama_mcp_stats": "max.sources.glama_mcp_stats:GlamaMcpStatsAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
     "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
@@ -445,6 +446,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["base_url", "endpoint", "queries", "categories", "min_stars", "min_score"],
         required_keys=[],
         description="Fetches MCP server registry discovery, package, capability, and trust signals.",
+    ),
+    "glama_mcp_stats": AdapterMetadata(
+        name="glama_mcp_stats",
+        config_keys=["stats_urls", "local_paths", "categories", "min_server_count", "max_items"],
+        required_keys=[],
+        description=(
+            "Reads Glama-style MCP ecosystem aggregate growth, category, trust, "
+            "funding, and adoption stats from JSON or Markdown reports."
+        ),
     ),
     "stackshare": AdapterMetadata(
         name="stackshare",

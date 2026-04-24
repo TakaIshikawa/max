@@ -216,3 +216,34 @@ def test_federal_register_healthcare_adapter_metadata_documents_config_keys() ->
     assert "Federal Register healthcare rules" in metadata[
         "federal_register_healthcare"
     ].description
+
+
+def test_glama_mcp_stats_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "glama_mcp_stats"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["glama_mcp_stats"]
+        adapter = get_adapter("glama_mcp_stats")
+
+    assert adapter.name == "glama_mcp_stats"
+
+
+def test_glama_mcp_stats_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "glama_mcp_stats"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"glama_mcp_stats"}
+    assert metadata["glama_mcp_stats"].config_keys == [
+        "stats_urls",
+        "local_paths",
+        "categories",
+        "min_server_count",
+        "max_items",
+    ]
+    assert metadata["glama_mcp_stats"].required_keys == []
+    assert "Glama-style MCP ecosystem aggregate" in metadata[
+        "glama_mcp_stats"
+    ].description
