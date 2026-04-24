@@ -1,0 +1,47 @@
+[
+  {
+    "content_hash": "477dee781421f53e2cc885abb20cf4ea35272f2eede56b65c008212067fdcfce",
+    "error": null,
+    "fetched_at": "2026-04-24T04:25:54+00:00",
+    "name": "Terms and policies index",
+    "provider": "OpenAI",
+    "status": 200,
+    "url": "https://openai.com/policies"
+  },
+  {
+    "content_hash": "4fc0fc9a14357050a25e056aa940cee33bc149ce58f51472095fe9201a2da4de",
+    "error": null,
+    "fetched_at": "2026-04-24T04:25:55+00:00",
+    "name": "Usage policies",
+    "provider": "OpenAI",
+    "status": 200,
+    "url": "https://openai.com/policies/usage-policies/"
+  },
+  {
+    "content_hash": "d0e6eca10f00d1112cc2bb79e055ea53d1f94b3284dc88ca7aa776aaf65de32d",
+    "error": null,
+    "fetched_at": "2026-04-24T04:25:56+00:00",
+    "name": "Service terms",
+    "provider": "OpenAI",
+    "status": 200,
+    "url": "https://openai.com/policies/service-terms"
+  },
+  {
+    "content_hash": "940d732c477953c26717ce60d00079a45c21158269886f988aebdf2c6b5fc362",
+    "error": null,
+    "fetched_at": "2026-04-24T04:25:56+00:00",
+    "name": "Claude Code data usage",
+    "provider": "Anthropic",
+    "status": 200,
+    "url": "https://docs.anthropic.com/en/docs/claude-code/data-usage"
+  },
+  {
+    "content_hash": "990b03e0d964c29d32876fdc4c10bf1fece79aa6e8c8bae3299019c01fb012de",
+    "error": null,
+    "fetched_at": "2026-04-24T04:26:00+00:00",
+    "name": "Usage policy update",
+    "provider": "Anthropic",
+    "status": 200,
+    "url": "https://www.anthropic.com/news/usage-policy-update"
+  }
+]

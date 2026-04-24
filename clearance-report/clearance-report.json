@@ -1,0 +1,202 @@
+{
+  "dependencies": [
+    {
+      "license": null,
+      "name": "anthropic",
+      "provider": "Anthropic",
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=0.42.0"
+    },
+    {
+      "license": null,
+      "name": "httpx",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=0.27.0"
+    },
+    {
+      "license": null,
+      "name": "pydantic",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=2.0"
+    },
+    {
+      "license": null,
+      "name": "click",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=8.0"
+    },
+    {
+      "license": null,
+      "name": "python-dotenv",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=1.0"
+    },
+    {
+      "license": null,
+      "name": "pyyaml",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=6.0"
+    },
+    {
+      "license": null,
+      "name": "fastapi",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=0.115.0"
+    },
+    {
+      "license": null,
+      "name": "uvicorn",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": "[standard]>=0.32.0"
+    },
+    {
+      "license": null,
+      "name": "fastmcp",
+      "provider": null,
+      "source": "pyproject.toml:project.dependencies",
+      "version": ">=2.0"
+    },
+    {
+      "license": null,
+      "name": "pytest",
+      "provider": null,
+      "source": "pyproject.toml:project.optional-dependencies.dev",
+      "version": ">=8.0"
+    },
+    {
+      "license": null,
+      "name": "pytest-asyncio",
+      "provider": null,
+      "source": "pyproject.toml:project.optional-dependencies.dev",
+      "version": ">=0.24"
+    },
+    {
+      "license": null,
+      "name": "ruff",
+      "provider": null,
+      "source": "pyproject.toml:project.optional-dependencies.dev",
+      "version": ">=0.8.0"
+    }
+  ],
+  "findings": [
+    {
+      "code": "missing-project-license",
+      "detail": "A public open source release needs an explicit top-level license file.",
+      "path": null,
+      "remediation": "Add a LICENSE file and align package metadata with it.",
+      "severity": "blocker",
+      "title": "Project license is missing"
+    },
+    {
+      "code": "missing-notice",
+      "detail": "A public release should preserve third-party notices and attribution requirements where applicable.",
+      "path": null,
+      "remediation": "Add NOTICE or THIRD_PARTY_NOTICES.md after reviewing dependency licenses.",
+      "severity": "warning",
+      "title": "Third-party notices are missing"
+    },
+    {
+      "code": "secret-file-present",
+      "detail": ".env commonly contains credentials and should not be published.",
+      "path": ".env",
+      "remediation": "Remove it from git, rotate exposed credentials if needed, and keep an example file instead.",
+      "severity": "blocker",
+      "title": "Potential secret-bearing file is present"
+    },
+    {
+      "code": "hardcoded-anthropic-key",
+      "detail": "Found potential hardcoded secret on line 1: sk-ant-api03--FZTqRbJfIYiNfl2tUSwm6ye9dG...[truncated]",
+      "path": ".env:1",
+      "remediation": "Remove hardcoded secrets. Use environment variables, secret management systems, or configuration files (excluded from git).",
+      "severity": "blocker",
+      "title": "Hardcoded Anthropic API key detected"
+    },
+    {
+      "code": "hardcoded-bearer-token",
+      "detail": "Found potential hardcoded secret on line 84: Bearer tokens",
+      "path": ".tact/agent-comms-firewall/architecture.yaml:84",
+      "remediation": "Remove hardcoded secrets. Use environment variables, secret management systems, or configuration files (excluded from git).",
+      "severity": "blocker",
+      "title": "Hardcoded Bearer token detected"
+    },
+    {
+      "code": "provider-usage-detected",
+      "detail": "Source text references a known provider, environment variable, or tool name.",
+      "path": ".tact-experiments/cybersecurity/shadow-ai-dlp-agent/product.yaml",
+      "remediation": "Confirm applicable provider terms, data handling, examples, and publication requirements.",
+      "severity": "warning",
+      "title": "OpenAI usage detected outside dependency manifests"
+    },
+    {
+      "code": "provider-policy-review-required",
+      "detail": "The project appears to use Anthropic. Review current provider terms before public release.",
+      "path": null,
+      "remediation": "Record review owner, date, account type, applicable terms, and any required safeguards in the release decision.",
+      "severity": "warning",
+      "title": "Anthropic policy review required"
+    },
+    {
+      "code": "provider-policy-review-required",
+      "detail": "The project appears to use OpenAI. Review current provider terms before public release.",
+      "path": null,
+      "remediation": "Record review owner, date, account type, applicable terms, and any required safeguards in the release decision.",
+      "severity": "warning",
+      "title": "OpenAI policy review required"
+    },
+    {
+      "code": "policy-monitoring-configured",
+      "detail": "5 provider policy sources are available for snapshot monitoring.",
+      "path": null,
+      "remediation": "Run `clearance monitor` before release and on a schedule after publication.",
+      "severity": "info",
+      "title": "Policy monitoring sources configured"
+    }
+  ],
+  "generated_at": "2026-04-24T04:25:46+00:00",
+  "policy_sources": [
+    {
+      "category": "terms",
+      "name": "Terms and policies index",
+      "provider": "OpenAI",
+      "review_note": "Review applicable Terms of Use, Service Terms, privacy, publication, and usage policy pages before release.",
+      "url": "https://openai.com/policies"
+    },
+    {
+      "category": "usage-policy",
+      "name": "Usage policies",
+      "provider": "OpenAI",
+      "review_note": "Confirm the project use case, examples, tests, and documentation do not encourage prohibited or high-risk use without required safeguards.",
+      "url": "https://openai.com/policies/usage-policies/"
+    },
+    {
+      "category": "service-terms",
+      "name": "Service terms",
+      "provider": "OpenAI",
+      "review_note": "Review API-specific terms, output handling, indemnity exclusions, and third-party offering language.",
+      "url": "https://openai.com/policies/service-terms"
+    },
+    {
+      "category": "data-usage",
+      "name": "Claude Code data usage",
+      "provider": "Anthropic",
+      "review_note": "Confirm account type, telemetry, bug reporting, data retention, and model training settings before publishing code or examples.",
+      "url": "https://docs.anthropic.com/en/docs/claude-code/data-usage"
+    },
+    {
+      "category": "usage-policy",
+      "name": "Usage policy update",
+      "provider": "Anthropic",
+      "review_note": "Use as a pointer to current Anthropic usage policy expectations, especially agentic, cybersecurity, and high-risk use cases.",
+      "url": "https://www.anthropic.com/news/usage-policy-update"
+    }
+  ],
+  "project": "/Users/taka/Project/experiments/max",
+  "status": "blocked"
+}
