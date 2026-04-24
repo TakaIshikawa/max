@@ -249,7 +249,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset",
+        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -259,6 +259,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "hackernews",
         "rss_feed",
         "crates_io",
+        "maven_central",
         "rubygems",
         "dockerhub",
         "mcp_registry",
@@ -281,6 +282,9 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["crates_io"].config_keys == ["queries", "categories"]
     assert metadata["crates_io"].required_keys == []
     assert "Crates.io" in metadata["crates_io"].description
+    assert metadata["maven_central"].config_keys == ["queries", "coordinates"]
+    assert metadata["maven_central"].required_keys == []
+    assert "Maven Central" in metadata["maven_central"].description
     assert metadata["rubygems"].config_keys == ["queries", "max_pages"]
     assert metadata["rubygems"].required_keys == []
     assert "RubyGems" in metadata["rubygems"].description
