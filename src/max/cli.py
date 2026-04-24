@@ -1745,6 +1745,168 @@ def _idea_critique_json(row: dict) -> dict:
     }
 
 
+@main.group(name="validation-experiments")
+def validation_experiments() -> None:
+    """Create, list, and update validation experiments."""
+
+
+@validation_experiments.command(name="list")
+@click.argument("idea_id")
+@click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table", show_default=True)
+def validation_experiments_list(idea_id: str, fmt: str) -> None:
+    """List validation experiments for an idea."""
+    from max.store.db import Store
+
+    with Store() as store:
+        experiments = store.list_validation_experiments(idea_id)
+
+    if experiments is None:
+        raise click.ClickException(f"Idea not found: {idea_id}")
+
+    if fmt == "json":
+        click.echo(json.dumps(experiments, indent=2))
+        return
+
+    if not experiments:
+        click.echo("No validation experiments found.")
+        return
+
+    click.echo(f"{'Status':<14s} {'Sample':>7s} {'Confidence':>10s}  Hypothesis  ID")
+    click.echo("-" * 96)
+    for experiment in experiments:
+        sample = experiment["target_sample_size"]
+        confidence = experiment["confidence_delta"]
+        click.echo(
+            f"{experiment['status'][:14]:<14s} "
+            f"{str(sample) if sample is not None else '-':>7s} "
+            f"{f'{confidence:+.2f}' if confidence is not None else '-':>10s}  "
+            f"{experiment['hypothesis']}  {experiment['id']}"
+        )
+
+
+@validation_experiments.command(name="create")
+@click.argument("idea_id")
+@click.option("--hypothesis", required=True, help="Experiment hypothesis")
+@click.option("--method", "method_", required=True, help="Experiment method")
+@click.option("--target-sample-size", type=int, default=None, help="Target sample size")
+@click.option("--success-metric", required=True, help="Success metric")
+@click.option("--status", default="planned", show_default=True, help="Experiment status")
+@click.option("--started-at", default=None, help="ISO timestamp when started")
+@click.option("--completed-at", default=None, help="ISO timestamp when completed")
+@click.option("--result-summary", default="", help="Result summary")
+@click.option("--evidence-url", "evidence_urls", multiple=True, help="Evidence URL")
+@click.option("--confidence-delta", type=float, default=None, help="Confidence delta from -1 to 1")
+@click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table", show_default=True)
+def validation_experiments_create(
+    idea_id: str,
+    hypothesis: str,
+    method_: str,
+    target_sample_size: int | None,
+    success_metric: str,
+    status: str,
+    started_at: str | None,
+    completed_at: str | None,
+    result_summary: str,
+    evidence_urls: tuple[str, ...],
+    confidence_delta: float | None,
+    fmt: str,
+) -> None:
+    """Create a validation experiment for an idea."""
+    from max.store.db import Store
+
+    if target_sample_size is not None and target_sample_size < 1:
+        raise click.ClickException("--target-sample-size must be at least 1")
+    if confidence_delta is not None and not -1.0 <= confidence_delta <= 1.0:
+        raise click.ClickException("--confidence-delta must be between -1 and 1")
+
+    with Store() as store:
+        experiment = store.create_validation_experiment(
+            idea_id,
+            hypothesis=hypothesis,
+            method=method_,
+            target_sample_size=target_sample_size,
+            success_metric=success_metric,
+            status=status,
+            started_at=started_at,
+            completed_at=completed_at,
+            result_summary=result_summary,
+            evidence_urls=list(evidence_urls),
+            confidence_delta=confidence_delta,
+        )
+
+    if experiment is None:
+        raise click.ClickException(f"Idea not found: {idea_id}")
+
+    if fmt == "json":
+        click.echo(json.dumps(experiment, indent=2))
+        return
+
+    click.echo(f"Created validation experiment {experiment['id']} for {idea_id}")
+
+
+@validation_experiments.command(name="update")
+@click.argument("experiment_id")
+@click.option("--hypothesis", default=None, help="Experiment hypothesis")
+@click.option("--method", "method_", default=None, help="Experiment method")
+@click.option("--target-sample-size", type=int, default=None, help="Target sample size")
+@click.option("--success-metric", default=None, help="Success metric")
+@click.option("--status", default=None, help="Experiment status")
+@click.option("--started-at", default=None, help="ISO timestamp when started")
+@click.option("--completed-at", default=None, help="ISO timestamp when completed")
+@click.option("--result-summary", default=None, help="Result summary")
+@click.option("--evidence-url", "evidence_urls", multiple=True, help="Replace evidence URLs")
+@click.option("--confidence-delta", type=float, default=None, help="Confidence delta from -1 to 1")
+@click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table", show_default=True)
+def validation_experiments_update(
+    experiment_id: str,
+    hypothesis: str | None,
+    method_: str | None,
+    target_sample_size: int | None,
+    success_metric: str | None,
+    status: str | None,
+    started_at: str | None,
+    completed_at: str | None,
+    result_summary: str | None,
+    evidence_urls: tuple[str, ...],
+    confidence_delta: float | None,
+    fmt: str,
+) -> None:
+    """Update a validation experiment."""
+    from max.store.db import Store
+
+    if target_sample_size is not None and target_sample_size < 1:
+        raise click.ClickException("--target-sample-size must be at least 1")
+    if confidence_delta is not None and not -1.0 <= confidence_delta <= 1.0:
+        raise click.ClickException("--confidence-delta must be between -1 and 1")
+
+    updates = {
+        "hypothesis": hypothesis,
+        "method": method_,
+        "target_sample_size": target_sample_size,
+        "success_metric": success_metric,
+        "status": status,
+        "started_at": started_at,
+        "completed_at": completed_at,
+        "result_summary": result_summary,
+        "confidence_delta": confidence_delta,
+    }
+    updates = {key: value for key, value in updates.items() if value is not None}
+    if evidence_urls:
+        updates["evidence_urls"] = list(evidence_urls)
+
+    with Store() as store:
+        experiment = store.update_validation_experiment(experiment_id, **updates)
+
+    if experiment is None:
+        raise click.ClickException(f"Validation experiment not found: {experiment_id}")
+
+    if fmt == "json":
+        click.echo(json.dumps(experiment, indent=2))
+        return
+
+    click.echo(f"Updated validation experiment {experiment['id']} ({experiment['status']})")
+
+
 @main.group(name="export")
 def export_group() -> None:
     """Export Max data for downstream analysis."""

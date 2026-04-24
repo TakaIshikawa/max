@@ -204,6 +204,9 @@ from max.server.schemas import (
     SimilarityResult,
     StageSummaryResponse,
     StatsResponse,
+    ValidationExperimentCreate,
+    ValidationExperimentResponse,
+    ValidationExperimentUpdate,
 )
 from max.evaluation.explain import explain_evaluation
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
@@ -1936,6 +1939,69 @@ def get_idea_prior_art(idea_id: str, store: Store = Depends(get_store)) -> Prior
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return _prior_art_response(unit, store.get_prior_art_matches(idea_id))
+
+
+@router.post(
+    "/ideas/{idea_id}/validation-experiments",
+    response_model=ValidationExperimentResponse,
+    status_code=201,
+)
+def create_validation_experiment(
+    idea_id: str,
+    body: ValidationExperimentCreate,
+    store: Store = Depends(get_store),
+) -> ValidationExperimentResponse:
+    experiment = store.create_validation_experiment(
+        idea_id,
+        hypothesis=body.hypothesis,
+        method=body.method,
+        target_sample_size=body.target_sample_size,
+        success_metric=body.success_metric,
+        status=body.status,
+        started_at=body.started_at,
+        completed_at=body.completed_at,
+        result_summary=body.result_summary,
+        evidence_urls=body.evidence_urls,
+        confidence_delta=body.confidence_delta,
+    )
+    if experiment is None:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return ValidationExperimentResponse(**experiment)
+
+
+@router.get(
+    "/ideas/{idea_id}/validation-experiments",
+    response_model=list[ValidationExperimentResponse],
+)
+def list_validation_experiments(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> list[ValidationExperimentResponse]:
+    experiments = store.list_validation_experiments(idea_id)
+    if experiments is None:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return [ValidationExperimentResponse(**experiment) for experiment in experiments]
+
+
+@router.patch(
+    "/validation-experiments/{experiment_id}",
+    response_model=ValidationExperimentResponse,
+)
+def update_validation_experiment(
+    experiment_id: str,
+    body: ValidationExperimentUpdate,
+    store: Store = Depends(get_store),
+) -> ValidationExperimentResponse:
+    experiment = store.update_validation_experiment(
+        experiment_id,
+        **body.model_dump(exclude_unset=True),
+    )
+    if experiment is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Validation experiment not found: {experiment_id}",
+        )
+    return ValidationExperimentResponse(**experiment)
 
 
 @router.get("/ideas/{idea_id}/revision-brief")

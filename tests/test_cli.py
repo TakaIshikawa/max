@@ -280,6 +280,64 @@ def _run_comparison_dict() -> dict:
     }
 
 
+def test_validation_experiments_cli_create_list_update(tmp_path: Path, runner: CliRunner) -> None:
+    from max.store.db import Store
+
+    db_path = str(tmp_path / "validation-experiments.db")
+    RealStore = Store
+    with RealStore(db_path=db_path) as store:
+        store.insert_buildable_unit(_make_unit(id="bu-cli-vexp"))
+
+    def store_factory(*args, **kwargs):
+        return RealStore(db_path=db_path, **kwargs)
+
+    with patch("max.store.db.Store", side_effect=store_factory):
+        created = runner.invoke(
+            main,
+            [
+                "validation-experiments",
+                "create",
+                "bu-cli-vexp",
+                "--hypothesis",
+                "Reviewers will use outcomes",
+                "--method",
+                "Manual pilot",
+                "--target-sample-size",
+                "5",
+                "--success-metric",
+                "4 useful reviews",
+                "--format",
+                "json",
+            ],
+        )
+        assert created.exit_code == 0, created.output
+        experiment = json.loads(created.output)
+
+        listed = runner.invoke(
+            main,
+            ["validation-experiments", "list", "bu-cli-vexp", "--format", "json"],
+        )
+        assert listed.exit_code == 0, listed.output
+        assert json.loads(listed.output)[0]["id"] == experiment["id"]
+
+        updated = runner.invoke(
+            main,
+            [
+                "validation-experiments",
+                "update",
+                experiment["id"],
+                "--status",
+                "completed",
+                "--result-summary",
+                "4 useful reviews",
+                "--format",
+                "json",
+            ],
+        )
+        assert updated.exit_code == 0, updated.output
+        assert json.loads(updated.output)["status"] == "completed"
+
+
 class TestCompareRunsCommand:
     @patch("max.store.db.Store")
     @patch("max.analysis.run_comparison.compare_pipeline_runs")

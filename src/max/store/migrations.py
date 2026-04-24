@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -317,6 +317,27 @@ CREATE TABLE IF NOT EXISTS embeddings_metadata (
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_meta_type ON embeddings_metadata(entity_type);
 CREATE INDEX IF NOT EXISTS idx_embeddings_meta_embedded_at ON embeddings_metadata(embedded_at);
+
+CREATE TABLE IF NOT EXISTS validation_experiments (
+    id TEXT PRIMARY KEY,
+    idea_id TEXT NOT NULL,
+    hypothesis TEXT NOT NULL,
+    method TEXT NOT NULL,
+    target_sample_size INTEGER DEFAULT NULL,
+    success_metric TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned',
+    started_at TEXT DEFAULT NULL,
+    completed_at TEXT DEFAULT NULL,
+    result_summary TEXT NOT NULL DEFAULT '',
+    evidence_urls TEXT NOT NULL DEFAULT '[]',
+    confidence_delta REAL DEFAULT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_validation_experiments_idea ON validation_experiments(idea_id);
+CREATE INDEX IF NOT EXISTS idx_validation_experiments_status ON validation_experiments(status);
 
 CREATE TABLE IF NOT EXISTS publication_history (
     id TEXT PRIMARY KEY,
@@ -762,6 +783,38 @@ def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v20_to_v21(conn: sqlite3.Connection) -> None:
+    """Add validation experiment tracking table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS validation_experiments (
+            id TEXT PRIMARY KEY,
+            idea_id TEXT NOT NULL,
+            hypothesis TEXT NOT NULL,
+            method TEXT NOT NULL,
+            target_sample_size INTEGER DEFAULT NULL,
+            success_metric TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            started_at TEXT DEFAULT NULL,
+            completed_at TEXT DEFAULT NULL,
+            result_summary TEXT NOT NULL DEFAULT '',
+            evidence_urls TEXT NOT NULL DEFAULT '[]',
+            confidence_delta REAL DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (idea_id) REFERENCES buildable_units(id)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_validation_experiments_idea "
+        "ON validation_experiments(idea_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_validation_experiments_status "
+        "ON validation_experiments(status)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -834,6 +887,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 20:
         _migrate_v19_to_v20(conn)
+
+    if current < 21:
+        _migrate_v20_to_v21(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

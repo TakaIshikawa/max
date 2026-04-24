@@ -19,6 +19,7 @@ from max.store.migrations import (
     _migrate_v9_to_v10,
     _migrate_v10_to_v11,
     _migrate_v18_to_v19,
+    _migrate_v20_to_v21,
     ensure_schema,
 )
 from max.store.db import Store
@@ -42,7 +43,9 @@ EXPECTED_TABLES = {
     "domain_quality_memory",
     "domain_quality_eval_runs",
     "domain_quality_eval_items",
+    "embeddings_metadata",
     "publication_history",
+    "validation_experiments",
 }
 
 
@@ -308,6 +311,29 @@ class TestFreshSchema:
         assert "idx_publication_history_idea" in _get_indices(conn)
         conn.close()
 
+    def test_fresh_db_validation_experiments_table(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        assert {
+            "id",
+            "idea_id",
+            "hypothesis",
+            "method",
+            "target_sample_size",
+            "success_metric",
+            "status",
+            "started_at",
+            "completed_at",
+            "result_summary",
+            "evidence_urls",
+            "confidence_delta",
+            "created_at",
+            "updated_at",
+        } == _get_columns(conn, "validation_experiments")
+        assert "idx_validation_experiments_idea" in _get_indices(conn)
+        assert "idx_validation_experiments_status" in _get_indices(conn)
+        conn.close()
+
 
 # ── 2. Incremental migrations apply cleanly ──────────────────────────
 
@@ -492,6 +518,22 @@ class TestIncrementalMigrations:
         assert "idx_publication_history_idea" in _get_indices(conn)
         conn.close()
 
+    def test_migrate_v20_to_v21_adds_validation_experiments(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        ensure_schema(conn)
+        conn.execute("DROP TABLE validation_experiments")
+        conn.execute("DROP INDEX IF EXISTS idx_validation_experiments_idea")
+        conn.execute("DROP INDEX IF EXISTS idx_validation_experiments_status")
+        conn.commit()
+
+        assert "validation_experiments" not in _get_tables(conn)
+        _migrate_v20_to_v21(conn)
+
+        assert "validation_experiments" in _get_tables(conn)
+        assert "idx_validation_experiments_idea" in _get_indices(conn)
+        assert "idx_validation_experiments_status" in _get_indices(conn)
+        conn.close()
+
 
 # ── 3. Full migration path: v1 → v8 via ensure_schema ───────────────
 
@@ -531,6 +573,8 @@ class TestFullMigrationPath:
         assert "tact_specs" not in _get_tables(conn)
         # v19 addition
         assert "publication_history" in _get_tables(conn)
+        # v21 addition
+        assert "validation_experiments" in _get_tables(conn)
         conn.close()
 
     def test_v1_data_survives_migration(self) -> None:

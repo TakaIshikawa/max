@@ -1663,6 +1663,111 @@ class Store:
         self._commit()
         return cursor.rowcount
 
+    # ── Validation Experiments ──────────────────────────────────────
+
+    def create_validation_experiment(
+        self,
+        idea_id: str,
+        *,
+        hypothesis: str,
+        method: str,
+        target_sample_size: int | None = None,
+        success_metric: str,
+        status: str = "planned",
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        result_summary: str = "",
+        evidence_urls: list[str] | None = None,
+        confidence_delta: float | None = None,
+    ) -> dict | None:
+        """Create a validation experiment for an existing idea."""
+        if not self.get_buildable_unit(idea_id):
+            return None
+
+        experiment_id = _gen_id("vexp")
+        now = _now_iso()
+        self.conn.execute(
+            """INSERT INTO validation_experiments
+               (id, idea_id, hypothesis, method, target_sample_size, success_metric,
+                status, started_at, completed_at, result_summary, evidence_urls,
+                confidence_delta, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                experiment_id,
+                idea_id,
+                hypothesis,
+                method,
+                target_sample_size,
+                success_metric,
+                status,
+                started_at,
+                completed_at,
+                result_summary,
+                json.dumps(evidence_urls or []),
+                confidence_delta,
+                now,
+                now,
+            ),
+        )
+        self._commit()
+        return self.get_validation_experiment(experiment_id)
+
+    def list_validation_experiments(self, idea_id: str) -> list[dict] | None:
+        """List validation experiments for an existing idea, newest first."""
+        if not self.get_buildable_unit(idea_id):
+            return None
+
+        rows = self.conn.execute(
+            """SELECT * FROM validation_experiments
+               WHERE idea_id = ?
+               ORDER BY created_at DESC, id DESC""",
+            (idea_id,),
+        ).fetchall()
+        return [_row_to_validation_experiment(row) for row in rows]
+
+    def get_validation_experiment(self, experiment_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM validation_experiments WHERE id = ?",
+            (experiment_id,),
+        ).fetchone()
+        return _row_to_validation_experiment(row) if row else None
+
+    def update_validation_experiment(self, experiment_id: str, **updates) -> dict | None:
+        """Patch validation experiment fields. Returns None when not found."""
+        allowed = {
+            "hypothesis",
+            "method",
+            "target_sample_size",
+            "success_metric",
+            "status",
+            "started_at",
+            "completed_at",
+            "result_summary",
+            "evidence_urls",
+            "confidence_delta",
+        }
+        changes = {key: value for key, value in updates.items() if key in allowed}
+        if not changes:
+            return self.get_validation_experiment(experiment_id)
+
+        assignments: list[str] = []
+        params: list = []
+        for key, value in changes.items():
+            assignments.append(f"{key} = ?")
+            params.append(json.dumps(value) if key == "evidence_urls" else value)
+        assignments.append("updated_at = ?")
+        params.append(_now_iso())
+        params.append(experiment_id)
+
+        cursor = self.conn.execute(
+            f"UPDATE validation_experiments SET {', '.join(assignments)} WHERE id = ?",
+            params,
+        )
+        self._commit()
+        if cursor.rowcount == 0:
+            return None
+        return self.get_validation_experiment(experiment_id)
+
     # ── Publication History ─────────────────────────────────────────
 
     def insert_publication_attempt(
@@ -2381,6 +2486,25 @@ def _row_to_buildable_unit(row: sqlite3.Row) -> BuildableUnit:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
+
+
+def _row_to_validation_experiment(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "idea_id": row["idea_id"],
+        "hypothesis": row["hypothesis"],
+        "method": row["method"],
+        "target_sample_size": row["target_sample_size"],
+        "success_metric": row["success_metric"],
+        "status": row["status"],
+        "started_at": row["started_at"],
+        "completed_at": row["completed_at"],
+        "result_summary": row["result_summary"],
+        "evidence_urls": json.loads(row["evidence_urls"]),
+        "confidence_delta": row["confidence_delta"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
 
 
 def _row_to_pipeline_run(row: sqlite3.Row) -> dict:

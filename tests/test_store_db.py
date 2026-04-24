@@ -931,6 +931,9 @@ class TestSchemaAndMigrations:
             "domain_quality_eval_runs",
             "domain_quality_eval_items",
             "embeddings",
+            "embeddings_metadata",
+            "publication_history",
+            "validation_experiments",
         }
 
         cursor = store.conn.execute(
@@ -1645,6 +1648,51 @@ class TestPriorArtOperations:
         assert matches[0]["title"] == "High"
         assert matches[1]["title"] == "Medium"
         assert matches[2]["title"] == "Low"
+
+
+# ── Validation Experiment Operations ─────────────────────────────────
+
+
+class TestValidationExperimentOperations:
+    def test_create_list_and_update_validation_experiment(self, store: Store) -> None:
+        store.insert_buildable_unit(_make_unit("bu-vexp-store"))
+
+        created = store.create_validation_experiment(
+            "bu-vexp-store",
+            hypothesis="Users will complete setup",
+            method="Prototype test",
+            target_sample_size=12,
+            success_metric="8 successful setups",
+            evidence_urls=["https://example.com/prototype"],
+        )
+
+        assert created is not None
+        assert created["idea_id"] == "bu-vexp-store"
+        assert created["status"] == "planned"
+        assert created["evidence_urls"] == ["https://example.com/prototype"]
+        assert store.list_validation_experiments("bu-vexp-store") == [created]
+
+        updated = store.update_validation_experiment(
+            created["id"],
+            status="completed",
+            result_summary="9 successful setups",
+            confidence_delta=0.25,
+        )
+
+        assert updated is not None
+        assert updated["status"] == "completed"
+        assert updated["result_summary"] == "9 successful setups"
+        assert updated["confidence_delta"] == 0.25
+
+    def test_validation_experiment_unknown_idea_and_experiment(self, store: Store) -> None:
+        assert store.list_validation_experiments("missing") is None
+        assert store.create_validation_experiment(
+            "missing",
+            hypothesis="h",
+            method="m",
+            success_metric="s",
+        ) is None
+        assert store.update_validation_experiment("missing", status="completed") is None
 
 
 # ── Pipeline Run Domains ─────────────────────────────────────────────

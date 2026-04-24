@@ -256,6 +256,48 @@ def test_review_thresholds_returns_recommendations(client, db_path) -> None:
     ]
 
 
+def test_validation_experiments_api_create_list_update(client, seeded_db) -> None:
+    created = client.post(
+        "/api/v1/ideas/bu-api001/validation-experiments",
+        json={
+            "hypothesis": "Teams will run the validation workflow",
+            "method": "Concierge pilot",
+            "target_sample_size": 8,
+            "success_metric": "6 teams complete the workflow",
+            "status": "running",
+            "evidence_urls": ["https://example.com/pilot"],
+        },
+    )
+    assert created.status_code == 201
+    experiment = created.json()
+    assert experiment["idea_id"] == "bu-api001"
+    assert experiment["status"] == "running"
+
+    listed = client.get("/api/v1/ideas/bu-api001/validation-experiments")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [experiment["id"]]
+
+    updated = client.patch(
+        f"/api/v1/validation-experiments/{experiment['id']}",
+        json={"status": "completed", "result_summary": "7 teams completed it"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "completed"
+    assert updated.json()["result_summary"] == "7 teams completed it"
+
+
+def test_validation_experiments_api_returns_404(client, seeded_db) -> None:
+    assert client.get("/api/v1/ideas/missing/validation-experiments").status_code == 404
+    assert client.post(
+        "/api/v1/ideas/missing/validation-experiments",
+        json={"hypothesis": "h", "method": "m", "success_metric": "s"},
+    ).status_code == 404
+    assert client.patch(
+        "/api/v1/validation-experiments/missing",
+        json={"status": "completed"},
+    ).status_code == 404
+
+
 def test_get_idea_blast_radius_returns_typed_response(client, seeded_db) -> None:
     response = client.get("/api/v1/ideas/bu-api001/blast-radius")
 

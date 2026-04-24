@@ -133,6 +133,32 @@ class PriorArtCheckRequest(BaseModel):
     force: bool = False
 
 
+class ValidationExperimentCreate(BaseModel):
+    hypothesis: str = Field(min_length=1)
+    method: str = Field(min_length=1)
+    target_sample_size: int | None = Field(default=None, ge=1)
+    success_metric: str = Field(min_length=1)
+    status: str = Field(default="planned", min_length=1)
+    started_at: str | None = None
+    completed_at: str | None = None
+    result_summary: str = ""
+    evidence_urls: list[str] = Field(default_factory=list)
+    confidence_delta: float | None = Field(default=None, ge=-1.0, le=1.0)
+
+
+class ValidationExperimentUpdate(BaseModel):
+    hypothesis: str | None = Field(default=None, min_length=1)
+    method: str | None = Field(default=None, min_length=1)
+    target_sample_size: int | None = Field(default=None, ge=1)
+    success_metric: str | None = Field(default=None, min_length=1)
+    status: str | None = Field(default=None, min_length=1)
+    started_at: str | None = None
+    completed_at: str | None = None
+    result_summary: str | None = None
+    evidence_urls: list[str] | None = None
+    confidence_delta: float | None = Field(default=None, ge=-1.0, le=1.0)
+
+
 class SlackPublishRequest(BaseModel):
     webhook_url: str | None = None
     channel: str | None = None
@@ -499,6 +525,23 @@ class IdeaCritiqueResponse(BaseModel):
     reasoning: str
     rejection_tags: list[str]
     created_at: str
+
+
+class ValidationExperimentResponse(BaseModel):
+    id: str
+    idea_id: str
+    hypothesis: str
+    method: str
+    target_sample_size: int | None = None
+    success_metric: str
+    status: str
+    started_at: str | None = None
+    completed_at: str | None = None
+    result_summary: str
+    evidence_urls: list[str]
+    confidence_delta: float | None = None
+    created_at: str
+    updated_at: str
 
 
 class IdeaMemoryResponse(BaseModel):
