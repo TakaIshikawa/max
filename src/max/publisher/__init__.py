@@ -7,6 +7,13 @@ from max.publisher.github_issues import (
     GitHubIssuePublishResult,
     GitHubIssuesPublisher,
 )
+from max.publisher.linear_issues import (
+    LinearIssuePayload,
+    LinearIssuePublisher,
+    LinearIssuePublishError,
+    LinearIssuePublishResult,
+    LinearIssuesPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -25,6 +32,11 @@ __all__ = [
     "GitHubIssuePublishError",
     "GitHubIssuePublishResult",
     "GitHubIssuesPublisher",
+    "LinearIssuePayload",
+    "LinearIssuePublisher",
+    "LinearIssuePublishError",
+    "LinearIssuePublishResult",
+    "LinearIssuesPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",

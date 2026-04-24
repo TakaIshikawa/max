@@ -182,6 +182,16 @@ class GitHubIssuePublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class LinearIssuePublishRequest(BaseModel):
+    api_key: str | None = None
+    team_id: str | None = None
+    project_id: str | None = None
+    labels: list[str] = Field(default_factory=list)
+    priority: int | None = Field(default=None, ge=0, le=4)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
 
 
@@ -1050,6 +1060,16 @@ class DiscordPublishResponse(BaseModel):
 class GitHubIssuePublishResponse(BaseModel):
     idea_id: str
     repository: str
+    issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class LinearIssuePublishResponse(BaseModel):
+    idea_id: str
+    team_id: str
     issue_url: str | None = None
     status_code: int | None = None
     dry_run: bool
