@@ -584,6 +584,11 @@ class ValidationExperimentResponse(BaseModel):
     updated_at: str
 
 
+class ValidationExperimentSignalExportResponse(BaseModel):
+    signal_id: str
+    status: Literal["created", "existing"]
+
+
 class IdeaMemoryResponse(BaseModel):
     id: str
     buildable_unit_id: str | None = None

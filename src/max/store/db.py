@@ -301,6 +301,18 @@ class Store:
         ).fetchone()
         return _row_to_signal(row) if row else None
 
+    def get_signal_by_validation_experiment_id(self, experiment_id: str) -> Signal | None:
+        """Get an exported validation experiment signal by metadata experiment ID."""
+        row = self.conn.execute(
+            """SELECT * FROM signals
+               WHERE source_adapter = ?
+                 AND json_extract(metadata, '$.experiment_id') = ?
+               ORDER BY fetched_at DESC, id DESC
+               LIMIT 1""",
+            ("validation_experiment", experiment_id),
+        ).fetchone()
+        return _row_to_signal(row) if row else None
+
     def archive_signal(self, signal_id: str) -> bool:
         """Archive a signal by ID. Returns False if the signal does not exist."""
         cursor = self.conn.execute(

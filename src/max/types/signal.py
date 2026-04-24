@@ -18,6 +18,7 @@ class SignalSourceType(StrEnum):
     FAILURE_DATA = "failure_data"
     FUNDING = "funding"
     TRENDING = "trending"
+    EXPERIMENT = "experiment"
 
 
 class Signal(BaseModel):

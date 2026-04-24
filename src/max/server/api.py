@@ -64,7 +64,6 @@ from max.analysis.pipeline_replay import (
 )
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.revision_brief import build_revision_brief
-from max.analysis.review_gate import build_review_gate_decision
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
 from max.analysis.source_reliability import DEFAULT_SIGNAL_LIMIT, build_source_reliability_report
 from max.analysis.status import (
@@ -77,6 +76,7 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.analysis.validation_signal_export import validation_experiment_signal
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
@@ -218,6 +218,7 @@ from max.server.schemas import (
     StatsResponse,
     ValidationExperimentCreate,
     ValidationExperimentResponse,
+    ValidationExperimentSignalExportResponse,
     ValidationExperimentUpdate,
 )
 from max.evaluation.explain import explain_evaluation
@@ -231,6 +232,7 @@ from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.risk_register import generate_risk_register
+from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
 from max.sources.registry import list_adapter_metadata, list_adapters
@@ -2030,6 +2032,42 @@ def update_validation_experiment(
             detail=f"Validation experiment not found: {experiment_id}",
         )
     return ValidationExperimentResponse(**experiment)
+
+
+@router.post(
+    "/validation-experiments/{experiment_id}/export-signal",
+    response_model=ValidationExperimentSignalExportResponse,
+    status_code=201,
+)
+def export_validation_experiment_signal(
+    experiment_id: str,
+    response: Response,
+    store: Store = Depends(get_store),
+) -> ValidationExperimentSignalExportResponse:
+    experiment = store.get_validation_experiment(experiment_id)
+    if experiment is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Validation experiment not found: {experiment_id}",
+        )
+
+    existing = store.get_signal_by_validation_experiment_id(experiment_id)
+    if existing is not None:
+        response.status_code = 200
+        return ValidationExperimentSignalExportResponse(signal_id=existing.id, status="existing")
+
+    if experiment["status"] != "completed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only completed validation experiments can be exported as signals.",
+        )
+
+    idea = store.get_buildable_unit(experiment["idea_id"])
+    if idea is None:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {experiment['idea_id']}")
+
+    signal = store.insert_signal(validation_experiment_signal(experiment, idea))
+    return ValidationExperimentSignalExportResponse(signal_id=signal.id, status="created")
 
 
 @router.get("/ideas/{idea_id}/revision-brief")
