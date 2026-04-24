@@ -323,6 +323,7 @@ class TestFreshSchema:
             "success_metric",
             "status",
             "started_at",
+            "due_date",
             "completed_at",
             "result_summary",
             "evidence_urls",

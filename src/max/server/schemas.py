@@ -140,6 +140,7 @@ class ValidationExperimentCreate(BaseModel):
     success_metric: str = Field(min_length=1)
     status: str = Field(default="planned", min_length=1)
     started_at: str | None = None
+    due_date: str | None = None
     completed_at: str | None = None
     result_summary: str = ""
     evidence_urls: list[str] = Field(default_factory=list)
@@ -153,6 +154,7 @@ class ValidationExperimentUpdate(BaseModel):
     success_metric: str | None = Field(default=None, min_length=1)
     status: str | None = Field(default=None, min_length=1)
     started_at: str | None = None
+    due_date: str | None = None
     completed_at: str | None = None
     result_summary: str | None = None
     evidence_urls: list[str] | None = None
@@ -612,6 +614,7 @@ class ValidationExperimentResponse(BaseModel):
     success_metric: str
     status: str
     started_at: str | None = None
+    due_date: str | None = None
     completed_at: str | None = None
     result_summary: str
     evidence_urls: list[str]
@@ -623,6 +626,38 @@ class ValidationExperimentResponse(BaseModel):
 class ValidationExperimentSignalExportResponse(BaseModel):
     signal_id: str
     status: Literal["created", "existing"]
+
+
+class ValidationExperimentSummaryFilterResponse(BaseModel):
+    domain: str | None = None
+    idea_id: str | None = None
+    status: str | None = None
+    overdue_only: bool = False
+
+
+class ValidationExperimentSummaryBreakdownResponse(BaseModel):
+    key: str
+    count: int
+
+
+class ValidationExperimentFollowUpActionResponse(BaseModel):
+    action: str
+    count: int
+
+
+class ValidationExperimentSummaryResponse(BaseModel):
+    filters: ValidationExperimentSummaryFilterResponse
+    total_count: int
+    completed_count: int
+    overdue_count: int
+    completion_rate: float
+    average_confidence_delta: float | None = None
+    average_result_score: float | None = None
+    by_status: list[ValidationExperimentSummaryBreakdownResponse]
+    by_domain: list[ValidationExperimentSummaryBreakdownResponse]
+    by_experiment_type: list[ValidationExperimentSummaryBreakdownResponse]
+    by_outcome: list[ValidationExperimentSummaryBreakdownResponse]
+    top_follow_up_actions: list[ValidationExperimentFollowUpActionResponse]
 
 
 class IdeaMemoryResponse(BaseModel):

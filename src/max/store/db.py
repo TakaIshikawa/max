@@ -1687,6 +1687,7 @@ class Store:
         success_metric: str,
         status: str = "planned",
         started_at: str | None = None,
+        due_date: str | None = None,
         completed_at: str | None = None,
         result_summary: str = "",
         evidence_urls: list[str] | None = None,
@@ -1701,9 +1702,9 @@ class Store:
         self.conn.execute(
             """INSERT INTO validation_experiments
                (id, idea_id, hypothesis, method, target_sample_size, success_metric,
-                status, started_at, completed_at, result_summary, evidence_urls,
+                status, started_at, due_date, completed_at, result_summary, evidence_urls,
                 confidence_delta, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 experiment_id,
                 idea_id,
@@ -1713,6 +1714,7 @@ class Store:
                 success_metric,
                 status,
                 started_at,
+                due_date,
                 completed_at,
                 result_summary,
                 json.dumps(evidence_urls or []),
@@ -1737,6 +1739,40 @@ class Store:
         ).fetchall()
         return [_row_to_validation_experiment(row) for row in rows]
 
+    def query_validation_experiments(
+        self,
+        *,
+        domain: str | None = None,
+        idea_id: str | None = None,
+        status: str | None = None,
+    ) -> list[dict]:
+        """List validation experiments across ideas with optional report filters."""
+        query = """SELECT validation_experiments.*, buildable_units.domain AS idea_domain
+                   FROM validation_experiments
+                   JOIN buildable_units ON buildable_units.id = validation_experiments.idea_id"""
+        conditions: list[str] = []
+        params: list[str] = []
+        if domain:
+            conditions.append("buildable_units.domain = ?")
+            params.append(domain)
+        if idea_id:
+            conditions.append("validation_experiments.idea_id = ?")
+            params.append(idea_id)
+        if status:
+            conditions.append("validation_experiments.status = ?")
+            params.append(status)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY validation_experiments.created_at DESC, validation_experiments.id DESC"
+
+        rows = self.conn.execute(query, params).fetchall()
+        experiments: list[dict] = []
+        for row in rows:
+            experiment = _row_to_validation_experiment(row)
+            experiment["domain"] = row["idea_domain"] or "unspecified"
+            experiments.append(experiment)
+        return experiments
+
     def get_validation_experiment(self, experiment_id: str) -> dict | None:
         row = self.conn.execute(
             "SELECT * FROM validation_experiments WHERE id = ?",
@@ -1753,6 +1789,7 @@ class Store:
             "success_metric",
             "status",
             "started_at",
+            "due_date",
             "completed_at",
             "result_summary",
             "evidence_urls",
@@ -2510,6 +2547,7 @@ def _row_to_validation_experiment(row: sqlite3.Row) -> dict:
         "success_metric": row["success_metric"],
         "status": row["status"],
         "started_at": row["started_at"],
+        "due_date": row["due_date"] if "due_date" in row.keys() else None,
         "completed_at": row["completed_at"],
         "result_summary": row["result_summary"],
         "evidence_urls": json.loads(row["evidence_urls"]),

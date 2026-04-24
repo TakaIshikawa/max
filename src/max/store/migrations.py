@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -327,6 +327,7 @@ CREATE TABLE IF NOT EXISTS validation_experiments (
     success_metric TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'planned',
     started_at TEXT DEFAULT NULL,
+    due_date TEXT DEFAULT NULL,
     completed_at TEXT DEFAULT NULL,
     result_summary TEXT NOT NULL DEFAULT '',
     evidence_urls TEXT NOT NULL DEFAULT '[]',
@@ -815,6 +816,17 @@ def _migrate_v20_to_v21(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v21_to_v22(conn: sqlite3.Connection) -> None:
+    """Add validation experiment due dates for overdue reporting."""
+    columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(validation_experiments)").fetchall()
+    }
+    if "due_date" not in columns:
+        conn.execute("ALTER TABLE validation_experiments ADD COLUMN due_date TEXT DEFAULT NULL")
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -890,6 +902,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 21:
         _migrate_v20_to_v21(conn)
+        current = 21
+    if current < 22:
+        _migrate_v21_to_v22(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))

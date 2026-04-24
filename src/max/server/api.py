@@ -84,6 +84,7 @@ from max.analysis.thresholds import (
     recommend_review_thresholds,
 )
 from max.analysis.validation_signal_export import validation_experiment_signal
+from max.analysis.validation_experiment_summary import build_validation_experiment_summary
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
@@ -238,6 +239,7 @@ from max.server.schemas import (
     ValidationExperimentCreate,
     ValidationExperimentResponse,
     ValidationExperimentSignalExportResponse,
+    ValidationExperimentSummaryResponse,
     ValidationExperimentUpdate,
 )
 from max.evaluation.explain import explain_evaluation
@@ -2047,6 +2049,7 @@ def create_validation_experiment(
         success_metric=body.success_metric,
         status=body.status,
         started_at=body.started_at,
+        due_date=body.due_date,
         completed_at=body.completed_at,
         result_summary=body.result_summary,
         evidence_urls=body.evidence_urls,
@@ -2069,6 +2072,28 @@ def list_validation_experiments(
     if experiments is None:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return [ValidationExperimentResponse(**experiment) for experiment in experiments]
+
+
+@router.get(
+    "/validation-experiments/summary",
+    response_model=ValidationExperimentSummaryResponse,
+)
+def get_validation_experiment_summary(
+    domain: str | None = None,
+    idea_id: str | None = None,
+    status: str | None = None,
+    overdue_only: bool = False,
+    store: Store = Depends(get_store),
+) -> ValidationExperimentSummaryResponse:
+    return ValidationExperimentSummaryResponse.model_validate(
+        build_validation_experiment_summary(
+            store,
+            domain=domain,
+            idea_id=idea_id,
+            status=status,
+            overdue_only=overdue_only,
+        )
+    )
 
 
 @router.patch(
