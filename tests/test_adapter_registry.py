@@ -33,3 +33,34 @@ def test_go_packages_adapter_metadata_documents_config_keys() -> None:
     ]
     assert metadata["go_packages"].required_keys == []
     assert "pkg.go.dev" in metadata["go_packages"].description
+
+
+def test_kubernetes_keps_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["kubernetes_keps"]
+        adapter = get_adapter("kubernetes_keps")
+
+    assert adapter.name == "kubernetes_keps"
+
+
+def test_kubernetes_keps_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"kubernetes_keps"}
+    assert metadata["kubernetes_keps"].config_keys == [
+        "areas",
+        "stages",
+        "max_results",
+        "github_token",
+        "token",
+        "token_env",
+        "include_archived",
+    ]
+    assert metadata["kubernetes_keps"].required_keys == []
+    assert "Kubernetes Enhancement Proposal" in metadata["kubernetes_keps"].description

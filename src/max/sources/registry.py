@@ -79,6 +79,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
+    "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -465,6 +466,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_results", "min_imported_by", "include_stdlib"],
         required_keys=[],
         description="Searches pkg.go.dev for Go package and module discovery signals.",
+    ),
+    "kubernetes_keps": AdapterMetadata(
+        name="kubernetes_keps",
+        config_keys=[
+            "areas",
+            "stages",
+            "max_results",
+            "github_token",
+            "token",
+            "token_env",
+            "include_archived",
+        ],
+        required_keys=[],
+        description="Fetches Kubernetes Enhancement Proposal roadmap metadata from GitHub.",
     ),
 }
 
