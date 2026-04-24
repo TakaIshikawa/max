@@ -114,6 +114,10 @@ from max.analysis.validation_signal_export import validation_experiment_signal
 from max.analysis.validation_experiment_summary import build_validation_experiment_summary
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.asana_tasks import AsanaTaskPublisher, AsanaTaskPublishError
+from max.publisher.azure_devops_work_items import (
+    AzureDevOpsWorkItemPublisher,
+    AzureDevOpsWorkItemPublishError,
+)
 from max.publisher.clickup_tasks import ClickUpTaskPublisher, ClickUpTaskPublishError
 from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
@@ -137,6 +141,8 @@ from max.server.schemas import (
     AsanaTaskPublishRequest,
     AsanaTaskPublishResponse,
     ArchitectureEnforcementResponse,
+    AzureDevOpsWorkItemPublishRequest,
+    AzureDevOpsWorkItemPublishResponse,
     BatchPriorArtCheckItemResponse,
     BatchPriorArtCheckRequest,
     BatchPriorArtCheckResponse,
@@ -3221,6 +3227,101 @@ def publish_idea_to_jira_issue(
         project_key=result.project_key,
         issue_key=result.issue_key,
         issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/ideas/{idea_id}/publish/azure-devops",
+    response_model=AzureDevOpsWorkItemPublishResponse,
+)
+def publish_idea_to_azure_devops_work_item(
+    idea_id: str,
+    request: AzureDevOpsWorkItemPublishRequest,
+    store: Store = Depends(get_store),
+) -> AzureDevOpsWorkItemPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = AzureDevOpsWorkItemPublisher.from_env(
+            organization=request.organization,
+            project=request.project,
+            personal_access_token=request.personal_access_token,
+            work_item_type=request.work_item_type,
+            area_path=request.area_path,
+            iteration_path=request.iteration_path,
+            tags=request.tags,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except AzureDevOpsWorkItemPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "AZURE_DEVOPS_PAT or AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN is required for live "
+            "Azure DevOps work item publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="azure_devops_work_item",
+            target_url=publisher.work_item_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except AzureDevOpsWorkItemPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="azure_devops_work_item",
+            target_url=publisher.work_item_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.work_item_url or publisher.work_item_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="azure_devops_work_item",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return AzureDevOpsWorkItemPublishResponse(
+        idea_id=idea_id,
+        organization=result.organization,
+        project=result.project,
+        work_item_type=result.work_item_type,
+        work_item_id=result.work_item_id,
+        work_item_url=result.work_item_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,

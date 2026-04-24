@@ -286,6 +286,19 @@ class JiraIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class AzureDevOpsWorkItemPublishRequest(BaseModel):
+    organization: str | None = None
+    project: str | None = None
+    personal_access_token: str | None = None
+    work_item_type: str | None = "User Story"
+    area_path: str | None = None
+    iteration_path: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class TrelloCardPublishRequest(BaseModel):
     key: str | None = None
     token: str | None = None
@@ -1406,6 +1419,19 @@ class JiraIssuePublishResponse(BaseModel):
     project_key: str
     issue_key: str | None = None
     issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class AzureDevOpsWorkItemPublishResponse(BaseModel):
+    idea_id: str
+    organization: str
+    project: str
+    work_item_type: str
+    work_item_id: str | None = None
+    work_item_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
