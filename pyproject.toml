@@ -39,6 +39,7 @@ github_pull_requests = "max.sources.github_pull_requests:GitHubPullRequestsAdapt
 github_actions = "max.sources.github_actions:GitHubActionsAdapter"
 github_discussions = "max.sources.github_discussions:GitHubDiscussionsAdapter"
 gitlab_issues = "max.sources.gitlab_issues:GitLabIssuesAdapter"
+gitlab_merge_requests = "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter"
 gitlab_releases = "max.sources.gitlab_releases:GitLabReleasesAdapter"
 security_advisories = "max.sources.security_advisories:SecurityAdvisoriesAdapter"
 nvd_cve = "max.sources.nvd_cve:NvdCveAdapter"
