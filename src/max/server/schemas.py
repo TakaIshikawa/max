@@ -852,6 +852,28 @@ class ExperimentCardResponse(BaseModel):
     decision_rules: dict[str, str]
 
 
+class SpecBundleArtifactsResponse(BaseModel):
+    spec_preview: dict[str, Any]
+    readiness: dict[str, Any]
+    implementation_plan: dict[str, Any]
+    launch_checklist: LaunchChecklistResponse
+    acceptance_criteria: AcceptanceCriteriaResponse
+    experiment_card: ExperimentCardResponse
+    risk_register: dict[str, Any]
+    review_gate: ReviewGateResponse
+    evidence_density: EvidenceDensityResponse
+    evidence_chain_summary: dict[str, Any]
+
+
+class SpecBundleResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    generated_at: str
+    warnings: list[str]
+    artifacts: SpecBundleArtifactsResponse
+
+
 class FeedbackBatchItemResponse(BaseModel):
     idea_id: str
     outcome: Literal["approved", "rejected", "published", "abandoned"]

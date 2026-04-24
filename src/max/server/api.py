@@ -210,6 +210,7 @@ from max.server.schemas import (
     SlackPublishRequest,
     SlackPublishResponse,
     SourceReliabilityResponse,
+    SpecBundleResponse,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -224,6 +225,7 @@ from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_wei
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.acceptance_criteria import generate_acceptance_criteria
+from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -2450,6 +2452,25 @@ def get_idea_risk_register(idea_id: str, store: Store = Depends(get_store)) -> d
         build_evidence_density_report(unit, store),
         build_idea_contradiction_report(unit, store),
     )
+
+
+@router.get("/ideas/{idea_id}/spec-bundle", response_model=SpecBundleResponse)
+def get_idea_spec_bundle(
+    idea_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> SpecBundleResponse | Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    bundle = generate_spec_bundle(unit, store.get_evaluation(idea_id), store)
+    if format == "markdown":
+        return Response(
+            content=render_spec_bundle_markdown(bundle),
+            media_type="text/markdown",
+        )
+    return SpecBundleResponse.model_validate(bundle)
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])
