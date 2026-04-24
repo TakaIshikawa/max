@@ -23,6 +23,7 @@ from max.server.mcp_tools import (
     get_acceptance_criteria,
     get_blast_radius,
     get_design_brief,
+    get_design_brief_competitive_landscape,
     get_design_brief_markdown,
     get_design_brief_market_sizing,
     get_design_brief_roadmap,
@@ -50,6 +51,7 @@ from max.server.mcp_tools import (
     set_store_factory,
     design_brief_roadmap_detail,
     design_brief_risk_register_detail,
+    design_brief_competitive_landscape_detail,
     design_brief_market_sizing_detail,
     design_brief_validation_plan_detail,
     spec_preview_detail,
@@ -1297,6 +1299,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-market-sizing://{brief_id}"]
         == "design_brief_market_sizing_detail"
+    )
+    assert "get_design_brief_competitive_landscape" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-competitive-landscapes://{brief_id}"]
+        == "design_brief_competitive_landscape_detail"
     )
     assert "list_validation_experiments" in FakeMCP.latest.tools
     assert "get_validation_experiment" in FakeMCP.latest.tools
