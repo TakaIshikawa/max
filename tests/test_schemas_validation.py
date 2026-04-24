@@ -6,12 +6,14 @@ import pytest
 from pydantic import ValidationError
 
 from max.server.schemas import (
+    AllProfileSourceLintReportResponse,
     BlueprintSourceBriefResponse,
     DesignBriefResponse,
     FeedbackCreate,
     IdeaCreate,
     InsightCreate,
     PipelineRunRequest,
+    ProfileSourceLintReportResponse,
     ScheduleUpdateRequest,
     SignalCreate,
     SimilarityRequest,
@@ -385,3 +387,47 @@ class TestComposition:
             blueprint_import_hints={"recommended_source_priority": "design_brief"},
         )
         assert m.schema_version == "max.blueprint.source_brief.v1"
+
+    def test_profile_source_lint_report_response(self):
+        m = ProfileSourceLintReportResponse(
+            generated_at="2026-04-22T00:00:00+00:00",
+            profile_name="devtools",
+            profile_path="/tmp/devtools.yaml",
+            ok=False,
+            issue_counts_by_severity={"error": 1},
+            issue_counts_by_adapter={"rss_feed": 1},
+            issues=[
+                {
+                    "severity": "error",
+                    "code": "missing_required_param",
+                    "profile_name": "devtools",
+                    "profile_path": "/tmp/devtools.yaml",
+                    "path": "sources[0].params.feeds",
+                    "adapter": "rss_feed",
+                    "message": "Adapter 'rss_feed' requires params.feeds.",
+                    "suggested_fix": "Add params.feeds with at least one feed URL.",
+                }
+            ],
+        )
+        assert m.issues[0].suggested_fix
+
+    def test_all_profile_source_lint_report_response(self):
+        m = AllProfileSourceLintReportResponse(
+            generated_at="2026-04-22T00:00:00+00:00",
+            ok=True,
+            profile_count=1,
+            issue_counts_by_severity={},
+            issue_counts_by_adapter={},
+            profiles=[
+                {
+                    "generated_at": "2026-04-22T00:00:00+00:00",
+                    "profile_name": "devtools",
+                    "profile_path": "/tmp/devtools.yaml",
+                    "ok": True,
+                    "issue_counts_by_severity": {},
+                    "issue_counts_by_adapter": {},
+                    "issues": [],
+                }
+            ],
+        )
+        assert m.profiles[0].ok is True

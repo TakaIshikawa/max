@@ -50,6 +50,10 @@ from max.analysis.profile_source_recommendations import (
     DEFAULT_MAX_AGE_DAYS as DEFAULT_SOURCE_RECOMMENDATION_MAX_AGE_DAYS,
     build_profile_source_recommendations_for_profile,
 )
+from max.analysis.profile_source_lint import (
+    build_all_profile_source_lint_report,
+    build_profile_source_lint_report,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -84,6 +88,7 @@ from max.server.schemas import (
     AdapterHealthResponse,
     AdapterMetadataResponse,
     AcceptanceCriteriaResponse,
+    AllProfileSourceLintReportResponse,
     ArchitectureEnforcementResponse,
     BatchPriorArtCheckItemResponse,
     BatchPriorArtCheckRequest,
@@ -180,6 +185,7 @@ from max.server.schemas import (
     ProfileCoverageGapsResponse,
     ProfileCoverageTermResponse,
     ProfileDriftResponse,
+    ProfileSourceLintReportResponse,
     ProfileSourceRecommendationsResponse,
     ProfileSummaryResponse,
     ProfileValidationIssueResponse,
@@ -989,6 +995,12 @@ def validate_pipeline_profiles(
     )
 
 
+@router.get("/profiles/source-lint", response_model=AllProfileSourceLintReportResponse)
+def get_all_profile_source_lint() -> AllProfileSourceLintReportResponse:
+    report = build_all_profile_source_lint_report()
+    return AllProfileSourceLintReportResponse.model_validate(report.to_dict())
+
+
 @router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)
 def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
     return _profile_detail_to_response(_load_profile_or_404(profile_name))
@@ -997,6 +1009,15 @@ def get_pipeline_profile(profile_name: str) -> ProfileDetailResponse:
 @router.get("/profiles/{profile_name}/validate", response_model=ProfileValidationResponse)
 def validate_pipeline_profile(profile_name: str) -> ProfileValidationResponse:
     return validate_pipeline_profiles(profile=profile_name)
+
+
+@router.get("/profiles/{profile_name}/source-lint", response_model=ProfileSourceLintReportResponse)
+def get_profile_source_lint(profile_name: str) -> ProfileSourceLintReportResponse:
+    try:
+        report = build_profile_source_lint_report(profile_name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Profile not found: {profile_name}")
+    return ProfileSourceLintReportResponse.model_validate(report.to_dict())
 
 
 @router.get("/profiles/{profile_name}/coverage-gaps", response_model=ProfileCoverageGapsResponse)
