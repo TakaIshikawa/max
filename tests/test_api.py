@@ -2273,6 +2273,29 @@ def test_get_idea_launch_checklist_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_acceptance_criteria(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/acceptance-criteria")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max-acceptance-criteria/v1"
+    assert data["kind"] == "max.acceptance_criteria"
+    assert data["idea_id"] == "bu-api001"
+    assert data["source"]["evidence_density_available"] is True
+    assert data["summary"]["title"] == "Test Idea"
+    assert data["summary"]["recommendation"] == "yes"
+    assert any(item["id"] == "AC-F1" for item in data["functional_criteria"])
+    assert any(item["id"] == "AC-NF4" for item in data["non_functional_criteria"])
+    assert {"type": "insight", "id": "ins-api001", "uri": "insights://ins-api001"} in data["evidence_links"]
+    assert {"type": "signal", "id": "sig-api001", "uri": "signals://sig-api001"} in data["evidence_links"]
+    assert data["review_checklist"]
+
+
+def test_get_idea_acceptance_criteria_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/acceptance-criteria")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_experiment_card(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/experiment-card")
     assert resp.status_code == 200
