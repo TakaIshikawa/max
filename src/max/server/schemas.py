@@ -419,6 +419,36 @@ class ProfileSourceRecommendationsResponse(BaseModel):
     recommendations: list[ProfileSourceRecommendationResponse]
 
 
+class ProfileSourceLintIssueResponse(BaseModel):
+    severity: Literal["info", "warning", "error"]
+    code: str
+    profile_name: str
+    profile_path: str
+    path: str
+    adapter: str
+    message: str
+    suggested_fix: str
+
+
+class ProfileSourceLintReportResponse(BaseModel):
+    generated_at: str
+    profile_name: str
+    profile_path: str
+    ok: bool
+    issue_counts_by_severity: dict[str, int] = Field(default_factory=dict)
+    issue_counts_by_adapter: dict[str, int] = Field(default_factory=dict)
+    issues: list[ProfileSourceLintIssueResponse] = Field(default_factory=list)
+
+
+class AllProfileSourceLintReportResponse(BaseModel):
+    generated_at: str
+    ok: bool
+    profile_count: int
+    issue_counts_by_severity: dict[str, int] = Field(default_factory=dict)
+    issue_counts_by_adapter: dict[str, int] = Field(default_factory=dict)
+    profiles: list[ProfileSourceLintReportResponse] = Field(default_factory=list)
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str
