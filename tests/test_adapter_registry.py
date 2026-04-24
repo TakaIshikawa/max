@@ -64,3 +64,33 @@ def test_kubernetes_keps_adapter_metadata_documents_config_keys() -> None:
     ]
     assert metadata["kubernetes_keps"].required_keys == []
     assert "Kubernetes Enhancement Proposal" in metadata["kubernetes_keps"].description
+
+
+def test_homebrew_formulae_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "homebrew_formulae"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["homebrew_formulae"]
+        adapter = get_adapter("homebrew_formulae")
+
+    assert adapter.name == "homebrew_formulae"
+
+
+def test_homebrew_formulae_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "homebrew_formulae"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"homebrew_formulae"}
+    assert metadata["homebrew_formulae"].config_keys == [
+        "formulae_url",
+        "casks_url",
+        "include_casks",
+        "queries",
+        "categories",
+        "min_install_count",
+    ]
+    assert metadata["homebrew_formulae"].required_keys == []
+    assert "Homebrew formula and cask" in metadata["homebrew_formulae"].description
