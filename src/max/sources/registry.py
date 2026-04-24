@@ -57,6 +57,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "openalex": "max.sources.openalex:OpenAlexAdapter",
     "devto": "max.sources.devto:DevtoAdapter",
     "bluesky": "max.sources.bluesky:BlueskyAdapter",
+    "mastodon": "max.sources.mastodon:MastodonAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
@@ -274,6 +275,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "domains"],
         required_keys=[],
         description="Fetches recent Bluesky posts matching configured search terms.",
+    ),
+    "mastodon": AdapterMetadata(
+        name="mastodon",
+        config_keys=[
+            "instances",
+            "hashtags",
+            "accounts",
+            "exclude_reblogs",
+            "min_favourites",
+            "max_age_days",
+            "access_token_env",
+        ],
+        required_keys=[],
+        description="Fetches public Mastodon hashtag and account timeline signals.",
     ),
     "pubmed": AdapterMetadata(
         name="pubmed",
