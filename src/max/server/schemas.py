@@ -192,6 +192,19 @@ class LinearIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class JiraIssuePublishRequest(BaseModel):
+    site_url: str | None = None
+    project_key: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+    bearer_token: str | None = None
+    issue_type: str | None = "Task"
+    labels: list[str] = Field(default_factory=list)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
 
 
@@ -1097,6 +1110,17 @@ class GitHubIssuePublishResponse(BaseModel):
 class LinearIssuePublishResponse(BaseModel):
     idea_id: str
     team_id: str
+    issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class JiraIssuePublishResponse(BaseModel):
+    idea_id: str
+    project_key: str
+    issue_key: str | None = None
     issue_url: str | None = None
     status_code: int | None = None
     dry_run: bool
