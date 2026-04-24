@@ -41,7 +41,7 @@ from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
 )
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
-from max.analysis.design_brief_roadmap import build_design_brief_roadmap
+from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import build_design_brief_risk_register
 from max.analysis.market_sizing import build_market_sizing_report
 from max.analysis.evidence_density import build_evidence_density_report
@@ -3858,6 +3858,23 @@ def get_design_brief_roadmap(
     if not roadmap:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefRoadmapResponse(**roadmap)
+
+
+@router.get("/design-briefs/{brief_id}/roadmap.md", response_model=None)
+def get_design_brief_roadmap_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    roadmap = build_design_brief_roadmap(store, brief_id)
+    if not roadmap:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-roadmap.md"
+    return Response(
+        content=render_design_brief_roadmap(roadmap, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(
