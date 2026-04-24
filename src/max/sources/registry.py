@@ -43,6 +43,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
+    "github_octoverse": "max.sources.github_octoverse:GitHubOctoverseAdapter",
     "agent_failure_dataset": "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
@@ -171,6 +172,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches GitHub Actions workflow failures from configured repositories.",
+    ),
+    "github_octoverse": AdapterMetadata(
+        name="github_octoverse",
+        config_keys=["report_urls", "local_paths", "sections", "keywords", "max_items"],
+        required_keys=[],
+        description="Reads GitHub Octoverse-style Markdown and JSON reports as ecosystem trend signals.",
     ),
     "agent_failure_dataset": AdapterMetadata(
         name="agent_failure_dataset",
