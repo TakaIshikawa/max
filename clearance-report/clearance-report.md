@@ -1,22 +1,10 @@
 # Clearance Report
 
 - Project: `/Users/taka/Project/experiments/max`
-- Generated: `2026-04-24T04:25:46+00:00`
+- Generated: `2026-04-24T08:28:58+00:00`
 - Status: `blocked`
 
 ## Findings
-
-### BLOCKER: Project license is missing
-
-A public open source release needs an explicit top-level license file.
-
-Remediation: Add a LICENSE file and align package metadata with it.
-
-### WARNING: Third-party notices are missing
-
-A public release should preserve third-party notices and attribution requirements where applicable.
-
-Remediation: Add NOTICE or THIRD_PARTY_NOTICES.md after reviewing dependency licenses.
 
 ### BLOCKER: Potential secret-bearing file is present (`.env`)
 

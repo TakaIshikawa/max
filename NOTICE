@@ -1,0 +1,48 @@
+max
+Copyright 2026 max contributors
+
+This product includes software developed by third parties:
+
+================================================================================
+
+This project depends on the following open source packages:
+
+- Anthropic Python SDK (anthropic)
+  Copyright © Anthropic
+  https://github.com/anthropics/anthropic-sdk-python
+
+- HTTPX (httpx)
+  Copyright © Encode OSS Ltd.
+  https://github.com/encode/httpx
+
+- Pydantic (pydantic)
+  Copyright © Samuel Colvin and other contributors
+  https://github.com/pydantic/pydantic
+
+- Click (click)
+  Copyright © Pallets
+  https://github.com/pallets/click
+
+- python-dotenv (python-dotenv)
+  Copyright © Saurabh Kumar
+  https://github.com/theskumar/python-dotenv
+
+- PyYAML (pyyaml)
+  Copyright © Kirill Simonov
+  https://github.com/yaml/pyyaml
+
+- FastAPI (fastapi)
+  Copyright © Sebastián Ramírez
+  https://github.com/tiangolo/fastapi
+
+- Uvicorn (uvicorn)
+  Copyright © Encode OSS Ltd.
+  https://github.com/encode/uvicorn
+
+- FastMCP (fastmcp)
+  https://github.com/jlowin/fastmcp
+
+For full license texts of these dependencies, please refer to their
+respective repositories and the installed packages in your environment.
+
+See LICENSE file for this project's license terms.

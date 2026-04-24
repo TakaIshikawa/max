@@ -87,22 +87,6 @@
   ],
   "findings": [
     {
-      "code": "missing-project-license",
-      "detail": "A public open source release needs an explicit top-level license file.",
-      "path": null,
-      "remediation": "Add a LICENSE file and align package metadata with it.",
-      "severity": "blocker",
-      "title": "Project license is missing"
-    },
-    {
-      "code": "missing-notice",
-      "detail": "A public release should preserve third-party notices and attribution requirements where applicable.",
-      "path": null,
-      "remediation": "Add NOTICE or THIRD_PARTY_NOTICES.md after reviewing dependency licenses.",
-      "severity": "warning",
-      "title": "Third-party notices are missing"
-    },
-    {
       "code": "secret-file-present",
       "detail": ".env commonly contains credentials and should not be published.",
       "path": ".env",
@@ -159,7 +143,7 @@
       "title": "Policy monitoring sources configured"
     }
   ],
-  "generated_at": "2026-04-24T04:25:46+00:00",
+  "generated_at": "2026-04-24T08:28:58+00:00",
   "policy_sources": [
     {
       "category": "terms",

@@ -138,3 +138,33 @@ Current trajectory:
 - **Feedback loop maturity** — gap detection, retrospective analysis, adaptive fetch allocation
 - **Multi-surface access** — CLI, REST API, and MCP server for human and agent consumers
 - **Domain expansion** — profile-driven configuration for new verticals (8 profiles currently)
+
+## AI Usage & Compliance
+
+**LLM Integration:** This project uses Anthropic's Claude API (Opus 4.6, Sonnet 4.5, Haiku 4.5) for:
+- Synthesizing insights from ecosystem signals
+- Generating buildable project ideas
+- Evaluating ideas across 7 utility dimensions
+
+**Data Processing:**
+- **Input:** Public data from HackerNews, Reddit, GitHub, NPM, PyPI, Product Hunt, and other open sources
+- **Output:** Project specifications and buildable ideas
+- **Privacy:** No user PII is processed; all data sources are public APIs
+
+**Intended Use:**
+- Research and development of AI-assisted idea generation systems
+- Automated analysis of technology ecosystem trends
+- Generation of software project specifications for educational or development purposes
+
+**Unsupported/Prohibited Uses:**
+- Processing of proprietary, confidential, or PII-containing data
+- Generation of content for regulated industries without appropriate review
+- High-risk decision-making without human oversight
+
+**Compliance:**
+- Adheres to Anthropic's Usage Policy and Terms of Service
+- API credentials managed via environment variables (never committed)
+- Token usage and costs tracked for budget management
+- See `.clearance/` directory for policy review documentation
+
+**License:** This project is licensed under the Apache License 2.0. See LICENSE and NOTICE files for details.

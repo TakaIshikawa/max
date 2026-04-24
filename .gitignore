@@ -10,3 +10,7 @@ build/
 .ruff_cache/
 .venv/
 .max/
+
+# Publication clearance
+clearance-report/
+.clearance/AI_PROVIDER_REVIEW.md
