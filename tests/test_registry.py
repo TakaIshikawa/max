@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists,github_pull_requests,stackoverflow_survey",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -265,6 +265,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "huggingface",
         "awesome_lists",
         "github_pull_requests",
+        "gitlab_merge_requests",
         "stackoverflow_survey",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
@@ -324,6 +325,18 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["github_pull_requests"].required_keys == []
     assert "pull request" in metadata["github_pull_requests"].description
+    assert metadata["gitlab_merge_requests"].config_keys == [
+        "project_ids",
+        "queries",
+        "labels",
+        "state",
+        "min_upvotes",
+        "max_age_days",
+        "gitlab_base_url",
+        "token_env",
+    ]
+    assert metadata["gitlab_merge_requests"].required_keys == []
+    assert "merge request" in metadata["gitlab_merge_requests"].description
     assert metadata["stackoverflow_survey"].config_keys == [
         "survey_urls",
         "local_paths",
