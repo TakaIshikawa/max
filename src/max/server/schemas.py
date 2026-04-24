@@ -282,6 +282,34 @@ class SourceReliabilityResponse(BaseModel):
     source_types: list[SourceReliabilityTypeResponse]
 
 
+class MCPCapabilityCategoryResponse(BaseModel):
+    category: str
+    total_count: int
+    percentage: float
+    source_adapters: dict[str, int]
+    representative_signal_ids: list[str]
+
+
+class MCPCapabilitySourceAdapterResponse(BaseModel):
+    source_adapter: str
+    total_count: int
+    percentage: float
+    categories: dict[str, int]
+
+
+class MCPCapabilityCoverageResponse(BaseModel):
+    generated_at: str
+    domain: str | None
+    min_count: int
+    limit_representatives: int
+    source_adapter_filter: str | None
+    total_signals: int
+    category_percentages: dict[str, float]
+    categories: list[MCPCapabilityCategoryResponse]
+    undercovered_categories: list[str]
+    top_source_adapters: list[MCPCapabilitySourceAdapterResponse]
+
+
 class ProfileSourceRecommendationResponse(BaseModel):
     adapter: str
     action: Literal[
