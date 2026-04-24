@@ -52,6 +52,10 @@ from max.analysis.design_brief_evidence_matrix import (
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
+from max.analysis.run_comparison import (
+    PipelineRunComparisonNotFound,
+    compare_pipeline_runs as build_pipeline_run_comparison,
+)
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
@@ -67,6 +71,7 @@ from max.server.errors import (
 )
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.schemas import (
+    PipelineRunComparisonResponse,
     PipelineReplayPlanResponse,
     ValidationExperimentCreate,
     ValidationExperimentUpdate,
@@ -1825,6 +1830,41 @@ def get_pipeline_replay_plan(run_id: str, include_commands: bool = True) -> dict
         return e.to_dict()
 
 
+def compare_pipeline_runs(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    include_adapter_metrics: bool = True,
+) -> dict:
+    """Compare persisted metric deltas between two pipeline runs.
+
+    Set include_adapter_metrics=false to omit per-adapter status and metric
+    deltas while keeping the same core report as the REST comparison endpoint.
+
+    Raises:
+        ResourceNotFoundError: If either pipeline run does not exist.
+    """
+    try:
+        with _get_store() as store:
+            comparison = build_pipeline_run_comparison(
+                store,
+                base_run_id=baseline_run_id,
+                target_run_id=candidate_run_id,
+                include_adapter_metrics=include_adapter_metrics,
+            )
+            if include_adapter_metrics:
+                return PipelineRunComparisonResponse.model_validate(comparison).model_dump()
+            return comparison
+    except PipelineRunComparisonNotFound as e:
+        return ResourceNotFoundError(
+            "Pipeline run ID not found",
+            resource_type="pipeline_run",
+            resource_id=",".join(e.missing_run_ids),
+            details={"missing_run_ids": e.missing_run_ids},
+        ).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 # ── Resource functions ──────────────────────────────────────────────
 
 
@@ -2010,6 +2050,17 @@ def roi_forecast_detail() -> str:
     return json.dumps(get_roi_forecast(), indent=2)
 
 
+def pipeline_run_comparison_detail(baseline_run_id: str, candidate_run_id: str) -> str:
+    """Browse the default comparison between two pipeline runs."""
+    return json.dumps(
+        compare_pipeline_runs(
+            baseline_run_id=baseline_run_id,
+            candidate_run_id=candidate_run_id,
+        ),
+        indent=2,
+    )
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -2061,6 +2112,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
     mcp.tool(get_pipeline_replay_plan)
+    mcp.tool(compare_pipeline_runs)
 
     # Register resources
     mcp.resource("ideas://list")(ideas_list)
@@ -2094,5 +2146,8 @@ def create_mcp_server() -> FastMCP:
         profile_source_recommendations_detail
     )
     mcp.resource("roi://forecast")(roi_forecast_detail)
+    mcp.resource("pipeline-run-comparisons://{baseline_run_id}/{candidate_run_id}")(
+        pipeline_run_comparison_detail
+    )
 
     return mcp
