@@ -60,6 +60,10 @@ from max.analysis.mcp_capability_coverage import (
     DEFAULT_MIN_COUNT,
     build_mcp_capability_coverage_report,
 )
+from max.analysis.mcp_quality_certification import (
+    MCPQualityCertificationNotFound,
+    build_mcp_quality_certification_report,
+)
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.profile_drift import (
@@ -238,6 +242,7 @@ from max.server.schemas import (
     PaginatedResponse,
     PaginationMeta,
     MCPCapabilityCoverageResponse,
+    MCPQualityCertificationResponse,
     NotionPagePublishRequest,
     NotionPagePublishResponse,
     PipelineAggregateResultResponse,
@@ -1475,6 +1480,29 @@ def get_mcp_capability_coverage(
         source_adapter=source_adapter,
     )
     return MCPCapabilityCoverageResponse.model_validate(report.to_dict())
+
+
+@router.get("/mcp/quality-certification", response_model=MCPQualityCertificationResponse)
+def get_mcp_quality_certification(
+    store: Store = Depends(get_store),
+) -> MCPQualityCertificationResponse:
+    report = build_mcp_quality_certification_report(store)
+    return MCPQualityCertificationResponse.model_validate(report.to_dict())
+
+
+@router.get(
+    "/ideas/{idea_id}/mcp-quality-certification",
+    response_model=MCPQualityCertificationResponse,
+)
+def get_idea_mcp_quality_certification(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> MCPQualityCertificationResponse:
+    try:
+        report = build_mcp_quality_certification_report(store, idea_id=idea_id)
+    except MCPQualityCertificationNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return MCPQualityCertificationResponse.model_validate(report.to_dict())
 
 
 @router.post("/signals", response_model=SignalCreateResponse, status_code=201)

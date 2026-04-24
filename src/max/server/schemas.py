@@ -543,6 +543,37 @@ class MCPCapabilityCoverageResponse(BaseModel):
     top_source_adapters: list[MCPCapabilitySourceAdapterResponse]
 
 
+class MCPQualityEvidenceReferenceResponse(BaseModel):
+    kind: str
+    id: str
+    title: str
+    source_adapter: str | None = None
+    source_type: str | None = None
+    url: str | None = None
+    reason: str = ""
+
+
+class MCPQualityScoreComponentResponse(BaseModel):
+    name: str
+    score: float
+    weight: float
+    explanation: str
+
+
+class MCPQualityCertificationResponse(BaseModel):
+    generated_at: str
+    scope: Literal["global", "idea"]
+    idea_id: str | None = None
+    score: float
+    grade: str
+    blocked: bool
+    blockers: list[str]
+    warnings: list[str]
+    summary: str
+    score_components: list[MCPQualityScoreComponentResponse]
+    evidence_references: list[MCPQualityEvidenceReferenceResponse]
+
+
 class ProfileSourceRecommendationResponse(BaseModel):
     adapter: str
     action: Literal[
