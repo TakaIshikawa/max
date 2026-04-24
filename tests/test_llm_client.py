@@ -106,6 +106,34 @@ class TestRetryAfterHeader:
         # Check log message
         assert "Rate limit hit — using Retry-After header: 5.0s" in caplog.text
 
+    def test_retry_after_header_integer_seconds(self, caplog):
+        """Test Retry-After header with integer seconds format."""
+        mock_http_response = _create_mock_http_response(429, {"retry-after": "3"})
+
+        error = anthropic.RateLimitError(
+            message="Rate limit exceeded",
+            response=mock_http_response,
+            body=None,
+        )
+
+        call_count = 0
+
+        def failing_once():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise error
+            return "success"
+
+        with caplog.at_level(logging.INFO):
+            with patch("max.llm.client.time.sleep") as mock_sleep:
+                result = _call_with_retry(failing_once, max_attempts=2)
+
+        assert result == "success"
+        # Should parse "3" as 3.0 seconds
+        mock_sleep.assert_called_once_with(3.0)
+        assert "Rate limit hit — using Retry-After header: 3.0s" in caplog.text
+
     def test_retry_after_header_uses_max_with_backoff(self, caplog):
         """Test that Retry-After uses max(retry_after, calculated_backoff)."""
         # Set a low Retry-After value (0.5s) that should be overridden by backoff (1.0s)
@@ -455,3 +483,200 @@ class TestTokenTrackerEdgeCases:
         assert summary["stage1_output"] == 50
         assert summary["stage2_input"] == 200
         assert summary["stage2_output"] == 100
+
+
+class TestTimeoutScenarios:
+    """Test timeout error handling in LLM calls."""
+
+    def test_api_timeout_error_is_retried(self):
+        """Test that APITimeoutError triggers retry logic."""
+        mock_request = Mock()
+        error = anthropic.APITimeoutError(request=mock_request)
+
+        call_count = 0
+
+        def failing_with_timeout():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise error
+            return "success"
+
+        with patch("max.llm.client.time.sleep") as mock_sleep:
+            result = _call_with_retry(failing_with_timeout, max_attempts=2)
+
+        assert result == "success"
+        assert call_count == 2
+        mock_sleep.assert_called_once()
+
+    def test_api_timeout_error_exhausts_retries(self, caplog):
+        """Test that APITimeoutError eventually fails after max retries."""
+        mock_request = Mock()
+        error = anthropic.APITimeoutError(request=mock_request)
+
+        def always_times_out():
+            raise error
+
+        with caplog.at_level(logging.WARNING):
+            with patch("max.llm.client.time.sleep"):
+                with pytest.raises(anthropic.APITimeoutError):
+                    _call_with_retry(always_times_out, max_attempts=3)
+
+        # Should log retry warnings
+        assert "APITimeoutError" in caplog.text
+        assert "retrying" in caplog.text
+
+    @patch("max.config.MAX_TOKEN_BUDGET", 0)
+    @patch("max.config.MAX_COST_BUDGET", 0.0)
+    @patch("max.llm.client.get_client")
+    @patch("max.llm.client.token_tracker")
+    def test_structured_call_retries_on_timeout(
+        self, mock_tracker, mock_get_client, mock_response
+    ):
+        """Test that structured_call retries on timeout errors."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+
+        mock_request = Mock()
+        timeout_error = anthropic.APITimeoutError(request=mock_request)
+
+        mock_client.messages.create.side_effect = [timeout_error, mock_response]
+
+        # Make sure tracker methods don't trigger budget errors
+        mock_tracker.total.return_value = 0
+        mock_tracker.is_over_budget.return_value = False
+
+        with patch("max.llm.client.time.sleep"):
+            result = structured_call(
+                system="Test system",
+                prompt="Test prompt",
+                output_type=DummyOutput,
+                stage="test_timeout",
+            )
+
+        assert result.result == "test"
+        assert mock_client.messages.create.call_count == 2
+
+    @patch("max.config.MAX_TOKEN_BUDGET", 0)
+    @patch("max.config.MAX_COST_BUDGET", 0.0)
+    @patch("max.llm.client.get_client")
+    @patch("max.llm.client.token_tracker")
+    def test_text_call_retries_on_timeout(
+        self, mock_tracker, mock_get_client, mock_text_response
+    ):
+        """Test that text_call retries on timeout errors."""
+        mock_client = Mock()
+        mock_get_client.return_value = mock_client
+
+        mock_request = Mock()
+        timeout_error = anthropic.APITimeoutError(request=mock_request)
+
+        mock_client.messages.create.side_effect = [timeout_error, mock_text_response]
+
+        # Make sure tracker methods don't trigger budget errors
+        mock_tracker.total.return_value = 0
+        mock_tracker.is_over_budget.return_value = False
+
+        with patch("max.llm.client.time.sleep"):
+            result = text_call(
+                system="Test system",
+                prompt="Test prompt",
+                stage="test_timeout",
+            )
+
+        assert result == "Test response"
+        assert mock_client.messages.create.call_count == 2
+
+    def test_timeout_with_exponential_backoff(self):
+        """Test that timeout retries use exponential backoff."""
+        mock_request = Mock()
+        error = anthropic.APITimeoutError(request=mock_request)
+
+        call_count = 0
+
+        def fails_twice():
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise error
+            return "success"
+
+        with patch("max.llm.client.time.sleep") as mock_sleep:
+            result = _call_with_retry(
+                fails_twice, max_attempts=3, base_delay=1.0, backoff_factor=2.0
+            )
+
+        assert result == "success"
+        assert call_count == 3
+
+        # Check exponential backoff was applied
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_any_call(1.0)  # First retry
+        mock_sleep.assert_any_call(2.0)  # Second retry
+
+
+class TestMixedErrorScenarios:
+    """Test handling of multiple error types in sequence."""
+
+    def test_rate_limit_then_timeout_then_success(self, caplog):
+        """Test recovery from mixed transient errors."""
+        mock_http_response = _create_mock_http_response(429, {"retry-after": "1"})
+        rate_limit_error = anthropic.RateLimitError(
+            message="Rate limit exceeded",
+            response=mock_http_response,
+            body=None,
+        )
+        mock_request = Mock()
+        timeout_error = anthropic.APITimeoutError(request=mock_request)
+
+        call_count = 0
+
+        def fails_with_mixed_errors():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise rate_limit_error
+            elif call_count == 2:
+                raise timeout_error
+            return "success"
+
+        with caplog.at_level(logging.WARNING):
+            with patch("max.llm.client.time.sleep"):
+                result = _call_with_retry(fails_with_mixed_errors, max_attempts=3)
+
+        assert result == "success"
+        assert call_count == 3
+
+        # Should log both error types
+        assert "RateLimitError" in caplog.text
+        assert "APITimeoutError" in caplog.text
+
+    def test_internal_server_error_then_connection_error_then_success(self):
+        """Test recovery from multiple server-side errors."""
+        mock_http_response = _create_mock_http_response(500)
+        server_error = anthropic.InternalServerError(
+            message="Server error",
+            response=mock_http_response,
+            body=None,
+        )
+        mock_request = Mock()
+        connection_error = anthropic.APIConnectionError(
+            message="Connection failed", request=mock_request
+        )
+
+        call_count = 0
+
+        def fails_with_server_errors():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise server_error
+            elif call_count == 2:
+                raise connection_error
+            return "success"
+
+        with patch("max.llm.client.time.sleep"):
+            result = _call_with_retry(fails_with_server_errors, max_attempts=3)
+
+        assert result == "success"
+        assert call_count == 3
