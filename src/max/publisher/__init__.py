@@ -14,6 +14,13 @@ from max.publisher.linear_issues import (
     LinearIssuePublishResult,
     LinearIssuesPublisher,
 )
+from max.publisher.asana_tasks import (
+    AsanaTaskPayload,
+    AsanaTaskPublisher,
+    AsanaTaskPublishError,
+    AsanaTaskPublishResult,
+    AsanaTasksPublisher,
+)
 from max.publisher.jira_issues import (
     JiraIssuePayload,
     JiraIssuePublisher,
@@ -56,6 +63,11 @@ __all__ = [
     "LinearIssuePublishError",
     "LinearIssuePublishResult",
     "LinearIssuesPublisher",
+    "AsanaTaskPayload",
+    "AsanaTaskPublisher",
+    "AsanaTaskPublishError",
+    "AsanaTaskPublishResult",
+    "AsanaTasksPublisher",
     "JiraIssuePayload",
     "JiraIssuePublisher",
     "JiraIssuePublishError",
