@@ -168,12 +168,34 @@ class EvaluationConfig(BaseModel):
     min_score: float = 50.0
 
 
+class ArchitectureConstraintsConfig(BaseModel):
+    """Optional architecture expectations enforced against generated ideas."""
+
+    allowed_categories: list[str] = Field(default_factory=list)
+    allowed_target_users: list[str] = Field(default_factory=list)
+    allowed_domains: list[str] = Field(default_factory=list)
+    required_stack_decisions: list[str] = Field(default_factory=list)
+    allowed_stack_items: dict[str, list[str]] = Field(default_factory=dict)
+    rejected_stack_items: dict[str, list[str]] = Field(default_factory=dict)
+    allowed_deployment_patterns: list[str] = Field(default_factory=list)
+    rejected_deployment_patterns: list[str] = Field(default_factory=list)
+    required_integrations: list[str] = Field(default_factory=list)
+    allowed_integrations: list[str] = Field(default_factory=list)
+    rejected_integrations: list[str] = Field(default_factory=list)
+    required_tech_approach_terms: list[str] = Field(default_factory=list)
+    rejected_tech_approach_terms: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
 class PipelineProfile(BaseModel):
     """Complete pipeline profile loaded from YAML."""
 
     name: str
     domain: DomainContext
     domain_quality: DomainQualityConfig = Field(default_factory=DomainQualityConfig)
+    architecture_constraints: ArchitectureConstraintsConfig = Field(
+        default_factory=ArchitectureConstraintsConfig
+    )
     sources: list[SourceConfig] = Field(default_factory=list)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     output_dir: str = ".max-output"

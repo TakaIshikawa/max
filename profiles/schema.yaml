@@ -184,6 +184,99 @@ properties:
         description: Version label for persisted rubric scores
         default: v1
 
+  architecture_constraints:
+    type: object
+    description: Optional architecture expectations enforced against generated ideas
+    default: {}
+    properties:
+      allowed_categories:
+        type: array
+        description: Buildable categories that are architecturally acceptable for this profile
+        default: []
+        items:
+          type: string
+      allowed_target_users:
+        type: array
+        description: Target user types that are architecturally acceptable for this profile
+        default: []
+        items:
+          type: string
+      allowed_domains:
+        type: array
+        description: Profile or domain names that generated ideas may belong to
+        default: []
+        items:
+          type: string
+      required_stack_decisions:
+        type: array
+        description: Suggested stack keys that every idea should decide, such as language, runtime, or deployment
+        default: []
+        items:
+          type: string
+      allowed_stack_items:
+        type: object
+        description: Allowed values by suggested_stack key
+        default: {}
+        additionalProperties:
+          type: array
+          items:
+            type: string
+      rejected_stack_items:
+        type: object
+        description: Rejected values by suggested_stack key
+        default: {}
+        additionalProperties:
+          type: array
+          items:
+            type: string
+      allowed_deployment_patterns:
+        type: array
+        description: Deployment assumptions the profile supports
+        default: []
+        items:
+          type: string
+      rejected_deployment_patterns:
+        type: array
+        description: Deployment assumptions the profile rejects
+        default: []
+        items:
+          type: string
+      required_integrations:
+        type: array
+        description: Integrations expected in every generated idea
+        default: []
+        items:
+          type: string
+      allowed_integrations:
+        type: array
+        description: Integration assumptions the profile supports
+        default: []
+        items:
+          type: string
+      rejected_integrations:
+        type: array
+        description: Integration assumptions the profile rejects
+        default: []
+        items:
+          type: string
+      required_tech_approach_terms:
+        type: array
+        description: Terms expected in each idea's technical approach
+        default: []
+        items:
+          type: string
+      rejected_tech_approach_terms:
+        type: array
+        description: Terms rejected from each idea's technical approach
+        default: []
+        items:
+          type: string
+      notes:
+        type: string
+        description: Human-readable rationale for the architecture constraints
+        default: ""
+    additionalProperties: false
+
   sources:
     type: array
     description: List of data source configurations (adapters to fetch signals from)
@@ -209,6 +302,7 @@ properties:
             - github_discussions
             - github_funding
             - github_issues
+            - github_pull_requests
             - github_releases
             - gitlab_issues
             - gitlab_releases
@@ -228,6 +322,7 @@ properties:
             - security_advisories
             - stackshare
             - stackoverflow
+            - stackoverflow_survey
 
         enabled:
           type: boolean

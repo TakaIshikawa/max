@@ -16,6 +16,10 @@ from pydantic import ValidationError
 
 from max import config
 from max.analysis.blast_radius import estimate_idea_blast_radius
+from max.analysis.architecture_enforcement import (
+    DEFAULT_UNIT_LIMIT as DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT,
+    build_architecture_enforcement_report,
+)
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.contradictions import (
@@ -76,6 +80,7 @@ from max.server.schemas import (
     AdapterHealthResponse,
     AdapterMetadataResponse,
     AcceptanceCriteriaResponse,
+    ArchitectureEnforcementResponse,
     BatchPriorArtCheckItemResponse,
     BatchPriorArtCheckRequest,
     BatchPriorArtCheckResponse,
@@ -676,6 +681,7 @@ def _profile_detail_to_response(profile) -> ProfileDetailResponse:
     return ProfileDetailResponse(
         name=profile.name,
         domain=profile.domain,
+        architecture_constraints=profile.architecture_constraints,
         sources=profile.sources,
         evaluation=profile.evaluation,
         output_dir=profile.output_dir,
@@ -1020,6 +1026,24 @@ def get_profile_drift(
         insight_limit=insight_limit,
     )
     return ProfileDriftResponse.model_validate(report.to_dict())
+
+
+@router.get(
+    "/profiles/{profile_name}/architecture-enforcement",
+    response_model=ArchitectureEnforcementResponse,
+)
+def get_profile_architecture_enforcement(
+    profile_name: str,
+    unit_limit: int = Query(DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT, ge=1, le=10_000),
+    store: Store = Depends(get_store),
+) -> ArchitectureEnforcementResponse:
+    profile = _load_profile_or_404(profile_name)
+    report = build_architecture_enforcement_report(
+        profile,
+        store,
+        unit_limit=unit_limit,
+    )
+    return ArchitectureEnforcementResponse.model_validate(report.to_dict())
 
 
 @router.get(

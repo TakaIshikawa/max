@@ -541,6 +541,90 @@ def profiles_validate(profile: str | None) -> None:
         raise click.exceptions.Exit(1)
 
 
+@profiles.command(name="architecture-enforcement")
+@click.argument("profile")
+@click.option(
+    "--unit-limit",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Maximum recent buildable units to include",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON")
+def profiles_architecture_enforcement(
+    profile: str,
+    unit_limit: int,
+    fmt: str,
+    as_json: bool,
+) -> None:
+    """Check generated ideas against profile architecture expectations."""
+    from max.analysis.architecture_enforcement import build_architecture_enforcement_report
+    from max.profiles.loader import load_profile
+    from max.store.db import Store
+
+    if unit_limit < 1:
+        raise click.ClickException("--unit-limit must be at least 1")
+
+    try:
+        profile_config = load_profile(profile)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
+
+    with Store() as store:
+        report = build_architecture_enforcement_report(
+            profile_config,
+            store,
+            unit_limit=unit_limit,
+        )
+
+    if as_json or fmt == "json":
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    _render_architecture_enforcement(report)
+
+
+def _render_architecture_enforcement(report) -> None:
+    click.echo("Architecture enforcement")
+    click.echo(
+        f"Profile: {report.profile_name}  Domain: {report.domain}  "
+        f"Status: {report.status}  Units: {report.units_analyzed}"
+    )
+    click.echo(f"Constraints configured: {'yes' if report.constraints_configured else 'no'}")
+    click.echo()
+
+    if not report.findings:
+        click.echo("No architecture findings.")
+    else:
+        click.echo(f"{'Severity':<9s} {'Code':<36s} {'Idea':<24s} Field")
+        click.echo("-" * 92)
+        for finding in report.findings:
+            click.echo(
+                f"{finding.severity:<9s} "
+                f"{finding.code:<36s} "
+                f"{finding.title[:24]:<24s} "
+                f"{finding.field}"
+            )
+            click.echo(f"  {finding.message}")
+            if finding.observed:
+                click.echo(f"  observed: {', '.join(finding.observed)}")
+            if finding.expected:
+                click.echo(f"  expected: {', '.join(finding.expected)}")
+        click.echo()
+
+    if report.recommended_constraint_additions:
+        click.echo("Recommended profile constraint additions:")
+        for recommendation in report.recommended_constraint_additions:
+            click.echo(f"  - {recommendation}")
+
+
 @main.group(name="sources")
 def sources_group() -> None:
     """Inspect source adapter configuration."""

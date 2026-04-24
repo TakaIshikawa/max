@@ -6,7 +6,7 @@ from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
-from max.profiles.schema import DomainContext, EvaluationConfig, SourceConfig
+from max.profiles.schema import ArchitectureConstraintsConfig, DomainContext, EvaluationConfig, SourceConfig
 
 T = TypeVar("T")
 
@@ -1276,6 +1276,7 @@ class ProfileSummaryResponse(BaseModel):
 class ProfileDetailResponse(BaseModel):
     name: str
     domain: DomainContext
+    architecture_constraints: ArchitectureConstraintsConfig
     sources: list[SourceConfig]
     evaluation: EvaluationConfig
     output_dir: str
@@ -1365,6 +1366,47 @@ class ProfileDriftResponse(BaseModel):
     overall_drift_score: float
     status: str
     warnings: list[str]
+
+
+class ArchitectureFindingResponse(BaseModel):
+    idea_id: str
+    title: str
+    severity: str
+    code: str
+    message: str
+    field: str
+    expected: list[str]
+    observed: list[str]
+
+
+class IdeaArchitectureAssessmentResponse(BaseModel):
+    idea_id: str
+    title: str
+    category: str
+    target_users: str
+    domain: str
+    suggested_stack: dict[str, Any]
+    stack_decisions: dict[str, list[str]]
+    deployment_assumptions: list[str]
+    integration_assumptions: list[str]
+    findings: list[ArchitectureFindingResponse]
+    status: str
+
+
+class ArchitectureEnforcementResponse(BaseModel):
+    generated_at: str
+    profile_name: str
+    domain: str
+    unit_limit: int
+    units_analyzed: int
+    categories_allowed: list[str]
+    target_users_allowed: list[str]
+    evaluation_weights: dict[str, float]
+    constraints_configured: bool
+    assessments: list[IdeaArchitectureAssessmentResponse]
+    findings: list[ArchitectureFindingResponse]
+    recommended_constraint_additions: list[str]
+    status: str
 
 
 class PipelineResultResponse(BaseModel):

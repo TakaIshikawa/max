@@ -90,6 +90,39 @@ domain_quality:
     - marketplace without distribution proof
     - prompt library without workflow ownership
 
+architecture_constraints:
+  allowed_categories:
+    - mcp_server
+    - cli_tool
+    - library
+    - integration
+    - automation
+    - application
+    - feature
+  allowed_target_users:
+    - humans
+    - agents
+    - both
+  required_stack_decisions:
+    - language
+    - runtime
+    - deployment
+  allowed_deployment_patterns:
+    - local
+    - cli
+    - api
+    - container
+    - self-hosted
+    - cloud
+  rejected_deployment_patterns:
+    - full IDE migration
+  rejected_tech_approach_terms:
+    - full IDE migration
+    - ecosystem migration
+  notes: >-
+    Developer-tool ideas should make explicit stack and deployment choices while
+    fitting CLI, API, local, self-hosted, container, or cloud workflows.
+
 sources:
   - adapter: hackernews
     enabled: true

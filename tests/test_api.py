@@ -573,6 +573,37 @@ def test_get_profile_returns_404_for_unknown_profile(client):
     assert resp.json()["detail"] == "Profile not found: missing"
 
 
+def test_get_profile_architecture_enforcement_returns_typed_report(client, seeded_db):
+    from max.profiles.schema import ArchitectureConstraintsConfig
+
+    profile = _profile_endpoint_fixture("testing", "testing")
+    profile.architecture_constraints = ArchitectureConstraintsConfig(
+        allowed_categories=["application"],
+        allowed_target_users=["both"],
+        required_stack_decisions=["language"],
+    )
+
+    with patch("max.profiles.loader.load_profile", return_value=profile):
+        resp = client.get("/api/v1/profiles/testing/architecture-enforcement")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profile_name"] == "testing"
+    assert data["domain"] == "testing"
+    assert data["constraints_configured"] is True
+    assert data["units_analyzed"] == 1
+    assert "missing_stack_decision" in {finding["code"] for finding in data["findings"]}
+    assert data["assessments"][0]["idea_id"] == "bu-api001"
+
+
+def test_get_profile_architecture_enforcement_returns_404_for_unknown_profile(client):
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
+        resp = client.get("/api/v1/profiles/missing/architecture-enforcement")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Profile not found: missing"
+
+
 def test_validate_profiles_returns_structured_results(client):
     from max.profiles.validation import ProfileFileValidationResult, ProfileValidationIssue
 

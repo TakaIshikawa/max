@@ -609,6 +609,65 @@ class TestProfilesCommand:
         assert result.exit_code != 0
         assert "Profile 'missing' not found" in result.output
 
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.load_profile")
+    def test_profiles_architecture_enforcement_json(
+        self,
+        mock_load_profile,
+        MockStore,
+        runner: CliRunner,
+    ) -> None:
+        from max.profiles.schema import ArchitectureConstraintsConfig, DomainContext, PipelineProfile
+        from max.types.buildable_unit import BuildableUnit
+
+        profile = PipelineProfile(
+            name="devtools",
+            domain=DomainContext(
+                name="developer-tools",
+                description="Developer tools",
+                categories=["cli_tool"],
+                target_user_types=["humans"],
+            ),
+            architecture_constraints=ArchitectureConstraintsConfig(
+                required_stack_decisions=["language"],
+            ),
+        )
+        mock_load_profile.return_value = profile
+
+        store = MagicMock()
+        store.__enter__.return_value = store
+        store.__exit__.return_value = None
+        store.get_buildable_units.side_effect = [
+            [
+                BuildableUnit(
+                    id="idea-1",
+                    title="CLI helper",
+                    one_liner="A helper",
+                    category="cli_tool",
+                    problem="Problem",
+                    solution="Solution",
+                    target_users="humans",
+                    value_proposition="Value",
+                    domain="developer-tools",
+                )
+            ]
+        ]
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["profiles", "architecture-enforcement", "devtools", "--json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["profile_name"] == "devtools"
+        assert {finding["code"] for finding in payload["findings"]} == {
+            "missing_stack",
+            "missing_stack_decision",
+        }
+        mock_load_profile.assert_called_once_with("devtools")
+
 
 class TestSourcesCommand:
     @patch("max.sources.registry.list_adapter_metadata")
