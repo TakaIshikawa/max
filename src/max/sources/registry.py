@@ -61,6 +61,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "bluesky": "max.sources.bluesky:BlueskyAdapter",
     "mastodon": "max.sources.mastodon:MastodonAdapter",
     "pubmed": "max.sources.pubmed:PubMedAdapter",
+    "clinical_trials": "max.sources.clinical_trials:ClinicalTrialsAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
     "lobsters": "max.sources.lobsters:LobstersAdapter",
@@ -332,6 +333,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_results_per_query", "recent_days"],
         required_keys=[],
         description="Fetches PubMed article signals matching configured search queries.",
+    ),
+    "clinical_trials": AdapterMetadata(
+        name="clinical_trials",
+        config_keys=[
+            "terms",
+            "conditions",
+            "intervention_terms",
+            "interventions",
+            "max_results_per_query",
+        ],
+        required_keys=[],
+        description="Fetches ClinicalTrials.gov study records for healthcare validation and unmet-need signals.",
     ),
     "rss_feed": AdapterMetadata(
         name="rss_feed",
