@@ -42,6 +42,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
         def http_app(self, path: str = "/mcp"):
             return FastAPI(title=self.name)
 
+from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
@@ -366,6 +367,32 @@ def get_acceptance_criteria(id: str) -> dict:
                 evaluation,
                 build_evidence_density_report(unit, store),
             )
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_blast_radius(id: str) -> dict:
+    """Estimate deterministic implementation blast radius for an idea.
+
+    Uses the latest persisted utility evaluation when available, but can still
+    estimate blast radius from the idea itself.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+
+            evaluation = store.get_evaluation(id)
+            estimate = estimate_idea_blast_radius(unit, evaluation)
+            return asdict(estimate)
     except MCPToolError as e:
         return e.to_dict()
 
@@ -1175,6 +1202,11 @@ def acceptance_criteria_detail(idea_id: str) -> str:
     return json.dumps(get_acceptance_criteria(idea_id), indent=2)
 
 
+def blast_radius_detail(idea_id: str) -> str:
+    """Get implementation blast-radius details for a specific idea."""
+    return json.dumps(get_blast_radius(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -1214,6 +1246,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_spec_readiness)
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
+    mcp.tool(get_blast_radius)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
     mcp.tool(get_design_brief)
@@ -1242,6 +1275,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/evidence-chain")(evidence_chain_detail)
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
+    mcp.resource("ideas://{idea_id}/blast-radius")(blast_radius_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)

@@ -15,9 +15,11 @@ from max.server.mcp_tools import (
     create_mcp_server,
     dry_run_pipeline,
     acceptance_criteria_detail,
+    blast_radius_detail,
     get_evaluation_calibration,
     evidence_chain_detail,
     get_acceptance_criteria,
+    get_blast_radius,
     get_design_brief,
     get_design_brief_markdown,
     get_evidence_chain,
@@ -595,6 +597,39 @@ def test_get_acceptance_criteria_missing_evaluation(mcp_db):
     assert result["code"] == 404
 
 
+def test_get_blast_radius_success(seeded_mcp_db):
+    result = get_blast_radius(id="bu-mcp001")
+
+    assert result["schema_version"] == "max-blast-radius/v1"
+    assert result["kind"] == "max.blast_radius"
+    assert result["idea_id"] == "bu-mcp001"
+    assert result["title"] == "MCP Test Idea"
+    assert result["score"] > 0
+    assert result["level"] in {"low", "medium", "high", "critical"}
+    assert isinstance(result["affected_surfaces"], list)
+    assert result["drivers"]
+    assert result["mitigations"]
+    assert result["confidence"] > 0
+    assert result["evaluation_available"] is True
+
+
+def test_get_blast_radius_missing_idea(mcp_db):
+    result = get_blast_radius(id="missing")
+
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "buildable_unit"
+    assert result["details"]["resource_id"] == "missing"
+
+
+def test_blast_radius_resource(seeded_mcp_db):
+    result = blast_radius_detail("bu-mcp001")
+
+    assert '"idea_id": "bu-mcp001"' in result
+    assert '"kind": "max.blast_radius"' in result
+    assert '"schema_version": "max-blast-radius/v1"' in result
+
+
 def test_acceptance_criteria_resource(seeded_mcp_db):
     result = acceptance_criteria_detail("bu-mcp001")
 
@@ -1037,6 +1072,8 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
+    assert "get_blast_radius" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
 
 
 def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
@@ -1113,10 +1150,12 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert "max_signal_freshness" in FakeMCP.latest.tools
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
+    assert "get_blast_radius" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
+    assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
 
 
 def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
