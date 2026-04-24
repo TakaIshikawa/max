@@ -2577,6 +2577,40 @@ def test_get_idea_evidence_chain(seeded_client):
     }
 
 
+def test_context_budget_waste_report_returns_seeded_adapter(client, seeded_db) -> None:
+    response = client.get(
+        "/api/v1/context-budget/waste",
+        params={"days": 30, "source_adapter": "test", "min_reuse_count": 1},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["days"] == 30
+    assert payload["source_adapter_filter"] == "test"
+    assert payload["min_reuse_count"] == 1
+    assert payload["total_signals"] == 1
+    assert payload["reused_signal_count"] == 1
+    assert payload["evidence_reuse_rate"] == 1.0
+    assert payload["adapters"][0]["source_adapter"] == "test"
+    assert payload["adapters"][0]["projected_token_savings"] == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "days=0",
+        "days=3651",
+        "source_adapter=",
+        "min_reuse_count=-1",
+        "min_reuse_count=101",
+    ],
+)
+def test_context_budget_waste_validates_query_params(client, query) -> None:
+    response = client.get(f"/api/v1/context-budget/waste?{query}")
+
+    assert response.status_code == 422
+
+
 def test_get_idea_evidence_density(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/evidence-density")
     assert resp.status_code == 200

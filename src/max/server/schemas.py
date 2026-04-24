@@ -980,6 +980,49 @@ class EvidenceDensityResponse(BaseModel):
     density_score: float
 
 
+class ContextBudgetAdapterWasteResponse(BaseModel):
+    source_adapter: str
+    signal_count: int
+    estimated_tokens: int
+    reused_signal_count: int
+    evidence_link_count: int
+    average_reuse_count: float
+    evidence_reuse_rate: float
+    low_utility_signal_count: int
+    low_utility_rate: float
+    stale_signal_count: int
+    stale_rate: float
+    projected_token_savings: int
+    projected_cost_savings_usd: float
+    candidate_signal_ids: list[str]
+    reasons: list[str]
+
+
+class ContextBudgetWasteResponse(BaseModel):
+    generated_at: str
+    days: int
+    source_adapter_filter: str | None = None
+    min_reuse_count: int
+    cutoff_timestamp: str
+    total_signals: int
+    total_estimated_tokens: int
+    estimated_context_cost_usd: float
+    insight_count: int
+    idea_count: int
+    evidence_pack_estimated_tokens: int
+    evidence_pack_signal_tokens: int
+    reused_signal_count: int
+    evidence_link_count: int
+    evidence_reuse_rate: float
+    low_utility_signal_count: int
+    low_utility_signal_rate: float
+    stale_signal_count: int
+    stale_signal_rate: float
+    projected_token_savings: int
+    projected_cost_savings_usd: float
+    adapters: list[ContextBudgetAdapterWasteResponse]
+
+
 class ContradictionSummaryResponse(BaseModel):
     group_type: Literal["claim", "source_claim", "role_claim"]
     group_key: str

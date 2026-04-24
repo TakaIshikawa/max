@@ -61,6 +61,18 @@ def token_counts_from_usage(token_usage: Mapping[str, object]) -> tuple[int, int
     return int(input_tokens or 0), int(output_tokens or 0)
 
 
+def estimate_text_tokens(text: str) -> int:
+    """Deterministically estimate token count for persisted text.
+
+    This avoids tokenizer or LLM dependencies while staying close enough for
+    budget reporting: roughly four characters per token with a one-token floor
+    for non-empty text.
+    """
+    if not text:
+        return 0
+    return max(1, (len(text) + 3) // 4)
+
+
 class BudgetExceededError(Exception):
     """Raised when token or cost budget is exceeded during a pipeline run."""
     pass

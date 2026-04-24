@@ -22,6 +22,7 @@ from max.analysis.contradictions import (
     build_idea_contradiction_report,
     build_insight_contradiction_report,
 )
+from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
@@ -82,6 +83,7 @@ from max.server.schemas import (
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
+    ContextBudgetWasteResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefResponse,
     DesignBriefStatusUpdate,
@@ -363,6 +365,23 @@ def llm_budget_usage(
 ) -> LLMBudgetUsageResponse:
     return LLMBudgetUsageResponse.model_validate(
         build_llm_budget_usage(store, limit=limit, include_current=include_current)
+    )
+
+
+@router.get("/context-budget/waste", response_model=ContextBudgetWasteResponse)
+def context_budget_waste(
+    days: int = Query(30, ge=1, le=3650),
+    source_adapter: str | None = Query(None, min_length=1, max_length=100),
+    min_reuse_count: int = Query(1, ge=0, le=100),
+    store: Store = Depends(get_store),
+) -> ContextBudgetWasteResponse:
+    return ContextBudgetWasteResponse.model_validate(
+        build_context_budget_waste_report(
+            store,
+            days=days,
+            source_adapter=source_adapter,
+            min_reuse_count=min_reuse_count,
+        )
     )
 
 
