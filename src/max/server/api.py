@@ -28,6 +28,7 @@ from max.analysis.contradictions import (
 )
 from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
+from max.analysis.market_sizing import build_market_sizing_report
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
@@ -90,6 +91,7 @@ from max.server.schemas import (
     ContradictionReportResponse,
     ContextBudgetWasteResponse,
     DesignBriefEvidenceMatrixResponse,
+    DesignBriefMarketSizingResponse,
     DesignBriefResponse,
     DesignBriefStatusUpdate,
     DesignBriefValidationPlanResponse,
@@ -2704,6 +2706,20 @@ def get_design_brief_evidence_matrix(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefEvidenceMatrixResponse(**build_design_brief_evidence_matrix(store, brief))
+
+
+@router.get(
+    "/design-briefs/{brief_id}/market-sizing",
+    response_model=DesignBriefMarketSizingResponse,
+)
+def get_design_brief_market_sizing(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefMarketSizingResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefMarketSizingResponse(**build_market_sizing_report(store, brief))
 
 
 # ── Domain Quality ──────────────────────────────────────────────────

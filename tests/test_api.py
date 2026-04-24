@@ -3344,6 +3344,24 @@ def test_get_design_brief_evidence_matrix(seeded_client):
     assert problem["validation_actions"]
 
 
+def test_get_design_brief_market_sizing(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/market-sizing")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max.design_brief.market_sizing.v1"
+    assert data["design_brief"]["id"] == brief_id
+    assert data["signal_counts"]["forum"] == 1
+    assert data["signal_counts"]["total"] == 1
+    assert data["segments"][0]["source_idea_ids"] == ["bu-api001"]
+    assert data["segments"][0]["evidence_strength"] == "weak"
+    assert data["confidence"]["level"] in {"low", "medium", "high"}
+    assert data["recommendations"]
+
+
 def test_synthesize_design_briefs_persists_approved_and_published(client, db_path):
     def _score(value: float) -> DimensionScore:
         return DimensionScore(value=value, confidence=0.8, reasoning="seeded")
@@ -3436,6 +3454,11 @@ def test_get_design_brief_validation_plan_not_found(client):
 
 def test_get_design_brief_evidence_matrix_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing/evidence-matrix")
+    assert resp.status_code == 404
+
+
+def test_get_design_brief_market_sizing_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing/market-sizing")
     assert resp.status_code == 404
 
 

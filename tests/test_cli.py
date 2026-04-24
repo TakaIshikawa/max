@@ -1002,6 +1002,58 @@ class TestDesignBriefValidationPlanCommand:
         assert "Design brief not found: dbf-missing" in result.output
 
 
+class TestDesignBriefMarketSizingCommand:
+    @patch("max.store.db.Store")
+    def test_market_sizing_stdout_markdown(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit()
+        unit.buyer = "engineering manager"
+        unit.specific_user = "platform engineer"
+        unit.workflow_context = "CI gate"
+        store = _mock_store(unit=unit, signal=_make_signal(), insight=_make_insight(), evaluation=_make_evaluation())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "market-sizing", "dbf-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "# Market Sizing: AgentAdversarialBench" in result.output
+        assert "## Signal Counts" in result.output
+        assert "## Recommended Next Validation Data" in result.output
+        assert "engineering manager / platform engineer" in result.output
+        store.get_design_brief.assert_called_once_with("dbf-test001")
+
+    @patch("max.store.db.Store")
+    def test_market_sizing_stdout_json(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit()
+        unit.buyer = "engineering manager"
+        unit.specific_user = "platform engineer"
+        store = _mock_store(unit=unit, signal=_make_signal(), insight=_make_insight(), evaluation=_make_evaluation())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["design-briefs", "market-sizing", "dbf-test001", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max.design_brief.market_sizing.v1"
+        assert payload["design_brief"]["id"] == "dbf-test001"
+        assert payload["segments"][0]["buyer"] == "engineering manager"
+
+    @patch("max.store.db.Store")
+    def test_market_sizing_not_found(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "market-sizing", "dbf-missing"])
+
+        assert result.exit_code != 0
+        assert "Design brief not found: dbf-missing" in result.output
+
+
 class TestSpecPreviewCommand:
     @patch("max.store.db.Store")
     def test_spec_preview_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:

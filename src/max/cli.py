@@ -3602,6 +3602,44 @@ def design_briefs_validation_plan(
         store.close()
 
 
+@design_briefs.command(name="market-sizing")
+@click.argument("design_brief_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format",
+)
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+def design_briefs_market_sizing(
+    design_brief_id: str,
+    fmt: str,
+    output: str | None,
+) -> None:
+    """Export a deterministic market-sizing report for a design brief."""
+    from max.analysis.market_sizing import (
+        build_market_sizing_report,
+        render_market_sizing_report,
+        write_market_sizing_report,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        report = build_market_sizing_report(store, brief)
+        if output:
+            write_market_sizing_report(Path(output), report, fmt=fmt)
+            click.echo(f"Wrote market-sizing report to {output}")
+            return
+        click.echo(render_market_sizing_report(report, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @main.command(name="export-design-brief")
 @click.argument("design_brief_id")
 @click.option("--format", "fmt", type=click.Choice(["json", "yaml"]), default="json")
