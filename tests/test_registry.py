@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists,github_pull_requests",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -264,6 +264,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "bluesky",
         "huggingface",
         "awesome_lists",
+        "github_pull_requests",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -309,6 +310,19 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["awesome_lists"].required_keys == []
     assert "awesome-list" in metadata["awesome_lists"].description
+    assert metadata["github_pull_requests"].config_keys == [
+        "queries",
+        "repositories",
+        "labels",
+        "state",
+        "min_comments",
+        "max_age_days",
+        "github_token",
+        "token",
+        "token_env",
+    ]
+    assert metadata["github_pull_requests"].required_keys == []
+    assert "pull request" in metadata["github_pull_requests"].description
 
 
 def test_get_adapter_returns_instance():

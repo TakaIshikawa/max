@@ -41,6 +41,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
+    "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
@@ -119,6 +120,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries"],
         required_keys=[],
         description="Searches GitHub issues for configured query strings.",
+    ),
+    "github_pull_requests": AdapterMetadata(
+        name="github_pull_requests",
+        config_keys=[
+            "queries",
+            "repositories",
+            "labels",
+            "state",
+            "min_comments",
+            "max_age_days",
+            "github_token",
+            "token",
+            "token_env",
+        ],
+        required_keys=[],
+        description="Fetches GitHub pull request threads from configured repositories and search queries.",
     ),
     "github_discussions": AdapterMetadata(
         name="github_discussions",
@@ -282,6 +299,7 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
 def _discover_adapters() -> dict[str, type[SourceAdapter]]:
     """Discover adapters via entry_points, falling back to built-in imports."""
     adapters: dict[str, type[SourceAdapter]] = {}
+    eps = []
 
     # Try entry_points first
     try:
@@ -298,18 +316,38 @@ def _discover_adapters() -> dict[str, type[SourceAdapter]]:
     except Exception:
         logger.debug("entry_points discovery unavailable", exc_info=True)
 
-    # Fallback: if no entry_points found, load built-ins directly
+    # Fallback: if no entry_points found, load built-ins directly. In dev
+    # worktrees, installed package metadata can lag behind source, so merge
+    # missing built-ins when entry points came from an installed distribution.
     if not adapters:
-        for name, target in _BUILTIN_ADAPTERS.items():
-            module_path, cls_name = target.rsplit(":", 1)
-            try:
-                mod = importlib.import_module(module_path)
-                cls = getattr(mod, cls_name)
-                adapters[name] = cls
-            except Exception:
-                logger.warning("Failed to load built-in adapter '%s'", name, exc_info=True)
+        _load_builtin_adapters(adapters, _BUILTIN_ADAPTERS)
+    elif _has_distribution_entry_points(eps):
+        missing = {
+            name: target
+            for name, target in _BUILTIN_ADAPTERS.items()
+            if name not in adapters
+        }
+        _load_builtin_adapters(adapters, missing)
 
     return adapters
+
+
+def _load_builtin_adapters(
+    adapters: dict[str, type[SourceAdapter]],
+    builtins: dict[str, str],
+) -> None:
+    for name, target in builtins.items():
+        module_path, cls_name = target.rsplit(":", 1)
+        try:
+            mod = importlib.import_module(module_path)
+            cls = getattr(mod, cls_name)
+            adapters[name] = cls
+        except Exception:
+            logger.warning("Failed to load built-in adapter '%s'", name, exc_info=True)
+
+
+def _has_distribution_entry_points(entry_points: object) -> bool:
+    return any(getattr(ep, "dist", None) is not None for ep in entry_points)
 
 
 def _filter_adapters(
