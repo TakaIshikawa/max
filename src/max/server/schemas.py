@@ -634,6 +634,47 @@ class LaunchChecklistResponse(BaseModel):
     risks: list[dict[str, str]]
 
 
+class AcceptanceCriterionResponse(BaseModel):
+    id: str
+    title: str
+    statement: str
+    verification: str
+    trace_fields: list[str]
+
+
+class AcceptanceEdgeCaseResponse(BaseModel):
+    id: str
+    condition: str
+    expected_behavior: str
+
+
+class AcceptanceEvidenceLinkResponse(BaseModel):
+    type: str
+    id: str
+    uri: str
+
+
+class AcceptanceReviewChecklistItemResponse(BaseModel):
+    id: str
+    item: str
+    status: str
+    evidence_required: bool
+
+
+class AcceptanceCriteriaResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    functional_criteria: list[AcceptanceCriterionResponse]
+    non_functional_criteria: list[AcceptanceCriterionResponse]
+    out_of_scope: list[str]
+    edge_cases: list[AcceptanceEdgeCaseResponse]
+    evidence_links: list[AcceptanceEvidenceLinkResponse]
+    review_checklist: list[AcceptanceReviewChecklistItemResponse]
+
+
 class ExperimentCardResponse(BaseModel):
     schema_version: str
     kind: str

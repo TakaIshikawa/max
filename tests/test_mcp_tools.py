@@ -14,8 +14,10 @@ from max.server.mcp_tools import (
     contribute_signal,
     create_mcp_server,
     dry_run_pipeline,
+    acceptance_criteria_detail,
     get_evaluation_calibration,
     evidence_chain_detail,
+    get_acceptance_criteria,
     get_design_brief,
     get_design_brief_markdown,
     get_evidence_chain,
@@ -552,6 +554,55 @@ def test_get_implementation_plan_missing_evaluation(mcp_db):
     assert result["code"] == 404
 
 
+def test_get_acceptance_criteria_success(seeded_mcp_db):
+    result = get_acceptance_criteria(id="bu-mcp001")
+
+    assert result["schema_version"] == "max-acceptance-criteria/v1"
+    assert result["kind"] == "max.acceptance_criteria"
+    assert result["idea_id"] == "bu-mcp001"
+    assert result["summary"]["title"] == "MCP Test Idea"
+    assert result["summary"]["recommendation"] == "yes"
+    assert result["source"]["evidence_density_available"] is True
+    assert any(item["id"] == "AC-F1" for item in result["functional_criteria"])
+    assert any(item["id"] == "AC-NF4" for item in result["non_functional_criteria"])
+
+
+def test_get_acceptance_criteria_missing_idea(mcp_db):
+    result = get_acceptance_criteria(id="missing")
+
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
+
+
+def test_get_acceptance_criteria_missing_evaluation(mcp_db):
+    store = Store(db_path=mcp_db, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-noeval-ac",
+        title="Unevaluated Criteria Idea",
+        one_liner="A test idea without evaluation",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No evaluation exists",
+        solution="Return a clear error",
+        value_proposition="Better MCP errors",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = get_acceptance_criteria(id="bu-noeval-ac")
+
+    assert result["error"] == "Evaluation not found for idea: bu-noeval-ac"
+    assert result["code"] == 404
+
+
+def test_acceptance_criteria_resource(seeded_mcp_db):
+    result = acceptance_criteria_detail("bu-mcp001")
+
+    assert '"idea_id": "bu-mcp001"' in result
+    assert '"kind": "max.acceptance_criteria"' in result
+    assert '"schema_version": "max-acceptance-criteria/v1"' in result
+
+
 def test_spec_preview_resource(seeded_mcp_db):
     result = spec_preview_detail("bu-mcp001")
 
@@ -984,6 +1035,8 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
+    assert "get_acceptance_criteria" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
 
 
 def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
@@ -1059,9 +1112,11 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert "get_review_thresholds" in FakeMCP.latest.tools
     assert "max_signal_freshness" in FakeMCP.latest.tools
     assert "simulate_source_allocation" in FakeMCP.latest.tools
+    assert "get_acceptance_criteria" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
+    assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
 
 
 def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):

@@ -333,6 +333,43 @@ def get_implementation_plan(id: str) -> dict:
         return e.to_dict()
 
 
+def get_acceptance_criteria(id: str) -> dict:
+    """Generate implementation-ready acceptance criteria for an evaluated idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea or evaluation does not exist.
+    """
+    from max.analysis.evidence_density import build_evidence_density_report
+    from max.spec.acceptance_criteria import generate_acceptance_criteria
+
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+
+            evaluation = store.get_evaluation(id)
+            if not evaluation:
+                raise ResourceNotFoundError(
+                    f"Evaluation not found for idea: {id}",
+                    resource_type="evaluation",
+                    resource_id=id,
+                    details={"suggestion": "Run evaluate_idea first"},
+                )
+
+            return generate_acceptance_criteria(
+                unit,
+                evaluation,
+                build_evidence_density_report(unit, store),
+            )
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_idea_critique(id: str) -> dict:
     """Get persisted quality-loop critique details for an idea.
 
@@ -1133,6 +1170,11 @@ def spec_preview_detail(idea_id: str) -> str:
     return json.dumps(get_spec_preview(idea_id), indent=2)
 
 
+def acceptance_criteria_detail(idea_id: str) -> str:
+    """Get acceptance criteria details for a specific idea."""
+    return json.dumps(get_acceptance_criteria(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -1171,6 +1213,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_spec_preview)
     mcp.tool(get_spec_readiness)
     mcp.tool(get_implementation_plan)
+    mcp.tool(get_acceptance_criteria)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
     mcp.tool(get_design_brief)
@@ -1198,6 +1241,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
     mcp.resource("ideas://{idea_id}/evidence-chain")(evidence_chain_detail)
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
+    mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
