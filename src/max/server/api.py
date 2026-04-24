@@ -39,6 +39,7 @@ from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.customer_discovery import generate_customer_discovery_script
 from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
+    render_design_brief_competitive_landscape,
 )
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
@@ -4566,6 +4567,26 @@ def get_design_brief_competitive_landscape(
     if not report:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefCompetitiveLandscapeResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/competitive-landscape.md", response_model=None)
+def get_design_brief_competitive_landscape_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_competitive_landscape(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = (
+        f"{_download_filename_part(brief_id)}-"
+        f"{_download_filename_part(report['design_brief']['title'])}-competitive-landscape.md"
+    )
+    return Response(
+        content=render_design_brief_competitive_landscape(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(
