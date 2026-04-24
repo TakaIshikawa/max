@@ -43,6 +43,10 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
             return FastAPI(title=self.name)
 
 from max import config
+from max.analysis.architecture_enforcement import (
+    DEFAULT_UNIT_LIMIT as DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT,
+    build_architecture_enforcement_report,
+)
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.design_brief_evidence_matrix import (
@@ -76,6 +80,7 @@ from max.server.errors import (
 )
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.schemas import (
+    ArchitectureEnforcementResponse,
     PipelineRunComparisonResponse,
     PipelineReplayPlanResponse,
     ValidationExperimentCreate,
@@ -1251,6 +1256,92 @@ def get_profile_drift(
         return e.to_dict()
 
 
+def get_architecture_enforcement_report(
+    domain: str | None = None,
+    limit: int = DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT,
+    profile_name: str | None = None,
+) -> dict:
+    """Return architecture enforcement findings for a pipeline profile.
+
+    Set domain to select a profile/domain and limit to cap recent buildable
+    units analyzed. profile_name is accepted as an explicit alias for clients
+    that already model the REST endpoint by profile name.
+
+    Raises:
+        ResourceNotFoundError: If the profile/domain is not found.
+        ValidationError: If limit or selector inputs are invalid.
+    """
+    from max.profiles.loader import get_default_profile, list_profiles, load_profile
+
+    try:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "limit must be an integer between 1 and 10000",
+                field="limit",
+                expected="integer between 1 and 10000",
+                actual=str(limit),
+            )
+        if limit < 1 or limit > 10_000:
+            raise ValidationError(
+                "limit must be between 1 and 10000",
+                field="limit",
+                expected="integer between 1 and 10000",
+                actual=str(limit),
+            )
+        if domain is not None and not str(domain).strip():
+            raise ValidationError(
+                "domain must be a non-empty string",
+                field="domain",
+                expected="non-empty string",
+                actual=str(domain),
+            )
+        if profile_name is not None and not str(profile_name).strip():
+            raise ValidationError(
+                "profile_name must be a non-empty string",
+                field="profile_name",
+                expected="non-empty string",
+                actual=str(profile_name),
+            )
+
+        selector = profile_name or domain
+        try:
+            if selector:
+                try:
+                    profile = load_profile(selector)
+                except FileNotFoundError:
+                    profile = None
+                    for candidate_name in list_profiles():
+                        candidate = load_profile(candidate_name)
+                        if candidate.domain.name == selector:
+                            profile = candidate
+                            break
+                    if profile is None:
+                        raise
+            else:
+                profile = get_default_profile()
+        except FileNotFoundError as e:
+            raise ResourceNotFoundError(
+                f"Profile not found: {selector or 'default'}",
+                resource_type="profile",
+                resource_id=selector or "default",
+            ) from e
+
+        with _get_store() as store:
+            report = build_architecture_enforcement_report(
+                profile,
+                store,
+                unit_limit=limit,
+            )
+
+        return ArchitectureEnforcementResponse.model_validate(
+            report.to_dict()
+        ).model_dump()
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
     return {
         "cluster_id": cluster.cluster_id,
@@ -2179,6 +2270,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_profile_drift)
+    mcp.tool(get_architecture_enforcement_report)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
