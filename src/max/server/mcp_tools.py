@@ -44,6 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
@@ -58,7 +59,11 @@ from max.server.errors import (
     ValidationError,
 )
 from max.server.evidence_chain import build_evidence_chain_graph
-from max.server.schemas import ValidationExperimentCreate, ValidationExperimentUpdate
+from max.server.schemas import (
+    PipelineReplayPlanResponse,
+    ValidationExperimentCreate,
+    ValidationExperimentUpdate,
+)
 from max.store.db import Store
 
 try:
@@ -1550,6 +1555,33 @@ def dry_run_pipeline(
         return e.to_dict()
 
 
+def get_pipeline_replay_plan(run_id: str, include_commands: bool = True) -> dict:
+    """Build a replay plan for a stored pipeline run.
+
+    Set include_commands=false to omit CLI/API dry-run command details while
+    keeping the original run summary, profile, metrics, adapter inputs, and
+    reproducibility warnings.
+
+    Raises:
+        ResourceNotFoundError: If the pipeline run does not exist.
+    """
+    try:
+        with _get_store() as store:
+            plan = build_pipeline_replay_plan(store, run_id=run_id)
+            payload = PipelineReplayPlanResponse.model_validate(plan).model_dump()
+            if not include_commands:
+                payload.pop("dry_run_commands", None)
+            return payload
+    except PipelineReplayRunNotFound as e:
+        return ResourceNotFoundError(
+            "Pipeline run ID not found",
+            resource_type="pipeline_run",
+            resource_id=e.run_id,
+        ).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 # ── Resource functions ──────────────────────────────────────────────
 
 
@@ -1755,6 +1787,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
+    mcp.tool(get_pipeline_replay_plan)
 
     # Register resources
     mcp.resource("ideas://list")(ideas_list)
