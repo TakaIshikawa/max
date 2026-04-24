@@ -2416,6 +2416,33 @@ def test_get_idea_spec_readiness_not_found(client):
     assert resp.json()["detail"] == "Idea not found: nonexistent"
 
 
+def test_get_idea_review_gate(seeded_client):
+    resp = seeded_client.get("/api/v1/ideas/bu-api001/review-gate")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["schema_version"] == "max-review-gate/v1"
+    assert payload["kind"] == "max.review_gate"
+    assert payload["idea_id"] == "bu-api001"
+    assert payload["decision"] in {"approve", "needs_revision", "hold", "reject"}
+    assert isinstance(payload["confidence"], float)
+    assert isinstance(payload["blocking_reasons"], list)
+    assert isinstance(payload["warnings"], list)
+    assert isinstance(payload["required_remediations"], list)
+    assert {item["source"] for item in payload["evidence_used"]} == {
+        "utility_evaluation",
+        "spec_readiness",
+        "risk_register",
+        "prior_art",
+        "blast_radius",
+    }
+
+
+def test_get_idea_review_gate_not_found(client):
+    resp = client.get("/api/v1/ideas/nonexistent/review-gate")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Idea not found: nonexistent"
+
+
 def test_get_idea_implementation_plan(seeded_client):
     resp = seeded_client.get("/api/v1/ideas/bu-api001/implementation-plan")
     assert resp.status_code == 200

@@ -631,6 +631,27 @@ class ReviewThresholdsResponse(BaseModel):
     recommendations: list[ReviewThresholdRecommendationResponse]
 
 
+class ReviewGateEvidenceResponse(BaseModel):
+    source: str
+    status: str
+    score: float | None = None
+    summary: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReviewGateResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    title: str
+    decision: Literal["approve", "needs_revision", "hold", "reject"]
+    confidence: float
+    blocking_reasons: list[str]
+    warnings: list[str]
+    required_remediations: list[str]
+    evidence_used: list[ReviewGateEvidenceResponse]
+
+
 class IdeaEvaluateBatchItemResponse(BaseModel):
     idea_id: str
     status: Literal["evaluated", "skipped", "error"]

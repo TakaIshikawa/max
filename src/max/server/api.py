@@ -49,6 +49,7 @@ from max.analysis.run_comparison import (
 )
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.revision_brief import build_revision_brief
+from max.analysis.review_gate import build_review_gate_decision
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
 from max.analysis.source_reliability import DEFAULT_SIGNAL_LIMIT, build_source_reliability_report
 from max.analysis.status import (
@@ -163,6 +164,7 @@ from max.server.schemas import (
     ProfileValidationResponse,
     ProfileValidationResultResponse,
     ReviewQueueItemResponse,
+    ReviewGateResponse,
     ReviewThresholdRecommendationResponse,
     ReviewThresholdsResponse,
     RoiForecastResponse,
@@ -1972,6 +1974,16 @@ def get_idea_spec_readiness(idea_id: str, store: Store = Depends(get_store)) -> 
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return evaluate_spec_readiness(unit, store.get_evaluation(idea_id))
+
+
+@router.get("/ideas/{idea_id}/review-gate", response_model=ReviewGateResponse)
+def get_idea_review_gate(idea_id: str, store: Store = Depends(get_store)) -> ReviewGateResponse:
+    try:
+        return ReviewGateResponse.model_validate(
+            asdict(build_review_gate_decision(store, idea_id))
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
 
 @router.get("/ideas/{idea_id}/blast-radius", response_model=BlastRadiusResponse)

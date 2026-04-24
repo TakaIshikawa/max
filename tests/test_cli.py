@@ -2137,6 +2137,107 @@ class TestReviewThresholdsCommand:
         assert payload["recommendations"][0]["sufficient_samples"] is False
 
 
+class TestReviewGateCommand:
+    @patch("max.analysis.review_gate.build_review_gate_decision")
+    @patch("max.store.db.Store")
+    def test_review_gate_prints_text(
+        self,
+        MockStore: MagicMock,
+        mock_decision: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.review_gate import ReviewGateDecision, ReviewGateEvidence
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_decision.return_value = ReviewGateDecision(
+            schema_version="max-review-gate/v1",
+            kind="max.review_gate",
+            idea_id="bu-test001",
+            title="MCP Test Framework",
+            decision="needs_revision",
+            confidence=0.81,
+            blocking_reasons=[],
+            warnings=["prior art has weak matches"],
+            required_remediations=["Document differentiation from weak prior-art matches."],
+            evidence_used=[
+                ReviewGateEvidence(
+                    source="prior_art",
+                    status="weak_match",
+                    summary="Persisted prior-art check status.",
+                )
+            ],
+        )
+
+        result = runner.invoke(main, ["review-gate", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Review gate: MCP Test Framework" in result.output
+        assert "Decision: needs_revision" in result.output
+        assert "Warnings:" in result.output
+        assert "Evidence used:" in result.output
+        mock_decision.assert_called_once_with(store, "bu-test001")
+        store.close.assert_called_once()
+
+    @patch("max.analysis.review_gate.build_review_gate_decision")
+    @patch("max.store.db.Store")
+    def test_review_gate_prints_json(
+        self,
+        MockStore: MagicMock,
+        mock_decision: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.review_gate import ReviewGateDecision, ReviewGateEvidence
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_decision.return_value = ReviewGateDecision(
+            schema_version="max-review-gate/v1",
+            kind="max.review_gate",
+            idea_id="bu-test001",
+            title="MCP Test Framework",
+            decision="approve",
+            confidence=0.9,
+            blocking_reasons=[],
+            warnings=[],
+            required_remediations=[],
+            evidence_used=[
+                ReviewGateEvidence(
+                    source="utility_evaluation",
+                    status="yes",
+                    score=82.0,
+                    summary="Latest persisted utility evaluation.",
+                )
+            ],
+        )
+
+        result = runner.invoke(main, ["review-gate", "bu-test001", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-review-gate/v1"
+        assert payload["decision"] == "approve"
+        assert payload["evidence_used"][0]["source"] == "utility_evaluation"
+
+    @patch("max.analysis.review_gate.build_review_gate_decision")
+    @patch("max.store.db.Store")
+    def test_review_gate_missing_idea(
+        self,
+        MockStore: MagicMock,
+        mock_decision: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_decision.side_effect = ValueError("Idea not found: bu-missing")
+
+        result = runner.invoke(main, ["review-gate", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.close.assert_called_once()
+
+
 class TestEvaluationCalibrationCommand:
     @patch("max.analysis.evaluation_calibration.build_evaluation_calibration_report")
     @patch("max.store.db.Store")

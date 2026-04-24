@@ -2802,6 +2802,56 @@ def review_thresholds(domain: str | None, min_samples: int | None, as_json: bool
         store.close()
 
 
+@main.command(name="review-gate")
+@click.argument("idea_id")
+@click.option("--json", "as_json", is_flag=True, help="Print decision as JSON")
+def review_gate(idea_id: str, as_json: bool) -> None:
+    """Recommend approve, revision, hold, or reject for one idea."""
+    from max.analysis.review_gate import build_review_gate_decision
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        try:
+            decision = asdict(build_review_gate_decision(store, idea_id))
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        click.echo(_render_review_gate(decision, as_json=as_json), nl=False)
+    finally:
+        store.close()
+
+
+def _render_review_gate(decision: dict, *, as_json: bool) -> str:
+    if as_json:
+        return json.dumps(decision, indent=2) + "\n"
+
+    lines = [
+        f"Review gate: {decision['title']}",
+        f"Idea: {decision['idea_id']}",
+        f"Decision: {decision['decision']}",
+        f"Confidence: {decision['confidence']:.2f}",
+    ]
+    if decision["blocking_reasons"]:
+        lines.append("\nBlocking reasons:")
+        for reason in decision["blocking_reasons"]:
+            lines.append(f"- {reason}")
+    if decision["warnings"]:
+        lines.append("\nWarnings:")
+        for warning in decision["warnings"]:
+            lines.append(f"- {warning}")
+    if decision["required_remediations"]:
+        lines.append("\nRequired remediations:")
+        for remediation in decision["required_remediations"]:
+            lines.append(f"- {remediation}")
+    if decision["evidence_used"]:
+        lines.append("\nEvidence used:")
+        for evidence in decision["evidence_used"]:
+            score = "" if evidence["score"] is None else f" ({evidence['score']:.1f})"
+            lines.append(f"- {evidence['source']}: {evidence['status']}{score}")
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="evaluation-calibration")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--min-samples", type=int, default=1, help="Minimum samples per group")
