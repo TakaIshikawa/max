@@ -21,6 +21,10 @@ RETRYABLE_STATUS_CODES = {408, 429}
 class WebhookPublishError(RuntimeError):
     """Raised when a webhook publish fails after validation or retries."""
 
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 @dataclass(frozen=True)
 class WebhookPublishResult:
@@ -99,8 +103,14 @@ class WebhookPublisher:
                             response_body=_response_body_preview(response),
                         )
 
-                    last_error = WebhookPublishError(validation_error)
-                    if not _should_retry_status(response.status_code) or attempt == attempts_allowed:
+                    last_error = WebhookPublishError(
+                        validation_error,
+                        status_code=response.status_code,
+                    )
+                    if (
+                        not _should_retry_status(response.status_code)
+                        or attempt == attempts_allowed
+                    ):
                         break
                     logger.warning(
                         "Webhook publish to %s returned retryable status %s; retrying",
@@ -123,9 +133,13 @@ class WebhookPublisher:
                 client.close()
 
         detail = str(last_error) if last_error else "unknown error"
+        status_code = (
+            last_error.status_code if isinstance(last_error, WebhookPublishError) else None
+        )
         raise WebhookPublishError(
             f"Webhook publish failed for {self.redacted_url} after {attempts_allowed} "
-            f"attempt(s): {detail}"
+            f"attempt(s): {detail}",
+            status_code=status_code,
         )
 
 

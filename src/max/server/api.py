@@ -11,7 +11,16 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from pydantic import ValidationError
 
 from max import config
@@ -105,6 +114,7 @@ from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublish
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
 from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.publisher.teams_webhook import TeamsWebhookPublisher, TeamsWebhookPublishError
+from max.publisher.webhook import WebhookPublisher, WebhookPublishError, redact_url
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
@@ -263,6 +273,8 @@ from max.server.schemas import (
     ValidationExperimentSignalExportResponse,
     ValidationExperimentSummaryResponse,
     ValidationExperimentUpdate,
+    WebhookPublishRequest,
+    WebhookPublishResponse,
 )
 from max.evaluation.explain import explain_evaluation
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
@@ -333,7 +345,9 @@ def get_pipeline_cost_anomalies(
 
 
 @router.get("/pipeline/runs", response_model=list[PipelineRunHistoryResponse])
-def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> list[PipelineRunHistoryResponse]:
+def list_pipeline_runs(
+    limit: int = 10, store: Store = Depends(get_store)
+) -> list[PipelineRunHistoryResponse]:
     runs = store.get_pipeline_runs(limit=limit)
     return [
         PipelineRunHistoryResponse(
@@ -468,8 +482,7 @@ def llm_usage(
                 id=run["id"],
                 started_at=run["started_at"],
                 finished_at=run["completed_at"],
-                status=run.get("status")
-                or ("completed" if run["completed_at"] else "running"),
+                status=run.get("status") or ("completed" if run["completed_at"] else "running"),
                 model=model,
                 total_input=input_tokens,
                 total_output=output_tokens,
@@ -530,7 +543,9 @@ def _signal_to_response(sig: Signal) -> SignalResponse:
         url=sig.url,
         author=sig.author,
         published_at=sig.published_at.isoformat() if sig.published_at else None,
-        fetched_at=sig.fetched_at.isoformat() if hasattr(sig.fetched_at, "isoformat") else sig.fetched_at,
+        fetched_at=sig.fetched_at.isoformat()
+        if hasattr(sig.fetched_at, "isoformat")
+        else sig.fetched_at,
         tags=sig.tags,
         credibility=sig.credibility,
         metadata=sig.metadata,
@@ -573,15 +588,9 @@ def _merge_signal_import_tags(default_tags: list[str], row_tags) -> list[str]:
 
 
 def _signal_from_import_row(row, body: SignalImportRequest) -> Signal:
-    clean = {
-        key: value
-        for key, value in row.model_dump().items()
-        if value not in (None, "")
-    }
+    clean = {key: value for key, value in row.model_dump().items() if value not in (None, "")}
     missing = [
-        field
-        for field in ("title", "content", "url")
-        if not str(clean.get(field, "")).strip()
+        field for field in ("title", "content", "url") if not str(clean.get(field, "")).strip()
     ]
     if missing:
         raise ValueError(f"missing required field(s): {', '.join(missing)}")
@@ -624,7 +633,9 @@ def _insight_to_response(ins: Insight) -> InsightResponse:
         domains=ins.domains,
         implications=ins.implications,
         time_horizon=ins.time_horizon,
-        created_at=ins.created_at.isoformat() if hasattr(ins.created_at, "isoformat") else ins.created_at,
+        created_at=ins.created_at.isoformat()
+        if hasattr(ins.created_at, "isoformat")
+        else ins.created_at,
     )
 
 
@@ -732,6 +743,78 @@ def _evaluation_summary_to_response(ev: UtilityEvaluation) -> EvaluationSummaryR
     )
 
 
+def _webhook_idea_payload(unit: BuildableUnit) -> dict[str, Any]:
+    return {
+        "id": unit.id,
+        "title": unit.title,
+        "one_liner": unit.one_liner,
+        "category": unit.category,
+        "domain": unit.domain,
+        "status": unit.status,
+        "problem": unit.problem,
+        "solution": unit.solution,
+        "target_users": unit.target_users,
+        "value_proposition": unit.value_proposition,
+        "workflow_context": unit.workflow_context,
+        "validation_plan": unit.validation_plan,
+        "evidence_rationale": unit.evidence_rationale,
+        "created_at": unit.created_at.isoformat()
+        if hasattr(unit.created_at, "isoformat")
+        else unit.created_at,
+        "updated_at": unit.updated_at.isoformat()
+        if hasattr(unit.updated_at, "isoformat")
+        else unit.updated_at,
+    }
+
+
+def _webhook_evidence_links(unit: BuildableUnit, store: Store) -> list[dict[str, Any]]:
+    links: list[dict[str, Any]] = []
+    for signal_id in unit.evidence_signals:
+        signal = store.get_signal(signal_id)
+        if signal and signal.url:
+            links.append(
+                {
+                    "signal_id": signal.id,
+                    "title": signal.title,
+                    "url": signal.url,
+                    "source_adapter": signal.source_adapter,
+                    "source_type": signal.source_type.value
+                    if hasattr(signal.source_type, "value")
+                    else signal.source_type,
+                }
+            )
+    return links
+
+
+def _build_webhook_payload(
+    unit: BuildableUnit,
+    evaluation: UtilityEvaluation | None,
+    store: Store,
+    *,
+    payload_template: dict[str, Any] | None,
+    payload_fields: list[str],
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "schema_version": "max.webhook.idea/v1",
+        "payload_type": "idea",
+    }
+    if payload_template:
+        payload.update(payload_template)
+
+    selected = set(payload_fields)
+    if "idea" in selected:
+        payload["idea"] = _webhook_idea_payload(unit)
+    if "evaluation" in selected:
+        payload["evaluation"] = (
+            _evaluation_summary_to_response(evaluation).model_dump() if evaluation else None
+        )
+    if "evidence_links" in selected:
+        payload["evidence_links"] = _webhook_evidence_links(unit, store)
+    if "spec_preview" in selected:
+        payload["spec_preview"] = generate_spec_preview(unit, evaluation)
+    return payload
+
+
 def _weight_profile_or_404(profile_name: str) -> dict[str, float]:
     if profile_name not in WEIGHT_PROFILES:
         raise HTTPException(
@@ -753,7 +836,9 @@ def _unit_detail(
         one_liner=unit.one_liner,
         category=unit.category,
         domain=unit.domain,
-        ideation_mode=unit.ideation_mode.value if hasattr(unit.ideation_mode, "value") else unit.ideation_mode,
+        ideation_mode=unit.ideation_mode.value
+        if hasattr(unit.ideation_mode, "value")
+        else unit.ideation_mode,
         problem=unit.problem,
         solution=unit.solution,
         target_users=unit.target_users,
@@ -778,8 +863,12 @@ def _unit_detail(
         composability_notes=unit.composability_notes,
         status=unit.status,
         **_review_metadata(unit, latest_feedback),
-        created_at=unit.created_at.isoformat() if hasattr(unit.created_at, "isoformat") else unit.created_at,
-        updated_at=unit.updated_at.isoformat() if hasattr(unit.updated_at, "isoformat") else unit.updated_at,
+        created_at=unit.created_at.isoformat()
+        if hasattr(unit.created_at, "isoformat")
+        else unit.created_at,
+        updated_at=unit.updated_at.isoformat()
+        if hasattr(unit.updated_at, "isoformat")
+        else unit.updated_at,
         latest_critique=_critique_to_response(latest_critique) if latest_critique else None,
         evaluation=_evaluation_to_response(evaluation) if evaluation else None,
     )
@@ -893,14 +982,11 @@ def _lineage_graph_response(unit: BuildableUnit, store: Store) -> LineageGraphRe
         if signal.get("id") and signal.get("url")
     }
     insight_signal_ids = {
-        insight["id"]: list(insight.get("evidence", []))
-        for insight in chain["insights"]
+        insight["id"]: list(insight.get("evidence", [])) for insight in chain["insights"]
     }
     insight_links = {
         insight_id: [
-            signal_links[signal_id]
-            for signal_id in signal_ids
-            if signal_id in signal_links
+            signal_links[signal_id] for signal_id in signal_ids if signal_id in signal_links
         ]
         for insight_id, signal_ids in insight_signal_ids.items()
     }
@@ -1010,15 +1096,18 @@ def _has_cached_prior_art(unit: BuildableUnit, matches: list[dict]) -> bool:
 
 def _persist_prior_art_result(store: Store, idea_id: str, result) -> PriorArtResponse:
     for match in result.matches:
-        store.insert_prior_art_match(idea_id, {
-            "source": match.source,
-            "title": match.title,
-            "url": match.url,
-            "description": match.description,
-            "relevance_score": match.relevance_score,
-            "match_signals": match.match_signals,
-            "search_query": match.search_query,
-        })
+        store.insert_prior_art_match(
+            idea_id,
+            {
+                "source": match.source,
+                "title": match.title,
+                "url": match.url,
+                "description": match.description,
+                "relevance_score": match.relevance_score,
+                "match_signals": match.match_signals,
+                "search_query": match.search_query,
+            },
+        )
 
     store.update_prior_art_status(idea_id, result.status)
     refreshed = store.get_buildable_unit(idea_id)
@@ -1055,10 +1144,14 @@ def run_prior_art_check_for_idea(
         max_concurrency=max_concurrency,
         sources_override=sources_override,
     )
-    result = results[0] if results else PriorArtResult(
-        buildable_unit_id=idea_id,
-        matches=[],
-        status="clear",
+    result = (
+        results[0]
+        if results
+        else PriorArtResult(
+            buildable_unit_id=idea_id,
+            matches=[],
+            status="clear",
+        )
     )
 
     return _persist_prior_art_result(store, idea_id, result)
@@ -1445,7 +1538,9 @@ def import_mcp_security_findings(
             results.append(MCPSecurityFindingImportResult(index=index, signal_id=result.signal.id))
         else:
             duplicate_count += 1
-            results.append(MCPSecurityFindingImportResult(index=index, duplicate_id=result.signal.id))
+            results.append(
+                MCPSecurityFindingImportResult(index=index, duplicate_id=result.signal.id)
+            )
 
     return MCPSecurityFindingsImportResponse(
         inserted_count=inserted_count,
@@ -1574,9 +1669,7 @@ def get_review_queue(
         payload = _unit_summary(row["unit"], row["evaluation"]).model_dump()
         payload["evaluation"] = _evaluation_summary_to_response(row["evaluation"])
         payload["latest_critique"] = (
-            _critique_to_response(row["latest_critique"])
-            if row["latest_critique"]
-            else None
+            _critique_to_response(row["latest_critique"]) if row["latest_critique"] else None
         )
         items.append(
             ReviewQueueItemResponse(
@@ -1602,8 +1695,7 @@ def get_review_thresholds(
         default_approve_threshold=DEFAULT_APPROVE_THRESHOLD,
         default_reject_threshold=DEFAULT_REJECT_THRESHOLD,
         recommendations=[
-            ReviewThresholdRecommendationResponse(**item.__dict__)
-            for item in recommendations
+            ReviewThresholdRecommendationResponse(**item.__dict__) for item in recommendations
         ],
     )
 
@@ -1915,26 +2007,22 @@ def check_ideas_prior_art_batch(
         try:
             unit = store.get_buildable_unit(idea_id)
             if not unit:
-                results[index] = (
-                    BatchPriorArtCheckItemResponse(
-                        idea_id=idea_id,
-                        status="error",
-                        error=f"Idea not found: {idea_id}",
-                    )
+                results[index] = BatchPriorArtCheckItemResponse(
+                    idea_id=idea_id,
+                    status="error",
+                    error=f"Idea not found: {idea_id}",
                 )
                 continue
 
             matches = store.get_prior_art_matches(idea_id)
             if not body.force and _has_cached_prior_art(unit, matches):
                 cached = _prior_art_response(unit, matches)
-                results[index] = (
-                    BatchPriorArtCheckItemResponse(
-                        idea_id=idea_id,
-                        status="skipped",
-                        prior_art_status=cached.prior_art_status,
-                        matches=cached.matches,
-                        skipped=True,
-                    )
+                results[index] = BatchPriorArtCheckItemResponse(
+                    idea_id=idea_id,
+                    status="skipped",
+                    prior_art_status=cached.prior_art_status,
+                    matches=cached.matches,
+                    skipped=True,
                 )
                 continue
 
@@ -1943,12 +2031,10 @@ def check_ideas_prior_art_batch(
             units_to_check.append(unit)
             pending_indexes.append(index)
         except Exception as exc:
-            results[index] = (
-                BatchPriorArtCheckItemResponse(
-                    idea_id=idea_id,
-                    status="error",
-                    error=str(exc),
-                )
+            results[index] = BatchPriorArtCheckItemResponse(
+                idea_id=idea_id,
+                status="error",
+                error=str(exc),
             )
 
     if units_to_check:
@@ -2042,17 +2128,15 @@ def get_idea_evaluation_explanation(
         for insight_id in unit.inspiring_insights
         if (insight := store.get_insight(insight_id))
     ]
-    signal_ids = list(dict.fromkeys(
-        [
-            *unit.evidence_signals,
-            *(signal_id for insight in insights for signal_id in insight.evidence),
-        ]
-    ))
-    signals = [
-        signal
-        for signal_id in signal_ids
-        if (signal := store.get_signal(signal_id))
-    ]
+    signal_ids = list(
+        dict.fromkeys(
+            [
+                *unit.evidence_signals,
+                *(signal_id for insight in insights for signal_id in insight.evidence),
+            ]
+        )
+    )
+    signals = [signal for signal_id in signal_ids if (signal := store.get_signal(signal_id))]
     return EvaluationExplanationResponse.model_validate(
         explain_evaluation(
             unit,
@@ -2426,6 +2510,81 @@ def publish_idea_to_teams(
     )
 
 
+@router.post("/ideas/{idea_id}/publish/webhook", response_model=WebhookPublishResponse)
+def publish_idea_to_webhook(
+    idea_id: str,
+    request: WebhookPublishRequest,
+    store: Store = Depends(get_store),
+) -> WebhookPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    payload_type = "idea"
+    payload = _build_webhook_payload(
+        unit,
+        evaluation,
+        store,
+        payload_template=request.payload_template,
+        payload_fields=request.payload_fields,
+    )
+
+    if request.dry_run:
+        return WebhookPublishResponse(
+            idea_id=idea_id,
+            dry_run=True,
+            target_url=redact_url(request.webhook_url),
+            status_code=None,
+            attempts=0,
+            payload_type=payload_type,
+            payload=payload,
+            publication_attempt=None,
+        )
+
+    publisher = WebhookPublisher(
+        request.webhook_url,
+        timeout=request.timeout,
+        retries=request.max_retries,
+    )
+    try:
+        result = publisher.publish(payload, payload_type=payload_type)
+    except WebhookPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="webhook",
+            target_url=publisher.redacted_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    publication_attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="webhook",
+        target_url=result.url,
+        status="success",
+        response_status=result.status_code,
+    )
+    return WebhookPublishResponse(
+        idea_id=idea_id,
+        dry_run=False,
+        target_url=result.url,
+        status_code=result.status_code,
+        attempts=result.attempts,
+        payload_type=payload_type,
+        payload=payload,
+        publication_attempt=PublicationAttemptResponse(**publication_attempt),
+    )
+
+
 @router.post("/ideas/{idea_id}/publish/github-issue", response_model=GitHubIssuePublishResponse)
 def publish_idea_to_github_issue(
     idea_id: str,
@@ -2453,7 +2612,9 @@ def publish_idea_to_github_issue(
 
     payload = generate_spec_preview(unit, evaluation)
     if not request.dry_run and not publisher.token:
-        message = "GITHUB_TOKEN is required for live GitHub issue publishing; use dry_run to preview"
+        message = (
+            "GITHUB_TOKEN is required for live GitHub issue publishing; use dry_run to preview"
+        )
         attempt = store.insert_publication_attempt(
             idea_id=idea_id,
             target_type="github_issue",
@@ -2536,7 +2697,9 @@ def publish_idea_to_linear_issue(
 
     payload = generate_spec_preview(unit, evaluation)
     if not request.dry_run and not publisher.api_key:
-        message = "LINEAR_API_KEY is required for live Linear issue publishing; use dry_run to preview"
+        message = (
+            "LINEAR_API_KEY is required for live Linear issue publishing; use dry_run to preview"
+        )
         attempt = store.insert_publication_attempt(
             idea_id=idea_id,
             target_type="linear_issue",
@@ -2621,7 +2784,9 @@ def publish_idea_to_asana_task(
 
     payload = generate_spec_preview(unit, evaluation)
     if not request.dry_run and not publisher.access_token:
-        message = "ASANA_ACCESS_TOKEN is required for live Asana task publishing; use dry_run to preview"
+        message = (
+            "ASANA_ACCESS_TOKEN is required for live Asana task publishing; use dry_run to preview"
+        )
         attempt = store.insert_publication_attempt(
             idea_id=idea_id,
             target_type="asana_task",
@@ -2806,10 +2971,7 @@ def evaluate_ideas_spec_readiness_batch(
     store: Store = Depends(get_store),
 ) -> SpecReadinessBatchResponse:
     if body.idea_ids:
-        units_by_id = {
-            unit_id: store.get_buildable_unit(unit_id)
-            for unit_id in body.idea_ids
-        }
+        units_by_id = {unit_id: store.get_buildable_unit(unit_id) for unit_id in body.idea_ids}
         units = [units_by_id[unit_id] for unit_id in body.idea_ids]
         requested_ids = body.idea_ids
     else:
@@ -2847,9 +3009,7 @@ def evaluate_ideas_spec_readiness_batch(
             )
             continue
 
-        failed_checks = [
-            check for check in readiness.get("checks", []) if not check.get("passed")
-        ]
+        failed_checks = [check for check in readiness.get("checks", []) if not check.get("passed")]
         results.append(
             SpecReadinessBatchItemResponse(
                 idea_id=unit.id,
@@ -2860,9 +3020,7 @@ def evaluate_ideas_spec_readiness_batch(
                 passed=readiness["passed"],
                 missing_sections=[check["label"] for check in failed_checks],
                 blockers=[
-                    check["remediation"]
-                    for check in failed_checks
-                    if check.get("remediation")
+                    check["remediation"] for check in failed_checks if check.get("remediation")
                 ],
                 failed_check_ids=readiness["failed_check_ids"],
                 readiness=readiness,
@@ -2875,9 +3033,7 @@ def evaluate_ideas_spec_readiness_batch(
 @router.get("/ideas/{idea_id}/review-gate", response_model=ReviewGateResponse)
 def get_idea_review_gate(idea_id: str, store: Store = Depends(get_store)) -> ReviewGateResponse:
     try:
-        return ReviewGateResponse.model_validate(
-            asdict(build_review_gate_decision(store, idea_id))
-        )
+        return ReviewGateResponse.model_validate(asdict(build_review_gate_decision(store, idea_id)))
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
@@ -2903,7 +3059,9 @@ def get_idea_implementation_plan(idea_id: str, store: Store = Depends(get_store)
 
 
 @router.get("/ideas/{idea_id}/launch-checklist", response_model=LaunchChecklistResponse)
-def get_idea_launch_checklist(idea_id: str, store: Store = Depends(get_store)) -> LaunchChecklistResponse:
+def get_idea_launch_checklist(
+    idea_id: str, store: Store = Depends(get_store)
+) -> LaunchChecklistResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -2915,7 +3073,9 @@ def get_idea_launch_checklist(idea_id: str, store: Store = Depends(get_store)) -
 
 
 @router.get("/ideas/{idea_id}/acceptance-criteria", response_model=AcceptanceCriteriaResponse)
-def get_idea_acceptance_criteria(idea_id: str, store: Store = Depends(get_store)) -> AcceptanceCriteriaResponse:
+def get_idea_acceptance_criteria(
+    idea_id: str, store: Store = Depends(get_store)
+) -> AcceptanceCriteriaResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -2929,7 +3089,9 @@ def get_idea_acceptance_criteria(idea_id: str, store: Store = Depends(get_store)
 
 
 @router.get("/ideas/{idea_id}/experiment-card", response_model=ExperimentCardResponse)
-def get_idea_experiment_card(idea_id: str, store: Store = Depends(get_store)) -> ExperimentCardResponse:
+def get_idea_experiment_card(
+    idea_id: str, store: Store = Depends(get_store)
+) -> ExperimentCardResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -3056,7 +3218,9 @@ def get_idea_evidence_pack(idea_id: str, store: Store = Depends(get_store)) -> d
 
 
 @router.get("/ideas/{idea_id}/evidence-chain", response_model=EvidenceChainResponse)
-def get_idea_evidence_chain(idea_id: str, store: Store = Depends(get_store)) -> EvidenceChainResponse:
+def get_idea_evidence_chain(
+    idea_id: str, store: Store = Depends(get_store)
+) -> EvidenceChainResponse:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -3077,9 +3241,7 @@ def get_idea_evidence_density(
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
-    return EvidenceDensityResponse.model_validate(
-        build_evidence_density_report(unit, store)
-    )
+    return EvidenceDensityResponse.model_validate(build_evidence_density_report(unit, store))
 
 
 @router.get("/ideas/{idea_id}/contradictions", response_model=ContradictionReportResponse)
@@ -3090,9 +3252,7 @@ def get_idea_contradictions(
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
-    return ContradictionReportResponse.model_validate(
-        build_idea_contradiction_report(unit, store)
-    )
+    return ContradictionReportResponse.model_validate(build_idea_contradiction_report(unit, store))
 
 
 @router.get("/ideas/{idea_id}/lineage", response_model=LineageGraphResponse)
@@ -3341,8 +3501,7 @@ def get_feedback_log(
     store: Store = Depends(get_store),
 ) -> list[FeedbackLogEntryResponse]:
     return [
-        FeedbackLogEntryResponse.model_validate(row)
-        for row in store.get_feedback_log(limit=limit)
+        FeedbackLogEntryResponse.model_validate(row) for row in store.get_feedback_log(limit=limit)
     ]
 
 
@@ -3620,7 +3779,9 @@ def publish_design_brief_to_notion(
     )
 
 
-@router.get("/design-briefs/{brief_id}/validation-plan", response_model=DesignBriefValidationPlanResponse)
+@router.get(
+    "/design-briefs/{brief_id}/validation-plan", response_model=DesignBriefValidationPlanResponse
+)
 def get_design_brief_validation_plan(
     brief_id: str,
     store: Store = Depends(get_store),
@@ -3848,8 +4009,7 @@ def _aggregate_pipeline_results(results: list[PipelineResultResponse]) -> Pipeli
 
     def weighted_average(score_field: str, weight_field: str) -> float:
         weighted_total = sum(
-            getattr(result, score_field) * getattr(result, weight_field)
-            for result in results
+            getattr(result, score_field) * getattr(result, weight_field) for result in results
         )
         weights = total(weight_field)
         return weighted_total / weights if weights else 0.0
@@ -3859,11 +4019,7 @@ def _aggregate_pipeline_results(results: list[PipelineResultResponse]) -> Pipeli
         for key, value in result.token_usage.items():
             token_usage[key] = token_usage.get(key, 0) + value
 
-    top_ideas = [
-        idea
-        for result in results
-        for idea in result.top_ideas
-    ]
+    top_ideas = [idea for result in results for idea in result.top_ideas]
     top_ideas.sort(key=lambda idea: idea.get("score", idea.get("overall_score", 0)), reverse=True)
 
     return PipelineResultResponse(
@@ -3881,9 +4037,7 @@ def _aggregate_pipeline_results(results: list[PipelineResultResponse]) -> Pipeli
         ),
         avg_novelty_score=weighted_average("avg_novelty_score", "ideas_revised"),
         avg_usefulness_score=weighted_average("avg_usefulness_score", "ideas_revised"),
-        avg_insight_confidence=weighted_average(
-            "avg_insight_confidence", "insights_generated"
-        ),
+        avg_insight_confidence=weighted_average("avg_insight_confidence", "insights_generated"),
         avg_idea_score=weighted_average("avg_idea_score", "ideas_evaluated"),
         token_usage=token_usage,
         top_ideas=top_ideas[:10],
@@ -3958,7 +4112,9 @@ def _dry_run_report_response(result, *, profile) -> DryRunReportResponse:
             ideation_mode=profile.ideation_mode,
             quality_loop_enabled=profile.quality_loop_enabled,
             draft_count=profile.draft_count,
-        ) if profile else None,
+        )
+        if profile
+        else None,
         stages=[
             StageSummaryResponse(
                 name=s.name,
@@ -4046,7 +4202,9 @@ def get_adapter_circuit_breakers() -> list[CircuitBreakerStateResponse]:
 
 @router.get("/adapters/health", response_model=AdapterHealthResponse)
 def get_adapter_health(
-    profile: str | None = Query(default=None, description="Optional profile name for enabled sources"),
+    profile: str | None = Query(
+        default=None, description="Optional profile name for enabled sources"
+    ),
     store: Store = Depends(get_store),
 ) -> AdapterHealthResponse:
     registered_adapters = sorted(list_adapters())
@@ -4176,9 +4334,7 @@ def get_fetch_allocation_simulation(
 
     profile_name = profile or MAX_PROFILE or None
     try:
-        pipeline_profile = (
-            load_profile(profile_name) if profile_name else get_default_profile()
-        )
+        pipeline_profile = load_profile(profile_name) if profile_name else get_default_profile()
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Profile not found: {profile_name}")
 
@@ -4194,7 +4350,9 @@ def get_fetch_allocation_simulation(
 
 
 @router.post("/similar", response_model=list[SimilarityResult])
-def find_similar(body: SimilarityRequest, store: Store = Depends(get_store)) -> list[SimilarityResult]:
+def find_similar(
+    body: SimilarityRequest, store: Store = Depends(get_store)
+) -> list[SimilarityResult]:
     from max.embeddings.engine import SemanticIndex
 
     index = SemanticIndex(store)

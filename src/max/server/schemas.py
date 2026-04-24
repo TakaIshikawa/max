@@ -6,7 +6,12 @@ from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from max.profiles.schema import ArchitectureConstraintsConfig, DomainContext, EvaluationConfig, SourceConfig
+from max.profiles.schema import (
+    ArchitectureConstraintsConfig,
+    DomainContext,
+    EvaluationConfig,
+    SourceConfig,
+)
 
 T = TypeVar("T")
 
@@ -183,6 +188,20 @@ class TeamsPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+WebhookPayloadField = Literal["idea", "evaluation", "evidence_links", "spec_preview"]
+
+
+class WebhookPublishRequest(BaseModel):
+    webhook_url: str = Field(min_length=1)
+    payload_template: dict[str, Any] | None = None
+    payload_fields: list[WebhookPayloadField] = Field(
+        default_factory=lambda: ["idea", "evaluation", "evidence_links", "spec_preview"]
+    )
+    dry_run: bool = False
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0)
+
+
 class GitHubIssuePublishRequest(BaseModel):
     repository: str | None = None
     token: str | None = None
@@ -269,9 +288,9 @@ class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
     min_score: float = Field(default=50.0, ge=0.0, le=100.0)
-    weight_profile: Literal[
-        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
-    ] = "default"
+    weight_profile: Literal["default", "quick_wins", "moonshots", "ecosystem", "agent_first"] = (
+        "default"
+    )
     ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
     quality_loop_enabled: bool = False
     draft_count: int = Field(default=8, ge=1, le=50)
@@ -284,9 +303,9 @@ class PipelineDryRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
     min_score: float = Field(default=50.0, ge=0.0, le=100.0)
-    weight_profile: Literal[
-        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
-    ] = "default"
+    weight_profile: Literal["default", "quick_wins", "moonshots", "ecosystem", "agent_first"] = (
+        "default"
+    )
     ideation_mode: Literal["direct", "refinement", "cross_domain"] = "direct"
     quality_loop_enabled: bool = False
     draft_count: int = Field(default=8, ge=1, le=50)
@@ -1255,6 +1274,17 @@ class TeamsPublishResponse(BaseModel):
     publication_attempt: PublicationAttemptResponse | None = None
 
 
+class WebhookPublishResponse(BaseModel):
+    idea_id: str
+    dry_run: bool
+    target_url: str
+    status_code: int | None = None
+    attempts: int
+    payload_type: str
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
 class GitHubIssuePublishResponse(BaseModel):
     idea_id: str
     repository: str
@@ -2186,9 +2216,9 @@ class ScheduleUpdateRequest(BaseModel):
     max_execution_seconds: int | None = Field(default=None, ge=1)
     signal_limit: int | None = Field(default=None, ge=1, le=500)
     min_score: float | None = Field(default=None, ge=0.0, le=100.0)
-    weight_profile: Literal[
-        "default", "quick_wins", "moonshots", "ecosystem", "agent_first"
-    ] | None = None
+    weight_profile: (
+        Literal["default", "quick_wins", "moonshots", "ecosystem", "agent_first"] | None
+    ) = None
     ideation_mode: Literal["direct", "refinement", "cross_domain"] | None = None
     quality_loop_enabled: bool | None = None
     max_consecutive_failures: int | None = Field(default=None, ge=1)
