@@ -49,6 +49,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
+    "stackoverflow_survey": "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter",
     "discourse": "max.sources.discourse:DiscourseAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
@@ -196,6 +197,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["tags", "min_score", "unanswered_only"],
         required_keys=[],
         description="Fetches Stack Overflow questions for configured tags and score filters.",
+    ),
+    "stackoverflow_survey": AdapterMetadata(
+        name="stackoverflow_survey",
+        config_keys=["survey_urls", "local_paths", "question_filters", "min_percent", "max_rows"],
+        required_keys=[],
+        description="Reads Stack Overflow developer survey CSV exports as quantified market signals.",
     ),
     "discourse": AdapterMetadata(
         name="discourse",
