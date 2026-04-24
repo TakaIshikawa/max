@@ -77,6 +77,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
+    "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -451,6 +452,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "extensions", "extension_identifiers"],
         required_keys=[],
         description="Searches Open VSX Registry for VS Code-compatible extension adoption signals.",
+    ),
+    "terraform_registry": AdapterMetadata(
+        name="terraform_registry",
+        config_keys=["base_url", "queries", "module_queries", "provider_namespaces", "namespaces"],
+        required_keys=[],
+        description="Searches the Terraform Registry for infrastructure module and provider adoption signals.",
     ),
 }
 

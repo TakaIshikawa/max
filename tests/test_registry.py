@@ -250,7 +250,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx",
+        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -275,6 +275,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "agent_failure_dataset",
         "clinical_trials",
         "open_vsx",
+        "terraform_registry",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -393,6 +394,15 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["open_vsx"].config_keys == ["queries", "extensions", "extension_identifiers"]
     assert metadata["open_vsx"].required_keys == []
     assert "Open VSX Registry" in metadata["open_vsx"].description
+    assert metadata["terraform_registry"].config_keys == [
+        "base_url",
+        "queries",
+        "module_queries",
+        "provider_namespaces",
+        "namespaces",
+    ]
+    assert metadata["terraform_registry"].required_keys == []
+    assert "Terraform Registry" in metadata["terraform_registry"].description
 
 
 def test_get_adapter_returns_instance():
