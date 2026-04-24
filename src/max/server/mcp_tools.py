@@ -649,6 +649,99 @@ def get_design_brief_roadmap(brief_id: str, format: str = "json") -> dict:
         return e.to_dict()
 
 
+def get_design_brief_market_sizing(brief_id: str, format: str = "json") -> dict:
+    """Get deterministic market sizing for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    from max.analysis.market_sizing import (
+        build_market_sizing_report,
+        render_market_sizing_report,
+    )
+
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported market sizing format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            report = build_market_sizing_report(store, brief)
+            report["evidence_references"] = _design_brief_market_sizing_evidence_references(
+                store,
+                brief,
+            )
+
+        rendered = render_market_sizing_report(report, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def _design_brief_market_sizing_evidence_references(store: Store, brief: dict) -> list[dict]:
+    """Return source signal references for MCP market-sizing consumers."""
+    signal_ids: set[str] = set()
+    source_ids = list(
+        dict.fromkeys(
+            [
+                brief.get("lead_idea_id"),
+                *list(brief.get("source_idea_ids") or []),
+                *[
+                    source.get("idea_id")
+                    for source in brief.get("sources", [])
+                    if source.get("idea_id")
+                ],
+            ]
+        )
+    )
+    for idea_id in source_ids:
+        if not idea_id:
+            continue
+        idea = store.get_buildable_unit(str(idea_id))
+        if not idea:
+            continue
+        signal_ids.update(str(signal_id) for signal_id in idea.evidence_signals if signal_id)
+        for insight_id in idea.inspiring_insights:
+            insight = store.get_insight(str(insight_id))
+            if insight:
+                signal_ids.update(str(signal_id) for signal_id in insight.evidence if signal_id)
+
+    references = []
+    for signal_id in sorted(signal_ids):
+        signal = store.get_signal(signal_id)
+        if not signal:
+            continue
+        references.append(
+            {
+                "id": signal.id,
+                "title": signal.title,
+                "source_type": str(signal.source_type),
+                "source_adapter": signal.source_adapter,
+                "url": signal.url,
+                "signal_role": signal.signal_role,
+            }
+        )
+    return references
+
+
 def list_validation_experiments(idea_id: str) -> dict:
     """List validation experiments for an idea.
 
@@ -1582,6 +1675,11 @@ def design_brief_roadmap_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_roadmap(brief_id), indent=2)
 
 
+def design_brief_market_sizing_detail(brief_id: str) -> str:
+    """Get the market sizing report for a specific design brief."""
+    return json.dumps(get_design_brief_market_sizing(brief_id), indent=2)
+
+
 def validation_experiments_for_idea_detail(idea_id: str) -> str:
     """Browse validation experiments for a specific idea."""
     return json.dumps(list_validation_experiments(idea_id), indent=2)
@@ -1635,6 +1733,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_validation_plan)
     mcp.tool(get_design_brief_risk_register)
     mcp.tool(get_design_brief_roadmap)
+    mcp.tool(get_design_brief_market_sizing)
     mcp.tool(list_validation_experiments)
     mcp.tool(get_validation_experiment)
     mcp.tool(create_validation_experiment)
@@ -1671,6 +1770,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-validation-plans://{brief_id}")(design_brief_validation_plan_detail)
     mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
     mcp.resource("design-brief-roadmaps://{brief_id}")(design_brief_roadmap_detail)
+    mcp.resource("design-brief-market-sizing://{brief_id}")(design_brief_market_sizing_detail)
     mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
     mcp.resource("validation-experiments://{experiment_id}")(validation_experiment_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
