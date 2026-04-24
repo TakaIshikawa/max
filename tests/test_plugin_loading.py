@@ -222,3 +222,22 @@ def test_github_actions_metadata_and_registry_loading():
     assert "conclusions" in metadata.config_keys
     assert "max_age_days" in metadata.config_keys
     assert "token_env" in metadata.config_keys
+
+
+def test_openssf_scorecard_metadata_and_registry_loading():
+    """OpenSSF Scorecard adapter is exposed through the registry with metadata."""
+    from max.sources.openssf_scorecard import OpenSSFScorecardAdapter
+    from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters
+
+    adapter = get_adapter("openssf_scorecard")
+    metadata = get_adapter_metadata()["openssf_scorecard"]
+
+    assert "openssf_scorecard" in list_adapters()
+    assert isinstance(adapter, OpenSSFScorecardAdapter)
+    assert metadata.name == "openssf_scorecard"
+    assert "repositories" in metadata.config_keys
+    assert "min_risk_score" in metadata.config_keys
+    assert "checks" in metadata.config_keys
+    assert "token" in metadata.config_keys
+    assert "token_env" in metadata.config_keys
+    assert "local_path" in metadata.config_keys
