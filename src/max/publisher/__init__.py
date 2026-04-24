@@ -7,6 +7,11 @@ from max.publisher.github_issues import (
     GitHubIssuePublishResult,
     GitHubIssuesPublisher,
 )
+from max.publisher.discord_webhook import (
+    DiscordWebhookPublisher,
+    DiscordWebhookPublishError,
+    DiscordWebhookPublishResult,
+)
 from max.publisher.slack_webhook import (
     SlackWebhookPublisher,
     SlackWebhookPublishError,
@@ -20,6 +25,9 @@ __all__ = [
     "GitHubIssuePublishError",
     "GitHubIssuePublishResult",
     "GitHubIssuesPublisher",
+    "DiscordWebhookPublisher",
+    "DiscordWebhookPublishError",
+    "DiscordWebhookPublishResult",
     "SlackWebhookPublisher",
     "SlackWebhookPublishError",
     "SlackWebhookPublishResult",

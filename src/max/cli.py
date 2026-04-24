@@ -1898,12 +1898,17 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
 @click.argument("entity_id")
 @click.option(
     "--target",
-    type=click.Choice(["webhook", "github-issue"]),
+    type=click.Choice(["webhook", "github-issue", "discord"]),
     default="webhook",
     show_default=True,
     help="Publishing target",
 )
 @click.option("--webhook-url", default=None, help="Webhook URL to POST the generated payload to")
+@click.option(
+    "--discord-username",
+    default=None,
+    help="Discord webhook username override (defaults to DISCORD_WEBHOOK_USERNAME)",
+)
 @click.option(
     "--github-repository",
     default=None,
@@ -1929,6 +1934,7 @@ def publish(
     entity_id: str,
     target: str,
     webhook_url: str | None,
+    discord_username: str | None,
     github_repository: str | None,
     github_token: str | None,
     payload_type: str,
@@ -1938,6 +1944,7 @@ def publish(
 ) -> None:
     """Publish a generated tact spec or Blueprint source brief."""
     from max.analysis.blueprint_export import build_blueprint_source_brief
+    from max.publisher.discord_webhook import DiscordWebhookPublishError, DiscordWebhookPublisher
     from max.publisher.github_issues import GitHubIssuePublishError, GitHubIssuePublisher
     from max.publisher.webhook import WebhookPublishError, WebhookPublisher
     from max.spec.generator import generate_spec_preview
@@ -1945,6 +1952,8 @@ def publish(
 
     if target == "webhook" and not webhook_url:
         raise click.ClickException("--webhook-url is required when --target webhook")
+    if target == "discord" and payload_type not in {"tact-spec", "blueprint"}:
+        raise click.ClickException("--target discord supports --payload tact-spec or blueprint")
     if target == "github-issue" and payload_type != "tact-spec":
         raise click.ClickException("--target github-issue only supports --payload tact-spec")
 
@@ -1998,6 +2007,44 @@ def publish(
             click.echo(
                 f"Published GitHub issue for {entity_id} ({subject}) to "
                 f"{result.issue_url or result.repository} [{result.status_code}]"
+            )
+            return
+
+        if target == "discord":
+            publisher: DiscordWebhookPublisher | None = None
+            try:
+                publisher = DiscordWebhookPublisher.from_env(
+                    webhook_url=webhook_url,
+                    username=discord_username,
+                    timeout=timeout,
+                )
+                result = publisher.publish(payload, dry_run=dry_run)
+            except DiscordWebhookPublishError as exc:
+                if not dry_run:
+                    store.insert_publication_attempt(
+                        idea_id=publication_idea_id,
+                        target_type="discord_webhook",
+                        target_url=publisher.redacted_url if publisher else "",
+                        status="failure",
+                        response_status=exc.status_code,
+                        error=str(exc),
+                    )
+                raise click.ClickException(str(exc)) from exc
+
+            if dry_run:
+                click.echo(json.dumps(result.payload, indent=2))
+                return
+
+            store.insert_publication_attempt(
+                idea_id=publication_idea_id,
+                target_type="discord_webhook",
+                target_url=result.url,
+                status="success",
+                response_status=result.status_code,
+            )
+            click.echo(
+                f"Published Discord {payload_type} for {entity_id} ({subject}) to "
+                f"{result.url} [{result.status_code}]"
             )
             return
 

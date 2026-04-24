@@ -15,6 +15,7 @@ import yaml
 from click.testing import CliRunner
 
 from max.cli import main
+from max.publisher.discord_webhook import DiscordWebhookPublishError
 from max.publisher.webhook import WebhookPublishError
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -1732,6 +1733,92 @@ class TestPublishCommand:
         assert payload["metadata"]["idea_id"] == "bu-test001"
         assert payload["metadata"]["repository"] == "owner/repo"
         store.insert_publication_attempt.assert_not_called()
+
+    @patch("max.publisher.discord_webhook.DiscordWebhookPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_discord_dry_run_prints_payload(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.from_env.return_value
+        publisher.publish.return_value.payload = {
+            "content": "[Max] MCP Test Framework",
+            "embeds": [{"title": "MCP Test Framework"}],
+        }
+        publisher.publish.return_value.dry_run = True
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "discord",
+                "--webhook-url",
+                "https://discord.com/api/webhooks/123/secret?wait=true",
+                "--discord-username",
+                "Max",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["content"] == "[Max] MCP Test Framework"
+        assert payload["embeds"][0]["title"] == "MCP Test Framework"
+        MockPublisher.from_env.assert_called_once_with(
+            webhook_url="https://discord.com/api/webhooks/123/secret?wait=true",
+            username="Max",
+            timeout=10.0,
+        )
+        publisher.publish.assert_called_once()
+        assert publisher.publish.call_args.kwargs["dry_run"] is True
+        store.insert_publication_attempt.assert_not_called()
+
+    @patch("max.publisher.discord_webhook.DiscordWebhookPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_discord_records_failure_with_redacted_url(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.from_env.return_value
+        publisher.redacted_url = "https://discord.com/api/webhooks/123/[redacted]"
+        publisher.publish.side_effect = DiscordWebhookPublishError(
+            "Discord webhook publish failed with HTTP 400: invalid",
+            status_code=400,
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "discord",
+                "--webhook-url",
+                "https://discord.com/api/webhooks/123/secret",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "Discord webhook publish failed with HTTP 400" in result.output
+        assert "secret" not in result.output
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="discord_webhook",
+            target_url="https://discord.com/api/webhooks/123/[redacted]",
+            status="failure",
+            response_status=400,
+            error="Discord webhook publish failed with HTTP 400: invalid",
+        )
 
 
 class TestDomainQualityCommands:

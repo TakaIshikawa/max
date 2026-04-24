@@ -2189,6 +2189,146 @@ def test_publish_idea_to_slack_missing_idea_does_not_call_webhook(
     assert resp.status_code == 404
 
 
+def test_publish_idea_to_discord_dry_run_returns_payload_without_attempt(
+    seeded_client,
+    seeded_db,
+) -> None:
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/discord",
+        json={
+            "webhook_url": "https://discord.com/api/webhooks/123/secret?wait=true",
+            "username": "Max",
+            "dry_run": True,
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["dry_run"] is True
+    assert data["response_status"] is None
+    assert data["publication_attempt"] is None
+    assert data["target_url"] == "https://discord.com/api/webhooks/123/[redacted]?[redacted]"
+    assert "secret" not in data["target_url"]
+    assert data["payload"]["username"] == "Max"
+    assert data["payload"]["embeds"][0]["title"] == "Test Idea"
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        assert store.list_publication_attempts("bu-api001") == []
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_discord_success_records_publication_attempt(
+    seeded_client,
+    seeded_db,
+    monkeypatch,
+) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(204, text="")
+
+    def publisher_from_env(**kwargs):
+        from max.publisher.discord_webhook import DiscordWebhookPublisher
+
+        return DiscordWebhookPublisher(
+            kwargs["webhook_url"],
+            username=kwargs.get("username"),
+            timeout=kwargs["timeout"],
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+    monkeypatch.setattr("max.server.api.DiscordWebhookPublisher.from_env", publisher_from_env)
+
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/discord",
+        json={"webhook_url": "https://discord.com/api/webhooks/123/secret"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["dry_run"] is False
+    assert data["response_status"] == 204
+    assert data["publication_attempt"]["target_type"] == "discord_webhook"
+    assert data["publication_attempt"]["status"] == "success"
+    assert data["publication_attempt"]["target_url"] == "https://discord.com/api/webhooks/123/[redacted]"
+    assert len(requests) == 1
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        attempts = store.list_publication_attempts("bu-api001")
+        assert len(attempts) == 1
+        assert attempts[0]["status"] == "success"
+        assert attempts[0]["target_type"] == "discord_webhook"
+        assert attempts[0]["target_url"] == "https://discord.com/api/webhooks/123/[redacted]"
+        assert "secret" not in attempts[0]["target_url"]
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_discord_error_records_failed_attempt(
+    seeded_client,
+    seeded_db,
+    monkeypatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, text='{"message":"Invalid Form Body"}')
+
+    def publisher_from_env(**kwargs):
+        from max.publisher.discord_webhook import DiscordWebhookPublisher
+
+        return DiscordWebhookPublisher(
+            kwargs["webhook_url"],
+            username=kwargs.get("username"),
+            timeout=kwargs["timeout"],
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+    monkeypatch.setattr("max.server.api.DiscordWebhookPublisher.from_env", publisher_from_env)
+
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/discord",
+        json={"webhook_url": "https://discord.com/api/webhooks/123/secret"},
+    )
+
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["publication_attempt"]["status"] == "failure"
+    assert detail["publication_attempt"]["target_type"] == "discord_webhook"
+    assert detail["publication_attempt"]["target_url"] == "https://discord.com/api/webhooks/123/[redacted]"
+    assert "Invalid Form Body" in detail["message"]
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        attempts = store.list_publication_attempts("bu-api001")
+        assert len(attempts) == 1
+        assert attempts[0]["status"] == "failure"
+        assert attempts[0]["response_status"] == 400
+        assert attempts[0]["target_url"] == "https://discord.com/api/webhooks/123/[redacted]"
+        assert "secret" not in attempts[0]["target_url"]
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_discord_missing_idea_does_not_call_webhook(
+    client,
+    monkeypatch,
+) -> None:
+    def publisher_from_env(**kwargs):
+        raise AssertionError("missing ideas should not initialize or call the webhook")
+
+    monkeypatch.setattr("max.server.api.DiscordWebhookPublisher.from_env", publisher_from_env)
+
+    resp = client.post(
+        "/api/v1/ideas/nonexistent/publish/discord",
+        json={"webhook_url": "https://discord.com/api/webhooks/123/secret"},
+    )
+
+    assert resp.status_code == 404
+
+
 def test_check_idea_prior_art_runs_checker(client, db_path):
     store = Store(db_path=db_path, wal_mode=True)
     unit = BuildableUnit(
