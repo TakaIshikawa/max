@@ -4185,6 +4185,61 @@ def test_compare_pipeline_runs_endpoint_missing_run_returns_404(client, db_path)
     assert resp.json()["detail"]["missing_run_ids"] == ["run-not-found"]
 
 
+def test_pipeline_replay_plan_endpoint(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_pipeline_run(
+            "run-replay-api",
+            {
+                "profile": "devtools",
+                "signal_limit": 25,
+                "min_score": 60.0,
+                "weight_profile": "default",
+                "ideation_mode": "direct",
+                "quality_loop_enabled": False,
+                "draft_count": 8,
+            },
+        )
+        store.update_pipeline_run(
+            "run-replay-api",
+            signals_fetched=6,
+            signals_new=5,
+            insights_generated=2,
+            ideas_generated=1,
+            ideas_evaluated=1,
+            fetch_allocation={"github": 15},
+            adapter_metrics={
+                "github": {
+                    "status": "ok",
+                    "signal_count": 6,
+                    "error_message": None,
+                    "duration_ms": 40,
+                }
+            },
+            status="completed",
+        )
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/pipeline/runs/run-replay-api/replay-plan")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["run"]["id"] == "run-replay-api"
+    assert data["profile"]["name"] == "devtools"
+    assert data["original_metrics"]["signals_fetched"] == 6
+    assert data["adapter_metrics"]["github"]["status"] == "ok"
+    assert data["recommended_source_limits"]["github"] == 15
+    assert "--dry-run" in data["dry_run_commands"]["cli"]
+
+
+def test_pipeline_replay_plan_endpoint_missing_run_returns_404(client):
+    resp = client.get("/api/v1/pipeline/runs/run-not-found/replay-plan")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["run_id"] == "run-not-found"
+
+
 def test_llm_usage_aggregates_pipeline_runs(pipeline_runs_client):
     resp = pipeline_runs_client.get("/api/v1/usage/llm")
     assert resp.status_code == 200

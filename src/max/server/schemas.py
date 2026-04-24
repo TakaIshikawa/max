@@ -1684,6 +1684,65 @@ class PipelineRunComparisonResponse(BaseModel):
     adapter_metrics: list[PipelineRunAdapterDeltaResponse]
 
 
+class PipelineReplayRunResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None = None
+    status: str
+
+
+class PipelineReplayProfileResponse(BaseModel):
+    name: str | None = None
+    found: bool
+    domain: str | None = None
+    signal_limit: int | None = None
+    min_score: float | None = None
+    weight_profile: str | None = None
+    ideation_mode: str | None = None
+    quality_loop_enabled: bool | None = None
+    draft_count: int | None = None
+
+
+class PipelineReplayOriginalMetricsResponse(BaseModel):
+    signals_fetched: int
+    signals_new: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    clusters_found: int
+    gaps_detected: int
+    avg_idea_score: float
+    fetch_allocation: dict[str, int] = Field(default_factory=dict)
+    token_usage: dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineReplayAdapterInputResponse(BaseModel):
+    adapter: str
+    enabled: bool
+    weight: float | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    observed_status: str | None = None
+    observed_signal_count: int
+    recommended_limit: int | None = None
+
+
+class PipelineReplayDryRunCommandResponse(BaseModel):
+    cli: str
+    api: dict[str, Any]
+
+
+class PipelineReplayPlanResponse(BaseModel):
+    run: PipelineReplayRunResponse
+    profile: PipelineReplayProfileResponse
+    original_config: dict[str, Any] = Field(default_factory=dict)
+    original_metrics: PipelineReplayOriginalMetricsResponse
+    adapter_inputs: list[PipelineReplayAdapterInputResponse]
+    adapter_metrics: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    recommended_source_limits: dict[str, int] = Field(default_factory=dict)
+    dry_run_commands: PipelineReplayDryRunCommandResponse
+    warnings: list[str] = Field(default_factory=list)
+
+
 class StageSummaryResponse(BaseModel):
     name: str
     would_process: int

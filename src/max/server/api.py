@@ -47,6 +47,10 @@ from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
 )
+from max.analysis.pipeline_replay import (
+    PipelineReplayRunNotFound,
+    build_pipeline_replay_plan,
+)
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.revision_brief import build_revision_brief
 from max.analysis.review_gate import build_review_gate_decision
@@ -145,6 +149,7 @@ from max.server.schemas import (
     PipelinePostRunRequest,
     PipelinePostRunResponse,
     PipelineRunComparisonResponse,
+    PipelineReplayPlanResponse,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
     PipelineRunRequest,
@@ -272,6 +277,29 @@ def compare_pipeline_runs_endpoint(
             },
         ) from exc
     return PipelineRunComparisonResponse.model_validate(comparison)
+
+
+@router.get("/pipeline/runs/{run_id}/replay-plan", response_model=PipelineReplayPlanResponse)
+def get_pipeline_replay_plan(
+    run_id: str,
+    profile_name: str | None = Query(default=None, min_length=1),
+    store: Store = Depends(get_store),
+) -> PipelineReplayPlanResponse:
+    try:
+        plan = build_pipeline_replay_plan(
+            store,
+            run_id=run_id,
+            profile_name=profile_name,
+        )
+    except PipelineReplayRunNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "Pipeline run ID not found",
+                "run_id": exc.run_id,
+            },
+        ) from exc
+    return PipelineReplayPlanResponse.model_validate(plan)
 
 
 # ── LLM Usage ───────────────────────────────────────────────────────
