@@ -24,6 +24,11 @@ from max.analysis.contradictions import (
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
+from max.analysis.mcp_capability_coverage import (
+    DEFAULT_LIMIT_REPRESENTATIVES,
+    DEFAULT_MIN_COUNT,
+    build_mcp_capability_coverage_report,
+)
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.profile_drift import (
@@ -124,6 +129,7 @@ from max.server.schemas import (
     LineageGraphResponse,
     PaginatedResponse,
     PaginationMeta,
+    MCPCapabilityCoverageResponse,
     PipelineAggregateResultResponse,
     PipelineDryRunRequest,
     PipelinePostRunRequest,
@@ -1105,6 +1111,24 @@ def get_source_reliability(
 ) -> SourceReliabilityResponse:
     report = build_source_reliability_report(store, signal_limit=signal_limit)
     return SourceReliabilityResponse.model_validate(report.to_dict())
+
+
+@router.get("/mcp/capability-coverage", response_model=MCPCapabilityCoverageResponse)
+def get_mcp_capability_coverage(
+    domain: str | None = Query(default=None, min_length=1),
+    min_count: int = Query(DEFAULT_MIN_COUNT, ge=1, le=10_000),
+    limit_representatives: int = Query(DEFAULT_LIMIT_REPRESENTATIVES, ge=0, le=100),
+    source_adapter: str | None = Query(default=None, min_length=1),
+    store: Store = Depends(get_store),
+) -> MCPCapabilityCoverageResponse:
+    report = build_mcp_capability_coverage_report(
+        store,
+        domain=domain,
+        min_count=min_count,
+        limit_representatives=limit_representatives,
+        source_adapter=source_adapter,
+    )
+    return MCPCapabilityCoverageResponse.model_validate(report.to_dict())
 
 
 @router.post("/signals", response_model=SignalCreateResponse, status_code=201)

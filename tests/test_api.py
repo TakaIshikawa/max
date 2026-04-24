@@ -633,6 +633,113 @@ def test_get_profile_coverage_gaps_returns_404_for_unknown_profile(client):
     assert resp.json()["detail"] == "Profile not found: missing"
 
 
+def test_get_mcp_capability_coverage_returns_schema_backed_report(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-api-mcp-files",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="mcp_registry",
+            title="Filesystem MCP server",
+            content="Read files and folders",
+            url="https://example.com/api-mcp-files",
+            tags=["mcp", "filesystem"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-api-mcp-browser",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="npm_registry",
+            title="Browser MCP automation",
+            content="Playwright browser automation",
+            url="https://example.com/api-mcp-browser",
+            tags=["mcp", "browser"],
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-api-mcp-finance",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="github",
+            title="Finance MCP",
+            content="Payments, ledger, and portfolio workflow",
+            url="https://example.com/api-mcp-finance",
+            tags=["mcp", "finance"],
+            metadata={"domain": "finance"},
+        )
+    )
+    store.close()
+
+    resp = client.get(
+        "/api/v1/mcp/capability-coverage",
+        params={"min_count": 2, "limit_representatives": 1},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_signals"] == 3
+    assert data["min_count"] == 2
+    assert data["limit_representatives"] == 1
+    by_category = {category["category"]: category for category in data["categories"]}
+    assert by_category["filesystem"]["total_count"] == 1
+    assert by_category["filesystem"]["percentage"] == 33.3
+    assert by_category["filesystem"]["source_adapters"] == {"mcp_registry": 1}
+    assert by_category["browser"]["representative_signal_ids"] == ["sig-api-mcp-browser"]
+    assert "finance" in data["undercovered_categories"]
+    by_adapter = {adapter["source_adapter"]: adapter for adapter in data["top_source_adapters"]}
+    assert by_adapter["github"]["categories"] == {"finance": 1}
+
+
+def test_get_mcp_capability_coverage_filters_and_validates_query_params(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    store.insert_signal(
+        Signal(
+            id="sig-api-mcp-healthcare",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="awesome_lists",
+            title="Healthcare MCP",
+            content="FHIR patient records",
+            url="https://example.com/api-mcp-healthcare",
+            tags=["mcp", "healthcare"],
+            metadata={"domain": "healthcare"},
+        )
+    )
+    store.insert_signal(
+        Signal(
+            id="sig-api-mcp-data",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="npm_registry",
+            title="Data MCP",
+            content="Postgres database analytics",
+            url="https://example.com/api-mcp-data",
+            tags=["mcp", "data"],
+            metadata={"domain": "analytics"},
+        )
+    )
+    store.close()
+
+    resp = client.get(
+        "/api/v1/mcp/capability-coverage",
+        params={"domain": "healthcare", "source_adapter": "awesome_lists"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_signals"] == 1
+    assert data["domain"] == "healthcare"
+    assert data["source_adapter_filter"] == "awesome_lists"
+    by_category = {category["category"]: category for category in data["categories"]}
+    assert by_category["healthcare"]["total_count"] == 1
+    assert by_category["data"]["total_count"] == 0
+
+    assert client.get("/api/v1/mcp/capability-coverage?min_count=0").status_code == 422
+    assert (
+        client.get("/api/v1/mcp/capability-coverage?limit_representatives=-1").status_code
+        == 422
+    )
+
+
 def test_get_profile_source_recommendations_response_shape(client):
     from max.profiles.schema import DomainContext, PipelineProfile, SourceConfig
 
