@@ -2214,6 +2214,35 @@ class PipelineRunComparisonResponse(BaseModel):
     adapter_metrics: list[PipelineRunAdapterDeltaResponse]
 
 
+class PipelineCostAnomalyStageResponse(BaseModel):
+    stage: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+
+
+class PipelineCostAnomalyResponse(BaseModel):
+    run_id: str
+    profile: str | None = None
+    started_at: str
+    total_tokens: int
+    estimated_cost_usd: float
+    baseline_cost_usd: float
+    multiplier: float
+    anomaly_reasons: list[str] = Field(default_factory=list)
+    top_stage_metrics: list[PipelineCostAnomalyStageResponse] = Field(default_factory=list)
+
+
+class PipelineCostAnomalyReportResponse(BaseModel):
+    limit: int
+    baseline_window: int
+    min_cost_usd: float
+    multiplier_threshold: float
+    anomaly_count: int
+    anomalies: list[PipelineCostAnomalyResponse] = Field(default_factory=list)
+
+
 class PipelineReplayRunResponse(BaseModel):
     id: str
     started_at: str

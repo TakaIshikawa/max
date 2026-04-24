@@ -70,6 +70,13 @@ from max.analysis.pipeline_replay import (
     PipelineReplayRunNotFound,
     build_pipeline_replay_plan,
 )
+from max.analysis.pipeline_cost_anomalies import (
+    DEFAULT_BASELINE_WINDOW as DEFAULT_COST_ANOMALY_BASELINE_WINDOW,
+    DEFAULT_LIMIT as DEFAULT_COST_ANOMALY_LIMIT,
+    DEFAULT_MIN_COST_USD as DEFAULT_COST_ANOMALY_MIN_COST_USD,
+    DEFAULT_MULTIPLIER_THRESHOLD as DEFAULT_COST_ANOMALY_MULTIPLIER_THRESHOLD,
+    build_pipeline_cost_anomaly_report,
+)
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.revision_brief import build_revision_brief
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
@@ -191,6 +198,7 @@ from max.server.schemas import (
     NotionPagePublishRequest,
     NotionPagePublishResponse,
     PipelineAggregateResultResponse,
+    PipelineCostAnomalyReportResponse,
     PipelineDryRunRequest,
     PipelinePostRunRequest,
     PipelinePostRunResponse,
@@ -295,6 +303,24 @@ def health_check(request: Request, store: Store = Depends(get_store)) -> HealthR
 
 
 # ── Pipeline Run History ────────────────────────────────────────────
+
+
+@router.get("/pipeline/cost-anomalies", response_model=PipelineCostAnomalyReportResponse)
+def get_pipeline_cost_anomalies(
+    limit: int = Query(DEFAULT_COST_ANOMALY_LIMIT, ge=1, le=500),
+    baseline_window: int = Query(DEFAULT_COST_ANOMALY_BASELINE_WINDOW, ge=1, le=100),
+    min_cost_usd: float = Query(DEFAULT_COST_ANOMALY_MIN_COST_USD, ge=0.0),
+    multiplier_threshold: float = Query(DEFAULT_COST_ANOMALY_MULTIPLIER_THRESHOLD, gt=0.0),
+    store: Store = Depends(get_store),
+) -> PipelineCostAnomalyReportResponse:
+    report = build_pipeline_cost_anomaly_report(
+        store,
+        limit=limit,
+        baseline_window=baseline_window,
+        min_cost_usd=min_cost_usd,
+        multiplier_threshold=multiplier_threshold,
+    )
+    return PipelineCostAnomalyReportResponse.model_validate(report)
 
 
 @router.get("/pipeline/runs", response_model=list[PipelineRunHistoryResponse])
