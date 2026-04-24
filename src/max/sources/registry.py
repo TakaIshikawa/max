@@ -43,6 +43,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
+    "agent_failure_dataset": "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "gitlab_merge_requests": "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter",
@@ -162,6 +163,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches GitHub Actions workflow failures from configured repositories.",
+    ),
+    "agent_failure_dataset": AdapterMetadata(
+        name="agent_failure_dataset",
+        config_keys=[
+            "local_paths",
+            "dataset_urls",
+            "format",
+            "failure_type_filters",
+            "min_severity",
+            "max_rows",
+        ],
+        required_keys=[],
+        description="Reads agent benchmark and incident failure datasets as normalized failure_data signals.",
     ),
     "github_discussions": AdapterMetadata(
         name="github_discussions",
