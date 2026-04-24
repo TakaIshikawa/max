@@ -82,6 +82,7 @@ from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhoo
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
+from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
 from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
@@ -177,6 +178,8 @@ from max.server.schemas import (
     PaginatedResponse,
     PaginationMeta,
     MCPCapabilityCoverageResponse,
+    NotionPagePublishRequest,
+    NotionPagePublishResponse,
     PipelineAggregateResultResponse,
     PipelineDryRunRequest,
     PipelinePostRunRequest,
@@ -3231,6 +3234,60 @@ def get_design_brief_markdown(
     return Response(
         content=render_design_brief_markdown(brief),
         media_type="text/markdown",
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/notion",
+    response_model=NotionPagePublishResponse,
+)
+def publish_design_brief_to_notion(
+    brief_id: str,
+    request: NotionPagePublishRequest,
+    store: Store = Depends(get_store),
+) -> NotionPagePublishResponse:
+    from max.analysis.blueprint_export import build_blueprint_source_brief
+    from max.analysis.portfolio_synthesis import render_design_brief_markdown
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = NotionPagePublisher.from_env(
+            token=request.token,
+            parent_page_id=request.parent_page_id,
+            parent_database_id=request.parent_database_id,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except NotionPagePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    markdown = render_design_brief_markdown(brief, title=request.title)
+    blueprint_packet = build_blueprint_source_brief(store, brief)
+    try:
+        result = publisher.publish(
+            blueprint_packet,
+            markdown=markdown,
+            title=request.title,
+            dry_run=request.dry_run,
+        )
+    except NotionPagePublishError as exc:
+        status_code = exc.status_code
+        if status_code in {400, 401, 403, 404, 409}:
+            http_status = status_code
+        else:
+            http_status = 502
+        raise HTTPException(status_code=http_status, detail=str(exc)) from exc
+
+    return NotionPagePublishResponse(
+        design_brief_id=brief_id,
+        page_id=result.page_id,
+        page_url=result.page_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
     )
 
 

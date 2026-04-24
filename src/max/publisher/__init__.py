@@ -21,6 +21,13 @@ from max.publisher.jira_issues import (
     JiraIssuePublishResult,
     JiraIssuesPublisher,
 )
+from max.publisher.notion_pages import (
+    NotionPagePayload,
+    NotionPagePublisher,
+    NotionPagePublishError,
+    NotionPagePublishResult,
+    NotionPagesPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -49,6 +56,11 @@ __all__ = [
     "JiraIssuePublishError",
     "JiraIssuePublishResult",
     "JiraIssuesPublisher",
+    "NotionPagePayload",
+    "NotionPagePublisher",
+    "NotionPagePublishError",
+    "NotionPagePublishResult",
+    "NotionPagesPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",

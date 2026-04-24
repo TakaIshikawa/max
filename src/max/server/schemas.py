@@ -205,6 +205,16 @@ class JiraIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class NotionPagePublishRequest(BaseModel):
+    token: str | None = None
+    parent_page_id: str | None = None
+    parent_database_id: str | None = None
+    title: str | None = None
+    dry_run: bool = False
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
 
 
@@ -1157,6 +1167,15 @@ class JiraIssuePublishResponse(BaseModel):
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
+
+
+class NotionPagePublishResponse(BaseModel):
+    design_brief_id: str
+    page_id: str | None = None
+    page_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
 
 
 class EvidenceChainEdgeResponse(BaseModel):
