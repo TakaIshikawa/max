@@ -284,7 +284,7 @@ from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
-from max.spec.launch_checklist import generate_launch_checklist
+from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.risk_register import generate_risk_register
 from max.analysis.review_gate import build_review_gate_decision
@@ -3069,6 +3069,24 @@ def get_idea_launch_checklist(
     tact_spec = generate_spec_preview(unit, evaluation)
     return LaunchChecklistResponse.model_validate(
         generate_launch_checklist(unit, evaluation, tact_spec)
+    )
+
+
+@router.get("/ideas/{idea_id}/launch-checklist.md", response_model=None)
+def get_idea_launch_checklist_markdown(
+    idea_id: str, store: Store = Depends(get_store)
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    checklist = generate_launch_checklist(unit, evaluation, tact_spec)
+    filename = f"{_download_filename_part(idea_id)}-launch-checklist.md"
+    return Response(
+        content=render_launch_checklist_markdown(checklist),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

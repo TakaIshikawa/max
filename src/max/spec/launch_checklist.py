@@ -51,6 +51,67 @@ def generate_launch_checklist(
     }
 
 
+def render_launch_checklist_markdown(checklist: dict[str, Any]) -> str:
+    """Render a generated launch checklist as a markdown handoff document."""
+    summary = checklist.get("summary", {})
+    source = checklist.get("source", {})
+
+    lines = [
+        f"# {_text(summary.get('title')) or checklist.get('idea_id', 'Launch Checklist')} Launch Checklist",
+        "",
+        f"- Schema version: {_text(checklist.get('schema_version'))}",
+        f"- Idea ID: {_text(checklist.get('idea_id'))}",
+        f"- Source status: {_text(source.get('status'))}",
+        f"- Launch gate: {_text(summary.get('launch_gate'))}",
+        f"- Recommendation: {_text(summary.get('recommendation')) or 'none'}",
+        f"- Overall score: {_text(summary.get('overall_score')) or 'none'}",
+        f"- Target user: {_text(summary.get('target_user'))}",
+        f"- Buyer: {_text(summary.get('buyer'))}",
+        f"- Workflow context: {_text(summary.get('workflow_context'))}",
+        "",
+    ]
+
+    one_liner = _text(summary.get("one_liner"))
+    if one_liner:
+        lines.extend([one_liner, ""])
+
+    for section in checklist.get("sections", []):
+        lines.extend([f"## {_text(section.get('title'))}", ""])
+        description = _text(section.get("description"))
+        if description:
+            lines.extend([description, ""])
+        for item in section.get("items", []):
+            label = _text(item.get("id"))
+            task = _text(item.get("task"))
+            heading = f"### {label}: {task}" if label else f"### {task}"
+            lines.extend(
+                [
+                    heading,
+                    "",
+                    f"- Status: {_text(item.get('status'))}",
+                    f"- Owner: {_text(item.get('owner'))}",
+                    f"- Required: {_text(item.get('required'))}",
+                    f"- Rationale: {_text(item.get('rationale'))}",
+                    f"- Evidence: {_text(item.get('evidence'))}",
+                    "",
+                ]
+            )
+
+    lines.extend(["## Risks", ""])
+    risks = checklist.get("risks") or []
+    if risks:
+        for risk in risks:
+            lines.append(
+                f"- [{_text(risk.get('source'))}] {_text(risk.get('description'))} "
+                f"Mitigation: {_text(risk.get('mitigation'))}"
+            )
+    else:
+        lines.append("No risks were listed.")
+    lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _sections(
     unit: BuildableUnit,
     evaluation: UtilityEvaluation | None,
@@ -333,3 +394,9 @@ def _compact(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split())
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
