@@ -64,6 +64,11 @@ from max.analysis.mcp_quality_certification import (
     MCPQualityCertificationNotFound,
     build_mcp_quality_certification_report,
 )
+from max.analysis.openapi_mcp_candidates import (
+    DEFAULT_MIN_SCORE as DEFAULT_OPENAPI_MCP_MIN_SCORE,
+    DEFAULT_SIGNAL_LIMIT as DEFAULT_OPENAPI_MCP_SIGNAL_LIMIT,
+    build_openapi_mcp_candidate_report,
+)
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.analysis.profile_drift import (
@@ -245,6 +250,7 @@ from max.server.schemas import (
     MCPQualityCertificationResponse,
     NotionPagePublishRequest,
     NotionPagePublishResponse,
+    OpenAPIMCPCandidateReportResponse,
     PipelineAggregateResultResponse,
     PipelineCostAnomalyReportResponse,
     PipelineDryRunRequest,
@@ -1480,6 +1486,22 @@ def get_mcp_capability_coverage(
         source_adapter=source_adapter,
     )
     return MCPCapabilityCoverageResponse.model_validate(report.to_dict())
+
+
+@router.get("/mcp/openapi-candidates", response_model=OpenAPIMCPCandidateReportResponse)
+def get_openapi_mcp_candidates(
+    domain: str | None = Query(default=None, min_length=1),
+    min_score: float = Query(DEFAULT_OPENAPI_MCP_MIN_SCORE, ge=0.0, le=100.0),
+    signal_limit: int = Query(DEFAULT_OPENAPI_MCP_SIGNAL_LIMIT, ge=1, le=10_000),
+    store: Store = Depends(get_store),
+) -> OpenAPIMCPCandidateReportResponse:
+    report = build_openapi_mcp_candidate_report(
+        store,
+        domain=domain,
+        min_score=min_score,
+        signal_limit=signal_limit,
+    )
+    return OpenAPIMCPCandidateReportResponse.model_validate(report.to_dict())
 
 
 @router.get("/mcp/quality-certification", response_model=MCPQualityCertificationResponse)

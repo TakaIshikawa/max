@@ -543,6 +543,36 @@ class MCPCapabilityCoverageResponse(BaseModel):
     top_source_adapters: list[MCPCapabilitySourceAdapterResponse]
 
 
+class OpenAPIMCPCandidateScoreComponentResponse(BaseModel):
+    name: str
+    score: float
+    weight: float
+    explanation: str
+
+
+class OpenAPIMCPCandidateResponse(BaseModel):
+    provider: str
+    api_name: str
+    domain: str
+    score: float
+    rank: int
+    existing_mcp_coverage: bool
+    coverage_signal_ids: list[str]
+    evidence_signal_ids: list[str]
+    source_adapters: dict[str, int]
+    score_components: list[OpenAPIMCPCandidateScoreComponentResponse]
+    implementation_complexity: str
+    explanation: str
+
+
+class OpenAPIMCPCandidateReportResponse(BaseModel):
+    generated_at: str
+    domain: str | None
+    min_score: float
+    total_candidates: int
+    candidates: list[OpenAPIMCPCandidateResponse]
+
+
 class MCPQualityEvidenceReferenceResponse(BaseModel):
     kind: str
     id: str
