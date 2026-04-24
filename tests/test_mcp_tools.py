@@ -1302,6 +1302,7 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert "get_validation_experiment" in FakeMCP.latest.tools
     assert "create_validation_experiment" in FakeMCP.latest.tools
     assert "update_validation_experiment" in FakeMCP.latest.tools
+    assert "get_pipeline_replay_plan" in FakeMCP.latest.tools
     assert (
         FakeMCP.latest.resources["ideas://{idea_id}/validation-experiments"]
         == "validation_experiments_for_idea_detail"
