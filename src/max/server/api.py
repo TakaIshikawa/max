@@ -133,6 +133,9 @@ from max.server.schemas import (
     LineageGraphEdgeResponse,
     LineageGraphNodeResponse,
     LineageGraphResponse,
+    MCPSecurityFindingImportResult,
+    MCPSecurityFindingsImportRequest,
+    MCPSecurityFindingsImportResponse,
     PaginatedResponse,
     PaginationMeta,
     MCPCapabilityCoverageResponse,
@@ -191,6 +194,7 @@ from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.risk_register import generate_risk_register
 from max.sources.base import snapshot_circuit_breakers
+from max.sources.mcp_security_import import signal_from_mcp_security_finding
 from max.sources.registry import list_adapter_metadata, list_adapters
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
@@ -1196,6 +1200,40 @@ def import_signals(
             results.append(SignalImportRowResult(index=index, duplicate_id=result.signal.id))
 
     return SignalImportResponse(
+        inserted_count=inserted_count,
+        duplicate_count=duplicate_count,
+        error_count=error_count,
+        results=results,
+    )
+
+
+@router.post("/security/mcp-findings/import", response_model=MCPSecurityFindingsImportResponse)
+def import_mcp_security_findings(
+    body: MCPSecurityFindingsImportRequest,
+    store: Store = Depends(get_store),
+) -> MCPSecurityFindingsImportResponse:
+    results: list[MCPSecurityFindingImportResult] = []
+    inserted_count = 0
+    duplicate_count = 0
+    error_count = 0
+
+    for index, finding in enumerate(body.findings):
+        try:
+            signal = signal_from_mcp_security_finding(finding)
+            result = store.insert_signal_result(signal)
+        except (TypeError, ValueError, ValidationError) as e:
+            error_count += 1
+            results.append(MCPSecurityFindingImportResult(index=index, error=str(e)))
+            continue
+
+        if result.created:
+            inserted_count += 1
+            results.append(MCPSecurityFindingImportResult(index=index, signal_id=result.signal.id))
+        else:
+            duplicate_count += 1
+            results.append(MCPSecurityFindingImportResult(index=index, duplicate_id=result.signal.id))
+
+    return MCPSecurityFindingsImportResponse(
         inserted_count=inserted_count,
         duplicate_count=duplicate_count,
         error_count=error_count,

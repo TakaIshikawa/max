@@ -985,6 +985,42 @@ def test_import_signals_reports_inserted_duplicate_and_invalid_rows(client):
     assert item["metadata"] == {"channel": "api", "signal_role": "problem"}
 
 
+def test_import_mcp_security_findings_appears_in_signals_api(client):
+    resp = client.post(
+        "/api/v1/security/mcp-findings/import",
+        json={
+            "findings": [
+                {
+                    "scanner": "mcp-scan",
+                    "server_name": "github-mcp",
+                    "package_name": "github-mcp-server",
+                    "package_version": "0.4.0",
+                    "severity": "medium",
+                    "finding_type": "overbroad_token_scope",
+                    "title": "GitHub token has broad repository scope",
+                    "description": "Scanner detected repository write permissions beyond the MCP server's declared tools.",
+                    "evidence_url": "https://scanner.example/findings/github-1",
+                    "discovered_at": "2026-04-24T12:00:00Z",
+                    "remediation": "Use a token limited to read-only repository metadata.",
+                }
+            ]
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["inserted_count"] == 1
+    signal_id = data["results"][0]["signal_id"]
+
+    list_resp = client.get("/api/v1/signals?source_adapter=mcp_security_import")
+    assert list_resp.status_code == 200
+    item = list_resp.json()["items"][0]
+    assert item["id"] == signal_id
+    assert item["source_type"] == "security"
+    assert item["metadata"]["scanner"] == "mcp-scan"
+    assert item["metadata"]["package_name"] == "github-mcp-server"
+
+
 def test_list_signals_after_create(client):
     client.post(
         "/api/v1/signals",

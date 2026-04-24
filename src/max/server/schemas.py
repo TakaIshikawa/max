@@ -51,6 +51,24 @@ class SignalImportRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class MCPSecurityFindingImportRow(BaseModel):
+    scanner: Any = None
+    server_name: Any = None
+    package_name: Any = None
+    package_version: Any = None
+    severity: Any = None
+    finding_type: Any = None
+    title: Any = None
+    description: Any = None
+    evidence_url: Any = None
+    discovered_at: Any = None
+    remediation: Any = None
+
+
+class MCPSecurityFindingsImportRequest(BaseModel):
+    findings: list[MCPSecurityFindingImportRow] = Field(min_length=1)
+
+
 class InsightCreate(BaseModel):
     category: str = "emerging_pattern"
     title: str
@@ -234,6 +252,20 @@ class SignalImportResponse(BaseModel):
     duplicate_count: int
     error_count: int
     results: list[SignalImportRowResult]
+
+
+class MCPSecurityFindingImportResult(BaseModel):
+    index: int
+    signal_id: str | None = None
+    duplicate_id: str | None = None
+    error: str | None = None
+
+
+class MCPSecurityFindingsImportResponse(BaseModel):
+    inserted_count: int
+    duplicate_count: int
+    error_count: int
+    results: list[MCPSecurityFindingImportResult]
 
 
 class SignalFreshnessGroupResponse(BaseModel):
