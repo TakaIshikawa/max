@@ -27,6 +27,7 @@ from max.analysis.contradictions import (
     build_insight_contradiction_report,
 )
 from max.analysis.context_budget import build_context_budget_waste_report
+from max.analysis.customer_discovery import generate_customer_discovery_script
 from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
 )
@@ -124,6 +125,7 @@ from max.server.schemas import (
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
     ContextBudgetWasteResponse,
+    CustomerDiscoveryScriptResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefMarketSizingResponse,
@@ -2110,6 +2112,29 @@ def list_validation_experiments(
     if experiments is None:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return [ValidationExperimentResponse(**experiment) for experiment in experiments]
+
+
+@router.get(
+    "/ideas/{idea_id}/customer-discovery-script",
+    response_model=CustomerDiscoveryScriptResponse,
+)
+def get_customer_discovery_script(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> CustomerDiscoveryScriptResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    experiments = store.list_validation_experiments(idea_id) or []
+    return CustomerDiscoveryScriptResponse.model_validate(
+        generate_customer_discovery_script(
+            unit,
+            evaluation=store.get_evaluation(idea_id),
+            evidence_density=build_evidence_density_report(unit, store),
+            validation_experiments=experiments,
+        )
+    )
 
 
 @router.get(

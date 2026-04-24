@@ -680,6 +680,50 @@ class ValidationExperimentSummaryResponse(BaseModel):
     top_follow_up_actions: list[ValidationExperimentFollowUpActionResponse]
 
 
+class CustomerDiscoveryQuestionResponse(BaseModel):
+    prompt: str
+    rationale: str
+    source: str
+
+
+class CustomerDiscoveryScreeningSectionResponse(BaseModel):
+    goal: str
+    questions: list[CustomerDiscoveryQuestionResponse]
+
+
+class CustomerDiscoveryInterviewSectionResponse(BaseModel):
+    goal: str
+    questions: list[CustomerDiscoveryQuestionResponse]
+    demo_prompts: list[str]
+    disconfirming_questions: list[CustomerDiscoveryQuestionResponse]
+
+
+class CustomerDiscoveryFollowUpSectionResponse(BaseModel):
+    goal: str
+    artifacts: list[str]
+    success_signals: list[str]
+
+
+class CustomerDiscoverySectionsResponse(BaseModel):
+    screening: CustomerDiscoveryScreeningSectionResponse
+    interview: CustomerDiscoveryInterviewSectionResponse
+    follow_up: CustomerDiscoveryFollowUpSectionResponse
+
+
+class CustomerDiscoveryScriptResponse(BaseModel):
+    idea_id: str
+    idea_title: str
+    interview_goals: list[str]
+    target_respondent_profiles: list[str]
+    screening_questions: list[CustomerDiscoveryQuestionResponse]
+    discovery_questions: list[CustomerDiscoveryQuestionResponse]
+    demo_prompts: list[str]
+    disconfirming_questions: list[CustomerDiscoveryQuestionResponse]
+    success_signals: list[str]
+    follow_up_artifacts: list[str]
+    sections: CustomerDiscoverySectionsResponse
+
+
 class IdeaMemoryResponse(BaseModel):
     id: str
     buildable_unit_id: str | None = None
