@@ -1,0 +1,35 @@
+"""Focused registry metadata tests for newly documented adapters."""
+
+from __future__ import annotations
+
+from unittest.mock import patch
+
+from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters, reload_registry
+
+
+def test_go_packages_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "go_packages"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["go_packages"]
+        adapter = get_adapter("go_packages")
+
+    assert adapter.name == "go_packages"
+
+
+def test_go_packages_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "go_packages"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"go_packages"}
+    assert metadata["go_packages"].config_keys == [
+        "queries",
+        "max_results",
+        "min_imported_by",
+        "include_stdlib",
+    ]
+    assert metadata["go_packages"].required_keys == []
+    assert "pkg.go.dev" in metadata["go_packages"].description

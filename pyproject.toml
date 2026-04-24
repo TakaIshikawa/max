@@ -72,6 +72,7 @@ openssf_scorecard = "max.sources.openssf_scorecard:OpenSSFScorecardAdapter"
 cncf_landscape = "max.sources.cncf_landscape:CncfLandscapeAdapter"
 open_vsx = "max.sources.open_vsx:OpenVsxAdapter"
 terraform_registry = "max.sources.terraform_registry:TerraformRegistryAdapter"
+go_packages = "max.sources.go_packages:GoPackagesAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]
