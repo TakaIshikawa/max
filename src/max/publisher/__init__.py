@@ -14,6 +14,13 @@ from max.publisher.github_gists import (
     GitHubGistPublishResult,
     GitHubGistsPublisher,
 )
+from max.publisher.gitlab_issues import (
+    GitLabIssuePayload,
+    GitLabIssuePublisher,
+    GitLabIssuePublishError,
+    GitLabIssuePublishResult,
+    GitLabIssuesPublisher,
+)
 from max.publisher.linear_issues import (
     LinearIssuePayload,
     LinearIssuePublisher,
@@ -77,6 +84,11 @@ __all__ = [
     "GitHubGistPublishError",
     "GitHubGistPublishResult",
     "GitHubGistsPublisher",
+    "GitLabIssuePayload",
+    "GitLabIssuePublisher",
+    "GitLabIssuePublishError",
+    "GitLabIssuePublishResult",
+    "GitLabIssuesPublisher",
     "LinearIssuePayload",
     "LinearIssuePublisher",
     "LinearIssuePublishError",

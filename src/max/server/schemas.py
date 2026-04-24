@@ -211,6 +211,21 @@ class GitHubIssuePublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class GitLabIssuePublishRequest(BaseModel):
+    project: str | None = Field(default=None, min_length=1)
+    project_id: str | None = Field(default=None, min_length=1)
+    project_path: str | None = Field(default=None, min_length=1)
+    token: str | None = None
+    base_url: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    assignee_ids: list[int] = Field(default_factory=list)
+    confidential: bool = False
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class GitHubGistPublishRequest(BaseModel):
     token: str | None = None
     api_url: str | None = None
@@ -1313,6 +1328,19 @@ class GitHubIssuePublishResponse(BaseModel):
     repository: str
     issue_url: str | None = None
     status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class GitLabIssuePublishResponse(BaseModel):
+    idea_id: str
+    project: str
+    issue_id: int | None = None
+    issue_iid: int | None = None
+    issue_url: str | None = None
+    status_code: int | None = None
+    attempts: int
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
