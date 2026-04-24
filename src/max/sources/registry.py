@@ -64,6 +64,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
+    "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
@@ -326,6 +327,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_pages"],
         required_keys=[],
         description="Searches RubyGems for Ruby packages matching configured query terms.",
+    ),
+    "packagist": AdapterMetadata(
+        name="packagist",
+        config_keys=["queries", "include_maintenance", "active_release_days"],
+        required_keys=[],
+        description="Searches Packagist for PHP packages and release maintenance signals.",
     ),
     "dockerhub": AdapterMetadata(
         name="dockerhub",
