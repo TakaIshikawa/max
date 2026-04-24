@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -306,6 +306,17 @@ CREATE TABLE IF NOT EXISTS embeddings (
     embedding TEXT NOT NULL,
     PRIMARY KEY (id, entity_type)
 );
+
+CREATE TABLE IF NOT EXISTS embeddings_metadata (
+    entity_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    embedded_at TEXT NOT NULL,
+    PRIMARY KEY (entity_id, entity_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_meta_type ON embeddings_metadata(entity_type);
+CREATE INDEX IF NOT EXISTS idx_embeddings_meta_embedded_at ON embeddings_metadata(embedded_at);
 
 CREATE TABLE IF NOT EXISTS publication_history (
     id TEXT PRIMARY KEY,
@@ -731,6 +742,26 @@ def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
+    """Add embeddings_metadata table for incremental embedding updates."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS embeddings_metadata (
+            entity_id TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            embedded_at TEXT NOT NULL,
+            PRIMARY KEY (entity_id, entity_type)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_embeddings_meta_type ON embeddings_metadata(entity_type)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_embeddings_meta_embedded_at ON embeddings_metadata(embedded_at)"
+    )
+    conn.commit()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create tables if they don't exist, apply migrations if needed."""
     conn.executescript(SCHEMA_SQL)
@@ -800,6 +831,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
     if current < 19:
         _migrate_v18_to_v19(conn)
+
+    if current < 20:
+        _migrate_v19_to_v20(conn)
 
     if current < SCHEMA_VERSION:
         conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
