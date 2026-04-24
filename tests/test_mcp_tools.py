@@ -24,6 +24,7 @@ from max.server.mcp_tools import (
     get_blast_radius,
     get_design_brief,
     get_design_brief_markdown,
+    get_design_brief_roadmap,
     get_design_brief_risk_register,
     get_design_brief_validation_plan,
     get_evidence_chain,
@@ -44,6 +45,7 @@ from max.server.mcp_tools import (
     set_schedule,
     set_scheduler_ref,
     set_store_factory,
+    design_brief_roadmap_detail,
     design_brief_risk_register_detail,
     design_brief_validation_plan_detail,
     spec_preview_detail,
@@ -828,6 +830,88 @@ def test_design_brief_risk_register_resource(seeded_design_brief_db):
     assert result["design_brief"]["id"] == seeded_design_brief_db
 
 
+def test_get_design_brief_roadmap_matches_rest_core_items(seeded_design_brief_db, mcp_db):
+    mcp_result = get_design_brief_roadmap(seeded_design_brief_db)
+
+    from max.server.dependencies import get_store
+
+    app = create_app()
+
+    def override_get_store():
+        store = Store(db_path=mcp_db, wal_mode=True)
+        try:
+            yield store
+        finally:
+            store.close()
+
+    app.dependency_overrides[get_store] = override_get_store
+    client = TestClient(app)
+    rest_result = client.get(
+        f"/api/v1/design-briefs/{seeded_design_brief_db}/roadmap"
+    ).json()
+
+    assert mcp_result["schema_version"] == "max.design_brief.roadmap.v1"
+    assert mcp_result["schema_version"] == rest_result["schema_version"]
+    assert mcp_result["design_brief"]["id"] == rest_result["design_brief"]["id"]
+    assert [phase["id"] for phase in mcp_result["phases"]] == [
+        phase["id"] for phase in rest_result["phases"]
+    ]
+    assert [
+        {
+            "id": item["id"],
+            "phase": item["phase"],
+            "title": item["title"],
+            "owner_role": item["owner_role"],
+            "dependency_ids": item["dependency_ids"],
+            "exit_criteria": item["exit_criteria"],
+            "source_idea_ids": item["source_idea_ids"],
+        }
+        for item in mcp_result["items"]
+    ] == [
+        {
+            "id": item["id"],
+            "phase": item["phase"],
+            "title": item["title"],
+            "owner_role": item["owner_role"],
+            "dependency_ids": item["dependency_ids"],
+            "exit_criteria": item["exit_criteria"],
+            "source_idea_ids": item["source_idea_ids"],
+        }
+        for item in rest_result["items"]
+    ]
+
+
+def test_get_design_brief_roadmap_markdown(seeded_design_brief_db):
+    result = get_design_brief_roadmap(seeded_design_brief_db, format="markdown")
+
+    assert result["id"] == seeded_design_brief_db
+    assert result["format"] == "markdown"
+    assert "# Roadmap: MCP Design Brief" in result["markdown"]
+    assert "Schema: `max.design_brief.roadmap.v1`" in result["markdown"]
+
+
+def test_get_design_brief_roadmap_not_found(mcp_db):
+    result = get_design_brief_roadmap("dbf-missing")
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "dbf-missing"
+
+
+def test_get_design_brief_roadmap_invalid_format(seeded_design_brief_db):
+    result = get_design_brief_roadmap(seeded_design_brief_db, format="yaml")
+    assert result["error"] == "Unsupported roadmap format: yaml"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "format"
+
+
+def test_design_brief_roadmap_resource(seeded_design_brief_db):
+    result = json.loads(design_brief_roadmap_detail(seeded_design_brief_db))
+
+    assert result["schema_version"] == "max.design_brief.roadmap.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+
+
 def test_max_portfolio_overlap_returns_serializable_clusters_sorted(mcp_db):
     store = Store(db_path=mcp_db, wal_mode=True)
     for unit in [
@@ -1197,6 +1281,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-risk-registers://{brief_id}"]
         == "design_brief_risk_register_detail"
+    )
+    assert "get_design_brief_roadmap" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-roadmaps://{brief_id}"]
+        == "design_brief_roadmap_detail"
     )
 
 

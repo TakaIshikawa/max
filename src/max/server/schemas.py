@@ -1329,6 +1329,35 @@ class DesignBriefRiskRegisterResponse(BaseModel):
     validation_actions: list[str]
 
 
+class DesignBriefRoadmapItemResponse(BaseModel):
+    id: str
+    phase: Literal["discovery", "prototype", "validation", "beta", "launch"]
+    title: str
+    rationale: str
+    owner_role: str
+    dependency_ids: list[str]
+    exit_criteria: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+
+
+class DesignBriefRoadmapPhaseResponse(BaseModel):
+    id: Literal["discovery", "prototype", "validation", "beta", "launch"]
+    title: str
+    goal: str
+    items: list[DesignBriefRoadmapItemResponse]
+
+
+class DesignBriefRoadmapResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    summary: dict
+    phases: list[DesignBriefRoadmapPhaseResponse]
+    items: list[DesignBriefRoadmapItemResponse]
+    source_ideas: list[dict]
+
+
 class DesignBriefMarketSegmentResponse(BaseModel):
     name: str
     buyer: str
