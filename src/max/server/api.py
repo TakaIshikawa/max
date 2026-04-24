@@ -44,6 +44,7 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
@@ -157,6 +158,7 @@ from max.server.schemas import (
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefMarketSizingResponse,
+    DesignBriefPrdResponse,
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
@@ -4466,6 +4468,37 @@ def get_design_brief_roadmap_markdown(
     filename = f"{_download_filename_part(brief_id)}-roadmap.md"
     return Response(
         content=render_design_brief_roadmap(roadmap, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/prd",
+    response_model=DesignBriefPrdResponse,
+)
+def get_design_brief_prd(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefPrdResponse:
+    prd = build_design_brief_prd(store, brief_id)
+    if not prd:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefPrdResponse(**prd)
+
+
+@router.get("/design-briefs/{brief_id}/prd.md", response_model=None)
+def get_design_brief_prd_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    prd = build_design_brief_prd(store, brief_id)
+    if not prd:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-prd.md"
+    return Response(
+        content=render_design_brief_prd(prd, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

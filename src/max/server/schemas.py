@@ -1712,6 +1712,22 @@ class DesignBriefRoadmapResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefPrdSectionResponse(BaseModel):
+    heading: str
+    content: str | list[str]
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefPrdResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    summary: dict
+    sections: dict[str, DesignBriefPrdSectionResponse]
+    source_ideas: list[dict]
+
+
 class DesignBriefCompetitorClusterResponse(BaseModel):
     id: str
     name: str
