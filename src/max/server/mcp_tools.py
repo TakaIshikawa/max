@@ -44,7 +44,6 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
-from max.analysis.review_gate import build_review_gate_decision
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
@@ -59,7 +58,13 @@ from max.server.errors import (
     ValidationError,
 )
 from max.server.evidence_chain import build_evidence_chain_graph
+from max.server.schemas import ValidationExperimentCreate, ValidationExperimentUpdate
 from max.store.db import Store
+
+try:
+    from pydantic import ValidationError as PydanticValidationError
+except ImportError:  # pragma: no cover - pydantic is a required runtime dependency
+    PydanticValidationError = ValueError  # type: ignore[misc,assignment]
 
 if TYPE_CHECKING:
     from max.server.scheduler import Scheduler
@@ -416,6 +421,8 @@ def get_review_gate_decision(
     Raises:
         ResourceNotFoundError: If the idea does not exist.
     """
+    from max.analysis.review_gate import build_review_gate_decision
+
     profile = {
         key: value
         for key, value in {
@@ -638,6 +645,114 @@ def get_design_brief_roadmap(brief_id: str, format: str = "json") -> dict:
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def list_validation_experiments(idea_id: str) -> dict:
+    """List validation experiments for an idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            experiments = store.list_validation_experiments(idea_id)
+            if experiments is None:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {idea_id}",
+                    resource_type="buildable_unit",
+                    resource_id=idea_id,
+                )
+            return {"idea_id": idea_id, "experiments": experiments}
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_validation_experiment(experiment_id: str) -> dict:
+    """Get one validation experiment by ID.
+
+    Raises:
+        ResourceNotFoundError: If the validation experiment does not exist.
+    """
+    try:
+        with _get_store() as store:
+            experiment = store.get_validation_experiment(experiment_id)
+            if experiment is None:
+                raise ResourceNotFoundError(
+                    f"Validation experiment not found: {experiment_id}",
+                    resource_type="validation_experiment",
+                    resource_id=experiment_id,
+                )
+            return experiment
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def create_validation_experiment(idea_id: str, payload: dict) -> dict:
+    """Create a validation experiment for an idea from a structured payload.
+
+    Payload fields mirror the REST validation experiment create body.
+
+    Raises:
+        ValidationError: If the payload is invalid.
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        try:
+            body = ValidationExperimentCreate(**payload)
+        except PydanticValidationError as e:
+            raise ValidationError(
+                "Invalid validation experiment payload",
+                details={"errors": e.errors()},
+            ) from e
+
+        with _get_store() as store:
+            experiment = store.create_validation_experiment(
+                idea_id,
+                **body.model_dump(),
+            )
+            if experiment is None:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {idea_id}",
+                    resource_type="buildable_unit",
+                    resource_id=idea_id,
+                )
+            return experiment
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def update_validation_experiment(experiment_id: str, payload: dict) -> dict:
+    """Update a validation experiment from a structured payload.
+
+    Payload fields mirror the REST validation experiment update body.
+
+    Raises:
+        ValidationError: If the payload is invalid.
+        ResourceNotFoundError: If the validation experiment does not exist.
+    """
+    try:
+        try:
+            body = ValidationExperimentUpdate(**payload)
+        except PydanticValidationError as e:
+            raise ValidationError(
+                "Invalid validation experiment payload",
+                details={"errors": e.errors()},
+            ) from e
+
+        with _get_store() as store:
+            experiment = store.update_validation_experiment(
+                experiment_id,
+                **body.model_dump(exclude_unset=True),
+            )
+            if experiment is None:
+                raise ResourceNotFoundError(
+                    f"Validation experiment not found: {experiment_id}",
+                    resource_type="validation_experiment",
+                    resource_id=experiment_id,
+                )
+            return experiment
     except MCPToolError as e:
         return e.to_dict()
 
@@ -1467,6 +1582,16 @@ def design_brief_roadmap_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_roadmap(brief_id), indent=2)
 
 
+def validation_experiments_for_idea_detail(idea_id: str) -> str:
+    """Browse validation experiments for a specific idea."""
+    return json.dumps(list_validation_experiments(idea_id), indent=2)
+
+
+def validation_experiment_detail(experiment_id: str) -> str:
+    """Get details of a specific validation experiment."""
+    return json.dumps(get_validation_experiment(experiment_id), indent=2)
+
+
 def signal_freshness_detail() -> str:
     """Browse the default signal freshness report."""
     return json.dumps(max_signal_freshness(), indent=2)
@@ -1510,6 +1635,10 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_validation_plan)
     mcp.tool(get_design_brief_risk_register)
     mcp.tool(get_design_brief_roadmap)
+    mcp.tool(list_validation_experiments)
+    mcp.tool(get_validation_experiment)
+    mcp.tool(create_validation_experiment)
+    mcp.tool(update_validation_experiment)
     mcp.tool(get_evidence_pack)
     mcp.tool(get_evidence_chain)
     mcp.tool(contribute_signal)
@@ -1542,6 +1671,8 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-validation-plans://{brief_id}")(design_brief_validation_plan_detail)
     mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
     mcp.resource("design-brief-roadmaps://{brief_id}")(design_brief_roadmap_detail)
+    mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
+    mcp.resource("validation-experiments://{experiment_id}")(validation_experiment_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)

@@ -1291,6 +1291,18 @@ def test_signal_freshness_resource_registered(monkeypatch):
         FakeMCP.latest.resources["design-brief-roadmaps://{brief_id}"]
         == "design_brief_roadmap_detail"
     )
+    assert "list_validation_experiments" in FakeMCP.latest.tools
+    assert "get_validation_experiment" in FakeMCP.latest.tools
+    assert "create_validation_experiment" in FakeMCP.latest.tools
+    assert "update_validation_experiment" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["ideas://{idea_id}/validation-experiments"]
+        == "validation_experiments_for_idea_detail"
+    )
+    assert (
+        FakeMCP.latest.resources["validation-experiments://{experiment_id}"]
+        == "validation_experiment_detail"
+    )
 
 
 def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
