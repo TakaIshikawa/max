@@ -115,6 +115,13 @@ class PriorArtCheckRequest(BaseModel):
     force: bool = False
 
 
+class SlackPublishRequest(BaseModel):
+    webhook_url: str | None = None
+    channel: str | None = None
+    dry_run: bool = False
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
 
 
@@ -857,6 +864,15 @@ class PublicationAttemptResponse(BaseModel):
     response_status: int | None = None
     error: str = ""
     created_at: str
+
+
+class SlackPublishResponse(BaseModel):
+    idea_id: str
+    dry_run: bool
+    target_url: str
+    response_status: int | None = None
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
 
 
 class EvidenceChainEdgeResponse(BaseModel):

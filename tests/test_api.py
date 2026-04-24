@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 
 from max.analysis.export import IDEA_EXPORT_FIELDS
@@ -1962,6 +1963,138 @@ def test_get_idea_publications(seeded_client, seeded_db):
 
 def test_get_idea_publications_not_found(client):
     resp = client.get("/api/v1/ideas/nonexistent/publications")
+    assert resp.status_code == 404
+
+
+def test_publish_idea_to_slack_dry_run_returns_payload_without_attempt(
+    seeded_client,
+    seeded_db,
+) -> None:
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/slack",
+        json={
+            "webhook_url": "https://hooks.slack.com/services/T000/B000/secret",
+            "channel": "#ideas",
+            "dry_run": True,
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["dry_run"] is True
+    assert data["response_status"] is None
+    assert data["publication_attempt"] is None
+    assert data["payload"]["channel"] == "#ideas"
+    assert data["payload"]["metadata"]["event_payload"]["idea_id"] == "bu-api001"
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        assert store.list_publication_attempts("bu-api001") == []
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_slack_success_records_publication_attempt(
+    seeded_client,
+    seeded_db,
+    monkeypatch,
+) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, text="ok")
+
+    def publisher_from_env(**kwargs):
+        from max.publisher.slack_webhook import SlackWebhookPublisher
+
+        return SlackWebhookPublisher(
+            kwargs["webhook_url"],
+            channel=kwargs.get("channel"),
+            timeout=kwargs["timeout"],
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+    monkeypatch.setattr("max.server.api.SlackWebhookPublisher.from_env", publisher_from_env)
+
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/slack",
+        json={"webhook_url": "https://hooks.slack.com/services/T000/B000/secret"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["dry_run"] is False
+    assert data["response_status"] == 200
+    assert data["publication_attempt"]["target_type"] == "slack_webhook"
+    assert data["publication_attempt"]["status"] == "success"
+    assert data["publication_attempt"]["response_status"] == 200
+    assert len(requests) == 1
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        attempts = store.list_publication_attempts("bu-api001")
+        assert len(attempts) == 1
+        assert attempts[0]["status"] == "success"
+        assert attempts[0]["response_status"] == 200
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_slack_error_records_failed_attempt(
+    seeded_client,
+    seeded_db,
+    monkeypatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, text="invalid_payload")
+
+    def publisher_from_env(**kwargs):
+        from max.publisher.slack_webhook import SlackWebhookPublisher
+
+        return SlackWebhookPublisher(
+            kwargs["webhook_url"],
+            channel=kwargs.get("channel"),
+            timeout=kwargs["timeout"],
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+    monkeypatch.setattr("max.server.api.SlackWebhookPublisher.from_env", publisher_from_env)
+
+    resp = seeded_client.post(
+        "/api/v1/ideas/bu-api001/publish/slack",
+        json={"webhook_url": "https://hooks.slack.com/services/T000/B000/secret"},
+    )
+
+    assert resp.status_code == 502
+    assert resp.json()["detail"]["publication_attempt"]["status"] == "failure"
+    assert "invalid_payload" in resp.json()["detail"]["message"]
+
+    store = Store(db_path=seeded_db, wal_mode=True)
+    try:
+        attempts = store.list_publication_attempts("bu-api001")
+        assert len(attempts) == 1
+        assert attempts[0]["status"] == "failure"
+        assert attempts[0]["response_status"] == 400
+        assert "invalid_payload" in attempts[0]["error"]
+    finally:
+        store.close()
+
+
+def test_publish_idea_to_slack_missing_idea_does_not_call_webhook(
+    client,
+    monkeypatch,
+) -> None:
+    def publisher_from_env(**kwargs):
+        raise AssertionError("missing ideas should not initialize or call the webhook")
+
+    monkeypatch.setattr("max.server.api.SlackWebhookPublisher.from_env", publisher_from_env)
+
+    resp = client.post(
+        "/api/v1/ideas/nonexistent/publish/slack",
+        json={"webhook_url": "https://hooks.slack.com/services/T000/B000/secret"},
+    )
+
     assert resp.status_code == 404
 
 

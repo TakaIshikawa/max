@@ -60,6 +60,7 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.rate_limit import rate_limit
@@ -168,6 +169,8 @@ from max.server.schemas import (
     SignalImportRequest,
     SignalImportResponse,
     SignalImportRowResult,
+    SlackPublishRequest,
+    SlackPublishResponse,
     SourceReliabilityResponse,
     SignalResponse,
     SimilarityRequest,
@@ -1835,6 +1838,67 @@ def get_idea_publications(
         PublicationAttemptResponse(**attempt)
         for attempt in store.list_publication_attempts(idea_id, limit=limit)
     ]
+
+
+@router.post("/ideas/{idea_id}/publish/slack", response_model=SlackPublishResponse)
+def publish_idea_to_slack(
+    idea_id: str,
+    request: SlackPublishRequest,
+    store: Store = Depends(get_store),
+) -> SlackPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    try:
+        publisher = SlackWebhookPublisher.from_env(
+            webhook_url=request.webhook_url,
+            channel=request.channel,
+            timeout=request.timeout,
+        )
+    except SlackWebhookPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except SlackWebhookPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="slack_webhook",
+            target_url=publisher.redacted_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    publication_attempt = None
+    if not result.dry_run:
+        publication_attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="slack_webhook",
+            target_url=result.url,
+            status="success",
+            response_status=result.status_code,
+        )
+
+    return SlackPublishResponse(
+        idea_id=idea_id,
+        dry_run=result.dry_run,
+        target_url=result.url,
+        response_status=result.status_code,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**publication_attempt)
+        if publication_attempt
+        else None,
+    )
 
 
 @router.post("/ideas/{idea_id}/prior-art/check", response_model=PriorArtResponse)
