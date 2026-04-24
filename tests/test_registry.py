@@ -248,7 +248,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists,github_pull_requests",
+        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,huggingface,awesome_lists,github_pull_requests,stackoverflow_survey",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -265,6 +265,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "huggingface",
         "awesome_lists",
         "github_pull_requests",
+        "stackoverflow_survey",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -323,6 +324,15 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["github_pull_requests"].required_keys == []
     assert "pull request" in metadata["github_pull_requests"].description
+    assert metadata["stackoverflow_survey"].config_keys == [
+        "survey_urls",
+        "local_paths",
+        "question_filters",
+        "min_percent",
+        "max_rows",
+    ]
+    assert metadata["stackoverflow_survey"].required_keys == []
+    assert "survey CSV" in metadata["stackoverflow_survey"].description
 
 
 def test_get_adapter_returns_instance():
