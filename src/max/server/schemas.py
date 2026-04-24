@@ -968,6 +968,15 @@ class SpecBundleResponse(BaseModel):
     artifacts: SpecBundleArtifactsResponse
 
 
+class IdeaProductBriefResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    generated_at: str
+    markdown: str
+    source_ids: dict[str, list[str]]
+
+
 class FeedbackBatchItemResponse(BaseModel):
     idea_id: str
     outcome: Literal["approved", "rejected", "published", "abandoned"]

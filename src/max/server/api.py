@@ -34,6 +34,7 @@ from max.analysis.market_sizing import build_market_sizing_report
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
+from max.analysis.idea_product_brief_export import generate_idea_product_brief
 from max.analysis.mcp_capability_coverage import (
     DEFAULT_LIMIT_REPRESENTATIVES,
     DEFAULT_MIN_COUNT,
@@ -154,6 +155,7 @@ from max.server.schemas import (
     IdeaEvaluateBatchRequest,
     IdeaEvaluateBatchResponse,
     IdeaMemoryResponse,
+    IdeaProductBriefResponse,
     OpportunityHeatmapBucketResponse,
     IdeaSimilarityRequest,
     IdeaSimilarityResultResponse,
@@ -2754,6 +2756,49 @@ def get_idea_spec_bundle(
             media_type="text/markdown",
         )
     return SpecBundleResponse.model_validate(bundle)
+
+
+@router.get("/ideas/{idea_id}/product-brief.md", response_model=None)
+def get_idea_product_brief_markdown(
+    idea_id: str,
+    include_evidence: bool = Query(True),
+    include_validation: bool = Query(True),
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    brief = generate_idea_product_brief(
+        unit,
+        store.get_evaluation(idea_id),
+        store,
+        include_evidence=include_evidence,
+        include_validation=include_validation,
+    )
+    return Response(content=brief["markdown"], media_type="text/markdown")
+
+
+@router.get("/ideas/{idea_id}/product-brief", response_model=IdeaProductBriefResponse)
+def get_idea_product_brief(
+    idea_id: str,
+    include_evidence: bool = Query(True),
+    include_validation: bool = Query(True),
+    store: Store = Depends(get_store),
+) -> IdeaProductBriefResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    return IdeaProductBriefResponse.model_validate(
+        generate_idea_product_brief(
+            unit,
+            store.get_evaluation(idea_id),
+            store,
+            include_evidence=include_evidence,
+            include_validation=include_validation,
+        )
+    )
 
 
 @router.get("/ideas/{idea_id}/critiques", response_model=list[IdeaCritiqueResponse])
