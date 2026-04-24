@@ -40,7 +40,10 @@ from max.analysis.customer_discovery import generate_customer_discovery_script
 from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
 )
-from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
+from max.analysis.design_brief_evidence_matrix import (
+    build_design_brief_evidence_matrix,
+    render_design_brief_evidence_matrix,
+)
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import build_design_brief_risk_register
 from max.analysis.market_sizing import build_market_sizing_report
@@ -3956,6 +3959,26 @@ def get_design_brief_evidence_matrix(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefEvidenceMatrixResponse(**build_design_brief_evidence_matrix(store, brief))
+
+
+@router.get("/design-briefs/{brief_id}/evidence-matrix.md", response_model=None)
+def get_design_brief_evidence_matrix_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-evidence-matrix.md"
+    return Response(
+        content=render_design_brief_evidence_matrix(
+            build_design_brief_evidence_matrix(store, brief),
+            fmt="markdown",
+        ),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

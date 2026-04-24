@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -120,6 +121,50 @@ def build_design_brief_evidence_matrix(
             for area in CLAIM_AREAS
         ],
     }
+
+
+def render_design_brief_evidence_matrix(matrix: dict[str, Any], fmt: str = "json") -> str:
+    """Render an evidence matrix as JSON or Markdown."""
+    if fmt == "json":
+        return json.dumps(matrix, indent=2) + "\n"
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported evidence matrix format: {fmt}")
+
+    brief = matrix["design_brief"]
+    lines = [
+        f"# Evidence Matrix: {brief['title']}",
+        "",
+        f"Schema: `{matrix['schema_version']}`",
+        f"Design brief: `{brief['id']}`",
+        f"Domain: {brief.get('domain') or 'general'}",
+        f"Theme: {brief.get('theme') or 'implementation-candidate'}",
+        f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
+        "",
+    ]
+
+    for row in matrix["rows"]:
+        lines.extend(
+            [
+                f"## {row['claim_area']}",
+                "",
+                row["claim"] or "No explicit claim captured.",
+                "",
+                f"- **Evidence strength**: `{row['evidence_strength']}`",
+                f"- **Supporting signals**: {_inline_ids(row['supporting_signal_ids'])}",
+                f"- **Supporting insights**: {_inline_ids(row['supporting_insight_ids'])}",
+                f"- **Supporting source ideas**: {_inline_ids(row['supporting_source_idea_ids'])}",
+                f"- **Source adapters**: {_inline_ids(row['supporting_source_adapters'])}",
+                "",
+                "### Gaps",
+                "",
+            ]
+        )
+        lines.extend(f"- {gap}" for gap in row["gaps"])
+        lines.extend(["", "### Validation Actions", ""])
+        lines.extend(f"- {action}" for action in row["validation_actions"])
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _build_row(
@@ -355,3 +400,7 @@ def _first_text(*values: Any) -> str:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return ""
+
+
+def _inline_ids(values: list[str]) -> str:
+    return ", ".join(f"`{value}`" for value in values) if values else "none"

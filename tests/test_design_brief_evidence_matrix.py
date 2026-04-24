@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from max.analysis.design_brief_evidence_matrix import (
     CLAIM_AREAS,
     SCHEMA_VERSION,
     build_design_brief_evidence_matrix,
+    render_design_brief_evidence_matrix,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -207,3 +212,34 @@ def test_build_design_brief_evidence_matrix_marks_missing_evidence_as_weak(tmp_p
     assert buyer["evidence_strength"] == "weak"
     assert buyer["supporting_signal_ids"] == []
     assert "No persisted evidence signals are linked to this claim area." in buyer["gaps"]
+
+
+def test_render_design_brief_evidence_matrix_json_markdown_and_invalid_format(tmp_path) -> None:
+    store, brief = _seed_matrix_brief(tmp_path)
+    try:
+        matrix = build_design_brief_evidence_matrix(
+            store,
+            brief,
+            generated_at="2026-04-24T00:00:00+00:00",
+        )
+    finally:
+        store.close()
+
+    parsed = json.loads(render_design_brief_evidence_matrix(matrix, fmt="json"))
+    assert parsed["schema_version"] == SCHEMA_VERSION
+
+    markdown = render_design_brief_evidence_matrix(matrix, fmt="markdown")
+    assert markdown.startswith("# Evidence Matrix: Agent Workflow Guard")
+    assert f"Schema: `{SCHEMA_VERSION}`" in markdown
+    for claim_area in CLAIM_AREAS:
+        assert f"## {claim_area}" in markdown
+    assert "- **Evidence strength**: `moderate`" in markdown
+    assert "- **Supporting signals**: `sig-problem`" in markdown
+    assert "- **Supporting insights**: `ins-gap`" in markdown
+    assert "- **Supporting source ideas**: `bu-lead`, `bu-support`" in markdown
+    assert "### Gaps" in markdown
+    assert "### Validation Actions" in markdown
+    assert "- Run problem interviews with the primary user profile." in markdown
+
+    with pytest.raises(ValueError, match="Unsupported evidence matrix format: yaml"):
+        render_design_brief_evidence_matrix(matrix, fmt="yaml")
