@@ -3027,6 +3027,36 @@ def dedup(threshold: float, domain: str | None, dry_run: bool, limit: int, inclu
 
 
 @main.command()
+@click.option("--incremental", is_flag=True, help="Only embed new or changed ideas (skip unchanged)")
+@click.option("--entity-type", type=str, default="buildable_unit", help="Entity type to embed (default: buildable_unit)")
+def embed(incremental: bool, entity_type: str) -> None:
+    """Build or update the semantic embedding index.
+
+    By default, re-embeds all entities. With --incremental, only processes
+    new or changed entities based on content hash comparison.
+    """
+    from max.embeddings.engine import SemanticIndex
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        idx = SemanticIndex(store)
+
+        if incremental:
+            click.echo("Running incremental embedding update...")
+            result = idx.embed_incremental(entity_type=entity_type)
+            click.echo(f"  Embedded: {result['embedded']} (new/changed)")
+            click.echo(f"  Skipped:  {result['skipped']} (unchanged)")
+            click.echo(f"  Removed:  {result['removed']} (deleted)")
+        else:
+            click.echo("Running full embedding rebuild...")
+            result = idx.embed_full(entity_type=entity_type)
+            click.echo(f"  Embedded: {result['embedded']}")
+    finally:
+        store.close()
+
+
+@main.command()
 @click.option("--threshold", type=float, default=0.85, help="Similarity threshold for clustering (default: 0.85)")
 @click.option("--domain", "-d", type=str, default=None, help="Filter by domain")
 @click.option("--cross-cluster", is_flag=True, help="Also find and merge complementary ideas across clusters (more LLM calls)")
