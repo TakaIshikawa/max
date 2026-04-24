@@ -140,6 +140,15 @@ class SlackPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class GitHubIssuePublishRequest(BaseModel):
+    repository: str | None = None
+    token: str | None = None
+    api_url: str | None = None
+    labels: list[str] = Field(default_factory=list)
+    timeout: float = Field(default=10.0, gt=0.0)
+    dry_run: bool = True
+
+
 PriorArtSource = Literal["github", "npm", "pypi", "product_hunt"]
 
 
@@ -947,6 +956,16 @@ class SlackPublishResponse(BaseModel):
     response_status: int | None = None
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse | None = None
+
+
+class GitHubIssuePublishResponse(BaseModel):
+    idea_id: str
+    repository: str
+    issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
 
 
 class EvidenceChainEdgeResponse(BaseModel):

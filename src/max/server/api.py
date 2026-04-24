@@ -72,6 +72,7 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
@@ -122,6 +123,8 @@ from max.server.schemas import (
     FetchAllocationExplainResponse,
     FetchAllocationSimulationResponse,
     HealthResponse,
+    GitHubIssuePublishRequest,
+    GitHubIssuePublishResponse,
     IdeaCreate,
     IdeaCritiqueResponse,
     IdeaDetailResponse,
@@ -2013,6 +2016,88 @@ def publish_idea_to_slack(
         publication_attempt=PublicationAttemptResponse(**publication_attempt)
         if publication_attempt
         else None,
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/github-issue", response_model=GitHubIssuePublishResponse)
+def publish_idea_to_github_issue(
+    idea_id: str,
+    request: GitHubIssuePublishRequest,
+    store: Store = Depends(get_store),
+) -> GitHubIssuePublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = GitHubIssuePublisher.from_env(
+            repository=request.repository,
+            token=request.token,
+            api_url=request.api_url,
+            labels=request.labels,
+            timeout=request.timeout,
+        )
+    except GitHubIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.token:
+        message = "GITHUB_TOKEN is required for live GitHub issue publishing; use dry_run to preview"
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except GitHubIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.issue_url or publisher.issue_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="github_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return GitHubIssuePublishResponse(
+        idea_id=idea_id,
+        repository=result.repository,
+        issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
     )
 
 

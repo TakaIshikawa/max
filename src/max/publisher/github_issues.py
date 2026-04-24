@@ -18,6 +18,10 @@ DEFAULT_TIMEOUT_SECONDS = 10.0
 class GitHubIssuePublishError(RuntimeError):
     """Raised when a GitHub issue publish cannot be completed."""
 
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 @dataclass(frozen=True)
 class GitHubIssuePayload:
@@ -58,12 +62,14 @@ class GitHubIssuePublisher:
         *,
         token: str | None = None,
         api_url: str = DEFAULT_GITHUB_API_URL,
+        labels: list[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> None:
         self.repository = _validate_repository(repository)
         self.token = token
         self.api_url = api_url.rstrip("/")
+        self.labels = labels or []
         self.timeout = timeout
         self._client = client
 
@@ -74,6 +80,7 @@ class GitHubIssuePublisher:
         repository: str | None = None,
         token: str | None = None,
         api_url: str | None = None,
+        labels: list[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> GitHubIssuePublisher:
@@ -87,6 +94,7 @@ class GitHubIssuePublisher:
             resolved_repository,
             token=token or os.getenv("GITHUB_TOKEN"),
             api_url=api_url or os.getenv("GITHUB_API_URL", DEFAULT_GITHUB_API_URL),
+            labels=labels,
             timeout=timeout,
             client=client,
         )
@@ -104,7 +112,10 @@ class GitHubIssuePublisher:
         evaluation = tact_spec.get("evaluation") if isinstance(tact_spec.get("evaluation"), dict) else {}
 
         title = _issue_title(project.get("title"), source.get("idea_id"))
-        labels = _issue_labels(source=source, quality=quality, evaluation=evaluation)
+        labels = _merge_labels(
+            _issue_labels(source=source, quality=quality, evaluation=evaluation),
+            self.labels,
+        )
         metadata = {
             "publisher": "max.github_issues",
             "source_system": source.get("system", "max"),
@@ -143,22 +154,27 @@ class GitHubIssuePublisher:
         close_client = self._client is None
         client = self._client or httpx.Client(timeout=self.timeout)
         try:
-            response = client.post(
-                self.issue_endpoint,
-                json={
-                    "title": payload["title"],
-                    "body": payload["body"],
-                    "labels": payload["labels"],
-                },
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": f"Bearer {self.token}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "max-github-issues-publisher/1",
-                    "X-GitHub-Api-Version": "2022-11-28",
-                },
-                timeout=self.timeout,
-            )
+            try:
+                response = client.post(
+                    self.issue_endpoint,
+                    json={
+                        "title": payload["title"],
+                        "body": payload["body"],
+                        "labels": payload["labels"],
+                    },
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "Authorization": f"Bearer {self.token}",
+                        "Content-Type": "application/json",
+                        "User-Agent": "max-github-issues-publisher/1",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    },
+                    timeout=self.timeout,
+                )
+            except (httpx.RequestError, httpx.TimeoutException) as exc:
+                raise GitHubIssuePublishError(
+                    f"GitHub issue publish failed for {self.issue_endpoint}: {exc}"
+                ) from exc
         finally:
             if close_client:
                 client.close()
@@ -166,7 +182,8 @@ class GitHubIssuePublisher:
         if not 200 <= response.status_code < 300:
             raise GitHubIssuePublishError(
                 f"GitHub issue publish failed with HTTP {response.status_code}: "
-                f"{_response_body_preview(response)}"
+                f"{_response_body_preview(response)}",
+                status_code=response.status_code,
             )
 
         issue_url = _issue_url(response)
@@ -276,6 +293,15 @@ def _issue_labels(
         if label and label not in unique:
             unique.append(label)
     return unique
+
+
+def _merge_labels(labels: list[str], extra_labels: list[str]) -> list[str]:
+    merged = list(labels)
+    for label in extra_labels:
+        safe = _label_value(label)
+        if safe and safe not in merged:
+            merged.append(safe)
+    return merged
 
 
 def _label_value(value: object, *, prefix: str | None = None) -> str:
