@@ -42,7 +42,9 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
         def http_app(self, path: str = "/mcp"):
             return FastAPI(title=self.name)
 
+from max import config
 from max.analysis.blast_radius import estimate_idea_blast_radius
+from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -104,6 +106,27 @@ def set_scheduler_ref(scheduler: Scheduler | None) -> None:
 
 def _get_store() -> Store:
     return _store_factory()
+
+
+def _add_llm_budget_indicators(report: dict) -> dict:
+    """Add MCP-friendly warning and exceeded flags to a budget usage report."""
+    total_tokens = int(report.get("total_tokens") or 0)
+    total_cost = float(report.get("total_cost_usd") or 0.0)
+    token_budget = int(report.get("token_budget") or config.MAX_TOKEN_BUDGET)
+    cost_budget = float(report.get("cost_budget_usd") or config.MAX_COST_BUDGET)
+
+    token_warning = token_budget > 0 and total_tokens >= token_budget * 0.8
+    cost_warning = cost_budget > 0 and total_cost >= cost_budget * 0.8
+    token_exceeded = token_budget > 0 and total_tokens > token_budget
+    cost_exceeded = cost_budget > 0 and total_cost > cost_budget
+
+    report["token_budget_warning"] = token_warning
+    report["cost_budget_warning"] = cost_warning
+    report["budget_warning"] = token_warning or cost_warning
+    report["token_budget_exceeded"] = token_exceeded
+    report["cost_budget_exceeded"] = cost_exceeded
+    report["budget_exceeded"] = token_exceeded or cost_exceeded
+    return report
 
 
 def _review_metadata(unit, latest_feedback: dict | None = None) -> dict:
@@ -1011,6 +1034,37 @@ def max_opportunity_heatmap(
             )
     except ValueError as e:
         return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def max_llm_budget_usage(run_limit: int = 20) -> dict:
+    """Return recent LLM token and cost usage against configured budgets.
+
+    Set run_limit to control how many recent pipeline runs are included.
+
+    Raises:
+        ValidationError: If run_limit is outside the REST endpoint range.
+    """
+    try:
+        if isinstance(run_limit, bool) or not isinstance(run_limit, int):
+            raise ValidationError(
+                "run_limit must be an integer between 1 and 500",
+                field="run_limit",
+                expected="integer between 1 and 500",
+                actual=str(run_limit),
+            )
+        if run_limit < 1 or run_limit > 500:
+            raise ValidationError(
+                "run_limit must be between 1 and 500",
+                field="run_limit",
+                expected="integer between 1 and 500",
+                actual=str(run_limit),
+            )
+
+        with _get_store() as store:
+            report = build_llm_budget_usage(store, limit=run_limit, include_current=True)
+        return _add_llm_budget_indicators(report)
     except MCPToolError as e:
         return e.to_dict()
 
@@ -1936,6 +1990,11 @@ def opportunity_heatmap_detail() -> str:
     return json.dumps(max_opportunity_heatmap(), indent=2)
 
 
+def llm_budget_usage_detail() -> str:
+    """Browse the default LLM budget usage report."""
+    return json.dumps(max_llm_budget_usage(), indent=2)
+
+
 def source_allocation_detail() -> str:
     """Browse the default source allocation simulation report."""
     return json.dumps(simulate_source_allocation(), indent=2)
@@ -1995,6 +2054,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
     mcp.tool(max_opportunity_heatmap)
+    mcp.tool(max_llm_budget_usage)
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_schedule)
@@ -2028,6 +2088,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
+    mcp.resource("budget://llm-usage")(llm_budget_usage_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
     mcp.resource("profile-source-recommendations://{profile_name}")(
         profile_source_recommendations_detail
