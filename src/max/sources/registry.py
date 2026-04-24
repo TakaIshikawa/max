@@ -78,6 +78,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
+    "go_packages": "max.sources.go_packages:GoPackagesAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -458,6 +459,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["base_url", "queries", "module_queries", "provider_namespaces", "namespaces"],
         required_keys=[],
         description="Searches the Terraform Registry for infrastructure module and provider adoption signals.",
+    ),
+    "go_packages": AdapterMetadata(
+        name="go_packages",
+        config_keys=["queries", "max_results", "min_imported_by", "include_stdlib"],
+        required_keys=[],
+        description="Searches pkg.go.dev for Go package and module discovery signals.",
     ),
 }
 
