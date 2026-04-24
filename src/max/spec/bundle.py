@@ -207,6 +207,20 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     )
     lines.extend(
         _section(
+            "Evidence Links",
+            [
+                *_bullets(
+                    [
+                        f"{edge['source']} -> {edge['target']} ({edge['type']}; {edge['role']})"
+                        for edge in chain["edges"]
+                    ],
+                    empty="None.",
+                ),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
             "Evidence Chain Summary",
             [
                 f"Insight IDs: {', '.join(chain['insight_ids']) or 'none'}",

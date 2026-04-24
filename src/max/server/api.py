@@ -3125,11 +3125,35 @@ def get_idea_spec_bundle(
 
     bundle = generate_spec_bundle(unit, store.get_evaluation(idea_id), store)
     if format == "markdown":
-        return Response(
-            content=render_spec_bundle_markdown(bundle),
-            media_type="text/markdown",
-        )
+        return _spec_bundle_markdown_response(idea_id, bundle)
     return SpecBundleResponse.model_validate(bundle)
+
+
+@router.get("/ideas/{idea_id}/spec-bundle.md", response_model=None)
+def get_idea_spec_bundle_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    bundle = generate_spec_bundle(unit, store.get_evaluation(idea_id), store)
+    return _spec_bundle_markdown_response(idea_id, bundle)
+
+
+def _spec_bundle_markdown_response(idea_id: str, bundle: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(idea_id)}-spec-bundle.md"
+    return Response(
+        content=render_spec_bundle_markdown(bundle),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _download_filename_part(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in value)
+    return cleaned.strip("-_") or "idea"
 
 
 @router.get("/ideas/{idea_id}/product-brief.md", response_model=None)
