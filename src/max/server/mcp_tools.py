@@ -49,6 +49,12 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.server.errors import (
+    ExternalServiceError,
+    MCPToolError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.store.db import Store
 
@@ -156,127 +162,196 @@ def get_idea(id: str) -> dict:
     """Get detailed information about a specific idea including its evaluation.
 
     Returns the full idea with problem/solution, evaluation scores, strengths/weaknesses.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
     """
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
-        evaluation = store.get_evaluation(id)
-        result = {
-            "id": unit.id,
-            "title": unit.title,
-            "one_liner": unit.one_liner,
-            "category": unit.category,
-            "domain": unit.domain,
-            "problem": unit.problem,
-            "solution": unit.solution,
-            "target_users": unit.target_users,
-            "value_proposition": unit.value_proposition,
-            "specific_user": unit.specific_user,
-            "buyer": unit.buyer,
-            "workflow_context": unit.workflow_context,
-            "current_workaround": unit.current_workaround,
-            "why_now": unit.why_now,
-            "validation_plan": unit.validation_plan,
-            "first_10_customers": unit.first_10_customers,
-            "domain_risks": unit.domain_risks,
-            "evidence_rationale": unit.evidence_rationale,
-            "quality_score": unit.quality_score,
-            "novelty_score": unit.novelty_score,
-            "usefulness_score": unit.usefulness_score,
-            "rejection_tags": unit.rejection_tags,
-            "tech_approach": unit.tech_approach,
-            "status": unit.status,
-            **_review_metadata(unit, store.get_latest_feedback(id)),
-        }
-        critiques = store.get_idea_critiques(id)
-        if critiques:
-            result["latest_critique"] = critiques[0]
-        if evaluation:
-            result["evaluation"] = {
-                "overall_score": evaluation.overall_score,
-                "recommendation": evaluation.recommendation,
-                "strengths": evaluation.strengths,
-                "weaknesses": evaluation.weaknesses,
-                "dimensions": {
-                    name: {"value": getattr(evaluation, name).value, "reasoning": getattr(evaluation, name).reasoning}
-                    for name in [
-                        "pain_severity", "addressable_scale", "build_effort",
-                        "composability", "competitive_density", "timing_fit", "compounding_value",
-                    ]
-                },
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+            evaluation = store.get_evaluation(id)
+            result = {
+                "id": unit.id,
+                "title": unit.title,
+                "one_liner": unit.one_liner,
+                "category": unit.category,
+                "domain": unit.domain,
+                "problem": unit.problem,
+                "solution": unit.solution,
+                "target_users": unit.target_users,
+                "value_proposition": unit.value_proposition,
+                "specific_user": unit.specific_user,
+                "buyer": unit.buyer,
+                "workflow_context": unit.workflow_context,
+                "current_workaround": unit.current_workaround,
+                "why_now": unit.why_now,
+                "validation_plan": unit.validation_plan,
+                "first_10_customers": unit.first_10_customers,
+                "domain_risks": unit.domain_risks,
+                "evidence_rationale": unit.evidence_rationale,
+                "quality_score": unit.quality_score,
+                "novelty_score": unit.novelty_score,
+                "usefulness_score": unit.usefulness_score,
+                "rejection_tags": unit.rejection_tags,
+                "tech_approach": unit.tech_approach,
+                "status": unit.status,
+                **_review_metadata(unit, store.get_latest_feedback(id)),
             }
-        return result
+            critiques = store.get_idea_critiques(id)
+            if critiques:
+                result["latest_critique"] = critiques[0]
+            if evaluation:
+                result["evaluation"] = {
+                    "overall_score": evaluation.overall_score,
+                    "recommendation": evaluation.recommendation,
+                    "strengths": evaluation.strengths,
+                    "weaknesses": evaluation.weaknesses,
+                    "dimensions": {
+                        name: {"value": getattr(evaluation, name).value, "reasoning": getattr(evaluation, name).reasoning}
+                        for name in [
+                            "pain_severity", "addressable_scale", "build_effort",
+                            "composability", "competitive_density", "timing_fit", "compounding_value",
+                        ]
+                    },
+                }
+            return result
+    except (ResourceNotFoundError, ValidationError, ExternalServiceError) as e:
+        return e.to_dict()
 
 
 def get_spec_preview(id: str) -> dict:
-    """Generate a tact project spec preview for an evaluated idea."""
+    """Generate a tact project spec preview for an evaluated idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea or evaluation does not exist.
+    """
     from max.spec.generator import generate_spec_preview
 
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
 
-        evaluation = store.get_evaluation(id)
-        if not evaluation:
-            return {"error": f"Evaluation not found for idea: {id}"}
+            evaluation = store.get_evaluation(id)
+            if not evaluation:
+                raise ResourceNotFoundError(
+                    f"Evaluation not found for idea: {id}",
+                    resource_type="evaluation",
+                    resource_id=id,
+                    details={"suggestion": "Run evaluate_idea first"},
+                )
 
-        return {
-            "id": unit.id,
-            "title": unit.title,
-            "one_liner": unit.one_liner,
-            "category": unit.category,
-            "domain": unit.domain,
-            "status": unit.status,
-            "score": evaluation.overall_score,
-            "recommendation": evaluation.recommendation,
-            "preview": generate_spec_preview(unit, evaluation),
-        }
+            return {
+                "id": unit.id,
+                "title": unit.title,
+                "one_liner": unit.one_liner,
+                "category": unit.category,
+                "domain": unit.domain,
+                "status": unit.status,
+                "score": evaluation.overall_score,
+                "recommendation": evaluation.recommendation,
+                "preview": generate_spec_preview(unit, evaluation),
+            }
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def get_spec_readiness(id: str) -> dict:
-    """Evaluate whether an idea is ready for spec handoff."""
+    """Evaluate whether an idea is ready for spec handoff.
+
+    Raises:
+        ResourceNotFoundError: If the idea or evaluation does not exist.
+    """
     from max.spec.readiness import evaluate_spec_readiness
 
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
 
-        evaluation = store.get_evaluation(id)
-        if not evaluation:
-            return {"error": f"Evaluation not found for idea: {id}"}
+            evaluation = store.get_evaluation(id)
+            if not evaluation:
+                raise ResourceNotFoundError(
+                    f"Evaluation not found for idea: {id}",
+                    resource_type="evaluation",
+                    resource_id=id,
+                    details={"suggestion": "Run evaluate_idea first"},
+                )
 
-        return evaluate_spec_readiness(unit, evaluation)
+            return evaluate_spec_readiness(unit, evaluation)
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def get_implementation_plan(id: str) -> dict:
-    """Generate an implementation handoff plan for an evaluated idea."""
+    """Generate an implementation handoff plan for an evaluated idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea or evaluation does not exist.
+    """
     from max.spec.generator import generate_spec_preview
     from max.spec.implementation_plan import generate_implementation_plan
 
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
 
-        evaluation = store.get_evaluation(id)
-        if not evaluation:
-            return {"error": f"Evaluation not found for idea: {id}"}
+            evaluation = store.get_evaluation(id)
+            if not evaluation:
+                raise ResourceNotFoundError(
+                    f"Evaluation not found for idea: {id}",
+                    resource_type="evaluation",
+                    resource_id=id,
+                    details={"suggestion": "Run evaluate_idea first"},
+                )
 
-        spec_preview = generate_spec_preview(unit, evaluation)
-        return generate_implementation_plan(unit, evaluation, spec_preview)
+            spec_preview = generate_spec_preview(unit, evaluation)
+            return generate_implementation_plan(unit, evaluation, spec_preview)
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def get_idea_critique(id: str) -> dict:
-    """Get persisted quality-loop critique details for an idea."""
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
-        critiques = store.get_idea_critiques(id)
-        return {"id": id, "critiques": critiques}
+    """Get persisted quality-loop critique details for an idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+            critiques = store.get_idea_critiques(id)
+            return {"id": id, "critiques": critiques}
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def list_design_briefs(
@@ -294,23 +369,45 @@ def list_design_briefs(
 
 
 def get_design_brief(brief_id: str) -> dict:
-    """Get a persisted design brief with its source idea relationships."""
-    with _get_store() as store:
-        brief = store.get_design_brief(brief_id)
-        if not brief:
-            return {"error": f"Design brief not found: {brief_id}"}
-        return brief
+    """Get a persisted design brief with its source idea relationships.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+    """
+    try:
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            return brief
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def get_design_brief_markdown(brief_id: str) -> dict:
-    """Render a persisted design brief as Markdown for design handoff."""
+    """Render a persisted design brief as Markdown for design handoff.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+    """
     from max.analysis.portfolio_synthesis import render_design_brief_markdown
 
-    with _get_store() as store:
-        brief = store.get_design_brief(brief_id)
-        if not brief:
-            return {"error": f"Design brief not found: {brief_id}"}
-        return {"id": brief_id, "markdown": render_design_brief_markdown(brief)}
+    try:
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            return {"id": brief_id, "markdown": render_design_brief_markdown(brief)}
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def max_portfolio_overlap(
@@ -323,6 +420,9 @@ def max_portfolio_overlap(
     Set limit to cap the number of clusters.
     Set min_overlap_score between 0 and 1 to tune sensitivity.
     Set include_archived=true to include archived ideas in the analysis.
+
+    Raises:
+        ValidationError: If parameters are out of valid ranges.
     """
     from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 
@@ -334,10 +434,12 @@ def max_portfolio_overlap(
                 min_overlap_score=min_overlap_score,
                 include_archived=include_archived,
             )
+        return [_portfolio_overlap_cluster_to_dict(cluster) for cluster in clusters]
     except ValueError as e:
-        return {"error": str(e)}
-
-    return [_portfolio_overlap_cluster_to_dict(cluster) for cluster in clusters]
+        # Map ValueError from analysis code to ValidationError
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def simulate_source_allocation(
@@ -348,6 +450,10 @@ def simulate_source_allocation(
 
     Set profile to use a named pipeline profile. Set budget to override the
     profile's signal limit when exploring allocation changes.
+
+    Raises:
+        ValidationError: If budget is invalid.
+        ResourceNotFoundError: If the profile is not found.
     """
     from max.analysis.source_simulation import (
         simulate_source_allocation as build_source_allocation,
@@ -355,24 +461,36 @@ def simulate_source_allocation(
     from max.config import MAX_PROFILE
     from max.profiles.loader import get_default_profile, load_profile
 
-    if budget is not None and budget < 1:
-        return {"error": "budget must be at least 1"}
-
-    profile_name = profile or MAX_PROFILE or None
     try:
-        pipeline_profile = (
-            load_profile(profile_name) if profile_name else get_default_profile()
-        )
-    except FileNotFoundError as e:
-        return {"error": str(e)}
+        if budget is not None and budget < 1:
+            raise ValidationError(
+                "budget must be at least 1",
+                field="budget",
+                expected="integer >= 1",
+                actual=str(budget),
+            )
 
-    try:
+        profile_name = profile or MAX_PROFILE or None
+        try:
+            pipeline_profile = (
+                load_profile(profile_name) if profile_name else get_default_profile()
+            )
+        except FileNotFoundError as e:
+            raise ResourceNotFoundError(
+                str(e),
+                resource_type="profile",
+                resource_id=profile_name or "default",
+            ) from e
+
         with _get_store() as store:
             report = build_source_allocation(pipeline_profile, store, budget=budget)
-    except ValueError as e:
-        return {"error": str(e)}
 
-    return report.to_dict()
+        return report.to_dict()
+    except ValueError as e:
+        # Map ValueError from analysis code to ValidationError
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
@@ -396,32 +514,54 @@ def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
 
 
 def get_evidence_pack(id: str) -> dict:
-    """Get the evidence pack used for an idea, or reconstruct one from its evidence chain."""
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
-        critiques = store.get_idea_critiques(id)
-        if critiques and critiques[0].get("evidence_pack"):
-            return critiques[0]["evidence_pack"]
+    """Get the evidence pack used for an idea, or reconstruct one from its evidence chain.
 
-        from max.ideation.evidence import build_evidence_pack
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+            critiques = store.get_idea_critiques(id)
+            if critiques and critiques[0].get("evidence_pack"):
+                return critiques[0]["evidence_pack"]
 
-        insights = [
-            insight
-            for insight_id in unit.inspiring_insights
-            if (insight := store.get_insight(insight_id))
-        ]
-        return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
+            from max.ideation.evidence import build_evidence_pack
+
+            insights = [
+                insight
+                for insight_id in unit.inspiring_insights
+                if (insight := store.get_insight(insight_id))
+            ]
+            return json.loads(build_evidence_pack(insights=insights, store=store).to_json())
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def get_evidence_chain(id: str) -> dict:
-    """Get the idea evidence chain as a graph of idea, insights, signals, and typed edges."""
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
-        return build_evidence_chain_graph(unit, store)
+    """Get the idea evidence chain as a graph of idea, insights, signals, and typed edges.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+            return build_evidence_chain_graph(unit, store)
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def contribute_signal(
@@ -489,23 +629,42 @@ def evaluate_idea(id: str) -> dict:
     This calls the Anthropic API to evaluate the idea across pain_severity,
     addressable_scale, build_effort, composability, competitive_density,
     timing_fit, and compounding_value. Returns the evaluation result.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+        ExternalServiceError: If the LLM API call fails.
     """
     from max.evaluation.engine import evaluate
 
-    with _get_store() as store:
-        unit = store.get_buildable_unit(id)
-        if not unit:
-            return {"error": f"Idea not found: {id}"}
-        evaluation = evaluate(unit)
-        store.insert_evaluation(evaluation)
-        store.update_buildable_unit_status(id, "evaluated")
-        return {
-            "id": id,
-            "overall_score": evaluation.overall_score,
-            "recommendation": evaluation.recommendation,
-            "strengths": evaluation.strengths,
-            "weaknesses": evaluation.weaknesses,
-        }
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {id}",
+                    resource_type="buildable_unit",
+                    resource_id=id,
+                )
+            try:
+                evaluation = evaluate(unit)
+            except Exception as e:
+                # Wrap evaluation errors as external service errors
+                raise ExternalServiceError(
+                    f"LLM evaluation failed: {str(e)}",
+                    service="anthropic",
+                    details={"original_error": str(e)},
+                ) from e
+            store.insert_evaluation(evaluation)
+            store.update_buildable_unit_status(id, "evaluated")
+            return {
+                "id": id,
+                "overall_score": evaluation.overall_score,
+                "recommendation": evaluation.recommendation,
+                "strengths": evaluation.strengths,
+                "weaknesses": evaluation.weaknesses,
+            }
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def find_similar(
@@ -602,6 +761,10 @@ def max_source_reliability(
     Set profile to filter to enabled adapters from a named pipeline profile.
     Set time_window to a compact duration such as "24h", "7d", or "4w".
     Set min_signal_count to hide source types with fewer active signals.
+
+    Raises:
+        ResourceNotFoundError: If the profile is not found.
+        ValidationError: If time_window format is invalid.
     """
     from max.analysis.source_reliability import (
         DEFAULT_SIGNAL_LIMIT,
@@ -609,20 +772,33 @@ def max_source_reliability(
     )
     from max.profiles.loader import load_profile
 
-    adapters: set[str] | None = None
-    resolved_profile = None
-    resolved_signal_limit = signal_limit or DEFAULT_SIGNAL_LIMIT
-    if profile:
-        try:
-            resolved_profile = load_profile(profile)
-        except FileNotFoundError:
-            return {"error": f"Profile not found: {profile}"}
-        adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
-        if signal_limit is None:
-            resolved_signal_limit = resolved_profile.signal_limit
-
     try:
-        fetched_since = _parse_time_window(time_window)
+        adapters: set[str] | None = None
+        resolved_profile = None
+        resolved_signal_limit = signal_limit or DEFAULT_SIGNAL_LIMIT
+        if profile:
+            try:
+                resolved_profile = load_profile(profile)
+            except FileNotFoundError as e:
+                raise ResourceNotFoundError(
+                    f"Profile not found: {profile}",
+                    resource_type="profile",
+                    resource_id=profile,
+                ) from e
+            adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
+            if signal_limit is None:
+                resolved_signal_limit = resolved_profile.signal_limit
+
+        try:
+            fetched_since = _parse_time_window(time_window)
+        except ValueError as e:
+            raise ValidationError(
+                str(e),
+                field="time_window",
+                expected="duration like '24h', '7d', or '4w'",
+                actual=time_window or "",
+            ) from e
+
         with _get_store() as store:
             report = build_source_reliability_report(
                 store,
@@ -631,19 +807,19 @@ def max_source_reliability(
                 fetched_since=fetched_since,
                 min_signal_count=min_signal_count,
             )
-    except ValueError as e:
-        return {"error": str(e)}
 
-    result = report.to_dict()
-    result["filters"] = {
-        "profile": resolved_profile.name if resolved_profile else profile,
-        "domain": resolved_profile.domain.name if resolved_profile else None,
-        "source_adapters": sorted(adapters) if adapters is not None else None,
-        "time_window": time_window,
-        "fetched_since": fetched_since.isoformat() if fetched_since else None,
-        "min_signal_count": min_signal_count,
-    }
-    return result
+        result = report.to_dict()
+        result["filters"] = {
+            "profile": resolved_profile.name if resolved_profile else profile,
+            "domain": resolved_profile.domain.name if resolved_profile else None,
+            "source_adapters": sorted(adapters) if adapters is not None else None,
+            "time_window": time_window,
+            "fetched_since": fetched_since.isoformat() if fetched_since else None,
+            "min_signal_count": min_signal_count,
+        }
+        return result
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def max_signal_freshness(
@@ -655,44 +831,60 @@ def max_signal_freshness(
 
     Set source_adapter to a comma-delimited string or list of adapter names.
     Set profile to restrict the report to enabled adapters from a named profile.
+
+    Raises:
+        ResourceNotFoundError: If the profile is not found.
+        ValidationError: If max_age_days is invalid.
     """
     from max.analysis.signal_freshness import build_signal_freshness_report
     from max.profiles.loader import load_profile
 
-    requested_adapters = _normalize_source_adapter_filter(source_adapter)
-    resolved_profile = None
-    adapters = requested_adapters
-
-    if profile:
-        try:
-            resolved_profile = load_profile(profile)
-        except FileNotFoundError:
-            return {"error": f"Profile not found: {profile}"}
-
-        enabled_adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
-        if requested_adapters is None:
-            adapters = sorted(enabled_adapters)
-        else:
-            adapters = sorted(set(requested_adapters) & enabled_adapters)
-
     try:
-        with _get_store() as store:
-            report = build_signal_freshness_report(
-                store,
-                max_age_days=max_age_days,
-                source_adapters=adapters,
-            )
-    except ValueError as e:
-        return {"error": str(e)}
+        requested_adapters = _normalize_source_adapter_filter(source_adapter)
+        resolved_profile = None
+        adapters = requested_adapters
 
-    result = report.to_dict()
-    result["filters"] = {
-        "profile": resolved_profile.name if resolved_profile else profile,
-        "domain": resolved_profile.domain.name if resolved_profile else None,
-        "source_adapters": adapters,
-        "max_age_days": max_age_days,
-    }
-    return result
+        if profile:
+            try:
+                resolved_profile = load_profile(profile)
+            except FileNotFoundError as e:
+                raise ResourceNotFoundError(
+                    f"Profile not found: {profile}",
+                    resource_type="profile",
+                    resource_id=profile,
+                ) from e
+
+            enabled_adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
+            if requested_adapters is None:
+                adapters = sorted(enabled_adapters)
+            else:
+                adapters = sorted(set(requested_adapters) & enabled_adapters)
+
+        try:
+            with _get_store() as store:
+                report = build_signal_freshness_report(
+                    store,
+                    max_age_days=max_age_days,
+                    source_adapters=adapters,
+                )
+        except ValueError as e:
+            raise ValidationError(
+                str(e),
+                field="max_age_days",
+                expected="integer >= 1",
+                actual=str(max_age_days),
+            ) from e
+
+        result = report.to_dict()
+        result["filters"] = {
+            "profile": resolved_profile.name if resolved_profile else profile,
+            "domain": resolved_profile.domain.name if resolved_profile else None,
+            "source_adapters": adapters,
+            "max_age_days": max_age_days,
+        }
+        return result
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 def _normalize_source_adapter_filter(source_adapter: str | list[str] | None) -> list[str] | None:
@@ -808,39 +1000,52 @@ def dry_run_pipeline(
     Set profile to use a named pipeline profile. Optional overrides mirror the
     REST dry-run request where applicable and are applied before estimating
     enabled adapters, fetch allocation, stage budgets, and token cost.
+
+    Raises:
+        ResourceNotFoundError: If the profile is not found.
+        ValidationError: If request parameters are invalid.
     """
-    from pydantic import ValidationError
+    from pydantic import ValidationError as PydanticValidationError
 
     from max.server.api import run_pipeline_dry_run
     from max.server.schemas import PipelineDryRunRequest
 
-    payload = {}
-    if profile is not None:
-        payload["profile"] = profile
-    if signal_limit is not None:
-        payload["signal_limit"] = signal_limit
-    if min_score is not None:
-        payload["min_score"] = min_score
-    if weight_profile is not None:
-        payload["weight_profile"] = weight_profile
-    if ideation_mode is not None:
-        payload["ideation_mode"] = ideation_mode
-    if quality_loop_enabled is not None:
-        payload["quality_loop_enabled"] = quality_loop_enabled
-    if draft_count is not None:
-        payload["draft_count"] = draft_count
-    if stages is not None:
-        payload["stages"] = stages
-
     try:
-        response = run_pipeline_dry_run(PipelineDryRunRequest(**payload))
-    except FileNotFoundError:
-        return {"error": f"Profile not found: {profile or 'default'}"}
-    except ValidationError as e:
-        return {"error": str(e)}
-    except ValueError as e:
-        return {"error": str(e)}
-    return response.model_dump()
+        payload = {}
+        if profile is not None:
+            payload["profile"] = profile
+        if signal_limit is not None:
+            payload["signal_limit"] = signal_limit
+        if min_score is not None:
+            payload["min_score"] = min_score
+        if weight_profile is not None:
+            payload["weight_profile"] = weight_profile
+        if ideation_mode is not None:
+            payload["ideation_mode"] = ideation_mode
+        if quality_loop_enabled is not None:
+            payload["quality_loop_enabled"] = quality_loop_enabled
+        if draft_count is not None:
+            payload["draft_count"] = draft_count
+        if stages is not None:
+            payload["stages"] = stages
+
+        try:
+            response = run_pipeline_dry_run(PipelineDryRunRequest(**payload))
+            return response.model_dump()
+        except FileNotFoundError as e:
+            raise ResourceNotFoundError(
+                f"Profile not found: {profile or 'default'}",
+                resource_type="profile",
+                resource_id=profile or "default",
+            ) from e
+        except PydanticValidationError as e:
+            # Map pydantic validation errors to our ValidationError
+            raise ValidationError(str(e)) from e
+        except ValueError as e:
+            # Map value errors (e.g., unknown stages) to ValidationError
+            raise ValidationError(str(e)) from e
+    except MCPToolError as e:
+        return e.to_dict()
 
 
 # ── Resource functions ──────────────────────────────────────────────

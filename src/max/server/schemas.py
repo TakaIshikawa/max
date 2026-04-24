@@ -1532,3 +1532,48 @@ class DryRunReportResponse(BaseModel):
     estimated_output_tokens: int = 0
     estimated_cost_usd: float = 0.0
     cost_by_stage: dict[str, float] = Field(default_factory=dict)
+
+
+class ErrorResponse(BaseModel):
+    """Structured error response for MCP tools.
+
+    Examples:
+        Validation error:
+        {
+            "error": "budget must be at least 1",
+            "code": 400,
+            "details": {
+                "field": "budget",
+                "expected": "integer >= 1",
+                "actual": "0"
+            }
+        }
+
+        Resource not found:
+        {
+            "error": "Idea not found: bu-missing123",
+            "code": 404,
+            "details": {
+                "resource_type": "buildable_unit",
+                "resource_id": "bu-missing123"
+            }
+        }
+
+        External service error:
+        {
+            "error": "LLM API request failed",
+            "code": 502,
+            "details": {
+                "service": "anthropic",
+                "retry_after": 5.0
+            }
+        }
+    """
+
+    error: str = Field(description="Human-readable error message")
+    code: int | None = Field(
+        default=None, description="HTTP-style error code (400, 404, 409, 429, 502)"
+    )
+    details: dict[str, Any] = Field(
+        default_factory=dict, description="Additional context about the error"
+    )
