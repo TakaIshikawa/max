@@ -52,6 +52,11 @@ from max.analysis.design_brief_evidence_matrix import (
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
+from max.analysis.profile_drift import (
+    DEFAULT_LOOKBACK_DAYS as DEFAULT_PROFILE_DRIFT_LOOKBACK_DAYS,
+    DEFAULT_MIN_SIGNALS as DEFAULT_PROFILE_DRIFT_MIN_SIGNALS,
+    build_profile_drift_report,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs as build_pipeline_run_comparison,
@@ -1186,6 +1191,66 @@ def get_profile_source_recommendations(
         return e.to_dict()
 
 
+def get_profile_drift(
+    profile_name: str,
+    lookback_days: int = DEFAULT_PROFILE_DRIFT_LOOKBACK_DAYS,
+    min_signals: int = DEFAULT_PROFILE_DRIFT_MIN_SIGNALS,
+) -> dict:
+    """Return a profile drift report for a named pipeline profile.
+
+    Set lookback_days to limit recent signals, insights, and generated units.
+    Set min_signals to add an explicit warning when the report is under-sampled.
+
+    Raises:
+        ValidationError: If lookback_days or min_signals are invalid.
+        ResourceNotFoundError: If the profile is not found.
+    """
+    from max.profiles.loader import load_profile
+    from max.server.schemas import ProfileDriftResponse
+
+    try:
+        if lookback_days < 1:
+            raise ValidationError(
+                "lookback_days must be at least 1",
+                field="lookback_days",
+                expected="integer >= 1",
+                actual=str(lookback_days),
+            )
+        if min_signals < 0:
+            raise ValidationError(
+                "min_signals must be non-negative",
+                field="min_signals",
+                expected="integer >= 0",
+                actual=str(min_signals),
+            )
+
+        try:
+            profile = load_profile(profile_name)
+        except FileNotFoundError as e:
+            raise ResourceNotFoundError(
+                f"Profile not found: {profile_name}",
+                resource_type="profile",
+                resource_id=profile_name,
+            ) from e
+
+        with _get_store() as store:
+            report = build_profile_drift_report(
+                profile,
+                store,
+                lookback_days=lookback_days,
+                min_signals=min_signals,
+            )
+
+        payload = ProfileDriftResponse.model_validate(report.to_dict()).model_dump()
+        payload["lookback_days"] = lookback_days
+        payload["min_signals"] = min_signals
+        return payload
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
     return {
         "cluster_id": cluster.cluster_id,
@@ -2045,6 +2110,11 @@ def profile_source_recommendations_detail(profile_name: str) -> str:
     return json.dumps(get_profile_source_recommendations(profile_name), indent=2)
 
 
+def profile_drift_detail(profile_name: str) -> str:
+    """Browse the default drift report for a specific profile."""
+    return json.dumps(get_profile_drift(profile_name), indent=2)
+
+
 def roi_forecast_detail() -> str:
     """Browse the default ROI forecast report."""
     return json.dumps(get_roi_forecast(), indent=2)
@@ -2108,6 +2178,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_llm_budget_usage)
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
+    mcp.tool(get_profile_drift)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -2145,6 +2216,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("profile-source-recommendations://{profile_name}")(
         profile_source_recommendations_detail
     )
+    mcp.resource("profile-drift://{profile_name}")(profile_drift_detail)
     mcp.resource("roi://forecast")(roi_forecast_detail)
     mcp.resource("pipeline-run-comparisons://{baseline_run_id}/{candidate_run_id}")(
         pipeline_run_comparison_detail
