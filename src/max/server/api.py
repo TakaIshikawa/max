@@ -152,6 +152,9 @@ from max.server.schemas import (
     IdeaScoreDistributionResponse,
     IdeaStatusSummaryResponse,
     IdeaSummaryResponse,
+    SpecReadinessBatchItemResponse,
+    SpecReadinessBatchRequest,
+    SpecReadinessBatchResponse,
     InsightCreate,
     InsightDetailResponse,
     InsightResponse,
@@ -2506,6 +2509,78 @@ def get_idea_spec_readiness(idea_id: str, store: Store = Depends(get_store)) -> 
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return evaluate_spec_readiness(unit, store.get_evaluation(idea_id))
+
+
+@router.post("/ideas/spec-readiness-batch", response_model=SpecReadinessBatchResponse)
+def evaluate_ideas_spec_readiness_batch(
+    body: SpecReadinessBatchRequest,
+    store: Store = Depends(get_store),
+) -> SpecReadinessBatchResponse:
+    if body.idea_ids:
+        units_by_id = {
+            unit_id: store.get_buildable_unit(unit_id)
+            for unit_id in body.idea_ids
+        }
+        units = [units_by_id[unit_id] for unit_id in body.idea_ids]
+        requested_ids = body.idea_ids
+    else:
+        filtered_units = store.get_buildable_units(
+            limit=body.limit,
+            status=body.status,
+            domain=body.domain,
+        )
+        units = filtered_units
+        requested_ids = [unit.id for unit in filtered_units]
+
+    results: list[SpecReadinessBatchItemResponse] = []
+    for idea_id, unit in zip(requested_ids, units, strict=True):
+        if not unit:
+            results.append(
+                SpecReadinessBatchItemResponse(
+                    idea_id=idea_id,
+                    status="not_found",
+                    success=False,
+                    error=f"Idea not found: {idea_id}",
+                )
+            )
+            continue
+
+        try:
+            readiness = evaluate_spec_readiness(unit, store.get_evaluation(unit.id))
+        except Exception as exc:
+            results.append(
+                SpecReadinessBatchItemResponse(
+                    idea_id=idea_id,
+                    status="error",
+                    success=False,
+                    error=str(exc),
+                )
+            )
+            continue
+
+        failed_checks = [
+            check for check in readiness.get("checks", []) if not check.get("passed")
+        ]
+        results.append(
+            SpecReadinessBatchItemResponse(
+                idea_id=unit.id,
+                status="evaluated",
+                success=True,
+                score=readiness["score"],
+                readiness_status=readiness["status"],
+                passed=readiness["passed"],
+                missing_sections=[check["label"] for check in failed_checks],
+                blockers=[
+                    check["remediation"]
+                    for check in failed_checks
+                    if check.get("remediation")
+                ],
+                failed_check_ids=readiness["failed_check_ids"],
+                readiness=readiness,
+            )
+        )
+
+    return SpecReadinessBatchResponse(results=results)
 
 
 @router.get("/ideas/{idea_id}/review-gate", response_model=ReviewGateResponse)
