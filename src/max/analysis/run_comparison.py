@@ -104,6 +104,7 @@ def compare_pipeline_runs(
     *,
     base_run_id: str,
     target_run_id: str,
+    include_adapter_metrics: bool = True,
 ) -> dict[str, object]:
     """Return persisted metric deltas between two pipeline runs.
 
@@ -129,7 +130,7 @@ def compare_pipeline_runs(
     base_budget = _budget_metrics(base_run)
     target_budget = _budget_metrics(target_run)
 
-    return {
+    report: dict[str, object] = {
         "base_run": _run_summary(base_run),
         "target_run": _run_summary(target_run),
         "fetched_signals": {
@@ -167,5 +168,7 @@ def compare_pipeline_runs(
         "budget_usage": {
             key: _metric_delta(base_budget[key], target_budget[key]) for key in base_budget
         },
-        "adapter_metrics": _adapter_deltas(base_run, target_run),
     }
+    if include_adapter_metrics:
+        report["adapter_metrics"] = _adapter_deltas(base_run, target_run)
+    return report
