@@ -251,3 +251,214 @@ def test_all_profiles_load_successfully(profile_name: str):
     assert isinstance(profile.signal_limit, int)
     assert profile.signal_limit > 0
     assert isinstance(profile.ideation_mode, str)
+
+
+# --- Tests for new domain profiles ---
+
+
+def test_load_ai_infra_profile():
+    """ai-infra.yaml should load and validate."""
+    profile = load_profile("ai-infra")
+    assert profile.name == "ai-infra"
+    assert profile.domain.name == "ai-infrastructure"
+    assert "inference_server" in profile.domain.categories
+    assert "ml_engineers" in profile.domain.target_user_types
+    assert "GPU utilization" in profile.domain.extra_instructions
+    assert "mid-market AI product teams" in profile.domain.target_segments
+    assert "model evaluation" in profile.domain.workflows
+    assert profile.evaluation.min_score == 50.0
+
+
+def test_load_hr_profile():
+    """hr.yaml should load and validate."""
+    profile = load_profile("hr")
+    assert profile.name == "hr"
+    assert profile.domain.name == "hr-people-ops"
+    assert "recruiting_automation" in profile.domain.categories
+    assert "hr_managers" in profile.domain.target_user_types
+    assert "mid-market people teams" in profile.domain.target_segments
+    assert "candidate screening" in profile.domain.workflows
+    assert profile.evaluation.min_score == 45.0
+
+
+def test_load_legaltech_profile():
+    """legaltech.yaml should load and validate."""
+    profile = load_profile("legaltech")
+    assert profile.name == "legaltech"
+    assert profile.domain.name == "legaltech"
+    assert "contract_analysis" in profile.domain.categories
+    assert "lawyers" in profile.domain.target_user_types
+    assert "solo and small law firms" in profile.domain.target_segments
+    assert "contract review" in profile.domain.workflows
+    assert profile.evaluation.min_score == 45.0
+
+
+def test_load_proptech_profile():
+    """proptech.yaml should load and validate."""
+    profile = load_profile("proptech")
+    assert profile.name == "proptech"
+    assert profile.domain.name == "proptech"
+    assert "property_valuation" in profile.domain.categories
+    assert "property_managers" in profile.domain.target_user_types
+    assert "small property management firms" in profile.domain.target_segments
+    assert "maintenance request triage" in profile.domain.workflows
+    assert profile.evaluation.min_score == 45.0
+
+
+def test_load_supply_chain_profile():
+    """supply-chain.yaml should load and validate."""
+    profile = load_profile("supply-chain")
+    assert profile.name == "supply-chain"
+    assert profile.domain.name == "supply-chain"
+    assert "inventory_forecasting" in profile.domain.categories
+    assert "supply_chain_managers" in profile.domain.target_user_types
+    assert "mid-market manufacturers" in profile.domain.target_segments
+    assert "supplier risk review" in profile.domain.workflows
+    assert profile.evaluation.min_score == 45.0
+
+
+def test_new_domain_profiles_have_required_source_adapters():
+    """Test that new domain profiles reference only valid adapters."""
+    from max.sources.registry import list_adapters
+
+    valid_adapters = set(list_adapters())
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        for source in profile.sources:
+            assert (
+                source.adapter in valid_adapters
+            ), f"Profile {profile_name} references unknown adapter: {source.adapter}"
+
+
+def test_new_domain_profiles_have_source_configs():
+    """Test that new domain profiles have at least one source adapter configured."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        assert len(profile.sources) > 0, f"Profile {profile_name} has no source adapters configured"
+
+
+def test_new_domain_profiles_weights_are_valid():
+    """Test that source adapter weights in new profiles are positive floats."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        for source in profile.sources:
+            assert isinstance(source.weight, (int, float)), f"Invalid weight type in {profile_name}"
+            assert source.weight >= 0, f"Negative weight in {profile_name}: {source.weight}"
+
+
+def test_new_domain_profiles_have_buyer_roles():
+    """Test that new domain profiles specify buyer roles."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        assert (
+            len(profile.domain.buyer_roles) > 0
+        ), f"Profile {profile_name} has no buyer_roles specified"
+
+
+def test_new_domain_profiles_have_hard_constraints():
+    """Test that new domain profiles specify hard constraints."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        assert (
+            len(profile.domain.hard_constraints) > 0
+        ), f"Profile {profile_name} has no hard_constraints specified"
+
+
+def test_new_domain_profiles_have_bad_idea_patterns():
+    """Test that new domain profiles specify bad idea patterns."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        assert (
+            len(profile.domain.bad_idea_patterns) > 0
+        ), f"Profile {profile_name} has no bad_idea_patterns specified"
+
+
+def test_new_domain_profiles_have_good_idea_criteria():
+    """Test that new domain profiles specify good idea criteria."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        assert (
+            len(profile.domain.good_idea_criteria) > 0
+        ), f"Profile {profile_name} has no good_idea_criteria specified"
+
+
+def test_ai_infra_domain_quality_config():
+    """Test that ai-infra profile has domain_quality configuration enabled."""
+    profile = load_profile("ai-infra")
+
+    # Verify domain_quality is enabled
+    assert profile.domain_quality.enabled is True
+    assert profile.domain_quality.min_score == 69.0
+
+    # Verify required_fields
+    assert "buyer" in profile.domain_quality.required_fields
+    assert "specific_user" in profile.domain_quality.required_fields
+    assert "workflow_context" in profile.domain_quality.required_fields
+    assert "validation_plan" in profile.domain_quality.required_fields
+    assert "tech_approach" in profile.domain_quality.required_fields
+
+    # Verify scoring dimensions exist
+    assert "workflow_specificity" in profile.domain_quality.scoring_dimensions
+    assert "buyer_clarity" in profile.domain_quality.scoring_dimensions
+    assert "evidence_support" in profile.domain_quality.scoring_dimensions
+    assert "measurable_infra_impact" in profile.domain_quality.scoring_dimensions
+
+    # Verify dimension weights
+    assert profile.domain_quality.scoring_dimensions["workflow_specificity"].weight == 1.3
+    assert profile.domain_quality.scoring_dimensions["buyer_clarity"].weight == 1.2
+    assert profile.domain_quality.scoring_dimensions["evidence_support"].weight == 1.4
+    assert profile.domain_quality.scoring_dimensions["measurable_infra_impact"].weight == 1.5
+
+    # Verify hard rejections
+    assert "missing_buyer" in profile.domain_quality.hard_rejections
+    assert "missing_workflow" in profile.domain_quality.hard_rejections
+    assert "no_measurable_metric" in profile.domain_quality.hard_rejections
+
+    # Verify preferred patterns
+    assert "inference cost or latency optimizer" in profile.domain_quality.preferred_patterns
+    assert "eval-backed model router" in profile.domain_quality.preferred_patterns
+
+
+def test_new_domain_profiles_adapter_params_are_valid():
+    """Test that adapter parameters in new profiles are properly structured."""
+    new_profiles = ["ai-infra", "hr", "legaltech", "proptech", "supply-chain"]
+
+    for profile_name in new_profiles:
+        profile = load_profile(profile_name)
+        for source in profile.sources:
+            # Verify params is a dict
+            assert isinstance(source.params, dict), f"Invalid params in {profile_name} for {source.adapter}"
+
+            # Verify enabled is a boolean
+            assert isinstance(source.enabled, bool), f"Invalid enabled value in {profile_name} for {source.adapter}"
+
+
+def test_new_domain_profiles_min_score_consistency():
+    """Test that evaluation min_score matches expected values for new profiles."""
+    expected_scores = {
+        "ai-infra": 50.0,  # Uses default weight_profile
+        "hr": 45.0,
+        "legaltech": 45.0,
+        "proptech": 45.0,
+        "supply-chain": 45.0,
+    }
+
+    for profile_name, expected_score in expected_scores.items():
+        profile = load_profile(profile_name)
+        assert (
+            profile.evaluation.min_score == expected_score
+        ), f"Profile {profile_name} has unexpected min_score: {profile.evaluation.min_score} (expected {expected_score})"
