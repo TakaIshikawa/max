@@ -57,6 +57,13 @@ from max.publisher.teams_webhook import (
     TeamsWebhookPublishError,
     TeamsWebhookPublishResult,
 )
+from max.publisher.trello_cards import (
+    TrelloCardPayload,
+    TrelloCardPublisher,
+    TrelloCardPublishError,
+    TrelloCardPublishResult,
+    TrelloCardsPublisher,
+)
 from max.publisher.webhook import WebhookPublishError, WebhookPublisher, WebhookPublishResult
 
 __all__ = [
@@ -99,6 +106,11 @@ __all__ = [
     "TeamsWebhookPublisher",
     "TeamsWebhookPublishError",
     "TeamsWebhookPublishResult",
+    "TrelloCardPayload",
+    "TrelloCardPublisher",
+    "TrelloCardPublishError",
+    "TrelloCardPublishResult",
+    "TrelloCardsPublisher",
     "WebhookPublisher",
     "WebhookPublishError",
     "WebhookPublishResult",

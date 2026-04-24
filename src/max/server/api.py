@@ -121,6 +121,7 @@ from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublish
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
 from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.publisher.teams_webhook import TeamsWebhookPublisher, TeamsWebhookPublishError
+from max.publisher.trello_cards import TrelloCardPublisher, TrelloCardPublishError
 from max.publisher.webhook import WebhookPublisher, WebhookPublishError, redact_url
 from max.server.dependencies import get_store
 from max.server.evidence_chain import build_evidence_chain_graph
@@ -277,6 +278,8 @@ from max.server.schemas import (
     StatsResponse,
     TeamsPublishRequest,
     TeamsPublishResponse,
+    TrelloCardPublishRequest,
+    TrelloCardPublishResponse,
     ValidationExperimentCreate,
     ValidationExperimentResponse,
     ValidationExperimentSignalExportResponse,
@@ -3022,6 +3025,95 @@ def publish_idea_to_jira_issue(
         project_key=result.project_key,
         issue_key=result.issue_key,
         issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/trello", response_model=TrelloCardPublishResponse)
+def publish_idea_to_trello_card(
+    idea_id: str,
+    request: TrelloCardPublishRequest,
+    store: Store = Depends(get_store),
+) -> TrelloCardPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = TrelloCardPublisher.from_env(
+            list_id=request.list_id,
+            key=request.key,
+            token=request.token,
+            api_url=request.api_url,
+            labels=request.labels,
+            due=request.due,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except TrelloCardPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "TRELLO_KEY and TRELLO_TOKEN are required for live Trello card publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="trello_card",
+            target_url=publisher.card_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except TrelloCardPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="trello_card",
+            target_url=publisher.card_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.card_url or result.card_id or publisher.card_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="trello_card",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return TrelloCardPublishResponse(
+        idea_id=idea_id,
+        list_id=result.list_id,
+        card_id=result.card_id,
+        card_url=result.card_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
