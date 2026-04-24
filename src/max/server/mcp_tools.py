@@ -72,6 +72,9 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.analysis.validation_experiment_summary import (
+    build_validation_experiment_summary,
+)
 from max.server.errors import (
     ExternalServiceError,
     MCPToolError,
@@ -976,6 +979,26 @@ def update_validation_experiment(experiment_id: str, payload: dict) -> dict:
             return experiment
     except MCPToolError as e:
         return e.to_dict()
+
+
+def max_validation_experiment_summary(
+    domain: str | None = None,
+    idea_id: str | None = None,
+    status: str | None = None,
+    overdue_only: bool = False,
+) -> dict:
+    """Return portfolio-level validation experiment health.
+
+    Optional filters match the REST validation experiment summary endpoint.
+    """
+    with _get_store() as store:
+        return build_validation_experiment_summary(
+            store,
+            domain=domain,
+            idea_id=idea_id,
+            status=status,
+            overdue_only=overdue_only,
+        )
 
 
 def max_portfolio_overlap(
@@ -2171,6 +2194,16 @@ def validation_experiment_detail(experiment_id: str) -> str:
     return json.dumps(get_validation_experiment(experiment_id), indent=2)
 
 
+def validation_experiment_summary_detail() -> str:
+    """Browse the default validation experiment portfolio summary."""
+    return json.dumps(max_validation_experiment_summary(), indent=2)
+
+
+def validation_experiment_summary_for_domain_detail(domain: str) -> str:
+    """Browse validation experiment portfolio summary for a domain."""
+    return json.dumps(max_validation_experiment_summary(domain=domain), indent=2)
+
+
 def signal_freshness_detail() -> str:
     """Browse the default signal freshness report."""
     return json.dumps(max_signal_freshness(), indent=2)
@@ -2252,6 +2285,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_validation_experiment)
     mcp.tool(create_validation_experiment)
     mcp.tool(update_validation_experiment)
+    mcp.tool(max_validation_experiment_summary)
     mcp.tool(get_evidence_pack)
     mcp.tool(get_evidence_chain)
     mcp.tool(contribute_signal)
@@ -2299,6 +2333,10 @@ def create_mcp_server() -> FastMCP:
         design_brief_evidence_matrix_detail
     )
     mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
+    mcp.resource("validation-experiments://summary")(validation_experiment_summary_detail)
+    mcp.resource("validation-experiments://summary/{domain}")(
+        validation_experiment_summary_for_domain_detail
+    )
     mcp.resource("validation-experiments://{experiment_id}")(validation_experiment_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
