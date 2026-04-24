@@ -184,3 +184,35 @@ def test_jetbrains_survey_adapter_metadata_documents_config_keys() -> None:
     assert "JetBrains Developer Ecosystem survey CSV exports" in metadata[
         "jetbrains_survey"
     ].description
+
+
+def test_federal_register_healthcare_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "federal_register_healthcare"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["federal_register_healthcare"]
+        adapter = get_adapter("federal_register_healthcare")
+
+    assert adapter.name == "federal_register_healthcare"
+
+
+def test_federal_register_healthcare_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "federal_register_healthcare"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"federal_register_healthcare"}
+    assert metadata["federal_register_healthcare"].config_keys == [
+        "agencies",
+        "topics",
+        "search_terms",
+        "document_types",
+        "max_age_days",
+        "base_url",
+    ]
+    assert metadata["federal_register_healthcare"].required_keys == []
+    assert "Federal Register healthcare rules" in metadata[
+        "federal_register_healthcare"
+    ].description
