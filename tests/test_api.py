@@ -3528,6 +3528,23 @@ def test_get_design_brief_evidence_matrix(seeded_client):
     assert problem["validation_actions"]
 
 
+def test_get_design_brief_competitive_landscape(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/competitive-landscape")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max.design_brief.competitive_landscape.v1"
+    assert data["design_brief"]["id"] == brief_id
+    assert data["status"] == "ready"
+    assert data["summary"]["prior_art_record_count"] == 1
+    assert data["competitor_clusters"][0]["top_competitors"][0]["title"] == "Existing Test Idea"
+    assert data["differentiation_angles"]
+    assert data["recommended_positioning"]
+
+
 def test_get_design_brief_market_sizing(seeded_client):
     list_resp = seeded_client.get("/api/v1/design-briefs")
     brief_id = list_resp.json()[0]["id"]
@@ -3643,6 +3660,11 @@ def test_get_design_brief_evidence_matrix_not_found(client):
 
 def test_get_design_brief_market_sizing_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing/market-sizing")
+    assert resp.status_code == 404
+
+
+def test_get_design_brief_competitive_landscape_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing/competitive-landscape")
     assert resp.status_code == 404
 
 

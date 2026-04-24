@@ -27,6 +27,9 @@ from max.analysis.contradictions import (
     build_insight_contradiction_report,
 )
 from max.analysis.context_budget import build_context_budget_waste_report
+from max.analysis.design_brief_competitive_landscape import (
+    build_design_brief_competitive_landscape,
+)
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap
 from max.analysis.design_brief_risk_register import build_design_brief_risk_register
@@ -121,6 +124,7 @@ from max.server.schemas import (
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
     ContextBudgetWasteResponse,
+    DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefRoadmapResponse,
@@ -3644,6 +3648,20 @@ def get_design_brief_roadmap(
     if not roadmap:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefRoadmapResponse(**roadmap)
+
+
+@router.get(
+    "/design-briefs/{brief_id}/competitive-landscape",
+    response_model=DesignBriefCompetitiveLandscapeResponse,
+)
+def get_design_brief_competitive_landscape(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefCompetitiveLandscapeResponse:
+    report = build_design_brief_competitive_landscape(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefCompetitiveLandscapeResponse(**report)
 
 
 @router.get(

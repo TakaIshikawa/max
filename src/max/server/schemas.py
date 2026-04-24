@@ -1516,6 +1516,41 @@ class DesignBriefRoadmapResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefCompetitorClusterResponse(BaseModel):
+    id: str
+    name: str
+    source: str
+    competitor_count: int
+    source_idea_ids: list[str]
+    top_competitors: list[dict[str, Any]]
+    overlap_score: float
+    shared_terms: list[str]
+    positioning_summary: str
+    suggested_response: str
+
+
+class DesignBriefDifferentiationAngleResponse(BaseModel):
+    id: str
+    title: str
+    rationale: str
+    source_idea_ids: list[str]
+    evidence: list[str]
+
+
+class DesignBriefCompetitiveLandscapeResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    status: Literal["ready", "insufficient_data"]
+    summary: dict
+    saturation: dict[str, Any]
+    competitor_clusters: list[DesignBriefCompetitorClusterResponse]
+    differentiation_angles: list[DesignBriefDifferentiationAngleResponse]
+    recommended_positioning: str
+    signals: dict[str, Any]
+    source_ideas: list[dict]
+
+
 class DesignBriefMarketSegmentResponse(BaseModel):
     name: str
     buyer: str
