@@ -249,7 +249,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey",
+        "hackernews,rss_feed,crates_io,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -270,6 +270,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "github_pull_requests",
         "gitlab_merge_requests",
         "stackoverflow_survey",
+        "agent_failure_dataset",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -363,6 +364,16 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["stackoverflow_survey"].required_keys == []
     assert "survey CSV" in metadata["stackoverflow_survey"].description
+    assert metadata["agent_failure_dataset"].config_keys == [
+        "local_paths",
+        "dataset_urls",
+        "format",
+        "failure_type_filters",
+        "min_severity",
+        "max_rows",
+    ]
+    assert metadata["agent_failure_dataset"].required_keys == []
+    assert "failure_data" in metadata["agent_failure_dataset"].description
 
 
 def test_get_adapter_returns_instance():
