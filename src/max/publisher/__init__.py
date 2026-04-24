@@ -14,6 +14,13 @@ from max.publisher.linear_issues import (
     LinearIssuePublishResult,
     LinearIssuesPublisher,
 )
+from max.publisher.jira_issues import (
+    JiraIssuePayload,
+    JiraIssuePublisher,
+    JiraIssuePublishError,
+    JiraIssuePublishResult,
+    JiraIssuesPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -37,6 +44,11 @@ __all__ = [
     "LinearIssuePublishError",
     "LinearIssuePublishResult",
     "LinearIssuesPublisher",
+    "JiraIssuePayload",
+    "JiraIssuePublisher",
+    "JiraIssuePublishError",
+    "JiraIssuePublishResult",
+    "JiraIssuesPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",

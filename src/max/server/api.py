@@ -80,6 +80,7 @@ from max.analysis.thresholds import (
 from max.analysis.validation_signal_export import validation_experiment_signal
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
+from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
 from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
 from max.server.dependencies import get_store
@@ -156,6 +157,8 @@ from max.server.schemas import (
     InsightResponse,
     InsightTrendItemResponse,
     InsightTrendResponse,
+    JiraIssuePublishRequest,
+    JiraIssuePublishResponse,
     LLMUsageResponse,
     LLMUsageRunResponse,
     LLMBudgetUsageResponse,
@@ -2374,6 +2377,96 @@ def publish_idea_to_linear_issue(
     return LinearIssuePublishResponse(
         idea_id=idea_id,
         team_id=result.team_id,
+        issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/jira", response_model=JiraIssuePublishResponse)
+def publish_idea_to_jira_issue(
+    idea_id: str,
+    request: JiraIssuePublishRequest,
+    store: Store = Depends(get_store),
+) -> JiraIssuePublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = JiraIssuePublisher.from_env(
+            site_url=request.site_url,
+            project_key=request.project_key,
+            email=request.email,
+            api_token=request.api_token,
+            bearer_token=request.bearer_token,
+            issue_type=request.issue_type,
+            labels=request.labels,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except JiraIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher._has_auth:
+        message = (
+            "Jira email/api_token or bearer_token is required for live Jira issue publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="jira_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except JiraIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="jira_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.issue_url or publisher.issue_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="jira_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return JiraIssuePublishResponse(
+        idea_id=idea_id,
+        project_key=result.project_key,
+        issue_key=result.issue_key,
         issue_url=result.issue_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
