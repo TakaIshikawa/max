@@ -72,6 +72,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
     "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
     "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
+    "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -396,6 +397,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches OpenSSF Scorecard repository trust and supply-chain risk signals.",
+    ),
+    "cncf_landscape": AdapterMetadata(
+        name="cncf_landscape",
+        config_keys=[
+            "landscape_urls",
+            "local_paths",
+            "categories",
+            "maturity_levels",
+            "include_archived",
+            "min_stars",
+        ],
+        required_keys=[],
+        description="Fetches CNCF Landscape-style cloud-native project adoption and maturity signals.",
     ),
 }
 
