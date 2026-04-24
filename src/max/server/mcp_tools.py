@@ -514,6 +514,48 @@ def get_design_brief_validation_plan(brief_id: str, format: str = "json") -> dic
         return e.to_dict()
 
 
+def get_design_brief_risk_register(brief_id: str, format: str = "json") -> dict:
+    """Get a consolidated risk register for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    from max.analysis.design_brief_risk_register import (
+        build_design_brief_risk_register,
+        render_design_brief_risk_register,
+    )
+
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported risk register format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            register = build_design_brief_risk_register(store, brief_id)
+            if not register:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_risk_register(register, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def max_portfolio_overlap(
     limit: int = 20,
     min_overlap_score: float = 0.35,
@@ -1262,6 +1304,11 @@ def design_brief_validation_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_validation_plan(brief_id), indent=2)
 
 
+def design_brief_risk_register_detail(brief_id: str) -> str:
+    """Get the risk register for a specific design brief."""
+    return json.dumps(get_design_brief_risk_register(brief_id), indent=2)
+
+
 def signal_freshness_detail() -> str:
     """Browse the default signal freshness report."""
     return json.dumps(max_signal_freshness(), indent=2)
@@ -1297,6 +1344,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief)
     mcp.tool(get_design_brief_markdown)
     mcp.tool(get_design_brief_validation_plan)
+    mcp.tool(get_design_brief_risk_register)
     mcp.tool(get_evidence_pack)
     mcp.tool(get_evidence_chain)
     mcp.tool(contribute_signal)
@@ -1325,6 +1373,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("design-brief-validation-plans://{brief_id}")(design_brief_validation_plan_detail)
+    mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)

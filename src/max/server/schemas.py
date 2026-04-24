@@ -1221,6 +1221,37 @@ class DesignBriefEvidenceMatrixResponse(BaseModel):
     rows: list[DesignBriefEvidenceMatrixRowResponse]
 
 
+class DesignBriefRiskItemResponse(BaseModel):
+    id: str
+    category: Literal[
+        "market",
+        "workflow",
+        "technical",
+        "data",
+        "compliance",
+        "dependency",
+        "evidence",
+    ]
+    title: str
+    description: str
+    severity: Literal["high", "medium", "low"]
+    likelihood: Literal["likely", "possible", "unlikely"]
+    priority: int
+    source_idea_ids: list[str]
+    source_fields: list[str]
+    mitigation: str
+    validation_action: str
+
+
+class DesignBriefRiskRegisterResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    summary: dict
+    risks: list[DesignBriefRiskItemResponse]
+    validation_actions: list[str]
+
+
 class DesignBriefMarketSegmentResponse(BaseModel):
     name: str
     buyer: str

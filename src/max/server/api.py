@@ -28,6 +28,7 @@ from max.analysis.contradictions import (
 )
 from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
+from max.analysis.design_brief_risk_register import build_design_brief_risk_register
 from max.analysis.market_sizing import build_market_sizing_report
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
@@ -95,6 +96,7 @@ from max.server.schemas import (
     DesignBriefEvidenceMatrixResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefResponse,
+    DesignBriefRiskRegisterResponse,
     DesignBriefStatusUpdate,
     DesignBriefValidationPlanResponse,
     DiscordPublishRequest,
@@ -2921,6 +2923,20 @@ def get_design_brief_evidence_matrix(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefEvidenceMatrixResponse(**build_design_brief_evidence_matrix(store, brief))
+
+
+@router.get(
+    "/design-briefs/{brief_id}/risk-register",
+    response_model=DesignBriefRiskRegisterResponse,
+)
+def get_design_brief_risk_register(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefRiskRegisterResponse:
+    register = build_design_brief_risk_register(store, brief_id)
+    if not register:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefRiskRegisterResponse(**register)
 
 
 @router.get(
