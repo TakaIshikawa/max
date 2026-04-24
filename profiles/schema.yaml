@@ -198,22 +198,36 @@ properties:
           description: Adapter name (must exist in adapter registry)
           minLength: 1
           enum:
-            - hackernews
-            - reddit
-            - github
-            - github_issues
-            - github_discussions
-            - nuget
-            - npm_registry
-            - pypi_registry
-            - security_advisories
-            - product_hunt
             - arxiv
-            - pubmed
-            - stackoverflow
+            - awesome_lists
+            - bluesky
+            - crates_io
             - devto
-            - rss_feed
+            - discourse
+            - dockerhub
+            - github
+            - github_discussions
+            - github_funding
+            - github_issues
+            - github_releases
+            - gitlab_issues
+            - gitlab_releases
+            - hackernews
             - huggingface
+            - lobsters
+            - mcp_registry
+            - npm_registry
+            - nuget
+            - nvd_cve
+            - openalex
+            - product_hunt
+            - pubmed
+            - pypi_registry
+            - reddit
+            - rss_feed
+            - security_advisories
+            - stackshare
+            - stackoverflow
 
         enabled:
           type: boolean
