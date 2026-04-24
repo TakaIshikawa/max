@@ -431,6 +431,7 @@ def test_get_idea_found(seeded_mcp_db):
 def test_get_idea_not_found(mcp_db):
     result = get_idea(id="nonexistent")
     assert "error" in result
+    assert result["code"] == 404
 
 
 def test_get_spec_preview_success(seeded_mcp_db):
@@ -448,7 +449,8 @@ def test_get_spec_preview_success(seeded_mcp_db):
 def test_get_spec_preview_missing_idea(mcp_db):
     result = get_spec_preview(id="missing")
 
-    assert result == {"error": "Idea not found: missing"}
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
 
 
 def test_get_spec_preview_missing_evaluation(mcp_db):
@@ -468,7 +470,8 @@ def test_get_spec_preview_missing_evaluation(mcp_db):
 
     result = get_spec_preview(id="bu-noeval001")
 
-    assert result == {"error": "Evaluation not found for idea: bu-noeval001"}
+    assert result["error"] == "Evaluation not found for idea: bu-noeval001"
+    assert result["code"] == 404
 
 
 def test_get_spec_readiness_success(seeded_mcp_db):
@@ -483,7 +486,8 @@ def test_get_spec_readiness_success(seeded_mcp_db):
 def test_get_spec_readiness_missing_idea(mcp_db):
     result = get_spec_readiness(id="missing")
 
-    assert result == {"error": "Idea not found: missing"}
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
 
 
 def test_get_spec_readiness_missing_evaluation(mcp_db):
@@ -503,7 +507,8 @@ def test_get_spec_readiness_missing_evaluation(mcp_db):
 
     result = get_spec_readiness(id="bu-noeval-readiness")
 
-    assert result == {"error": "Evaluation not found for idea: bu-noeval-readiness"}
+    assert result["error"] == "Evaluation not found for idea: bu-noeval-readiness"
+    assert result["code"] == 404
 
 
 def test_get_implementation_plan_success(seeded_mcp_db):
@@ -522,7 +527,8 @@ def test_get_implementation_plan_success(seeded_mcp_db):
 def test_get_implementation_plan_missing_idea(mcp_db):
     result = get_implementation_plan(id="missing")
 
-    assert result == {"error": "Idea not found: missing"}
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
 
 
 def test_get_implementation_plan_missing_evaluation(mcp_db):
@@ -542,7 +548,8 @@ def test_get_implementation_plan_missing_evaluation(mcp_db):
 
     result = get_implementation_plan(id="bu-noeval-plan")
 
-    assert result == {"error": "Evaluation not found for idea: bu-noeval-plan"}
+    assert result["error"] == "Evaluation not found for idea: bu-noeval-plan"
+    assert result["code"] == 404
 
 
 def test_spec_preview_resource(seeded_mcp_db):
@@ -571,7 +578,8 @@ def test_get_evidence_chain_graph(seeded_evidence_chain_db):
 
 def test_get_evidence_chain_not_found(mcp_db):
     result = get_evidence_chain(id="missing")
-    assert result == {"error": "Idea not found: missing"}
+    assert result["error"] == "Idea not found: missing"
+    assert result["code"] == 404
 
 
 def test_evidence_chain_resource(seeded_evidence_chain_db):
@@ -603,7 +611,8 @@ def test_get_design_brief_found(seeded_design_brief_db):
 
 def test_get_design_brief_not_found(mcp_db):
     result = get_design_brief("dbf-missing")
-    assert result == {"error": "Design brief not found: dbf-missing"}
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
 
 
 def test_get_design_brief_markdown(seeded_design_brief_db):
@@ -615,7 +624,8 @@ def test_get_design_brief_markdown(seeded_design_brief_db):
 
 def test_get_design_brief_markdown_not_found(mcp_db):
     result = get_design_brief_markdown("dbf-missing")
-    assert result == {"error": "Design brief not found: dbf-missing"}
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
 
 
 def test_max_portfolio_overlap_returns_serializable_clusters_sorted(mcp_db):
@@ -720,10 +730,13 @@ def test_max_portfolio_overlap_include_archived(mcp_db):
 
 
 def test_max_portfolio_overlap_rejects_invalid_arguments(mcp_db):
-    assert max_portfolio_overlap(limit=0) == {"error": "limit must be at least 1"}
-    assert max_portfolio_overlap(min_overlap_score=1.1) == {
-        "error": "min_overlap_score must be between 0 and 1"
-    }
+    result = max_portfolio_overlap(limit=0)
+    assert result["error"] == "limit must be at least 1"
+    assert result["code"] == 400
+
+    result = max_portfolio_overlap(min_overlap_score=1.1)
+    assert result["error"] == "min_overlap_score must be between 0 and 1"
+    assert result["code"] == 400
 
 
 def test_portfolio_overlap_resource_returns_default_report(seeded_mcp_db):
@@ -935,9 +948,9 @@ def test_max_signal_freshness_filters_profile_enabled_adapters(mcp_db):
 
 
 def test_max_signal_freshness_rejects_invalid_max_age_days(mcp_db):
-    assert max_signal_freshness(max_age_days=0) == {
-        "error": "max_age_days must be at least 1"
-    }
+    result = max_signal_freshness(max_age_days=0)
+    assert result["error"] == "max_age_days must be at least 1"
+    assert result["code"] == 400
 
 
 def test_signal_freshness_resource_registered(monkeypatch):
@@ -1125,9 +1138,9 @@ def test_max_source_reliability_filters_profile_window_and_min_count(mcp_db):
 
 
 def test_max_source_reliability_rejects_invalid_time_window(mcp_db):
-    assert max_source_reliability(time_window="soon") == {
-        "error": "time_window must be a duration like '24h', '7d', or '4w'"
-    }
+    result = max_source_reliability(time_window="soon")
+    assert "error" in result
+    assert result["code"] == 400
 
 
 def test_set_schedule_pipeline_config():
@@ -1224,7 +1237,8 @@ def test_dry_run_pipeline_returns_error_for_invalid_profile():
     with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
         result = dry_run_pipeline(profile="missing")
 
-    assert result == {"error": "Profile not found: missing"}
+    assert result["error"] == "Profile not found: missing"
+    assert result["code"] == 404
 
 
 def test_dry_run_pipeline_returns_error_for_invalid_stages():
@@ -1236,4 +1250,169 @@ def test_dry_run_pipeline_returns_error_for_invalid_stages():
     ):
         result = dry_run_pipeline(profile="devtools", stages=["nope"])
 
-    assert result == {"error": "Unknown stages: nope"}
+    assert result["error"] == "Unknown stages: nope"
+    assert result["code"] == 400
+
+
+# ── Structured Error Handling Tests ────────────────────────────────────
+
+
+def test_get_idea_not_found_returns_structured_error(mcp_db):
+    """Test that missing idea returns ResourceNotFoundError with code 404."""
+    result = get_idea(id="missing-idea")
+
+    assert result["error"] == "Idea not found: missing-idea"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "buildable_unit"
+    assert result["details"]["resource_id"] == "missing-idea"
+
+
+def test_get_spec_preview_missing_evaluation_returns_structured_error(mcp_db):
+    """Test that missing evaluation returns ResourceNotFoundError with suggestion."""
+    store = Store(db_path=mcp_db, wal_mode=True)
+    unit = BuildableUnit(
+        id="bu-noeval",
+        title="Unevaluated Idea",
+        one_liner="Test idea",
+        category=BuildableCategory.APPLICATION,
+        ideation_mode=IdeationMode.DIRECT,
+        problem="No evaluation",
+        solution="Return error",
+        value_proposition="Better errors",
+    )
+    store.insert_buildable_unit(unit)
+    store.close()
+
+    result = get_spec_preview(id="bu-noeval")
+
+    assert result["error"] == "Evaluation not found for idea: bu-noeval"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "evaluation"
+    assert result["details"]["resource_id"] == "bu-noeval"
+    assert result["details"]["suggestion"] == "Run evaluate_idea first"
+
+
+def test_simulate_source_allocation_invalid_budget_returns_validation_error(mcp_db):
+    """Test that invalid budget returns ValidationError with code 400."""
+    result = simulate_source_allocation(budget=0)
+
+    assert result["error"] == "budget must be at least 1"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "budget"
+    assert result["details"]["expected"] == "integer >= 1"
+    assert result["details"]["actual"] == "0"
+
+
+def test_max_portfolio_overlap_invalid_limit_returns_validation_error(mcp_db):
+    """Test that invalid limit returns ValidationError."""
+    result = max_portfolio_overlap(limit=0)
+
+    assert "error" in result
+    assert result["code"] == 400
+
+
+def test_max_portfolio_overlap_invalid_score_returns_validation_error(mcp_db):
+    """Test that invalid overlap score returns ValidationError."""
+    result = max_portfolio_overlap(min_overlap_score=1.5)
+
+    assert "error" in result
+    assert result["code"] == 400
+
+
+def test_max_source_reliability_missing_profile_returns_not_found_error(mcp_db):
+    """Test that missing profile returns ResourceNotFoundError."""
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("not found")):
+        result = max_source_reliability(profile="missing")
+
+    assert result["error"] == "Profile not found: missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "profile"
+    assert result["details"]["resource_id"] == "missing"
+
+
+def test_max_source_reliability_invalid_time_window_returns_validation_error(mcp_db):
+    """Test that invalid time window returns ValidationError."""
+    result = max_source_reliability(time_window="invalid")
+
+    assert "error" in result
+    assert result["code"] == 400
+    assert result["details"]["field"] == "time_window"
+
+
+def test_max_signal_freshness_missing_profile_returns_not_found_error(mcp_db):
+    """Test that missing profile returns ResourceNotFoundError."""
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("not found")):
+        result = max_signal_freshness(profile="missing")
+
+    assert result["error"] == "Profile not found: missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "profile"
+
+
+def test_max_signal_freshness_invalid_max_age_returns_validation_error(mcp_db):
+    """Test that invalid max_age_days returns ValidationError."""
+    result = max_signal_freshness(max_age_days=0)
+
+    assert "error" in result
+    assert result["code"] == 400
+    assert result["details"]["field"] == "max_age_days"
+
+
+def test_dry_run_pipeline_missing_profile_returns_not_found_error(mcp_db):
+    """Test that missing profile returns ResourceNotFoundError."""
+    with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("not found")):
+        result = dry_run_pipeline(profile="missing")
+
+    assert result["error"] == "Profile not found: missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "profile"
+    assert result["details"]["resource_id"] == "missing"
+
+
+def test_get_design_brief_not_found_returns_structured_error(mcp_db):
+    """Test that missing design brief returns ResourceNotFoundError."""
+    result = get_design_brief("missing-brief")
+
+    assert result["error"] == "Design brief not found: missing-brief"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "missing-brief"
+
+
+def test_get_evidence_chain_not_found_returns_structured_error(mcp_db):
+    """Test that missing idea returns ResourceNotFoundError."""
+    result = get_evidence_chain("missing-idea")
+
+    assert result["error"] == "Idea not found: missing-idea"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "buildable_unit"
+
+
+def test_error_codes_are_consistent():
+    """Test that error codes match their semantic meaning."""
+    from max.server.errors import ErrorCode
+
+    assert ErrorCode.INVALID_INPUT == 400
+    assert ErrorCode.NOT_FOUND == 404
+    assert ErrorCode.STATE_CONFLICT == 409
+    assert ErrorCode.RATE_LIMITED == 429
+    assert ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE == 502
+
+
+def test_error_to_dict_includes_all_fields():
+    """Test that MCPToolError.to_dict includes all required fields."""
+    from max.server.errors import ValidationError
+
+    error = ValidationError(
+        "test error",
+        field="test_field",
+        expected="value > 0",
+        actual="-1",
+    )
+    result = error.to_dict()
+
+    assert result["error"] == "test error"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "test_field"
+    assert result["details"]["expected"] == "value > 0"
+    assert result["details"]["actual"] == "-1"
