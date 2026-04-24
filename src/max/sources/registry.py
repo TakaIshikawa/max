@@ -70,6 +70,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
     "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
@@ -397,6 +398,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "queries", "include_tags"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "homebrew_formulae": AdapterMetadata(
+        name="homebrew_formulae",
+        config_keys=[
+            "formulae_url",
+            "casks_url",
+            "include_casks",
+            "queries",
+            "categories",
+            "min_install_count",
+        ],
+        required_keys=[],
+        description="Fetches Homebrew formula and cask package popularity and update signals.",
     ),
     "mcp_registry": AdapterMetadata(
         name="mcp_registry",
