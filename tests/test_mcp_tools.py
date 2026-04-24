@@ -22,6 +22,7 @@ from max.server.mcp_tools import (
     get_blast_radius,
     get_design_brief,
     get_design_brief_markdown,
+    get_design_brief_validation_plan,
     get_evidence_chain,
     get_idea,
     get_implementation_plan,
@@ -40,6 +41,7 @@ from max.server.mcp_tools import (
     set_schedule,
     set_scheduler_ref,
     set_store_factory,
+    design_brief_validation_plan_detail,
     spec_preview_detail,
 )
 from max.server.scheduler import Scheduler
@@ -714,6 +716,53 @@ def test_get_design_brief_markdown_not_found(mcp_db):
     assert result["code"] == 404
 
 
+def test_get_design_brief_validation_plan_json(seeded_design_brief_db):
+    result = get_design_brief_validation_plan(seeded_design_brief_db)
+
+    assert result["schema_version"] == "max.design_brief.validation_plan.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+    assert result["design_brief"]["title"] == "MCP Design Brief"
+    assert result["target_user_hypotheses"]
+    assert result["recruiting_criteria"]["screener_questions"]
+    assert result["interview_script"]["problem_discovery_questions"]
+    assert result["smoke_test_landing_page_copy"]["headline"] == "MCP Design Brief"
+    assert result["success_metrics"]
+    assert result["failure_thresholds"]
+    assert result["two_week_timeline"]
+
+
+def test_get_design_brief_validation_plan_markdown(seeded_design_brief_db):
+    result = get_design_brief_validation_plan(seeded_design_brief_db, format="markdown")
+
+    assert result["id"] == seeded_design_brief_db
+    assert result["format"] == "markdown"
+    assert "# Validation Plan: MCP Design Brief" in result["markdown"]
+    assert "## Target User Hypotheses" in result["markdown"]
+    assert "## Two-Week Timeline" in result["markdown"]
+
+
+def test_get_design_brief_validation_plan_not_found(mcp_db):
+    result = get_design_brief_validation_plan("dbf-missing")
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "dbf-missing"
+
+
+def test_get_design_brief_validation_plan_invalid_format(seeded_design_brief_db):
+    result = get_design_brief_validation_plan(seeded_design_brief_db, format="yaml")
+    assert result["error"] == "Unsupported validation plan format: yaml"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "format"
+
+
+def test_design_brief_validation_plan_resource(seeded_design_brief_db):
+    result = json.loads(design_brief_validation_plan_detail(seeded_design_brief_db))
+
+    assert result["schema_version"] == "max.design_brief.validation_plan.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+
+
 def test_max_portfolio_overlap_returns_serializable_clusters_sorted(mcp_db):
     store = Store(db_path=mcp_db, wal_mode=True)
     for unit in [
@@ -1074,6 +1123,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
     assert "get_blast_radius" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
+    assert "get_design_brief_validation_plan" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-validation-plans://{brief_id}"]
+        == "design_brief_validation_plan_detail"
+    )
 
 
 def test_evaluation_calibration_returns_machine_readable_payload(mcp_db):
