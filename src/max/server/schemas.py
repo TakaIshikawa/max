@@ -257,6 +257,18 @@ class JiraIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class TrelloCardPublishRequest(BaseModel):
+    key: str | None = None
+    token: str | None = None
+    api_url: str | None = None
+    list_id: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    due: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class NotionPagePublishRequest(BaseModel):
     token: str | None = None
     parent_page_id: str | None = None
@@ -1341,6 +1353,17 @@ class JiraIssuePublishResponse(BaseModel):
     project_key: str
     issue_key: str | None = None
     issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class TrelloCardPublishResponse(BaseModel):
+    idea_id: str
+    list_id: str
+    card_id: str | None = None
+    card_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
