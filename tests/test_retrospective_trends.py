@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from click.testing import CliRunner
 
@@ -448,8 +449,12 @@ def test_feedback_trends_daily_counts_scores_and_domains(store: Store) -> None:
 
 
 def test_feedback_trends_validates_bucket(store: Store) -> None:
+    """Test that invalid bucket type raises ValueError."""
+    # Explicitly type as Any to test runtime validation of invalid value
+    invalid_bucket: Any = "hour"
+
     try:
-        detect_feedback_trends(store, bucket="hour")  # type: ignore[arg-type]
+        detect_feedback_trends(store, bucket=invalid_bucket)
     except ValueError as exc:
         assert "bucket" in str(exc)
     else:
@@ -536,8 +541,12 @@ def test_pipeline_trends_daily_counts_boundaries_failures_archives_and_totals(
 
 
 def test_pipeline_trends_validates_bucket(store: Store) -> None:
+    """Test that invalid bucket type raises ValueError."""
+    # Explicitly type as Any to test runtime validation of invalid value
+    invalid_bucket: Any = "hour"
+
     try:
-        detect_pipeline_trends(store, bucket="hour")  # type: ignore[arg-type]
+        detect_pipeline_trends(store, bucket=invalid_bucket)
     except ValueError as exc:
         assert "bucket" in str(exc)
     else:
