@@ -35,6 +35,13 @@ from max.publisher.asana_tasks import (
     AsanaTaskPublishResult,
     AsanaTasksPublisher,
 )
+from max.publisher.clickup_tasks import (
+    ClickUpTaskPayload,
+    ClickUpTaskPublisher,
+    ClickUpTaskPublishError,
+    ClickUpTaskPublishResult,
+    ClickUpTasksPublisher,
+)
 from max.publisher.jira_issues import (
     JiraIssuePayload,
     JiraIssuePublisher,
@@ -99,6 +106,11 @@ __all__ = [
     "AsanaTaskPublishError",
     "AsanaTaskPublishResult",
     "AsanaTasksPublisher",
+    "ClickUpTaskPayload",
+    "ClickUpTaskPublisher",
+    "ClickUpTaskPublishError",
+    "ClickUpTaskPublishResult",
+    "ClickUpTasksPublisher",
     "JiraIssuePayload",
     "JiraIssuePublisher",
     "JiraIssuePublishError",
