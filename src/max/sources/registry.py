@@ -66,6 +66,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "stackshare": "max.sources.stackshare:StackShareAdapter",
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
     "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
+    "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -317,6 +318,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["lists", "topics", "include_descriptions", "github_token"],
         required_keys=[],
         description="Fetches curated GitHub awesome-list markdown links as registry signals.",
+    ),
+    "openssf_scorecard": AdapterMetadata(
+        name="openssf_scorecard",
+        config_keys=[
+            "repositories",
+            "min_risk_score",
+            "checks",
+            "token",
+            "token_env",
+            "local_path",
+            "local_paths",
+        ],
+        required_keys=[],
+        description="Fetches OpenSSF Scorecard repository trust and supply-chain risk signals.",
     ),
 }
 

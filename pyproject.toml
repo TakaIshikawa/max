@@ -60,6 +60,7 @@ mcp_registry = "max.sources.mcp_registry:McpRegistryAdapter"
 stackshare = "max.sources.stackshare:StackShareAdapter"
 huggingface = "max.sources.huggingface:HuggingFaceAdapter"
 awesome_lists = "max.sources.awesome_lists:AwesomeListsAdapter"
+openssf_scorecard = "max.sources.openssf_scorecard:OpenSSFScorecardAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]
