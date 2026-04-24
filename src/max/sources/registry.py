@@ -84,6 +84,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
     "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
+    "federal_register_healthcare": (
+        "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
+    ),
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -531,6 +534,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches APIs.guru OpenAPI Directory catalog signals for public API discovery.",
+    ),
+    "federal_register_healthcare": AdapterMetadata(
+        name="federal_register_healthcare",
+        config_keys=[
+            "agencies",
+            "topics",
+            "search_terms",
+            "document_types",
+            "max_age_days",
+            "base_url",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches Federal Register healthcare rules, proposed rules, notices, "
+            "and guidance-like regulatory change signals."
+        ),
     ),
 }
 
