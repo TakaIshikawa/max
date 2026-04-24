@@ -56,6 +56,13 @@ from max.analysis.design_brief_evidence_matrix import (
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
+from max.analysis.pipeline_cost_anomalies import (
+    DEFAULT_BASELINE_WINDOW as DEFAULT_COST_ANOMALY_BASELINE_WINDOW,
+    DEFAULT_LIMIT as DEFAULT_COST_ANOMALY_LIMIT,
+    DEFAULT_MIN_COST_USD as DEFAULT_COST_ANOMALY_MIN_COST_USD,
+    DEFAULT_MULTIPLIER_THRESHOLD as DEFAULT_COST_ANOMALY_MULTIPLIER_THRESHOLD,
+    build_pipeline_cost_anomaly_report,
+)
 from max.analysis.profile_drift import (
     DEFAULT_LOOKBACK_DAYS as DEFAULT_PROFILE_DRIFT_LOOKBACK_DAYS,
     DEFAULT_MIN_SIGNALS as DEFAULT_PROFILE_DRIFT_MIN_SIGNALS,
@@ -84,6 +91,7 @@ from max.server.errors import (
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.schemas import (
     ArchitectureEnforcementResponse,
+    PipelineCostAnomalyReportResponse,
     PipelineRunComparisonResponse,
     PipelineReplayPlanResponse,
     ValidationExperimentCreate,
@@ -144,6 +152,19 @@ def _add_llm_budget_indicators(report: dict) -> dict:
     report["token_budget_exceeded"] = token_exceeded
     report["cost_budget_exceeded"] = cost_exceeded
     report["budget_exceeded"] = token_exceeded or cost_exceeded
+    return report
+
+
+def _add_pipeline_cost_anomaly_warnings(report: dict) -> dict:
+    """Add explicit MCP warning fields to anomalous run rows."""
+    for anomaly in report.get("anomalies", []):
+        if not isinstance(anomaly, dict):
+            continue
+        reasons = list(anomaly.get("anomaly_reasons") or [])
+        anomaly["cost_anomaly_warning"] = True
+        anomaly["warning_reasons"] = reasons
+        anomaly["warning"] = "; ".join(str(reason) for reason in reasons)
+    report["has_cost_anomaly_warnings"] = bool(report.get("anomaly_count"))
     return report
 
 
@@ -1103,6 +1124,82 @@ def max_llm_budget_usage(run_limit: int = 20) -> dict:
         with _get_store() as store:
             report = build_llm_budget_usage(store, limit=run_limit, include_current=True)
         return _add_llm_budget_indicators(report)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def max_pipeline_cost_anomalies(
+    limit: int = DEFAULT_COST_ANOMALY_LIMIT,
+    baseline_window: int = DEFAULT_COST_ANOMALY_BASELINE_WINDOW,
+    multiplier_threshold: float = DEFAULT_COST_ANOMALY_MULTIPLIER_THRESHOLD,
+    min_cost_usd: float = DEFAULT_COST_ANOMALY_MIN_COST_USD,
+) -> dict:
+    """Return recent pipeline runs with anomalous estimated cost.
+
+    Parameters match the REST endpoint defaults. Set baseline_window to control
+    the same-profile rolling baseline, multiplier_threshold to tune relative
+    spikes, min_cost_usd to require an absolute minimum cost, and limit to cap
+    recent runs considered for the returned report.
+
+    Raises:
+        ValidationError: If parameters are outside the REST endpoint range.
+    """
+    try:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "limit must be an integer between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if limit < 1 or limit > 500:
+            raise ValidationError(
+                "limit must be between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if isinstance(baseline_window, bool) or not isinstance(baseline_window, int):
+            raise ValidationError(
+                "baseline_window must be an integer between 1 and 100",
+                field="baseline_window",
+                expected="integer between 1 and 100",
+                actual=str(baseline_window),
+            )
+        if baseline_window < 1 or baseline_window > 100:
+            raise ValidationError(
+                "baseline_window must be between 1 and 100",
+                field="baseline_window",
+                expected="integer between 1 and 100",
+                actual=str(baseline_window),
+            )
+        if min_cost_usd < 0:
+            raise ValidationError(
+                "min_cost_usd must be non-negative",
+                field="min_cost_usd",
+                expected="float >= 0.0",
+                actual=str(min_cost_usd),
+            )
+        if multiplier_threshold <= 0:
+            raise ValidationError(
+                "multiplier_threshold must be positive",
+                field="multiplier_threshold",
+                expected="float > 0.0",
+                actual=str(multiplier_threshold),
+            )
+
+        with _get_store() as store:
+            report = build_pipeline_cost_anomaly_report(
+                store,
+                limit=limit,
+                baseline_window=baseline_window,
+                min_cost_usd=min_cost_usd,
+                multiplier_threshold=multiplier_threshold,
+            )
+        payload = PipelineCostAnomalyReportResponse.model_validate(report).model_dump()
+        return _add_pipeline_cost_anomaly_warnings(payload)
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
     except MCPToolError as e:
         return e.to_dict()
 
@@ -2224,6 +2321,11 @@ def llm_budget_usage_detail() -> str:
     return json.dumps(max_llm_budget_usage(), indent=2)
 
 
+def pipeline_cost_anomalies_detail() -> str:
+    """Browse the default pipeline cost anomaly report."""
+    return json.dumps(max_pipeline_cost_anomalies(), indent=2)
+
+
 def source_allocation_detail() -> str:
     """Browse the default source allocation simulation report."""
     return json.dumps(simulate_source_allocation(), indent=2)
@@ -2301,6 +2403,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_portfolio_overlap)
     mcp.tool(max_opportunity_heatmap)
     mcp.tool(max_llm_budget_usage)
+    mcp.tool(max_pipeline_cost_anomalies)
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_profile_drift)
@@ -2342,6 +2445,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
     mcp.resource("budget://llm-usage")(llm_budget_usage_detail)
+    mcp.resource("pipeline://cost-anomalies")(pipeline_cost_anomalies_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
     mcp.resource("profile-source-recommendations://{profile_name}")(
         profile_source_recommendations_detail

@@ -1272,6 +1272,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert "max_portfolio_overlap" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
+    assert "max_pipeline_cost_anomalies" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["pipeline://cost-anomalies"]
+        == "pipeline_cost_anomalies_detail"
+    )
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
@@ -1430,12 +1435,17 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert "get_review_thresholds" in FakeMCP.latest.tools
     assert "get_roi_forecast" in FakeMCP.latest.tools
     assert "max_signal_freshness" in FakeMCP.latest.tools
+    assert "max_pipeline_cost_anomalies" in FakeMCP.latest.tools
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
     assert "get_blast_radius" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
+    assert (
+        FakeMCP.latest.resources["pipeline://cost-anomalies"]
+        == "pipeline_cost_anomalies_detail"
+    )
     assert FakeMCP.latest.resources["roi://forecast"] == "roi_forecast_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
