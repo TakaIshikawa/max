@@ -202,6 +202,18 @@ class LinearIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class AsanaTaskPublishRequest(BaseModel):
+    access_token: str | None = None
+    workspace_gid: str | None = Field(default=None, min_length=1)
+    project_gid: str | None = Field(default=None, min_length=1)
+    section_gid: str | None = Field(default=None, min_length=1)
+    assignee_gid: str | None = Field(default=None, min_length=1)
+    tags: list[str] = Field(default_factory=list)
+    due_on: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class JiraIssuePublishRequest(BaseModel):
     site_url: str | None = None
     project_key: str | None = None
@@ -1213,6 +1225,17 @@ class LinearIssuePublishResponse(BaseModel):
     idea_id: str
     team_id: str
     issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class AsanaTaskPublishResponse(BaseModel):
+    idea_id: str
+    workspace_gid: str
+    task_gid: str | None = None
+    task_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
