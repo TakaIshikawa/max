@@ -980,6 +980,67 @@ def simulate_source_allocation(
         return e.to_dict()
 
 
+def get_profile_source_recommendations(
+    profile_name: str,
+    max_age_days: int = 30,
+    format: str = "json",
+) -> dict:
+    """Return source configuration recommendations for a named pipeline profile.
+
+    Set max_age_days to control the stale-signal threshold. Only JSON output is
+    supported because MCP tools must return serializable structured data.
+
+    Raises:
+        ValidationError: If max_age_days or format is invalid.
+        ResourceNotFoundError: If the profile is not found.
+    """
+    from max.analysis.profile_source_recommendations import (
+        build_profile_source_recommendations_for_profile,
+    )
+    from max.profiles.loader import load_profile
+
+    try:
+        if format != "json":
+            raise ValidationError(
+                "format must be json",
+                field="format",
+                expected="json",
+                actual=str(format),
+            )
+        if max_age_days < 1:
+            raise ValidationError(
+                "max_age_days must be at least 1",
+                field="max_age_days",
+                expected="integer >= 1",
+                actual=str(max_age_days),
+            )
+
+        try:
+            profile = load_profile(profile_name)
+        except FileNotFoundError as e:
+            raise ResourceNotFoundError(
+                f"Profile not found: {profile_name}",
+                resource_type="profile",
+                resource_id=profile_name,
+            ) from e
+
+        with _get_store() as store:
+            report = build_profile_source_recommendations_for_profile(
+                profile,
+                store,
+                max_age_days=max_age_days,
+            )
+
+        payload = report.to_dict()
+        for recommendation in payload["recommendations"]:
+            recommendation["target_weight"] = recommendation["suggested_weight"]
+        return payload
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def _portfolio_overlap_cluster_to_dict(cluster) -> dict:
     return {
         "cluster_id": cluster.cluster_id,
@@ -1784,6 +1845,11 @@ def source_allocation_detail() -> str:
     return json.dumps(simulate_source_allocation(), indent=2)
 
 
+def profile_source_recommendations_detail(profile_name: str) -> str:
+    """Browse profile source recommendations for a specific profile."""
+    return json.dumps(get_profile_source_recommendations(profile_name), indent=2)
+
+
 def roi_forecast_detail() -> str:
     """Browse the default ROI forecast report."""
     return json.dumps(get_roi_forecast(), indent=2)
@@ -1832,6 +1898,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
     mcp.tool(simulate_source_allocation)
+    mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -1860,6 +1927,9 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
+    mcp.resource("profile-source-recommendations://{profile_name}")(
+        profile_source_recommendations_detail
+    )
     mcp.resource("roi://forecast")(roi_forecast_detail)
 
     return mcp
