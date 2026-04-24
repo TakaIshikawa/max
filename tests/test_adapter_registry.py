@@ -94,3 +94,32 @@ def test_homebrew_formulae_adapter_metadata_documents_config_keys() -> None:
     ]
     assert metadata["homebrew_formulae"].required_keys == []
     assert "Homebrew formula and cask" in metadata["homebrew_formulae"].description
+
+
+def test_apis_guru_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "apis_guru"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["apis_guru"]
+        adapter = get_adapter("apis_guru")
+
+    assert adapter.name == "apis_guru"
+
+
+def test_apis_guru_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "apis_guru"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"apis_guru"}
+    assert metadata["apis_guru"].config_keys == [
+        "base_url",
+        "queries",
+        "providers",
+        "preferred_versions_only",
+        "categories",
+    ]
+    assert metadata["apis_guru"].required_keys == []
+    assert "APIs.guru OpenAPI Directory" in metadata["apis_guru"].description
