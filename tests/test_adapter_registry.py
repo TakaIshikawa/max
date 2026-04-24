@@ -152,3 +152,35 @@ def test_github_octoverse_adapter_metadata_documents_config_keys() -> None:
     ]
     assert metadata["github_octoverse"].required_keys == []
     assert "Octoverse-style Markdown and JSON reports" in metadata["github_octoverse"].description
+
+
+def test_jetbrains_survey_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "jetbrains_survey"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["jetbrains_survey"]
+        adapter = get_adapter("jetbrains_survey")
+
+    assert adapter.name == "jetbrains_survey"
+
+
+def test_jetbrains_survey_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "jetbrains_survey"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"jetbrains_survey"}
+    assert metadata["jetbrains_survey"].config_keys == [
+        "survey_urls",
+        "local_paths",
+        "question_filters",
+        "min_percent",
+        "max_rows",
+        "year",
+    ]
+    assert metadata["jetbrains_survey"].required_keys == []
+    assert "JetBrains Developer Ecosystem survey CSV exports" in metadata[
+        "jetbrains_survey"
+    ].description

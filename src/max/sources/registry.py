@@ -55,6 +55,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
     "stackoverflow_survey": "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter",
+    "jetbrains_survey": "max.sources.jetbrains_survey:JetBrainsSurveyAdapter",
     "discourse": "max.sources.discourse:DiscourseAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
@@ -290,6 +291,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["survey_urls", "local_paths", "question_filters", "min_percent", "max_rows"],
         required_keys=[],
         description="Reads Stack Overflow developer survey CSV exports as quantified market signals.",
+    ),
+    "jetbrains_survey": AdapterMetadata(
+        name="jetbrains_survey",
+        config_keys=[
+            "survey_urls",
+            "local_paths",
+            "question_filters",
+            "min_percent",
+            "max_rows",
+            "year",
+        ],
+        required_keys=[],
+        description=(
+            "Reads JetBrains Developer Ecosystem survey CSV exports as quantified market "
+            "and developer-pain signals."
+        ),
     ),
     "discourse": AdapterMetadata(
         name="discourse",
