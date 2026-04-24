@@ -30,6 +30,7 @@ from max.server.mcp_tools import (
     get_evidence_chain,
     get_idea,
     get_implementation_plan,
+    get_roi_forecast,
     get_spec_readiness,
     get_spec_preview,
     get_stats,
@@ -39,6 +40,7 @@ from max.server.mcp_tools import (
     max_signal_freshness,
     max_source_reliability,
     portfolio_overlap_detail,
+    roi_forecast_detail,
     simulate_source_allocation,
     source_allocation_detail,
     search_ideas,
@@ -1333,6 +1335,34 @@ def test_review_thresholds_returns_machine_readable_payload(mcp_db):
     ]
 
 
+def test_get_roi_forecast_returns_json_safe_ranked_payload(mcp_db):
+    _seed_feedback_analytics(mcp_db)
+
+    payload = get_roi_forecast(
+        domain="devtools",
+        status="draft",
+        weight_profile="quick_wins",
+        limit=3,
+    )
+
+    assert payload["weight_profile"] == "quick_wins"
+    assert payload["total_units"] == 3
+    assert payload["evaluated_units"] == 3
+    assert payload["weights"]
+    assert [item["rank"] for item in payload["results"]] == [1, 2, 3]
+    assert all(item["domain"] == "devtools" for item in payload["results"])
+    json.dumps(payload)
+
+
+def test_roi_forecast_detail_resource_returns_json(mcp_db):
+    _seed_feedback_analytics(mcp_db)
+
+    payload = json.loads(roi_forecast_detail())
+
+    assert payload["total_units"] == 6
+    assert payload["results"][0]["rank"] == 1
+
+
 def test_calibration_and_threshold_tools_registered(monkeypatch):
     class FakeMCP:
         latest = None
@@ -1360,6 +1390,7 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
 
     assert "get_evaluation_calibration" in FakeMCP.latest.tools
     assert "get_review_thresholds" in FakeMCP.latest.tools
+    assert "get_roi_forecast" in FakeMCP.latest.tools
     assert "max_signal_freshness" in FakeMCP.latest.tools
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
@@ -1367,6 +1398,7 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
     assert FakeMCP.latest.resources["sources://allocation-simulation"] == "source_allocation_detail"
+    assert FakeMCP.latest.resources["roi://forecast"] == "roi_forecast_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
 

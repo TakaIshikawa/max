@@ -44,6 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
     DEFAULT_MIN_SAMPLES as DEFAULT_THRESHOLD_MIN_SAMPLES,
@@ -938,6 +939,68 @@ def get_review_thresholds(
         }
 
 
+def get_roi_forecast(
+    domain: str | None = None,
+    status: str | None = None,
+    profile: str | None = None,
+    weight_profile: str | None = None,
+    limit: int = 100,
+) -> dict:
+    """Return a ranked ROI forecast for buildable ideas.
+
+    Set domain and status to filter ideas. Set profile to use a pipeline
+    profile's evaluation weights, or weight_profile to use a named evaluation
+    weight profile. Limit is bounded to match the REST ROI forecast endpoint.
+
+    Raises:
+        ValidationError: If request parameters are invalid.
+        ResourceNotFoundError: If profile or weight_profile is not found.
+    """
+    from max.evaluation.weights import WEIGHT_PROFILES
+    from max.profiles.loader import load_profile
+
+    try:
+        if limit < 1 or limit > 500:
+            raise ValidationError(
+                "limit must be between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if profile and weight_profile:
+            raise ValidationError(
+                "Use either profile or weight_profile, not both.",
+                details={"fields": ["profile", "weight_profile"]},
+            )
+
+        profile_input = None
+        if profile:
+            try:
+                profile_input = load_profile(profile)
+            except FileNotFoundError as e:
+                raise ResourceNotFoundError(
+                    f"Profile not found: {profile}",
+                    resource_type="profile",
+                    resource_id=profile,
+                ) from e
+        elif weight_profile:
+            if weight_profile not in WEIGHT_PROFILES:
+                raise ResourceNotFoundError(
+                    f"Evaluation weight profile not found: {weight_profile}",
+                    resource_type="evaluation_weight_profile",
+                    resource_id=weight_profile,
+                )
+            profile_input = weight_profile
+
+        with _get_store() as store:
+            units = store.get_buildable_units(limit=limit, status=status, domain=domain)
+            evaluations = {unit.id: store.get_evaluation(unit.id) for unit in units}
+            report = generate_roi_forecast(units, evaluations, profile=profile_input)
+        return asdict(report)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def max_source_reliability(
     profile: str | None = None,
     time_window: str | None = None,
@@ -1371,6 +1434,11 @@ def source_allocation_detail() -> str:
     return json.dumps(simulate_source_allocation(), indent=2)
 
 
+def roi_forecast_detail() -> str:
+    """Browse the default ROI forecast report."""
+    return json.dumps(get_roi_forecast(), indent=2)
+
+
 # ── MCP server factory ─────────────────────────────────────────────
 
 
@@ -1402,6 +1470,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_stats)
     mcp.tool(get_evaluation_calibration)
     mcp.tool(get_review_thresholds)
+    mcp.tool(get_roi_forecast)
     mcp.tool(max_source_reliability)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
@@ -1426,5 +1495,6 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
+    mcp.resource("roi://forecast")(roi_forecast_detail)
 
     return mcp
