@@ -175,6 +175,14 @@ class DiscordPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class TeamsPublishRequest(BaseModel):
+    webhook_url: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    dry_run: bool = False
+    include_evidence: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class GitHubIssuePublishRequest(BaseModel):
     repository: str | None = None
     token: str | None = None
@@ -1174,6 +1182,15 @@ class SlackPublishResponse(BaseModel):
 
 
 class DiscordPublishResponse(BaseModel):
+    idea_id: str
+    dry_run: bool
+    target_url: str
+    response_status: int | None = None
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class TeamsPublishResponse(BaseModel):
     idea_id: str
     dry_run: bool
     target_url: str

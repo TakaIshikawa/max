@@ -38,6 +38,11 @@ from max.publisher.slack_webhook import (
     SlackWebhookPublishError,
     SlackWebhookPublishResult,
 )
+from max.publisher.teams_webhook import (
+    TeamsWebhookPublisher,
+    TeamsWebhookPublishError,
+    TeamsWebhookPublishResult,
+)
 from max.publisher.webhook import WebhookPublishError, WebhookPublisher, WebhookPublishResult
 
 __all__ = [
@@ -67,6 +72,9 @@ __all__ = [
     "SlackWebhookPublisher",
     "SlackWebhookPublishError",
     "SlackWebhookPublishResult",
+    "TeamsWebhookPublisher",
+    "TeamsWebhookPublishError",
+    "TeamsWebhookPublishResult",
     "WebhookPublisher",
     "WebhookPublishError",
     "WebhookPublishResult",
