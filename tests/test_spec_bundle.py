@@ -97,8 +97,10 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Risk Register",
         "## Review Gate",
         "## Evidence Density",
+        "## Evidence Links",
         "## Evidence Chain Summary",
     ]:
         assert heading in markdown
     assert "bu-test001" in markdown
     assert "MCP server maintainer" in markdown
+    assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown
