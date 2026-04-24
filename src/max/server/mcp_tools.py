@@ -49,6 +49,7 @@ from max.analysis.architecture_enforcement import (
 )
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.budget_usage import build_llm_budget_usage
+from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -91,6 +92,7 @@ from max.server.errors import (
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.schemas import (
     ArchitectureEnforcementResponse,
+    ContextBudgetWasteResponse,
     PipelineCostAnomalyReportResponse,
     PipelineRunComparisonResponse,
     PipelineReplayPlanResponse,
@@ -116,6 +118,9 @@ _store_factory: Callable[[], Store] = _default_store_factory
 
 # Module-level scheduler reference (set during lifespan)
 _scheduler: Scheduler | None = None
+
+_CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD = 0.5
+_CONTEXT_BUDGET_OVERSIZED_CONTEXT_SHARE_THRESHOLD = 0.5
 
 
 def set_store_factory(factory: Callable[[], Store]) -> None:
@@ -165,6 +170,57 @@ def _add_pipeline_cost_anomaly_warnings(report: dict) -> dict:
         anomaly["warning_reasons"] = reasons
         anomaly["warning"] = "; ".join(str(reason) for reason in reasons)
     report["has_cost_anomaly_warnings"] = bool(report.get("anomaly_count"))
+    return report
+
+
+def _add_context_budget_waste_warnings(report: dict, *, adapter_limit: int) -> dict:
+    """Add MCP-friendly warning booleans to context budget waste rows."""
+    total_tokens = int(report.get("total_estimated_tokens") or 0)
+    report_high_waste = (
+        float(report.get("low_utility_signal_rate") or 0.0)
+        >= _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD
+        or float(report.get("stale_signal_rate") or 0.0)
+        >= _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD
+    )
+
+    has_adapter_high_waste = False
+    has_oversized_contributor = False
+    for adapter in report.get("adapters", []):
+        if not isinstance(adapter, dict):
+            continue
+        low_utility_rate = float(adapter.get("low_utility_rate") or 0.0)
+        stale_rate = float(adapter.get("stale_rate") or 0.0)
+        estimated_tokens = int(adapter.get("estimated_tokens") or 0)
+        token_share = round(estimated_tokens / total_tokens, 3) if total_tokens else 0.0
+        high_waste_warning = (
+            low_utility_rate >= _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD
+            or stale_rate >= _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD
+        )
+        oversized_warning = (
+            total_tokens > 0
+            and token_share >= _CONTEXT_BUDGET_OVERSIZED_CONTEXT_SHARE_THRESHOLD
+        )
+        warning_reasons = list(adapter.get("reasons") or [])
+        if oversized_warning:
+            warning_reasons.append(
+                "adapter contributes at least 50% of estimated context tokens"
+            )
+
+        adapter["context_token_share"] = token_share
+        adapter["high_waste_warning"] = high_waste_warning
+        adapter["oversized_context_contributor_warning"] = oversized_warning
+        adapter["warning_reasons"] = warning_reasons
+        adapter["warning"] = high_waste_warning or oversized_warning
+        has_adapter_high_waste = has_adapter_high_waste or high_waste_warning
+        has_oversized_contributor = has_oversized_contributor or oversized_warning
+
+    report["adapter_limit"] = adapter_limit
+    report["high_waste_warning"] = report_high_waste or has_adapter_high_waste
+    report["oversized_context_contributor_warning"] = has_oversized_contributor
+    report["has_context_budget_waste_warnings"] = (
+        report["high_waste_warning"] or report["oversized_context_contributor_warning"]
+    )
+    report["adapters"] = list(report.get("adapters", []))[:adapter_limit]
     return report
 
 
@@ -1124,6 +1180,95 @@ def max_llm_budget_usage(run_limit: int = 20) -> dict:
         with _get_store() as store:
             report = build_llm_budget_usage(store, limit=run_limit, include_current=True)
         return _add_llm_budget_indicators(report)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def max_context_budget_waste(
+    days: int = 30,
+    source_adapter: str | None = None,
+    min_reuse_count: int = 1,
+    adapter_limit: int = 20,
+) -> dict:
+    """Return estimated wasted context from persisted evidence links.
+
+    Parameters mirror the REST context-budget waste endpoint where practical.
+    Set source_adapter to scope the report to one adapter, min_reuse_count to
+    define low-utility signals, and adapter_limit to cap returned adapter rows.
+
+    Raises:
+        ValidationError: If parameters are outside the REST endpoint range.
+    """
+    try:
+        if isinstance(days, bool) or not isinstance(days, int):
+            raise ValidationError(
+                "days must be an integer between 1 and 3650",
+                field="days",
+                expected="integer between 1 and 3650",
+                actual=str(days),
+            )
+        if days < 1 or days > 3650:
+            raise ValidationError(
+                "days must be between 1 and 3650",
+                field="days",
+                expected="integer between 1 and 3650",
+                actual=str(days),
+            )
+        if source_adapter is not None:
+            if not isinstance(source_adapter, str):
+                raise ValidationError(
+                    "source_adapter must be a non-empty string",
+                    field="source_adapter",
+                    expected="string length 1 to 100",
+                    actual=str(source_adapter),
+                )
+            if len(source_adapter) < 1 or len(source_adapter) > 100:
+                raise ValidationError(
+                    "source_adapter must be between 1 and 100 characters",
+                    field="source_adapter",
+                    expected="string length 1 to 100",
+                    actual=str(source_adapter),
+                )
+        if isinstance(min_reuse_count, bool) or not isinstance(min_reuse_count, int):
+            raise ValidationError(
+                "min_reuse_count must be an integer between 0 and 100",
+                field="min_reuse_count",
+                expected="integer between 0 and 100",
+                actual=str(min_reuse_count),
+            )
+        if min_reuse_count < 0 or min_reuse_count > 100:
+            raise ValidationError(
+                "min_reuse_count must be between 0 and 100",
+                field="min_reuse_count",
+                expected="integer between 0 and 100",
+                actual=str(min_reuse_count),
+            )
+        if isinstance(adapter_limit, bool) or not isinstance(adapter_limit, int):
+            raise ValidationError(
+                "adapter_limit must be an integer between 1 and 500",
+                field="adapter_limit",
+                expected="integer between 1 and 500",
+                actual=str(adapter_limit),
+            )
+        if adapter_limit < 1 or adapter_limit > 500:
+            raise ValidationError(
+                "adapter_limit must be between 1 and 500",
+                field="adapter_limit",
+                expected="integer between 1 and 500",
+                actual=str(adapter_limit),
+            )
+
+        with _get_store() as store:
+            report = build_context_budget_waste_report(
+                store,
+                days=days,
+                source_adapter=source_adapter,
+                min_reuse_count=min_reuse_count,
+            )
+        payload = ContextBudgetWasteResponse.model_validate(report).model_dump()
+        return _add_context_budget_waste_warnings(payload, adapter_limit=adapter_limit)
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
     except MCPToolError as e:
         return e.to_dict()
 
@@ -2321,6 +2466,11 @@ def llm_budget_usage_detail() -> str:
     return json.dumps(max_llm_budget_usage(), indent=2)
 
 
+def context_budget_waste_detail() -> str:
+    """Browse the default context budget waste report."""
+    return json.dumps(max_context_budget_waste(), indent=2)
+
+
 def pipeline_cost_anomalies_detail() -> str:
     """Browse the default pipeline cost anomaly report."""
     return json.dumps(max_pipeline_cost_anomalies(), indent=2)
@@ -2403,6 +2553,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_portfolio_overlap)
     mcp.tool(max_opportunity_heatmap)
     mcp.tool(max_llm_budget_usage)
+    mcp.tool(max_context_budget_waste)
     mcp.tool(max_pipeline_cost_anomalies)
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
@@ -2445,6 +2596,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
     mcp.resource("budget://llm-usage")(llm_budget_usage_detail)
+    mcp.resource("context-budget://waste")(context_budget_waste_detail)
     mcp.resource("pipeline://cost-anomalies")(pipeline_cost_anomalies_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
     mcp.resource("profile-source-recommendations://{profile_name}")(
