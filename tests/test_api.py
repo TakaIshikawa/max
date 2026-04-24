@@ -3145,7 +3145,9 @@ def test_feedback_log_endpoint_returns_recent_rows(seeded_client, seeded_db):
 
     openapi = seeded_client.get("/openapi.json")
     assert openapi.status_code == 200
-    feedback_log_spec = openapi.json()["paths"]["/api/v1/feedback/log"]["get"]
+    paths = openapi.json()["paths"]
+    assert "/api/v1/ideas/{idea_id}/publish/github-issue" in paths
+    feedback_log_spec = paths["/api/v1/feedback/log"]["get"]
     assert feedback_log_spec["parameters"][0]["name"] == "limit"
     assert feedback_log_spec["responses"]["200"]["content"]["application/json"]["schema"]["type"] == "array"
 
