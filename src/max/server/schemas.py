@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from max.profiles.schema import ArchitectureConstraintsConfig, DomainContext, EvaluationConfig, SourceConfig
 
@@ -218,6 +218,19 @@ class BatchPriorArtCheckRequest(BaseModel):
 class IdeaEvaluateBatchRequest(BaseModel):
     idea_ids: list[str] = Field(min_length=1, max_length=25)
     skip_existing: bool = False
+
+
+class SpecReadinessBatchRequest(BaseModel):
+    idea_ids: list[str] | None = Field(default=None, min_length=1, max_length=100)
+    domain: str | None = Field(default=None, min_length=1)
+    status: str | None = Field(default=None, min_length=1)
+    limit: int = Field(default=25, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def require_ids_or_filter(self) -> "SpecReadinessBatchRequest":
+        if not self.idea_ids and not (self.domain or self.status):
+            raise ValueError("Provide idea_ids or at least one filter: domain or status")
+        return self
 
 
 class PipelineRunRequest(BaseModel):
@@ -779,6 +792,24 @@ class IdeaEvaluateBatchItemResponse(BaseModel):
 
 class IdeaEvaluateBatchResponse(BaseModel):
     results: list[IdeaEvaluateBatchItemResponse]
+
+
+class SpecReadinessBatchItemResponse(BaseModel):
+    idea_id: str
+    status: Literal["evaluated", "not_found", "error"]
+    success: bool
+    score: float | None = None
+    readiness_status: Literal["pass", "fail"] | None = None
+    passed: bool | None = None
+    missing_sections: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    failed_check_ids: list[str] = Field(default_factory=list)
+    readiness: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class SpecReadinessBatchResponse(BaseModel):
+    results: list[SpecReadinessBatchItemResponse]
 
 
 class LaunchChecklistItemResponse(BaseModel):
