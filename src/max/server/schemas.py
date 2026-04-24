@@ -1143,6 +1143,32 @@ class DesignBriefEvidenceMatrixResponse(BaseModel):
     rows: list[DesignBriefEvidenceMatrixRowResponse]
 
 
+class DesignBriefMarketSegmentResponse(BaseModel):
+    name: str
+    buyer: str
+    user: str
+    source_idea_ids: list[str]
+    signal_counts: dict[str, Any]
+    evaluation_score: float | None = None
+    evidence_strength: Literal["weak", "moderate", "strong"]
+    confidence: float
+    gaps: list[str]
+
+
+class DesignBriefMarketSizingResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    market_hypotheses: list[str]
+    segments: list[DesignBriefMarketSegmentResponse]
+    signal_counts: dict[str, Any]
+    evaluation_summary: dict[str, Any]
+    profile_context: dict[str, Any]
+    confidence: dict[str, Any]
+    gaps: list[str]
+    recommendations: list[str]
+
+
 class FeedbackTrendDomainResponse(BaseModel):
     domain: str
     total_count: int
