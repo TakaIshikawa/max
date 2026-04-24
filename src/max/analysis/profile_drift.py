@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from max.evaluation.weights import get_weights
@@ -16,6 +16,8 @@ from max.types.signal import Signal
 DEFAULT_SIGNAL_LIMIT = 500
 DEFAULT_UNIT_LIMIT = 100
 DEFAULT_INSIGHT_LIMIT = 500
+DEFAULT_LOOKBACK_DAYS = 30
+DEFAULT_MIN_SIGNALS = 1
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,8 @@ class ProfileDriftReport:
     signal_limit: int
     unit_limit: int
     insight_limit: int
+    lookback_days: int | None
+    min_signals: int
     signals_analyzed: int
     insights_analyzed: int
     units_analyzed: int
@@ -104,6 +108,8 @@ class ProfileDriftReport:
             "signal_limit": self.signal_limit,
             "unit_limit": self.unit_limit,
             "insight_limit": self.insight_limit,
+            "lookback_days": self.lookback_days,
+            "min_signals": self.min_signals,
             "signals_analyzed": self.signals_analyzed,
             "insights_analyzed": self.insights_analyzed,
             "units_analyzed": self.units_analyzed,
@@ -125,6 +131,8 @@ def build_profile_drift_report(
     signal_limit: int = DEFAULT_SIGNAL_LIMIT,
     unit_limit: int = DEFAULT_UNIT_LIMIT,
     insight_limit: int = DEFAULT_INSIGHT_LIMIT,
+    lookback_days: int | None = None,
+    min_signals: int = 0,
 ) -> ProfileDriftReport:
     """Compare recent stored outputs to a selected domain profile."""
 
@@ -134,10 +142,32 @@ def build_profile_drift_report(
         raise ValueError("unit_limit must be at least 1")
     if insight_limit < 1:
         raise ValueError("insight_limit must be at least 1")
+    if lookback_days is not None and lookback_days < 1:
+        raise ValueError("lookback_days must be at least 1")
+    if min_signals < 0:
+        raise ValueError("min_signals must be non-negative")
 
     units = _recent_profile_units(profile, store, limit=unit_limit)
     insights = _recent_profile_insights(profile, store, limit=insight_limit)
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        if lookback_days is not None
+        else None
+    )
+    if cutoff is not None:
+        units = [
+            unit
+            for unit in units
+            if _is_recent(_latest_timestamp(unit.created_at, unit.updated_at), cutoff)
+        ]
+        insights = [
+            insight
+            for insight in insights
+            if _is_recent(getattr(insight, "created_at", None), cutoff)
+        ]
     signals = _recent_profile_signals(profile, store, units=units, signal_limit=signal_limit)
+    if cutoff is not None:
+        signals = [signal for signal in signals if _is_recent(signal.fetched_at, cutoff)]
     evaluations = [store.get_evaluation(unit.id) for unit in units]
     evaluations = [evaluation for evaluation in evaluations if evaluation is not None]
 
@@ -170,6 +200,7 @@ def build_profile_drift_report(
         insights=insights,
         units=units,
         evaluations=evaluations,
+        min_signals=min_signals,
         category_drift=category_drift,
         source_mix_drift=source_mix_drift,
         target_user_drift=target_user_drift,
@@ -183,6 +214,8 @@ def build_profile_drift_report(
         signal_limit=signal_limit,
         unit_limit=unit_limit,
         insight_limit=insight_limit,
+        lookback_days=lookback_days,
+        min_signals=min_signals,
         signals_analyzed=len(signals),
         insights_analyzed=len(insights),
         units_analyzed=len(units),
@@ -399,6 +432,32 @@ def _round_rate(value: float) -> float:
     return round(max(0.0, min(1.0, float(value))), 4)
 
 
+def _latest_timestamp(*values) -> datetime | None:
+    parsed = [_parse_datetime(value) for value in values]
+    parsed = [value for value in parsed if value is not None]
+    return max(parsed) if parsed else None
+
+
+def _is_recent(value, cutoff: datetime) -> bool:
+    parsed = _parse_datetime(value)
+    return parsed is not None and parsed >= cutoff
+
+
+def _parse_datetime(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _status(score: float) -> str:
     if score >= 0.35:
         return "high"
@@ -413,6 +472,7 @@ def _warnings(
     insights: list,
     units: list[BuildableUnit],
     evaluations: list,
+    min_signals: int,
     category_drift: ProfileDriftDistribution,
     source_mix_drift: ProfileDriftDistribution,
     target_user_drift: ProfileDriftDistribution,
@@ -421,6 +481,10 @@ def _warnings(
     warnings: list[str] = []
     if not signals:
         warnings.append("No recent signals were available for source mix drift.")
+    elif len(signals) < min_signals:
+        warnings.append(
+            f"Only {len(signals)} signal(s) were available; min_signals is {min_signals}."
+        )
     if not insights:
         warnings.append("No recent insights were available for the selected profile.")
     if not units:
