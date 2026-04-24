@@ -2031,6 +2031,62 @@ def spec_readiness(idea_id: str, fmt: str) -> None:
         store.close()
 
 
+@main.command(name="blast-radius")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Output format",
+)
+def blast_radius(idea_id: str, fmt: str) -> None:
+    """Estimate implementation blast radius for one idea."""
+    from max.analysis.blast_radius import estimate_idea_blast_radius
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        estimate = estimate_idea_blast_radius(unit, store.get_evaluation(idea_id))
+        click.echo(_render_blast_radius(asdict(estimate), fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
+def _render_blast_radius(estimate: dict, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(estimate, indent=2) + "\n"
+    if fmt != "text":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    lines = [
+        f"Blast radius: {estimate['title']}",
+        f"Idea: {estimate['idea_id']}",
+        f"Level: {estimate['level']} ({estimate['score']:.1f})",
+        f"Confidence: {estimate['confidence']:.2f}",
+    ]
+    if estimate["affected_surfaces"]:
+        lines.append("\nAffected surfaces:")
+        for surface in estimate["affected_surfaces"]:
+            lines.append(f"- {surface['name']}: {surface['level']} ({surface['score']:.1f})")
+            if surface["drivers"]:
+                lines.append(f"  Drivers: {surface['drivers'][0]}")
+    if estimate["drivers"]:
+        lines.append("\nDrivers:")
+        for driver in estimate["drivers"]:
+            lines.append(f"- {driver}")
+    if estimate["mitigations"]:
+        lines.append("\nMitigations:")
+        for mitigation in estimate["mitigations"]:
+            lines.append(f"- {mitigation}")
+    return "\n".join(lines) + "\n"
+
+
 @main.command(name="implementation-plan")
 @click.argument("idea_id")
 @click.option(

@@ -15,6 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Qu
 from pydantic import ValidationError
 
 from max import config
+from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.export import idea_export_records, render_idea_export
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.contradictions import (
@@ -72,6 +73,7 @@ from max.server.schemas import (
     BatchPriorArtCheckItemResponse,
     BatchPriorArtCheckRequest,
     BatchPriorArtCheckResponse,
+    BlastRadiusResponse,
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
@@ -1932,6 +1934,16 @@ def get_idea_spec_readiness(idea_id: str, store: Store = Depends(get_store)) -> 
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return evaluate_spec_readiness(unit, store.get_evaluation(idea_id))
+
+
+@router.get("/ideas/{idea_id}/blast-radius", response_model=BlastRadiusResponse)
+def get_idea_blast_radius(idea_id: str, store: Store = Depends(get_store)) -> BlastRadiusResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return BlastRadiusResponse.model_validate(
+        asdict(estimate_idea_blast_radius(unit, store.get_evaluation(idea_id)))
+    )
 
 
 @router.get("/ideas/{idea_id}/implementation-plan")

@@ -1039,6 +1039,52 @@ class TestSpecReadinessCommand:
         store.get_evaluation.assert_not_called()
 
 
+class TestBlastRadiusCommand:
+    @patch("max.store.db.Store")
+    def test_blast_radius_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["blast-radius", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-blast-radius/v1"
+        assert payload["kind"] == "max.blast_radius"
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["title"] == "MCP Test Framework"
+        assert payload["score"] > 0
+        assert payload["affected_surfaces"]
+        assert payload["drivers"]
+        assert payload["mitigations"]
+        assert payload["evaluation_available"] is True
+        store.get_buildable_unit.assert_called_once_with("bu-test001")
+        store.get_evaluation.assert_called_once_with("bu-test001")
+
+    @patch("max.store.db.Store")
+    def test_blast_radius_stdout_text(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["blast-radius", "bu-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "Blast radius: MCP Test Framework" in result.output
+        assert "Affected surfaces:" in result.output
+        assert "Mitigations:" in result.output
+
+    @patch("max.store.db.Store")
+    def test_blast_radius_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["blast-radius", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
 class TestImplementationPlanCommand:
     @patch("max.store.db.Store")
     def test_implementation_plan_stdout_json(

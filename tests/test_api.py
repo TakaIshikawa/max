@@ -256,6 +256,30 @@ def test_review_thresholds_returns_recommendations(client, db_path) -> None:
     ]
 
 
+def test_get_idea_blast_radius_returns_typed_response(client, seeded_db) -> None:
+    response = client.get("/api/v1/ideas/bu-api001/blast-radius")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "max-blast-radius/v1"
+    assert payload["kind"] == "max.blast_radius"
+    assert payload["idea_id"] == "bu-api001"
+    assert payload["title"] == "Test Idea"
+    assert payload["score"] > 0
+    assert payload["level"] in {"low", "medium", "high", "critical"}
+    assert isinstance(payload["affected_surfaces"], list)
+    assert payload["drivers"]
+    assert payload["mitigations"]
+    assert payload["evaluation_available"] is True
+
+
+def test_get_idea_blast_radius_returns_404_for_unknown_idea(client, seeded_db) -> None:
+    response = client.get("/api/v1/ideas/missing/blast-radius")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Idea not found: missing"
+
+
 def test_review_thresholds_domain_filter_and_insufficient_samples(client, db_path) -> None:
     _seed_threshold_feedback(db_path, "bu-api-one", "legaltech", 88.0, "approved")
     _seed_threshold_feedback(db_path, "bu-api-other", "devtools", 42.0, "rejected")

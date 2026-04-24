@@ -842,6 +842,27 @@ class PriorArtResponse(BaseModel):
     matches: list[PriorArtMatchResponse]
 
 
+class BlastRadiusSurfaceResponse(BaseModel):
+    name: str
+    score: float
+    level: Literal["low", "medium", "high"]
+    drivers: list[str] = Field(default_factory=list)
+
+
+class BlastRadiusResponse(BaseModel):
+    schema_version: str
+    kind: Literal["max.blast_radius"]
+    idea_id: str
+    title: str
+    score: float
+    level: Literal["low", "medium", "high", "critical"]
+    affected_surfaces: list[BlastRadiusSurfaceResponse]
+    drivers: list[str]
+    mitigations: list[str]
+    confidence: float
+    evaluation_available: bool
+
+
 class BatchPriorArtCheckItemResponse(BaseModel):
     idea_id: str
     status: Literal["checked", "skipped", "error"]
