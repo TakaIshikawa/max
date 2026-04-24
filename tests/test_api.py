@@ -3032,6 +3032,33 @@ def test_get_design_brief_validation_plan(seeded_client):
     assert data["two_week_timeline"]
 
 
+def test_get_design_brief_evidence_matrix(seeded_client):
+    list_resp = seeded_client.get("/api/v1/design-briefs")
+    brief_id = list_resp.json()[0]["id"]
+
+    resp = seeded_client.get(f"/api/v1/design-briefs/{brief_id}/evidence-matrix")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["schema_version"] == "max.design_brief.evidence_matrix.v1"
+    assert data["design_brief"]["id"] == brief_id
+    assert [row["claim_area"] for row in data["rows"]] == [
+        "problem",
+        "buyer",
+        "workflow",
+        "why_now",
+        "validation_plan",
+        "risks",
+        "first_milestones",
+    ]
+    problem = data["rows"][0]
+    assert problem["supporting_signal_ids"] == ["sig-api001"]
+    assert problem["supporting_source_adapters"] == ["test"]
+    assert problem["supporting_insight_ids"] == ["ins-api001"]
+    assert problem["supporting_source_idea_ids"] == ["bu-api001"]
+    assert problem["validation_actions"]
+
+
 def test_synthesize_design_briefs_persists_approved_and_published(client, db_path):
     def _score(value: float) -> DimensionScore:
         return DimensionScore(value=value, confidence=0.8, reasoning="seeded")
@@ -3119,6 +3146,11 @@ def test_get_design_brief_markdown_not_found(client):
 
 def test_get_design_brief_validation_plan_not_found(client):
     resp = client.get("/api/v1/design-briefs/dbf-missing/validation-plan")
+    assert resp.status_code == 404
+
+
+def test_get_design_brief_evidence_matrix_not_found(client):
+    resp = client.get("/api/v1/design-briefs/dbf-missing/evidence-matrix")
     assert resp.status_code == 404
 
 

@@ -21,6 +21,7 @@ from max.analysis.contradictions import (
     build_idea_contradiction_report,
     build_insight_contradiction_report,
 )
+from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
@@ -73,6 +74,7 @@ from max.server.schemas import (
     BlueprintSourceBriefResponse,
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
+    DesignBriefEvidenceMatrixResponse,
     DesignBriefResponse,
     DesignBriefStatusUpdate,
     DesignBriefValidationPlanResponse,
@@ -2491,6 +2493,20 @@ def get_design_brief_validation_plan(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefValidationPlanResponse(**build_validation_plan(store, brief))
+
+
+@router.get(
+    "/design-briefs/{brief_id}/evidence-matrix",
+    response_model=DesignBriefEvidenceMatrixResponse,
+)
+def get_design_brief_evidence_matrix(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefEvidenceMatrixResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefEvidenceMatrixResponse(**build_design_brief_evidence_matrix(store, brief))
 
 
 # ── Domain Quality ──────────────────────────────────────────────────

@@ -983,6 +983,33 @@ class DesignBriefValidationPlanResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefEvidenceMatrixRowResponse(BaseModel):
+    claim_area: Literal[
+        "problem",
+        "buyer",
+        "workflow",
+        "why_now",
+        "validation_plan",
+        "risks",
+        "first_milestones",
+    ]
+    claim: str
+    supporting_signal_ids: list[str]
+    supporting_source_adapters: list[str]
+    supporting_insight_ids: list[str]
+    supporting_source_idea_ids: list[str]
+    evidence_strength: Literal["weak", "moderate", "strong"]
+    gaps: list[str]
+    validation_actions: list[str]
+
+
+class DesignBriefEvidenceMatrixResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    rows: list[DesignBriefEvidenceMatrixRowResponse]
+
+
 class FeedbackTrendDomainResponse(BaseModel):
     domain: str
     total_count: int
