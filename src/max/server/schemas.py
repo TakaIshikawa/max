@@ -259,6 +259,20 @@ class AsanaTaskPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class ClickUpTaskPublishRequest(BaseModel):
+    api_token: str | None = None
+    api_url: str | None = None
+    list_id: str | None = Field(default=None, min_length=1)
+    assignees: list[int] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    priority: int | None = Field(default=None, ge=1, le=4)
+    due_date: int | str | None = None
+    custom_fields: list[dict[str, Any]] = Field(default_factory=list)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class JiraIssuePublishRequest(BaseModel):
     site_url: str | None = None
     project_key: str | None = None
@@ -1369,6 +1383,17 @@ class AsanaTaskPublishResponse(BaseModel):
     idea_id: str
     workspace_gid: str
     task_gid: str | None = None
+    task_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class ClickUpTaskPublishResponse(BaseModel):
+    idea_id: str
+    list_id: str
+    task_id: str | None = None
     task_url: str | None = None
     status_code: int | None = None
     dry_run: bool
