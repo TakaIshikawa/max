@@ -108,6 +108,7 @@ from max.analysis.validation_signal_export import validation_experiment_signal
 from max.analysis.validation_experiment_summary import build_validation_experiment_summary
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.asana_tasks import AsanaTaskPublisher, AsanaTaskPublishError
+from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
@@ -173,6 +174,8 @@ from max.server.schemas import (
     FetchAllocationExplainResponse,
     FetchAllocationSimulationResponse,
     HealthResponse,
+    GitHubGistPublishRequest,
+    GitHubGistPublishResponse,
     GitHubIssuePublishRequest,
     GitHubIssuePublishResponse,
     IdeaCreate,
@@ -2662,6 +2665,94 @@ def publish_idea_to_github_issue(
         idea_id=idea_id,
         repository=result.repository,
         issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/github-gist", response_model=GitHubGistPublishResponse)
+def publish_idea_to_github_gist(
+    idea_id: str,
+    request: GitHubGistPublishRequest,
+    store: Store = Depends(get_store),
+) -> GitHubGistPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = GitHubGistPublisher.from_env(
+            token=request.token,
+            api_url=request.api_url,
+            public=request.public,
+            filename=request.filename,
+            description=request.description,
+            timeout=request.timeout,
+        )
+    except GitHubGistPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_gist",
+            target_url=publisher.gist_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(
+            payload,
+            dry_run=request.dry_run,
+            evidence_links=request.evidence_links,
+        )
+    except GitHubGistPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_gist",
+            target_url=publisher.gist_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.gist_url or publisher.gist_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="github_gist",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return GitHubGistPublishResponse(
+        idea_id=idea_id,
+        gist_url=result.gist_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,

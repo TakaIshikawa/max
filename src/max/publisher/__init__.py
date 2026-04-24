@@ -7,6 +7,13 @@ from max.publisher.github_issues import (
     GitHubIssuePublishResult,
     GitHubIssuesPublisher,
 )
+from max.publisher.github_gists import (
+    GitHubGistPayload,
+    GitHubGistPublisher,
+    GitHubGistPublishError,
+    GitHubGistPublishResult,
+    GitHubGistsPublisher,
+)
 from max.publisher.linear_issues import (
     LinearIssuePayload,
     LinearIssuePublisher,
@@ -58,6 +65,11 @@ __all__ = [
     "GitHubIssuePublishError",
     "GitHubIssuePublishResult",
     "GitHubIssuesPublisher",
+    "GitHubGistPayload",
+    "GitHubGistPublisher",
+    "GitHubGistPublishError",
+    "GitHubGistPublishResult",
+    "GitHubGistsPublisher",
     "LinearIssuePayload",
     "LinearIssuePublisher",
     "LinearIssuePublishError",

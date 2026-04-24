@@ -211,6 +211,17 @@ class GitHubIssuePublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class GitHubGistPublishRequest(BaseModel):
+    token: str | None = None
+    api_url: str | None = None
+    public: bool = False
+    filename: str = Field(default="idea.md", min_length=1)
+    description: str | None = Field(default=None, min_length=1)
+    evidence_links: list[str] = Field(default_factory=list)
+    timeout: float = Field(default=10.0, gt=0.0)
+    dry_run: bool = True
+
+
 class LinearIssuePublishRequest(BaseModel):
     api_key: str | None = None
     team_id: str | None = None
@@ -1289,6 +1300,15 @@ class GitHubIssuePublishResponse(BaseModel):
     idea_id: str
     repository: str
     issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class GitHubGistPublishResponse(BaseModel):
+    idea_id: str
+    gist_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
