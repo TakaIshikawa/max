@@ -44,6 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.review_gate import build_review_gate_decision
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
@@ -394,6 +395,48 @@ def get_blast_radius(id: str) -> dict:
             evaluation = store.get_evaluation(id)
             estimate = estimate_idea_blast_radius(unit, evaluation)
             return asdict(estimate)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_review_gate_decision(
+    idea_id: str,
+    approve_threshold: float | None = None,
+    reject_threshold: float | None = None,
+    min_readiness: float | None = None,
+    approve_readiness: float | None = None,
+    high_blast_radius: float | None = None,
+    medium_blast_radius: float | None = None,
+) -> dict:
+    """Return the deterministic review gate decision for an idea.
+
+    Optional numeric overrides tune the fallback gate thresholds used when
+    historical review thresholds are unavailable.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    profile = {
+        key: value
+        for key, value in {
+            "approve_threshold": approve_threshold,
+            "reject_threshold": reject_threshold,
+            "min_readiness": min_readiness,
+            "approve_readiness": approve_readiness,
+            "high_blast_radius": high_blast_radius,
+            "medium_blast_radius": medium_blast_radius,
+        }.items()
+        if value is not None
+    }
+    try:
+        with _get_store() as store:
+            return asdict(build_review_gate_decision(store, idea_id, profile=profile))
+    except ValueError:
+        return ResourceNotFoundError(
+            f"Idea not found: {idea_id}",
+            resource_type="buildable_unit",
+            resource_id=idea_id,
+        ).to_dict()
     except MCPToolError as e:
         return e.to_dict()
 
@@ -1394,6 +1437,11 @@ def blast_radius_detail(idea_id: str) -> str:
     return json.dumps(get_blast_radius(idea_id), indent=2)
 
 
+def review_gate_detail(idea_id: str) -> str:
+    """Get review gate decision details for a specific idea."""
+    return json.dumps(get_review_gate_decision(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -1454,6 +1502,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
     mcp.tool(get_blast_radius)
+    mcp.tool(get_review_gate_decision)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
     mcp.tool(get_design_brief)
@@ -1487,6 +1536,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
     mcp.resource("ideas://{idea_id}/blast-radius")(blast_radius_detail)
+    mcp.resource("ideas://{idea_id}/review-gate")(review_gate_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("design-brief-validation-plans://{brief_id}")(design_brief_validation_plan_detail)

@@ -117,7 +117,12 @@ def _settings(profile: dict[str, Any] | None) -> dict[str, float]:
 
 
 def _thresholds(store: Store, unit: BuildableUnit, settings: dict[str, float]) -> dict[str, Any]:
-    recommendations = recommend_review_thresholds(store, domain=unit.domain or None)
+    recommendations = recommend_review_thresholds(
+        store,
+        domain=unit.domain or None,
+        default_approve_threshold=settings["approve_threshold"],
+        default_reject_threshold=settings["reject_threshold"],
+    )
     recommendation = recommendations[0] if recommendations else None
     return {
         "approve_threshold": (

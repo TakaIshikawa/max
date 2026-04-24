@@ -1274,6 +1274,8 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
     assert "get_blast_radius" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
+    assert "get_review_gate_decision" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["ideas://{idea_id}/review-gate"] == "review_gate_detail"
     assert "get_design_brief_validation_plan" in FakeMCP.latest.tools
     assert (
         FakeMCP.latest.resources["design-brief-validation-plans://{brief_id}"]
