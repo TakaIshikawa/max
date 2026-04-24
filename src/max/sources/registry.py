@@ -65,6 +65,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
+    "maven_central": "max.sources.maven_central:MavenCentralAdapter",
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
     "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
@@ -355,6 +356,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "package_names", "include_prerelease"],
         required_keys=[],
         description="Fetches NuGet package metadata and recent version activity for configured packages and search terms.",
+    ),
+    "maven_central": AdapterMetadata(
+        name="maven_central",
+        config_keys=["queries", "coordinates"],
+        required_keys=[],
+        description="Fetches Maven Central Java/JVM package metadata for configured coordinates and search terms.",
     ),
     "rubygems": AdapterMetadata(
         name="rubygems",
