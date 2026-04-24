@@ -59,6 +59,12 @@ from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
 )
+from max.analysis.pipeline_run_export import (
+    PipelineRunExportNotFound,
+    export_pipeline_run,
+    export_recent_pipeline_runs,
+    render_pipeline_runs_markdown,
+)
 from max.analysis.pipeline_replay import (
     PipelineReplayRunNotFound,
     build_pipeline_replay_plan,
@@ -185,6 +191,8 @@ from max.server.schemas import (
     PipelinePostRunRequest,
     PipelinePostRunResponse,
     PipelineRunComparisonResponse,
+    PipelineRunExportRecordResponse,
+    PipelineRunExportResponse,
     PipelineReplayPlanResponse,
     PipelineResultResponse,
     PipelineRunHistoryResponse,
@@ -298,6 +306,45 @@ def list_pipeline_runs(limit: int = 10, store: Store = Depends(get_store)) -> li
         )
         for r in runs
     ]
+
+
+@router.get("/pipeline/runs/export", response_model=None)
+def export_pipeline_runs_endpoint(
+    format: Literal["json", "markdown"] = Query("json"),
+    limit: int = Query(10, ge=1, le=500),
+    store: Store = Depends(get_store),
+) -> PipelineRunExportResponse | Response:
+    export = export_recent_pipeline_runs(store, limit=limit)
+    if format == "markdown":
+        body = render_pipeline_runs_markdown(
+            export["runs"],  # type: ignore[arg-type]
+            title="Pipeline Run Export",
+        )
+        return Response(content=body, media_type="text/markdown; charset=utf-8")
+    return PipelineRunExportResponse.model_validate(export)
+
+
+@router.get("/pipeline/runs/{run_id}/export", response_model=None)
+def export_pipeline_run_endpoint(
+    run_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> PipelineRunExportRecordResponse | Response:
+    try:
+        export = export_pipeline_run(store, run_id=run_id)
+    except PipelineRunExportNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "Pipeline run ID not found",
+                "run_id": exc.run_id,
+            },
+        ) from exc
+
+    if format == "markdown":
+        body = render_pipeline_runs_markdown([export], title=f"Pipeline Run {run_id} Export")
+        return Response(content=body, media_type="text/markdown; charset=utf-8")
+    return PipelineRunExportRecordResponse.model_validate(export)
 
 
 @router.get("/pipeline/runs/compare", response_model=PipelineRunComparisonResponse)

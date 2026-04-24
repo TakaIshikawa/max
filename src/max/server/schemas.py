@@ -2050,6 +2050,75 @@ class PipelineRunHistoryResponse(BaseModel):
     status: str
 
 
+class PipelineRunExportAdapterResponse(BaseModel):
+    adapter: str
+    status: str | None = None
+    signal_count: int
+    duration_ms: int
+    error_message: str | None = None
+    metrics: dict[str, object] = Field(default_factory=dict)
+
+
+class PipelineRunExportBudgetStageResponse(BaseModel):
+    stage: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+
+
+class PipelineRunExportBudgetResponse(BaseModel):
+    model: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+    stages: list[PipelineRunExportBudgetStageResponse] = Field(default_factory=list)
+    token_usage: dict[str, object] = Field(default_factory=dict)
+
+
+class PipelineRunExportDomainResponse(BaseModel):
+    domain: str
+    signals_fetched: int
+    insights_generated: int
+    ideas_generated: int
+    ideas_evaluated: int
+    avg_score: float
+
+
+class PipelineRunExportAdapterErrorResponse(BaseModel):
+    adapter: str
+    status: str | None = None
+    error_message: str | None = None
+
+
+class PipelineRunExportErrorsResponse(BaseModel):
+    run: str | None = None
+    adapters: list[PipelineRunExportAdapterErrorResponse] = Field(default_factory=list)
+
+
+class PipelineRunExportRecordResponse(BaseModel):
+    id: str
+    started_at: str
+    finished_at: str | None = None
+    status: str
+    profile: str | None = None
+    domain: str | None = None
+    config: dict[str, object] = Field(default_factory=dict)
+    stage_counts: dict[str, int | float]
+    adapter_stats: list[PipelineRunExportAdapterResponse] = Field(default_factory=list)
+    budget: PipelineRunExportBudgetResponse
+    domains: list[PipelineRunExportDomainResponse] = Field(default_factory=list)
+    errors: PipelineRunExportErrorsResponse
+    follow_up_recommendations: list[str] = Field(default_factory=list)
+
+
+class PipelineRunExportResponse(BaseModel):
+    limit: int
+    run_count: int
+    runs: list[PipelineRunExportRecordResponse]
+
+
 class PipelineRunComparisonRunResponse(BaseModel):
     id: str
     started_at: str
