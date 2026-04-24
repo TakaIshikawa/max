@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from max.spec import generate_risk_register
+from max.spec import generate_risk_register, render_risk_register_markdown
 
 
 def test_risk_register_prioritizes_core_risk_inputs(sample_unit, sample_evaluation):
@@ -79,3 +79,38 @@ def test_risk_register_reports_missing_evaluation_and_thin_evidence(sample_unit)
     assert "thin_evidence" in risk_ids
     assert register["source"]["evaluation_available"] is False
     assert register["source"]["evidence_density_available"] is False
+
+
+def test_render_risk_register_markdown_includes_prioritized_details(
+    sample_unit, sample_evaluation
+):
+    unit = sample_unit.model_copy(
+        update={
+            "domain_risks": ["protocol churn could break implementations"],
+        }
+    )
+    evaluation = sample_evaluation.model_copy(
+        update={
+            "pain_severity": sample_evaluation.pain_severity.model_copy(update={"value": 4.5}),
+        }
+    )
+    register = generate_risk_register(
+        unit,
+        evaluation,
+        {"density_score": 24.0, "average_credibility": 0.4},
+        None,
+    )
+
+    markdown = render_risk_register_markdown(register)
+
+    assert markdown.startswith("# MCP Test Framework Risk Register")
+    assert "- Schema version: max-risk-register/v1" in markdown
+    assert "## Summary" in markdown
+    assert "## Prioritized Risks" in markdown
+    assert "### 1. " in markdown
+    assert "- Severity: high" in markdown
+    assert "- Likelihood: likely" in markdown
+    assert "- Evidence references:" in markdown
+    assert "- signal:sig-test001" in markdown
+    assert "- Mitigations:" in markdown
+    assert "- Validation trigger:" in markdown

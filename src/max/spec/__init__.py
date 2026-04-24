@@ -7,7 +7,7 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
-from max.spec.risk_register import generate_risk_register
+from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -17,6 +17,7 @@ __all__ = [
     "generate_launch_checklist",
     "generate_spec_bundle",
     "generate_risk_register",
+    "render_risk_register_markdown",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
 ]

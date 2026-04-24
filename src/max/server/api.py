@@ -298,7 +298,7 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
 from max.spec.readiness import evaluate_spec_readiness
-from max.spec.risk_register import generate_risk_register
+from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
@@ -3307,16 +3307,49 @@ def get_idea_experiment_card(
     )
 
 
-@router.get("/ideas/{idea_id}/risk-register")
-def get_idea_risk_register(idea_id: str, store: Store = Depends(get_store)) -> dict:
+@router.get("/ideas/{idea_id}/risk-register", response_model=None)
+def get_idea_risk_register(
+    idea_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict | Response:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
-    return generate_risk_register(
+    register = generate_risk_register(
         unit,
         store.get_evaluation(idea_id),
         build_evidence_density_report(unit, store),
         build_idea_contradiction_report(unit, store),
+    )
+    if format == "markdown":
+        return _risk_register_markdown_response(idea_id, register)
+    return register
+
+
+@router.get("/ideas/{idea_id}/risk-register.md", response_model=None)
+def get_idea_risk_register_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    register = generate_risk_register(
+        unit,
+        store.get_evaluation(idea_id),
+        build_evidence_density_report(unit, store),
+        build_idea_contradiction_report(unit, store),
+    )
+    return _risk_register_markdown_response(idea_id, register)
+
+
+def _risk_register_markdown_response(idea_id: str, register: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(idea_id)}-risk-register.md"
+    return Response(
+        content=render_risk_register_markdown(register),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

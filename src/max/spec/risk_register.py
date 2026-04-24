@@ -72,6 +72,79 @@ def generate_risk_register(
     }
 
 
+def render_risk_register_markdown(register: dict[str, Any]) -> str:
+    """Render a generated risk register as a deterministic markdown handoff document."""
+    summary = register.get("summary", {})
+    source = register.get("source", {})
+
+    lines = [
+        f"# {_text(summary.get('title')) or _text(register.get('idea_id')) or 'Idea'} Risk Register",
+        "",
+        f"- Schema version: {_text(register.get('schema_version'))}",
+        f"- Idea ID: {_text(register.get('idea_id'))}",
+        f"- Source status: {_text(source.get('status'))}",
+        f"- Domain: {_text(source.get('domain'))}",
+        f"- Category: {_text(source.get('category'))}",
+        f"- Target user: {_text(summary.get('target_user'))}",
+        f"- Buyer: {_text(summary.get('buyer'))}",
+        f"- Workflow context: {_text(summary.get('workflow_context'))}",
+        f"- Recommendation: {_text(summary.get('recommendation')) or 'none'}",
+        f"- Overall score: {_text(summary.get('overall_score')) or 'none'}",
+        "",
+        "## Summary",
+        "",
+        f"- Risk count: {_text(summary.get('risk_count'))}",
+        f"- Critical risks: {_text(summary.get('critical_risk_count'))}",
+        f"- High risks: {_text(summary.get('high_risk_count'))}",
+        f"- Top risk ID: {_text(summary.get('top_risk_id')) or 'none'}",
+        "",
+        "## Prioritized Risks",
+        "",
+    ]
+
+    risks = register.get("risks") or []
+    if risks:
+        for risk in risks:
+            lines.extend(
+                [
+                    f"### {risk.get('priority')}. {_text(risk.get('title'))}",
+                    "",
+                    f"- ID: {_text(risk.get('id'))}",
+                    f"- Severity: {_text(risk.get('severity'))}",
+                    f"- Likelihood: {_text(risk.get('likelihood'))}",
+                    f"- Source: {_text(risk.get('source'))}",
+                    f"- Description: {_text(risk.get('description'))}",
+                    "- Evidence references:",
+                    *_bullets(risk.get("evidence_links") or [], empty="None."),
+                    "- Mitigations:",
+                    *_bullets(risk.get("mitigations") or [], empty="None."),
+                    f"- Owner suggestion: {_text(risk.get('owner_suggestion'))}",
+                    f"- Validation trigger: {_text(risk.get('validation_trigger'))}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["No deterministic risks found.", ""])
+
+    triggers = register.get("validation_triggers") or []
+    lines.extend(
+        [
+            "## Validation Triggers",
+            "",
+            *_bullets(triggers, empty="None."),
+            "",
+            "## Source Flags",
+            "",
+            f"- Evaluation available: {_text(source.get('evaluation_available'))}",
+            f"- Evidence density available: {_text(source.get('evidence_density_available'))}",
+            f"- Contradictions available: {_text(source.get('contradictions_available'))}",
+            "",
+        ]
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _domain_risks(unit: BuildableUnit) -> list[dict[str, Any]]:
     return [
         _risk(
@@ -501,3 +574,13 @@ def _compact(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split())
+
+
+def _text(value: Any) -> str:
+    text = _compact(value)
+    return text or "none"
+
+
+def _bullets(values: list[Any], *, empty: str = "None.") -> list[str]:
+    items = [f"- {_text(value)}" for value in values if _compact(value)]
+    return items or [empty]
