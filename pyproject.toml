@@ -75,6 +75,7 @@ open_vsx = "max.sources.open_vsx:OpenVsxAdapter"
 terraform_registry = "max.sources.terraform_registry:TerraformRegistryAdapter"
 go_packages = "max.sources.go_packages:GoPackagesAdapter"
 kubernetes_keps = "max.sources.kubernetes_keps:KubernetesKepsAdapter"
+apis_guru = "max.sources.apis_guru:ApisGuruAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

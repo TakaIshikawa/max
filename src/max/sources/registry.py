@@ -81,6 +81,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
+    "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -494,6 +495,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches Kubernetes Enhancement Proposal roadmap metadata from GitHub.",
+    ),
+    "apis_guru": AdapterMetadata(
+        name="apis_guru",
+        config_keys=[
+            "base_url",
+            "queries",
+            "providers",
+            "preferred_versions_only",
+            "categories",
+        ],
+        required_keys=[],
+        description="Fetches APIs.guru OpenAPI Directory catalog signals for public API discovery.",
     ),
 }
 
