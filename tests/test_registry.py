@@ -243,12 +243,13 @@ def test_list_adapters_returns_strings():
     assert isinstance(names, list)
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
+    assert "rubygems" in names
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey",
+        "hackernews,rss_feed,crates_io,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -258,6 +259,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "hackernews",
         "rss_feed",
         "crates_io",
+        "rubygems",
         "dockerhub",
         "mcp_registry",
         "stackshare",
@@ -278,6 +280,9 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["crates_io"].config_keys == ["queries", "categories"]
     assert metadata["crates_io"].required_keys == []
     assert "Crates.io" in metadata["crates_io"].description
+    assert metadata["rubygems"].config_keys == ["queries", "max_pages"]
+    assert metadata["rubygems"].required_keys == []
+    assert "RubyGems" in metadata["rubygems"].description
     assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description

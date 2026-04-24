@@ -63,6 +63,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
+    "rubygems": "max.sources.rubygems:RubyGemsAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
@@ -319,6 +320,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "package_names", "include_prerelease"],
         required_keys=[],
         description="Fetches NuGet package metadata and recent version activity for configured packages and search terms.",
+    ),
+    "rubygems": AdapterMetadata(
+        name="rubygems",
+        config_keys=["queries", "max_pages"],
+        required_keys=[],
+        description="Searches RubyGems for Ruby packages matching configured query terms.",
     ),
     "dockerhub": AdapterMetadata(
         name="dockerhub",
