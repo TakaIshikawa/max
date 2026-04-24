@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import math
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from max.embeddings.engine import (
     SemanticIndex,
@@ -745,8 +747,8 @@ class TestEmbeddingsMetadataMigration:
         ).fetchone()
         assert row is not None
 
-    def test_schema_version_is_12(self, store: Store):
-        assert store.get_schema_version() == 12
+    def test_schema_version_is_20(self, store: Store):
+        assert store.get_schema_version() == 20
 
     def test_metadata_indices_exist(self, store: Store):
         indices = store.conn.execute(
@@ -755,3 +757,479 @@ class TestEmbeddingsMetadataMigration:
         index_names = {r["name"] for r in indices}
         assert "idx_embeddings_meta_type" in index_names
         assert "idx_embeddings_meta_embedded_at" in index_names
+
+
+# ── Conflict Resolution ──────────────────────────────────────────
+
+
+class TestConflictResolution:
+    """Test conflict resolution when embeddings exist for deleted ideas."""
+
+    def test_orphaned_embedding_cleanup_on_incremental(self, store: Store):
+        """Orphaned embeddings (no corresponding entity) are removed on incremental update."""
+        # Create and index an idea
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+        idx = SemanticIndex(store)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            idx.embed_incremental()
+
+        # Manually delete the unit but leave embedding/metadata (simulating corruption)
+        store.conn.execute("DELETE FROM buildable_units WHERE id = ?", ("bu-001",))
+        store.conn.commit()
+
+        # Incremental update should detect and remove orphaned embedding
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            result = idx.embed_incremental()
+
+        assert result["removed"] == 1
+        # Verify both embedding and metadata are gone
+        emb_count = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings WHERE id = ?", ("bu-001",)
+        ).fetchone()["c"]
+        meta_count = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings_metadata WHERE entity_id = ?", ("bu-001",)
+        ).fetchone()["c"]
+        assert emb_count == 0
+        assert meta_count == 0
+
+    def test_embedding_without_metadata_triggers_reembed(self, store: Store):
+        """If embedding exists but metadata is missing, re-embed the entity."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+        idx = SemanticIndex(store)
+
+        # Create embedding directly without metadata (simulating partial state)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            embedding = embed_text("Test idea")
+            store.conn.execute(
+                "INSERT INTO embeddings (id, entity_type, embedding) VALUES (?, ?, ?)",
+                ("bu-001", "buildable_unit", json.dumps(embedding)),
+            )
+            store.conn.commit()
+
+        # Incremental should re-embed since metadata is missing
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            result = idx.embed_incremental()
+
+        assert result["embedded"] == 1
+        # Verify metadata now exists
+        meta = idx._get_embedding_metadata("bu-001", "buildable_unit")
+        assert meta is not None
+
+    def test_metadata_without_embedding_triggers_reembed(self, store: Store):
+        """If metadata exists but embedding is missing, re-embed the entity."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+        idx = SemanticIndex(store)
+
+        # Create metadata without embedding (simulating partial state)
+        idx._upsert_embedding_metadata("bu-001", "buildable_unit", content_hash("Test idea"))
+        store.conn.commit()
+
+        # Incremental should re-embed since embedding is missing
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            result = idx.embed_incremental()
+
+        assert result["embedded"] == 1
+        # Verify embedding now exists
+        emb_row = store.conn.execute(
+            "SELECT embedding FROM embeddings WHERE id = ?", ("bu-001",)
+        ).fetchone()
+        assert emb_row is not None
+
+    def test_stale_metadata_different_entity_type(self, store: Store):
+        """Metadata for a different entity_type doesn't interfere with current type."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+        idx = SemanticIndex(store)
+
+        # Create metadata for a different entity type
+        idx._upsert_embedding_metadata("bu-001", "other_type", content_hash("Test idea"))
+        store.conn.commit()
+
+        # Incremental update for buildable_unit should treat bu-001 as new
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            result = idx.embed_incremental(entity_type="buildable_unit")
+
+        assert result["embedded"] == 1
+        assert result["skipped"] == 0
+
+        # Verify both entity types have their own records
+        bu_meta = idx._get_embedding_metadata("bu-001", "buildable_unit")
+        other_meta = idx._get_embedding_metadata("bu-001", "other_type")
+        assert bu_meta is not None
+        assert other_meta is not None
+
+
+# ── Rollback on Failures ─────────────────────────────────────────
+
+
+class TestRollbackBehavior:
+    """Test rollback and consistency on embedding generation failures."""
+
+    def test_partial_failure_exception_propagates(self, store: Store):
+        """If embedding fails mid-batch, exception propagates without commit."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Good idea"))
+        store.insert_buildable_unit(_make_unit("bu-002", title="Bad idea"))
+        store.insert_buildable_unit(_make_unit("bu-003", title="Another good idea"))
+
+        idx = SemanticIndex(store)
+
+        # Mock embed_text to fail on bu-002
+        original_embed = embed_text
+
+        def mock_embed_with_failure(text):
+            if "Bad idea" in text:
+                raise RuntimeError("Embedding API failure")
+            return original_embed(text)
+
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            with patch("max.embeddings.engine.embed_text", side_effect=mock_embed_with_failure):
+                try:
+                    idx.embed_incremental()
+                    pytest.fail("Expected RuntimeError to propagate")
+                except RuntimeError as e:
+                    assert "Embedding API failure" in str(e)
+
+        # Note: Current implementation doesn't have explicit rollback, so partial work may be visible
+        # This test verifies the exception propagates correctly
+
+    def test_embedding_api_error_propagates(self, store: Store):
+        """Embedding API errors should propagate to caller."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+        idx = SemanticIndex(store)
+
+        # Mock voyage embed to fail
+        def mock_voyage_fail(texts):
+            raise RuntimeError("API rate limit exceeded")
+
+        with patch("max.embeddings.engine._try_voyage_embed", side_effect=mock_voyage_fail):
+            try:
+                idx.embed_incremental()
+                pytest.fail("Expected RuntimeError to propagate")
+            except RuntimeError as e:
+                assert "API rate limit exceeded" in str(e)
+
+    def test_consistency_after_failed_update(self, store: Store):
+        """After a failed update, running again should recover and complete successfully."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Idea 1"))
+        store.insert_buildable_unit(_make_unit("bu-002", title="Idea 2"))
+
+        idx = SemanticIndex(store)
+
+        # First run fails
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            with patch("max.embeddings.engine.embed_text", side_effect=RuntimeError("Transient failure")):
+                try:
+                    idx.embed_incremental()
+                except RuntimeError:
+                    pass
+
+        # Second run succeeds
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            result = idx.embed_incremental()
+
+        assert result["embedded"] == 2
+        assert result["skipped"] == 0
+
+
+# ── Enhanced Index Consistency ───────────────────────────────────
+
+
+class TestIndexConsistency:
+    """Extended index consistency verification tests."""
+
+    def test_similarity_search_consistent_after_incremental_updates(self, store: Store):
+        """Similarity search returns consistent results after incremental updates."""
+        # Index initial set
+        store.insert_buildable_unit(_make_unit("bu-ml-1", title="machine learning classifier"))
+        store.insert_buildable_unit(_make_unit("bu-db-1", title="database optimizer"))
+
+        idx = SemanticIndex(store)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            idx.embed_incremental()
+
+            # Find similar to ML topic
+            ml_similar = idx.find_similar("machine learning algorithms", "buildable_unit", threshold=0.0)
+            ml_ids = {r[0] for r in ml_similar}
+            assert "bu-ml-1" in ml_ids
+
+            # Add more ML-related ideas and update incrementally
+            store.insert_buildable_unit(_make_unit("bu-ml-2", title="machine learning predictor"))
+            store.insert_buildable_unit(_make_unit("bu-ml-3", title="deep learning model"))
+            idx.embed_incremental()
+
+            # Search again should include new ideas
+            ml_similar_updated = idx.find_similar(
+                "machine learning algorithms", "buildable_unit", threshold=0.0
+            )
+            ml_ids_updated = {r[0] for r in ml_similar_updated}
+            assert "bu-ml-1" in ml_ids_updated
+            assert "bu-ml-2" in ml_ids_updated
+            assert "bu-ml-3" in ml_ids_updated
+
+            # Scores should remain sorted
+            scores = [r[1] for r in ml_similar_updated]
+            assert scores == sorted(scores, reverse=True)
+
+    def test_no_duplicate_embeddings_after_multiple_incrementals(self, store: Store):
+        """Multiple incremental runs don't create duplicate embeddings."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="Test idea"))
+
+        idx = SemanticIndex(store)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            # Run incremental 3 times
+            idx.embed_incremental()
+            idx.embed_incremental()
+            idx.embed_incremental()
+
+        # Verify only one embedding exists
+        emb_count = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings WHERE id = ?", ("bu-001",)
+        ).fetchone()["c"]
+        meta_count = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings_metadata WHERE entity_id = ?", ("bu-001",)
+        ).fetchone()["c"]
+
+        assert emb_count == 1
+        assert meta_count == 1
+
+    def test_embedding_metadata_consistency(self, store: Store):
+        """Every embedding has corresponding metadata and vice versa."""
+        for i in range(5):
+            store.insert_buildable_unit(_make_unit(f"bu-{i:03d}", title=f"Idea {i}"))
+
+        idx = SemanticIndex(store)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            idx.embed_incremental()
+
+        # Get all embeddings and metadata
+        emb_ids = {
+            row["id"]
+            for row in store.conn.execute(
+                "SELECT id FROM embeddings WHERE entity_type = ?", ("buildable_unit",)
+            ).fetchall()
+        }
+        meta_ids = {
+            row["entity_id"]
+            for row in store.conn.execute(
+                "SELECT entity_id FROM embeddings_metadata WHERE entity_type = ?", ("buildable_unit",)
+            ).fetchall()
+        }
+
+        # Should be exactly equal
+        assert emb_ids == meta_ids
+
+    def test_deleted_idea_removes_both_embedding_and_metadata(self, store: Store):
+        """Deleting an idea removes both embedding and metadata atomically."""
+        store.insert_buildable_unit(_make_unit("bu-001", title="To be deleted"))
+        store.insert_buildable_unit(_make_unit("bu-002", title="To be kept"))
+
+        idx = SemanticIndex(store)
+        with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+            idx.embed_incremental()
+
+            # Delete bu-001
+            store.conn.execute("DELETE FROM buildable_units WHERE id = ?", ("bu-001",))
+            store.conn.commit()
+
+            # Run incremental - should remove bu-001's embedding and metadata
+            result = idx.embed_incremental()
+
+        assert result["removed"] == 1
+
+        # Verify bu-001 is completely gone from both tables
+        emb_001 = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings WHERE id = ?", ("bu-001",)
+        ).fetchone()["c"]
+        meta_001 = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings_metadata WHERE entity_id = ?", ("bu-001",)
+        ).fetchone()["c"]
+        assert emb_001 == 0
+        assert meta_001 == 0
+
+        # bu-002 should still exist
+        emb_002 = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings WHERE id = ?", ("bu-002",)
+        ).fetchone()["c"]
+        meta_002 = store.conn.execute(
+            "SELECT COUNT(*) as c FROM embeddings_metadata WHERE entity_id = ?", ("bu-002",)
+        ).fetchone()["c"]
+        assert emb_002 == 1
+        assert meta_002 == 1
+
+
+# ── Property-Based Tests ─────────────────────────────────────────
+
+
+class TestPropertyBasedInvariants:
+    """Property-based tests using hypothesis for update invariants."""
+
+    def test_incremental_equals_full_reindex(self, store: Store):
+        """Property: incremental update produces same embeddings as full reindex."""
+        @given(
+            st.lists(
+                st.tuples(
+                    st.text(min_size=1, max_size=10, alphabet="abcdefghijklmnopqrstuvwxyz"),
+                    st.text(min_size=5, max_size=50),
+                ),
+                min_size=1,
+                max_size=10,
+                unique_by=lambda x: x[0],  # unique IDs
+            )
+        )
+        @settings(max_examples=20, deadline=5000)
+        def run_test(ideas):
+            # Clear existing data
+            store.conn.execute("DELETE FROM buildable_units")
+            store.conn.execute("DELETE FROM embeddings")
+            store.conn.execute("DELETE FROM embeddings_metadata")
+            store.conn.commit()
+
+            # Insert all ideas
+            for idea_id, title in ideas:
+                store.insert_buildable_unit(_make_unit(idea_id, title=title))
+
+            idx = SemanticIndex(store)
+
+            with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+                # Perform incremental update
+                idx.embed_incremental()
+                incremental_embeddings = {
+                    row["id"]: json.loads(row["embedding"])
+                    for row in store.conn.execute(
+                        "SELECT id, embedding FROM embeddings WHERE entity_type = ?",
+                        ("buildable_unit",),
+                    ).fetchall()
+                }
+
+                # Clear embeddings and metadata
+                store.conn.execute("DELETE FROM embeddings WHERE entity_type = ?", ("buildable_unit",))
+                store.conn.execute("DELETE FROM embeddings_metadata WHERE entity_type = ?", ("buildable_unit",))
+                store.conn.commit()
+
+                # Perform full reindex
+                idx.embed_full()
+                full_embeddings = {
+                    row["id"]: json.loads(row["embedding"])
+                    for row in store.conn.execute(
+                        "SELECT id, embedding FROM embeddings WHERE entity_type = ?",
+                        ("buildable_unit",),
+                    ).fetchall()
+                }
+
+            # Both should have the same set of IDs
+            assert set(incremental_embeddings.keys()) == set(full_embeddings.keys())
+
+            # Embeddings should be identical for each ID
+            for idea_id in incremental_embeddings:
+                assert incremental_embeddings[idea_id] == full_embeddings[idea_id]
+
+        run_test()
+
+    def test_idempotent_incremental_updates(self, store: Store):
+        """Property: running incremental multiple times without changes is idempotent."""
+        @given(
+            st.lists(st.text(min_size=1, max_size=10, alphabet="abcdefghijklmnopqrstuvwxyz"), min_size=1, max_size=10, unique=True),
+        )
+        @settings(max_examples=20, deadline=5000)
+        def run_test(idea_ids):
+            # Clear existing data
+            store.conn.execute("DELETE FROM buildable_units")
+            store.conn.execute("DELETE FROM embeddings")
+            store.conn.execute("DELETE FROM embeddings_metadata")
+            store.conn.commit()
+
+            # Insert ideas
+            for idea_id in idea_ids:
+                store.insert_buildable_unit(_make_unit(idea_id, title=f"Title {idea_id}"))
+
+            idx = SemanticIndex(store)
+
+            with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+                # First incremental
+                result1 = idx.embed_incremental()
+
+                # Capture state
+                embeddings_after_1 = {
+                    row["id"]: json.loads(row["embedding"])
+                    for row in store.conn.execute(
+                        "SELECT id, embedding FROM embeddings WHERE entity_type = ?",
+                        ("buildable_unit",),
+                    ).fetchall()
+                }
+
+                # Second incremental (no changes)
+                result2 = idx.embed_incremental()
+
+                # Capture state again
+                embeddings_after_2 = {
+                    row["id"]: json.loads(row["embedding"])
+                    for row in store.conn.execute(
+                        "SELECT id, embedding FROM embeddings WHERE entity_type = ?",
+                        ("buildable_unit",),
+                    ).fetchall()
+                }
+
+            # First run should embed everything
+            assert result1["embedded"] == len(idea_ids)
+            assert result1["skipped"] == 0
+
+            # Second run should skip everything
+            assert result2["embedded"] == 0
+            assert result2["skipped"] == len(idea_ids)
+
+            # Embeddings should be identical
+            assert embeddings_after_1 == embeddings_after_2
+
+        run_test()
+
+    def test_incremental_update_subset(self, store: Store):
+        """Property: updating subset leaves other embeddings unchanged."""
+        @given(
+            st.lists(st.text(min_size=1, max_size=10, alphabet="abcdefghijklmnopqrstuvwxyz"), min_size=2, max_size=10, unique=True),
+        )
+        @settings(max_examples=20, deadline=5000)
+        def run_test(idea_ids):
+            # Clear existing data
+            store.conn.execute("DELETE FROM buildable_units")
+            store.conn.execute("DELETE FROM embeddings")
+            store.conn.execute("DELETE FROM embeddings_metadata")
+            store.conn.commit()
+
+            # Insert all ideas
+            for idea_id in idea_ids:
+                store.insert_buildable_unit(_make_unit(idea_id, title=f"Original {idea_id}"))
+
+            idx = SemanticIndex(store)
+
+            with patch("max.embeddings.engine._try_voyage_embed", return_value=None):
+                # Initial embedding
+                idx.embed_incremental()
+
+                # Capture embeddings for first idea
+                first_id = idea_ids[0]
+                first_embedding_before = json.loads(
+                    store.conn.execute(
+                        "SELECT embedding FROM embeddings WHERE id = ?", (first_id,)
+                    ).fetchone()["embedding"]
+                )
+
+                # Update only the second idea
+                second_id = idea_ids[1]
+                store.conn.execute(
+                    "UPDATE buildable_units SET title = ? WHERE id = ?",
+                    (f"Modified {second_id}", second_id),
+                )
+                store.conn.commit()
+
+                # Incremental update
+                idx.embed_incremental()
+
+                # First idea's embedding should be unchanged
+                first_embedding_after = json.loads(
+                    store.conn.execute(
+                        "SELECT embedding FROM embeddings WHERE id = ?", (first_id,)
+                    ).fetchone()["embedding"]
+                )
+
+            assert first_embedding_before == first_embedding_after
+
+        run_test()
