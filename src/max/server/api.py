@@ -45,7 +45,10 @@ from max.analysis.design_brief_evidence_matrix import (
     render_design_brief_evidence_matrix,
 )
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
-from max.analysis.design_brief_risk_register import build_design_brief_risk_register
+from max.analysis.design_brief_risk_register import (
+    build_design_brief_risk_register,
+    render_design_brief_risk_register,
+)
 from max.analysis.market_sizing import build_market_sizing_report
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
@@ -3993,6 +3996,26 @@ def get_design_brief_risk_register(
     if not register:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefRiskRegisterResponse(**register)
+
+
+@router.get("/design-briefs/{brief_id}/risk-register.md", response_model=None)
+def get_design_brief_risk_register_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    register = build_design_brief_risk_register(store, brief_id)
+    if not register:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = (
+        f"{_download_filename_part(brief_id)}-"
+        f"{_download_filename_part(register['design_brief']['title'])}-risk-register.md"
+    )
+    return Response(
+        content=render_design_brief_risk_register(register, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(
