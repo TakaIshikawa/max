@@ -19,6 +19,7 @@ class SignalSourceType(StrEnum):
     FUNDING = "funding"
     TRENDING = "trending"
     EXPERIMENT = "experiment"
+    REPORT = "report"
 
 
 class Signal(BaseModel):
