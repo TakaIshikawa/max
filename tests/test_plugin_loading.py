@@ -89,6 +89,7 @@ def test_fallback_to_builtins():
     assert "npm_registry" in adapters
     assert "pypi_registry" in adapters
     assert "github_issues" in adapters
+    assert "github_actions" in adapters
     assert "security_advisories" in adapters
     assert "product_hunt" in adapters
     assert "crates_io" in adapters
@@ -204,3 +205,20 @@ def test_reload_clears_cache():
 
     registry.reload_registry()
     assert registry._cache is None
+
+
+def test_github_actions_metadata_and_registry_loading():
+    """GitHub Actions adapter is exposed through the registry with metadata."""
+    from max.sources.github_actions import GitHubActionsAdapter
+    from max.sources.registry import get_adapter, get_adapter_metadata
+
+    adapter = get_adapter("github_actions")
+    metadata = get_adapter_metadata()["github_actions"]
+
+    assert isinstance(adapter, GitHubActionsAdapter)
+    assert metadata.name == "github_actions"
+    assert "repositories" in metadata.config_keys
+    assert "workflow_names" in metadata.config_keys
+    assert "conclusions" in metadata.config_keys
+    assert "max_age_days" in metadata.config_keys
+    assert "token_env" in metadata.config_keys
