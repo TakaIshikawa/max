@@ -44,6 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.thresholds import (
@@ -924,6 +925,49 @@ def max_portfolio_overlap(
         return [_portfolio_overlap_cluster_to_dict(cluster) for cluster in clusters]
     except ValueError as e:
         # Map ValueError from analysis code to ValidationError
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def max_opportunity_heatmap(
+    domain: str | None = None,
+    min_signals: int = 1,
+    limit: int = 1000,
+) -> list[dict[str, object]] | dict:
+    """Return opportunity buckets ranked by domain and idea category.
+
+    Set domain to filter by pipeline profile domain.
+    Set min_signals to require a minimum number of resolved supporting signals.
+    Set limit to cap the number of buildable units analyzed.
+
+    Raises:
+        ValidationError: If min_signals or limit are out of valid ranges.
+    """
+    try:
+        if min_signals < 0:
+            raise ValidationError(
+                "min_signals must be non-negative",
+                field="min_signals",
+                expected="integer >= 0",
+                actual=str(min_signals),
+            )
+        if limit < 1:
+            raise ValidationError(
+                "limit must be at least 1",
+                field="limit",
+                expected="integer >= 1",
+                actual=str(limit),
+            )
+
+        with _get_store() as store:
+            return build_opportunity_heatmap(
+                store,
+                domain=domain,
+                min_signals=min_signals,
+                limit=limit,
+            )
+    except ValueError as e:
         return ValidationError(str(e)).to_dict()
     except MCPToolError as e:
         return e.to_dict()
@@ -1840,6 +1884,11 @@ def portfolio_overlap_detail() -> str:
     return json.dumps(max_portfolio_overlap(), indent=2)
 
 
+def opportunity_heatmap_detail() -> str:
+    """Browse the default opportunity heatmap report."""
+    return json.dumps(max_opportunity_heatmap(), indent=2)
+
+
 def source_allocation_detail() -> str:
     """Browse the default source allocation simulation report."""
     return json.dumps(simulate_source_allocation(), indent=2)
@@ -1897,6 +1946,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_source_reliability)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
+    mcp.tool(max_opportunity_heatmap)
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_schedule)
@@ -1926,6 +1976,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("validation-experiments://{experiment_id}")(validation_experiment_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
+    mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)
     mcp.resource("profile-source-recommendations://{profile_name}")(
         profile_source_recommendations_detail
