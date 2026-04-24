@@ -244,12 +244,13 @@ def test_list_adapters_returns_strings():
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
     assert "rubygems" in names
+    assert "clinical_trials" in names
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset",
+        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -272,6 +273,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "gitlab_merge_requests",
         "stackoverflow_survey",
         "agent_failure_dataset",
+        "clinical_trials",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
@@ -378,6 +380,15 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["agent_failure_dataset"].required_keys == []
     assert "failure_data" in metadata["agent_failure_dataset"].description
+    assert metadata["clinical_trials"].config_keys == [
+        "terms",
+        "conditions",
+        "intervention_terms",
+        "interventions",
+        "max_results_per_query",
+    ]
+    assert metadata["clinical_trials"].required_keys == []
+    assert "ClinicalTrials.gov" in metadata["clinical_trials"].description
 
 
 def test_get_adapter_returns_instance():
