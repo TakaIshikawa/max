@@ -88,6 +88,7 @@ go_packages = "max.sources.go_packages:GoPackagesAdapter"
 kubernetes_keps = "max.sources.kubernetes_keps:KubernetesKepsAdapter"
 apis_guru = "max.sources.apis_guru:ApisGuruAdapter"
 federal_register_healthcare = "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
+a2a_spec = "max.sources.a2a_spec:A2ASpecAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

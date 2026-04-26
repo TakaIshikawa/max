@@ -401,3 +401,33 @@ def test_pypi_download_trends_adapter_metadata_documents_config_keys() -> None:
     assert "PyPI package download trend" in metadata[
         "pypi_download_trends"
     ].description
+
+
+def test_a2a_spec_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "a2a_spec"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["a2a_spec"]
+        adapter = get_adapter("a2a_spec")
+
+    assert adapter.name == "a2a_spec"
+
+
+def test_a2a_spec_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "a2a_spec"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"a2a_spec"}
+    assert metadata["a2a_spec"].config_keys == [
+        "spec_urls",
+        "local_paths",
+        "sections",
+        "keywords",
+        "max_items",
+        "include_examples",
+    ]
+    assert metadata["a2a_spec"].required_keys == []
+    assert "Agent-to-Agent specification" in metadata["a2a_spec"].description

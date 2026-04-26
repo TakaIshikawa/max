@@ -101,6 +101,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "federal_register_healthcare": (
         "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
     ),
+    "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -664,6 +665,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Fetches Federal Register healthcare rules, proposed rules, notices, "
             "and guidance-like regulatory change signals."
+        ),
+    ),
+    "a2a_spec": AdapterMetadata(
+        name="a2a_spec",
+        config_keys=[
+            "spec_urls",
+            "local_paths",
+            "sections",
+            "keywords",
+            "max_items",
+            "include_examples",
+        ],
+        required_keys=[],
+        description=(
+            "Reads Agent-to-Agent specification Markdown, text, and JSON snapshots "
+            "as protocol capability, lifecycle, transport, security, and interoperability signals."
         ),
     ),
 }
