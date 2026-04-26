@@ -41,6 +41,10 @@ from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
     render_design_brief_competitive_landscape,
 )
+from max.analysis.design_brief_bundle import (
+    build_design_brief_bundle,
+    render_design_brief_bundle,
+)
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -169,6 +173,7 @@ from max.server.schemas import (
     ContradictionReportResponse,
     ContextBudgetWasteResponse,
     CustomerDiscoveryScriptResponse,
+    DesignBriefBundleResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefLaunchChecklistResponse,
@@ -4326,6 +4331,34 @@ def get_design_brief_blueprint(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return BlueprintSourceBriefResponse(**build_blueprint_source_brief(store, brief))
+
+
+@router.get("/design-briefs/{brief_id}/bundle", response_model=DesignBriefBundleResponse)
+def get_design_brief_bundle(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefBundleResponse:
+    bundle = build_design_brief_bundle(store, brief_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefBundleResponse(**bundle)
+
+
+@router.get("/design-briefs/{brief_id}/bundle.md", response_model=None)
+def get_design_brief_bundle_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    bundle = build_design_brief_bundle(store, brief_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-bundle.md"
+    return Response(
+        content=render_design_brief_bundle(bundle, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/design-briefs/{brief_id}/markdown", response_class=Response)

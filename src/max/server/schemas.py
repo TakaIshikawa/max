@@ -1885,6 +1885,26 @@ class DesignBriefMarketSizingResponse(BaseModel):
     recommendations: list[str]
 
 
+class DesignBriefArtifactStatusResponse(BaseModel):
+    status: Literal["generated", "missing", "errored"]
+    error: str | None = None
+
+
+class DesignBriefBundleResponse(BaseModel):
+    schema_version: str
+    source: dict
+    artifact_status: dict[str, DesignBriefArtifactStatusResponse]
+    design_brief: dict[str, Any]
+    blueprint_source_brief: dict[str, Any] | None = None
+    validation_plan: dict[str, Any] | None = None
+    evidence_matrix: dict[str, Any] | None = None
+    risk_register: dict[str, Any] | None = None
+    roadmap: dict[str, Any] | None = None
+    prd: dict[str, Any] | None = None
+    market_sizing: dict[str, Any] | None = None
+    competitive_landscape: dict[str, Any] | None = None
+
+
 class FeedbackTrendDomainResponse(BaseModel):
     domain: str
     total_count: int
