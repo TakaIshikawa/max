@@ -1824,6 +1824,44 @@ class DesignBriefPrdResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefExecutiveMemoEvidenceHighlightResponse(BaseModel):
+    claim_area: str
+    evidence_strength: Literal["weak", "moderate", "strong"]
+    claim: str
+    supporting_signal_ids: list[str]
+    supporting_source_idea_ids: list[str]
+    summary: str
+
+
+class DesignBriefExecutiveMemoRiskResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    category: str
+    severity: Literal["high", "medium", "low"]
+    likelihood: Literal["likely", "possible", "unlikely"]
+    priority: int
+    mitigation: str
+    validation_action: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefExecutiveMemoResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    decision_summary: dict[str, Any]
+    target_segment: dict[str, Any]
+    problem: str
+    proposed_product: str
+    evidence_highlights: list[DesignBriefExecutiveMemoEvidenceHighlightResponse]
+    market_size_confidence: dict[str, Any]
+    top_risks: list[DesignBriefExecutiveMemoRiskResponse]
+    validation_next_step: dict[str, Any]
+    owner_ask: str
+    artifact_refs: dict[str, Any]
+
+
 class DesignBriefCompetitorClusterResponse(BaseModel):
     id: str
     name: str
