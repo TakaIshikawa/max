@@ -6,10 +6,9 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 import httpx
-
-from max.publisher.webhook import redact_url
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
@@ -76,7 +75,7 @@ class SlackWebhookPublisher:
     @property
     def redacted_url(self) -> str:
         """Return the Slack webhook URL with secrets redacted."""
-        return redact_url(self.webhook_url)
+        return redact_slack_webhook_url(self.webhook_url)
 
     def build_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Convert a Max idea or design brief payload into Slack Block Kit JSON."""
@@ -316,3 +315,25 @@ def _response_body_preview(response: httpx.Response, *, limit: int = 500) -> str
     if len(text) <= limit:
         return text
     return text[:limit] + "..."
+
+
+def redact_slack_webhook_url(url: str) -> str:
+    """Redact Slack webhook path secrets while keeping the target recognizable."""
+    parts = urlsplit(url)
+    path_parts = parts.path.split("/")
+    if len(path_parts) > 1:
+        path_parts[-1] = "[redacted]"
+    netloc = parts.hostname or ""
+    if parts.port is not None:
+        netloc = f"{netloc}:{parts.port}"
+    if parts.username or parts.password:
+        netloc = f"***@{netloc}"
+    return urlunsplit(
+        SplitResult(
+            scheme=parts.scheme,
+            netloc=netloc,
+            path="/".join(path_parts),
+            query="[redacted]" if parts.query else "",
+            fragment="[redacted]" if parts.fragment else "",
+        )
+    )
