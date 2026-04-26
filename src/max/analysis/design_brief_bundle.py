@@ -16,6 +16,10 @@ from max.analysis.design_brief_evidence_matrix import (
     render_design_brief_evidence_matrix,
 )
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
+from max.analysis.design_brief_pricing_strategy import (
+    build_design_brief_pricing_strategy,
+    render_design_brief_pricing_strategy,
+)
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
@@ -35,6 +39,7 @@ ARTIFACT_NAMES: tuple[str, ...] = (
     "risk_register",
     "roadmap",
     "prd",
+    "pricing_strategy",
     "market_sizing",
     "competitive_landscape",
 )
@@ -67,6 +72,7 @@ def build_design_brief_bundle(store: Store, brief_id: str) -> dict[str, Any] | N
         ("risk_register", _build_risk_register),
         ("roadmap", _build_roadmap),
         ("prd", _build_prd),
+        ("pricing_strategy", _build_pricing_strategy),
         ("market_sizing", _build_market_sizing),
         ("competitive_landscape", _build_competitive_landscape),
     )
@@ -147,6 +153,7 @@ def render_design_brief_bundle(bundle: dict[str, Any], fmt: str = "markdown") ->
     _append_artifact_section(lines, "Risk Register", bundle.get("risk_register"), _render_risk)
     _append_artifact_section(lines, "Roadmap", bundle.get("roadmap"), _render_roadmap)
     _append_artifact_section(lines, "PRD", bundle.get("prd"), _render_prd)
+    _append_artifact_section(lines, "Pricing Strategy", bundle.get("pricing_strategy"), _render_pricing)
     _append_artifact_section(lines, "Market Sizing", bundle.get("market_sizing"), _render_market)
     _append_artifact_section(
         lines,
@@ -185,6 +192,10 @@ def _build_roadmap(store: Store, design_brief: dict[str, Any], brief_id: str) ->
 
 def _build_prd(store: Store, design_brief: dict[str, Any], brief_id: str) -> dict[str, Any] | None:
     return build_design_brief_prd(store, brief_id)
+
+
+def _build_pricing_strategy(store: Store, design_brief: dict[str, Any], brief_id: str) -> dict[str, Any] | None:
+    return build_design_brief_pricing_strategy(store, brief_id)
 
 
 def _build_market_sizing(store: Store, design_brief: dict[str, Any], brief_id: str) -> dict[str, Any] | None:
@@ -249,6 +260,10 @@ def _render_roadmap(roadmap: dict[str, Any]) -> str:
 
 def _render_prd(prd: dict[str, Any]) -> str:
     return render_design_brief_prd(prd, fmt="markdown")
+
+
+def _render_pricing(report: dict[str, Any]) -> str:
+    return render_design_brief_pricing_strategy(report, fmt="markdown")
 
 
 def _render_market(report: dict[str, Any]) -> str:
