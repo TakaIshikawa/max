@@ -34,6 +34,7 @@ class LinearIssuePayload:
     label_ids: list[str]
     priority: int | None
     metadata: dict[str, Any]
+    assignee_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable issue payload."""
@@ -48,6 +49,8 @@ class LinearIssuePayload:
             payload["project_id"] = self.project_id
         if self.priority is not None:
             payload["priority"] = self.priority
+        if self.assignee_id:
+            payload["assignee_id"] = self.assignee_id
         return payload
 
 
@@ -74,6 +77,7 @@ class LinearIssuePublisher:
         project_id: str | None = None,
         labels: list[str] | None = None,
         priority: int | None = None,
+        assignee_id: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> None:
@@ -83,6 +87,7 @@ class LinearIssuePublisher:
         self.project_id = _optional_text(project_id)
         self.labels = labels or []
         self.priority = priority
+        self.assignee_id = _optional_text(assignee_id)
         self.timeout = timeout
         self._client = client
 
@@ -96,6 +101,7 @@ class LinearIssuePublisher:
         project_id: str | None = None,
         labels: list[str] | None = None,
         priority: int | None = None,
+        assignee_id: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> LinearIssuePublisher:
@@ -112,6 +118,7 @@ class LinearIssuePublisher:
             project_id=project_id or os.getenv("LINEAR_PROJECT_ID"),
             labels=labels,
             priority=priority,
+            assignee_id=assignee_id,
             timeout=timeout,
             client=client,
         )
@@ -146,18 +153,29 @@ class LinearIssuePublisher:
             label_ids=list(self.labels),
             priority=self.priority,
             metadata=metadata,
+            assignee_id=self.assignee_id,
         )
 
     def publish(self, tact_spec: dict[str, Any], *, dry_run: bool = True) -> LinearIssuePublishResult:
         """Build the issue payload and optionally create it in Linear."""
         payload = self.build_issue_payload(tact_spec).to_dict()
+        return self.publish_payload(payload, dry_run=dry_run)
+
+    def publish_payload(
+        self,
+        payload: LinearIssuePayload | dict[str, Any],
+        *,
+        dry_run: bool = True,
+    ) -> LinearIssuePublishResult:
+        """Create a Linear issue from a prebuilt payload."""
+        payload_dict = payload.to_dict() if isinstance(payload, LinearIssuePayload) else dict(payload)
         if dry_run:
             return LinearIssuePublishResult(
                 status_code=None,
                 team_id=self.team_id,
                 issue_url=None,
                 dry_run=True,
-                payload=payload,
+                payload=payload_dict,
             )
 
         if not self.api_key:
@@ -171,7 +189,7 @@ class LinearIssuePublisher:
             try:
                 response = client.post(
                     self.graphql_endpoint,
-                    json=_graphql_request(payload),
+                    json=_graphql_request(payload_dict),
                     headers={
                         "Authorization": self.api_key,
                         "Content-Type": "application/json",
@@ -217,9 +235,9 @@ class LinearIssuePublisher:
             issue_url=str(issue_url) if issue_url else None,
             dry_run=False,
             payload={
-                **payload,
+                **payload_dict,
                 "metadata": {
-                    **payload["metadata"],
+                    **payload_dict["metadata"],
                     "linear_issue_url": issue_url,
                     "linear_issue_id": issue.get("id"),
                     "linear_issue_identifier": issue_identifier,
@@ -257,6 +275,8 @@ def _graphql_request(payload: dict[str, Any]) -> dict[str, Any]:
         input_payload["labelIds"] = payload["label_ids"]
     if payload.get("priority") is not None:
         input_payload["priority"] = payload["priority"]
+    if payload.get("assignee_id"):
+        input_payload["assigneeId"] = payload["assignee_id"]
     return {"query": ISSUE_CREATE_MUTATION, "variables": {"input": input_payload}}
 
 
