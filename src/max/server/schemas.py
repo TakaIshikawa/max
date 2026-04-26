@@ -259,6 +259,19 @@ class LinearIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class DesignBriefLinearPublishRequest(BaseModel):
+    api_key: str | None = None
+    api_key_env: str | None = Field(default=None, min_length=1)
+    team_id: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    priority: int | None = Field(default=None, ge=0, le=4)
+    assignee_id: str | None = None
+    project_id: str | None = None
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class AsanaTaskPublishRequest(BaseModel):
     access_token: str | None = None
     workspace_gid: str | None = Field(default=None, min_length=1)
@@ -1485,6 +1498,19 @@ class LinearIssuePublishResponse(BaseModel):
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
+
+
+class DesignBriefLinearPublishResponse(BaseModel):
+    design_brief_id: str
+    team_id: str
+    issue_url: str | None = None
+    issue_id: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
 
 
 class AsanaTaskPublishResponse(BaseModel):

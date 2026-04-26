@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -94,6 +95,7 @@ from max.analysis.profile_drift import (
     DEFAULT_UNIT_LIMIT as DEFAULT_PROFILE_DRIFT_UNIT_LIMIT,
     build_profile_drift_report,
 )
+from max.analysis.portfolio_synthesis import render_design_brief_markdown
 from max.analysis.profile_source_recommendations import (
     DEFAULT_MAX_AGE_DAYS as DEFAULT_SOURCE_RECOMMENDATION_MAX_AGE_DAYS,
     build_profile_source_recommendations_for_profile,
@@ -194,6 +196,8 @@ from max.server.schemas import (
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
     DesignBriefLaunchChecklistResponse,
+    DesignBriefLinearPublishRequest,
+    DesignBriefLinearPublishResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefPrdResponse,
     DesignBriefRoadmapResponse,
@@ -963,6 +967,17 @@ def _unit_detail(
 
 def _design_brief_to_response(brief: dict) -> DesignBriefResponse:
     return DesignBriefResponse(**brief)
+
+
+def _deterministic_design_brief_markdown(brief: dict[str, Any], *, title: str) -> str:
+    markdown = render_design_brief_markdown(brief, title=title)
+    generated_at = brief.get("updated_at") or brief.get("created_at") or ""
+    lines = markdown.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("Generated: "):
+            lines[index] = f"Generated: {generated_at}"
+            break
+    return "\n".join(lines)
 
 
 def _profile_summary_to_response(profile) -> ProfileSummaryResponse:
@@ -4643,6 +4658,147 @@ def publish_design_brief_to_notion(
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/linear",
+    response_model=DesignBriefLinearPublishResponse,
+)
+def publish_design_brief_to_linear_issue(
+    brief_id: str,
+    request: DesignBriefLinearPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefLinearPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    resolved_api_key = request.api_key
+    api_key_source = "request" if request.api_key else "none"
+    if not resolved_api_key and request.api_key_env:
+        resolved_api_key = os.getenv(request.api_key_env)
+        api_key_source = f"env:{request.api_key_env}" if resolved_api_key else "none"
+    elif not resolved_api_key and os.getenv("LINEAR_API_KEY"):
+        api_key_source = "env:LINEAR_API_KEY"
+
+    try:
+        publisher = LinearIssuePublisher.from_env(
+            team_id=request.team_id,
+            api_key=resolved_api_key,
+            project_id=request.project_id,
+            labels=request.labels,
+            priority=request.priority,
+            assignee_id=request.assignee_id,
+            timeout=request.timeout,
+        )
+    except LinearIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or f"[Max] {brief.get('title') or brief_id}"
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    payload = {
+        "title": title,
+        "description": markdown,
+        "team_id": publisher.team_id,
+        "label_ids": list(request.labels),
+        "metadata": {
+            "publisher": "max.linear_issues",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "project_id": publisher.project_id,
+        },
+    }
+    if publisher.project_id:
+        payload["project_id"] = publisher.project_id
+    if publisher.priority is not None:
+        payload["priority"] = publisher.priority
+    if publisher.assignee_id:
+        payload["assignee_id"] = publisher.assignee_id
+
+    request_summary = {
+        "team_id": publisher.team_id,
+        "project_id": publisher.project_id,
+        "labels": list(request.labels),
+        "priority": publisher.priority,
+        "assignee_id": publisher.assignee_id,
+        "dry_run": request.dry_run,
+        "api_key": "[redacted]" if publisher.api_key else None,
+        "api_key_source": api_key_source,
+    }
+
+    if not request.dry_run and not publisher.api_key:
+        message = (
+            "LINEAR_API_KEY is required for live Linear issue publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="linear_issue",
+            target_url=publisher.graphql_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_payload(payload, dry_run=request.dry_run)
+    except LinearIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="linear_issue",
+            target_url=publisher.graphql_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.issue_url or publisher.graphql_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="linear_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "linear",
+        "target_type": "linear_issue",
+        "target_url": target_url,
+        "graphql_endpoint": publisher.graphql_endpoint,
+        "linear_issue_identifier": result_metadata.get("linear_issue_identifier"),
+    }
+
+    return DesignBriefLinearPublishResponse(
+        design_brief_id=brief_id,
+        team_id=result.team_id,
+        issue_url=result.issue_url,
+        issue_id=result_metadata.get("linear_issue_id"),
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
     )
 
 
