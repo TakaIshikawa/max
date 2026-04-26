@@ -1744,6 +1744,41 @@ class DesignBriefRiskRegisterResponse(BaseModel):
     validation_actions: list[str]
 
 
+class DesignBriefLaunchChecklistItemResponse(BaseModel):
+    id: str
+    task: str
+    rationale: str
+    owner: str
+    status: str
+    required: bool
+    exit_criteria: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+    section_id: str | None = None
+    section_title: str | None = None
+    section_owner_role: str | None = None
+
+
+class DesignBriefLaunchChecklistSectionResponse(BaseModel):
+    id: Literal["readiness", "instrumentation", "validation", "rollout", "follow_up"]
+    title: str
+    description: str
+    owner_role: str
+    exit_criteria: str
+    items: list[DesignBriefLaunchChecklistItemResponse]
+
+
+class DesignBriefLaunchChecklistResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict
+    design_brief: dict
+    summary: dict
+    sections: list[DesignBriefLaunchChecklistSectionResponse]
+    checklist_items: list[DesignBriefLaunchChecklistItemResponse]
+    source_ideas: list[dict]
+
+
 class DesignBriefRoadmapItemResponse(BaseModel):
     id: str
     phase: Literal["discovery", "prototype", "validation", "beta", "launch"]
