@@ -27,6 +27,7 @@ from max.server.mcp_tools import (
     get_design_brief_markdown,
     get_design_brief_market_sizing,
     get_design_brief_prd,
+    get_design_brief_executive_memo,
     get_design_brief_roadmap,
     get_design_brief_risk_register,
     get_design_brief_validation_plan,
@@ -52,6 +53,7 @@ from max.server.mcp_tools import (
     set_store_factory,
     design_brief_roadmap_detail,
     design_brief_prd_detail,
+    design_brief_executive_memo_detail,
     design_brief_risk_register_detail,
     design_brief_competitive_landscape_detail,
     design_brief_market_sizing_detail,
@@ -1346,6 +1348,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-prd://{brief_id}"]
         == "design_brief_prd_detail"
+    )
+    assert "get_design_brief_executive_memo" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-executive-memos://{brief_id}"]
+        == "design_brief_executive_memo_detail"
     )
     assert "get_design_brief_market_sizing" in FakeMCP.latest.tools
     assert (

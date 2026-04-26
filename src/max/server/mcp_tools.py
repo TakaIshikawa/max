@@ -902,6 +902,48 @@ def get_design_brief_prd(brief_id: str, format: str = "json") -> dict:
         return e.to_dict()
 
 
+def get_design_brief_executive_memo(brief_id: str, format: str = "json") -> dict:
+    """Get an executive memo export for a persisted design brief.
+
+    Set format to "json" for a structured payload with rendered JSON text or
+    "markdown" for rendered approval handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    from max.analysis.design_brief_executive_memo import (
+        build_design_brief_executive_memo,
+        render_design_brief_executive_memo,
+    )
+
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported executive memo format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            memo = build_design_brief_executive_memo(store, brief_id)
+            if not memo:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_executive_memo(memo, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return {**json.loads(rendered), "format": "json", "rendered": rendered}
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_design_brief_market_sizing(brief_id: str, format: str = "json") -> dict:
     """Get deterministic market sizing for a persisted design brief.
 
@@ -2659,6 +2701,11 @@ def design_brief_prd_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_prd(brief_id), indent=2)
 
 
+def design_brief_executive_memo_detail(brief_id: str) -> str:
+    """Get the executive memo export for a specific design brief."""
+    return json.dumps(get_design_brief_executive_memo(brief_id), indent=2)
+
+
 def design_brief_market_sizing_detail(brief_id: str) -> str:
     """Get the market sizing report for a specific design brief."""
     return json.dumps(get_design_brief_market_sizing(brief_id), indent=2)
@@ -2789,6 +2836,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_risk_register)
     mcp.tool(get_design_brief_roadmap)
     mcp.tool(get_design_brief_prd)
+    mcp.tool(get_design_brief_executive_memo)
     mcp.tool(get_design_brief_market_sizing)
     mcp.tool(get_design_brief_competitive_landscape)
     mcp.tool(get_design_brief_evidence_matrix)
@@ -2841,6 +2889,9 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
     mcp.resource("design-brief-roadmaps://{brief_id}")(design_brief_roadmap_detail)
     mcp.resource("design-brief-prd://{brief_id}")(design_brief_prd_detail)
+    mcp.resource("design-brief-executive-memos://{brief_id}")(
+        design_brief_executive_memo_detail
+    )
     mcp.resource("design-brief-market-sizing://{brief_id}")(design_brief_market_sizing_detail)
     mcp.resource("design-brief-competitive-landscapes://{brief_id}")(
         design_brief_competitive_landscape_detail
