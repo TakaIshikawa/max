@@ -35,6 +35,13 @@ from max.publisher.linear_issues import (
     LinearIssuePublishResult,
     LinearIssuesPublisher,
 )
+from max.publisher.microsoft_planner_tasks import (
+    MicrosoftPlannerTaskPayload,
+    MicrosoftPlannerTaskPublisher,
+    MicrosoftPlannerTaskPublishError,
+    MicrosoftPlannerTaskPublishResult,
+    MicrosoftPlannerTasksPublisher,
+)
 from max.publisher.asana_tasks import (
     AsanaTaskPayload,
     AsanaTaskPublisher,
@@ -113,6 +120,11 @@ __all__ = [
     "LinearIssuePublishError",
     "LinearIssuePublishResult",
     "LinearIssuesPublisher",
+    "MicrosoftPlannerTaskPayload",
+    "MicrosoftPlannerTaskPublisher",
+    "MicrosoftPlannerTaskPublishError",
+    "MicrosoftPlannerTaskPublishResult",
+    "MicrosoftPlannerTasksPublisher",
     "AsanaTaskPayload",
     "AsanaTaskPublisher",
     "AsanaTaskPublishError",

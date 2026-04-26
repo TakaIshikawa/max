@@ -271,6 +271,16 @@ class AsanaTaskPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class MicrosoftPlannerTaskPublishRequest(BaseModel):
+    access_token: str | None = None
+    api_url: str | None = Field(default=None, min_length=1)
+    plan_id: str | None = Field(default=None, min_length=1)
+    bucket_id: str | None = Field(default=None, min_length=1)
+    assignee_user_id: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class ClickUpTaskPublishRequest(BaseModel):
     api_token: str | None = None
     api_url: str | None = None
@@ -1481,6 +1491,18 @@ class AsanaTaskPublishResponse(BaseModel):
     idea_id: str
     workspace_gid: str
     task_gid: str | None = None
+    task_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class MicrosoftPlannerTaskPublishResponse(BaseModel):
+    idea_id: str
+    plan_id: str
+    bucket_id: str
+    task_id: str | None = None
     task_url: str | None = None
     status_code: int | None = None
     dry_run: bool
