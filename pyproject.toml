@@ -42,6 +42,7 @@ github_pull_requests = "max.sources.github_pull_requests:GitHubPullRequestsAdapt
 github_actions = "max.sources.github_actions:GitHubActionsAdapter"
 github_octoverse = "max.sources.github_octoverse:GitHubOctoverseAdapter"
 snyk_reports = "max.sources.snyk_reports:SnykReportsAdapter"
+agentseal_mcp_scan = "max.sources.agentseal_mcp_scan:AgentSealMcpScanAdapter"
 ai_code_trust_reports = "max.sources.ai_code_trust_reports:AICodeTrustReportsAdapter"
 agent_failure_dataset = "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter"
 github_discussions = "max.sources.github_discussions:GitHubDiscussionsAdapter"

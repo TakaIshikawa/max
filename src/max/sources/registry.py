@@ -49,6 +49,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
     "github_octoverse": "max.sources.github_octoverse:GitHubOctoverseAdapter",
     "snyk_reports": "max.sources.snyk_reports:SnykReportsAdapter",
+    "agentseal_mcp_scan": "max.sources.agentseal_mcp_scan:AgentSealMcpScanAdapter",
     "ai_code_trust_reports": (
         "max.sources.ai_code_trust_reports:AICodeTrustReportsAdapter"
     ),
@@ -222,6 +223,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Reads Snyk-style Markdown and JSON security research reports as "
             "normalized vulnerability, dependency, and supply-chain signals."
+        ),
+    ),
+    "agentseal_mcp_scan": AdapterMetadata(
+        name="agentseal_mcp_scan",
+        config_keys=[
+            "local_paths",
+            "report_urls",
+            "severity_min",
+            "categories",
+            "max_items",
+            "include_remediated",
+        ],
+        required_keys=[],
+        description=(
+            "Reads AgentSeal-style MCP server security scan JSON and JSONL exports "
+            "as vulnerability, trust, and remediation signals."
         ),
     ),
     "mcp_protocol_roadmap": AdapterMetadata(
