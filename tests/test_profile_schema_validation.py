@@ -179,6 +179,7 @@ class TestSchemaProperties:
             "snyk_reports",
             "product_hunt",
             "rss_feed",
+            "funding_rounds",
         ]
         for adapter in known_adapters:
             assert (

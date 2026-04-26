@@ -39,6 +39,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github": "max.sources.github:GitHubAdapter",
     "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
+    "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
@@ -136,6 +137,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "github_token", "token"],
         required_keys=[],
         description="Fetches funding and sponsorship links from configured GitHub repositories.",
+    ),
+    "funding_rounds": AdapterMetadata(
+        name="funding_rounds",
+        config_keys=[
+            "local_paths",
+            "dataset_urls",
+            "format",
+            "sectors",
+            "min_amount_usd",
+            "max_rows",
+        ],
+        required_keys=[],
+        description="Reads CSV, JSON, and JSONL funding round datasets as market validation signals.",
     ),
     "pypi_registry": AdapterMetadata(
         name="pypi_registry",

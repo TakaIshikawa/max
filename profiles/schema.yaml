@@ -305,6 +305,7 @@ properties:
             - discourse
             - dockerhub
             - federal_register_healthcare
+            - funding_rounds
             - github
             - github_actions
             - github_discussions
