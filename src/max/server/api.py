@@ -218,6 +218,8 @@ from max.server.schemas import (
     DesignBriefRiskRegisterResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
+    DesignBriefTrelloCardPublishRequest,
+    DesignBriefTrelloCardPublishResponse,
     DesignBriefValidationPlanResponse,
     DiscordPublishRequest,
     DiscordPublishResponse,
@@ -1063,6 +1065,49 @@ def _design_brief_discord_payload(brief: dict[str, Any]) -> dict[str, Any]:
             "why_this_now": brief.get("why_this_now", ""),
             "mvp_scope": list(brief.get("mvp_scope") or []),
             "validation_plan": brief.get("validation_plan", ""),
+        },
+    }
+
+
+def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
+    title = str(brief.get("title") or brief.get("id") or "Design Brief")
+    source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    return {
+        "schema_version": "max.design_brief.trello_card.v1",
+        "kind": "max.design_brief",
+        "source": {
+            "system": "max",
+            "type": "design_brief",
+            "design_brief_id": brief["id"],
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "status": brief.get("design_status"),
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "readiness_score": readiness_score,
+            "created_at": brief.get("created_at"),
+            "updated_at": brief.get("updated_at"),
+        },
+        "project": {
+            "title": title,
+            "summary": brief.get("merged_product_concept") or brief.get("why_this_now") or "",
+            "why_this_now": brief.get("why_this_now") or "",
+            "buyer": brief.get("buyer") or "",
+            "specific_user": brief.get("specific_user") or "",
+            "workflow_context": brief.get("workflow_context") or "",
+        },
+        "execution": {
+            "mvp_scope": list(brief.get("mvp_scope") or []),
+            "first_milestones": list(brief.get("first_milestones") or []),
+            "validation_plan": brief.get("validation_plan") or "",
+        },
+        "evidence": {
+            "source_idea_ids": source_idea_ids,
+            "lead_idea_id": brief.get("lead_idea_id"),
+        },
+        "readiness": {
+            "score": readiness_score,
+            "status": brief.get("design_status"),
         },
     }
 
@@ -5254,6 +5299,132 @@ def publish_design_brief_to_linear_issue(
         team_id=result.team_id,
         issue_url=result.issue_url,
         issue_id=result_metadata.get("linear_issue_id"),
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/trello",
+    response_model=DesignBriefTrelloCardPublishResponse,
+)
+def publish_design_brief_to_trello_card(
+    brief_id: str,
+    request: DesignBriefTrelloCardPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefTrelloCardPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = TrelloCardPublisher.from_env(
+            list_id=request.list_id,
+            key=request.key,
+            token=request.token,
+            api_url=request.api_url,
+            labels=request.labels,
+            member_ids=request.member_ids,
+            due=request.due,
+            position=request.position,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except TrelloCardPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    request_summary = {
+        "list_id": publisher.list_id,
+        "labels": list(request.labels),
+        "member_ids": list(request.member_ids),
+        "due": request.due,
+        "position": request.position,
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "key": "[redacted]" if publisher.key else None,
+        "key_source": "request"
+        if request.key
+        else ("env:TRELLO_KEY" if os.getenv("TRELLO_KEY") else "none"),
+        "token": "[redacted]" if publisher.token else None,
+        "token_source": "request"
+        if request.token
+        else ("env:TRELLO_TOKEN" if os.getenv("TRELLO_TOKEN") else "none"),
+    }
+    provider_metadata = {
+        "provider": "trello",
+        "target_type": "trello_card",
+        "target_url": publisher.card_endpoint,
+        "card_endpoint": publisher.card_endpoint,
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+    }
+
+    payload = _design_brief_trello_spec(brief)
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "TRELLO_KEY and TRELLO_TOKEN are required for live Trello card publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="trello_card",
+            target_url=publisher.card_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except TrelloCardPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="trello_card",
+            target_url=publisher.card_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.card_url or result.card_id or publisher.card_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="trello_card",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    provider_metadata["target_url"] = target_url
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata["trello_card_id"] = result_metadata.get("trello_card_id")
+    provider_metadata["trello_card_url"] = result_metadata.get("trello_card_url")
+
+    return DesignBriefTrelloCardPublishResponse(
+        design_brief_id=brief_id,
+        list_id=result.list_id,
+        card_id=result.card_id,
+        card_url=result.card_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
