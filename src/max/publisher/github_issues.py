@@ -137,6 +137,15 @@ class GitHubIssuePublisher:
     def publish(self, tact_spec: dict[str, Any], *, dry_run: bool = True) -> GitHubIssuePublishResult:
         """Build the issue payload and optionally create it in GitHub."""
         payload = self.build_issue_payload(tact_spec).to_dict()
+        return self.publish_issue_payload(payload, dry_run=dry_run)
+
+    def publish_issue_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        dry_run: bool = True,
+    ) -> GitHubIssuePublishResult:
+        """Publish a pre-rendered GitHub issue payload."""
         if dry_run:
             return GitHubIssuePublishResult(
                 status_code=None,
@@ -157,11 +166,7 @@ class GitHubIssuePublisher:
             try:
                 response = client.post(
                     self.issue_endpoint,
-                    json={
-                        "title": payload["title"],
-                        "body": payload["body"],
-                        "labels": payload["labels"],
-                    },
+                    json=_github_issue_request_payload(payload),
                     headers={
                         "Accept": "application/vnd.github+json",
                         "Authorization": f"Bearer {self.token}",
@@ -302,6 +307,19 @@ def _merge_labels(labels: list[str], extra_labels: list[str]) -> list[str]:
         if safe and safe not in merged:
             merged.append(safe)
     return merged
+
+
+def _github_issue_request_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    request_payload: dict[str, Any] = {
+        "title": payload["title"],
+        "body": payload["body"],
+        "labels": payload.get("labels", []),
+    }
+    if payload.get("assignees"):
+        request_payload["assignees"] = payload["assignees"]
+    if payload.get("milestone") is not None:
+        request_payload["milestone"] = payload["milestone"]
+    return request_payload
 
 
 def _label_value(value: object, *, prefix: str | None = None) -> str:

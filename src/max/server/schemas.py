@@ -272,6 +272,20 @@ class DesignBriefLinearPublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class DesignBriefGitHubIssuePublishRequest(BaseModel):
+    token: str | None = None
+    token_env: str | None = Field(default=None, min_length=1)
+    repository: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    assignees: list[str] = Field(default_factory=list)
+    milestone: int | None = Field(default=None, ge=1)
+    dry_run: bool = True
+    include_source_ids: bool = False
+    api_url: str | None = None
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class AsanaTaskPublishRequest(BaseModel):
     access_token: str | None = None
     workspace_gid: str | None = Field(default=None, min_length=1)
@@ -1507,6 +1521,23 @@ class DesignBriefLinearPublishResponse(BaseModel):
     issue_id: str | None = None
     status_code: int | None = None
     dry_run: bool
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefGitHubIssuePublishResponse(BaseModel):
+    design_brief_id: str
+    repository: str
+    issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    title: str
+    body_preview: str
+    labels: list[str]
+    assignees: list[str]
+    milestone: int | None = None
     payload: dict[str, Any]
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]
