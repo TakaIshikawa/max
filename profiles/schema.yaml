@@ -291,7 +291,9 @@ properties:
           description: Adapter name (must exist in adapter registry)
           minLength: 1
           enum:
+            - a2a_spec
             - agent_failure_dataset
+            - agentseal_mcp_scan
             - ai_code_trust_reports
             - apis_guru
             - arxiv
@@ -329,16 +331,20 @@ properties:
             - lobsters
             - mastodon
             - maven_central
+            - mcp_protocol_roadmap
             - mcp_registry
+            - metr_productivity_reports
             - npm_registry
             - nuget
             - nvd_cve
             - open_vsx
             - openalex
             - openssf_scorecard
+            - osv_vulnerabilities
             - packagist
             - product_hunt
             - pubmed
+            - pypi_download_trends
             - pypi_registry
             - reddit
             - rss_feed
@@ -349,6 +355,7 @@ properties:
             - stackoverflow
             - stackoverflow_survey
             - terraform_registry
+            - vscode_marketplace
 
         enabled:
           type: boolean
@@ -385,6 +392,7 @@ properties:
           # npm_registry: {"queries": ["mcp server", "ai agent"]}
           # pypi_registry: {"keywords": ["ai", "llm", "agent"]}
           # security_advisories: {"ecosystems": ["pip", "npm"], "severities": ["critical", "high"]}
+          # osv_vulnerabilities: {"ecosystems": ["PyPI", "npm"], "severity_min": "high"}
           # product_hunt: {"topics": ["developer-tools", "artificial-intelligence"]}
           # huggingface: {"queries": ["agent", "mcp"], "resource_types": ["model", "dataset", "space"], "sort": "downloads"}
           # chrome_web_store: {"queries": ["developer tools"], "categories": ["Developer Tools"], "min_rating": 4.0, "min_users": 10000}

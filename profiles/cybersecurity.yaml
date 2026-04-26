@@ -143,6 +143,17 @@ sources:
         - critical
         - high
 
+  - adapter: osv_vulnerabilities
+    weight: 0.8
+    params:
+      ecosystems:
+        - PyPI
+        - npm
+        - Go
+      severity_min: high
+      modified_since_days: 90
+      max_items: 20
+
   - adapter: cisa_kev
     weight: 0.8
     params:
