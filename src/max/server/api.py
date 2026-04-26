@@ -59,6 +59,11 @@ from max.analysis.design_brief_launch_checklist import (
     render_design_brief_launch_checklist,
 )
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
+from max.analysis.design_brief_pricing_strategy import (
+    build_design_brief_pricing_strategy,
+    pricing_strategy_filename,
+    render_design_brief_pricing_strategy,
+)
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
@@ -206,6 +211,7 @@ from max.server.schemas import (
     DesignBriefLinearPublishResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefPrdResponse,
+    DesignBriefPricingStrategyResponse,
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
@@ -5297,6 +5303,37 @@ def get_design_brief_prd_markdown(
     filename = f"{_download_filename_part(brief_id)}-prd.md"
     return Response(
         content=render_design_brief_prd(prd, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/pricing-strategy",
+    response_model=DesignBriefPricingStrategyResponse,
+)
+def get_design_brief_pricing_strategy(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefPricingStrategyResponse:
+    report = build_design_brief_pricing_strategy(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefPricingStrategyResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/pricing-strategy.md", response_model=None)
+def get_design_brief_pricing_strategy_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_pricing_strategy(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = pricing_strategy_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_pricing_strategy(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

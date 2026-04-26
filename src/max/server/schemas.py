@@ -2037,6 +2037,44 @@ class DesignBriefMarketSizingResponse(BaseModel):
     recommendations: list[str]
 
 
+class DesignBriefPricingPackageResponse(BaseModel):
+    name: str
+    target_customer: str
+    price_band_label: str
+    value_anchor: str
+    included_limits: str
+    upgrade_trigger: str
+
+
+class DesignBriefPricingPriceBandResponse(BaseModel):
+    package: str
+    monthly_min_usd: int
+    monthly_max_usd: int
+    rationale: str
+
+
+class DesignBriefPricingObjectionResponse(BaseModel):
+    theme: str
+    response: str
+
+
+class DesignBriefPricingStrategyResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    market_signals: dict[str, Any]
+    competitive_landscape_hints: dict[str, Any]
+    packages: list[DesignBriefPricingPackageResponse]
+    price_bands: list[DesignBriefPricingPriceBandResponse]
+    value_metric: dict[str, str]
+    free_trial_usage_limits: list[str]
+    objections: list[DesignBriefPricingObjectionResponse]
+    validation_questions: list[str]
+    confidence: dict[str, Any]
+    evidence_references: list[dict[str, Any]]
+    source_ideas: list[dict]
+
+
 class DesignBriefArtifactStatusResponse(BaseModel):
     status: Literal["generated", "missing", "errored"]
     error: str | None = None
@@ -2053,6 +2091,7 @@ class DesignBriefBundleResponse(BaseModel):
     risk_register: dict[str, Any] | None = None
     roadmap: dict[str, Any] | None = None
     prd: dict[str, Any] | None = None
+    pricing_strategy: dict[str, Any] | None = None
     market_sizing: dict[str, Any] | None = None
     competitive_landscape: dict[str, Any] | None = None
 
