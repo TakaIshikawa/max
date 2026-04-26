@@ -176,6 +176,7 @@ class TestSchemaProperties:
             "npm_registry",
             "pypi_registry",
             "security_advisories",
+            "snyk_reports",
             "product_hunt",
             "rss_feed",
         ]
@@ -513,6 +514,33 @@ class TestTypeConstraints:
                     "params": {
                         "feeds": ["https://example.com/feed.xml"],
                         "max_age_days": 14,
+                    },
+                }
+            ],
+        }
+
+        assert list(validator.iter_errors(valid_profile)) == []
+
+    def test_valid_snyk_reports_params_pass(self, validator: Draft7Validator):
+        """Test that snyk_reports accepts report ingestion params."""
+        valid_profile = {
+            "name": "test",
+            "domain": {
+                "name": "test",
+                "description": "test",
+                "categories": ["integration"],
+                "target_user_types": ["users"],
+            },
+            "sources": [
+                {
+                    "adapter": "snyk_reports",
+                    "enabled": False,
+                    "params": {
+                        "report_urls": ["https://example.com/snyk-report.json"],
+                        "local_paths": ["reports/snyk.md"],
+                        "sections": ["AI", "Supply chain"],
+                        "keywords": ["vulnerability", "MCP"],
+                        "max_items": 5,
                     },
                 }
             ],

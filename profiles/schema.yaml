@@ -291,38 +291,61 @@ properties:
           description: Adapter name (must exist in adapter registry)
           minLength: 1
           enum:
+            - agent_failure_dataset
+            - ai_code_trust_reports
+            - apis_guru
             - arxiv
             - awesome_lists
+            - bitbucket_pull_requests
             - bluesky
+            - clinical_trials
+            - cncf_landscape
             - crates_io
             - devto
             - discourse
             - dockerhub
+            - federal_register_healthcare
             - github
+            - github_actions
             - github_discussions
             - github_funding
             - github_issues
+            - github_octoverse
             - github_pull_requests
             - github_releases
             - gitlab_issues
+            - gitlab_merge_requests
             - gitlab_releases
+            - glama_mcp_stats
+            - go_packages
             - hackernews
+            - homebrew_formulae
             - huggingface
+            - jetbrains_survey
+            - kubernetes_keps
             - lobsters
+            - mastodon
+            - maven_central
             - mcp_registry
             - npm_registry
             - nuget
             - nvd_cve
+            - open_vsx
             - openalex
+            - openssf_scorecard
+            - packagist
             - product_hunt
             - pubmed
             - pypi_registry
             - reddit
             - rss_feed
+            - rubygems
             - security_advisories
+            - snyk_reports
             - stackshare
             - stackoverflow
             - stackoverflow_survey
+            - terraform_registry
 
         enabled:
           type: boolean

@@ -13,6 +13,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "fastmcp>=2.0",
+    "jsonschema>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +39,7 @@ github_issues = "max.sources.github_issues:GitHubIssuesAdapter"
 github_pull_requests = "max.sources.github_pull_requests:GitHubPullRequestsAdapter"
 github_actions = "max.sources.github_actions:GitHubActionsAdapter"
 github_octoverse = "max.sources.github_octoverse:GitHubOctoverseAdapter"
+snyk_reports = "max.sources.snyk_reports:SnykReportsAdapter"
 ai_code_trust_reports = "max.sources.ai_code_trust_reports:AICodeTrustReportsAdapter"
 agent_failure_dataset = "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter"
 github_discussions = "max.sources.github_discussions:GitHubDiscussionsAdapter"
