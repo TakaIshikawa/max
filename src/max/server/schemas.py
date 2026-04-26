@@ -1431,6 +1431,17 @@ class SlackPublishResponse(BaseModel):
     publication_attempt: PublicationAttemptResponse | None = None
 
 
+class DesignBriefSlackPublishResponse(BaseModel):
+    design_brief_id: str
+    dry_run: bool
+    target_url: str
+    response_status: int | None = None
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
 class DiscordPublishResponse(BaseModel):
     idea_id: str
     dry_run: bool

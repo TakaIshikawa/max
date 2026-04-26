@@ -162,7 +162,11 @@ from max.publisher.microsoft_planner_tasks import (
     MicrosoftPlannerTaskPublishError,
 )
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
-from max.publisher.slack_webhook import SlackWebhookPublisher, SlackWebhookPublishError
+from max.publisher.slack_webhook import (
+    SlackWebhookPublisher,
+    SlackWebhookPublishError,
+    redact_slack_webhook_url,
+)
 from max.publisher.teams_webhook import TeamsWebhookPublisher, TeamsWebhookPublishError
 from max.publisher.trello_cards import TrelloCardPublisher, TrelloCardPublishError
 from max.publisher.webhook import WebhookPublisher, WebhookPublishError, redact_url
@@ -205,6 +209,7 @@ from max.server.schemas import (
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
+    DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
     DesignBriefValidationPlanResponse,
     DiscordPublishRequest,
@@ -994,6 +999,37 @@ def _append_design_brief_source_ids(markdown: str, brief: dict[str, Any]) -> str
     )
     lines.append("")
     return "\n".join(lines)
+
+
+def _design_brief_slack_payload(brief: dict[str, Any]) -> dict[str, Any]:
+    title = str(brief.get("title") or brief.get("id") or "Design Brief")
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    summary = str(brief.get("merged_product_concept") or "").strip()
+    return {
+        "source": {
+            "system": "max",
+            "entity_type": "design_brief",
+            "id": brief["id"],
+            "generated_at": brief.get("updated_at") or brief.get("created_at"),
+            "schema_version": "max.design_brief.slack_publish.v1",
+        },
+        "design_brief": {
+            "id": brief["id"],
+            "title": title,
+            "domain": brief.get("domain", ""),
+            "theme": brief.get("theme", ""),
+            "readiness_score": float(brief.get("readiness_score") or 0.0),
+            "design_status": brief.get("design_status", ""),
+            "lead_idea_id": brief.get("lead_idea_id", ""),
+            "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "merged_product_concept": summary,
+            "why_this_now": brief.get("why_this_now", ""),
+            "mvp_scope": list(brief.get("mvp_scope") or []),
+            "validation_plan": brief.get("validation_plan", ""),
+            "summary": summary,
+            "markdown": markdown,
+        },
+    }
 
 
 def _markdown_preview(markdown: str, *, limit: int = 500) -> str:
@@ -4681,6 +4717,114 @@ def publish_design_brief_to_notion(
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/slack",
+    response_model=DesignBriefSlackPublishResponse,
+)
+def publish_design_brief_to_slack(
+    brief_id: str,
+    request: SlackPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefSlackPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    resolved_webhook_url = (request.webhook_url or os.getenv("SLACK_WEBHOOK_URL") or "").strip()
+    request_summary = {
+        "webhook_url": redact_slack_webhook_url(resolved_webhook_url)
+        if resolved_webhook_url
+        else None,
+        "webhook_url_source": "request"
+        if request.webhook_url
+        else ("env:SLACK_WEBHOOK_URL" if resolved_webhook_url else "none"),
+        "channel": request.channel or os.getenv("SLACK_WEBHOOK_CHANNEL"),
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+    }
+
+    if not request.dry_run and not resolved_webhook_url:
+        message = (
+            "Slack webhook URL is required for live Slack publishing; "
+            "pass webhook_url, set SLACK_WEBHOOK_URL, or use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="slack_webhook",
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        publisher = SlackWebhookPublisher.from_env(
+            webhook_url=resolved_webhook_url
+            or "https://hooks.slack.com/services/dry-run/dry-run/redacted",
+            channel=request.channel,
+            timeout=request.timeout,
+        )
+    except SlackWebhookPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = _design_brief_slack_payload(brief)
+    provider_metadata = {
+        "provider": "slack",
+        "target_type": "slack_webhook",
+        "target_url": publisher.redacted_url,
+        "design_brief_id": brief_id,
+    }
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except SlackWebhookPublishError as exc:
+        error = str(exc).replace(publisher.webhook_url, publisher.redacted_url)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="slack_webhook",
+            target_url=publisher.redacted_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=error,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": error,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    publication_attempt = None
+    if not result.dry_run:
+        publication_attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="slack_webhook",
+            target_url=result.url,
+            status="success",
+            response_status=result.status_code,
+        )
+
+    return DesignBriefSlackPublishResponse(
+        design_brief_id=brief_id,
+        dry_run=result.dry_run,
+        target_url=result.url,
+        response_status=result.status_code,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**publication_attempt)
+        if publication_attempt
+        else None,
     )
 
 
