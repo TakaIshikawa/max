@@ -55,6 +55,11 @@ from max.analysis.design_brief_evidence_matrix import (
     render_design_brief_evidence_matrix,
 )
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
+from max.analysis.mcp_capability_coverage import (
+    DEFAULT_LIMIT_REPRESENTATIVES as DEFAULT_MCP_CAPABILITY_LIMIT_REPRESENTATIVES,
+    DEFAULT_MIN_COUNT as DEFAULT_MCP_CAPABILITY_MIN_COUNT,
+    build_mcp_capability_coverage_report,
+)
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
 from max.analysis.pipeline_cost_anomalies import (
@@ -121,6 +126,7 @@ _scheduler: Scheduler | None = None
 
 _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD = 0.5
 _CONTEXT_BUDGET_OVERSIZED_CONTEXT_SHARE_THRESHOLD = 0.5
+_MCP_CAPABILITY_COVERAGE_SCHEMA_VERSION = "1.0"
 
 
 def set_store_factory(factory: Callable[[], Store]) -> None:
@@ -222,6 +228,83 @@ def _add_context_budget_waste_warnings(report: dict, *, adapter_limit: int) -> d
     )
     report["adapters"] = list(report.get("adapters", []))[:adapter_limit]
     return report
+
+
+def _mcp_capability_gap_severity(total_count: int, min_count: int) -> str:
+    if total_count >= min_count:
+        return "none"
+    if total_count == 0:
+        return "critical"
+    if total_count < max(1, min_count // 2):
+        return "high"
+    return "medium"
+
+
+def _signal_reference(signal) -> dict:
+    return {
+        "id": signal.id,
+        "title": signal.title,
+        "source_adapter": signal.source_adapter,
+        "source_type": str(signal.source_type),
+        "url": signal.url,
+        "tags": signal.tags,
+    }
+
+
+def _mcp_capability_report_payload(report, store: Store) -> dict:
+    payload = report.to_dict()
+    representative_ids = {
+        signal_id
+        for category in payload["categories"]
+        for signal_id in category["representative_signal_ids"]
+    }
+    signals_by_id = {
+        signal_id: _signal_reference(signal)
+        for signal_id in representative_ids
+        if (signal := store.get_signal(signal_id)) is not None
+    }
+
+    capability_buckets = []
+    gap_counts = {}
+    for category in payload["categories"]:
+        total_count = int(category["total_count"])
+        gap_count = max(0, int(report.min_count) - total_count)
+        severity = _mcp_capability_gap_severity(total_count, int(report.min_count))
+        representative_signals = [
+            signals_by_id[signal_id]
+            for signal_id in category["representative_signal_ids"]
+            if signal_id in signals_by_id
+        ]
+        gap_counts[category["category"]] = gap_count
+        capability_buckets.append(
+            {
+                **category,
+                "representative_signals": representative_signals,
+                "gap_count": gap_count,
+                "gap_severity": severity,
+                "undercovered": gap_count > 0,
+            }
+        )
+
+    payload["schema_version"] = _MCP_CAPABILITY_COVERAGE_SCHEMA_VERSION
+    payload["capability_buckets"] = capability_buckets
+    payload["categories"] = capability_buckets
+    payload["gap_counts"] = gap_counts
+    payload["gap_summary"] = {
+        "critical": sum(
+            1 for bucket in capability_buckets if bucket["gap_severity"] == "critical"
+        ),
+        "high": sum(
+            1 for bucket in capability_buckets if bucket["gap_severity"] == "high"
+        ),
+        "medium": sum(
+            1 for bucket in capability_buckets if bucket["gap_severity"] == "medium"
+        ),
+        "none": sum(
+            1 for bucket in capability_buckets if bucket["gap_severity"] == "none"
+        ),
+    }
+    return payload
 
 
 def _review_metadata(unit, latest_feedback: dict | None = None) -> dict:
@@ -1926,6 +2009,82 @@ def get_roi_forecast(
         return e.to_dict()
 
 
+def max_mcp_capability_coverage(
+    min_count: int = DEFAULT_MCP_CAPABILITY_MIN_COUNT,
+    limit_representatives: int = DEFAULT_MCP_CAPABILITY_LIMIT_REPRESENTATIVES,
+    source_adapter: str | None = None,
+    domain: str | None = None,
+) -> dict:
+    """Return MCP capability coverage and gaps across MCP ecosystem signals.
+
+    Set min_count to define the coverage floor for each capability bucket.
+    Set limit_representatives to cap representative signals per bucket.
+    Set source_adapter or domain to inspect a narrower slice of MCP signals.
+
+    Raises:
+        ValidationError: If request parameters are invalid.
+    """
+    try:
+        if isinstance(min_count, bool) or not isinstance(min_count, int):
+            raise ValidationError(
+                "min_count must be an integer between 1 and 10000",
+                field="min_count",
+                expected="integer between 1 and 10000",
+                actual=str(min_count),
+            )
+        if min_count < 1 or min_count > 10_000:
+            raise ValidationError(
+                "min_count must be between 1 and 10000",
+                field="min_count",
+                expected="integer between 1 and 10000",
+                actual=str(min_count),
+            )
+        if isinstance(limit_representatives, bool) or not isinstance(
+            limit_representatives, int
+        ):
+            raise ValidationError(
+                "limit_representatives must be an integer between 0 and 100",
+                field="limit_representatives",
+                expected="integer between 0 and 100",
+                actual=str(limit_representatives),
+            )
+        if limit_representatives < 0 or limit_representatives > 100:
+            raise ValidationError(
+                "limit_representatives must be between 0 and 100",
+                field="limit_representatives",
+                expected="integer between 0 and 100",
+                actual=str(limit_representatives),
+            )
+        if source_adapter is not None and not str(source_adapter).strip():
+            raise ValidationError(
+                "source_adapter must be a non-empty string",
+                field="source_adapter",
+                expected="non-empty string",
+                actual=str(source_adapter),
+            )
+        if domain is not None and not str(domain).strip():
+            raise ValidationError(
+                "domain must be a non-empty string",
+                field="domain",
+                expected="non-empty string",
+                actual=str(domain),
+            )
+
+        with _get_store() as store:
+            report = build_mcp_capability_coverage_report(
+                store,
+                domain=domain,
+                min_count=min_count,
+                limit_representatives=limit_representatives,
+                source_adapter=source_adapter,
+            )
+            return _mcp_capability_report_payload(report, store)
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def max_source_reliability(
     profile: str | None = None,
     time_window: str | None = None,
@@ -2496,6 +2655,11 @@ def roi_forecast_detail() -> str:
     return json.dumps(get_roi_forecast(), indent=2)
 
 
+def mcp_capability_coverage_detail() -> str:
+    """Browse the default MCP capability coverage report."""
+    return json.dumps(max_mcp_capability_coverage(), indent=2)
+
+
 def pipeline_run_comparison_detail(baseline_run_id: str, candidate_run_id: str) -> str:
     """Browse the default comparison between two pipeline runs."""
     return json.dumps(
@@ -2559,6 +2723,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_profile_drift)
     mcp.tool(get_architecture_enforcement_report)
+    mcp.tool(max_mcp_capability_coverage)
     mcp.tool(get_schedule)
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
@@ -2604,6 +2769,7 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("profile-drift://{profile_name}")(profile_drift_detail)
     mcp.resource("roi://forecast")(roi_forecast_detail)
+    mcp.resource("mcp-capabilities://coverage")(mcp_capability_coverage_detail)
     mcp.resource("pipeline-run-comparisons://{baseline_run_id}/{candidate_run_id}")(
         pipeline_run_comparison_detail
     )
