@@ -44,6 +44,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
     "github_octoverse": "max.sources.github_octoverse:GitHubOctoverseAdapter",
+    "snyk_reports": "max.sources.snyk_reports:SnykReportsAdapter",
     "ai_code_trust_reports": (
         "max.sources.ai_code_trust_reports:AICodeTrustReportsAdapter"
     ),
@@ -186,6 +187,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["report_urls", "local_paths", "sections", "keywords", "max_items"],
         required_keys=[],
         description="Reads GitHub Octoverse-style Markdown and JSON reports as ecosystem trend signals.",
+    ),
+    "snyk_reports": AdapterMetadata(
+        name="snyk_reports",
+        config_keys=["report_urls", "local_paths", "sections", "keywords", "max_items"],
+        required_keys=[],
+        description=(
+            "Reads Snyk-style Markdown and JSON security research reports as "
+            "normalized vulnerability, dependency, and supply-chain signals."
+        ),
     ),
     "ai_code_trust_reports": AdapterMetadata(
         name="ai_code_trust_reports",
