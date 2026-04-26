@@ -1357,6 +1357,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
         FakeMCP.latest.resources["design-brief-competitive-landscapes://{brief_id}"]
         == "design_brief_competitive_landscape_detail"
     )
+    assert "get_design_brief_launch_checklist" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-launch-checklist://{brief_id}"]
+        == "design_brief_launch_checklist_detail"
+    )
     assert "list_validation_experiments" in FakeMCP.latest.tools
     assert "get_validation_experiment" in FakeMCP.latest.tools
     assert "create_validation_experiment" in FakeMCP.latest.tools
