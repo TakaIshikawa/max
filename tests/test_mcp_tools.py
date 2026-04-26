@@ -26,6 +26,7 @@ from max.server.mcp_tools import (
     get_design_brief_competitive_landscape,
     get_design_brief_markdown,
     get_design_brief_market_sizing,
+    get_design_brief_prd,
     get_design_brief_roadmap,
     get_design_brief_risk_register,
     get_design_brief_validation_plan,
@@ -50,6 +51,7 @@ from max.server.mcp_tools import (
     set_scheduler_ref,
     set_store_factory,
     design_brief_roadmap_detail,
+    design_brief_prd_detail,
     design_brief_risk_register_detail,
     design_brief_competitive_landscape_detail,
     design_brief_market_sizing_detail,
@@ -918,6 +920,46 @@ def test_design_brief_roadmap_resource(seeded_design_brief_db):
     assert result["design_brief"]["id"] == seeded_design_brief_db
 
 
+def test_get_design_brief_prd_json(seeded_design_brief_db):
+    result = get_design_brief_prd(seeded_design_brief_db)
+
+    assert result["schema_version"] == "max.design_brief.prd.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+    assert result["design_brief"]["title"] == "MCP Design Brief"
+    assert "problem" in result["sections"]
+
+
+def test_get_design_brief_prd_markdown(seeded_design_brief_db):
+    result = get_design_brief_prd(seeded_design_brief_db, format="markdown")
+
+    assert result["id"] == seeded_design_brief_db
+    assert result["format"] == "markdown"
+    assert "# PRD: MCP Design Brief" in result["markdown"]
+    assert "Schema: `max.design_brief.prd.v1`" in result["markdown"]
+
+
+def test_get_design_brief_prd_not_found(mcp_db):
+    result = get_design_brief_prd("dbf-missing")
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "dbf-missing"
+
+
+def test_get_design_brief_prd_invalid_format(seeded_design_brief_db):
+    result = get_design_brief_prd(seeded_design_brief_db, format="yaml")
+    assert result["error"] == "Unsupported PRD format: yaml"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "format"
+
+
+def test_design_brief_prd_resource(seeded_design_brief_db):
+    result = json.loads(design_brief_prd_detail(seeded_design_brief_db))
+
+    assert result["schema_version"] == "max.design_brief.prd.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+
+
 def test_max_portfolio_overlap_returns_serializable_clusters_sorted(mcp_db):
     store = Store(db_path=mcp_db, wal_mode=True)
     for unit in [
@@ -1299,6 +1341,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-roadmaps://{brief_id}"]
         == "design_brief_roadmap_detail"
+    )
+    assert "get_design_brief_prd" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-prd://{brief_id}"]
+        == "design_brief_prd_detail"
     )
     assert "get_design_brief_market_sizing" in FakeMCP.latest.tools
     assert (
