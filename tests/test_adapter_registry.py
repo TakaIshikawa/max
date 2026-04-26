@@ -214,6 +214,38 @@ def test_ai_code_trust_reports_adapter_metadata_documents_config_keys() -> None:
     assert "AI coding trust" in metadata["ai_code_trust_reports"].description
 
 
+def test_agentseal_mcp_scan_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "agentseal_mcp_scan"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["agentseal_mcp_scan"]
+        adapter = get_adapter("agentseal_mcp_scan")
+
+    assert adapter.name == "agentseal_mcp_scan"
+
+
+def test_agentseal_mcp_scan_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "agentseal_mcp_scan"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"agentseal_mcp_scan"}
+    assert metadata["agentseal_mcp_scan"].config_keys == [
+        "local_paths",
+        "report_urls",
+        "severity_min",
+        "categories",
+        "max_items",
+        "include_remediated",
+    ]
+    assert metadata["agentseal_mcp_scan"].required_keys == []
+    assert "AgentSeal-style MCP server security scan" in metadata[
+        "agentseal_mcp_scan"
+    ].description
+
+
 def test_jetbrains_survey_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "jetbrains_survey"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
