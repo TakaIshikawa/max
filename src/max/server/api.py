@@ -195,6 +195,8 @@ from max.server.schemas import (
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
+    DesignBriefGitHubIssuePublishRequest,
+    DesignBriefGitHubIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
     DesignBriefLinearPublishRequest,
     DesignBriefLinearPublishResponse,
@@ -978,6 +980,27 @@ def _deterministic_design_brief_markdown(brief: dict[str, Any], *, title: str) -
             lines[index] = f"Generated: {generated_at}"
             break
     return "\n".join(lines)
+
+
+def _append_design_brief_source_ids(markdown: str, brief: dict[str, Any]) -> str:
+    lead_id = str(brief.get("lead_idea_id") or "").strip()
+    source_ids = [str(source_id).strip() for source_id in brief.get("source_idea_ids") or []]
+    source_ids = [source_id for source_id in source_ids if source_id]
+    lines = [markdown.rstrip(), "", "## Source ID Context", ""]
+    lines.append(f"- Lead idea: `{lead_id}`" if lead_id else "- Lead idea: Not specified")
+    lines.append(
+        "- Source ideas: "
+        + (", ".join(f"`{source_id}`" for source_id in source_ids) if source_ids else "None")
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _markdown_preview(markdown: str, *, limit: int = 500) -> str:
+    text = markdown.strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
 
 
 def _profile_summary_to_response(profile) -> ProfileSummaryResponse:
@@ -4658,6 +4681,146 @@ def publish_design_brief_to_notion(
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/github-issue",
+    response_model=DesignBriefGitHubIssuePublishResponse,
+)
+def publish_design_brief_to_github_issue(
+    brief_id: str,
+    request: DesignBriefGitHubIssuePublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefGitHubIssuePublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    resolved_token = request.token
+    token_source = "request" if request.token else "none"
+    if not resolved_token and request.token_env:
+        resolved_token = os.getenv(request.token_env)
+        token_source = f"env:{request.token_env}" if resolved_token else "none"
+    elif not resolved_token and os.getenv("GITHUB_TOKEN"):
+        token_source = "env:GITHUB_TOKEN"
+
+    try:
+        publisher = GitHubIssuePublisher.from_env(
+            repository=request.repository,
+            token=resolved_token,
+            api_url=request.api_url,
+            labels=request.labels,
+            timeout=request.timeout,
+        )
+    except GitHubIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or f"[Max] {brief.get('title') or brief_id}"
+    body = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        body = _append_design_brief_source_ids(body, brief)
+    payload = {
+        "title": title,
+        "body": body,
+        "labels": list(request.labels),
+        "assignees": list(request.assignees),
+        "milestone": request.milestone,
+        "metadata": {
+            "publisher": "max.github_issues",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "repository": publisher.repository,
+            "include_source_ids": request.include_source_ids,
+        },
+    }
+    request_summary = {
+        "repository": publisher.repository,
+        "labels": list(request.labels),
+        "assignees": list(request.assignees),
+        "milestone": request.milestone,
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "token": "[redacted]" if publisher.token else None,
+        "token_source": token_source,
+    }
+
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub issue publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_issue_payload(payload, dry_run=request.dry_run)
+    except GitHubIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_issue",
+            target_url=publisher.issue_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.issue_url or publisher.issue_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="github_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "github",
+        "target_type": "github_issue",
+        "target_url": target_url,
+        "issue_endpoint": publisher.issue_endpoint,
+        "github_issue_number": result_metadata.get("github_issue_number"),
+    }
+
+    return DesignBriefGitHubIssuePublishResponse(
+        design_brief_id=brief_id,
+        repository=result.repository,
+        issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        title=str(result.payload["title"]),
+        body_preview=_markdown_preview(str(result.payload["body"])),
+        labels=list(result.payload.get("labels") or []),
+        assignees=list(result.payload.get("assignees") or []),
+        milestone=result.payload.get("milestone"),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
     )
 
 
