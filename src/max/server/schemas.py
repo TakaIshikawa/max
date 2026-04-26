@@ -226,6 +226,18 @@ class GitLabIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class GoogleSheetsRowPublishRequest(BaseModel):
+    access_token: str | None = None
+    spreadsheet_id: str | None = Field(default=None, min_length=1)
+    range: str | None = Field(default=None, min_length=1)
+    api_url: str | None = None
+    value_input_option: str = Field(default="RAW", min_length=1)
+    insert_data_option: str = Field(default="INSERT_ROWS", min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class GitHubGistPublishRequest(BaseModel):
     token: str | None = None
     api_url: str | None = None
@@ -1429,6 +1441,18 @@ class GitLabIssuePublishResponse(BaseModel):
     issue_url: str | None = None
     status_code: int | None = None
     attempts: int
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class GoogleSheetsRowPublishResponse(BaseModel):
+    idea_id: str
+    spreadsheet_id: str
+    range: str
+    updated_range: str | None = None
+    updated_rows: int | None = None
+    status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse

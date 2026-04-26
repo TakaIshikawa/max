@@ -21,6 +21,13 @@ from max.publisher.gitlab_issues import (
     GitLabIssuePublishResult,
     GitLabIssuesPublisher,
 )
+from max.publisher.google_sheets_rows import (
+    GoogleSheetsRowPayload,
+    GoogleSheetsRowPublisher,
+    GoogleSheetsRowPublishError,
+    GoogleSheetsRowPublishResult,
+    GoogleSheetsRowsPublisher,
+)
 from max.publisher.linear_issues import (
     LinearIssuePayload,
     LinearIssuePublisher,
@@ -96,6 +103,11 @@ __all__ = [
     "GitLabIssuePublishError",
     "GitLabIssuePublishResult",
     "GitLabIssuesPublisher",
+    "GoogleSheetsRowPayload",
+    "GoogleSheetsRowPublisher",
+    "GoogleSheetsRowPublishError",
+    "GoogleSheetsRowPublishResult",
+    "GoogleSheetsRowsPublisher",
     "LinearIssuePayload",
     "LinearIssuePublisher",
     "LinearIssuePublishError",

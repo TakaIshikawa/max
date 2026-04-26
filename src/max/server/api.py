@@ -149,6 +149,10 @@ from max.publisher.clickup_tasks import ClickUpTaskPublisher, ClickUpTaskPublish
 from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.gitlab_issues import GitLabIssuePublisher, GitLabIssuePublishError
+from max.publisher.google_sheets_rows import (
+    GoogleSheetsRowPublisher,
+    GoogleSheetsRowPublishError,
+)
 from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
@@ -228,6 +232,8 @@ from max.server.schemas import (
     GitHubIssuePublishResponse,
     GitLabIssuePublishRequest,
     GitLabIssuePublishResponse,
+    GoogleSheetsRowPublishRequest,
+    GoogleSheetsRowPublishResponse,
     IdeaCreate,
     IdeaCritiqueResponse,
     IdeaDetailResponse,
@@ -2858,6 +2864,91 @@ def publish_idea_to_gitlab_issue(
         issue_url=result.issue_url,
         status_code=result.status_code,
         attempts=result.attempts,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/google-sheets", response_model=GoogleSheetsRowPublishResponse)
+def publish_idea_to_google_sheets(
+    idea_id: str,
+    request: GoogleSheetsRowPublishRequest,
+    store: Store = Depends(get_store),
+) -> GoogleSheetsRowPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    try:
+        publisher = GoogleSheetsRowPublisher.from_env(
+            spreadsheet_id=request.spreadsheet_id,
+            range=request.range,
+            access_token=request.access_token,
+            api_url=request.api_url,
+            value_input_option=request.value_input_option,
+            insert_data_option=request.insert_data_option,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except GoogleSheetsRowPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "GOOGLE_SHEETS_ACCESS_TOKEN is required for live Google Sheets publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="google_sheets_row",
+            target_url=publisher.append_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except GoogleSheetsRowPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="google_sheets_row",
+            target_url=publisher.append_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=exc.status_code if exc.status_code and 400 <= exc.status_code < 500 else 502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="google_sheets_row",
+        target_url=result.updated_range or publisher.append_endpoint,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return GoogleSheetsRowPublishResponse(
+        idea_id=idea_id,
+        spreadsheet_id=result.spreadsheet_id,
+        range=result.range,
+        updated_range=result.updated_range,
+        updated_rows=result.updated_rows,
+        status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
         publication_attempt=PublicationAttemptResponse(**attempt),
