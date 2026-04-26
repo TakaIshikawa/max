@@ -309,3 +309,33 @@ def test_vscode_marketplace_adapter_metadata_documents_config_keys() -> None:
     assert "Visual Studio Code Marketplace" in metadata[
         "vscode_marketplace"
     ].description
+
+
+def test_pypi_download_trends_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "pypi_download_trends"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["pypi_download_trends"]
+        adapter = get_adapter("pypi_download_trends")
+
+    assert adapter.name == "pypi_download_trends"
+
+
+def test_pypi_download_trends_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "pypi_download_trends"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"pypi_download_trends"}
+    assert metadata["pypi_download_trends"].config_keys == [
+        "packages",
+        "period",
+        "max_items",
+        "min_downloads",
+    ]
+    assert metadata["pypi_download_trends"].required_keys == []
+    assert "PyPI package download trend" in metadata[
+        "pypi_download_trends"
+    ].description
