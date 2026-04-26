@@ -53,6 +53,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "ai_code_trust_reports": (
         "max.sources.ai_code_trust_reports:AICodeTrustReportsAdapter"
     ),
+    "metr_productivity_reports": (
+        "max.sources.metr_productivity_reports:MetrProductivityReportsAdapter"
+    ),
     "agent_failure_dataset": "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
@@ -272,6 +275,23 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Reads AI coding trust, verification, review latency, security, "
             "and productivity statistics from Markdown and JSON reports."
+        ),
+    ),
+    "metr_productivity_reports": AdapterMetadata(
+        name="metr_productivity_reports",
+        config_keys=[
+            "report_urls",
+            "local_paths",
+            "sections",
+            "keywords",
+            "metric_names",
+            "max_items",
+            "format",
+        ],
+        required_keys=[],
+        description=(
+            "Reads METR-style AI productivity and developer workflow Markdown "
+            "and JSON reports as measured productivity evidence signals."
         ),
     ),
     "agent_failure_dataset": AdapterMetadata(

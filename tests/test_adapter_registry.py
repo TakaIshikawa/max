@@ -214,6 +214,39 @@ def test_ai_code_trust_reports_adapter_metadata_documents_config_keys() -> None:
     assert "AI coding trust" in metadata["ai_code_trust_reports"].description
 
 
+def test_metr_productivity_reports_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "metr_productivity_reports"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["metr_productivity_reports"]
+        adapter = get_adapter("metr_productivity_reports")
+
+    assert adapter.name == "metr_productivity_reports"
+
+
+def test_metr_productivity_reports_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "metr_productivity_reports"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"metr_productivity_reports"}
+    assert metadata["metr_productivity_reports"].config_keys == [
+        "report_urls",
+        "local_paths",
+        "sections",
+        "keywords",
+        "metric_names",
+        "max_items",
+        "format",
+    ]
+    assert metadata["metr_productivity_reports"].required_keys == []
+    assert "METR-style AI productivity" in metadata[
+        "metr_productivity_reports"
+    ].description
+
+
 def test_agentseal_mcp_scan_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "agentseal_mcp_scan"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
