@@ -49,6 +49,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_executive_memo import (
+    build_design_brief_executive_memo,
+    render_design_brief_executive_memo,
+)
 from max.analysis.design_brief_launch_checklist import (
     build_design_brief_launch_checklist,
     render_design_brief_launch_checklist,
@@ -180,6 +184,7 @@ from max.server.schemas import (
     DesignBriefBundleResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
+    DesignBriefExecutiveMemoResponse,
     DesignBriefLaunchChecklistResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefPrdResponse,
@@ -4623,6 +4628,37 @@ def get_design_brief_prd_markdown(
     filename = f"{_download_filename_part(brief_id)}-prd.md"
     return Response(
         content=render_design_brief_prd(prd, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/executive-memo",
+    response_model=DesignBriefExecutiveMemoResponse,
+)
+def get_design_brief_executive_memo(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefExecutiveMemoResponse:
+    memo = build_design_brief_executive_memo(store, brief_id)
+    if not memo:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefExecutiveMemoResponse(**memo)
+
+
+@router.get("/design-briefs/{brief_id}/executive-memo.md", response_model=None)
+def get_design_brief_executive_memo_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    memo = build_design_brief_executive_memo(store, brief_id)
+    if not memo:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-executive-memo.md"
+    return Response(
+        content=render_design_brief_executive_memo(memo, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
