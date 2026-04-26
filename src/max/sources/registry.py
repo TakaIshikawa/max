@@ -96,6 +96,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
     "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
+    "chrome_web_store": "max.sources.chrome_web_store:ChromeWebStoreAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
     "vscode_marketplace": "max.sources.vscode_marketplace:VSCodeMarketplaceAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
@@ -624,6 +625,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches CNCF Landscape-style cloud-native project adoption and maturity signals.",
+    ),
+    "chrome_web_store": AdapterMetadata(
+        name="chrome_web_store",
+        config_keys=["queries", "categories", "min_rating", "min_users", "max_items"],
+        required_keys=[],
+        description=(
+            "Searches the Chrome Web Store for browser extension install, rating, "
+            "category, publisher, and workflow adoption signals."
+        ),
     ),
     "open_vsx": AdapterMetadata(
         name="open_vsx",
