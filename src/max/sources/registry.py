@@ -86,6 +86,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
+    "vscode_marketplace": "max.sources.vscode_marketplace:VSCodeMarketplaceAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
@@ -549,6 +550,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "extensions", "extension_identifiers"],
         required_keys=[],
         description="Searches Open VSX Registry for VS Code-compatible extension adoption signals.",
+    ),
+    "vscode_marketplace": AdapterMetadata(
+        name="vscode_marketplace",
+        config_keys=[
+            "queries",
+            "extensions",
+            "extension_identifiers",
+            "max_items",
+            "categories",
+            "tags",
+        ],
+        required_keys=[],
+        description=(
+            "Searches the Visual Studio Code Marketplace for extension adoption, "
+            "publisher, install, rating, category, and tag signals."
+        ),
     ),
     "terraform_registry": AdapterMetadata(
         name="terraform_registry",

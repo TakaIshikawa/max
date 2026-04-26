@@ -277,3 +277,35 @@ def test_glama_mcp_stats_adapter_metadata_documents_config_keys() -> None:
     assert "Glama-style MCP ecosystem aggregate" in metadata[
         "glama_mcp_stats"
     ].description
+
+
+def test_vscode_marketplace_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "vscode_marketplace"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["vscode_marketplace"]
+        adapter = get_adapter("vscode_marketplace")
+
+    assert adapter.name == "vscode_marketplace"
+
+
+def test_vscode_marketplace_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "vscode_marketplace"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"vscode_marketplace"}
+    assert metadata["vscode_marketplace"].config_keys == [
+        "queries",
+        "extensions",
+        "extension_identifiers",
+        "max_items",
+        "categories",
+        "tags",
+    ]
+    assert metadata["vscode_marketplace"].required_keys == []
+    assert "Visual Studio Code Marketplace" in metadata[
+        "vscode_marketplace"
+    ].description
