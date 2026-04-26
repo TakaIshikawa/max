@@ -54,6 +54,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_bundle import (
+    build_design_brief_bundle,
+    render_design_brief_bundle,
+)
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.mcp_capability_coverage import (
     DEFAULT_LIMIT_REPRESENTATIVES as DEFAULT_MCP_CAPABILITY_LIMIT_REPRESENTATIVES,
@@ -1109,6 +1113,54 @@ def get_design_brief_launch_checklist(brief_id: str, format: str = "json") -> di
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_bundle(brief_id: str, format: str = "json") -> dict:
+    """Get the consolidated handoff bundle for a persisted design brief.
+
+    Set format to "json" for a structured payload with rendered JSON text or
+    "markdown" for rendered handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported design brief bundle format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            bundle = build_design_brief_bundle(store, brief_id)
+            if not bundle:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_bundle(bundle, fmt=fmt)
+        if fmt == "markdown":
+            return {
+                "id": brief_id,
+                "format": "markdown",
+                "markdown": rendered,
+                "bundle": bundle,
+                "artifact_status": bundle["artifact_status"],
+            }
+        return {
+            **json.loads(rendered),
+            "id": brief_id,
+            "format": "json",
+            "rendered": rendered,
+        }
     except MCPToolError as e:
         return e.to_dict()
 
@@ -2726,6 +2778,11 @@ def design_brief_launch_checklist_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_launch_checklist(brief_id), indent=2)
 
 
+def design_brief_bundle_detail(brief_id: str) -> str:
+    """Get the consolidated bundle for a specific design brief."""
+    return json.dumps(get_design_brief_bundle(brief_id), indent=2)
+
+
 def validation_experiments_for_idea_detail(idea_id: str) -> str:
     """Browse validation experiments for a specific idea."""
     return json.dumps(list_validation_experiments(idea_id), indent=2)
@@ -2841,6 +2898,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_competitive_landscape)
     mcp.tool(get_design_brief_evidence_matrix)
     mcp.tool(get_design_brief_launch_checklist)
+    mcp.tool(get_design_brief_bundle)
     mcp.tool(list_validation_experiments)
     mcp.tool(get_validation_experiment)
     mcp.tool(create_validation_experiment)
@@ -2902,6 +2960,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-launch-checklist://{brief_id}")(
         design_brief_launch_checklist_detail
     )
+    mcp.resource("design-brief-bundles://{brief_id}")(design_brief_bundle_detail)
     mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
     mcp.resource("validation-experiments://summary")(validation_experiment_summary_detail)
     mcp.resource("validation-experiments://summary/{domain}")(
