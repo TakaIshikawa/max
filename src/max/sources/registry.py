@@ -82,6 +82,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
+    "mcp_protocol_roadmap": (
+        "max.sources.mcp_protocol_roadmap:McpProtocolRoadmapAdapter"
+    ),
     "glama_mcp_stats": "max.sources.glama_mcp_stats:GlamaMcpStatsAdapter",
     "stackshare": "max.sources.stackshare:StackShareAdapter",
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
@@ -219,6 +222,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Reads Snyk-style Markdown and JSON security research reports as "
             "normalized vulnerability, dependency, and supply-chain signals."
+        ),
+    ),
+    "mcp_protocol_roadmap": AdapterMetadata(
+        name="mcp_protocol_roadmap",
+        config_keys=[
+            "roadmap_urls",
+            "local_paths",
+            "sections",
+            "keywords",
+            "max_items",
+            "format",
+        ],
+        required_keys=[],
+        description=(
+            "Reads MCP protocol roadmap Markdown and JSON material as normalized "
+            "capability, milestone, and protocol evolution signals."
         ),
     ),
     "ai_code_trust_reports": AdapterMetadata(

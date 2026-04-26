@@ -154,6 +154,36 @@ def test_github_octoverse_adapter_metadata_documents_config_keys() -> None:
     assert "Octoverse-style Markdown and JSON reports" in metadata["github_octoverse"].description
 
 
+def test_mcp_protocol_roadmap_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "mcp_protocol_roadmap"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["mcp_protocol_roadmap"]
+        adapter = get_adapter("mcp_protocol_roadmap")
+
+    assert adapter.name == "mcp_protocol_roadmap"
+
+
+def test_mcp_protocol_roadmap_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "mcp_protocol_roadmap"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"mcp_protocol_roadmap"}
+    assert metadata["mcp_protocol_roadmap"].config_keys == [
+        "roadmap_urls",
+        "local_paths",
+        "sections",
+        "keywords",
+        "max_items",
+        "format",
+    ]
+    assert metadata["mcp_protocol_roadmap"].required_keys == []
+    assert "MCP protocol roadmap" in metadata["mcp_protocol_roadmap"].description
+
+
 def test_ai_code_trust_reports_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "ai_code_trust_reports"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
