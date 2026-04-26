@@ -154,6 +154,36 @@ def test_github_octoverse_adapter_metadata_documents_config_keys() -> None:
     assert "Octoverse-style Markdown and JSON reports" in metadata["github_octoverse"].description
 
 
+def test_ai_code_trust_reports_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "ai_code_trust_reports"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["ai_code_trust_reports"]
+        adapter = get_adapter("ai_code_trust_reports")
+
+    assert adapter.name == "ai_code_trust_reports"
+
+
+def test_ai_code_trust_reports_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "ai_code_trust_reports"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"ai_code_trust_reports"}
+    assert metadata["ai_code_trust_reports"].config_keys == [
+        "report_urls",
+        "local_paths",
+        "sections",
+        "keywords",
+        "min_percent",
+        "max_items",
+    ]
+    assert metadata["ai_code_trust_reports"].required_keys == []
+    assert "AI coding trust" in metadata["ai_code_trust_reports"].description
+
+
 def test_jetbrains_survey_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "jetbrains_survey"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
