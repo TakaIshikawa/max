@@ -143,6 +143,16 @@ sources:
         - critical
         - high
 
+  - adapter: cisa_kev
+    weight: 0.8
+    params:
+      keywords:
+        - remote code execution
+        - authentication bypass
+        - privilege escalation
+      max_age_days: 180
+      known_ransomware_campaign_use: true
+
   - adapter: product_hunt
     params:
       topics:

@@ -63,6 +63,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
     "bitbucket_pull_requests": "max.sources.bitbucket_pull_requests:BitbucketPullRequestsAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
+    "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
@@ -381,6 +382,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["ecosystems", "severities"],
         required_keys=[],
         description="Fetches GitHub Security Advisory signals by ecosystem and severity.",
+    ),
+    "cisa_kev": AdapterMetadata(
+        name="cisa_kev",
+        config_keys=[
+            "keywords",
+            "vendors",
+            "products",
+            "max_age_days",
+            "known_ransomware_campaign_use",
+            "catalog_url",
+        ],
+        required_keys=[],
+        description="Fetches CISA Known Exploited Vulnerabilities catalog signals.",
     ),
     "nvd_cve": AdapterMetadata(
         name="nvd_cve",
