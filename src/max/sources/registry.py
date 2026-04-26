@@ -63,6 +63,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
     "bitbucket_pull_requests": "max.sources.bitbucket_pull_requests:BitbucketPullRequestsAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
+    "osv_vulnerabilities": "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter",
     "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
@@ -383,6 +384,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["ecosystems", "severities"],
         required_keys=[],
         description="Fetches GitHub Security Advisory signals by ecosystem and severity.",
+    ),
+    "osv_vulnerabilities": AdapterMetadata(
+        name="osv_vulnerabilities",
+        config_keys=[
+            "ecosystems",
+            "packages",
+            "queries",
+            "severity_min",
+            "modified_since_days",
+            "max_items",
+        ],
+        required_keys=[],
+        description="Fetches OSV.dev package vulnerability signals by package or ecosystem.",
     ),
     "cisa_kev": AdapterMetadata(
         name="cisa_kev",
