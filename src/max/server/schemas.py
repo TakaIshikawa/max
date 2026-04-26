@@ -360,6 +360,20 @@ class TrelloCardPublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefTrelloCardPublishRequest(BaseModel):
+    key: str | None = None
+    token: str | None = None
+    api_url: str | None = None
+    list_id: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    member_ids: list[str] = Field(default_factory=list)
+    due: str | None = Field(default=None, min_length=1)
+    position: str | float | None = None
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class NotionPagePublishRequest(BaseModel):
     token: str | None = None
     parent_page_id: str | None = None
@@ -1633,6 +1647,19 @@ class TrelloCardPublishResponse(BaseModel):
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
+
+
+class DesignBriefTrelloCardPublishResponse(BaseModel):
+    design_brief_id: str
+    list_id: str
+    card_id: str | None = None
+    card_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
 
 
 class NotionPagePublishResponse(BaseModel):

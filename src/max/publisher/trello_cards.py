@@ -52,7 +52,9 @@ class TrelloCardPayload:
     desc: str
     list_id: str
     labels: list[str]
+    member_ids: list[str]
     due: str | None
+    position: str | float | None
     metadata: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -62,10 +64,13 @@ class TrelloCardPayload:
             "desc": self.desc,
             "idList": self.list_id,
             "labels": self.labels,
+            "member_ids": self.member_ids,
             "metadata": self.metadata,
         }
         if self.due:
             payload["due"] = self.due
+        if self.position is not None:
+            payload["pos"] = self.position
         return payload
 
 
@@ -92,7 +97,9 @@ class TrelloCardPublisher:
         token: str | None = None,
         api_url: str = DEFAULT_TRELLO_API_URL,
         labels: list[str] | None = None,
+        member_ids: list[str] | None = None,
         due: str | None = None,
+        position: str | float | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = 0.0,
@@ -103,7 +110,12 @@ class TrelloCardPublisher:
         self.token = _optional_text(token)
         self.api_url = _required_url(api_url)
         self.labels = [_required_text(label, "Trello labels must be non-empty") for label in labels or []]
+        self.member_ids = [
+            _required_text(member_id, "Trello member IDs must be non-empty")
+            for member_id in member_ids or []
+        ]
         self.due = _optional_text(due)
+        self.position = _optional_position(position)
         self.timeout = timeout
         self.max_retries = max(0, max_retries)
         self.retry_backoff = max(0.0, retry_backoff)
@@ -118,7 +130,9 @@ class TrelloCardPublisher:
         token: str | None = None,
         api_url: str | None = None,
         labels: list[str] | None = None,
+        member_ids: list[str] | None = None,
         due: str | None = None,
+        position: str | float | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         client: httpx.Client | None = None,
@@ -135,7 +149,9 @@ class TrelloCardPublisher:
             token=token or os.getenv("TRELLO_TOKEN"),
             api_url=api_url or os.getenv("TRELLO_API_URL", DEFAULT_TRELLO_API_URL),
             labels=labels,
+            member_ids=member_ids,
             due=due,
+            position=position,
             timeout=timeout,
             max_retries=max_retries,
             client=client,
@@ -163,11 +179,13 @@ class TrelloCardPublisher:
         quality = _dict_value(tact_spec, "quality")
         evaluation = tact_spec.get("evaluation") if isinstance(tact_spec.get("evaluation"), dict) else {}
 
+        source_type = str(source.get("type") or "idea")
         metadata = {
             "publisher": "max.trello_cards",
             "source_system": source.get("system", "max"),
-            "source_type": source.get("type", "idea"),
+            "source_type": source_type,
             "idea_id": source.get("idea_id"),
+            "design_brief_id": source.get("design_brief_id"),
             "schema_version": tact_spec.get("schema_version"),
             "kind": tact_spec.get("kind"),
             "list_id": self.list_id,
@@ -175,14 +193,18 @@ class TrelloCardPublisher:
         }
 
         return TrelloCardPayload(
-            name=_card_name(project.get("title"), source.get("idea_id")),
-            desc=_card_description(tact_spec, metadata),
+            name=_card_name(project.get("title"), source.get("idea_id") or source.get("design_brief_id")),
+            desc=_design_brief_card_description(tact_spec, metadata)
+            if source_type == "design_brief"
+            else _card_description(tact_spec, metadata),
             list_id=self.list_id,
             labels=_merge_labels(
                 _card_labels(source=source, quality=quality, evaluation=evaluation),
                 self.labels,
             ),
+            member_ids=self.member_ids,
             due=self.due,
+            position=self.position,
             metadata=metadata,
         )
 
@@ -296,8 +318,12 @@ def _trello_card_request(payload: dict[str, Any]) -> dict[str, Any]:
     }
     if payload.get("labels"):
         request["idLabels"] = ",".join(payload["labels"])
+    if payload.get("member_ids"):
+        request["idMembers"] = ",".join(payload["member_ids"])
     if payload.get("due"):
         request["due"] = payload["due"]
+    if payload.get("pos") is not None:
+        request["pos"] = payload["pos"]
     return request
 
 
@@ -416,6 +442,56 @@ def _card_description(tact_spec: dict[str, Any], metadata: dict[str, Any]) -> st
     return "\n".join(lines)
 
 
+def _design_brief_card_description(tact_spec: dict[str, Any], metadata: dict[str, Any]) -> str:
+    project = _dict_value(tact_spec, "project")
+    source = _dict_value(tact_spec, "source")
+    execution = _dict_value(tact_spec, "execution")
+    evidence = _dict_value(tact_spec, "evidence")
+    readiness = _dict_value(tact_spec, "readiness")
+
+    lines = [
+        f"# {project.get('title') or source.get('design_brief_id') or 'Design Brief'}",
+        "",
+        _text_or_placeholder(project.get("summary")),
+        "",
+        "## Design Brief",
+        f"- Brief ID: {_text_or_placeholder(source.get('design_brief_id'))}",
+        f"- Status: {_text_or_placeholder(source.get('status'))}",
+        f"- Domain: {_text_or_placeholder(source.get('domain'))}",
+        f"- Theme: {_text_or_placeholder(source.get('theme'))}",
+        f"- Readiness: {_score_text(readiness.get('score'))}/100",
+        f"- Lead idea: {_text_or_placeholder(source.get('lead_idea_id'))}",
+        f"- Source ideas: {', '.join(evidence.get('source_idea_ids') or []) or 'None'}",
+        "",
+        "## Why Now",
+        _text_or_placeholder(project.get("why_this_now")),
+        "",
+        "## Validation Plan",
+        _text_or_placeholder(execution.get("validation_plan")),
+        "",
+        "## MVP Scope",
+    ]
+    lines.extend(_bullet_list(execution.get("mvp_scope")))
+    lines.extend(
+        [
+            "",
+            "## First Milestones",
+        ]
+    )
+    lines.extend(_bullet_list(execution.get("first_milestones")))
+    lines.extend(
+        [
+            "",
+            "## Max Metadata",
+            "```json",
+            json.dumps(metadata, indent=2, sort_keys=True),
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _card_labels(
     *,
     source: dict[str, Any],
@@ -425,12 +501,15 @@ def _card_labels(
     labels = [
         "max",
         "tact-spec",
-        "idea",
+        _label_value(source.get("type")) or "idea",
         _label_value(source.get("category")),
         _label_value(source.get("domain")),
+        _label_value(source.get("theme"), prefix="theme"),
         _label_value(source.get("status")),
         _label_value(evaluation.get("recommendation"), prefix="recommendation"),
     ]
+    if source.get("type") == "design_brief":
+        labels.append(_readiness_label(source.get("readiness_score")))
     labels.extend(_label_value(tag, prefix="quality") for tag in quality.get("rejection_tags") or [])
     return _unique(labels)
 
@@ -480,6 +559,18 @@ def _score_text(value: object) -> str:
     return _text_or_placeholder(value)
 
 
+def _readiness_label(value: object) -> str:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if score >= 80:
+        return "readiness-high"
+    if score >= 60:
+        return "readiness-medium"
+    return "readiness-low"
+
+
 def _required_text(value: object, message: str) -> str:
     text = str(value).strip() if value else ""
     if not text:
@@ -489,6 +580,15 @@ def _required_text(value: object, message: str) -> str:
 
 def _optional_text(value: object) -> str | None:
     text = str(value).strip() if value else ""
+    return text or None
+
+
+def _optional_position(value: object) -> str | float | None:
+    if value is None:
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    text = str(value).strip()
     return text or None
 
 
