@@ -41,6 +41,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
+    "pypi_download_trends": (
+        "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapter"
+    ),
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
@@ -157,6 +160,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["keywords"],
         required_keys=[],
         description="Fetches PyPI package signals matching configured keywords.",
+    ),
+    "pypi_download_trends": AdapterMetadata(
+        name="pypi_download_trends",
+        config_keys=["packages", "period", "max_items", "min_downloads"],
+        required_keys=[],
+        description="Fetches recent PyPI package download trend totals as market adoption signals.",
     ),
     "github_issues": AdapterMetadata(
         name="github_issues",

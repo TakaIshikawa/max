@@ -15,6 +15,7 @@ class SignalSourceType(StrEnum):
     SECURITY = "security"
     SURVEY = "survey"
     ROADMAP = "roadmap"
+    MARKET = "market"
     FAILURE_DATA = "failure_data"
     FUNDING = "funding"
     TRENDING = "trending"
