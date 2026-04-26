@@ -45,6 +45,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_launch_checklist import (
+    build_design_brief_launch_checklist,
+    render_design_brief_launch_checklist,
+)
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import (
@@ -167,6 +171,7 @@ from max.server.schemas import (
     CustomerDiscoveryScriptResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefEvidenceMatrixResponse,
+    DesignBriefLaunchChecklistResponse,
     DesignBriefMarketSizingResponse,
     DesignBriefPrdResponse,
     DesignBriefRoadmapResponse,
@@ -4488,6 +4493,37 @@ def get_design_brief_risk_register_markdown(
     )
     return Response(
         content=render_design_brief_risk_register(register, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/launch-checklist",
+    response_model=DesignBriefLaunchChecklistResponse,
+)
+def get_design_brief_launch_checklist(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefLaunchChecklistResponse:
+    checklist = build_design_brief_launch_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefLaunchChecklistResponse(**checklist)
+
+
+@router.get("/design-briefs/{brief_id}/launch-checklist.md", response_model=None)
+def get_design_brief_launch_checklist_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    checklist = build_design_brief_launch_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-launch-checklist.md"
+    return Response(
+        content=render_design_brief_launch_checklist(checklist, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
