@@ -59,7 +59,11 @@ from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
 )
-from max.analysis.market_sizing import build_market_sizing_report
+from max.analysis.market_sizing import (
+    build_market_sizing_report,
+    market_sizing_filename,
+    render_market_sizing_report,
+)
 from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
@@ -4670,6 +4674,24 @@ def get_design_brief_market_sizing(
     if not brief:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
     return DesignBriefMarketSizingResponse(**build_market_sizing_report(store, brief))
+
+
+@router.get("/design-briefs/{brief_id}/market-sizing.md", response_model=None)
+def get_design_brief_market_sizing_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = build_market_sizing_report(store, brief)
+    filename = market_sizing_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_market_sizing_report(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Domain Quality ──────────────────────────────────────────────────

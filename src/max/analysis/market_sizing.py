@@ -116,7 +116,17 @@ def write_market_sizing_report(path: Path, report: dict[str, Any], *, fmt: str =
 
 def market_sizing_filename(design_brief: dict[str, Any], *, fmt: str) -> str:
     extension = "json" if fmt == "json" else "md"
-    return f"{design_brief['id']}-market-sizing.{extension}"
+    brief_id = _filename_part(str(design_brief["id"]))
+    title = _filename_part(str(design_brief.get("title") or ""))
+    title_part = f"-{title}" if title else ""
+    return f"{brief_id}{title_part}-market-sizing.{extension}"
+
+
+def _filename_part(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in value)
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-_")
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
