@@ -4866,3 +4866,57 @@ def test_pipeline_post_run_passes_optional_domain(client):
 
     assert resp.status_code == 200
     mock_run.assert_called_once_with(domain="fintech")
+
+
+def test_budget_anomalies_endpoint_returns_report(client, db_path):
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        for index in range(3):
+            store.insert_pipeline_run(f"run-base-{index}", {"profile": "ai-infra"})
+            store.update_pipeline_run(
+                f"run-base-{index}",
+                token_usage={
+                    "input": 100,
+                    "output": 20,
+                    "estimated_cost_usd": 0.02,
+                    "by_stage": {"synthesis": {"input": 100, "output": 20}},
+                    "cost_by_stage": {"synthesis": 0.02},
+                },
+            )
+            store.conn.execute(
+                "UPDATE pipeline_runs SET started_at = ? WHERE id = ?",
+                (f"2026-04-2{index}T00:00:00Z", f"run-base-{index}"),
+            )
+        store.insert_pipeline_run("run-spike", {"profile": "ai-infra"})
+        store.update_pipeline_run(
+            "run-spike",
+            token_usage={
+                "input": 900,
+                "output": 300,
+                "estimated_cost_usd": 0.18,
+                "by_stage": {"synthesis": {"input": 900, "output": 300}},
+                "cost_by_stage": {"synthesis": 0.18},
+            },
+        )
+        store.conn.execute(
+            "UPDATE pipeline_runs SET started_at = ? WHERE id = ?",
+            ("2026-04-24T00:00:00Z", "run-spike"),
+        )
+        store.conn.commit()
+    finally:
+        store.close()
+
+    resp = client.get("/api/v1/budget/anomalies", params={"limit": 1, "z_threshold": 2.0})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["limit"] == 1
+    assert data["z_threshold"] == 2.0
+    assert data["anomaly_count"] == 1
+    assert data["anomalies"][0]["run_id"] == "run-spike"
+    assert data["anomalies"][0]["stage_anomalies"][0]["recommendation"]
+
+
+def test_budget_anomalies_endpoint_validates_query_params(client):
+    assert client.get("/api/v1/budget/anomalies", params={"limit": 0}).status_code == 422
+    assert client.get("/api/v1/budget/anomalies", params={"z_threshold": 0}).status_code == 422

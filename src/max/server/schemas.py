@@ -2501,6 +2501,40 @@ class LLMBudgetUsageResponse(BaseModel):
     runs: list[LLMBudgetRunUsageResponse] = Field(default_factory=list)
 
 
+class CostAnomalyMetricResponse(BaseModel):
+    metric: str
+    baseline: float
+    observed: float
+    ratio: float
+    z_score: float
+    sample_count: int
+
+
+class CostAnomalyStageResponse(CostAnomalyMetricResponse):
+    stage: str
+    recommendation: str
+
+
+class CostAnomalyRunResponse(BaseModel):
+    run_id: str
+    profile: str | None = None
+    started_at: str | None = None
+    total_tokens: int
+    estimated_cost_usd: float
+    run_anomalies: list[CostAnomalyMetricResponse] = Field(default_factory=list)
+    stage_anomalies: list[CostAnomalyStageResponse] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class CostAnomalyReportResponse(BaseModel):
+    limit: int
+    z_threshold: float
+    min_baseline_samples: int
+    run_count: int
+    anomaly_count: int
+    anomalies: list[CostAnomalyRunResponse] = Field(default_factory=list)
+
+
 class PipelinePostRunResponse(BaseModel):
     duplicates_marked: int
     ideas_synthesized: int

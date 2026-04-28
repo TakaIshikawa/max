@@ -446,6 +446,34 @@ def budget_usage(limit: int, fmt: str, current: bool) -> None:
     _print_budget_usage(usage)
 
 
+@budget_group.command(name="anomalies")
+@click.option("--limit", type=int, default=50, show_default=True, help="Recent pipeline runs to inspect")
+@click.option("--z-threshold", type=float, default=2.0, show_default=True, help="Anomaly score threshold")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
+def budget_anomalies(limit: int, z_threshold: float, fmt: str) -> None:
+    """Show anomalous LLM cost or token usage in recent pipeline runs."""
+    from max.analysis.cost_anomalies import build_cost_anomaly_report
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        report = build_cost_anomaly_report(store, limit=limit, z_threshold=z_threshold)
+    finally:
+        store.close()
+
+    if fmt == "json":
+        click.echo(json.dumps(report, indent=2))
+        return
+
+    _print_budget_anomalies(report)
+
+
 def _budget_limit_text(limit: int | float, remaining: int | float | None, *, money: bool = False) -> str:
     if limit <= 0:
         return "unlimited"
@@ -484,6 +512,58 @@ def _print_budget_usage(usage: dict[str, object]) -> None:
                 f"{int(stage['total_tokens']):>12,} "
                 f"${float(stage['estimated_cost_usd']):>9.4f}"
             )
+
+
+def _print_budget_anomalies(report: dict[str, object]) -> None:
+    click.echo(
+        f"LLM cost anomalies ({report['anomaly_count']} of {report['run_count']} runs, "
+        f"z>={float(report['z_threshold']):.2f})"
+    )
+
+    anomalies = report.get("anomalies") or []
+    if not anomalies:
+        click.echo("No anomalies found.")
+        return
+
+    for anomaly in anomalies:
+        if not isinstance(anomaly, dict):
+            continue
+        click.echo()
+        click.echo(
+            f"{anomaly['run_id']}  tokens={int(anomaly['total_tokens']):,}  "
+            f"cost=${float(anomaly['estimated_cost_usd']):.4f}"
+        )
+        profile = anomaly.get("profile")
+        if profile:
+            click.echo(f"Profile: {profile}")
+
+        run_anomalies = anomaly.get("run_anomalies") or []
+        for item in run_anomalies:
+            if not isinstance(item, dict):
+                continue
+            metric = str(item["metric"])
+            observed = float(item["observed"])
+            baseline = float(item["baseline"])
+            ratio = float(item["ratio"])
+            if metric == "estimated_cost_usd":
+                click.echo(f"  Run {metric}: ${observed:.4f} vs ${baseline:.4f} ({ratio:.2f}x)")
+            else:
+                click.echo(f"  Run {metric}: {observed:,.0f} vs {baseline:,.0f} ({ratio:.2f}x)")
+
+        stage_anomalies = anomaly.get("stage_anomalies") or []
+        for item in stage_anomalies:
+            if not isinstance(item, dict):
+                continue
+            metric = str(item["metric"])
+            observed = float(item["observed"])
+            baseline = float(item["baseline"])
+            ratio = float(item["ratio"])
+            if metric == "estimated_cost_usd":
+                values = f"${observed:.4f} vs ${baseline:.4f}"
+            else:
+                values = f"{observed:,.0f} vs {baseline:,.0f}"
+            click.echo(f"  Stage {item['stage']} {metric}: {values} ({ratio:.2f}x)")
+            click.echo(f"    {item['recommendation']}")
 
 
 @main.group(invoke_without_command=True)

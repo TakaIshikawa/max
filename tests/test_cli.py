@@ -393,6 +393,100 @@ class TestCompareRunsCommand:
         assert "Pipeline run ID not found: run-missing" in result.output
 
 
+class TestBudgetAnomaliesCommand:
+    @patch("max.store.db.Store")
+    @patch("max.analysis.cost_anomalies.build_cost_anomaly_report")
+    def test_json_output(self, mock_report, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = MagicMock()
+        store.close.return_value = None
+        MockStore.return_value = store
+        mock_report.return_value = {
+            "limit": 2,
+            "z_threshold": 2.0,
+            "min_baseline_samples": 3,
+            "run_count": 2,
+            "anomaly_count": 1,
+            "anomalies": [
+                {
+                    "run_id": "run-spike",
+                    "profile": "ai-infra",
+                    "started_at": "2026-04-24T00:00:00Z",
+                    "total_tokens": 1200,
+                    "estimated_cost_usd": 0.18,
+                    "run_anomalies": [],
+                    "stage_anomalies": [],
+                    "recommendations": [],
+                }
+            ],
+        }
+
+        result = runner.invoke(
+            main,
+            ["budget", "anomalies", "--limit", "2", "--z-threshold", "2.0", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["anomalies"][0]["run_id"] == "run-spike"
+        mock_report.assert_called_once_with(store, limit=2, z_threshold=2.0)
+        store.close.assert_called_once()
+
+    @patch("max.store.db.Store")
+    @patch("max.analysis.cost_anomalies.build_cost_anomaly_report")
+    def test_text_output(self, mock_report, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = MagicMock()
+        store.close.return_value = None
+        MockStore.return_value = store
+        mock_report.return_value = {
+            "limit": 1,
+            "z_threshold": 2.0,
+            "min_baseline_samples": 3,
+            "run_count": 1,
+            "anomaly_count": 1,
+            "anomalies": [
+                {
+                    "run_id": "run-spike",
+                    "profile": "ai-infra",
+                    "started_at": "2026-04-24T00:00:00Z",
+                    "total_tokens": 1200,
+                    "estimated_cost_usd": 0.18,
+                    "run_anomalies": [
+                        {
+                            "metric": "total_tokens",
+                            "baseline": 120.0,
+                            "observed": 1200.0,
+                            "ratio": 10.0,
+                            "z_score": 10.0,
+                            "sample_count": 3,
+                        }
+                    ],
+                    "stage_anomalies": [
+                        {
+                            "stage": "synthesis",
+                            "metric": "estimated_cost_usd",
+                            "baseline": 0.02,
+                            "observed": 0.18,
+                            "ratio": 9.0,
+                            "z_score": 9.0,
+                            "sample_count": 3,
+                            "recommendation": "Inspect synthesis prompt size and trim evidence included per cluster.",
+                        }
+                    ],
+                    "recommendations": [
+                        "Inspect synthesis prompt size and trim evidence included per cluster."
+                    ],
+                }
+            ],
+        }
+
+        result = runner.invoke(main, ["budget", "anomalies"])
+
+        assert result.exit_code == 0, result.output
+        assert "LLM cost anomalies (1 of 1 runs" in result.output
+        assert "run-spike" in result.output
+        assert "Stage synthesis estimated_cost_usd" in result.output
+        assert "synthesis prompt size" in result.output
+
+
 class TestRestoreCommand:
     @patch("max.store.db.Store")
     def test_restore_dry_run_groups_summary_and_respects_limit(

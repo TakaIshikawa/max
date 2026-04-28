@@ -37,6 +37,7 @@ from max.analysis.contradictions import (
     build_insight_contradiction_report,
 )
 from max.analysis.context_budget import build_context_budget_waste_report
+from max.analysis.cost_anomalies import build_cost_anomaly_report
 from max.analysis.customer_discovery import generate_customer_discovery_script
 from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
@@ -198,6 +199,7 @@ from max.server.schemas import (
     ClickUpTaskPublishResponse,
     CircuitBreakerStateResponse,
     ContradictionReportResponse,
+    CostAnomalyReportResponse,
     ContextBudgetWasteResponse,
     CustomerDiscoveryScriptResponse,
     DesignBriefBundleResponse,
@@ -598,6 +600,17 @@ def llm_budget_usage(
 ) -> LLMBudgetUsageResponse:
     return LLMBudgetUsageResponse.model_validate(
         build_llm_budget_usage(store, limit=limit, include_current=include_current)
+    )
+
+
+@router.get("/budget/anomalies", response_model=CostAnomalyReportResponse)
+def llm_cost_anomalies(
+    limit: int = Query(50, ge=1, le=500),
+    z_threshold: float = Query(2.0, gt=0.0),
+    store: Store = Depends(get_store),
+) -> CostAnomalyReportResponse:
+    return CostAnomalyReportResponse.model_validate(
+        build_cost_anomaly_report(store, limit=limit, z_threshold=z_threshold)
     )
 
 
