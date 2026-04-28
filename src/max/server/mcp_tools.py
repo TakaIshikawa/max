@@ -50,6 +50,7 @@ from max.analysis.architecture_enforcement import (
 from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.context_budget import build_context_budget_waste_report
+from max.analysis.cost_anomalies import build_cost_anomaly_report
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -105,7 +106,9 @@ from max.server.errors import (
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.server.schemas import (
     ArchitectureEnforcementResponse,
+    CostAnomalyReportResponse,
     ContextBudgetWasteResponse,
+    LLMBudgetUsageResponse,
     PipelineCostAnomalyReportResponse,
     PipelineRunComparisonResponse,
     PipelineReplayPlanResponse,
@@ -1484,6 +1487,114 @@ def max_llm_budget_usage(run_limit: int = 20) -> dict:
         return _add_llm_budget_indicators(report)
     except MCPToolError as e:
         return e.to_dict()
+
+
+def get_llm_budget_usage(limit: int = 20, include_current: bool = True) -> dict:
+    """Return LLM budget totals, stage breakdowns, and recent run history.
+
+    Parameters mirror the REST budget usage endpoint. Set include_current=false
+    to omit the in-process token tracker from totals.
+
+    Raises:
+        ValidationError: If parameters are outside the REST endpoint range.
+        ExternalServiceError: If the configured store cannot provide usage data.
+    """
+    try:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "limit must be an integer between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if limit < 1 or limit > 500:
+            raise ValidationError(
+                "limit must be between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if not isinstance(include_current, bool):
+            raise ValidationError(
+                "include_current must be a boolean",
+                field="include_current",
+                expected="boolean",
+                actual=str(include_current),
+            )
+
+        with _get_store() as store:
+            report = build_llm_budget_usage(
+                store,
+                limit=limit,
+                include_current=include_current,
+            )
+        return LLMBudgetUsageResponse.model_validate(report).model_dump()
+    except MCPToolError as e:
+        return e.to_dict()
+    except Exception as e:
+        return ExternalServiceError(
+            "Failed to load LLM budget usage",
+            service="store",
+            details={"reason": str(e)},
+        ).to_dict()
+
+
+def get_cost_anomalies(limit: int = 50, z_threshold: float = 2.0) -> dict:
+    """Return anomalous LLM cost or token usage in recent pipeline runs.
+
+    Parameters mirror the REST budget anomalies endpoint.
+
+    Raises:
+        ValidationError: If parameters are outside the REST endpoint range.
+        ExternalServiceError: If the configured store cannot provide anomaly data.
+    """
+    try:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "limit must be an integer between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if limit < 1 or limit > 500:
+            raise ValidationError(
+                "limit must be between 1 and 500",
+                field="limit",
+                expected="integer between 1 and 500",
+                actual=str(limit),
+            )
+        if isinstance(z_threshold, bool) or not isinstance(z_threshold, (int, float)):
+            raise ValidationError(
+                "z_threshold must be a positive number",
+                field="z_threshold",
+                expected="float > 0.0",
+                actual=str(z_threshold),
+            )
+        if z_threshold <= 0:
+            raise ValidationError(
+                "z_threshold must be positive",
+                field="z_threshold",
+                expected="float > 0.0",
+                actual=str(z_threshold),
+            )
+
+        with _get_store() as store:
+            report = build_cost_anomaly_report(
+                store,
+                limit=limit,
+                z_threshold=float(z_threshold),
+            )
+        return CostAnomalyReportResponse.model_validate(report).model_dump()
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+    except Exception as e:
+        return ExternalServiceError(
+            "Failed to load cost anomalies",
+            service="store",
+            details={"reason": str(e)},
+        ).to_dict()
 
 
 def max_context_budget_waste(
@@ -2869,6 +2980,16 @@ def llm_budget_usage_detail() -> str:
     return json.dumps(max_llm_budget_usage(), indent=2)
 
 
+def budget_usage_detail() -> str:
+    """Browse the default REST-compatible LLM budget usage report."""
+    return json.dumps(get_llm_budget_usage(), indent=2)
+
+
+def budget_anomalies_detail() -> str:
+    """Browse the default REST-compatible cost anomaly report."""
+    return json.dumps(get_cost_anomalies(), indent=2)
+
+
 def context_budget_waste_detail() -> str:
     """Browse the default context budget waste report."""
     return json.dumps(max_context_budget_waste(), indent=2)
@@ -2966,6 +3087,8 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(max_portfolio_overlap)
     mcp.tool(max_opportunity_heatmap)
     mcp.tool(max_llm_budget_usage)
+    mcp.tool(get_llm_budget_usage)
+    mcp.tool(get_cost_anomalies)
     mcp.tool(max_context_budget_waste)
     mcp.tool(max_pipeline_cost_anomalies)
     mcp.tool(simulate_source_allocation)
@@ -3021,6 +3144,8 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
     mcp.resource("budget://llm-usage")(llm_budget_usage_detail)
+    mcp.resource("budget://usage")(budget_usage_detail)
+    mcp.resource("budget://anomalies")(budget_anomalies_detail)
     mcp.resource("context-budget://waste")(context_budget_waste_detail)
     mcp.resource("pipeline://cost-anomalies")(pipeline_cost_anomalies_detail)
     mcp.resource("sources://allocation-simulation")(source_allocation_detail)

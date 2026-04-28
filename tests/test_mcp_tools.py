@@ -10,8 +10,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from max.analysis.portfolio_synthesis import build_candidates, synthesize_project_briefs
+from max.llm.client import TokenTracker
 from max.server.app import create_app
 from max.server.mcp_tools import (
+    budget_anomalies_detail,
+    budget_usage_detail,
     contribute_idea,
     contribute_signal,
     create_mcp_server,
@@ -22,6 +25,7 @@ from max.server.mcp_tools import (
     evidence_chain_detail,
     get_acceptance_criteria,
     get_blast_radius,
+    get_cost_anomalies,
     get_design_brief,
     get_design_brief_competitive_landscape,
     get_design_brief_markdown,
@@ -34,6 +38,7 @@ from max.server.mcp_tools import (
     get_evidence_chain,
     get_idea,
     get_implementation_plan,
+    get_llm_budget_usage,
     get_roi_forecast,
     get_spec_readiness,
     get_spec_preview,
@@ -209,6 +214,41 @@ def _seed_feedback_analytics(
             store.insert_feedback(unit_id, outcome)
     finally:
         store.close()
+
+
+def _seed_mcp_pipeline_run(
+    db_path: str,
+    run_id: str,
+    *,
+    started_at: str = "2026-04-24T00:00:00Z",
+    profile: str = "ai-infra",
+    input_tokens: int = 100,
+    output_tokens: int = 20,
+    cost: float = 0.02,
+    by_stage: dict[str, dict[str, int]] | None = None,
+    cost_by_stage: dict[str, float] | None = None,
+) -> None:
+    with Store(db_path=db_path, wal_mode=True) as store:
+        store.insert_pipeline_run(
+            run_id,
+            {"profile": profile, "model": "claude-haiku-4-5-20251001"},
+        )
+        store.update_pipeline_run(
+            run_id,
+            token_usage={
+                "input": input_tokens,
+                "output": output_tokens,
+                "estimated_cost_usd": cost,
+                "by_stage": by_stage or {},
+                "cost_by_stage": cost_by_stage or {},
+            },
+            status="completed",
+        )
+        store.conn.execute(
+            "UPDATE pipeline_runs SET started_at = ?, completed_at = ? WHERE id = ?",
+            (started_at, started_at, run_id),
+        )
+        store.conn.commit()
 
 
 @pytest.fixture
@@ -1287,6 +1327,131 @@ def test_max_signal_freshness_rejects_invalid_max_age_days(mcp_db):
     assert result["code"] == 400
 
 
+def test_get_llm_budget_usage_returns_rest_compatible_payload(mcp_db, monkeypatch):
+    _seed_mcp_pipeline_run(
+        mcp_db,
+        "run-budget-001",
+        input_tokens=60,
+        output_tokens=20,
+        by_stage={"ideate": {"input": 40, "output": 10}},
+        cost_by_stage={"ideate": 0.01},
+    )
+    tracker = TokenTracker(model="claude-haiku-4-5-20251001")
+    tracker.record("evaluate", 10, 5)
+    monkeypatch.setattr("max.llm.client.token_tracker", tracker)
+
+    payload = get_llm_budget_usage(limit=20, include_current=True)
+
+    assert payload["limit"] == 20
+    assert payload["run_count"] == 1
+    assert payload["total_tokens"] == 95
+    assert payload["runs"][0]["id"] == "run-budget-001"
+    assert {stage["stage"] for stage in payload["stages"]} == {"evaluate", "ideate"}
+    assert payload["current"]["stages"][0]["stage"] == "evaluate"
+
+
+def test_budget_usage_resource_serializes_same_payload(mcp_db, monkeypatch):
+    _seed_mcp_pipeline_run(
+        mcp_db,
+        "run-budget-resource",
+        input_tokens=5,
+        output_tokens=2,
+        cost=0.01,
+    )
+    tracker = TokenTracker(model="claude-haiku-4-5-20251001")
+    monkeypatch.setattr("max.llm.client.token_tracker", tracker)
+
+    assert json.loads(budget_usage_detail()) == get_llm_budget_usage()
+
+
+def test_get_llm_budget_usage_validation_and_store_failures(mcp_db):
+    invalid = get_llm_budget_usage(limit=0)
+    assert invalid["error"] == "limit must be between 1 and 500"
+    assert invalid["code"] == 400
+    assert invalid["details"]["field"] == "limit"
+
+    class BrokenStore:
+        def __enter__(self):
+            raise RuntimeError("database unavailable")
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+    set_store_factory(lambda: BrokenStore())
+    try:
+        failure = get_llm_budget_usage()
+    finally:
+        set_store_factory(lambda: Store(db_path=mcp_db, wal_mode=True))
+
+    assert failure["error"] == "Failed to load LLM budget usage"
+    assert failure["code"] == 502
+    assert failure["details"]["service"] == "store"
+    assert failure["details"]["reason"] == "database unavailable"
+
+
+def test_get_cost_anomalies_returns_rows_and_recommendations(mcp_db):
+    for index in range(3):
+        _seed_mcp_pipeline_run(
+            mcp_db,
+            f"run-anomaly-base-{index}",
+            started_at=f"2026-04-2{index}T00:00:00Z",
+            input_tokens=160,
+            output_tokens=40,
+            cost=0.02,
+            by_stage={"synthesis": {"input": 80, "output": 20}},
+            cost_by_stage={"synthesis": 0.01},
+        )
+    _seed_mcp_pipeline_run(
+        mcp_db,
+        "run-anomaly-spike",
+        started_at="2026-04-24T00:00:00Z",
+        input_tokens=800,
+        output_tokens=200,
+        cost=0.12,
+        by_stage={"synthesis": {"input": 720, "output": 180}},
+        cost_by_stage={"synthesis": 0.11},
+    )
+
+    payload = get_cost_anomalies(limit=1, z_threshold=2.0)
+
+    assert payload["limit"] == 1
+    assert payload["z_threshold"] == 2.0
+    assert payload["anomaly_count"] == 1
+    anomaly = payload["anomalies"][0]
+    assert anomaly["run_id"] == "run-anomaly-spike"
+    assert anomaly["recommendations"]
+    assert anomaly["stage_anomalies"][0]["stage"] == "synthesis"
+
+
+def test_budget_anomalies_resource_serializes_same_payload(mcp_db):
+    assert json.loads(budget_anomalies_detail()) == get_cost_anomalies()
+
+
+def test_get_cost_anomalies_validation_and_store_failures(mcp_db):
+    invalid = get_cost_anomalies(z_threshold=0)
+    assert invalid["error"] == "z_threshold must be positive"
+    assert invalid["code"] == 400
+    assert invalid["details"]["field"] == "z_threshold"
+
+    class BrokenStore:
+        def __enter__(self):
+            raise RuntimeError("database unavailable")
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+    set_store_factory(lambda: BrokenStore())
+    try:
+        failure = get_cost_anomalies()
+    finally:
+        set_store_factory(lambda: Store(db_path=mcp_db, wal_mode=True))
+
+    assert failure["error"] == "Failed to load cost anomalies"
+    assert failure["code"] == 502
+    assert failure["details"]["service"] == "store"
+    assert failure["details"]["reason"] == "database unavailable"
+
+
 def test_signal_freshness_resource_registered(monkeypatch):
     class FakeMCP:
         latest = None
@@ -1316,6 +1481,10 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert FakeMCP.latest.resources["signals://freshness"] == "signal_freshness_detail"
     assert "max_portfolio_overlap" in FakeMCP.latest.tools
     assert FakeMCP.latest.resources["portfolio://overlap"] == "portfolio_overlap_detail"
+    assert "get_llm_budget_usage" in FakeMCP.latest.tools
+    assert "get_cost_anomalies" in FakeMCP.latest.tools
+    assert FakeMCP.latest.resources["budget://usage"] == "budget_usage_detail"
+    assert FakeMCP.latest.resources["budget://anomalies"] == "budget_anomalies_detail"
     assert "max_pipeline_cost_anomalies" in FakeMCP.latest.tools
     assert (
         FakeMCP.latest.resources["pipeline://cost-anomalies"]
@@ -1499,6 +1668,8 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
     assert "get_review_thresholds" in FakeMCP.latest.tools
     assert "get_roi_forecast" in FakeMCP.latest.tools
     assert "max_signal_freshness" in FakeMCP.latest.tools
+    assert "get_llm_budget_usage" in FakeMCP.latest.tools
+    assert "get_cost_anomalies" in FakeMCP.latest.tools
     assert "max_pipeline_cost_anomalies" in FakeMCP.latest.tools
     assert "simulate_source_allocation" in FakeMCP.latest.tools
     assert "get_acceptance_criteria" in FakeMCP.latest.tools
@@ -1510,6 +1681,8 @@ def test_calibration_and_threshold_tools_registered(monkeypatch):
         FakeMCP.latest.resources["pipeline://cost-anomalies"]
         == "pipeline_cost_anomalies_detail"
     )
+    assert FakeMCP.latest.resources["budget://usage"] == "budget_usage_detail"
+    assert FakeMCP.latest.resources["budget://anomalies"] == "budget_anomalies_detail"
     assert FakeMCP.latest.resources["roi://forecast"] == "roi_forecast_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/acceptance-criteria"] == "acceptance_criteria_detail"
     assert FakeMCP.latest.resources["ideas://{idea_id}/blast-radius"] == "blast_radius_detail"
