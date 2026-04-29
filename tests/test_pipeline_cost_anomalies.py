@@ -10,11 +10,11 @@ def _seed_run(
     *,
     started_at: str,
     profile: str = "ai-infra",
-    cost: float,
-    input_tokens: int = 100,
-    output_tokens: int = 50,
-    by_stage: dict[str, dict[str, int]] | None = None,
-    cost_by_stage: dict[str, float] | None = None,
+    cost: object,
+    input_tokens: object = 100,
+    output_tokens: object = 50,
+    by_stage: dict[str, dict[str, object]] | None = None,
+    cost_by_stage: dict[str, object] | None = None,
 ) -> None:
     store.insert_pipeline_run(run_id, {"profile": profile, "model": "claude-haiku-4-5-20251001"})
     store.update_pipeline_run(
@@ -91,6 +91,80 @@ def test_cost_anomaly_report_flags_cost_and_multiplier_reasons(store: Store) -> 
     ]
     assert anomaly["top_stage_metrics"][0]["stage"] == "ideation"
     assert anomaly["top_stage_metrics"][0]["total_tokens"] == 2500
+
+
+def test_cost_anomaly_report_accepts_integer_and_float_costs(store: Store) -> None:
+    _seed_run(store, "run-base", started_at="2026-04-20T00:00:00Z", cost=0.25)
+    _seed_run(store, "run-spike", started_at="2026-04-21T00:00:00Z", cost=1)
+
+    report = build_pipeline_cost_anomaly_report(
+        store,
+        limit=1,
+        baseline_window=1,
+        min_cost_usd=0.05,
+        multiplier_threshold=2.0,
+    )
+
+    assert report["anomaly_count"] == 1
+    anomaly = report["anomalies"][0]
+    assert anomaly["estimated_cost_usd"] == 1.0
+    assert anomaly["baseline_cost_usd"] == 0.25
+    assert anomaly["multiplier"] == 4.0
+
+
+def test_cost_anomaly_report_ignores_boolean_estimated_cost(store: Store) -> None:
+    _seed_run(store, "run-base", started_at="2026-04-20T00:00:00Z", cost=0.005)
+    _seed_run(
+        store,
+        "run-spike",
+        started_at="2026-04-21T00:00:00Z",
+        cost=True,
+        input_tokens=60_000,
+        output_tokens=10_000,
+    )
+
+    report = build_pipeline_cost_anomaly_report(
+        store,
+        limit=1,
+        baseline_window=1,
+        min_cost_usd=0.05,
+        multiplier_threshold=2.0,
+    )
+
+    assert report["anomaly_count"] == 1
+    anomaly = report["anomalies"][0]
+    assert anomaly["estimated_cost_usd"] == 0.11
+    assert anomaly["total_tokens"] == 70_000
+    assert anomaly["multiplier"] == 22.0
+
+
+def test_cost_anomaly_report_ignores_boolean_token_counts(store: Store) -> None:
+    _seed_run(store, "run-base", started_at="2026-04-20T00:00:00Z", cost=0.001)
+    _seed_run(
+        store,
+        "run-malformed",
+        started_at="2026-04-21T00:00:00Z",
+        cost=True,
+        input_tokens=True,
+        output_tokens=True,
+    )
+
+    report = build_pipeline_cost_anomaly_report(
+        store,
+        limit=1,
+        baseline_window=1,
+        min_cost_usd=0.0,
+        multiplier_threshold=2.0,
+    )
+
+    assert report["anomaly_count"] == 1
+    anomaly = report["anomalies"][0]
+    assert anomaly["estimated_cost_usd"] == 0.0
+    assert anomaly["total_tokens"] == 0
+    assert anomaly["multiplier"] == 0.0
+    assert anomaly["anomaly_reasons"] == [
+        "estimated cost $0.0000 is at or above threshold $0.0000",
+    ]
 
 
 def test_cost_anomaly_baseline_is_profile_scoped(store: Store) -> None:
