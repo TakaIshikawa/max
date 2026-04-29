@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from max.sources.mcp_protocol_roadmap import McpProtocolRoadmapAdapter
+from max.sources.mcp_protocol_roadmap import McpProtocolRoadmapAdapter, _string_list
 from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters, reload_registry
 from max.types.signal import SignalSourceType
 
@@ -102,6 +102,71 @@ async def test_json_local_roadmap_produces_stable_ids_and_useful_tags(tmp_path) 
         set(signals[0].tags)
     )
     assert {"discovery", "registry", "metadata"}.issubset(set(signals[1].tags))
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, []),
+        (" sampling ", ["sampling"]),
+        (["sampling", 7, None, "consent"], ["sampling", "7", "consent"]),
+        (["sampling", " ", "sampling", "", "consent"], ["sampling", "consent"]),
+        (42, []),
+    ],
+)
+def test_string_list_normalizes_malformed_list_metadata(value: object, expected: list[str]) -> None:
+    assert _string_list(value) == expected
+
+
+@pytest.mark.asyncio
+async def test_json_roadmap_tags_normalize_malformed_list_metadata(tmp_path) -> None:
+    roadmap_path = tmp_path / "mcp-roadmap.json"
+    roadmap_path.write_text(
+        json.dumps(
+            {
+                "roadmap_items": [
+                    {
+                        "title": "None tags",
+                        "summary": "Hosts should tolerate missing tag metadata.",
+                        "tags": None,
+                    },
+                    {
+                        "title": "String tags",
+                        "summary": "Hosts should normalize one tag string.",
+                        "tags": "Single Tag",
+                    },
+                    {
+                        "title": "Mixed iterable tags",
+                        "summary": "Hosts should normalize mixed tag collections.",
+                        "tags": ["Mixed Tag", 7, None],
+                    },
+                    {
+                        "title": "Duplicate blank tags",
+                        "summary": "Hosts should dedupe and drop blank tags.",
+                        "tags": ["Repeat Tag", " ", "Repeat Tag", ""],
+                    },
+                    {
+                        "title": "Scalar tags",
+                        "summary": "Hosts should ignore unsupported scalar tag metadata.",
+                        "tags": 42,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    adapter = McpProtocolRoadmapAdapter(config={"local_paths": [str(roadmap_path)]})
+
+    signals = await adapter.fetch(limit=10)
+
+    by_title = {signal.title: signal for signal in signals}
+    assert "single-tag" in by_title["String tags"].tags
+    assert {"mixed-tag", "7"}.issubset(set(by_title["Mixed iterable tags"].tags))
+    assert "none" not in by_title["Mixed iterable tags"].tags
+    assert by_title["Duplicate blank tags"].tags.count("repeat-tag") == 1
+    assert "" not in by_title["Duplicate blank tags"].tags
+    assert "42" not in by_title["Scalar tags"].tags
+    assert {"none", "tags"}.issubset(set(by_title["None tags"].tags))
 
 
 @pytest.mark.asyncio
