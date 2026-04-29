@@ -1,4 +1,4 @@
-"""Microsoft Teams incoming-webhook publisher for Max ideas."""
+"""Microsoft Teams incoming-webhook publisher for Max ideas and design briefs."""
 
 from __future__ import annotations
 
@@ -76,7 +76,9 @@ class TeamsWebhookPublisher:
         title: str | None = None,
         include_evidence: bool = True,
     ) -> dict[str, Any]:
-        """Convert a Max idea payload into a Teams MessageCard JSON document."""
+        """Convert a Max idea or design brief payload into a Teams MessageCard JSON document."""
+        if _is_design_brief_payload(payload):
+            return _design_brief_message_card(payload, title=title)
         return _idea_message_card(payload, title=title, include_evidence=include_evidence)
 
     def publish(
@@ -234,12 +236,113 @@ def _idea_message_card(
     return card
 
 
+def _design_brief_message_card(
+    payload: dict[str, Any],
+    *,
+    title: str | None,
+) -> dict[str, Any]:
+    source = _dict_value(payload, "source")
+    brief = _dict_value(payload, "design_brief")
+
+    brief_id = _text(brief.get("id"), source.get("id"))
+    rendered_title = _text(title, brief.get("title"), brief_id, "Untitled design brief")
+    summary = _text(
+        brief.get("summary"),
+        brief.get("merged_product_concept"),
+        "No concept provided.",
+    )
+    sections = [
+        {
+            "activityTitle": rendered_title,
+            "activitySubtitle": _text(brief.get("domain"), "Max design brief"),
+            "text": summary,
+            "facts": _facts(
+                [
+                    ("Brief ID", brief_id),
+                    ("Status", brief.get("design_status")),
+                    ("Domain", brief.get("domain")),
+                    ("Theme", brief.get("theme")),
+                    ("Readiness", _score_text(brief.get("readiness_score"))),
+                    ("Lead idea", brief.get("lead_idea_id")),
+                ]
+            ),
+            "markdown": True,
+        },
+        {
+            "title": "Plan",
+            "text": _text(brief.get("why_this_now"), "Not specified"),
+            "facts": _facts(
+                [
+                    ("MVP Scope", _list_text(brief.get("mvp_scope"))),
+                    ("Validation", brief.get("validation_plan")),
+                    ("Source ideas", _comma_list(brief.get("source_idea_ids"))),
+                ]
+            ),
+            "markdown": True,
+        },
+        {
+            "title": "Metadata",
+            "facts": _facts(
+                [
+                    ("Publisher", "max.teams_webhook"),
+                    ("Provider", "teams"),
+                    ("Schema", source.get("schema_version")),
+                    ("Generated", source.get("generated_at")),
+                ]
+            ),
+            "markdown": True,
+        },
+    ]
+    markdown = _text(brief.get("markdown"))
+    if markdown:
+        sections.append(
+            {
+                "title": "Rendered brief",
+                "text": _truncate(markdown, 3000),
+                "markdown": True,
+            }
+        )
+
+    return {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "themeColor": "27AE60",
+        "summary": f"[Max] {rendered_title}",
+        "title": f"[Max] {rendered_title}",
+        "text": summary,
+        "sections": sections,
+        "potentialAction": [
+            {
+                "@type": "OpenUri",
+                "name": "Open design brief",
+                "targets": [{"os": "default", "uri": f"design-briefs://{brief_id}"}],
+            }
+        ],
+        "metadata": {
+            "publisher": "max.teams_webhook",
+            "provider": "teams",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "status": brief.get("design_status"),
+            "domain": brief.get("domain"),
+        },
+    }
+
+
 def _facts(facts: list[tuple[str, object]]) -> list[dict[str, str]]:
     return [
-        {"name": _truncate(_text(name, "Not specified"), 80), "value": _truncate(_text(value, "Not specified"), 500)}
+        {
+            "name": _truncate(_text(name, "Not specified"), 80),
+            "value": _truncate(_text(value, "Not specified"), 500),
+        }
         for name, value in facts
         if _text(value, "")
     ]
+
+
+def _is_design_brief_payload(payload: dict[str, Any]) -> bool:
+    return isinstance(payload.get("design_brief"), dict)
 
 
 def _uri_list(scheme: str, items: object) -> str:
@@ -249,9 +352,23 @@ def _uri_list(scheme: str, items: object) -> str:
     return ", ".join(values) if values else "None"
 
 
+def _comma_list(items: object) -> str:
+    if not isinstance(items, list) or not items:
+        return "None"
+    values = [_text(item, "") for item in items if _text(item, "")]
+    return ", ".join(values) if values else "None"
+
+
 def _dict_value(payload: dict[str, Any], key: str) -> dict[str, Any]:
     value = payload.get(key)
     return value if isinstance(value, dict) else {}
+
+
+def _list_text(items: object) -> str:
+    if not isinstance(items, list) or not items:
+        return "None"
+    values = [_text(item, "") for item in items if _text(item, "")]
+    return "\n".join(f"- {value}" for value in values) if values else "None"
 
 
 def _text(*values: object) -> str:
