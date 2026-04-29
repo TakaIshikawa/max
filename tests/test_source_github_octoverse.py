@@ -6,8 +6,21 @@ import json
 
 import pytest
 
-from max.sources.github_octoverse import GitHubOctoverseAdapter
+from max.sources.github_octoverse import GitHubOctoverseAdapter, _string_list
 from max.types.signal import SignalSourceType
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, []),
+        ("  AI development  ", ["AI development"]),
+        ([" python ", "", "python", "  ", "security"], ["python", "security"]),
+        (42, []),
+    ],
+)
+def test_string_list_normalizes_supported_values(value, expected):
+    assert _string_list(value) == expected
 
 
 @pytest.mark.asyncio
