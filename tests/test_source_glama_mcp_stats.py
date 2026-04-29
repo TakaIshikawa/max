@@ -10,6 +10,32 @@ from max.sources.glama_mcp_stats import GlamaMcpStatsAdapter
 from max.types.signal import SignalSourceType
 
 
+def test_string_list_config_values_filter_blanks_and_deduplicate() -> None:
+    adapter = GlamaMcpStatsAdapter(
+        config={
+            "local_paths": ["", " /tmp/glama.json ", "/tmp/glama.json", "  ", "/tmp/other.json"],
+            "categories": (" Developer Tools ", "", "Developer Tools", "Data"),
+        }
+    )
+
+    assert adapter.local_paths == ["/tmp/glama.json", "/tmp/other.json"]
+    assert adapter.categories == ["Developer Tools", "Data"]
+
+
+def test_scalar_string_list_config_values_are_ignored_safely() -> None:
+    adapter = GlamaMcpStatsAdapter(
+        config={
+            "stats_urls": 123,
+            "local_paths": False,
+            "categories": 12.5,
+        }
+    )
+
+    assert adapter.stats_urls == []
+    assert adapter.local_paths == []
+    assert adapter.categories == []
+
+
 @pytest.mark.asyncio
 async def test_json_snapshot_emits_aggregate_mcp_ecosystem_signals(tmp_path) -> None:
     report_path = tmp_path / "glama-mcp-stats.json"
