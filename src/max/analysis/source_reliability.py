@@ -85,8 +85,8 @@ def build_source_reliability_report(
     if source_adapters is not None:
         signals = [signal for signal in signals if signal.source_adapter in source_adapters]
     if fetched_since is not None:
-        cutoff = fetched_since if fetched_since.tzinfo else fetched_since.replace(tzinfo=timezone.utc)
-        signals = [signal for signal in signals if signal.fetched_at >= cutoff]
+        cutoff = _normalize_utc(fetched_since)
+        signals = [signal for signal in signals if _normalize_utc(signal.fetched_at) >= cutoff]
     if not signals:
         return SourceReliabilityReport(
             generated_at=_now_iso(),
@@ -325,6 +325,12 @@ def _pct(value: float) -> str:
 
 def _round_rate(value: float) -> float:
     return round(max(0.0, min(1.0, value)), 4)
+
+
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _now_iso() -> str:
