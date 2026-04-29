@@ -87,6 +87,30 @@ def test_open_vsx_adapter_custom_config_and_alias() -> None:
     assert adapter.extensions == ["OpenAI/chatgpt"]
 
 
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        ({"extensions": "OpenAI/chatgpt"}, []),
+        ({"extensions": None}, []),
+        (
+            {"extensions": [" publisher/name ", "/publisher/name/", "bad", "publisher/", 5]},
+            ["publisher/name"],
+        ),
+        (
+            {"extension_identifiers": ("Alpha/one", "Alpha/one", "Beta/two")},
+            ["Alpha/one", "Beta/two"],
+        ),
+    ],
+)
+def test_open_vsx_extensions_config_normalization(
+    config: dict[str, object],
+    expected: list[str],
+) -> None:
+    adapter = OpenVsxAdapter(config=config)
+
+    assert adapter.extensions == expected
+
+
 @pytest.mark.asyncio
 async def test_open_vsx_fetch_emits_signals_from_search_results() -> None:
     adapter = OpenVsxAdapter(config={"queries": ["agent"]})

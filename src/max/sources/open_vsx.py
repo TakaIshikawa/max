@@ -39,15 +39,22 @@ class OpenVsxAdapter(SourceAdapter):
     @property
     def extensions(self) -> list[str]:
         configured = self._config.get("extensions", self._config.get("extension_identifiers", []))
-        values = list(configured or [])
+        if not isinstance(configured, (list, tuple, set)):
+            return []
+
         seen: set[str] = set()
         identifiers: list[str] = []
-        for value in values:
+        for value in configured:
             if not isinstance(value, str):
                 continue
             identifier = value.strip().strip("/")
-            if not identifier or "/" not in identifier or identifier in seen:
+            if identifier in seen:
                 continue
+
+            parts = identifier.split("/", 1)
+            if len(parts) != 2 or not parts[0] or not parts[1]:
+                continue
+
             seen.add(identifier)
             identifiers.append(identifier)
         return identifiers
