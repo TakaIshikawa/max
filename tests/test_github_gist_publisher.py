@@ -103,6 +103,37 @@ def test_build_design_brief_payload_maps_markdown_and_source_metadata() -> None:
     assert payload["metadata"]["source_idea_ids"] == ["bu-lead", "bu-supporting"]
 
 
+@pytest.mark.parametrize(
+    ("source_idea_ids", "expected"),
+    [
+        (" bu-single ", ["bu-single"]),
+        ([" bu-lead ", "", "bu-supporting", "bu-lead", 123, None], ["bu-lead", "bu-supporting"]),
+        ((" bu-tuple ", " ", "bu-tuple", "bu-other"), ["bu-tuple", "bu-other"]),
+        ({" bu-set ", "", "bu-set"}, ["bu-set"]),
+        ({"id": "bu-object"}, []),
+        (123, []),
+        (None, []),
+    ],
+)
+def test_build_design_brief_payload_normalizes_source_idea_ids(
+    source_idea_ids: object,
+    expected: list[str],
+) -> None:
+    publisher = GitHubGistPublisher(filename="dbf-test001.md")
+    brief = {
+        "id": "dbf-test001",
+        "title": "Design Brief Gist",
+        "source_idea_ids": source_idea_ids,
+    }
+
+    payload = publisher.build_design_brief_payload(
+        brief,
+        markdown="# Design Brief Gist\n",
+    ).to_dict()
+
+    assert payload["metadata"]["source_idea_ids"] == expected
+
+
 def test_dry_run_returns_exact_payload_without_network_call() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise AssertionError("dry run should not make network calls")
