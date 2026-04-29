@@ -8,6 +8,7 @@ import io
 import logging
 import re
 from collections import Counter
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -56,10 +57,9 @@ def _as_string_list(value: object) -> list[str]:
         return []
     if isinstance(value, str):
         return [value]
-    try:
-        return [str(item) for item in value if str(item).strip()]  # type: ignore[union-attr]
-    except TypeError:
-        return []
+    if isinstance(value, Iterable):
+        return [str(item) for item in value if str(item).strip()]
+    return []
 
 
 def _parse_float(value: object) -> float | None:

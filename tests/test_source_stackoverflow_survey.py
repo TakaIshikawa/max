@@ -9,6 +9,34 @@ from max.sources.stackoverflow_survey import StackOverflowSurveyAdapter
 from max.types.signal import SignalSourceType
 
 
+def test_config_list_values_are_normalized_for_scalar_blank_list_and_none():
+    adapter = StackOverflowSurveyAdapter(
+        config={
+            "survey_urls": "https://example.com/survey.csv",
+            "local_paths": ["", "  ", "/tmp/survey.csv"],
+            "question_filters": None,
+        }
+    )
+
+    assert adapter.survey_urls == ["https://example.com/survey.csv"]
+    assert adapter.local_paths == ["/tmp/survey.csv"]
+    assert adapter.question_filters == []
+
+
+def test_non_iterable_scalar_config_values_are_ignored():
+    adapter = StackOverflowSurveyAdapter(
+        config={
+            "survey_urls": 42,
+            "local_paths": object(),
+            "question_filters": False,
+        }
+    )
+
+    assert adapter.survey_urls == []
+    assert adapter.local_paths == []
+    assert adapter.question_filters == []
+
+
 @pytest.mark.asyncio
 async def test_respondent_rows_are_aggregated_into_market_signals(tmp_path):
     csv_path = tmp_path / "stack-overflow-developer-survey-2024.csv"
