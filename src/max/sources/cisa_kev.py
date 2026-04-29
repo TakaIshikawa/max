@@ -9,7 +9,8 @@ from urllib.parse import quote_plus
 
 import httpx
 
-from max.sources.base import SourceAdapter, fetch_with_retry
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
+from max.sources.errors import SourceParseError
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -89,9 +90,17 @@ class CisaKevAdapter(SourceAdapter):
                     headers={"Accept": "application/json"},
                 )
                 payload = response.json()
-        except Exception:
-            logger.warning("%s: failed to fetch or parse CISA KEV catalog", self.name, exc_info=True)
+        except AdapterFetchError:
+            logger.warning("%s: failed to fetch CISA KEV catalog", self.name, exc_info=True)
             return []
+        except (httpx.RequestError, httpx.TimeoutException):
+            logger.warning("%s: failed to fetch CISA KEV catalog", self.name, exc_info=True)
+            return []
+        except ValueError as exc:
+            raise SourceParseError(
+                "Malformed CISA KEV catalog JSON",
+                adapter_name=self.name,
+            ) from exc
 
         return parse_cisa_kev_catalog(
             payload,
@@ -106,7 +115,7 @@ class CisaKevAdapter(SourceAdapter):
 
 
 def parse_cisa_kev_catalog(
-    payload: dict[str, Any],
+    payload: Any,
     *,
     adapter_name: str = "cisa_kev",
     keywords: list[str] | None = None,
@@ -118,9 +127,18 @@ def parse_cisa_kev_catalog(
     now: datetime | None = None,
 ) -> list[Signal]:
     """Parse a CISA KEV JSON payload into deterministic security signals."""
-    vulnerabilities = payload.get("vulnerabilities") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        raise SourceParseError(
+            "Malformed CISA KEV catalog: expected JSON object",
+            adapter_name=adapter_name,
+        )
+
+    vulnerabilities = payload.get("vulnerabilities")
     if not isinstance(vulnerabilities, list):
-        return []
+        raise SourceParseError(
+            "Malformed CISA KEV catalog: vulnerabilities must be a list",
+            adapter_name=adapter_name,
+        )
 
     cutoff = _age_cutoff(max_age_days, now=now)
     signals: list[Signal] = []
@@ -215,8 +233,8 @@ def _signal_from_entry(
             "vendor_project": vendor,
             "product": product,
             "vulnerability_name": vulnerability_name,
-            "date_added": entry.get("dateAdded"),
-            "due_date": entry.get("dueDate"),
+            "date_added": date_added.date().isoformat() if date_added else "",
+            "due_date": due_date.date().isoformat() if due_date else "",
             "known_ransomware_campaign_use": ransomware_use,
             "required_action": required_action,
             "notes": notes,

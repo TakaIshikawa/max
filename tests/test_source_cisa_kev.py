@@ -10,6 +10,7 @@ import pytest
 
 from max.sources.base import AdapterFetchError
 from max.sources.cisa_kev import CISA_KEV_CATALOG_URL, CisaKevAdapter, parse_cisa_kev_catalog
+from max.sources.errors import SourceParseError
 from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters, reload_registry
 from max.types.signal import SignalSourceType
 
@@ -85,9 +86,16 @@ def test_parse_cisa_kev_catalog_maps_entries_to_signals() -> None:
     assert signal.metadata["cve_id"] == "CVE-2026-1111"
     assert signal.metadata["vendor_project"] == "Example"
     assert signal.metadata["product"] == "Edge Gateway"
+    assert signal.metadata["vulnerability_name"] == (
+        "Example Edge Gateway command injection vulnerability"
+    )
+    assert signal.metadata["date_added"] == "2026-04-10"
+    assert signal.metadata["due_date"] == "2026-05-01"
     assert signal.metadata["known_ransomware_campaign_use"] == "Known"
     assert signal.metadata["required_action"] == "Apply mitigations per vendor instructions."
+    assert signal.metadata["notes"] == "Exploited by ransomware operators in the wild."
     assert signal.metadata["signal_role"] == "problem"
+    assert "Due date: 2026-05-01" in signal.content
 
 
 def test_parse_cisa_kev_catalog_filters_by_keyword_vendor_product_age_and_ransomware() -> None:
@@ -117,9 +125,60 @@ def test_parse_cisa_kev_catalog_can_filter_for_unknown_ransomware_use() -> None:
     assert [signal.metadata["cve_id"] for signal in signals] == ["CVE-2026-2222"]
 
 
-def test_parse_cisa_kev_catalog_gracefully_handles_empty_or_malformed_payloads() -> None:
-    assert parse_cisa_kev_catalog({}, max_age_days=0) == []
-    assert parse_cisa_kev_catalog({"vulnerabilities": "bad"}, max_age_days=0) == []
+def test_parse_cisa_kev_catalog_defaults_missing_optional_fields() -> None:
+    catalog = {
+        "vulnerabilities": [
+            {
+                "cveID": "CVE-2026-3333",
+                "vendorProject": "SparseVendor",
+                "product": "SparseProduct",
+                "vulnerabilityName": "SparseVendor SparseProduct memory corruption",
+                "dateAdded": "2026-04-10T09:30:00Z",
+                "shortDescription": "SparseProduct contains memory corruption.",
+                "dueDate": "2026-05-01T00:00:00Z",
+                "knownRansomwareCampaignUse": "Unknown",
+            },
+        ],
+    }
+
+    signals = parse_cisa_kev_catalog(catalog, max_age_days=0)
+
+    assert len(signals) == 1
+    signal = signals[0]
+    assert signal.published_at == datetime(2026, 4, 10, 9, 30, tzinfo=timezone.utc)
+    assert signal.metadata == {
+        "cve_id": "CVE-2026-3333",
+        "vendor_project": "SparseVendor",
+        "product": "SparseProduct",
+        "vulnerability_name": "SparseVendor SparseProduct memory corruption",
+        "date_added": "2026-04-10",
+        "due_date": "2026-05-01",
+        "known_ransomware_campaign_use": "Unknown",
+        "required_action": "",
+        "notes": "",
+        "source_catalog": "cisa_kev",
+        "signal_role": "problem",
+    }
+    assert "Required action:" not in signal.content
+    assert "Due date: 2026-05-01" in signal.content
+    assert "Known ransomware campaign use: Unknown" in signal.content
+
+
+def test_parse_cisa_kev_catalog_raises_source_parse_error_for_malformed_payloads() -> None:
+    with pytest.raises(SourceParseError, match="expected JSON object") as exc:
+        parse_cisa_kev_catalog([], max_age_days=0)
+    assert exc.value.adapter_name == "cisa_kev"
+
+    with pytest.raises(SourceParseError, match="vulnerabilities must be a list") as exc:
+        parse_cisa_kev_catalog({}, max_age_days=0)
+    assert exc.value.adapter_name == "cisa_kev"
+
+    with pytest.raises(SourceParseError, match="vulnerabilities must be a list") as exc:
+        parse_cisa_kev_catalog({"vulnerabilities": "bad"}, max_age_days=0)
+    assert exc.value.adapter_name == "cisa_kev"
+
+
+def test_parse_cisa_kev_catalog_skips_entries_missing_required_cve_id() -> None:
     assert parse_cisa_kev_catalog({"vulnerabilities": [{"vendorProject": "Example"}]}, max_age_days=0) == []
 
 
@@ -182,9 +241,24 @@ async def test_cisa_kev_adapter_handles_bad_json() -> None:
         return response
 
     with patch("max.sources.cisa_kev.fetch_with_retry", mock_fetch):
-        signals = await adapter.fetch(limit=5)
+        with pytest.raises(SourceParseError, match="Malformed CISA KEV catalog JSON") as exc:
+            await adapter.fetch(limit=5)
 
-    assert signals == []
+    assert exc.value.adapter_name == "cisa_kev"
+
+
+@pytest.mark.asyncio
+async def test_cisa_kev_adapter_raises_parse_error_for_malformed_catalog_shape() -> None:
+    adapter = CisaKevAdapter()
+
+    async def mock_fetch(url: str, client: httpx.AsyncClient, **kwargs) -> MagicMock:
+        return MagicMock(json=lambda: {"vulnerabilities": "bad"})
+
+    with patch("max.sources.cisa_kev.fetch_with_retry", mock_fetch):
+        with pytest.raises(SourceParseError, match="vulnerabilities must be a list") as exc:
+            await adapter.fetch(limit=5)
+
+    assert exc.value.adapter_name == "cisa_kev"
 
 
 def test_cisa_kev_registry_registration_and_metadata() -> None:
