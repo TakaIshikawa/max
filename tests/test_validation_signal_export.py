@@ -38,6 +38,21 @@ def _create_completed_experiment(store: Store, idea_id: str = "bu-export001") ->
     return experiment
 
 
+def _make_experiment(evidence_urls: object) -> dict:
+    return {
+        "id": "vexp-export001",
+        "idea_id": "bu-export001",
+        "hypothesis": "Teams will export validation evidence",
+        "method": "Prototype interview",
+        "success_metric": "6 teams ask to reuse the evidence",
+        "status": "completed",
+        "completed_at": "2026-04-25T00:00:00+00:00",
+        "result_summary": "7 teams asked to reuse the evidence",
+        "evidence_urls": evidence_urls,
+        "confidence_delta": 0.35,
+    }
+
+
 def test_validation_experiment_signal_payload_links_experiment_and_idea(store: Store) -> None:
     idea = _make_unit()
     store.insert_buildable_unit(idea)
@@ -55,6 +70,48 @@ def test_validation_experiment_signal_payload_links_experiment_and_idea(store: S
     assert signal.metadata["status"] == "completed"
     assert signal.metadata["confidence_delta"] == 0.35
     assert signal.metadata["evidence_urls"] == ["https://example.com/notes"]
+
+
+def test_validation_experiment_signal_treats_string_evidence_url_as_single_url() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment(" https://example.com/notes "),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == ["https://example.com/notes"]
+    assert "Evidence URLs: https://example.com/notes" in signal.content
+
+
+def test_validation_experiment_signal_filters_malformed_evidence_url_iterables() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment(
+            [
+                " https://example.com/notes ",
+                "",
+                "   ",
+                None,
+                12,
+                "https://example.com/results",
+            ]
+        ),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == [
+        "https://example.com/notes",
+        "https://example.com/results",
+    ]
+    assert (
+        "Evidence URLs: https://example.com/notes, https://example.com/results"
+        in signal.content
+    )
+
+
+def test_validation_experiment_signal_ignores_scalar_evidence_url_values() -> None:
+    signal = validation_experiment_signal(_make_experiment(12), _make_unit())
+
+    assert signal.metadata["evidence_urls"] == []
+    assert "Evidence URLs:" not in signal.content
 
 
 def test_store_finds_exported_signal_by_validation_experiment_metadata(store: Store) -> None:

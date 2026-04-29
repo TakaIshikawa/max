@@ -8,9 +8,22 @@ from max.types.signal import Signal, SignalSourceType
 SOURCE_ADAPTER = "validation_experiment"
 
 
+def _normalize_evidence_urls(value: object) -> list[str]:
+    if isinstance(value, str):
+        url = value.strip()
+        return [url] if url else []
+
+    try:
+        values = iter(value)  # type: ignore[arg-type]
+    except TypeError:
+        return []
+
+    return [url for item in values if isinstance(item, str) and (url := item.strip())]
+
+
 def validation_experiment_signal(experiment: dict, idea: BuildableUnit) -> Signal:
     """Convert a completed validation experiment and its parent idea into a Signal."""
-    evidence_urls = list(experiment.get("evidence_urls") or [])
+    evidence_urls = _normalize_evidence_urls(experiment.get("evidence_urls"))
     result_summary = (experiment.get("result_summary") or "").strip()
     hypothesis = (experiment.get("hypothesis") or "").strip()
     method = (experiment.get("method") or "").strip()
