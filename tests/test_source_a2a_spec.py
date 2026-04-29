@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from max.sources.a2a_spec import A2ASpecAdapter
+from max.sources.a2a_spec import A2ASpecAdapter, _signal_from_item
 from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters, reload_registry
 from max.types.signal import SignalSourceType
 
@@ -113,6 +113,34 @@ async def test_json_local_spec_emits_stable_ids_and_gap_signals(tmp_path) -> Non
     assert signals[1].metadata["categories"] == ["interoperability-gap"]
     assert signals[1].metadata["signal_role"] == "problem"
     assert "conformance testing gap" in signals[1].content
+
+
+def test_tag_field_normalization_accepts_iterable_scalar_empty_and_none_values() -> None:
+    signal = _signal_from_item(
+        {
+            "title": "Transport authorization negotiation",
+            "section": "Transports",
+            "summary": (
+                "HTTP streaming transport and OAuth scope authorization allow clients "
+                "to negotiate remote agent invocation."
+            ),
+            "tags": "bearer",
+            "topics": ("sse", "resumption"),
+            "keywords": ["streaming", ""],
+            "terms": None,
+        },
+        adapter_name="a2a_spec",
+        source_url="file:///a2a-spec.json",
+        section_filters=[],
+        keyword_filters=[],
+        include_examples=True,
+    )
+
+    assert signal is not None
+    tags = set(signal.tags)
+    assert {"bearer", "sse", "resumption", "streaming"}.issubset(tags)
+    assert "" not in signal.tags
+    assert "none" not in tags
 
 
 @pytest.mark.asyncio
