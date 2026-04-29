@@ -7,7 +7,7 @@ from typing import Mapping
 
 from max import config
 from max.analysis.budget_usage import _stage_usage_from_mapping
-from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
+from max.llm.client import estimate_token_cost_usd
 from max.store.db import Store
 
 DEFAULT_LIMIT = 20
@@ -17,7 +17,24 @@ DEFAULT_MULTIPLIER_THRESHOLD = 2.0
 
 
 def _float_value(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
     return float(value) if isinstance(value, (int, float)) else None
+
+
+def _int_value(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0
+    try:
+        return int(value)
+    except (OverflowError, ValueError):
+        return 0
+
+
+def _token_counts_from_usage(token_usage: Mapping[str, object]) -> tuple[int, int]:
+    input_tokens = token_usage.get("total_input", token_usage.get("input", 0))
+    output_tokens = token_usage.get("total_output", token_usage.get("output", 0))
+    return _int_value(input_tokens), _int_value(output_tokens)
 
 
 def _profile_name(run: Mapping[str, object]) -> str | None:
@@ -41,7 +58,7 @@ def _run_usage(run: Mapping[str, object]) -> Mapping[str, object]:
 
 
 def _run_total_tokens(run: Mapping[str, object]) -> int:
-    input_tokens, output_tokens = token_counts_from_usage(_run_usage(run))
+    input_tokens, output_tokens = _token_counts_from_usage(_run_usage(run))
     return input_tokens + output_tokens
 
 
@@ -50,12 +67,47 @@ def _run_cost(run: Mapping[str, object]) -> float:
     stored_cost = _float_value(token_usage.get("estimated_cost_usd"))
     if stored_cost is not None:
         return stored_cost
-    input_tokens, output_tokens = token_counts_from_usage(token_usage)
+    input_tokens, output_tokens = _token_counts_from_usage(token_usage)
     return estimate_token_cost_usd(input_tokens, output_tokens, model=_model_name(run))
 
 
+def _sanitized_stage_usage(token_usage: Mapping[str, object]) -> dict[str, object]:
+    sanitized = dict(token_usage)
+    by_stage = token_usage.get("by_stage")
+    if isinstance(by_stage, Mapping):
+        sanitized["by_stage"] = {
+            stage: {
+                "input": _int_value(counts.get("input")),
+                "output": _int_value(counts.get("output")),
+            }
+            for stage, counts in by_stage.items()
+            if isinstance(counts, Mapping)
+        }
+
+    cost_by_stage = token_usage.get("cost_by_stage")
+    if isinstance(cost_by_stage, Mapping):
+        sanitized["cost_by_stage"] = {
+            stage: cost
+            for stage, cost in (
+                (stage, _float_value(value)) for stage, value in cost_by_stage.items()
+            )
+            if cost is not None
+        }
+
+    for key, value in token_usage.items():
+        if not isinstance(key, str):
+            continue
+        if key.endswith("_input") or key.endswith("_output"):
+            sanitized[key] = _int_value(value)
+
+    return sanitized
+
+
 def _top_stage_metrics(run: Mapping[str, object], *, max_stages: int = 3) -> list[dict[str, object]]:
-    stages = _stage_usage_from_mapping(_run_usage(run), model=_model_name(run))
+    stages = _stage_usage_from_mapping(
+        _sanitized_stage_usage(_run_usage(run)),
+        model=_model_name(run),
+    )
     stages.sort(
         key=lambda stage: (
             float(stage.get("estimated_cost_usd") or 0.0),
