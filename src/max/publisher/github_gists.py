@@ -168,7 +168,7 @@ class GitHubGistPublisher:
             "domain": design_brief.get("domain"),
             "theme": design_brief.get("theme"),
             "lead_idea_id": design_brief.get("lead_idea_id"),
-            "source_idea_ids": list(design_brief.get("source_idea_ids") or []),
+            "source_idea_ids": _source_idea_ids(design_brief.get("source_idea_ids")),
             "public": self.public,
             "filename": self.filename,
         }
@@ -348,6 +348,21 @@ def _evidence_links(evidence: dict[str, Any], links: list[str] | None) -> list[s
     values: list[str] = []
     for candidate in links or evidence.get("links") or []:
         text = str(candidate).strip()
+        if text and text not in values:
+            values.append(text)
+    return values
+
+
+def _source_idea_ids(value: object) -> list[str]:
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if not isinstance(value, list | tuple | set):
+        return []
+
+    values: list[str] = []
+    for candidate in value:
+        text = candidate.strip() if isinstance(candidate, str) else ""
         if text and text not in values:
             values.append(text)
     return values
