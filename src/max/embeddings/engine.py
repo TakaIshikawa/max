@@ -7,11 +7,13 @@ simple TF-IDF approach if the SDK is not available.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import logging
 import math
 from collections import Counter
 from datetime import datetime, timezone
+from typing import Protocol, cast
 
 from max.store.db import Store
 
@@ -86,13 +88,32 @@ def _resolve_voyage_api_key() -> str | None:
 _voyage_disabled = False  # Auto-disable on rate limit to avoid slowdown
 
 
+class _VoyageEmbedResult(Protocol):
+    embeddings: list[list[float]]
+
+
+class _VoyageClient(Protocol):
+    def embed(self, texts: list[str], *, model: str) -> _VoyageEmbedResult: ...
+
+
+class _VoyageModule(Protocol):
+    def Client(
+        self, *, api_key: str, max_retries: int, timeout: int
+    ) -> _VoyageClient: ...
+
+
+def _load_voyage_module() -> _VoyageModule:
+    """Load the optional Voyage SDK with the minimal shape we use."""
+    return cast(_VoyageModule, importlib.import_module("voyageai"))
+
+
 def _try_voyage_embed(texts: list[str]) -> list[list[float]] | None:
     """Try to use Voyage AI embeddings. Returns None if unavailable or rate-limited."""
     global _voyage_disabled  # noqa: PLW0603
     if _voyage_disabled:
         return None
     try:
-        import voyageai  # type: ignore[import-untyped]
+        voyageai = _load_voyage_module()
 
         api_key = _resolve_voyage_api_key()
         if not api_key:

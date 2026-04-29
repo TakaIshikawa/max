@@ -14,11 +14,13 @@ from max.embeddings.engine import (
     SemanticIndex,
     _cosine_similarity,
     _simple_embed,
+    _try_voyage_embed,
     content_hash,
     embed_text,
     embed_texts,
 )
 from max.store.db import Store
+from max.store.migrations import SCHEMA_VERSION
 from max.types.buildable_unit import BuildableUnit, IdeationMode
 
 
@@ -382,6 +384,46 @@ class TestNoveltyScore:
 
 
 class TestVoyageFallback:
+    def test_try_voyage_embed_returns_mocked_sdk_embeddings(self):
+        """Verify _try_voyage_embed returns embeddings from a working SDK client."""
+        fake_embeddings = [[0.1, 0.2], [0.3, 0.4]]
+        fake_result = MagicMock()
+        fake_result.embeddings = fake_embeddings
+        fake_client = MagicMock()
+        fake_client.embed.return_value = fake_result
+        fake_voyageai = MagicMock()
+        fake_voyageai.Client.return_value = fake_client
+
+        with (
+            patch.dict("sys.modules", {"voyageai": fake_voyageai}),
+            patch("max.embeddings.engine._resolve_voyage_api_key", return_value="key"),
+            patch("max.embeddings.engine._voyage_disabled", False),
+        ):
+            result = _try_voyage_embed(["a", "b"])
+
+        assert result == fake_embeddings
+        fake_voyageai.Client.assert_called_once_with(
+            api_key="key", max_retries=1, timeout=15
+        )
+        fake_client.embed.assert_called_once_with(["a", "b"], model="voyage-3-lite")
+
+    def test_embed_texts_falls_back_when_voyage_result_is_not_usable(self):
+        """SDK responses without an embeddings payload fall back to local embeddings."""
+        fake_client = MagicMock()
+        fake_client.embed.return_value = object()
+        fake_voyageai = MagicMock()
+        fake_voyageai.Client.return_value = fake_client
+
+        with (
+            patch.dict("sys.modules", {"voyageai": fake_voyageai}),
+            patch("max.embeddings.engine._resolve_voyage_api_key", return_value="key"),
+            patch("max.embeddings.engine._voyage_disabled", False),
+        ):
+            result = embed_texts(["hello world"])
+
+        assert len(result) == 1
+        assert len(result[0]) == 1024
+
     def test_import_error_falls_back_to_simple_embed(self):
         with patch(
             "max.embeddings.engine._try_voyage_embed",
@@ -394,9 +436,10 @@ class TestVoyageFallback:
 
     def test_try_voyage_embed_returns_none_on_import_error(self):
         """Verify _try_voyage_embed returns None when voyageai is not installed."""
-        from max.embeddings.engine import _try_voyage_embed
-
-        with patch.dict("sys.modules", {"voyageai": None}):
+        with (
+            patch.dict("sys.modules", {"voyageai": None}),
+            patch("max.embeddings.engine._voyage_disabled", False),
+        ):
             result = _try_voyage_embed(["test"])
         assert result is None
 
@@ -747,8 +790,8 @@ class TestEmbeddingsMetadataMigration:
         ).fetchone()
         assert row is not None
 
-    def test_schema_version_is_20(self, store: Store):
-        assert store.get_schema_version() == 20
+    def test_schema_version_matches_current_migrations(self, store: Store):
+        assert store.get_schema_version() == SCHEMA_VERSION
 
     def test_metadata_indices_exist(self, store: Store):
         indices = store.conn.execute(
