@@ -7,6 +7,7 @@ import hashlib
 import io
 import re
 from collections import Counter
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -66,11 +67,11 @@ def _as_string_list(value: object) -> list[str]:
     if value is None:
         return []
     if isinstance(value, str):
-        return [value]
-    try:
-        return [str(item) for item in value if str(item).strip()]  # type: ignore[union-attr]
-    except TypeError:
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if not isinstance(value, Iterable):
         return []
+    return [stripped for item in value if (stripped := str(item).strip())]
 
 
 def _parse_float(value: object) -> float | None:

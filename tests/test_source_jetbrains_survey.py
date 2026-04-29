@@ -12,6 +12,24 @@ from max.sources.jetbrains_survey import JetBrainsSurveyAdapter
 from max.types.signal import SignalSourceType
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ([" IDE ", "", "AI coding", "  "], ["IDE", "AI coding"]),
+        ((" IDE ", "", "AI coding", "  "), ["IDE", "AI coding"]),
+        (" IDE ", ["IDE"]),
+        ("  ", []),
+        (None, []),
+        (123, []),
+        ([" IDE ", None, 42, False, ""], ["IDE", "None", "42", "False"]),
+    ],
+)
+def test_config_string_list_values_are_normalized(value: object, expected: list[str]) -> None:
+    adapter = JetBrainsSurveyAdapter(config={"question_filters": value})
+
+    assert adapter.question_filters == expected
+
+
 @pytest.mark.asyncio
 async def test_local_aggregate_rows_return_deterministic_survey_signals(tmp_path) -> None:
     csv_path = tmp_path / "jetbrains-developer-ecosystem-2024.csv"
