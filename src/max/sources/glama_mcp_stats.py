@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import re
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -433,17 +434,16 @@ def _string_list(value: object) -> list[str]:
     if value is None:
         return []
     if isinstance(value, str):
-        values = [value]
+        candidates: Iterable[object] = (value,)
+    elif isinstance(value, Iterable):
+        candidates = value
     else:
-        try:
-            values = [str(item) for item in value if str(item).strip()]  # type: ignore[union-attr]
-        except TypeError:
-            values = []
+        return []
 
     result: list[str] = []
     seen: set[str] = set()
-    for item in values:
-        text = item.strip()
+    for item in candidates:
+        text = str(item).strip()
         if text and text not in seen:
             seen.add(text)
             result.append(text)
