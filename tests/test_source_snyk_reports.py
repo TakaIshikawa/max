@@ -13,6 +13,27 @@ from max.sources.snyk_reports import SnykReportsAdapter
 from max.types.signal import SignalSourceType
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, []),
+        ("https://example.com/snyk.md", ["https://example.com/snyk.md"]),
+        (
+            [" https://example.com/a.md ", "", "https://example.com/b.md", "   "],
+            [
+                "https://example.com/a.md",
+                "https://example.com/b.md",
+            ],
+        ),
+        (42, []),
+    ],
+)
+def test_config_string_list_values_are_normalized(value: object, expected: list[str]) -> None:
+    adapter = SnykReportsAdapter(config={"report_urls": value})
+
+    assert adapter.report_urls == expected
+
+
 @pytest.mark.asyncio
 async def test_markdown_headings_are_extracted_as_security_report_signals(tmp_path):
     report_path = tmp_path / "snyk-security-2026.md"
