@@ -113,6 +113,42 @@ def test_build_pipeline_replay_plan_without_adapter_metrics_degrades(store):
     assert any("No adapter metrics" in warning for warning in plan["warnings"])
 
 
+def test_build_pipeline_replay_plan_quotes_dry_run_cli_values(store):
+    config = {
+        "profile": "my profile",
+        "signal_limit": 12,
+        "min_score": "55; echo no",
+        "weight_profile": "agent first",
+        "ideation_mode": "direct mode",
+        "quality_loop_enabled": True,
+        "draft_count": "6 drafts",
+    }
+    _seed_run(
+        store,
+        "run-replay-quoted",
+        config=config,
+        adapter_metrics={},
+        fetch_allocation={},
+    )
+
+    plan = build_pipeline_replay_plan(store, "run-replay-quoted")
+
+    assert plan["dry_run_commands"]["cli"] == (
+        "max run --dry-run --profile 'my profile' --signal-limit 12 "
+        "--min-score '55; echo no' --weight-profile 'agent first' "
+        "--mode 'direct mode' --quality-loop --draft-count '6 drafts'"
+    )
+    assert plan["dry_run_commands"]["api"]["body"] == {
+        "profile": "my profile",
+        "signal_limit": 12,
+        "min_score": "55; echo no",
+        "weight_profile": "agent first",
+        "ideation_mode": "direct mode",
+        "quality_loop_enabled": True,
+        "draft_count": "6 drafts",
+    }
+
+
 def test_build_pipeline_replay_plan_missing_run_raises(store):
     with pytest.raises(PipelineReplayRunNotFound) as exc:
         build_pipeline_replay_plan(store, "run-missing")

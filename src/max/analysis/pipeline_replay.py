@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -191,7 +192,7 @@ def _dry_run_commands(
         cli_parts.extend(["--draft-count", str(run_config["draft_count"])])
 
     return {
-        "cli": " ".join(cli_parts),
+        "cli": shlex.join(cli_parts),
         "api": {
             "method": "POST",
             "path": "/api/v1/pipeline/dry-run",
