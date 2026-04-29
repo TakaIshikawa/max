@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -18,6 +19,8 @@ def _signal(
     signal_id: str,
     adapter: str,
     source_type: SignalSourceType,
+    *,
+    fetched_at: datetime | None = None,
 ) -> Signal:
     return Signal(
         id=signal_id,
@@ -27,6 +30,7 @@ def _signal(
         content="Developers report the same operational pain across sources.",
         url=f"https://example.com/{signal_id}",
         credibility=0.8,
+        **({"fetched_at": fetched_at} if fetched_at is not None else {}),
     )
 
 
@@ -110,3 +114,57 @@ def test_source_reliability_scores_by_source_type(store: Store) -> None:
     assert by_type["registry"].adapter_health_score == pytest.approx(2 / 3, abs=0.0001)
     assert by_type["registry"].reliability_score == pytest.approx(0.1667)
     assert by_type["forum"].reasons
+
+
+def test_source_reliability_fetched_since_handles_naive_signal_timestamps(store: Store) -> None:
+    store.insert_signal(
+        _signal(
+            "sig-new",
+            "hackernews",
+            SignalSourceType.FORUM,
+            fetched_at=datetime(2026, 1, 2, 12, 0, 0),
+        )
+    )
+    store.insert_signal(
+        _signal(
+            "sig-old",
+            "reddit",
+            SignalSourceType.FORUM,
+            fetched_at=datetime(2026, 1, 1, 12, 0, 0),
+        )
+    )
+
+    report = build_source_reliability_report(
+        store,
+        fetched_since=datetime(2026, 1, 2, 0, 0, 0, tzinfo=timezone.utc),
+    )
+
+    assert report.total_signals == 1
+    assert [row.source_adapters for row in report.source_types] == [["hackernews"]]
+
+
+def test_source_reliability_fetched_since_treats_naive_cutoff_as_utc(store: Store) -> None:
+    store.insert_signal(
+        _signal(
+            "sig-new",
+            "hackernews",
+            SignalSourceType.FORUM,
+            fetched_at=datetime(2026, 1, 2, 12, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+    store.insert_signal(
+        _signal(
+            "sig-old",
+            "reddit",
+            SignalSourceType.FORUM,
+            fetched_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+    )
+
+    report = build_source_reliability_report(
+        store,
+        fetched_since=datetime(2026, 1, 2, 0, 0, 0),
+    )
+
+    assert report.total_signals == 1
+    assert [row.source_adapters for row in report.source_types] == [["hackernews"]]
