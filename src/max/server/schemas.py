@@ -249,6 +249,19 @@ class GitHubGistPublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class DesignBriefGitHubGistPublishRequest(BaseModel):
+    token: str | None = None
+    token_env: str | None = Field(default=None, min_length=1)
+    api_url: str | None = None
+    public: bool = False
+    filename: str | None = Field(default=None, min_length=1)
+    description: str | None = Field(default=None, min_length=1)
+    title: str | None = Field(default=None, min_length=1)
+    include_source_ids: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    dry_run: bool = True
+
+
 class LinearIssuePublishRequest(BaseModel):
     api_key: str | None = None
     team_id: str | None = None
@@ -1549,6 +1562,18 @@ class GitHubGistPublishResponse(BaseModel):
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
+
+
+class DesignBriefGitHubGistPublishResponse(BaseModel):
+    design_brief_id: str
+    gist_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    filename: str
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
 
 
 class LinearIssuePublishResponse(BaseModel):

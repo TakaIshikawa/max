@@ -207,6 +207,8 @@ from max.server.schemas import (
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
+    DesignBriefGitHubGistPublishRequest,
+    DesignBriefGitHubGistPublishResponse,
     DesignBriefGitHubIssuePublishRequest,
     DesignBriefGitHubIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
@@ -5191,6 +5193,132 @@ def publish_design_brief_to_teams(
         publication_attempt=PublicationAttemptResponse(**publication_attempt)
         if publication_attempt
         else None,
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/github-gist",
+    response_model=DesignBriefGitHubGistPublishResponse,
+)
+def publish_design_brief_to_github_gist(
+    brief_id: str,
+    request: DesignBriefGitHubGistPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefGitHubGistPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    resolved_token = request.token
+    token_source = "request" if request.token else "none"
+    if not resolved_token and request.token_env:
+        resolved_token = os.getenv(request.token_env)
+        token_source = f"env:{request.token_env}" if resolved_token else "none"
+    elif not resolved_token and os.getenv("GITHUB_TOKEN"):
+        token_source = "env:GITHUB_TOKEN"
+
+    filename = request.filename or f"{_download_filename_part(brief_id)}.md"
+    try:
+        publisher = GitHubGistPublisher.from_env(
+            token=resolved_token,
+            api_url=request.api_url,
+            public=request.public,
+            filename=filename,
+            description=request.description,
+            timeout=request.timeout,
+        )
+    except GitHubGistPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        markdown = _append_design_brief_source_ids(markdown, brief)
+
+    request_summary = {
+        "api_url": publisher.api_url,
+        "public": publisher.public,
+        "filename": publisher.filename,
+        "description": publisher.description,
+        "title": title,
+        "include_source_ids": request.include_source_ids,
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "token": "[redacted]" if publisher.token else None,
+        "token_source": token_source,
+    }
+
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_gist",
+            target_url=publisher.gist_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_design_brief(
+            brief,
+            markdown=markdown,
+            dry_run=request.dry_run,
+        )
+    except GitHubGistPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_gist",
+            target_url=publisher.gist_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.gist_url or publisher.gist_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="github_gist",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "github",
+        "target_type": "github_gist",
+        "target_url": target_url,
+        "gist_endpoint": publisher.gist_endpoint,
+        "github_gist_id": result_metadata.get("github_gist_id"),
+    }
+
+    return DesignBriefGitHubGistPublishResponse(
+        design_brief_id=brief_id,
+        gist_url=result.gist_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        filename=publisher.filename,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
     )
 
 

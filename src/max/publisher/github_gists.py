@@ -144,10 +144,62 @@ class GitHubGistPublisher:
         evidence_links: list[str] | None = None,
     ) -> GitHubGistPublishResult:
         """Build the Gist payload and optionally create it in GitHub."""
-        payload = self.build_gist_payload(
+        gist_payload = self.build_gist_payload(
             tact_spec,
             evidence_links=evidence_links,
-        ).to_dict()
+        )
+        return self.publish_payload(gist_payload, dry_run=dry_run)
+
+    def build_design_brief_payload(
+        self,
+        design_brief: dict[str, Any],
+        *,
+        markdown: str,
+    ) -> GitHubGistPayload:
+        """Convert a persisted design brief Markdown export into a GitHub Gist payload."""
+        brief_id = design_brief.get("id")
+        title = design_brief.get("title") or brief_id or "Design Brief"
+        description = self.description or f"Max design brief: {str(title).strip()}"
+        metadata = {
+            "publisher": "max.github_gists",
+            "source_system": "max",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "domain": design_brief.get("domain"),
+            "theme": design_brief.get("theme"),
+            "lead_idea_id": design_brief.get("lead_idea_id"),
+            "source_idea_ids": list(design_brief.get("source_idea_ids") or []),
+            "public": self.public,
+            "filename": self.filename,
+        }
+        return GitHubGistPayload(
+            description=description,
+            public=self.public,
+            files={self.filename: {"content": markdown}},
+            metadata=metadata,
+        )
+
+    def publish_design_brief(
+        self,
+        design_brief: dict[str, Any],
+        *,
+        markdown: str,
+        dry_run: bool = True,
+    ) -> GitHubGistPublishResult:
+        """Build the design brief Gist payload and optionally create it in GitHub."""
+        return self.publish_payload(
+            self.build_design_brief_payload(design_brief, markdown=markdown),
+            dry_run=dry_run,
+        )
+
+    def publish_payload(
+        self,
+        gist_payload: GitHubGistPayload,
+        *,
+        dry_run: bool = True,
+    ) -> GitHubGistPublishResult:
+        """Optionally create an already-built Gist payload in GitHub."""
+        payload = gist_payload.to_dict()
         if dry_run:
             return GitHubGistPublishResult(
                 status_code=None,

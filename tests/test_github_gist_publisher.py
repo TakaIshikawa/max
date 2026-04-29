@@ -76,6 +76,33 @@ def test_build_gist_payload_maps_idea_summary_and_evidence_links() -> None:
     assert payload["metadata"]["public"] is True
 
 
+def test_build_design_brief_payload_maps_markdown_and_source_metadata() -> None:
+    publisher = GitHubGistPublisher(public=True, filename="dbf-test001.md")
+    brief = {
+        "id": "dbf-test001",
+        "title": "Design Brief Gist",
+        "domain": "devtools",
+        "theme": "handoff",
+        "lead_idea_id": "bu-lead",
+        "source_idea_ids": ["bu-lead", "bu-supporting"],
+    }
+
+    payload = publisher.build_design_brief_payload(
+        brief,
+        markdown="# Design Brief Gist\n\nSource ideas: `bu-lead`, `bu-supporting`\n",
+    ).to_dict()
+
+    assert payload["description"] == "Max design brief: Design Brief Gist"
+    assert payload["public"] is True
+    assert set(payload["files"]) == {"dbf-test001.md"}
+    content = payload["files"]["dbf-test001.md"]["content"]
+    assert "# Design Brief Gist" in content
+    assert "`bu-supporting`" in content
+    assert payload["metadata"]["source_type"] == "design_brief"
+    assert payload["metadata"]["design_brief_id"] == "dbf-test001"
+    assert payload["metadata"]["source_idea_ids"] == ["bu-lead", "bu-supporting"]
+
+
 def test_dry_run_returns_exact_payload_without_network_call() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise AssertionError("dry run should not make network calls")
@@ -85,6 +112,24 @@ def test_dry_run_returns_exact_payload_without_network_call() -> None:
 
     result = publisher.publish(_tact_spec(), dry_run=True)
     expected = publisher.build_gist_payload(_tact_spec()).to_dict()
+
+    assert result.dry_run is True
+    assert result.status_code is None
+    assert result.gist_url is None
+    assert result.payload == expected
+
+
+def test_design_brief_dry_run_returns_exact_payload_without_network_call() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("dry run should not make network calls")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    publisher = GitHubGistPublisher(token="secret", filename="dbf-test001.md", client=client)
+    brief = {"id": "dbf-test001", "title": "Design Brief Gist"}
+    markdown = "# Design Brief Gist\n"
+
+    result = publisher.publish_design_brief(brief, markdown=markdown, dry_run=True)
+    expected = publisher.build_design_brief_payload(brief, markdown=markdown).to_dict()
 
     assert result.dry_run is True
     assert result.status_code is None
