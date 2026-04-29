@@ -242,6 +242,10 @@ def _api_repo_ref(repo: str) -> str:
 
 
 def _extract_scorecard_results(data: object) -> list[dict[str, Any]]:
+    return _extract_scorecard_results_at_depth(data, depth=0)
+
+
+def _extract_scorecard_results_at_depth(data: object, *, depth: int) -> list[dict[str, Any]]:
     if isinstance(data, list):
         return [item for item in data if isinstance(item, dict)]
     if not isinstance(data, dict):
@@ -252,6 +256,12 @@ def _extract_scorecard_results(data: object) -> list[dict[str, Any]]:
         value = data.get(key)
         if isinstance(value, list):
             return [item for item in value if isinstance(item, dict)]
+    if depth >= 1:
+        return []
+    for key in ("data", "scorecards"):
+        value = data.get(key)
+        if isinstance(value, dict):
+            return _extract_scorecard_results_at_depth(value, depth=depth + 1)
     return []
 
 

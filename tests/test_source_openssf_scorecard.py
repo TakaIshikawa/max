@@ -11,6 +11,7 @@ import pytest
 
 from max.sources.openssf_scorecard import (
     OpenSSFScorecardAdapter,
+    _extract_scorecard_results,
     _scorecard_api_url,
 )
 from max.types.signal import SignalSourceType
@@ -99,6 +100,25 @@ async def test_local_fixture_parsing_normalizes_risky_checks(tmp_path) -> None:
     assert signal.metadata["details_url"] == signal.url
     assert signal.metadata["details"] == ["Warn: job has contents: write"]
     assert signal.metadata["signal_role"] == "problem"
+
+
+def test_extract_scorecard_results_supports_nested_wrappers() -> None:
+    other = {**MOCK_SCORECARD, "repo": {"name": "github.com/example/other"}}
+
+    assert _extract_scorecard_results(MOCK_SCORECARD) == [MOCK_SCORECARD]
+    assert _extract_scorecard_results({"data": {"results": [MOCK_SCORECARD, other]}}) == [
+        MOCK_SCORECARD,
+        other,
+    ]
+    assert _extract_scorecard_results({"items": [MOCK_SCORECARD, "invalid"]}) == [MOCK_SCORECARD]
+    assert _extract_scorecard_results({"scorecards": {"items": [other, None]}}) == [other]
+
+
+def test_extract_scorecard_results_ignores_malformed_wrappers() -> None:
+    assert _extract_scorecard_results({"data": "not-a-wrapper"}) == []
+    assert _extract_scorecard_results({"scorecards": {"items": "not-a-list"}}) == []
+    assert _extract_scorecard_results({"data": {"results": 1}}) == []
+    assert _extract_scorecard_results("not-json-object") == []
 
 
 @pytest.mark.asyncio
