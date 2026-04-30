@@ -51,6 +51,10 @@ from max.analysis.design_brief_assumption_ledger import (
     build_design_brief_assumption_ledger,
     render_design_brief_assumption_ledger,
 )
+from max.analysis.design_brief_buyer_faq import (
+    build_design_brief_buyer_faq,
+    render_design_brief_buyer_faq,
+)
 from max.analysis.design_brief_compliance_checklist import (
     build_design_brief_compliance_checklist,
     compliance_checklist_filename,
@@ -306,6 +310,7 @@ from max.server.schemas import (
     DesignBriefHubSpotDealPublishRequest,
     DesignBriefHubSpotDealPublishResponse,
     DesignBriefAssumptionLedgerResponse,
+    DesignBriefBuyerFaqResponse,
     DesignBriefJiraIssuePublishRequest,
     DesignBriefJiraIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
@@ -8766,6 +8771,37 @@ def get_design_brief_support_playbook_markdown(
     filename = f"{_download_filename_part(brief_id)}-support-playbook.md"
     return Response(
         content=render_design_brief_support_playbook(playbook, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/buyer-faq",
+    response_model=DesignBriefBuyerFaqResponse,
+)
+def get_design_brief_buyer_faq(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefBuyerFaqResponse:
+    faq = build_design_brief_buyer_faq(store, brief_id)
+    if not faq:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefBuyerFaqResponse(**faq)
+
+
+@router.get("/design-briefs/{brief_id}/buyer-faq.md", response_model=None)
+def get_design_brief_buyer_faq_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    faq = build_design_brief_buyer_faq(store, brief_id)
+    if not faq:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-buyer-faq.md"
+    return Response(
+        content=render_design_brief_buyer_faq(faq, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -3067,6 +3067,19 @@ class DesignBriefSupportPlaybookResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefBuyerFaqResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    missing_inputs: list[dict[str, Any]]
+    questions: list[dict[str, Any]]
+    concern_areas: list[dict[str, Any]]
+    supporting_artifacts: dict[str, Any]
+    evidence_refs: list[dict[str, Any]]
+
+
 class DesignBriefSalesBattlecardResponse(BaseModel):
     schema_version: str
     kind: str
