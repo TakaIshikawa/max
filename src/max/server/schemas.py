@@ -2582,6 +2582,21 @@ class DesignBriefProcurementChecklistResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefRaciMatrixResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    raci_context: dict[str, Any]
+    phases: list[dict[str, Any]]
+    activities: list[dict[str, Any]]
+    role_assignments: list[dict[str, Any]]
+    gaps: list[dict[str, Any]]
+    escalation_notes: list[str]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefRoadmapItemResponse(BaseModel):
     id: str
     phase: Literal["discovery", "prototype", "validation", "beta", "launch"]

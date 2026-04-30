@@ -103,6 +103,11 @@ from max.analysis.design_brief_pricing_strategy import (
     pricing_strategy_filename,
     render_design_brief_pricing_strategy,
 )
+from max.analysis.design_brief_raci_matrix import (
+    build_design_brief_raci_matrix,
+    raci_matrix_filename,
+    render_design_brief_raci_matrix,
+)
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
@@ -326,6 +331,7 @@ from max.server.schemas import (
     DesignBriefProcurementChecklistResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
+    DesignBriefRaciMatrixResponse,
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
@@ -8385,6 +8391,37 @@ def get_design_brief_procurement_checklist_markdown(
     filename = procurement_checklist_filename(checklist["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_procurement_checklist(checklist, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/raci-matrix",
+    response_model=DesignBriefRaciMatrixResponse,
+)
+def get_design_brief_raci_matrix(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefRaciMatrixResponse:
+    matrix = build_design_brief_raci_matrix(store, brief_id)
+    if not matrix:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefRaciMatrixResponse(**matrix)
+
+
+@router.get("/design-briefs/{brief_id}/raci-matrix.md", response_model=None)
+def get_design_brief_raci_matrix_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    matrix = build_design_brief_raci_matrix(store, brief_id)
+    if not matrix:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = raci_matrix_filename(matrix["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_raci_matrix(matrix, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
