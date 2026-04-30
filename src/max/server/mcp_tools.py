@@ -60,6 +60,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_assumption_ledger import (
+    build_design_brief_assumption_ledger,
+    render_design_brief_assumption_ledger,
+)
 from max.analysis.design_brief_instrumentation_plan import (
     build_design_brief_instrumentation_plan,
     render_design_brief_instrumentation_plan,
@@ -1343,6 +1347,44 @@ def get_design_brief_procurement_checklist(brief_id: str, format: str = "json") 
                 )
 
         rendered = render_design_brief_procurement_checklist(checklist, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_assumption_ledger(brief_id: str, format: str = "json") -> dict:
+    """Get the assumption ledger for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    validation handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported assumption ledger format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            ledger = build_design_brief_assumption_ledger(brief)
+
+        rendered = render_design_brief_assumption_ledger(ledger, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -3760,6 +3802,11 @@ def design_brief_procurement_checklist_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_procurement_checklist(brief_id), indent=2)
 
 
+def design_brief_assumption_ledger_detail(brief_id: str) -> str:
+    """Get the assumption ledger for a specific design brief."""
+    return json.dumps(get_design_brief_assumption_ledger(brief_id), indent=2)
+
+
 def design_brief_pilot_rollout_detail(brief_id: str) -> str:
     """Get the pilot rollout plan for a specific design brief."""
     return json.dumps(get_design_brief_pilot_rollout(brief_id), indent=2)
@@ -3958,6 +4005,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_launch_checklist)
     mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_procurement_checklist)
+    mcp.tool(get_design_brief_assumption_ledger)
     mcp.tool(get_design_brief_pilot_rollout)
     mcp.tool(get_design_brief_outreach_pack)
     mcp.tool(get_design_brief_success_metrics)
@@ -4035,6 +4083,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-procurement-checklist://{brief_id}")(
         design_brief_procurement_checklist_detail
+    )
+    mcp.resource("design-brief-assumption-ledger://{brief_id}")(
+        design_brief_assumption_ledger_detail
     )
     mcp.resource("design-brief-pilot-rollouts://{brief_id}")(design_brief_pilot_rollout_detail)
     mcp.resource("design-brief-outreach-packs://{brief_id}")(design_brief_outreach_pack_detail)
