@@ -845,6 +845,133 @@ class TestProfilesCommand:
         }
         mock_load_profile.assert_called_once_with("devtools")
 
+    @patch("max.analysis.profile_coverage.compute_profile_coverage_matrix")
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.load_profile")
+    def test_profiles_coverage_matrix_table(
+        self,
+        mock_load_profile: MagicMock,
+        MockStore: MagicMock,
+        mock_matrix: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.profile_coverage import (
+            ProfileCoverageMatrix,
+            ProfileCoverageMatrixRow,
+        )
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        mock_matrix.return_value = ProfileCoverageMatrix(
+            profile_name="devtools",
+            domain="developer-tools",
+            low_coverage_threshold=2,
+            enabled_adapters=["hackernews", "reddit"],
+            rows=[
+                ProfileCoverageMatrixRow(
+                    term="mcp",
+                    term_type="category+watchlist",
+                    total_count=3,
+                    adapter_counts={"hackernews": 2, "reddit": 1},
+                    status="covered",
+                    recommended_adapters=["reddit"],
+                ),
+                ProfileCoverageMatrixRow(
+                    term="agent testing",
+                    term_type="watchlist",
+                    total_count=0,
+                    adapter_counts={"hackernews": 0, "reddit": 0},
+                    status="undercovered",
+                    recommended_adapters=["hackernews", "reddit"],
+                ),
+            ],
+        )
+
+        result = runner.invoke(
+            main,
+            ["profiles", "coverage-matrix", "devtools", "--threshold", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Profile coverage matrix" in result.output
+        assert "mcp" in result.output
+        assert "covered" in result.output
+        assert "agent testing" in result.output
+        assert "undercovered" in result.output
+        mock_load_profile.assert_called_once_with("devtools")
+        mock_matrix.assert_called_once_with(
+            mock_load_profile.return_value,
+            store,
+            low_coverage_threshold=2,
+        )
+        store.close.assert_called_once()
+
+    @patch("max.analysis.profile_coverage.compute_profile_coverage_matrix")
+    @patch("max.store.db.Store")
+    @patch("max.profiles.loader.load_profile")
+    def test_profiles_coverage_matrix_json_and_csv(
+        self,
+        mock_load_profile: MagicMock,
+        MockStore: MagicMock,
+        mock_matrix: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from max.analysis.profile_coverage import (
+            ProfileCoverageMatrix,
+            ProfileCoverageMatrixRow,
+        )
+
+        store = _mock_store()
+        MockStore.return_value = store
+        mock_load_profile.return_value = _source_sim_profile("devtools")
+        mock_matrix.return_value = ProfileCoverageMatrix(
+            profile_name="devtools",
+            domain="developer-tools",
+            low_coverage_threshold=1,
+            enabled_adapters=["hackernews", "reddit"],
+            rows=[
+                ProfileCoverageMatrixRow(
+                    term="agent testing",
+                    term_type="watchlist",
+                    total_count=0,
+                    adapter_counts={"hackernews": 0, "reddit": 0},
+                    status="undercovered",
+                    recommended_adapters=["hackernews", "reddit"],
+                )
+            ],
+        )
+
+        json_result = runner.invoke(
+            main,
+            ["profiles", "coverage-matrix", "devtools", "--format", "json"],
+        )
+        csv_result = runner.invoke(
+            main,
+            ["profiles", "coverage-matrix", "devtools", "--format", "csv"],
+        )
+
+        assert json_result.exit_code == 0, json_result.output
+        payload = json.loads(json_result.output)
+        assert payload["rows"][0]["status"] == "undercovered"
+
+        assert csv_result.exit_code == 0, csv_result.output
+        lines = csv_result.output.splitlines()
+        assert lines[0] == (
+            "profile,domain,term,term_type,total_count,status,"
+            "recommended_adapters,count_hackernews,count_reddit"
+        )
+        assert "devtools,developer-tools,agent testing,watchlist,0,undercovered" in lines[1]
+
+    def test_profiles_coverage_matrix_rejects_invalid_threshold(self, runner: CliRunner) -> None:
+        result = runner.invoke(
+            main,
+            ["profiles", "coverage-matrix", "devtools", "--threshold", "0"],
+        )
+
+        assert result.exit_code != 0
+        assert "--threshold must be at least 1" in result.output
+
 
 class TestSourcesCommand:
     @patch("max.sources.registry.list_adapter_metadata")

@@ -42,6 +42,29 @@ class ProfileCoverageReport:
     terms: list[ProfileCoverageTerm] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ProfileCoverageMatrixRow:
+    """Stored signal coverage for one configured profile term across adapters."""
+
+    term: str
+    term_type: str
+    total_count: int
+    adapter_counts: dict[str, int]
+    status: str
+    recommended_adapters: list[str]
+
+
+@dataclass(frozen=True)
+class ProfileCoverageMatrix:
+    """Full signal coverage matrix for configured profile terms."""
+
+    profile_name: str
+    domain: str
+    low_coverage_threshold: int
+    enabled_adapters: list[str]
+    rows: list[ProfileCoverageMatrixRow] = field(default_factory=list)
+
+
 def compute_profile_coverage_gaps(
     profile: PipelineProfile,
     store: Store,
@@ -55,32 +78,10 @@ def compute_profile_coverage_gaps(
     each term and match against signal tags, title, or content.
     """
 
-    enabled_sources = [source for source in profile.sources if source.enabled]
-    enabled_adapters = _dedupe([source.adapter for source in enabled_sources])
-    term_adapters: dict[str, list[str]] = {}
-    term_labels: dict[str, str] = {}
-    term_types: dict[str, set[str]] = {}
-
-    for source in enabled_sources:
-        for term in _source_watchlist_terms(source):
-            key = _term_key(term)
-            term_labels.setdefault(key, term)
-            term_types.setdefault(key, set()).add("watchlist")
-            term_adapters.setdefault(key, [])
-            if source.adapter not in term_adapters[key]:
-                term_adapters[key].append(source.adapter)
-
-    for category in profile.domain.categories:
-        term = category.strip()
-        if not term:
-            continue
-        key = _term_key(term)
-        term_labels.setdefault(key, term)
-        term_types.setdefault(key, set()).add("category")
-        term_adapters.setdefault(key, [])
-        for adapter in enabled_adapters:
-            if adapter not in term_adapters[key]:
-                term_adapters[key].append(adapter)
+    term_labels, term_types, term_adapters, enabled_adapters = _profile_coverage_term_specs(
+        profile,
+        include_all_adapters=False,
+    )
 
     gaps: list[ProfileCoverageTerm] = []
     for key in sorted(term_labels, key=lambda item: term_labels[item].lower()):
@@ -117,6 +118,59 @@ def compute_profile_coverage_gaps(
     )
 
 
+def compute_profile_coverage_matrix(
+    profile: PipelineProfile,
+    store: Store,
+    *,
+    low_coverage_threshold: int = 1,
+) -> ProfileCoverageMatrix:
+    """Return coverage counts for every configured term across enabled adapters."""
+
+    term_labels, term_types, term_adapters, enabled_adapters = _profile_coverage_term_specs(
+        profile,
+        include_all_adapters=True,
+    )
+
+    rows: list[ProfileCoverageMatrixRow] = []
+    for key in sorted(
+        term_labels,
+        key=lambda item: (
+            "+".join(sorted(term_types.get(item, {"watchlist"}))).lower(),
+            term_labels[item].lower(),
+        ),
+    ):
+        term = term_labels[key]
+        adapters = term_adapters[key]
+        adapter_counts = {
+            adapter: count_active_signals_for_term(store, adapter=adapter, term=term)
+            for adapter in adapters
+        }
+        total_count = sum(adapter_counts.values())
+        status = "covered" if total_count >= low_coverage_threshold else "undercovered"
+        rows.append(
+            ProfileCoverageMatrixRow(
+                term=term,
+                term_type="+".join(sorted(term_types.get(key, {"watchlist"}))),
+                total_count=total_count,
+                adapter_counts=adapter_counts,
+                status=status,
+                recommended_adapters=[
+                    adapter
+                    for adapter in adapters
+                    if adapter_counts.get(adapter, 0) < low_coverage_threshold
+                ],
+            )
+        )
+
+    return ProfileCoverageMatrix(
+        profile_name=profile.name,
+        domain=profile.domain.name,
+        low_coverage_threshold=low_coverage_threshold,
+        enabled_adapters=enabled_adapters,
+        rows=rows,
+    )
+
+
 def count_active_signals_for_term(store: Store, *, adapter: str, term: str) -> int:
     """Count active signals for an adapter whose tags, title, or content mention a term."""
 
@@ -134,6 +188,43 @@ def count_active_signals_for_term(store: Store, *, adapter: str, term: str) -> i
         (adapter, pattern, pattern, pattern),
     ).fetchone()
     return int(row["count"] if row else 0)
+
+
+def _profile_coverage_term_specs(
+    profile: PipelineProfile,
+    *,
+    include_all_adapters: bool,
+) -> tuple[dict[str, str], dict[str, set[str]], dict[str, list[str]], list[str]]:
+    enabled_sources = [source for source in profile.sources if source.enabled]
+    enabled_adapters = _dedupe([source.adapter for source in enabled_sources])
+    term_adapters: dict[str, list[str]] = {}
+    term_labels: dict[str, str] = {}
+    term_types: dict[str, set[str]] = {}
+
+    for source in enabled_sources:
+        for term in _source_watchlist_terms(source):
+            key = _term_key(term)
+            term_labels.setdefault(key, term)
+            term_types.setdefault(key, set()).add("watchlist")
+            term_adapters.setdefault(key, [])
+            adapters = enabled_adapters if include_all_adapters else [source.adapter]
+            for adapter in adapters:
+                if adapter not in term_adapters[key]:
+                    term_adapters[key].append(adapter)
+
+    for category in profile.domain.categories:
+        term = category.strip()
+        if not term:
+            continue
+        key = _term_key(term)
+        term_labels.setdefault(key, term)
+        term_types.setdefault(key, set()).add("category")
+        term_adapters.setdefault(key, [])
+        for adapter in enabled_adapters:
+            if adapter not in term_adapters[key]:
+                term_adapters[key].append(adapter)
+
+    return term_labels, term_types, term_adapters, enabled_adapters
 
 
 def _source_watchlist_terms(source) -> list[str]:

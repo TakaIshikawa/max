@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -703,6 +704,49 @@ def _render_architecture_enforcement(report) -> None:
         click.echo("Recommended profile constraint additions:")
         for recommendation in report.recommended_constraint_additions:
             click.echo(f"  - {recommendation}")
+
+
+@profiles.command(name="coverage-matrix")
+@click.argument("profile")
+@click.option(
+    "--threshold",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Minimum total active signals required for a term to be covered",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "json", "csv"]),
+    default="table",
+    show_default=True,
+)
+def profiles_coverage_matrix(profile: str, threshold: int, fmt: str) -> None:
+    """Show full signal coverage for a profile's configured terms."""
+    from max.analysis.profile_coverage import compute_profile_coverage_matrix
+    from max.profiles.loader import load_profile
+    from max.store.db import Store
+
+    if threshold < 1:
+        raise click.ClickException("--threshold must be at least 1")
+
+    try:
+        pipeline_profile = load_profile(profile)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
+
+    store = Store()
+    try:
+        matrix = compute_profile_coverage_matrix(
+            pipeline_profile,
+            store,
+            low_coverage_threshold=threshold,
+        )
+    finally:
+        store.close()
+
+    click.echo(_render_profile_coverage_matrix(matrix, fmt=fmt), nl=False)
 
 
 @main.group(name="sources")
@@ -4937,6 +4981,78 @@ def _render_profile_coverage_gaps(report) -> None:
             f"{adapter_counts[:32]:<32s} "
             f"{suggested}"
         )
+
+
+def _render_profile_coverage_matrix(matrix, *, fmt: str) -> str:
+    if fmt == "json":
+        return json.dumps(asdict(matrix), indent=2) + "\n"
+
+    if fmt == "csv":
+        adapter_headers = [f"count_{adapter}" for adapter in matrix.enabled_adapters]
+        headers = [
+            "profile",
+            "domain",
+            "term",
+            "term_type",
+            "total_count",
+            "status",
+            "recommended_adapters",
+            *adapter_headers,
+        ]
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=headers, lineterminator="\n")
+        writer.writeheader()
+        for row in matrix.rows:
+            record = {
+                "profile": matrix.profile_name,
+                "domain": matrix.domain,
+                "term": row.term,
+                "term_type": row.term_type,
+                "total_count": row.total_count,
+                "status": row.status,
+                "recommended_adapters": ",".join(row.recommended_adapters),
+            }
+            for adapter in matrix.enabled_adapters:
+                record[f"count_{adapter}"] = row.adapter_counts.get(adapter, 0)
+            writer.writerow(record)
+        return buffer.getvalue()
+
+    if fmt != "table":
+        raise click.ClickException(f"Unsupported format: {fmt}")
+
+    lines = [
+        "Profile coverage matrix",
+        f"Profile: {matrix.profile_name}  Domain: {matrix.domain}",
+        f"Threshold: {matrix.low_coverage_threshold}",
+        "Enabled adapters: "
+        + (", ".join(matrix.enabled_adapters) if matrix.enabled_adapters else "(none)"),
+        "",
+    ]
+    if not matrix.rows:
+        lines.append("No profile coverage terms found.")
+        return "\n".join(lines) + "\n"
+
+    adapter_label = "Adapter counts"
+    lines.append(
+        f"{'Term':<24s} {'Type':<16s} {'Count':>5s} {'Status':<12s} "
+        f"{adapter_label:<32s} Recommended"
+    )
+    lines.append("-" * 112)
+    for row in matrix.rows:
+        adapter_counts = ", ".join(
+            f"{adapter}={row.adapter_counts.get(adapter, 0)}"
+            for adapter in matrix.enabled_adapters
+        )
+        recommended = ", ".join(row.recommended_adapters) if row.recommended_adapters else "-"
+        lines.append(
+            f"{row.term[:24]:<24s} "
+            f"{row.term_type[:16]:<16s} "
+            f"{row.total_count:>5d} "
+            f"{row.status:<12s} "
+            f"{adapter_counts[:32]:<32s} "
+            f"{recommended}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _render_evaluation_calibration(report) -> None:
