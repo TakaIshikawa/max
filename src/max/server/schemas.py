@@ -349,6 +349,21 @@ class DesignBriefJiraIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefBitbucketIssuePublishRequest(BaseModel):
+    workspace: str | None = Field(default=None, min_length=1)
+    repository: str | None = Field(default=None, min_length=1)
+    username: str | None = None
+    app_password: str | None = None
+    api_url: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    issue_kind: str | None = Field(default=None, min_length=1)
+    priority: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    include_source_ids: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class DesignBriefMicrosoftPlannerTaskPublishRequest(BaseModel):
     access_token: str | None = None
     api_url: str | None = Field(default=None, min_length=1)
@@ -2029,6 +2044,25 @@ class DesignBriefJiraIssuePublishResponse(BaseModel):
     labels: list[str]
     assignee_account_id: str | None = None
     priority: str | None = None
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefBitbucketIssuePublishResponse(BaseModel):
+    design_brief_id: str
+    workspace: str
+    repository: str
+    issue_id: int | None = None
+    issue_url: str | None = None
+    status_code: int | None = None
+    attempts: int
+    dry_run: bool
+    title: str
+    content_preview: str
+    kind: str
+    priority: str
     payload: dict[str, Any]
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]

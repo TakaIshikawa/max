@@ -195,6 +195,7 @@ class BitbucketIssuePublisher:
             "source_system": source.get("system", "max"),
             "source_type": source.get("type", "idea"),
             "idea_id": source.get("idea_id"),
+            "design_brief_id": source.get("design_brief_id"),
             "schema_version": tact_spec.get("schema_version"),
             "kind": tact_spec.get("kind"),
             "workspace": self.workspace,
@@ -422,9 +423,13 @@ def _issue_content(tact_spec: dict[str, Any]) -> str:
         "",
         "## Idea",
         f"- Idea ID: {_text_or_placeholder(source.get('idea_id'))}",
+        f"- Design brief ID: {_text_or_placeholder(source.get('design_brief_id'))}",
         f"- Status: {_text_or_placeholder(source.get('status'))}",
         f"- Domain: {_text_or_placeholder(source.get('domain'))}",
         f"- Category: {_text_or_placeholder(source.get('category'))}",
+        f"- Buyer: {_text_or_placeholder(project.get('buyer'))}",
+        f"- Specific user: {_text_or_placeholder(project.get('specific_user'))}",
+        f"- Workflow context: {_text_or_placeholder(project.get('workflow_context'))}",
         "",
         "## Problem",
         _text_or_placeholder(problem.get("statement")),
@@ -448,6 +453,8 @@ def _issue_content(tact_spec: dict[str, Any]) -> str:
         "## MVP Scope",
     ]
     lines.extend(_bullet_list(execution.get("mvp_scope")))
+    lines.extend(["", "## Risks"])
+    lines.extend(_bullet_list(execution.get("risks")))
     lines.extend(
         [
             "",

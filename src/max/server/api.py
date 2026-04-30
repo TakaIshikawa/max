@@ -215,6 +215,7 @@ from max.publisher.azure_devops_work_items import (
     AzureDevOpsWorkItemPublisher,
     AzureDevOpsWorkItemPublishError,
 )
+from max.publisher.bitbucket_issues import BitbucketIssuePublisher, BitbucketIssuePublishError
 from max.publisher.clickup_tasks import ClickUpTaskPublisher, ClickUpTaskPublishError
 from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
@@ -273,6 +274,8 @@ from max.server.schemas import (
     DesignBriefBundleResponse,
     DesignBriefAzureDevOpsWorkItemPublishRequest,
     DesignBriefAzureDevOpsWorkItemPublishResponse,
+    DesignBriefBitbucketIssuePublishRequest,
+    DesignBriefBitbucketIssuePublishResponse,
     DesignBriefClickUpTaskPublishRequest,
     DesignBriefClickUpTaskPublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
@@ -1283,6 +1286,66 @@ def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
         "readiness": {
             "score": readiness_score,
             "status": brief.get("design_status"),
+        },
+    }
+
+
+def _design_brief_bitbucket_spec(brief: dict[str, Any], *, title: str) -> dict[str, Any]:
+    source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    summary = str(
+        brief.get("merged_product_concept") or brief.get("why_this_now") or ""
+    ).strip()
+    return {
+        "schema_version": "max.design_brief.bitbucket_issue.v1",
+        "kind": "max.design_brief",
+        "source": {
+            "system": "max",
+            "type": "design_brief",
+            "design_brief_id": brief["id"],
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "status": brief.get("design_status"),
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "readiness_score": readiness_score,
+            "created_at": brief.get("created_at"),
+            "updated_at": brief.get("updated_at"),
+        },
+        "project": {
+            "title": title,
+            "summary": summary,
+            "why_this_now": brief.get("why_this_now") or "",
+            "buyer": brief.get("buyer") or "",
+            "specific_user": brief.get("specific_user") or "",
+            "workflow_context": brief.get("workflow_context") or "",
+        },
+        "problem": {
+            "statement": brief.get("synthesis_rationale")
+            or brief.get("why_this_now")
+            or "",
+        },
+        "solution": {"approach": brief.get("merged_product_concept") or ""},
+        "execution": {
+            "mvp_scope": list(brief.get("mvp_scope") or []),
+            "first_milestones": list(brief.get("first_milestones") or []),
+            "validation_plan": brief.get("validation_plan") or "",
+            "risks": list(brief.get("risks") or []),
+        },
+        "evidence": {
+            "rationale": brief.get("synthesis_rationale") or "",
+            "insight_ids": [],
+            "signal_ids": [],
+            "source_idea_ids": source_idea_ids,
+            "lead_idea_id": brief.get("lead_idea_id"),
+        },
+        "quality": {
+            "quality_score": readiness_score / 10.0,
+            "readiness_score": readiness_score,
+            "rejection_tags": [],
+        },
+        "evaluation": {
+            "overall_score": readiness_score,
+            "recommendation": "publish" if readiness_score >= 80 else "review",
         },
     }
 
@@ -6847,6 +6910,156 @@ def publish_design_brief_to_jira_issue(
         labels=list(result.payload.get("labels") or []),
         assignee_account_id=result.payload.get("assignee_account_id"),
         priority=result.payload.get("priority"),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/bitbucket",
+    response_model=DesignBriefBitbucketIssuePublishResponse,
+)
+def publish_design_brief_to_bitbucket_issue(
+    brief_id: str,
+    request: DesignBriefBitbucketIssuePublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefBitbucketIssuePublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = BitbucketIssuePublisher.from_env(
+            workspace=request.workspace,
+            repository=request.repository,
+            username=request.username,
+            app_password=request.app_password,
+            api_url=request.api_url,
+            issue_kind=request.issue_kind,
+            priority=request.priority,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except BitbucketIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    spec = _design_brief_bitbucket_spec(brief, title=title)
+    if not request.include_source_ids:
+        spec["evidence"]["source_idea_ids"] = []
+        spec["evidence"]["lead_idea_id"] = None
+    request_summary = {
+        "api_url": redact_url(publisher.api_url),
+        "issue_endpoint": redact_url(publisher.issue_endpoint),
+        "workspace": publisher.workspace,
+        "repository": publisher.repository,
+        "issue_kind": request.issue_kind,
+        "priority": request.priority,
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "username": publisher.username,
+        "username_source": "request"
+        if request.username
+        else ("env:BITBUCKET_USERNAME" if os.getenv("BITBUCKET_USERNAME") else "none"),
+        "app_password": "[redacted]" if publisher.app_password else None,
+        "app_password_source": "request"
+        if request.app_password
+        else (
+            "env:BITBUCKET_APP_PASSWORD"
+            if os.getenv("BITBUCKET_APP_PASSWORD")
+            else "none"
+        ),
+    }
+
+    if not request.dry_run and not publisher._has_auth:
+        message = (
+            "BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD are required for live "
+            "Bitbucket issue publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="bitbucket_issue",
+            target_url=redact_url(publisher.issue_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish(
+            spec,
+            title=title,
+            issue_kind=request.issue_kind,
+            priority=request.priority,
+            dry_run=request.dry_run,
+        )
+    except BitbucketIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="bitbucket_issue",
+            target_url=redact_url(publisher.issue_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.issue_url or redact_url(publisher.issue_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="bitbucket_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "bitbucket",
+        "target_type": "bitbucket_issue",
+        "target_url": target_url,
+        "issue_endpoint": redact_url(publisher.issue_endpoint),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+        "bitbucket_issue_id": result.issue_id
+        or result_metadata.get("bitbucket_issue_id"),
+        "bitbucket_issue_url": result.issue_url
+        or result_metadata.get("bitbucket_issue_url"),
+        "bitbucket_attempts": result.attempts
+        or result_metadata.get("bitbucket_attempts"),
+    }
+
+    return DesignBriefBitbucketIssuePublishResponse(
+        design_brief_id=brief_id,
+        workspace=result.workspace,
+        repository=result.repository,
+        issue_id=result.issue_id,
+        issue_url=result.issue_url,
+        status_code=result.status_code,
+        attempts=result.attempts,
+        dry_run=result.dry_run,
+        title=str(result.payload["title"]),
+        content_preview=_markdown_preview(str(result.payload["content"])),
+        kind=str(result.payload["kind"]),
+        priority=str(result.payload["priority"]),
         payload=result.payload,
         provider_metadata=provider_metadata,
         request_summary=request_summary,
