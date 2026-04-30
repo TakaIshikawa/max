@@ -292,8 +292,27 @@ def _storage_body(payload: dict[str, Any], title: str) -> str:
     ]
     sections.extend(
         _section(
-            "Problem",
-            lead_source.get("problem"),
+            "Buyer and Workflow",
+            None,
+            bullets=[
+                f"Buyer: {_text_or_placeholder(brief.get('buyer'))}",
+                f"Specific user: {_text_or_placeholder(brief.get('specific_user'))}",
+                f"Workflow context: {_text_or_placeholder(brief.get('workflow_context'))}",
+            ],
+        )
+    )
+    sections.extend(
+        _section(
+            "Concept",
+            brief.get("merged_product_concept"),
+        )
+    )
+    sections.extend(
+        _section(
+            "Problem and Context",
+            lead_source.get("problem")
+            or brief.get("why_this_now")
+            or brief.get("synthesis_rationale"),
         )
     )
     sections.extend(
@@ -302,15 +321,22 @@ def _storage_body(payload: dict[str, Any], title: str) -> str:
             lead_source.get("solution") or brief.get("merged_product_concept"),
         )
     )
+    sections.extend(_section("MVP Scope", None, bullets=_text_items(brief.get("mvp_scope"))))
+    sections.extend(_section("Milestones", None, bullets=_text_items(brief.get("first_milestones"))))
     sections.extend(
         _section(
-            "Evidence",
-            lead_source.get("evidence_rationale") or brief.get("synthesis_rationale"),
-            bullets=_text_items(brief.get("source_idea_ids"), prefix="Source idea: "),
+            "Validation Plan",
+            brief.get("validation_plan"),
         )
     )
-    sections.extend(_section("Roadmap", None, bullets=_text_items(brief.get("first_milestones"))))
     sections.extend(_section("Risks", None, bullets=_text_items(brief.get("risks"))))
+    sections.extend(
+        _section(
+            "Source Idea Traceability",
+            lead_source.get("evidence_rationale") or brief.get("synthesis_rationale"),
+            bullets=_source_traceability_items(brief),
+        )
+    )
     sections.extend(
         _section(
             "Metadata",
@@ -322,6 +348,15 @@ def _storage_body(payload: dict[str, Any], title: str) -> str:
         )
     )
     return "\n".join(section for section in sections if section)
+
+
+def _source_traceability_items(brief: dict[str, Any]) -> list[str]:
+    items: list[str] = []
+    lead_id = _optional_text(brief.get("lead_idea_id"))
+    if lead_id:
+        items.append(f"Lead idea: {lead_id}")
+    items.extend(_text_items(brief.get("source_idea_ids"), prefix="Source idea: "))
+    return items
 
 
 def _section(title: str, body: object, *, bullets: list[str] | None = None) -> list[str]:

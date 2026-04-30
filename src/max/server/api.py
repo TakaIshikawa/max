@@ -217,6 +217,7 @@ from max.publisher.azure_devops_work_items import (
 )
 from max.publisher.bitbucket_issues import BitbucketIssuePublisher, BitbucketIssuePublishError
 from max.publisher.clickup_tasks import ClickUpTaskPublisher, ClickUpTaskPublishError
+from max.publisher.confluence_pages import ConfluencePagePublisher, ConfluencePagePublishError
 from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
 from max.publisher.github_milestones import (
@@ -278,6 +279,8 @@ from max.server.schemas import (
     DesignBriefBitbucketIssuePublishResponse,
     DesignBriefClickUpTaskPublishRequest,
     DesignBriefClickUpTaskPublishResponse,
+    DesignBriefConfluencePagePublishRequest,
+    DesignBriefConfluencePagePublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
     DesignBriefDiscordPublishResponse,
@@ -1647,6 +1650,63 @@ def _redact_microsoft_planner_message(
 ) -> str:
     token = publisher.access_token
     return message.replace(token, "[redacted]") if token else message
+
+
+def _confluence_credential_source(
+    request: DesignBriefConfluencePagePublishRequest,
+    publisher: ConfluencePagePublisher,
+) -> dict[str, str | None]:
+    return {
+        "site_url": "request" if request.site_url else "env:CONFLUENCE_SITE_URL",
+        "space_key": "request" if request.space_key else "env:CONFLUENCE_SPACE_KEY",
+        "parent_page_id": (
+            "request"
+            if request.parent_page_id
+            else ("env:CONFLUENCE_PARENT_PAGE_ID" if publisher.parent_page_id else None)
+        ),
+        "email": (
+            "request" if request.email else ("env:CONFLUENCE_EMAIL" if publisher.email else None)
+        ),
+        "api_token": (
+            "request"
+            if request.api_token
+            else ("env:CONFLUENCE_API_TOKEN" if publisher.api_token else None)
+        ),
+        "bearer_token": (
+            "request"
+            if request.bearer_token
+            else ("env:CONFLUENCE_BEARER_TOKEN" if publisher.bearer_token else None)
+        ),
+    }
+
+
+def _redact_confluence_message(message: str, publisher: ConfluencePagePublisher) -> str:
+    redacted = message
+    for secret in (publisher.api_token, publisher.bearer_token):
+        if secret:
+            redacted = redacted.replace(secret, "[redacted]")
+    return redacted
+
+
+def _design_brief_confluence_packet(
+    brief: dict[str, Any],
+    *,
+    title: str,
+    include_source_ids: bool,
+) -> dict[str, Any]:
+    packet_brief = {
+        **brief,
+        "title": title,
+        "source_idea_ids": list(brief.get("source_idea_ids") or [])
+        if include_source_ids
+        else [],
+        "lead_idea_id": brief.get("lead_idea_id") if include_source_ids else None,
+    }
+    return {
+        "schema_version": "max.design_brief.confluence_page.v1",
+        "design_brief": packet_brief,
+        "source_ideas": [],
+    }
 
 
 def _redact_azure_devops_token(message: str, token: str | None) -> str:
@@ -7060,6 +7120,143 @@ def publish_design_brief_to_bitbucket_issue(
         content_preview=_markdown_preview(str(result.payload["content"])),
         kind=str(result.payload["kind"]),
         priority=str(result.payload["priority"]),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/confluence",
+    response_model=DesignBriefConfluencePagePublishResponse,
+)
+def publish_design_brief_to_confluence_page(
+    brief_id: str,
+    request: DesignBriefConfluencePagePublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefConfluencePagePublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = ConfluencePagePublisher.from_env(
+            site_url=request.site_url,
+            space_key=request.space_key,
+            parent_page_id=request.parent_page_id,
+            email=request.email,
+            api_token=request.api_token,
+            bearer_token=request.bearer_token,
+            timeout=request.timeout,
+        )
+    except ConfluencePagePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    packet = _design_brief_confluence_packet(
+        brief,
+        title=title,
+        include_source_ids=request.include_source_ids,
+    )
+    page_payload = publisher.build_page_payload(packet, title=title).to_dict()
+    request_summary = {
+        "site_url": redact_url(publisher.site_url),
+        "page_endpoint": redact_url(publisher.page_endpoint),
+        "space_key": publisher.space_key,
+        "parent_page_id": publisher.parent_page_id,
+        "title": title,
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "timeout": request.timeout,
+        "email": publisher.email,
+        "api_token": "[redacted]" if publisher.api_token else None,
+        "bearer_token": "[redacted]" if publisher.bearer_token else None,
+        "credential_source": _confluence_credential_source(request, publisher),
+    }
+    provider_metadata = {
+        "provider": "confluence",
+        "target_type": "confluence_page",
+        "target_url": redact_url(publisher.page_endpoint),
+        "page_endpoint": redact_url(publisher.page_endpoint),
+        "design_brief_id": brief_id,
+        "space_key": publisher.space_key,
+        "parent_page_id": publisher.parent_page_id,
+        "source_idea_ids": list(packet["design_brief"].get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+    }
+
+    if not request.dry_run and not publisher._has_auth:
+        message = (
+            "Confluence email/api_token or bearer_token is required for live page publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="confluence_page",
+            target_url=redact_url(publisher.page_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = asyncio.run(publisher.publish_page_payload(page_payload, dry_run=request.dry_run))
+    except ConfluencePagePublishError as exc:
+        message = _redact_confluence_message(str(exc), publisher)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="confluence_page",
+            target_url=redact_url(publisher.page_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.page_url or redact_url(publisher.page_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="confluence_page",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata.update(
+        {
+            "target_url": target_url,
+            "confluence_page_id": result.page_id
+            or result_metadata.get("confluence_page_id"),
+            "confluence_page_url": result.page_url
+            or result_metadata.get("confluence_page_url"),
+        }
+    )
+    body = str(result.payload["body"]["storage"]["value"])
+
+    return DesignBriefConfluencePagePublishResponse(
+        design_brief_id=brief_id,
+        space_key=result.space_key,
+        page_id=result.page_id,
+        page_url=result.page_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        title=str(result.payload["title"]),
+        body_preview=_markdown_preview(body),
         payload=result.payload,
         provider_metadata=provider_metadata,
         request_summary=request_summary,
