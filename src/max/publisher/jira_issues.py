@@ -55,10 +55,12 @@ class JiraIssuePayload:
     issue_type: str
     labels: list[str]
     metadata: dict[str, Any]
+    assignee_account_id: str | None = None
+    priority: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable issue payload preview."""
-        return {
+        payload: dict[str, Any] = {
             "summary": self.summary,
             "description": self.description,
             "project_key": self.project_key,
@@ -66,6 +68,11 @@ class JiraIssuePayload:
             "labels": self.labels,
             "metadata": self.metadata,
         }
+        if self.assignee_account_id:
+            payload["assignee_account_id"] = self.assignee_account_id
+        if self.priority:
+            payload["priority"] = self.priority
+        return payload
 
 
 @dataclass(frozen=True)
@@ -93,6 +100,8 @@ class JiraIssuePublisher:
         bearer_token: str | None = None,
         issue_type: str = "Task",
         labels: list[str] | None = None,
+        assignee_account_id: str | None = None,
+        priority: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = 0.0,
@@ -105,6 +114,8 @@ class JiraIssuePublisher:
         self.bearer_token = _optional_text(bearer_token)
         self.issue_type = _optional_text(issue_type) or "Task"
         self.labels = labels or []
+        self.assignee_account_id = _optional_text(assignee_account_id)
+        self.priority = _optional_text(priority)
         self.timeout = timeout
         self.max_retries = max(0, max_retries)
         self.retry_backoff = max(0.0, retry_backoff)
@@ -121,6 +132,8 @@ class JiraIssuePublisher:
         bearer_token: str | None = None,
         issue_type: str | None = None,
         labels: list[str] | None = None,
+        assignee_account_id: str | None = None,
+        priority: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         client: httpx.Client | None = None,
@@ -144,6 +157,8 @@ class JiraIssuePublisher:
             bearer_token=bearer_token or os.getenv("JIRA_BEARER_TOKEN"),
             issue_type=issue_type or os.getenv("JIRA_ISSUE_TYPE", "Task"),
             labels=labels,
+            assignee_account_id=assignee_account_id or os.getenv("JIRA_ASSIGNEE_ACCOUNT_ID"),
+            priority=priority or os.getenv("JIRA_PRIORITY"),
             timeout=timeout,
             max_retries=max_retries,
             client=client,
@@ -175,6 +190,8 @@ class JiraIssuePublisher:
             "kind": tact_spec.get("kind"),
             "project_key": self.project_key,
             "issue_type": self.issue_type,
+            "assignee_account_id": self.assignee_account_id,
+            "priority": self.priority,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -188,6 +205,8 @@ class JiraIssuePublisher:
                 self.labels,
             ),
             metadata=metadata,
+            assignee_account_id=self.assignee_account_id,
+            priority=self.priority,
         )
 
     def publish(
@@ -249,6 +268,81 @@ class JiraIssuePublisher:
                 **payload,
                 "metadata": {
                     **payload["metadata"],
+                    "jira_issue_id": body.get("id"),
+                    "jira_issue_key": str(issue_key),
+                    "jira_issue_url": issue_url,
+                },
+            },
+        )
+
+    def publish_issue_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        dry_run: bool = True,
+    ) -> JiraIssuePublishResult:
+        """Publish a caller-rendered Jira issue payload."""
+        issue_payload = {
+            **payload,
+            "project_key": payload.get("project_key") or self.project_key,
+            "issue_type": payload.get("issue_type") or self.issue_type,
+            "labels": _merge_labels(list(payload.get("labels") or []), self.labels),
+        }
+        if self.assignee_account_id and not issue_payload.get("assignee_account_id"):
+            issue_payload["assignee_account_id"] = self.assignee_account_id
+        if self.priority and not issue_payload.get("priority"):
+            issue_payload["priority"] = self.priority
+
+        if dry_run:
+            return JiraIssuePublishResult(
+                status_code=None,
+                project_key=self.project_key,
+                issue_key=None,
+                issue_url=None,
+                dry_run=True,
+                payload=issue_payload,
+            )
+
+        if not self._has_auth:
+            raise JiraIssuePublishError(
+                "Jira email/api_token or bearer_token is required for live Jira issue publishing; "
+                "use dry_run to preview"
+            )
+
+        close_client = self._client is None
+        client = self._client or httpx.Client(timeout=self.timeout)
+        try:
+            response = self._post_with_retries(client, issue_payload)
+        finally:
+            if close_client:
+                client.close()
+
+        if not 200 <= response.status_code < 300:
+            raise JiraIssuePublishError(
+                f"Jira issue publish failed with HTTP {response.status_code}: "
+                f"{_response_body_preview(response)}",
+                status_code=response.status_code,
+            )
+
+        body = _json_response(response)
+        issue_key = body.get("key")
+        if not issue_key:
+            raise JiraIssuePublishError(
+                "Jira issue publish failed: response did not include created issue key",
+                status_code=response.status_code,
+            )
+
+        issue_url = self.issue_url(str(issue_key))
+        return JiraIssuePublishResult(
+            status_code=response.status_code,
+            project_key=self.project_key,
+            issue_key=str(issue_key),
+            issue_url=issue_url,
+            dry_run=False,
+            payload={
+                **issue_payload,
+                "metadata": {
+                    **(issue_payload.get("metadata") or {}),
                     "jira_issue_id": body.get("id"),
                     "jira_issue_key": str(issue_key),
                     "jira_issue_url": issue_url,
@@ -319,6 +413,10 @@ def _jira_issue_request(payload: dict[str, Any]) -> dict[str, Any]:
     }
     if payload.get("labels"):
         fields["labels"] = payload["labels"]
+    if payload.get("assignee_account_id"):
+        fields["assignee"] = {"accountId": payload["assignee_account_id"]}
+    if payload.get("priority"):
+        fields["priority"] = {"name": payload["priority"]}
     return {"fields": fields}
 
 
