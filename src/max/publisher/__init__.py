@@ -52,6 +52,13 @@ from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPublishResult,
     GoogleSheetsRowsPublisher,
 )
+from max.publisher.hubspot_deals import (
+    HubSpotDealPayload,
+    HubSpotDealPublisher,
+    HubSpotDealPublishError,
+    HubSpotDealPublishResult,
+    HubSpotDealsPublisher,
+)
 from max.publisher.linear_issues import (
     LinearIssuePayload,
     LinearIssuePublisher,
@@ -178,6 +185,11 @@ __all__ = [
     "GoogleSheetsRowPublishError",
     "GoogleSheetsRowPublishResult",
     "GoogleSheetsRowsPublisher",
+    "HubSpotDealPayload",
+    "HubSpotDealPublisher",
+    "HubSpotDealPublishError",
+    "HubSpotDealPublishResult",
+    "HubSpotDealsPublisher",
     "LinearIssuePayload",
     "LinearIssuePublisher",
     "LinearIssuePublishError",

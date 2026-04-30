@@ -190,6 +190,7 @@ from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPublisher,
     GoogleSheetsRowPublishError,
 )
+from max.publisher.hubspot_deals import HubSpotDealPublisher, HubSpotDealPublishError
 from max.publisher.jira_issues import JiraIssuePublisher, JiraIssuePublishError
 from max.publisher.linear_issues import LinearIssuePublisher, LinearIssuePublishError
 from max.publisher.microsoft_planner_tasks import (
@@ -248,6 +249,8 @@ from max.server.schemas import (
     DesignBriefGitHubGistPublishResponse,
     DesignBriefGitHubIssuePublishRequest,
     DesignBriefGitHubIssuePublishResponse,
+    DesignBriefHubSpotDealPublishRequest,
+    DesignBriefHubSpotDealPublishResponse,
     DesignBriefJiraIssuePublishRequest,
     DesignBriefJiraIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
@@ -7020,6 +7023,166 @@ def publish_design_brief_to_clickup_task(
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/hubspot-deal",
+    response_model=DesignBriefHubSpotDealPublishResponse,
+)
+def publish_design_brief_to_hubspot_deal(
+    brief_id: str,
+    request: DesignBriefHubSpotDealPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefHubSpotDealPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = HubSpotDealPublisher.from_env(
+            access_token=request.access_token,
+            api_url=request.api_url,
+            pipeline_id=request.pipeline_id,
+            deal_stage_id=request.deal_stage_id,
+            portal_id=request.portal_id,
+            deal_owner_id=request.deal_owner_id,
+            amount=request.amount,
+            close_date=request.close_date,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except HubSpotDealPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    access_token_source = "request" if request.access_token else "none"
+    if not request.access_token:
+        if os.getenv("HUBSPOT_ACCESS_TOKEN"):
+            access_token_source = "env:HUBSPOT_ACCESS_TOKEN"
+        elif os.getenv("HUBSPOT_TOKEN"):
+            access_token_source = "env:HUBSPOT_TOKEN"
+
+    title = request.deal_name or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    request_summary = {
+        "api_url": redact_url(publisher.api_url),
+        "deal_endpoint": redact_url(publisher.deal_endpoint),
+        "pipeline_id": publisher.pipeline_id,
+        "deal_stage_id": publisher.deal_stage_id,
+        "portal_id": publisher.portal_id,
+        "deal_owner_id": publisher.deal_owner_id,
+        "deal_name": title,
+        "amount": publisher.amount,
+        "close_date": publisher.close_date,
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "access_token": "[redacted]" if publisher.access_token else None,
+        "access_token_source": access_token_source,
+    }
+    provider_metadata = {
+        "provider": "hubspot",
+        "source_type": "design_brief",
+        "target_type": "hubspot_deal",
+        "target_url": redact_url(publisher.deal_endpoint),
+        "deal_endpoint": redact_url(publisher.deal_endpoint),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+    }
+
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "HUBSPOT_ACCESS_TOKEN is required for live HubSpot deal publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="hubspot_deal",
+            target_url=redact_url(publisher.deal_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_design_brief(
+            brief,
+            markdown=markdown,
+            deal_name=title,
+            amount=request.amount,
+            close_date=request.close_date,
+            dry_run=request.dry_run,
+        )
+    except HubSpotDealPublishError as exc:
+        target_url = redact_url(publisher.deal_endpoint)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="hubspot_deal",
+            target_url=target_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "attempts": exc.attempts,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    result.payload["design_brief"] = {
+        "id": brief_id,
+        "title": title,
+        "markdown": markdown,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+    }
+    result.payload["metadata"] = {
+        **result.payload.get("metadata", {}),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+    }
+
+    target_url = result.deal_url or result.deal_id or redact_url(publisher.deal_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="hubspot_deal",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    provider_metadata.update(
+        {
+            "target_url": target_url,
+            "deal_id": result.deal_id,
+            "deal_url": result.deal_url,
+            "pipeline_id": publisher.pipeline_id,
+            "deal_stage_id": publisher.deal_stage_id,
+        }
+    )
+
+    return DesignBriefHubSpotDealPublishResponse(
+        design_brief_id=brief_id,
+        deal_id=result.deal_id,
+        deal_url=result.deal_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        attempts=result.attempts,
         provider_metadata=provider_metadata,
         request_summary=request_summary,
         publication_attempt=PublicationAttemptResponse(**attempt),

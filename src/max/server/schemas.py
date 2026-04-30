@@ -399,6 +399,21 @@ class DesignBriefClickUpTaskPublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefHubSpotDealPublishRequest(BaseModel):
+    access_token: str | None = None
+    api_url: str | None = Field(default=None, min_length=1)
+    pipeline_id: str | None = Field(default=None, min_length=1)
+    deal_stage_id: str | None = Field(default=None, min_length=1)
+    portal_id: str | None = Field(default=None, min_length=1)
+    deal_owner_id: str | None = Field(default=None, min_length=1)
+    deal_name: str | None = Field(default=None, min_length=1)
+    amount: str | float | int | None = None
+    close_date: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class MondayItemPublishRequest(BaseModel):
     api_token: str | None = None
     api_url: str | None = None
@@ -2020,6 +2035,19 @@ class DesignBriefClickUpTaskPublishResponse(BaseModel):
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefHubSpotDealPublishResponse(BaseModel):
+    design_brief_id: str
+    deal_id: str | None = None
+    deal_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    attempts: list[dict[str, Any]] = Field(default_factory=list)
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]
     publication_attempt: PublicationAttemptResponse | None = None
