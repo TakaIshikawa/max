@@ -244,6 +244,7 @@ def test_list_adapters_returns_strings():
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
     assert "npm_download_trends" in names
+    assert "npm_dependents" in names
     assert "crates_download_trends" in names
     assert "hexpm" in names
     assert "rubygems" in names
@@ -257,7 +258,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,rss_feed,crates_io,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,rss_feed,crates_io,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -266,6 +267,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert set(metadata) == {
         "hackernews",
         "npm_download_trends",
+        "npm_dependents",
         "rss_feed",
         "crates_io",
         "crates_download_trends",
@@ -302,6 +304,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["npm_download_trends"].required_keys == []
     assert "npm package download" in metadata["npm_download_trends"].description
+    assert metadata["npm_dependents"].config_keys == [
+        "package_names",
+        "max_dependents_per_package",
+        "npm_api_url",
+        "timeout",
+    ]
+    assert metadata["npm_dependents"].required_keys == []
+    assert "reverse-dependency" in metadata["npm_dependents"].description
     assert metadata["rss_feed"].config_keys == ["feeds", "tags", "max_age_days"]
     assert metadata["rss_feed"].required_keys == ["feeds"]
     assert "RSS" in metadata["rss_feed"].description

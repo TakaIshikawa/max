@@ -33,6 +33,7 @@ hackernews_whoishiring = "max.sources.hackernews_whoishiring:HackerNewsWhoIsHiri
 hackernews_showhn = "max.sources.hackernews_showhn:HackerNewsShowHNAdapter"
 npm_registry = "max.sources.npm_registry:NpmRegistryAdapter"
 npm_download_trends = "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
+npm_dependents = "max.sources.npm_dependents:NpmDependentsAdapter"
 reddit = "max.sources.reddit:RedditAdapter"
 github = "max.sources.github:GitHubAdapter"
 github_trending = "max.sources.github_trending:GitHubTrendingAdapter"

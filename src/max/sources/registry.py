@@ -42,6 +42,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "npm_download_trends": (
         "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
     ),
+    "npm_dependents": "max.sources.npm_dependents:NpmDependentsAdapter",
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
     "github_trending": "max.sources.github_trending:GitHubTrendingAdapter",
@@ -181,6 +182,17 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["packages", "period", "max_results", "max_items"],
         required_keys=[],
         description="Fetches recent npm package download trend totals as market adoption signals.",
+    ),
+    "npm_dependents": AdapterMetadata(
+        name="npm_dependents",
+        config_keys=[
+            "package_names",
+            "max_dependents_per_package",
+            "npm_api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description="Fetches npm reverse-dependency metadata as ecosystem adoption signals.",
     ),
     "reddit": AdapterMetadata(
         name="reddit",
