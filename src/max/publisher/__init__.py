@@ -101,6 +101,13 @@ from max.publisher.notion_pages import (
     NotionPagePublishResult,
     NotionPagesPublisher,
 )
+from max.publisher.confluence_pages import (
+    ConfluencePagePayload,
+    ConfluencePagePublisher,
+    ConfluencePagePublishError,
+    ConfluencePagePublishResult,
+    ConfluencePagesPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -199,6 +206,11 @@ __all__ = [
     "NotionPagePublishError",
     "NotionPagePublishResult",
     "NotionPagesPublisher",
+    "ConfluencePagePayload",
+    "ConfluencePagePublisher",
+    "ConfluencePagePublishError",
+    "ConfluencePagePublishResult",
+    "ConfluencePagesPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",
