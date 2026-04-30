@@ -317,6 +317,21 @@ class DesignBriefGitHubIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class DesignBriefGitHubMilestonePublishRequest(BaseModel):
+    token: str | None = None
+    token_env: str | None = Field(default=None, min_length=1)
+    repository: str | None = None
+    title: str | None = Field(default=None, min_length=1)
+    state: str = "open"
+    due_on: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    dry_run: bool = True
+    include_source_ids: bool = False
+    api_url: str | None = None
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class DesignBriefJiraIssuePublishRequest(BaseModel):
     site_url: str | None = None
     project_key: str | None = None
@@ -1952,6 +1967,24 @@ class DesignBriefGitHubIssuePublishResponse(BaseModel):
     labels: list[str]
     assignees: list[str]
     milestone: int | None = None
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefGitHubMilestonePublishResponse(BaseModel):
+    design_brief_id: str
+    repository: str
+    milestone_number: int | None = None
+    milestone_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    title: str
+    description_preview: str
+    state: str
+    due_on: str | None = None
+    labels: list[str]
     payload: dict[str, Any]
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]
