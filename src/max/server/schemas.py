@@ -2672,6 +2672,21 @@ class DesignBriefSuccessMetricsResponse(BaseModel):
     missing_inputs: list[DesignBriefSuccessMissingInputResponse]
 
 
+class DesignBriefStakeholderMapResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    stakeholders: list[dict[str, Any]]
+    confidence: dict[str, Any]
+    evidence_references: list[dict[str, Any]]
+    evaluations: list[dict[str, Any]]
+    unresolved_assumptions: list[str]
+    interview_questions: list[str]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefTechnicalFeasibilityArtifactModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
