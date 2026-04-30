@@ -267,6 +267,14 @@ class GitHubGistPublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class GitHubProjectItemPublishRequest(BaseModel):
+    project_id: str | None = Field(default=None, min_length=1)
+    token: str | None = None
+    api_url: str | None = None
+    timeout: float = Field(default=10.0, gt=0.0)
+    dry_run: bool = True
+
+
 class DesignBriefGitHubGistPublishRequest(BaseModel):
     token: str | None = None
     token_env: str | None = Field(default=None, min_length=1)
@@ -1968,6 +1976,17 @@ class DesignBriefGoogleSheetsRowPublishResponse(BaseModel):
 class GitHubGistPublishResponse(BaseModel):
     idea_id: str
     gist_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class GitHubProjectItemPublishResponse(BaseModel):
+    idea_id: str
+    project_id: str
+    item_id: str | None = None
+    item_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]

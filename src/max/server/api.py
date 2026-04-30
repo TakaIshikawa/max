@@ -252,6 +252,7 @@ from max.publisher.github_milestones import (
     GitHubMilestonePublisher,
     GitHubMilestonePublishError,
 )
+from max.publisher.github_projects import GitHubProjectItemPublisher, GitHubProjectPublishError
 from max.publisher.gitlab_issues import GitLabIssuePublisher, GitLabIssuePublishError
 from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPublisher,
@@ -393,6 +394,8 @@ from max.server.schemas import (
     GitHubGistPublishResponse,
     GitHubIssuePublishRequest,
     GitHubIssuePublishResponse,
+    GitHubProjectItemPublishRequest,
+    GitHubProjectItemPublishResponse,
     GitLabIssuePublishRequest,
     GitLabIssuePublishResponse,
     GoogleSheetsRowPublishRequest,
@@ -4353,6 +4356,108 @@ def publish_idea_to_github_gist(
     return GitHubGistPublishResponse(
         idea_id=idea_id,
         gist_url=result.gist_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+def _redact_github_project_error(message: str, request: GitHubProjectItemPublishRequest) -> str:
+    redacted = message
+    for secret in (request.token,):
+        if secret:
+            redacted = redacted.replace(secret, "[redacted]")
+    if request.api_url:
+        redacted = redacted.replace(request.api_url, redact_url(request.api_url))
+    return redacted
+
+
+@router.post(
+    "/ideas/{idea_id}/publish/github-projects",
+    response_model=GitHubProjectItemPublishResponse,
+)
+def publish_idea_to_github_projects(
+    idea_id: str,
+    request: GitHubProjectItemPublishRequest,
+    store: Store = Depends(get_store),
+) -> GitHubProjectItemPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = GitHubProjectItemPublisher.from_env(
+            project_id=request.project_id,
+            token=request.token,
+            api_url=request.api_url,
+            timeout=request.timeout,
+        )
+    except GitHubProjectPublishError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=_redact_github_project_error(str(exc), request),
+        ) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    endpoint_url = redact_url(publisher.graphql_endpoint)
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub Project publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_project_item",
+            target_url=endpoint_url,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except GitHubProjectPublishError as exc:
+        message = _redact_github_project_error(str(exc), request)
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_project_item",
+            target_url=endpoint_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.item_url or endpoint_url
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="github_project_item",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return GitHubProjectItemPublishResponse(
+        idea_id=idea_id,
+        project_id=result.project_id,
+        item_id=result.item_id,
+        item_url=result.item_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
