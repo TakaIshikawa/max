@@ -2975,6 +2975,21 @@ class DesignBriefPricingStrategyResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefSupportPlaybookResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    onboarding_checks: list[dict[str, Any]]
+    support_scenarios: list[dict[str, Any]]
+    troubleshooting_flows: list[dict[str, Any]]
+    escalation_criteria: list[dict[str, Any]]
+    response_snippets: list[dict[str, Any]]
+    monitoring_signals: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefArtifactStatusResponse(BaseModel):
     status: Literal["generated", "missing", "errored"]
     error: str | None = None

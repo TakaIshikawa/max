@@ -105,6 +105,10 @@ from max.analysis.design_brief_stakeholder_map import (
     render_design_brief_stakeholder_map,
     stakeholder_map_filename,
 )
+from max.analysis.design_brief_support_playbook import (
+    build_design_brief_support_playbook,
+    render_design_brief_support_playbook,
+)
 from max.analysis.design_brief_technical_feasibility import (
     build_design_brief_technical_feasibility,
     render_design_brief_technical_feasibility,
@@ -302,6 +306,7 @@ from max.server.schemas import (
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
     DesignBriefStakeholderMapResponse,
+    DesignBriefSupportPlaybookResponse,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTeamsPublishResponse,
     DesignBriefTechnicalFeasibilityResponse,
@@ -8273,6 +8278,37 @@ def get_design_brief_pricing_strategy_markdown(
     filename = pricing_strategy_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_pricing_strategy(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/support-playbook",
+    response_model=DesignBriefSupportPlaybookResponse,
+)
+def get_design_brief_support_playbook(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefSupportPlaybookResponse:
+    playbook = build_design_brief_support_playbook(store, brief_id)
+    if not playbook:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefSupportPlaybookResponse(**playbook)
+
+
+@router.get("/design-briefs/{brief_id}/support-playbook.md", response_model=None)
+def get_design_brief_support_playbook_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    playbook = build_design_brief_support_playbook(store, brief_id)
+    if not playbook:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-support-playbook.md"
+    return Response(
+        content=render_design_brief_support_playbook(playbook, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
