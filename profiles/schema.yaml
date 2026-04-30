@@ -352,6 +352,7 @@ properties:
             - security_advisories
             - snyk_reports
             - stackshare
+            - stackexchange
             - stackoverflow
             - stackoverflow_survey
             - terraform_registry

@@ -67,6 +67,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
+    "stackexchange": "max.sources.stackexchange:StackExchangeAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
     "stackoverflow_survey": "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter",
     "jetbrains_survey": "max.sources.jetbrains_survey:JetBrainsSurveyAdapter",
@@ -423,6 +424,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["topics"],
         required_keys=[],
         description="Fetches Product Hunt posts for configured topic slugs.",
+    ),
+    "stackexchange": AdapterMetadata(
+        name="stackexchange",
+        config_keys=["sites", "tags", "queries", "max_age_days", "min_score"],
+        required_keys=[],
+        description=(
+            "Fetches recent Stack Exchange questions across configured sites, tags, "
+            "query terms, age, and score filters."
+        ),
     ),
     "stackoverflow": AdapterMetadata(
         name="stackoverflow",

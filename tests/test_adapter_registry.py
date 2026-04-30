@@ -35,6 +35,35 @@ def test_go_packages_adapter_metadata_documents_config_keys() -> None:
     assert "pkg.go.dev" in metadata["go_packages"].description
 
 
+def test_stackexchange_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "stackexchange"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["stackexchange"]
+        adapter = get_adapter("stackexchange")
+
+    assert adapter.name == "stackexchange"
+
+
+def test_stackexchange_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "stackexchange"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"stackexchange"}
+    assert metadata["stackexchange"].config_keys == [
+        "sites",
+        "tags",
+        "queries",
+        "max_age_days",
+        "min_score",
+    ]
+    assert metadata["stackexchange"].required_keys == []
+    assert "Stack Exchange questions" in metadata["stackexchange"].description
+
+
 def test_kubernetes_keps_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):

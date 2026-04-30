@@ -56,6 +56,7 @@ osv_vulnerabilities = "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter
 cisa_kev = "max.sources.cisa_kev:CisaKevAdapter"
 nvd_cve = "max.sources.nvd_cve:NvdCveAdapter"
 product_hunt = "max.sources.product_hunt:ProductHuntAdapter"
+stackexchange = "max.sources.stackexchange:StackExchangeAdapter"
 stackoverflow = "max.sources.stackoverflow:StackOverflowAdapter"
 stackoverflow_survey = "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter"
 jetbrains_survey = "max.sources.jetbrains_survey:JetBrainsSurveyAdapter"
