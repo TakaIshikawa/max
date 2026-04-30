@@ -2714,6 +2714,67 @@ class DesignBriefSuccessMetricsResponse(BaseModel):
     missing_inputs: list[DesignBriefSuccessMissingInputResponse]
 
 
+class DesignBriefAssumptionLedgerBriefResponse(BaseModel):
+    id: str
+    title: str
+    domain: str | None
+    theme: str | None
+    readiness_score: float
+    design_status: str | None
+    lead_idea_id: str | None
+    source_idea_ids: list[str]
+
+
+class DesignBriefAssumptionLedgerSummaryResponse(BaseModel):
+    assumption_count: int
+    unresolved_assumption_count: int
+    evidence_link_count: int
+    low_confidence_count: int
+
+
+class DesignBriefAssumptionLedgerEvidenceLinkResponse(BaseModel):
+    kind: str
+    id: str
+    label: str
+    source_fields: list[str]
+
+
+class DesignBriefAssumptionLedgerAssumptionResponse(BaseModel):
+    id: str
+    statement: str
+    group: str
+    source_fields: list[str]
+    evidence_links: list[DesignBriefAssumptionLedgerEvidenceLinkResponse]
+    confidence_score: float
+    confidence_level: Literal["low", "medium", "high"]
+    validation_action: str
+    owner_hint: str
+
+
+class DesignBriefAssumptionLedgerGroupResponse(BaseModel):
+    id: str
+    title: str
+    assumptions: list[DesignBriefAssumptionLedgerAssumptionResponse]
+
+
+class DesignBriefAssumptionLedgerActionResponse(BaseModel):
+    assumption_id: str
+    group: str
+    confidence_level: Literal["low", "medium", "high"]
+    owner_hint: str
+    action: str
+
+
+class DesignBriefAssumptionLedgerResponse(BaseModel):
+    schema_version: str
+    kind: str
+    design_brief: DesignBriefAssumptionLedgerBriefResponse
+    summary: DesignBriefAssumptionLedgerSummaryResponse
+    assumption_groups: list[DesignBriefAssumptionLedgerGroupResponse]
+    unresolved_assumptions: list[str]
+    next_validation_actions: list[DesignBriefAssumptionLedgerActionResponse]
+
+
 class DesignBriefStakeholderMapResponse(BaseModel):
     schema_version: str
     kind: str

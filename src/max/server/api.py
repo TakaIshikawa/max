@@ -46,6 +46,11 @@ from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
     render_design_brief_competitive_landscape,
 )
+from max.analysis.design_brief_assumption_ledger import (
+    assumption_ledger_filename,
+    build_design_brief_assumption_ledger,
+    render_design_brief_assumption_ledger,
+)
 from max.analysis.design_brief_compliance_checklist import (
     build_design_brief_compliance_checklist,
     compliance_checklist_filename,
@@ -277,6 +282,7 @@ from max.server.schemas import (
     DesignBriefGitHubMilestonePublishResponse,
     DesignBriefHubSpotDealPublishRequest,
     DesignBriefHubSpotDealPublishResponse,
+    DesignBriefAssumptionLedgerResponse,
     DesignBriefJiraIssuePublishRequest,
     DesignBriefJiraIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
@@ -8117,6 +8123,56 @@ def _design_brief_success_metrics_markdown_response(
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/assumption-ledger",
+    response_model=DesignBriefAssumptionLedgerResponse,
+)
+def get_design_brief_assumption_ledger(
+    brief_id: str,
+    format: str = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefAssumptionLedgerResponse | Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    ledger = build_design_brief_assumption_ledger(brief)
+    if format == "json":
+        return DesignBriefAssumptionLedgerResponse(**ledger)
+    return _design_brief_assumption_ledger_rendered_response(ledger, fmt=format)
+
+
+@router.get("/design-briefs/{brief_id}/assumption-ledger.md", response_model=None)
+def get_design_brief_assumption_ledger_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    ledger = build_design_brief_assumption_ledger(brief)
+    return _design_brief_assumption_ledger_rendered_response(ledger, fmt="markdown")
+
+
+def _design_brief_assumption_ledger_rendered_response(
+    ledger: dict[str, Any],
+    *,
+    fmt: str,
+) -> Response:
+    try:
+        content = render_design_brief_assumption_ledger(ledger, fmt=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_type = "application/json" if fmt == "json" else "text/markdown"
+    headers: dict[str, str] = {}
+    if fmt == "markdown":
+        filename = assumption_ledger_filename(ledger["design_brief"], fmt="markdown")
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return Response(content=content, media_type=media_type, headers=headers)
 
 
 @router.get(
