@@ -406,6 +406,36 @@ def test_vscode_marketplace_adapter_metadata_documents_config_keys() -> None:
     ].description
 
 
+def test_figma_community_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "figma_community"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["figma_community"]
+        adapter = get_adapter("figma_community")
+
+    assert adapter.name == "figma_community"
+
+
+def test_figma_community_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "figma_community"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"figma_community"}
+    assert metadata["figma_community"].config_keys == [
+        "queries",
+        "tags",
+        "sort",
+        "include_plugins",
+        "include_files",
+        "max_items",
+    ]
+    assert metadata["figma_community"].required_keys == []
+    assert "Figma Community" in metadata["figma_community"].description
+
+
 def test_pypi_download_trends_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "pypi_download_trends"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):

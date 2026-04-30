@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 class SignalSourceType(StrEnum):
     ARTICLE = "article"
     REGISTRY = "registry"
+    MARKETPLACE = "marketplace"
     FORUM = "forum"
     SECURITY = "security"
     SURVEY = "survey"

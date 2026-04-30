@@ -100,6 +100,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "chrome_web_store": "max.sources.chrome_web_store:ChromeWebStoreAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
     "vscode_marketplace": "max.sources.vscode_marketplace:VSCodeMarketplaceAdapter",
+    "figma_community": "max.sources.figma_community:FigmaCommunityAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
@@ -669,6 +670,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Searches the Visual Studio Code Marketplace for extension adoption, "
             "publisher, install, rating, category, and tag signals."
+        ),
+    ),
+    "figma_community": AdapterMetadata(
+        name="figma_community",
+        config_keys=[
+            "queries",
+            "tags",
+            "sort",
+            "include_plugins",
+            "include_files",
+            "max_items",
+        ],
+        required_keys=[],
+        description=(
+            "Searches Figma Community for plugin and file marketplace adoption, "
+            "creator, like, duplicate, category, and tag signals."
         ),
     ),
     "terraform_registry": AdapterMetadata(
