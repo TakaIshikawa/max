@@ -786,6 +786,52 @@ class ProfileSourceRecommendationsResponse(BaseModel):
     recommendations: list[ProfileSourceRecommendationResponse]
 
 
+class ProfileSourceMixGroupResponse(BaseModel):
+    group: str
+    source_type: str
+    category: str
+    adapter_count: int
+    adapter_percentage: float
+    total_weight: float
+    weight_percentage: float
+    total_configured_limit: int
+    configured_limit_percentage: float
+    adapters: list[str]
+    over_concentrated: bool
+
+
+class ProfileSourceMixConcentrationFlagResponse(BaseModel):
+    group: str
+    source_type: str
+    category: str
+    metric: str
+    percentage: float
+    threshold: float
+    adapters: list[str]
+
+
+class ProfileSourceMixRecommendationResponse(BaseModel):
+    group: str
+    source_type: str
+    category: str
+    available_adapters: list[str]
+    reason: str
+
+
+class ProfileSourceMixResponse(BaseModel):
+    generated_at: str
+    profile_name: str
+    domain: str
+    concentration_threshold: float
+    enabled_adapter_count: int
+    disabled_adapter_count: int
+    total_weight: float
+    total_configured_limit: int
+    groups: list[ProfileSourceMixGroupResponse]
+    concentration_flags: list[ProfileSourceMixConcentrationFlagResponse]
+    recommendations: list[ProfileSourceMixRecommendationResponse]
+
+
 class ProfileSourceLintIssueResponse(BaseModel):
     severity: Literal["info", "warning", "error"]
     code: str
