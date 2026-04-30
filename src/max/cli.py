@@ -4108,6 +4108,44 @@ def design_briefs_market_sizing(
         store.close()
 
 
+@design_briefs.command(name="technical-feasibility")
+@click.argument("design_brief_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format",
+)
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+def design_briefs_technical_feasibility(
+    design_brief_id: str,
+    fmt: str,
+    output: str | None,
+) -> None:
+    """Export a deterministic technical-feasibility report for a design brief."""
+    from max.analysis.design_brief_technical_feasibility import (
+        build_design_brief_technical_feasibility,
+        render_design_brief_technical_feasibility,
+        write_design_brief_technical_feasibility,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        brief = store.get_design_brief(design_brief_id)
+        if not brief:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        report = build_design_brief_technical_feasibility(brief)
+        if output:
+            write_design_brief_technical_feasibility(Path(output), report, fmt=fmt)
+            click.echo(f"Wrote technical-feasibility report to {output}")
+            return
+        click.echo(render_design_brief_technical_feasibility(report, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @design_briefs.command(name="outreach-pack")
 @click.argument("design_brief_id")
 @click.option(

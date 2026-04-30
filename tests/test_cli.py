@@ -1358,6 +1358,74 @@ class TestDesignBriefMarketSizingCommand:
         assert "Design brief not found: dbf-missing" in result.output
 
 
+class TestDesignBriefTechnicalFeasibilityCommand:
+    @patch("max.store.db.Store")
+    def test_technical_feasibility_stdout_markdown(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "technical-feasibility", "dbf-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "# Technical Feasibility: AgentAdversarialBench" in result.output
+        assert "## Feasibility Verdict" in result.output
+        assert "## Recommended Spike Plan" in result.output
+        store.get_design_brief.assert_called_once_with("dbf-test001")
+
+    @patch("max.store.db.Store")
+    def test_technical_feasibility_stdout_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["design-briefs", "technical-feasibility", "dbf-test001", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max.design_brief.technical_feasibility.v1"
+        assert payload["design_brief"]["id"] == "dbf-test001"
+        assert payload["feasibility_verdict"]["risk_level"] in {"low", "medium", "high"}
+        assert payload["architecture_assumptions"]
+        assert payload["unknowns"]
+
+    @patch("max.store.db.Store")
+    def test_technical_feasibility_writes_markdown(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                [
+                    "design-briefs",
+                    "technical-feasibility",
+                    "dbf-test001",
+                    "--output",
+                    "feasibility.md",
+                ],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert Path("feasibility.md").exists()
+            assert "# Technical Feasibility: AgentAdversarialBench" in Path("feasibility.md").read_text()
+
+    @patch("max.store.db.Store")
+    def test_technical_feasibility_not_found(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "technical-feasibility", "dbf-missing"])
+
+        assert result.exit_code != 0
+        assert "Design brief not found: dbf-missing" in result.output
+
+
 class TestDesignBriefOutreachPackCommand:
     @patch("max.store.db.Store")
     def test_outreach_pack_stdout_markdown(self, MockStore, runner: CliRunner) -> None:
