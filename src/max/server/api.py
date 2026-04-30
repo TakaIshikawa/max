@@ -221,6 +221,8 @@ from max.server.schemas import (
     DesignBriefLinearPublishRequest,
     DesignBriefLinearPublishResponse,
     DesignBriefMarketSizingResponse,
+    DesignBriefMicrosoftPlannerTaskPublishRequest,
+    DesignBriefMicrosoftPlannerTaskPublishResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
     DesignBriefRoadmapResponse,
@@ -1248,6 +1250,39 @@ def _jira_credential_source(
             else ("env:JIRA_BEARER_TOKEN" if publisher.bearer_token else None)
         ),
     }
+
+
+def _microsoft_planner_credential_source(
+    request: DesignBriefMicrosoftPlannerTaskPublishRequest,
+    publisher: MicrosoftPlannerTaskPublisher,
+) -> dict[str, str | None]:
+    return {
+        "access_token": (
+            "request"
+            if request.access_token
+            else ("env:MS_PLANNER_ACCESS_TOKEN" if publisher.access_token else None)
+        ),
+        "plan_id": "request" if request.plan_id else "env:MS_PLANNER_PLAN_ID",
+        "bucket_id": "request" if request.bucket_id else "env:MS_PLANNER_BUCKET_ID",
+        "assignee_user_id": (
+            "request"
+            if request.assignee_user_id
+            else ("env:MS_PLANNER_ASSIGNEE_USER_ID" if publisher.assignee_user_id else None)
+        ),
+        "due_date_time": (
+            "request"
+            if request.due_date_time
+            else ("env:MS_PLANNER_DUE_DATE_TIME" if publisher.due_date_time else None)
+        ),
+    }
+
+
+def _redact_microsoft_planner_message(
+    message: str,
+    publisher: MicrosoftPlannerTaskPublisher,
+) -> str:
+    token = publisher.access_token
+    return message.replace(token, "[redacted]") if token else message
 
 
 def _redact_azure_devops_token(message: str, token: str | None) -> str:
@@ -5701,6 +5736,157 @@ def publish_design_brief_to_jira_issue(
         labels=list(result.payload.get("labels") or []),
         assignee_account_id=result.payload.get("assignee_account_id"),
         priority=result.payload.get("priority"),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/microsoft-planner",
+    response_model=DesignBriefMicrosoftPlannerTaskPublishResponse,
+)
+def publish_design_brief_to_microsoft_planner_task(
+    brief_id: str,
+    request: DesignBriefMicrosoftPlannerTaskPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefMicrosoftPlannerTaskPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = MicrosoftPlannerTaskPublisher.from_env(
+            plan_id=request.plan_id,
+            bucket_id=request.bucket_id,
+            access_token=request.access_token,
+            api_url=request.api_url,
+            assignee_user_id=request.assignee_user_id,
+            due_date_time=request.due_date_time,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except MicrosoftPlannerTaskPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        markdown = _append_design_brief_source_ids(markdown, brief)
+
+    payload: dict[str, Any] = {
+        "planId": publisher.plan_id,
+        "bucketId": publisher.bucket_id,
+        "title": title,
+        "details": markdown,
+        "metadata": {
+            "publisher": "max.microsoft_planner_tasks",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "plan_id": publisher.plan_id,
+            "bucket_id": publisher.bucket_id,
+            "include_source_ids": request.include_source_ids,
+        },
+    }
+    if publisher.assignee_user_id:
+        payload["assignments"] = {
+            publisher.assignee_user_id: {"@odata.type": "microsoft.graph.plannerAssignment"}
+        }
+    if publisher.due_date_time:
+        payload["dueDateTime"] = publisher.due_date_time
+
+    request_summary = {
+        "api_url": redact_url(publisher.api_url),
+        "task_endpoint": redact_url(publisher.task_endpoint),
+        "plan_id": publisher.plan_id,
+        "bucket_id": publisher.bucket_id,
+        "assignee_user_id": publisher.assignee_user_id,
+        "due_date_time": publisher.due_date_time,
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "access_token": "[redacted]" if publisher.access_token else None,
+        "credential_source": _microsoft_planner_credential_source(request, publisher),
+    }
+
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "MS_PLANNER_ACCESS_TOKEN is required for live Microsoft Planner task publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="microsoft_planner_task",
+            target_url=redact_url(publisher.task_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_task_payload(payload, dry_run=request.dry_run)
+    except MicrosoftPlannerTaskPublishError as exc:
+        message = _redact_microsoft_planner_message(str(exc), publisher)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="microsoft_planner_task",
+            target_url=redact_url(publisher.task_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.task_url or result.task_id or redact_url(publisher.task_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="microsoft_planner_task",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "microsoft_planner",
+        "target_type": "microsoft_planner_task",
+        "target_url": target_url,
+        "task_endpoint": redact_url(publisher.task_endpoint),
+        "task_id": result.task_id,
+        "task_url": result.task_url,
+        "source_type": result_metadata.get("source_type"),
+        "design_brief_id": result_metadata.get("design_brief_id"),
+    }
+
+    return DesignBriefMicrosoftPlannerTaskPublishResponse(
+        design_brief_id=brief_id,
+        plan_id=result.plan_id,
+        bucket_id=result.bucket_id,
+        task_id=result.task_id,
+        task_url=result.task_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        title=str(result.payload["title"]),
+        details_preview=_markdown_preview(str(result.payload["details"])),
         payload=result.payload,
         provider_metadata=provider_metadata,
         request_summary=request_summary,

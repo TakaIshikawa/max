@@ -316,6 +316,20 @@ class DesignBriefJiraIssuePublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefMicrosoftPlannerTaskPublishRequest(BaseModel):
+    access_token: str | None = None
+    api_url: str | None = Field(default=None, min_length=1)
+    plan_id: str | None = Field(default=None, min_length=1)
+    bucket_id: str | None = Field(default=None, min_length=1)
+    title: str | None = Field(default=None, min_length=1)
+    assignee_user_id: str | None = Field(default=None, min_length=1)
+    due_date_time: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    include_source_ids: bool = False
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class AsanaTaskPublishRequest(BaseModel):
     access_token: str | None = None
     workspace_gid: str | None = Field(default=None, min_length=1)
@@ -1661,6 +1675,22 @@ class DesignBriefJiraIssuePublishResponse(BaseModel):
     labels: list[str]
     assignee_account_id: str | None = None
     priority: str | None = None
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefMicrosoftPlannerTaskPublishResponse(BaseModel):
+    design_brief_id: str
+    plan_id: str
+    bucket_id: str
+    task_id: str | None = None
+    task_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    title: str
+    details_preview: str
     payload: dict[str, Any]
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]

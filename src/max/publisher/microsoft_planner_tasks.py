@@ -13,6 +13,8 @@ import httpx
 
 DEFAULT_MICROSOFT_GRAPH_API_URL = "https://graph.microsoft.com/v1.0"
 DEFAULT_TIMEOUT_SECONDS = 10.0
+DEFAULT_MAX_RETRIES = 2
+TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 
 class MicrosoftPlannerTaskPublishError(RuntimeError):
@@ -33,6 +35,7 @@ class MicrosoftPlannerTaskPayload:
     assignments: dict[str, dict[str, str]]
     details: str
     metadata: dict[str, Any]
+    due_date_time: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return the JSON payload sent to Microsoft Graph."""
@@ -45,6 +48,8 @@ class MicrosoftPlannerTaskPayload:
         }
         if self.assignments:
             payload["assignments"] = self.assignments
+        if self.due_date_time:
+            payload["dueDateTime"] = self.due_date_time
         return payload
 
 
@@ -72,7 +77,9 @@ class MicrosoftPlannerTaskPublisher:
         access_token: str | None = None,
         api_url: str = DEFAULT_MICROSOFT_GRAPH_API_URL,
         assignee_user_id: str | None = None,
+        due_date_time: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
         client: httpx.Client | None = None,
     ) -> None:
         self.plan_id = _required_text(plan_id, "Microsoft Planner plan_id is required")
@@ -80,7 +87,9 @@ class MicrosoftPlannerTaskPublisher:
         self.access_token = _optional_text(access_token)
         self.api_url = _required_text(api_url, "Microsoft Graph api_url is required").rstrip("/")
         self.assignee_user_id = _optional_text(assignee_user_id)
+        self.due_date_time = _optional_text(due_date_time)
         self.timeout = timeout
+        self.max_retries = max(0, max_retries)
         self._client = client
 
     @classmethod
@@ -92,7 +101,9 @@ class MicrosoftPlannerTaskPublisher:
         access_token: str | None = None,
         api_url: str | None = None,
         assignee_user_id: str | None = None,
+        due_date_time: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
         client: httpx.Client | None = None,
     ) -> MicrosoftPlannerTaskPublisher:
         """Create a publisher using API values first, then environment variables."""
@@ -112,7 +123,9 @@ class MicrosoftPlannerTaskPublisher:
             access_token=access_token or os.getenv("MS_PLANNER_ACCESS_TOKEN"),
             api_url=api_url or os.getenv("MS_GRAPH_API_URL", DEFAULT_MICROSOFT_GRAPH_API_URL),
             assignee_user_id=assignee_user_id or os.getenv("MS_PLANNER_ASSIGNEE_USER_ID"),
+            due_date_time=due_date_time or os.getenv("MS_PLANNER_DUE_DATE_TIME"),
             timeout=timeout,
+            max_retries=max_retries,
             client=client,
         )
 
@@ -152,6 +165,7 @@ class MicrosoftPlannerTaskPublisher:
             assignments=_assignments(self.assignee_user_id),
             details=_task_details(tact_spec, metadata),
             metadata=metadata,
+            due_date_time=self.due_date_time,
         )
 
     def publish(
@@ -162,6 +176,15 @@ class MicrosoftPlannerTaskPublisher:
     ) -> MicrosoftPlannerTaskPublishResult:
         """Build the task payload and optionally create it in Microsoft Planner."""
         payload = self.build_task_payload(tact_spec).to_dict()
+        return self.publish_task_payload(payload, dry_run=dry_run)
+
+    def publish_task_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        dry_run: bool = True,
+    ) -> MicrosoftPlannerTaskPublishResult:
+        """Publish an already-rendered Microsoft Planner task payload."""
         if dry_run:
             return MicrosoftPlannerTaskPublishResult(
                 status_code=None,
@@ -179,27 +202,38 @@ class MicrosoftPlannerTaskPublisher:
                 "use dry_run to preview"
             )
 
+        response: httpx.Response | None = None
         close_client = self._client is None
         client = self._client or httpx.Client(timeout=self.timeout)
         try:
-            try:
-                response = client.post(
-                    self.task_endpoint,
-                    json=payload,
-                    headers={
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Content-Type": "application/json",
-                        "User-Agent": "max-microsoft-planner-tasks-publisher/1",
-                    },
-                    timeout=self.timeout,
-                )
-            except (httpx.RequestError, httpx.TimeoutException) as exc:
-                raise MicrosoftPlannerTaskPublishError(
-                    f"Microsoft Planner task publish failed for {self.task_endpoint}: {exc}"
-                ) from exc
+            for attempt in range(self.max_retries + 1):
+                try:
+                    response = client.post(
+                        self.task_endpoint,
+                        json=payload,
+                        headers={
+                            "Authorization": f"Bearer {self.access_token}",
+                            "Content-Type": "application/json",
+                            "User-Agent": "max-microsoft-planner-tasks-publisher/1",
+                        },
+                        timeout=self.timeout,
+                    )
+                except (httpx.RequestError, httpx.TimeoutException) as exc:
+                    if attempt >= self.max_retries:
+                        raise MicrosoftPlannerTaskPublishError(
+                            f"Microsoft Planner task publish failed for {self.task_endpoint}: {exc}"
+                        ) from exc
+                    continue
+                if response.status_code not in TRANSIENT_STATUS_CODES or attempt >= self.max_retries:
+                    break
         finally:
             if close_client:
                 client.close()
+
+        if response is None:
+            raise MicrosoftPlannerTaskPublishError(
+                f"Microsoft Planner task publish failed for {self.task_endpoint}: no response"
+            )
 
         if not 200 <= response.status_code < 300:
             raise MicrosoftPlannerTaskPublishError(
