@@ -1866,7 +1866,22 @@ def get_profile_source_recommendations(
 
         payload = report.to_dict()
         for recommendation in payload["recommendations"]:
+            evidence = recommendation.get("evidence") or {}
+            quality = evidence.get("quality") or {}
+            approval = evidence.get("approval") or {}
+            freshness = evidence.get("freshness") or {}
             recommendation["target_weight"] = recommendation["suggested_weight"]
+            recommendation["reason"] = (
+                recommendation["reasons"][0] if recommendation.get("reasons") else ""
+            )
+            recommendation["evidence_counts"] = {
+                "total_signals": int(quality.get("total_signals") or 0),
+                "total_feedbacked": int(approval.get("total_feedbacked") or 0),
+                "approved": int(approval.get("approved") or 0),
+                "rejected": int(approval.get("rejected") or 0),
+                "freshness_total": int(freshness.get("total_count") or 0),
+                "stale": int(freshness.get("stale_count") or 0),
+            }
         return payload
     except ValueError as e:
         return ValidationError(str(e)).to_dict()

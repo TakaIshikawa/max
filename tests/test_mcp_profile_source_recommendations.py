@@ -124,6 +124,15 @@ def test_get_profile_source_recommendations_returns_serializable_data(
     assert recommendation["action"] == "decrease_weight"
     assert recommendation["severity"] == "medium"
     assert recommendation["reasons"]
+    assert recommendation["reason"] == recommendation["reasons"][0]
+    assert recommendation["evidence_counts"] == {
+        "total_signals": 4,
+        "total_feedbacked": 4,
+        "approved": 1,
+        "rejected": 3,
+        "freshness_total": 4,
+        "stale": 0,
+    }
     assert recommendation["current_weight"] == 2.0
     assert recommendation["target_weight"] == 1.0
     assert recommendation["suggested_weight"] == 1.0
