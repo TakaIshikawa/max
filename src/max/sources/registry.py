@@ -73,6 +73,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
     "bitbucket_pull_requests": "max.sources.bitbucket_pull_requests:BitbucketPullRequestsAdapter",
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
+    "rustsec_advisories": "max.sources.rustsec_advisories:RustSecAdvisoriesAdapter",
     "osv_vulnerabilities": "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter",
     "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
@@ -471,6 +472,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["ecosystems", "severities"],
         required_keys=[],
         description="Fetches GitHub Security Advisory signals by ecosystem and severity.",
+    ),
+    "rustsec_advisories": AdapterMetadata(
+        name="rustsec_advisories",
+        config_keys=["index_url", "base_url", "packages", "severity_min", "max_items"],
+        required_keys=[],
+        description="Fetches RustSec advisory database records for vulnerable Rust crates.",
     ),
     "osv_vulnerabilities": AdapterMetadata(
         name="osv_vulnerabilities",

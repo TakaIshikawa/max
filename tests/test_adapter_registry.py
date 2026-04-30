@@ -44,6 +44,35 @@ def test_go_packages_adapter_metadata_documents_config_keys() -> None:
     assert "pkg.go.dev" in metadata["go_packages"].description
 
 
+def test_rustsec_advisories_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "rustsec_advisories"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["rustsec_advisories"]
+        adapter = get_adapter("rustsec_advisories")
+
+    assert adapter.name == "rustsec_advisories"
+
+
+def test_rustsec_advisories_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "rustsec_advisories"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"rustsec_advisories"}
+    assert metadata["rustsec_advisories"].config_keys == [
+        "index_url",
+        "base_url",
+        "packages",
+        "severity_min",
+        "max_items",
+    ]
+    assert metadata["rustsec_advisories"].required_keys == []
+    assert "RustSec advisory database" in metadata["rustsec_advisories"].description
+
+
 def test_stackexchange_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "stackexchange"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
