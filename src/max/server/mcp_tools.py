@@ -51,6 +51,8 @@ from max.analysis.blast_radius import estimate_idea_blast_radius
 from max.analysis.budget_usage import build_llm_budget_usage
 from max.analysis.context_budget import build_context_budget_waste_report
 from max.analysis.cost_anomalies import build_cost_anomaly_report
+from max.analysis.customer_discovery import generate_customer_discovery_script
+from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -116,6 +118,7 @@ from max.server.schemas import (
     ArchitectureEnforcementResponse,
     CostAnomalyReportResponse,
     ContextBudgetWasteResponse,
+    CustomerDiscoveryScriptResponse,
     LLMBudgetUsageResponse,
     PipelineCostAnomalyReportResponse,
     PipelineRunComparisonResponse,
@@ -630,6 +633,37 @@ def get_blast_radius(id: str) -> dict:
             evaluation = store.get_evaluation(id)
             estimate = estimate_idea_blast_radius(unit, evaluation)
             return asdict(estimate)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_customer_discovery_script(idea_id: str) -> dict:
+    """Generate a customer discovery interview script for an idea.
+
+    Returns the same top-level fields as the REST customer discovery endpoint.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+    """
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(idea_id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {idea_id}",
+                    resource_type="buildable_unit",
+                    resource_id=idea_id,
+                )
+
+            payload = generate_customer_discovery_script(
+                unit,
+                evaluation=store.get_evaluation(idea_id),
+                evidence_density=build_evidence_density_report(unit, store),
+                validation_experiments=store.list_validation_experiments(idea_id) or [],
+            )
+            return CustomerDiscoveryScriptResponse.model_validate(payload).model_dump(
+                mode="json"
+            )
     except MCPToolError as e:
         return e.to_dict()
 
@@ -2902,6 +2936,11 @@ def review_gate_detail(idea_id: str) -> str:
     return json.dumps(get_review_gate_decision(idea_id), indent=2)
 
 
+def customer_discovery_script_detail(idea_id: str) -> str:
+    """Get customer discovery script details for a specific idea."""
+    return json.dumps(get_customer_discovery_script(idea_id), indent=2)
+
+
 def design_briefs_list() -> str:
     """Browse persisted design briefs from the max portfolio synthesis pipeline."""
     return json.dumps(list_design_briefs(), indent=2)
@@ -3078,6 +3117,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
     mcp.tool(get_blast_radius)
+    mcp.tool(get_customer_discovery_script)
     mcp.tool(get_review_gate_decision)
     mcp.tool(get_idea_critique)
     mcp.tool(list_design_briefs)
@@ -3137,6 +3177,9 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
     mcp.resource("ideas://{idea_id}/blast-radius")(blast_radius_detail)
+    mcp.resource("ideas://{idea_id}/customer-discovery-script")(
+        customer_discovery_script_detail
+    )
     mcp.resource("ideas://{idea_id}/review-gate")(review_gate_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
