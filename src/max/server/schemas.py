@@ -361,6 +361,21 @@ class AzureDevOpsWorkItemPublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefAzureDevOpsWorkItemPublishRequest(BaseModel):
+    organization: str | None = None
+    project: str | None = None
+    personal_access_token: str | None = None
+    work_item_type: str | None = "User Story"
+    area_path: str | None = None
+    iteration_path: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    title: str | None = Field(default=None, min_length=1)
+    include_source_ids: bool = True
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class TrelloCardPublishRequest(BaseModel):
     key: str | None = None
     token: str | None = None
@@ -1674,6 +1689,21 @@ class AzureDevOpsWorkItemPublishResponse(BaseModel):
     publication_attempt: PublicationAttemptResponse
 
 
+class DesignBriefAzureDevOpsWorkItemPublishResponse(BaseModel):
+    design_brief_id: str
+    organization: str
+    project: str
+    work_item_type: str
+    work_item_id: str | None = None
+    work_item_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
 class TrelloCardPublishResponse(BaseModel):
     idea_id: str
     list_id: str
@@ -2303,7 +2333,9 @@ class ProfileSummaryResponse(BaseModel):
 class ProfileDetailResponse(BaseModel):
     name: str
     domain: DomainContext
-    architecture_constraints: ArchitectureConstraintsConfig
+    architecture_constraints: ArchitectureConstraintsConfig = Field(
+        default_factory=ArchitectureConstraintsConfig
+    )
     sources: list[SourceConfig]
     evaluation: EvaluationConfig
     output_dir: str
