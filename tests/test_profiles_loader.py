@@ -388,6 +388,7 @@ class TestListProfiles:
         assert isinstance(profiles, list)
         assert len(profiles) > 0
         # Check for known profiles
+        assert "ai-infrastructure" in profiles
         assert "devtools" in profiles
         assert "healthcare" in profiles
         assert "fintech" in profiles
@@ -539,6 +540,32 @@ class TestLoadAllExistingProfiles:
         assert len(profile.sources) > 0
         assert profile.signal_limit == 30
         assert profile.evaluation.weight_profile == "default"
+
+    def test_load_ai_infrastructure_profile(self):
+        """Test loading ai-infrastructure.yaml profile."""
+        profile = load_profile("ai-infrastructure")
+        assert profile.name == "ai-infrastructure"
+        assert profile.domain.name == "ai-infrastructure"
+        assert profile.output_dir == ".max-output/ai-infrastructure"
+        assert profile.quality_loop_enabled is True
+        assert profile.evaluation.weight_profile == "agent_first"
+        assert "mcp_server" in profile.domain.categories
+        assert "agent_runtime" in profile.domain.categories
+        assert "tool_use_reliability" in profile.domain.categories
+
+        adapters = {source.adapter for source in profile.sources if source.enabled}
+        assert {
+            "github",
+            "github_issues",
+            "github_discussions",
+            "arxiv",
+            "openalex",
+            "mcp_registry",
+            "glama_mcp_stats",
+            "npm_registry",
+            "pypi_registry",
+            "product_hunt",
+        }.issubset(adapters)
 
     def test_load_healthcare_profile(self):
         """Test loading healthcare.yaml profile."""

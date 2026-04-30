@@ -1,0 +1,406 @@
+name: ai-infrastructure
+
+domain:
+  name: ai-infrastructure
+  description: >-
+    AI infrastructure for agent runtime systems, tool-use reliability, MCP
+    servers, evaluation, observability, and model operations. Focus on products
+    that help teams build, validate, operate, and debug dependable agentic
+    applications across code, research, package registries, MCP ecosystems, and
+    launch channels.
+  categories:
+    - mcp_server
+    - eval_framework
+    - observability_tool
+    - agent_runtime
+    - tool_use_reliability
+    - model_ops_platform
+    - protocol_gateway
+    - library
+    - integration
+    - automation
+    - application
+  target_user_types:
+    - platform_engineers
+    - ai_engineers
+    - ml_engineers
+    - developer_experience_teams
+    - open_source_maintainers
+    - agents
+    - both
+  target_segments:
+    - teams shipping agentic applications into production
+    - platform teams standardizing MCP server operations
+    - developer-tool vendors adding tool-use and agent runtime support
+    - AI product teams running multi-model or multi-provider stacks
+    - open-source maintainers building agent frameworks and protocol tooling
+  workflows:
+    - MCP server discovery, certification, and lifecycle management
+    - agent runtime deployment and tool-call debugging
+    - regression evaluation for tool-use behavior
+    - production observability for agent traces and model operations
+    - package release monitoring for agent and MCP SDKs
+    - incident triage for unreliable tool calls, schemas, and permissions
+  buyer_roles:
+    - head of AI platform
+    - developer experience lead
+    - ML platform lead
+    - engineering manager
+    - security engineering lead
+    - open-source maintainer
+  hard_constraints:
+    - must improve measurable reliability, safety, latency, cost, or evaluation coverage
+    - must integrate with existing SDKs, CI, observability, or deployment workflows
+    - must treat MCP servers and tool schemas as operational infrastructure
+    - should support local, self-hosted, or API-first deployment paths
+    - avoid requiring a full agent framework migration
+  bad_idea_patterns:
+    - generic LLM observability dashboard without actionability
+    - agent framework requiring full application rewrites
+    - MCP marketplace without trust or lifecycle signals
+    - prompt library without runtime evaluation
+    - model router without reliability evidence
+  good_idea_criteria:
+    - names a concrete agent runtime or MCP operations workflow
+    - has a measurable reliability, safety, cost, latency, or evaluation metric
+    - can be validated with public repositories, package telemetry, or MCP registry data
+    - improves tool-call correctness, permissions, schema compatibility, or traceability
+    - has an obvious path through OSS, SDK, CLI, CI, or observability integrations
+  extra_instructions: >-
+    Prioritize infrastructure that makes agent systems observable, testable, and
+    operationally trustworthy. Strong ideas connect package and GitHub evidence
+    to MCP ecosystem adoption, evaluation failures, tool-call reliability, model
+    operations, and production launch signals. Prefer products that can start as
+    a CLI, SDK, MCP server, CI gate, or self-hosted service before expanding into
+    platform workflows.
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  required_fields:
+    - buyer
+    - specific_user
+    - workflow_context
+    - validation_plan
+    - tech_approach
+  scoring_dimensions:
+    workflow_specificity:
+      weight: 1.4
+      description: Owns a concrete agent runtime, MCP operations, evaluation, observability, or model-ops workflow.
+    buyer_clarity:
+      weight: 1.1
+      description: Names the platform, AI engineering, DevEx, security, or OSS maintainer buyer.
+    evidence_support:
+      weight: 1.4
+      description: Uses signals from code, research, registries, MCP ecosystem data, or launches.
+    reliability_impact:
+      weight: 1.5
+      description: Improves measurable tool-call success, eval pass rate, incident rate, latency, cost, or safety.
+    integration_fit:
+      weight: 1.2
+      description: Fits existing SDKs, CI, observability, MCP, model routing, or deployment workflows.
+    differentiation:
+      weight: 1.0
+      description: Avoids generic dashboards, framework rewrites, and undifferentiated agent wrappers.
+    validation_feasibility:
+      weight: 1.2
+      description: Can be tested against public repos, packages, traces, eval suites, or MCP server metadata within two weeks.
+    domain_risk_control:
+      weight: 1.0
+      description: Handles permissioning, schema drift, model variability, privacy, and operational reliability risks.
+  hard_rejections:
+    - missing_buyer
+    - missing_workflow
+    - weak_evidence
+    - no_measurable_metric
+    - full_framework_migration
+  preferred_patterns:
+    - MCP server certification or trust scoring
+    - tool-call regression evaluation harness
+    - agent trace debugging with remediation workflow
+    - model operations guardrail or rollout controller
+    - package registry monitor for agent infrastructure SDKs
+    - CI gate for tool schema compatibility
+    - incident triage for failed agent tool use
+  rejected_patterns:
+    - generic LLM observability dashboard
+    - agent framework requiring full application rewrites
+    - MCP marketplace without trust signals
+    - prompt library without runtime evaluation
+    - model router without reliability evidence
+
+architecture_constraints:
+  allowed_categories:
+    - mcp_server
+    - eval_framework
+    - observability_tool
+    - agent_runtime
+    - tool_use_reliability
+    - model_ops_platform
+    - protocol_gateway
+    - library
+    - integration
+    - automation
+    - application
+  allowed_target_users:
+    - platform_engineers
+    - ai_engineers
+    - ml_engineers
+    - developer_experience_teams
+    - open_source_maintainers
+    - agents
+    - both
+  allowed_domains:
+    - ai-infrastructure
+  required_stack_decisions:
+    - language
+    - runtime
+    - deployment
+    - integration_surface
+    - data_retention
+  allowed_deployment_patterns:
+    - cli
+    - sdk
+    - api
+    - self-hosted
+    - container
+    - cloud
+    - ci
+    - local
+  rejected_deployment_patterns:
+    - full agent framework migration
+    - hosted only with no export path
+  required_integrations:
+    - github
+    - ci
+    - observability
+    - mcp
+  allowed_integrations:
+    - openai
+    - anthropic
+    - langchain
+    - llamaindex
+    - mcp
+    - opentelemetry
+    - github
+    - docker
+    - kubernetes
+    - npm
+    - pypi
+  rejected_integrations:
+    - proprietary runtime only
+  required_tech_approach_terms:
+    - evaluation
+    - trace
+    - schema
+  rejected_tech_approach_terms:
+    - full framework rewrite
+    - replace every agent stack
+  notes: >-
+    AI infrastructure ideas should make runtime, deployment, integration,
+    evaluation, and retention assumptions explicit. The strongest ideas improve
+    reliability of tool-use systems without forcing teams to replace their
+    existing agent framework or model provider.
+
+sources:
+  - adapter: github
+    enabled: true
+    weight: 1.4
+    watchlist:
+      - mcp
+      - ai-agent
+      - tool-use
+      - agent-runtime
+    params:
+      topics:
+        - mcp
+        - ai-agent
+        - llmops
+        - mlops
+        - agent-framework
+        - observability
+        - evals
+        - model-context-protocol
+
+  - adapter: github_issues
+    enabled: true
+    weight: 1.3
+    watchlist:
+      - tool call failure
+      - mcp server
+      - agent evaluation
+      - schema validation
+    params:
+      queries:
+        - '"mcp server" "bug" is:issue is:open'
+        - '"tool call" "failed" is:issue is:open'
+        - '"agent" "evaluation" label:enhancement is:issue is:open'
+        - '"schema" "tool" "validation" is:issue is:open'
+        - '"model router" "fallback" is:issue is:open'
+
+  - adapter: github_discussions
+    enabled: true
+    weight: 1.0
+    watchlist:
+      - MCP
+      - agents
+      - evals
+      - observability
+    params:
+      repositories:
+        - modelcontextprotocol/servers
+        - modelcontextprotocol/python-sdk
+        - modelcontextprotocol/typescript-sdk
+        - langchain-ai/langgraph
+        - run-llama/llama_index
+        - openai/openai-agents-python
+      categories:
+        - Ideas
+        - Q&A
+        - General
+      search_terms:
+        - tool use
+        - runtime
+        - evaluation
+        - tracing
+      max_age_days: 60
+
+  - adapter: arxiv
+    enabled: true
+    weight: 1.0
+    watchlist:
+      - tool use
+      - agent evaluation
+      - model operations
+      - observability
+    params:
+      categories:
+        - cs.AI
+        - cs.CL
+        - cs.SE
+        - cs.DC
+      queries:
+        - "ti:agent AND ti:evaluation"
+        - "abs:tool-use AND abs:language model"
+        - "abs:model operations OR abs:LLMOps"
+        - "abs:observability AND abs:language model"
+
+  - adapter: openalex
+    enabled: true
+    weight: 0.9
+    params:
+      search_terms:
+        - agent evaluation tool use
+        - language model observability
+        - model operations reliability
+        - tool augmented language models
+      concepts:
+        - C154945302
+        - C41008148
+      from_publication_date: "2025-01-01"
+      per_page: 25
+
+  - adapter: mcp_registry
+    enabled: true
+    weight: 1.4
+    watchlist:
+      - filesystem
+      - database
+      - github
+      - observability
+      - testing
+    params:
+      queries:
+        - filesystem
+        - github
+        - database
+        - observability
+        - testing
+      categories:
+        - developer-tools
+        - data
+        - productivity
+      min_stars: 10
+      min_score: 60
+
+  - adapter: glama_mcp_stats
+    enabled: true
+    weight: 0.8
+    params:
+      stats_urls:
+        - https://glama.ai/mcp/stats
+      categories:
+        - Developer Tools
+        - Data
+        - Observability
+        - Productivity
+      min_server_count: 25
+      max_items: 30
+
+  - adapter: npm_registry
+    enabled: true
+    weight: 1.1
+    watchlist:
+      - mcp
+      - agent
+      - eval
+      - tracing
+    params:
+      queries:
+        - mcp server
+        - model context protocol
+        - ai agent runtime
+        - agent eval
+        - llm observability
+        - tool calling
+
+  - adapter: pypi_registry
+    enabled: true
+    weight: 1.1
+    watchlist:
+      - mcp
+      - agents
+      - evals
+      - opentelemetry
+    params:
+      keywords:
+        - mcp
+        - model-context-protocol
+        - ai-agent
+        - agents
+        - evals
+        - langgraph
+        - llamaindex
+        - openai-agents
+        - opentelemetry
+        - litellm
+        - mlflow
+        - langsmith
+      include_release_trends: true
+      lookback_days: 45
+      min_releases: 2
+
+  - adapter: product_hunt
+    enabled: true
+    weight: 0.8
+    watchlist:
+      - ai agents
+      - mcp
+      - llmops
+      - developer tools
+    params:
+      topics:
+        - developer-tools
+        - artificial-intelligence
+        - api
+        - open-source
+
+evaluation:
+  weight_profile: agent_first
+  min_score: 62.0
+
+output_dir: .max-output/ai-infrastructure
+signal_limit: 45
+ideation_mode: direct
+quality_loop_enabled: true
+draft_count: 10
