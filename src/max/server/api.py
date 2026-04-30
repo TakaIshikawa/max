@@ -116,6 +116,10 @@ from max.analysis.profile_source_lint import (
     build_all_profile_source_lint_report,
     build_profile_source_lint_report,
 )
+from max.analysis.profile_source_mix import (
+    DEFAULT_CONCENTRATION_THRESHOLD,
+    build_profile_source_mix_for_profile,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -352,6 +356,7 @@ from max.server.schemas import (
     ProfileCoverageTermResponse,
     ProfileDriftResponse,
     ProfileSourceLintReportResponse,
+    ProfileSourceMixResponse,
     ProfileSourceRecommendationsResponse,
     ProfileSummaryResponse,
     ProfileValidationIssueResponse,
@@ -1843,6 +1848,27 @@ def get_profile_source_recommendations(
         max_age_days=max_age_days,
     )
     return ProfileSourceRecommendationsResponse.model_validate(report.to_dict())
+
+
+@router.get(
+    "/profiles/{profile_name}/source-mix",
+    response_model=ProfileSourceMixResponse,
+)
+def get_profile_source_mix(
+    profile_name: str,
+    concentration_threshold: float = Query(
+        DEFAULT_CONCENTRATION_THRESHOLD,
+        gt=0.0,
+        le=1.0,
+        description="Flag source groups above this adapter, weight, or configured-limit share",
+    ),
+) -> ProfileSourceMixResponse:
+    profile = _load_profile_or_404(profile_name)
+    report = build_profile_source_mix_for_profile(
+        profile,
+        concentration_threshold=concentration_threshold,
+    )
+    return ProfileSourceMixResponse.model_validate(report.to_dict())
 
 
 # ── Evaluation Weights ──────────────────────────────────────────────
