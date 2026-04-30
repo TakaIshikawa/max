@@ -45,6 +45,11 @@ from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
     render_design_brief_competitive_landscape,
 )
+from max.analysis.design_brief_compliance_checklist import (
+    build_design_brief_compliance_checklist,
+    compliance_checklist_filename,
+    render_design_brief_compliance_checklist,
+)
 from max.analysis.design_brief_bundle import (
     build_design_brief_bundle,
     render_design_brief_bundle,
@@ -219,6 +224,7 @@ from max.server.schemas import (
     DesignBriefAzureDevOpsWorkItemPublishRequest,
     DesignBriefAzureDevOpsWorkItemPublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
+    DesignBriefComplianceChecklistResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
@@ -6944,6 +6950,37 @@ def get_design_brief_launch_checklist_markdown(
     filename = f"{_download_filename_part(brief_id)}-launch-checklist.md"
     return Response(
         content=render_design_brief_launch_checklist(checklist, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/compliance-checklist",
+    response_model=DesignBriefComplianceChecklistResponse,
+)
+def get_design_brief_compliance_checklist(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefComplianceChecklistResponse:
+    checklist = build_design_brief_compliance_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefComplianceChecklistResponse(**checklist)
+
+
+@router.get("/design-briefs/{brief_id}/compliance-checklist.md", response_model=None)
+def get_design_brief_compliance_checklist_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    checklist = build_design_brief_compliance_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = compliance_checklist_filename(checklist["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_compliance_checklist(checklist, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

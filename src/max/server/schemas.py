@@ -2240,6 +2240,56 @@ class DesignBriefLaunchChecklistResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefComplianceEvidenceReferenceResponse(BaseModel):
+    kind: Literal["signal", "insight"]
+    id: str
+    title: str
+    source_adapter: str | None = None
+    source_type: str | None = None
+    url: str | None = None
+    source_idea_ids: list[str]
+
+
+class DesignBriefComplianceChecklistItemResponse(BaseModel):
+    id: str
+    task: str
+    rationale: str
+    owner: str
+    status: str
+    required: bool
+    exit_criteria: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+    evidence_references: list[DesignBriefComplianceEvidenceReferenceResponse]
+    section_id: str | None = None
+    section_title: str | None = None
+    section_owner_role: str | None = None
+
+
+class DesignBriefComplianceChecklistSectionResponse(BaseModel):
+    id: Literal["security", "privacy", "accessibility", "data_retention", "launch_governance"]
+    title: str
+    description: str
+    owner_role: str
+    exit_criteria: str
+    gate_status: Literal["requires_review"]
+    evidence_references: list[DesignBriefComplianceEvidenceReferenceResponse]
+    items: list[DesignBriefComplianceChecklistItemResponse]
+
+
+class DesignBriefComplianceChecklistResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict
+    design_brief: dict
+    summary: dict
+    sections: list[DesignBriefComplianceChecklistSectionResponse]
+    checklist_items: list[DesignBriefComplianceChecklistItemResponse]
+    evidence_references: list[DesignBriefComplianceEvidenceReferenceResponse]
+    recommended_next_actions: list[str]
+    source_ideas: list[dict]
+
+
 class DesignBriefRoadmapItemResponse(BaseModel):
     id: str
     phase: Literal["discovery", "prototype", "validation", "beta", "launch"]
