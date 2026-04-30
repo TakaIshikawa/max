@@ -63,6 +63,10 @@ from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
     render_design_brief_pricing_strategy,
 )
+from max.analysis.design_brief_roadmap import (
+    build_design_brief_roadmap,
+    render_design_brief_roadmap,
+)
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.mcp_capability_coverage import (
     DEFAULT_LIMIT_REPRESENTATIVES as DEFAULT_MCP_CAPABILITY_LIMIT_REPRESENTATIVES,
@@ -829,23 +833,25 @@ def get_design_brief_risk_register(brief_id: str, format: str = "json") -> dict:
         return e.to_dict()
 
 
-def get_design_brief_roadmap(brief_id: str, format: str = "json") -> dict:
+def get_design_brief_roadmap(
+    brief_id: str,
+    markdown: bool = False,
+    format: str | None = None,
+) -> dict:
     """Get a phased roadmap for a persisted design brief.
 
-    Set format to "json" for a structured payload or "markdown" for rendered
-    handoff text.
+    Set markdown=true for rendered handoff text. The format parameter is kept
+    for compatibility with existing MCP clients.
 
     Raises:
         ResourceNotFoundError: If the design brief does not exist.
         ValidationError: If the requested format is unsupported.
     """
-    from max.analysis.design_brief_roadmap import (
-        build_design_brief_roadmap,
-        render_design_brief_roadmap,
-    )
-
     try:
-        fmt = format.strip().lower()
+        if format is not None:
+            fmt = format.strip().lower()
+        else:
+            fmt = "markdown" if markdown else "json"
         if fmt not in {"json", "markdown"}:
             raise ValidationError(
                 f"Unsupported roadmap format: {format}",
