@@ -93,6 +93,10 @@ from max.analysis.profile_drift import (
     DEFAULT_MIN_SIGNALS as DEFAULT_PROFILE_DRIFT_MIN_SIGNALS,
     build_profile_drift_report,
 )
+from max.analysis.profile_gap_matrix import (
+    build_profile_gap_matrix,
+    render_profile_gap_matrix_markdown,
+)
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs as build_pipeline_run_comparison,
@@ -2121,6 +2125,66 @@ def get_profile_drift(
         return e.to_dict()
 
 
+def get_profile_gap_matrix(
+    profile_dir: str | None = None,
+    low_coverage_threshold: int = 1,
+    format: str = "json",
+) -> dict:
+    """Return profile coverage gap matrix rows for available profiles.
+
+    Set profile_dir to inspect a non-default profiles directory. Set format to
+    markdown to include a rendered matrix for agent-readable summaries.
+
+    Raises:
+        ValidationError: If profile_dir, low_coverage_threshold, or format is invalid.
+    """
+
+    try:
+        if format not in {"json", "markdown"}:
+            raise ValidationError(
+                "format must be json or markdown",
+                field="format",
+                expected="json or markdown",
+                actual=str(format),
+            )
+        if low_coverage_threshold < 1:
+            raise ValidationError(
+                "low_coverage_threshold must be at least 1",
+                field="low_coverage_threshold",
+                expected="integer >= 1",
+                actual=str(low_coverage_threshold),
+            )
+
+        with _get_store() as store:
+            matrix = build_profile_gap_matrix(
+                store,
+                profiles_dir=profile_dir,
+                low_coverage_threshold=low_coverage_threshold,
+            )
+
+        payload = matrix.to_dict()
+        if format == "markdown":
+            return {
+                "format": "markdown",
+                "profiles_dir": payload["profiles_dir"],
+                "profile_count": payload["profile_count"],
+                "row_count": payload["row_count"],
+                "markdown": render_profile_gap_matrix_markdown(payload),
+            }
+        return payload
+    except (FileNotFoundError, NotADirectoryError) as e:
+        return ValidationError(
+            str(e),
+            field="profile_dir",
+            expected="existing profiles directory",
+            actual=str(profile_dir),
+        ).to_dict()
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_architecture_enforcement_report(
     domain: str | None = None,
     limit: int = DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT,
@@ -3222,6 +3286,11 @@ def profile_drift_detail(profile_name: str) -> str:
     return json.dumps(get_profile_drift(profile_name), indent=2)
 
 
+def profile_gap_matrix_detail() -> str:
+    """Browse the default profile gap matrix."""
+    return json.dumps(get_profile_gap_matrix(), indent=2)
+
+
 def roi_forecast_detail() -> str:
     """Browse the default ROI forecast report."""
     return json.dumps(get_roi_forecast(), indent=2)
@@ -3305,6 +3374,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(simulate_source_allocation)
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_profile_drift)
+    mcp.tool(get_profile_gap_matrix)
     mcp.tool(get_architecture_enforcement_report)
     mcp.tool(max_mcp_capability_coverage)
     mcp.tool(get_schedule)
@@ -3376,6 +3446,7 @@ def create_mcp_server() -> FastMCP:
         profile_source_recommendations_detail
     )
     mcp.resource("profile-drift://{profile_name}")(profile_drift_detail)
+    mcp.resource("profile-gap-matrix://all")(profile_gap_matrix_detail)
     mcp.resource("roi://forecast")(roi_forecast_detail)
     mcp.resource("mcp-capabilities://coverage")(mcp_capability_coverage_detail)
     mcp.resource("pipeline-run-comparisons://{baseline_run_id}/{candidate_run_id}")(
