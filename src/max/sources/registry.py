@@ -34,6 +34,9 @@ class AdapterMetadata:
 # Fallback mapping for dev mode (when package is not pip-installed).
 _BUILTIN_ADAPTERS: dict[str, str] = {
     "hackernews": "max.sources.hackernews:HackerNewsAdapter",
+    "hackernews_whoishiring": (
+        "max.sources.hackernews_whoishiring:HackerNewsWhoIsHiringAdapter"
+    ),
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
@@ -125,6 +128,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["filter_keywords"],
         required_keys=[],
         description="Fetches Hacker News stories and optionally filters them by keywords.",
+    ),
+    "hackernews_whoishiring": AdapterMetadata(
+        name="hackernews_whoishiring",
+        config_keys=["item_ids", "algolia_url", "hn_api_url", "max_threads"],
+        required_keys=[],
+        description=(
+            "Fetches Hacker News Who Is Hiring monthly thread comments as "
+            "market-demand signals."
+        ),
     ),
     "npm_registry": AdapterMetadata(
         name="npm_registry",

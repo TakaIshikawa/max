@@ -220,6 +220,36 @@ def test_github_trending_adapter_metadata_documents_config_keys() -> None:
     assert "GitHub Trending repository pages" in metadata["github_trending"].description
 
 
+def test_hackernews_whoishiring_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "hackernews_whoishiring"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["hackernews_whoishiring"]
+        adapter = get_adapter("hackernews_whoishiring")
+
+    assert adapter.name == "hackernews_whoishiring"
+
+
+def test_hackernews_whoishiring_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "hackernews_whoishiring"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"hackernews_whoishiring"}
+    assert metadata["hackernews_whoishiring"].config_keys == [
+        "item_ids",
+        "algolia_url",
+        "hn_api_url",
+        "max_threads",
+    ]
+    assert metadata["hackernews_whoishiring"].required_keys == []
+    assert "Who Is Hiring monthly thread comments" in (
+        metadata["hackernews_whoishiring"].description
+    )
+
+
 def test_mcp_protocol_roadmap_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "mcp_protocol_roadmap"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
