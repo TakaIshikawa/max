@@ -192,6 +192,35 @@ def test_ietf_datatracker_adapter_metadata_documents_config_keys() -> None:
     assert "IETF Datatracker" in metadata["ietf_datatracker"].description
 
 
+def test_openapi_specs_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "openapi_specs"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["openapi_specs"]
+        adapter = get_adapter("openapi_specs")
+
+    assert adapter.name == "openapi_specs"
+
+
+def test_openapi_specs_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "openapi_specs"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"openapi_specs"}
+    assert metadata["openapi_specs"].config_keys == [
+        "urls",
+        "local_paths",
+        "max_operations_per_signal",
+        "include_tags",
+        "request_timeout",
+    ]
+    assert metadata["openapi_specs"].required_keys == []
+    assert "OpenAPI 3.x schemas" in metadata["openapi_specs"].description
+
+
 def test_github_octoverse_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "github_octoverse"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
