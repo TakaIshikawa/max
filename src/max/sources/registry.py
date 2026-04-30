@@ -100,6 +100,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "huggingface": "max.sources.huggingface:HuggingFaceAdapter",
     "awesome_lists": "max.sources.awesome_lists:AwesomeListsAdapter",
     "openssf_scorecard": "max.sources.openssf_scorecard:OpenSSFScorecardAdapter",
+    "openssf_security_insights": (
+        "max.sources.openssf_security_insights:OpenSSFSecurityInsightsAdapter"
+    ),
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "chrome_web_store": "max.sources.chrome_web_store:ChromeWebStoreAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
@@ -658,6 +661,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches OpenSSF Scorecard repository trust and supply-chain risk signals.",
+    ),
+    "openssf_security_insights": AdapterMetadata(
+        name="openssf_security_insights",
+        config_keys=[
+            "repositories",
+            "insight_urls",
+            "local_paths",
+            "github_token",
+            "token",
+            "token_env",
+            "min_score",
+            "required_fields",
+            "max_items",
+        ],
+        required_keys=[],
+        description="Reads OpenSSF Security Insights YAML as security posture evidence.",
     ),
     "cncf_landscape": AdapterMetadata(
         name="cncf_landscape",
