@@ -881,6 +881,33 @@ class EvaluationExplanationResponse(BaseModel):
     recommended_next_evidence: list[str]
 
 
+class EvaluationSensitivityDimensionResponse(BaseModel):
+    dimension: str
+    label: str
+    score: float
+    confidence: float
+    weight: float
+    score_delta: float
+    recommendation_delta: int
+    leave_one_out_score: float
+    leave_one_out_recommendation: Literal["strong_yes", "yes", "maybe", "no", "strong_no"]
+    weight_down_score: float
+    weight_down_delta: float
+    weight_down_recommendation: Literal["strong_yes", "yes", "maybe", "no", "strong_no"]
+    weight_up_score: float
+    weight_up_delta: float
+    weight_up_recommendation: Literal["strong_yes", "yes", "maybe", "no", "strong_no"]
+    explanation: str
+
+
+class EvaluationSensitivityResponse(BaseModel):
+    idea_id: str
+    baseline_score: float
+    baseline_recommendation: Literal["strong_yes", "yes", "maybe", "no", "strong_no"]
+    weight_profile: dict[str, float]
+    dimensions: list[EvaluationSensitivityDimensionResponse]
+
+
 class IdeaCritiqueResponse(BaseModel):
     id: str
     buildable_unit_id: str

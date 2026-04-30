@@ -250,6 +250,7 @@ from max.server.schemas import (
     EvidenceDensityResponse,
     ExperimentCardResponse,
     EvaluationExplanationResponse,
+    EvaluationSensitivityResponse,
     EvaluationCalibrationResponse,
     EvaluationResponse,
     EvaluationSummaryResponse,
@@ -384,6 +385,7 @@ from max.server.schemas import (
     WebhookPublishResponse,
 )
 from max.evaluation.explain import explain_evaluation
+from max.evaluation.sensitivity import analyze_evaluation_sensitivity
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.experiment_card import generate_experiment_card
@@ -2604,6 +2606,25 @@ def get_idea_evaluation_explanation(
             signals=signals,
         )
     )
+
+
+@router.get(
+    "/ideas/{idea_id}/evaluation-sensitivity",
+    response_model=EvaluationSensitivityResponse,
+)
+def get_idea_evaluation_sensitivity(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> EvaluationSensitivityResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    payload = analyze_evaluation_sensitivity(evaluation)
+    return EvaluationSensitivityResponse.model_validate({"idea_id": idea_id, **payload})
 
 
 @router.get("/ideas/{idea_id}/prior-art", response_model=PriorArtResponse)
