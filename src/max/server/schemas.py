@@ -381,6 +381,18 @@ class ClickUpTaskPublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class MondayItemPublishRequest(BaseModel):
+    api_token: str | None = None
+    api_url: str | None = None
+    board_id: str | None = Field(default=None, min_length=1)
+    group_id: str | None = Field(default=None, min_length=1)
+    item_name: str | None = Field(default=None, min_length=1)
+    column_values: dict[str, Any] = Field(default_factory=dict)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class JiraIssuePublishRequest(BaseModel):
     site_url: str | None = None
     project_key: str | None = None
@@ -1800,6 +1812,18 @@ class ClickUpTaskPublishResponse(BaseModel):
     list_id: str
     task_id: str | None = None
     task_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class MondayItemPublishResponse(BaseModel):
+    idea_id: str
+    board_id: str
+    group_id: str | None = None
+    item_id: str | None = None
+    item_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
