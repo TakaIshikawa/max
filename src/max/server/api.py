@@ -190,6 +190,10 @@ from max.publisher.azure_devops_work_items import (
 from max.publisher.clickup_tasks import ClickUpTaskPublisher, ClickUpTaskPublishError
 from max.publisher.github_gists import GitHubGistPublisher, GitHubGistPublishError
 from max.publisher.github_issues import GitHubIssuePublisher, GitHubIssuePublishError
+from max.publisher.github_milestones import (
+    GitHubMilestonePublisher,
+    GitHubMilestonePublishError,
+)
 from max.publisher.gitlab_issues import GitLabIssuePublisher, GitLabIssuePublishError
 from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPublisher,
@@ -254,6 +258,8 @@ from max.server.schemas import (
     DesignBriefGitHubGistPublishResponse,
     DesignBriefGitHubIssuePublishRequest,
     DesignBriefGitHubIssuePublishResponse,
+    DesignBriefGitHubMilestonePublishRequest,
+    DesignBriefGitHubMilestonePublishResponse,
     DesignBriefHubSpotDealPublishRequest,
     DesignBriefHubSpotDealPublishResponse,
     DesignBriefJiraIssuePublishRequest,
@@ -6428,6 +6434,147 @@ def publish_design_brief_to_github_issue(
         labels=list(result.payload.get("labels") or []),
         assignees=list(result.payload.get("assignees") or []),
         milestone=result.payload.get("milestone"),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/github-milestone",
+    response_model=DesignBriefGitHubMilestonePublishResponse,
+)
+def publish_design_brief_to_github_milestone(
+    brief_id: str,
+    request: DesignBriefGitHubMilestonePublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefGitHubMilestonePublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    resolved_token = request.token
+    token_source = "request" if request.token else "none"
+    if not resolved_token and request.token_env:
+        resolved_token = os.getenv(request.token_env)
+        token_source = f"env:{request.token_env}" if resolved_token else "none"
+    elif not resolved_token and os.getenv("GITHUB_TOKEN"):
+        token_source = "env:GITHUB_TOKEN"
+
+    try:
+        publisher = GitHubMilestonePublisher.from_env(
+            repository=request.repository,
+            token=resolved_token,
+            api_url=request.api_url,
+            labels=request.labels,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except GitHubMilestonePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    description = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        description = _append_design_brief_source_ids(description, brief)
+
+    try:
+        payload = publisher.build_design_brief_payload(
+            brief,
+            description=description,
+            title=title,
+            state=request.state,
+            due_on=request.due_on,
+            include_source_ids=request.include_source_ids,
+        ).to_dict()
+    except GitHubMilestonePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    request_summary = {
+        "repository": publisher.repository,
+        "labels": list(request.labels),
+        "state": payload["state"],
+        "due_on": payload.get("due_on"),
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "token": "[redacted]" if publisher.token else None,
+        "token_source": token_source,
+        "milestone_endpoint": redact_url(publisher.milestone_endpoint),
+    }
+
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub milestone publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_milestone",
+            target_url=redact_url(publisher.milestone_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_milestone_payload(payload, dry_run=request.dry_run)
+    except GitHubMilestonePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="github_milestone",
+            target_url=redact_url(publisher.milestone_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.milestone_url or redact_url(publisher.milestone_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="github_milestone",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "github",
+        "target_type": "github_milestone",
+        "target_url": target_url,
+        "milestone_endpoint": redact_url(publisher.milestone_endpoint),
+        "github_milestone_number": result.milestone_number
+        or result_metadata.get("github_milestone_number"),
+        "github_milestone_url": result.milestone_url
+        or result_metadata.get("github_milestone_url"),
+    }
+
+    return DesignBriefGitHubMilestonePublishResponse(
+        design_brief_id=brief_id,
+        repository=result.repository,
+        milestone_number=result.milestone_number,
+        milestone_url=result.milestone_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        title=str(result.payload["title"]),
+        description_preview=_markdown_preview(str(result.payload["description"])),
+        state=str(result.payload["state"]),
+        due_on=result.payload.get("due_on"),
+        labels=list(result.payload.get("labels") or []),
         payload=result.payload,
         provider_metadata=provider_metadata,
         request_summary=request_summary,

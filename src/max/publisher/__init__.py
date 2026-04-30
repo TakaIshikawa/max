@@ -21,6 +21,13 @@ from max.publisher.github_discussions import (
     GitHubDiscussionPublishResult,
     GitHubDiscussionsPublisher,
 )
+from max.publisher.github_milestones import (
+    GitHubMilestonePayload,
+    GitHubMilestonePublisher,
+    GitHubMilestonePublishError,
+    GitHubMilestonePublishResult,
+    GitHubMilestonesPublisher,
+)
 from max.publisher.github_projects import (
     GitHubProjectItemPayload,
     GitHubProjectItemPublisher,
@@ -162,6 +169,11 @@ __all__ = [
     "GitHubDiscussionPublishError",
     "GitHubDiscussionPublishResult",
     "GitHubDiscussionsPublisher",
+    "GitHubMilestonePayload",
+    "GitHubMilestonePublisher",
+    "GitHubMilestonePublishError",
+    "GitHubMilestonePublishResult",
+    "GitHubMilestonesPublisher",
     "GitHubProjectItemPayload",
     "GitHubProjectItemPublisher",
     "GitHubProjectItemPublishResult",
