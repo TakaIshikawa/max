@@ -2471,6 +2471,58 @@ class DesignBriefOkrsResponse(BaseModel):
     objectives: list[DesignBriefOkrObjectiveResponse]
 
 
+class DesignBriefSuccessMetricResponse(BaseModel):
+    id: str
+    metric: str
+    definition: str
+    target: str
+    rationale: str
+    source_fields: list[str]
+
+
+class DesignBriefSuccessNorthStarMetricResponse(BaseModel):
+    metric: str
+    definition: str
+    target: str
+    rationale: str
+    confidence: Literal["low", "medium", "high"]
+    source_fields: list[str]
+
+
+class DesignBriefSuccessRiskGuardrailResponse(BaseModel):
+    id: str
+    metric: str
+    threshold: str
+    severity: Literal["medium", "high"]
+    action: str
+    source_fields: list[str]
+
+
+class DesignBriefSuccessInstrumentationEventResponse(BaseModel):
+    id: str
+    event: str
+    description: str
+    properties: list[str]
+
+
+class DesignBriefSuccessMissingInputResponse(BaseModel):
+    field: str
+    reason: str
+
+
+class DesignBriefSuccessMetricsResponse(BaseModel):
+    schema_version: str
+    brief_id: str
+    title: str
+    north_star_metric: DesignBriefSuccessNorthStarMetricResponse
+    activation_metrics: list[DesignBriefSuccessMetricResponse]
+    retention_metrics: list[DesignBriefSuccessMetricResponse]
+    validation_metrics: list[DesignBriefSuccessMetricResponse]
+    risk_guardrails: list[DesignBriefSuccessRiskGuardrailResponse]
+    instrumentation_events: list[DesignBriefSuccessInstrumentationEventResponse]
+    missing_inputs: list[DesignBriefSuccessMissingInputResponse]
+
+
 class DesignBriefCompetitorClusterResponse(BaseModel):
     id: str
     name: str

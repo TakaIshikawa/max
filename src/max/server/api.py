@@ -86,6 +86,11 @@ from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
 )
+from max.analysis.design_brief_success_metrics import (
+    build_design_brief_success_metrics,
+    render_design_brief_success_metrics,
+    success_metrics_filename,
+)
 from max.analysis.market_sizing import (
     build_market_sizing_report,
     market_sizing_filename,
@@ -256,6 +261,7 @@ from max.server.schemas import (
     DesignBriefRiskRegisterResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
+    DesignBriefSuccessMetricsResponse,
     DesignBriefTeamsPublishResponse,
     DesignBriefTrelloCardPublishRequest,
     DesignBriefTrelloCardPublishResponse,
@@ -7311,6 +7317,50 @@ def get_design_brief_okrs_markdown(
     filename = f"{_download_filename_part(brief_id)}-okrs.md"
     return Response(
         content=render_design_brief_okrs_markdown(build_design_brief_okrs(brief)),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/success-metrics",
+    response_model=DesignBriefSuccessMetricsResponse,
+)
+def get_design_brief_success_metrics(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefSuccessMetricsResponse | Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = build_design_brief_success_metrics(brief)
+    if format == "markdown":
+        return _design_brief_success_metrics_markdown_response(brief, report)
+    return DesignBriefSuccessMetricsResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/success-metrics.md", response_model=None)
+def get_design_brief_success_metrics_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = build_design_brief_success_metrics(brief)
+    return _design_brief_success_metrics_markdown_response(brief, report)
+
+
+def _design_brief_success_metrics_markdown_response(
+    brief: dict[str, Any],
+    report: dict[str, Any],
+) -> Response:
+    filename = success_metrics_filename(brief, fmt="markdown")
+    return Response(
+        content=render_design_brief_success_metrics(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
