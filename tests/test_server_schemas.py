@@ -46,6 +46,7 @@ from max.server.schemas import (
     FetchAllocationSimulationQualityResponse,
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
+    DesignBriefSuccessMetricsResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -1942,3 +1943,84 @@ class TestFetchAllocationSimulationResponse:
         assert dumped["profile"] == "devtools"
         assert dumped["allocation"] == {"hackernews": 30}
         assert dumped["sources"] == []
+
+
+class TestDesignBriefSuccessMetricsResponse:
+    def test_valid_construction_and_serialization(self):
+        response = DesignBriefSuccessMetricsResponse(
+            schema_version="max.design_brief.success_metrics.v1",
+            brief_id="dbf-success",
+            title="Success Metrics Brief",
+            north_star_metric={
+                "metric": "Qualified workflow success",
+                "definition": "Qualified teams complete the workflow.",
+                "target": "3+ teams confirm repeat value.",
+                "rationale": "Measures completed workflow value.",
+                "confidence": "high",
+                "source_fields": ["title"],
+            },
+            activation_metrics=[
+                {
+                    "id": "A1",
+                    "metric": "Qualified setup completion",
+                    "definition": "Users complete setup.",
+                    "target": "60%+ complete setup.",
+                    "rationale": "Confirms usable setup.",
+                    "source_fields": ["workflow_context"],
+                }
+            ],
+            retention_metrics=[
+                {
+                    "id": "R1",
+                    "metric": "Repeat workflow usage",
+                    "definition": "Users repeat the workflow.",
+                    "target": "35%+ repeat within 14 days.",
+                    "rationale": "Repeat use signals recurring value.",
+                    "source_fields": ["workflow_context"],
+                }
+            ],
+            validation_metrics=[
+                {
+                    "id": "V1",
+                    "metric": "Validation plan completion",
+                    "definition": "Run the validation plan.",
+                    "target": "Record a pass/fail decision.",
+                    "rationale": "Keeps build tied to evidence.",
+                    "source_fields": ["validation_plan"],
+                }
+            ],
+            risk_guardrails=[
+                {
+                    "id": "G1",
+                    "metric": "Negative workflow impact",
+                    "threshold": "No material workflow regression.",
+                    "severity": "high",
+                    "action": "Pause rollout and revise scope.",
+                    "source_fields": ["risks"],
+                }
+            ],
+            instrumentation_events=[
+                {
+                    "id": "E1",
+                    "event": "success_metrics_report_generated",
+                    "description": "Success metrics were exported.",
+                    "properties": ["brief_id"],
+                }
+            ],
+            missing_inputs=[],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.success_metrics.v1"
+        assert dumped["brief_id"] == "dbf-success"
+        assert dumped["north_star_metric"]["confidence"] == "high"
+        assert dumped["activation_metrics"][0]["id"] == "A1"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefSuccessMetricsResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "brief_id" in missing_fields
+        assert "north_star_metric" in missing_fields
