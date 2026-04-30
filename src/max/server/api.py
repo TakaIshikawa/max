@@ -138,6 +138,12 @@ from max.analysis.profile_drift import (
     DEFAULT_UNIT_LIMIT as DEFAULT_PROFILE_DRIFT_UNIT_LIMIT,
     build_profile_drift_report,
 )
+from max.analysis.profile_gap_matrix import (
+    DEFAULT_MAX_RECOMMENDED_ADAPTERS as DEFAULT_PROFILE_GAP_MATRIX_MAX_RECOMMENDED_ADAPTERS,
+    DEFAULT_MIN_EVALUATION_WEIGHT as DEFAULT_PROFILE_GAP_MATRIX_MIN_EVALUATION_WEIGHT,
+    build_profile_gap_matrix,
+    render_profile_gap_matrix_markdown,
+)
 from max.analysis.portfolio_synthesis import render_design_brief_markdown
 from max.analysis.profile_source_recommendations import (
     DEFAULT_MAX_AGE_DAYS as DEFAULT_SOURCE_RECOMMENDATION_MAX_AGE_DAYS,
@@ -402,6 +408,7 @@ from max.server.schemas import (
     PriorArtResponse,
     ProfileDetailResponse,
     ProfileCoverageGapsResponse,
+    ProfileGapMatrixResponse,
     ProfileCoverageTermResponse,
     ProfileDriftResponse,
     ProfileSourceLintReportResponse,
@@ -1896,6 +1903,90 @@ def validate_pipeline_profiles(
 def get_all_profile_source_lint() -> AllProfileSourceLintReportResponse:
     report = build_all_profile_source_lint_report()
     return AllProfileSourceLintReportResponse.model_validate(report.to_dict())
+
+
+@router.get("/profiles/gap-matrix", response_model=ProfileGapMatrixResponse)
+def get_profile_gap_matrix_endpoint(
+    profile_dir: str | None = Query(default=None, min_length=1),
+    min_evaluation_weight: float = Query(
+        DEFAULT_PROFILE_GAP_MATRIX_MIN_EVALUATION_WEIGHT,
+        ge=0.0,
+        description="Evaluation dimensions below this weight are flagged as underweighted",
+    ),
+    max_recommended_adapters: int = Query(
+        DEFAULT_PROFILE_GAP_MATRIX_MAX_RECOMMENDED_ADAPTERS,
+        ge=1,
+        le=100,
+    ),
+    max_age_days: int | None = Query(
+        default=None,
+        ge=1,
+        description="Accepted for profile report parity; static gap matrix does not filter by age",
+    ),
+    min_signals: int | None = Query(
+        default=None,
+        ge=1,
+        description="Accepted for profile report parity; static gap matrix does not count signals",
+    ),
+    store: Store = Depends(get_store),
+) -> ProfileGapMatrixResponse:
+    del max_age_days, min_signals
+    try:
+        matrix = build_profile_gap_matrix(
+            store,
+            profiles_dir=profile_dir,
+            min_evaluation_weight=min_evaluation_weight,
+            max_recommended_adapters=max_recommended_adapters,
+        )
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return ProfileGapMatrixResponse.model_validate(matrix.to_dict())
+
+
+@router.get("/profiles/gap-matrix.md", response_model=None)
+def get_profile_gap_matrix_markdown_endpoint(
+    profile_dir: str | None = Query(default=None, min_length=1),
+    min_evaluation_weight: float = Query(
+        DEFAULT_PROFILE_GAP_MATRIX_MIN_EVALUATION_WEIGHT,
+        ge=0.0,
+        description="Evaluation dimensions below this weight are flagged as underweighted",
+    ),
+    max_recommended_adapters: int = Query(
+        DEFAULT_PROFILE_GAP_MATRIX_MAX_RECOMMENDED_ADAPTERS,
+        ge=1,
+        le=100,
+    ),
+    max_age_days: int | None = Query(
+        default=None,
+        ge=1,
+        description="Accepted for profile report parity; static gap matrix does not filter by age",
+    ),
+    min_signals: int | None = Query(
+        default=None,
+        ge=1,
+        description="Accepted for profile report parity; static gap matrix does not count signals",
+    ),
+    store: Store = Depends(get_store),
+) -> Response:
+    del max_age_days, min_signals
+    try:
+        matrix = build_profile_gap_matrix(
+            store,
+            profiles_dir=profile_dir,
+            min_evaluation_weight=min_evaluation_weight,
+            max_recommended_adapters=max_recommended_adapters,
+        )
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=render_profile_gap_matrix_markdown(matrix),
+        media_type="text/markdown",
+        headers={"Content-Disposition": 'attachment; filename="profile-gap-matrix.md"'},
+    )
 
 
 @router.get("/profiles/{profile_name}", response_model=ProfileDetailResponse)

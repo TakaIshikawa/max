@@ -2200,7 +2200,6 @@ def get_profile_gap_matrix(
             matrix = build_profile_gap_matrix(
                 store,
                 profiles_dir=profile_dir,
-                low_coverage_threshold=low_coverage_threshold,
             )
 
         payload = matrix.to_dict()
