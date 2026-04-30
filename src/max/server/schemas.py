@@ -486,6 +486,11 @@ class SpecReadinessBatchRequest(BaseModel):
         return self
 
 
+class SpecBundleBatchRequest(BaseModel):
+    idea_ids: list[str] = Field(min_length=1, max_length=100)
+    format: Literal["json", "markdown"] = "json"
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -1339,6 +1344,20 @@ class SpecBundleResponse(BaseModel):
     generated_at: str
     warnings: list[str]
     artifacts: SpecBundleArtifactsResponse
+
+
+class SpecBundleBatchItemResponse(BaseModel):
+    idea_id: str
+    status: Literal["generated", "not_found", "error"]
+    success: bool
+    status_code: int
+    bundle: SpecBundleResponse | None = None
+    markdown: str | None = None
+    error: str | None = None
+
+
+class SpecBundleBatchResponse(BaseModel):
+    results: list[SpecBundleBatchItemResponse]
 
 
 class IdeaProductBriefResponse(BaseModel):
