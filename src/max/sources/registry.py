@@ -98,6 +98,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
     "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "artifact_hub": "max.sources.artifact_hub:ArtifactHubAdapter",
     "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "mcp_protocol_roadmap": (
@@ -667,6 +668,23 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "queries", "include_tags"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "artifact_hub": AdapterMetadata(
+        name="artifact_hub",
+        config_keys=[
+            "base_url",
+            "queries",
+            "categories",
+            "package_types",
+            "kinds",
+            "sort",
+            "max_results",
+        ],
+        required_keys=[],
+        description=(
+            "Searches Artifact Hub for cloud-native package adoption, "
+            "repository, popularity, and maintenance signals."
+        ),
     ),
     "homebrew_formulae": AdapterMetadata(
         name="homebrew_formulae",
