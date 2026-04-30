@@ -1543,6 +1543,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
         FakeMCP.latest.resources["design-brief-compliance-checklist://{brief_id}"]
         == "design_brief_compliance_checklist_detail"
     )
+    assert "get_design_brief_pilot_rollout" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-pilot-rollouts://{brief_id}"]
+        == "design_brief_pilot_rollout_detail"
+    )
     assert "get_design_brief_bundle" in FakeMCP.latest.tools
     assert (
         FakeMCP.latest.resources["design-brief-bundles://{brief_id}"]
