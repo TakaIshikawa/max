@@ -92,6 +92,10 @@ from max.analysis.design_brief_roadmap import (
     build_design_brief_roadmap,
     render_design_brief_roadmap,
 )
+from max.analysis.design_brief_raci_matrix import (
+    build_design_brief_raci_matrix,
+    render_design_brief_raci_matrix,
+)
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
@@ -1735,6 +1739,43 @@ def get_design_brief_security_review_plan(brief_id: str, format: str = "json") -
 
         _add_security_review_plan_indexes(plan)
         rendered = render_design_brief_security_review_plan(plan, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_raci_matrix(brief_id: str, format: str = "json") -> dict:
+    """Get the RACI matrix for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    ownership handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported RACI matrix format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            matrix = build_design_brief_raci_matrix(store, brief_id)
+            if not matrix:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_raci_matrix(matrix, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -3894,6 +3935,11 @@ def design_brief_security_review_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_security_review_plan(brief_id), indent=2)
 
 
+def design_brief_raci_matrix_detail(brief_id: str) -> str:
+    """Get the RACI matrix for a specific design brief."""
+    return json.dumps(get_design_brief_raci_matrix(brief_id), indent=2)
+
+
 def design_brief_technical_feasibility_detail(brief_id: str) -> str:
     """Get the technical feasibility report for a specific design brief."""
     return json.dumps(get_design_brief_technical_feasibility(brief_id), indent=2)
@@ -4062,6 +4108,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_sales_battlecard)
     mcp.tool(get_design_brief_instrumentation_plan)
     mcp.tool(get_design_brief_security_review_plan)
+    mcp.tool(get_design_brief_raci_matrix)
     mcp.tool(get_design_brief_technical_feasibility)
     mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
@@ -4154,6 +4201,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-security-review-plan://{brief_id}")(
         design_brief_security_review_plan_detail
     )
+    mcp.resource("design-brief-raci-matrices://{brief_id}")(design_brief_raci_matrix_detail)
     mcp.resource("design-brief-technical-feasibility://{brief_id}")(
         design_brief_technical_feasibility_detail
     )
