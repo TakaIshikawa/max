@@ -7,6 +7,13 @@ from max.publisher.github_issues import (
     GitHubIssuePublishResult,
     GitHubIssuesPublisher,
 )
+from max.publisher.airtable_records import (
+    AirtableRecordPayload,
+    AirtableRecordPublisher,
+    AirtableRecordPublishError,
+    AirtableRecordPublishResult,
+    AirtableRecordsPublisher,
+)
 from max.publisher.github_gists import (
     GitHubGistPayload,
     GitHubGistPublisher,
@@ -159,6 +166,11 @@ __all__ = [
     "GitHubIssuePublishError",
     "GitHubIssuePublishResult",
     "GitHubIssuesPublisher",
+    "AirtableRecordPayload",
+    "AirtableRecordPublisher",
+    "AirtableRecordPublishError",
+    "AirtableRecordPublishResult",
+    "AirtableRecordsPublisher",
     "GitHubGistPayload",
     "GitHubGistPublisher",
     "GitHubGistPublishError",
