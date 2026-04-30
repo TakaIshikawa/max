@@ -369,6 +369,9 @@ from max.server.schemas import (
     SlackPublishRequest,
     SlackPublishResponse,
     SourceReliabilityResponse,
+    SpecBundleBatchItemResponse,
+    SpecBundleBatchRequest,
+    SpecBundleBatchResponse,
     SpecBundleResponse,
     SignalResponse,
     SimilarityRequest,
@@ -4553,6 +4556,55 @@ def get_idea_spec_bundle(
     if format == "markdown":
         return _spec_bundle_markdown_response(idea_id, bundle)
     return SpecBundleResponse.model_validate(bundle)
+
+
+@router.post("/ideas/spec-bundle-batch", response_model=SpecBundleBatchResponse)
+def get_ideas_spec_bundle_batch(
+    body: SpecBundleBatchRequest,
+    store: Store = Depends(get_store),
+) -> SpecBundleBatchResponse:
+    results: list[SpecBundleBatchItemResponse] = []
+    for idea_id in body.idea_ids:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            results.append(
+                SpecBundleBatchItemResponse(
+                    idea_id=idea_id,
+                    status="not_found",
+                    success=False,
+                    status_code=404,
+                    error=f"Idea not found: {idea_id}",
+                )
+            )
+            continue
+
+        try:
+            bundle = generate_spec_bundle(unit, store.get_evaluation(idea_id), store)
+            response = SpecBundleResponse.model_validate(bundle)
+            results.append(
+                SpecBundleBatchItemResponse(
+                    idea_id=idea_id,
+                    status="generated",
+                    success=True,
+                    status_code=200,
+                    bundle=response if body.format == "json" else None,
+                    markdown=render_spec_bundle_markdown(bundle)
+                    if body.format == "markdown"
+                    else None,
+                )
+            )
+        except Exception as exc:
+            results.append(
+                SpecBundleBatchItemResponse(
+                    idea_id=idea_id,
+                    status="error",
+                    success=False,
+                    status_code=500,
+                    error=str(exc),
+                )
+            )
+
+    return SpecBundleBatchResponse(results=results)
 
 
 @router.get("/ideas/{idea_id}/spec-bundle.md", response_model=None)
