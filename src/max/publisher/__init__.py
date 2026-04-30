@@ -42,6 +42,13 @@ from max.publisher.microsoft_planner_tasks import (
     MicrosoftPlannerTaskPublishResult,
     MicrosoftPlannerTasksPublisher,
 )
+from max.publisher.azure_devops_work_items import (
+    AzureDevOpsWorkItemPayload,
+    AzureDevOpsWorkItemPublisher,
+    AzureDevOpsWorkItemPublishError,
+    AzureDevOpsWorkItemPublishResult,
+    AzureDevOpsWorkItemsPublisher,
+)
 from max.publisher.asana_tasks import (
     AsanaTaskPayload,
     AsanaTaskPublisher,
@@ -125,6 +132,11 @@ __all__ = [
     "MicrosoftPlannerTaskPublishError",
     "MicrosoftPlannerTaskPublishResult",
     "MicrosoftPlannerTasksPublisher",
+    "AzureDevOpsWorkItemPayload",
+    "AzureDevOpsWorkItemPublisher",
+    "AzureDevOpsWorkItemPublishError",
+    "AzureDevOpsWorkItemPublishResult",
+    "AzureDevOpsWorkItemsPublisher",
     "AsanaTaskPayload",
     "AsanaTaskPublisher",
     "AsanaTaskPublishError",

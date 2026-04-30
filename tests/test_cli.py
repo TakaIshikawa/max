@@ -15,6 +15,7 @@ import yaml
 from click.testing import CliRunner
 
 from max.cli import main
+from max.publisher.azure_devops_work_items import AzureDevOpsWorkItemPublishError
 from max.publisher.discord_webhook import DiscordWebhookPublishError
 from max.publisher.webhook import WebhookPublishError
 from max.types.buildable_unit import BuildableCategory, BuildableUnit, IdeationMode
@@ -1885,6 +1886,210 @@ class TestPublishCommand:
         assert payload["metadata"]["idea_id"] == "bu-test001"
         assert payload["metadata"]["repository"] == "owner/repo"
         store.insert_publication_attempt.assert_not_called()
+
+    @patch("max.publisher.azure_devops_work_items.AzureDevOpsWorkItemPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_azure_devops_dry_run_prints_json_patch_payload(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.from_env.return_value
+        publisher.publish.return_value.payload = {
+            "organization": "max-org",
+            "project": "Delivery Project",
+            "work_item_type": "Product Backlog Item",
+            "operations": [
+                {
+                    "op": "add",
+                    "path": "/fields/System.Title",
+                    "value": "[Max] MCP Test Framework",
+                },
+                {
+                    "op": "add",
+                    "path": "/fields/System.AreaPath",
+                    "value": "Delivery Project\\Platform",
+                },
+            ],
+            "metadata": {"idea_id": "bu-test001"},
+        }
+        publisher.publish.return_value.dry_run = True
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "azure-devops",
+                "--azure-devops-organization",
+                "max-org",
+                "--azure-devops-project",
+                "Delivery Project",
+                "--azure-devops-work-item-type",
+                "Product Backlog Item",
+                "--azure-devops-area-path",
+                "Delivery Project\\Platform",
+                "--azure-devops-iteration-path",
+                "Delivery Project\\Sprint 1",
+                "--azure-devops-tag",
+                "handoff",
+                "--azure-devops-tag",
+                "max",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["operations"][0] == {
+            "op": "add",
+            "path": "/fields/System.Title",
+            "value": "[Max] MCP Test Framework",
+        }
+        assert payload["operations"][1]["path"] == "/fields/System.AreaPath"
+        MockPublisher.from_env.assert_called_once_with(
+            organization="max-org",
+            project="Delivery Project",
+            work_item_type="Product Backlog Item",
+            area_path="Delivery Project\\Platform",
+            iteration_path="Delivery Project\\Sprint 1",
+            tags=["handoff", "max"],
+            timeout=10.0,
+            max_retries=2,
+        )
+        publisher.publish.assert_called_once()
+        assert publisher.publish.call_args.kwargs["dry_run"] is True
+        store.insert_publication_attempt.assert_not_called()
+
+    @patch("max.publisher.azure_devops_work_items.AzureDevOpsWorkItemPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_azure_devops_live_records_publication_attempt(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.from_env.return_value
+        publisher.publish.return_value.status_code = 200
+        publisher.publish.return_value.work_item_url = (
+            "https://dev.azure.com/max-org/Max%20Project/_workitems/edit/42"
+        )
+        publisher.publish.return_value.project = "Max Project"
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "azure-devops",
+                "--azure-devops-organization",
+                "max-org",
+                "--azure-devops-project",
+                "Max Project",
+                "--timeout",
+                "2.5",
+                "--retries",
+                "4",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Published Azure DevOps work item for bu-test001" in result.output
+        MockPublisher.from_env.assert_called_once_with(
+            organization="max-org",
+            project="Max Project",
+            work_item_type=None,
+            area_path=None,
+            iteration_path=None,
+            tags=None,
+            timeout=2.5,
+            max_retries=4,
+        )
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="azure_devops_work_item",
+            target_url="https://dev.azure.com/max-org/Max%20Project/_workitems/edit/42",
+            status="success",
+            response_status=200,
+        )
+
+    @patch("max.publisher.azure_devops_work_items.AzureDevOpsWorkItemPublisher")
+    @patch("max.store.db.Store")
+    def test_publish_azure_devops_records_failure(
+        self,
+        MockStore: MagicMock,
+        MockPublisher: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        publisher = MockPublisher.from_env.return_value
+        publisher.work_item_endpoint = (
+            "https://dev.azure.com/max-org/Max%20Project/_apis/wit/workitems/"
+            "$User%20Story?api-version=7.1"
+        )
+        publisher.publish.side_effect = AzureDevOpsWorkItemPublishError(
+            "Azure DevOps work item publish failed with HTTP 401: Unauthorized",
+            status_code=401,
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "bu-test001",
+                "--target",
+                "azure-devops",
+                "--azure-devops-organization",
+                "max-org",
+                "--azure-devops-project",
+                "Max Project",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "Azure DevOps work item publish failed with HTTP 401" in result.output
+        store.insert_publication_attempt.assert_called_once_with(
+            idea_id="bu-test001",
+            target_type="azure_devops_work_item",
+            target_url=(
+                "https://dev.azure.com/max-org/Max%20Project/_apis/wit/workitems/"
+                "$User%20Story?api-version=7.1"
+            ),
+            status="failure",
+            response_status=401,
+            error="Azure DevOps work item publish failed with HTTP 401: Unauthorized",
+        )
+
+    @patch("max.store.db.Store")
+    def test_publish_azure_devops_rejects_blueprint_payload(
+        self, MockStore: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit())
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "dbf-test001",
+                "--target",
+                "azure-devops",
+                "--payload",
+                "blueprint",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "--target azure-devops only supports --payload tact-spec" in result.output
+        store.get_buildable_unit.assert_not_called()
 
     @patch("max.publisher.discord_webhook.DiscordWebhookPublisher")
     @patch("max.store.db.Store")

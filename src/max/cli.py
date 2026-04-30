@@ -2140,7 +2140,7 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
 @click.argument("entity_id")
 @click.option(
     "--target",
-    type=click.Choice(["webhook", "github-issue", "discord"]),
+    type=click.Choice(["webhook", "github-issue", "discord", "azure-devops"]),
     default="webhook",
     show_default=True,
     help="Publishing target",
@@ -2162,6 +2162,37 @@ def inspect(unit_id: str, evidence_pack: bool) -> None:
     help="GitHub token for live issue creation (defaults to GITHUB_TOKEN)",
 )
 @click.option(
+    "--azure-devops-organization",
+    default=None,
+    help="Azure DevOps organization (defaults to AZURE_DEVOPS_ORGANIZATION)",
+)
+@click.option(
+    "--azure-devops-project",
+    default=None,
+    help="Azure DevOps project (defaults to AZURE_DEVOPS_PROJECT)",
+)
+@click.option(
+    "--azure-devops-work-item-type",
+    default=None,
+    help="Azure DevOps work item type (defaults to AZURE_DEVOPS_WORK_ITEM_TYPE or User Story)",
+)
+@click.option(
+    "--azure-devops-area-path",
+    default=None,
+    help="Azure DevOps area path (defaults to AZURE_DEVOPS_AREA_PATH)",
+)
+@click.option(
+    "--azure-devops-iteration-path",
+    default=None,
+    help="Azure DevOps iteration path (defaults to AZURE_DEVOPS_ITERATION_PATH)",
+)
+@click.option(
+    "--azure-devops-tag",
+    "azure_devops_tags",
+    multiple=True,
+    help="Additional Azure DevOps tag; repeat for multiple tags",
+)
+@click.option(
     "--payload",
     "payload_type",
     type=click.Choice(["tact-spec", "blueprint"]),
@@ -2179,6 +2210,12 @@ def publish(
     discord_username: str | None,
     github_repository: str | None,
     github_token: str | None,
+    azure_devops_organization: str | None,
+    azure_devops_project: str | None,
+    azure_devops_work_item_type: str | None,
+    azure_devops_area_path: str | None,
+    azure_devops_iteration_path: str | None,
+    azure_devops_tags: tuple[str, ...],
     payload_type: str,
     timeout: float,
     retries: int,
@@ -2186,6 +2223,10 @@ def publish(
 ) -> None:
     """Publish a generated tact spec or Blueprint source brief."""
     from max.analysis.blueprint_export import build_blueprint_source_brief
+    from max.publisher.azure_devops_work_items import (
+        AzureDevOpsWorkItemPublishError,
+        AzureDevOpsWorkItemPublisher,
+    )
     from max.publisher.discord_webhook import DiscordWebhookPublishError, DiscordWebhookPublisher
     from max.publisher.github_issues import GitHubIssuePublishError, GitHubIssuePublisher
     from max.publisher.webhook import WebhookPublishError, WebhookPublisher
@@ -2198,6 +2239,8 @@ def publish(
         raise click.ClickException("--target discord supports --payload tact-spec or blueprint")
     if target == "github-issue" and payload_type != "tact-spec":
         raise click.ClickException("--target github-issue only supports --payload tact-spec")
+    if target == "azure-devops" and payload_type != "tact-spec":
+        raise click.ClickException("--target azure-devops only supports --payload tact-spec")
 
     store = Store()
     try:
@@ -2249,6 +2292,49 @@ def publish(
             click.echo(
                 f"Published GitHub issue for {entity_id} ({subject}) to "
                 f"{result.issue_url or result.repository} [{result.status_code}]"
+            )
+            return
+
+        if target == "azure-devops":
+            publisher: AzureDevOpsWorkItemPublisher | None = None
+            try:
+                publisher = AzureDevOpsWorkItemPublisher.from_env(
+                    organization=azure_devops_organization,
+                    project=azure_devops_project,
+                    work_item_type=azure_devops_work_item_type,
+                    area_path=azure_devops_area_path,
+                    iteration_path=azure_devops_iteration_path,
+                    tags=list(azure_devops_tags) if azure_devops_tags else None,
+                    timeout=timeout,
+                    max_retries=retries,
+                )
+                result = publisher.publish(payload, dry_run=dry_run)
+            except AzureDevOpsWorkItemPublishError as exc:
+                if not dry_run:
+                    store.insert_publication_attempt(
+                        idea_id=publication_idea_id,
+                        target_type="azure_devops_work_item",
+                        target_url=publisher.work_item_endpoint if publisher else "",
+                        status="failure",
+                        response_status=exc.status_code,
+                        error=str(exc),
+                    )
+                raise click.ClickException(str(exc)) from exc
+
+            if dry_run:
+                click.echo(json.dumps(result.payload, indent=2))
+                return
+
+            store.insert_publication_attempt(
+                idea_id=publication_idea_id,
+                target_type="azure_devops_work_item",
+                target_url=result.work_item_url or "",
+                status="success",
+                response_status=result.status_code,
+            )
+            click.echo(
+                f"Published Azure DevOps work item for {entity_id} ({subject}) to "
+                f"{result.work_item_url or result.project} [{result.status_code}]"
             )
             return
 

@@ -8,6 +8,7 @@ import json
 import httpx
 import pytest
 
+from max.publisher import AzureDevOpsWorkItemsPublisher
 from max.publisher.azure_devops_work_items import (
     AzureDevOpsWorkItemPublishError,
     AzureDevOpsWorkItemPublisher,
@@ -179,3 +180,7 @@ def test_from_env_uses_azure_devops_fallbacks(monkeypatch) -> None:
     assert publisher.area_path == "Env Project\\Area"
     assert publisher.iteration_path == "Env Project\\Iteration"
     assert publisher.tags == ["one", "two"]
+
+
+def test_publisher_package_exports_azure_devops_alias() -> None:
+    assert AzureDevOpsWorkItemsPublisher is AzureDevOpsWorkItemPublisher
