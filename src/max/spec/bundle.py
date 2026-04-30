@@ -233,6 +233,13 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_spec_bundle_yaml(bundle: dict[str, Any]) -> str:
+    """Render a bundled implementation packet as deterministic YAML."""
+    import yaml
+
+    return yaml.safe_dump(bundle, sort_keys=False, allow_unicode=True)
+
+
 def _review_gate(idea_id: str, store: Store, warnings: list[str]) -> dict[str, Any]:
     try:
         return asdict(build_review_gate_decision(store, idea_id))
