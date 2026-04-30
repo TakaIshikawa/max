@@ -60,6 +60,7 @@ security_advisories = "max.sources.security_advisories:SecurityAdvisoriesAdapter
 osv_vulnerabilities = "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter"
 cisa_kev = "max.sources.cisa_kev:CisaKevAdapter"
 nvd_cve = "max.sources.nvd_cve:NvdCveAdapter"
+epss_scores = "max.sources.epss_scores:EpssScoresAdapter"
 product_hunt = "max.sources.product_hunt:ProductHuntAdapter"
 stackexchange = "max.sources.stackexchange:StackExchangeAdapter"
 stackoverflow = "max.sources.stackoverflow:StackOverflowAdapter"

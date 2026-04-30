@@ -75,6 +75,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "osv_vulnerabilities": "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter",
     "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
+    "epss_scores": "max.sources.epss_scores:EpssScoresAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackexchange": "max.sources.stackexchange:StackExchangeAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
@@ -482,6 +483,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["keywords", "severities", "cvss_min", "max_age_days", "api_key_env"],
         required_keys=[],
         description="Fetches recent NVD CVE vulnerability signals matching configured filters.",
+    ),
+    "epss_scores": AdapterMetadata(
+        name="epss_scores",
+        config_keys=["base_url", "min_epss", "min_percentile", "date"],
+        required_keys=[],
+        description="Fetches FIRST EPSS exploit-likelihood scores for high-risk CVEs.",
     ),
     "product_hunt": AdapterMetadata(
         name="product_hunt",
