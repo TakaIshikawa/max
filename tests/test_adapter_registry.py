@@ -166,6 +166,37 @@ def test_homebrew_formulae_adapter_metadata_documents_config_keys() -> None:
     assert "Homebrew formula and cask" in metadata["homebrew_formulae"].description
 
 
+def test_artifact_hub_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "artifact_hub"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["artifact_hub"]
+        adapter = get_adapter("artifact_hub")
+
+    assert adapter.name == "artifact_hub"
+
+
+def test_artifact_hub_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "artifact_hub"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"artifact_hub"}
+    assert metadata["artifact_hub"].config_keys == [
+        "base_url",
+        "queries",
+        "categories",
+        "package_types",
+        "kinds",
+        "sort",
+        "max_results",
+    ]
+    assert metadata["artifact_hub"].required_keys == []
+    assert "Artifact Hub" in metadata["artifact_hub"].description
+
+
 def test_apis_guru_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "apis_guru"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
