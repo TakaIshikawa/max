@@ -14,6 +14,7 @@ from fastapi import FastAPI
 try:
     from fastmcp import FastMCP
 except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
+
     class FastMCP:  # type: ignore[no-redef]
         """Minimal FastMCP stand-in used when the optional dependency is absent."""
 
@@ -24,6 +25,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
         def tool(self, fn=None, *args, **kwargs):
             if fn is None:
+
                 def decorator(inner_fn):
                     self._tools.append(inner_fn)
                     return inner_fn
@@ -41,6 +43,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for offline test envs
 
         def http_app(self, path: str = "/mcp"):
             return FastAPI(title=self.name)
+
 
 from max import config
 from max.analysis.architecture_enforcement import (
@@ -88,6 +91,10 @@ from max.analysis.design_brief_risk_register import (
 from max.analysis.design_brief_sales_battlecard import (
     build_design_brief_sales_battlecard,
     render_design_brief_sales_battlecard,
+)
+from max.analysis.design_brief_security_review_plan import (
+    build_design_brief_security_review_plan,
+    render_design_brief_security_review_plan,
 )
 from max.analysis.design_brief_support_playbook import (
     build_design_brief_support_playbook,
@@ -168,6 +175,7 @@ except ImportError:  # pragma: no cover - pydantic is a required runtime depende
 if TYPE_CHECKING:
     from max.server.scheduler import Scheduler
 
+
 # Module-level store factory — overridable for testing
 def _default_store_factory() -> Store:
     return Store(wal_mode=True)
@@ -233,6 +241,64 @@ def _add_pipeline_cost_anomaly_warnings(report: dict) -> dict:
     return report
 
 
+def _add_security_review_plan_indexes(plan: dict) -> dict:
+    """Add stable navigation fields for MCP clients without changing source sections."""
+    evidence_ids = [ref.get("id") for ref in plan.get("evidence_references", []) if ref.get("id")]
+    sensitive_data_ids = [
+        item.get("id") for item in plan.get("sensitive_data", []) if item.get("id")
+    ]
+    integration_risk_ids = [
+        item.get("id") for item in plan.get("integration_risks", []) if item.get("id")
+    ]
+    abuse_case_ids = [item.get("id") for item in plan.get("abuse_cases", []) if item.get("id")]
+    check_ids = [
+        item.get("id") for item in plan.get("security_acceptance_checks", []) if item.get("id")
+    ]
+    evidence_gap_ids = [item.get("id") for item in plan.get("evidence_gaps", []) if item.get("id")]
+    plan["review_areas"] = [
+        {
+            "id": "threat_model_scope",
+            "name": "Threat model scope",
+            "section": "threat_model_scope",
+            "check_ids": check_ids[:2],
+            "evidence_reference_ids": evidence_ids,
+        },
+        {
+            "id": "sensitive_data",
+            "name": "Sensitive data",
+            "section": "sensitive_data",
+            "risk_ids": sensitive_data_ids,
+            "check_ids": [check_id for check_id in check_ids if check_id in {"SRC3", "SRC6"}],
+            "evidence_reference_ids": evidence_ids,
+        },
+        {
+            "id": "integration_risks",
+            "name": "Integration risks",
+            "section": "integration_risks",
+            "risk_ids": integration_risk_ids,
+            "check_ids": [check_id for check_id in check_ids if check_id in {"SRC4", "SRC7"}],
+            "evidence_reference_ids": evidence_ids,
+        },
+        {
+            "id": "abuse_cases",
+            "name": "Abuse cases",
+            "section": "abuse_cases",
+            "risk_ids": abuse_case_ids,
+            "check_ids": [check_id for check_id in check_ids if check_id == "SRC5"],
+            "evidence_reference_ids": evidence_ids,
+        },
+        {
+            "id": "evidence_gaps",
+            "name": "Evidence gaps",
+            "section": "evidence_gaps",
+            "risk_ids": evidence_gap_ids,
+            "check_ids": [check_id for check_id in check_ids if check_id == "SRC8"],
+            "evidence_reference_ids": evidence_ids,
+        },
+    ]
+    return plan
+
+
 def _add_context_budget_waste_warnings(report: dict, *, adapter_limit: int) -> dict:
     """Add MCP-friendly warning booleans to context budget waste rows."""
     total_tokens = int(report.get("total_estimated_tokens") or 0)
@@ -257,14 +323,11 @@ def _add_context_budget_waste_warnings(report: dict, *, adapter_limit: int) -> d
             or stale_rate >= _CONTEXT_BUDGET_HIGH_WASTE_RATE_THRESHOLD
         )
         oversized_warning = (
-            total_tokens > 0
-            and token_share >= _CONTEXT_BUDGET_OVERSIZED_CONTEXT_SHARE_THRESHOLD
+            total_tokens > 0 and token_share >= _CONTEXT_BUDGET_OVERSIZED_CONTEXT_SHARE_THRESHOLD
         )
         warning_reasons = list(adapter.get("reasons") or [])
         if oversized_warning:
-            warning_reasons.append(
-                "adapter contributes at least 50% of estimated context tokens"
-            )
+            warning_reasons.append("adapter contributes at least 50% of estimated context tokens")
 
         adapter["context_token_share"] = token_share
         adapter["high_waste_warning"] = high_waste_warning
@@ -345,18 +408,10 @@ def _mcp_capability_report_payload(report, store: Store) -> dict:
     payload["categories"] = capability_buckets
     payload["gap_counts"] = gap_counts
     payload["gap_summary"] = {
-        "critical": sum(
-            1 for bucket in capability_buckets if bucket["gap_severity"] == "critical"
-        ),
-        "high": sum(
-            1 for bucket in capability_buckets if bucket["gap_severity"] == "high"
-        ),
-        "medium": sum(
-            1 for bucket in capability_buckets if bucket["gap_severity"] == "medium"
-        ),
-        "none": sum(
-            1 for bucket in capability_buckets if bucket["gap_severity"] == "none"
-        ),
+        "critical": sum(1 for bucket in capability_buckets if bucket["gap_severity"] == "critical"),
+        "high": sum(1 for bucket in capability_buckets if bucket["gap_severity"] == "high"),
+        "medium": sum(1 for bucket in capability_buckets if bucket["gap_severity"] == "medium"),
+        "none": sum(1 for bucket in capability_buckets if bucket["gap_severity"] == "none"),
     }
     return payload
 
@@ -405,27 +460,31 @@ def search_ideas(
             if query and query.lower() not in (unit.title + " " + unit.one_liner).lower():
                 continue
             evaluation = store.get_evaluation(unit.id)
-            if min_score is not None and (evaluation is None or evaluation.overall_score < min_score):
+            if min_score is not None and (
+                evaluation is None or evaluation.overall_score < min_score
+            ):
                 continue
-            results.append({
-                "id": unit.id,
-                "title": unit.title,
-                "one_liner": unit.one_liner,
-                "category": unit.category,
-                "domain": unit.domain,
-                "status": unit.status,
-                **_review_metadata(unit, store.get_latest_feedback(unit.id)),
-                "target_users": unit.target_users,
-                "specific_user": unit.specific_user,
-                "buyer": unit.buyer,
-                "workflow_context": unit.workflow_context,
-                "quality_score": unit.quality_score,
-                "novelty_score": unit.novelty_score,
-                "usefulness_score": unit.usefulness_score,
-                "rejection_tags": unit.rejection_tags,
-                "score": evaluation.overall_score if evaluation else None,
-                "recommendation": evaluation.recommendation if evaluation else None,
-            })
+            results.append(
+                {
+                    "id": unit.id,
+                    "title": unit.title,
+                    "one_liner": unit.one_liner,
+                    "category": unit.category,
+                    "domain": unit.domain,
+                    "status": unit.status,
+                    **_review_metadata(unit, store.get_latest_feedback(unit.id)),
+                    "target_users": unit.target_users,
+                    "specific_user": unit.specific_user,
+                    "buyer": unit.buyer,
+                    "workflow_context": unit.workflow_context,
+                    "quality_score": unit.quality_score,
+                    "novelty_score": unit.novelty_score,
+                    "usefulness_score": unit.usefulness_score,
+                    "rejection_tags": unit.rejection_tags,
+                    "score": evaluation.overall_score if evaluation else None,
+                    "recommendation": evaluation.recommendation if evaluation else None,
+                }
+            )
             if len(results) >= limit:
                 break
         return results
@@ -486,10 +545,18 @@ def get_idea(id: str) -> dict:
                     "strengths": evaluation.strengths,
                     "weaknesses": evaluation.weaknesses,
                     "dimensions": {
-                        name: {"value": getattr(evaluation, name).value, "reasoning": getattr(evaluation, name).reasoning}
+                        name: {
+                            "value": getattr(evaluation, name).value,
+                            "reasoning": getattr(evaluation, name).reasoning,
+                        }
                         for name in [
-                            "pain_severity", "addressable_scale", "build_effort",
-                            "composability", "competitive_density", "timing_fit", "compounding_value",
+                            "pain_severity",
+                            "addressable_scale",
+                            "build_effort",
+                            "composability",
+                            "competitive_density",
+                            "timing_fit",
+                            "compounding_value",
                         ]
                     },
                 }
@@ -693,9 +760,7 @@ def get_customer_discovery_script(idea_id: str) -> dict:
                 evidence_density=build_evidence_density_report(unit, store),
                 validation_experiments=store.list_validation_experiments(idea_id) or [],
             )
-            return CustomerDiscoveryScriptResponse.model_validate(payload).model_dump(
-                mode="json"
-            )
+            return CustomerDiscoveryScriptResponse.model_validate(payload).model_dump(mode="json")
     except MCPToolError as e:
         return e.to_dict()
 
@@ -1552,6 +1617,44 @@ def get_design_brief_instrumentation_plan(brief_id: str, format: str = "json") -
         return e.to_dict()
 
 
+def get_design_brief_security_review_plan(brief_id: str, format: str = "json") -> dict:
+    """Get the security review plan for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    security review handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported security review plan format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            plan = build_design_brief_security_review_plan(store, brief_id)
+            if not plan:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        _add_security_review_plan_indexes(plan)
+        rendered = render_design_brief_security_review_plan(plan, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_design_brief_one_pager(brief_id: str, format: str = "json") -> dict:
     """Get the one-page decision summary for a persisted design brief.
 
@@ -2299,9 +2402,7 @@ def simulate_source_allocation(
 
         profile_name = profile or MAX_PROFILE or None
         try:
-            pipeline_profile = (
-                load_profile(profile_name) if profile_name else get_default_profile()
-            )
+            pipeline_profile = load_profile(profile_name) if profile_name else get_default_profile()
         except FileNotFoundError as e:
             raise ResourceNotFoundError(
                 str(e),
@@ -2652,9 +2753,7 @@ def get_architecture_enforcement_report(
                 unit_limit=limit,
             )
 
-        return ArchitectureEnforcementResponse.model_validate(
-            report.to_dict()
-        ).model_dump()
+        return ArchitectureEnforcementResponse.model_validate(report.to_dict()).model_dump()
     except ValueError as e:
         return ValidationError(str(e)).to_dict()
     except MCPToolError as e:
@@ -2863,7 +2962,9 @@ def get_stats() -> dict:
         signals_count = store.count_signals()
         insights = store.get_insights(limit=10000)
         all_units = store.get_buildable_units(limit=10000)
-        evaluated_count = sum(1 for u in all_units if u.status in ("evaluated", "approved", "published"))
+        evaluated_count = sum(
+            1 for u in all_units if u.status in ("evaluated", "approved", "published")
+        )
         published_count = sum(1 for u in all_units if u.status == "published")
 
         scores = []
@@ -3010,9 +3111,7 @@ def max_mcp_capability_coverage(
                 expected="integer between 1 and 10000",
                 actual=str(min_count),
             )
-        if isinstance(limit_representatives, bool) or not isinstance(
-            limit_representatives, int
-        ):
+        if isinstance(limit_representatives, bool) or not isinstance(limit_representatives, int):
             raise ValidationError(
                 "limit_representatives must be an integer between 0 and 100",
                 field="limit_representatives",
@@ -3159,7 +3258,9 @@ def max_signal_freshness(
                     resource_id=profile,
                 ) from e
 
-            enabled_adapters = {source.adapter for source in resolved_profile.sources if source.enabled}
+            enabled_adapters = {
+                source.adapter for source in resolved_profile.sources if source.enabled
+            }
             if requested_adapters is None:
                 adapters = sorted(enabled_adapters)
             else:
@@ -3456,21 +3557,23 @@ def ideas_list() -> str:
         items = []
         for unit in units:
             ev = store.get_evaluation(unit.id)
-            items.append({
-                "id": unit.id,
-                "title": unit.title,
-                "one_liner": unit.one_liner,
-                "category": unit.category,
-                "domain": unit.domain,
-                "status": unit.status,
-                **_review_metadata(unit, store.get_latest_feedback(unit.id)),
-                "quality_score": unit.quality_score,
-                "novelty_score": unit.novelty_score,
-                "usefulness_score": unit.usefulness_score,
-                "rejection_tags": unit.rejection_tags,
-                "score": ev.overall_score if ev else None,
-                "recommendation": ev.recommendation if ev else None,
-            })
+            items.append(
+                {
+                    "id": unit.id,
+                    "title": unit.title,
+                    "one_liner": unit.one_liner,
+                    "category": unit.category,
+                    "domain": unit.domain,
+                    "status": unit.status,
+                    **_review_metadata(unit, store.get_latest_feedback(unit.id)),
+                    "quality_score": unit.quality_score,
+                    "novelty_score": unit.novelty_score,
+                    "usefulness_score": unit.usefulness_score,
+                    "rejection_tags": unit.rejection_tags,
+                    "score": ev.overall_score if ev else None,
+                    "recommendation": ev.recommendation if ev else None,
+                }
+            )
         return json.dumps(items, indent=2)
 
 
@@ -3651,6 +3754,11 @@ def design_brief_instrumentation_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_instrumentation_plan(brief_id), indent=2)
 
 
+def design_brief_security_review_plan_detail(brief_id: str) -> str:
+    """Get the security review plan for a specific design brief."""
+    return json.dumps(get_design_brief_security_review_plan(brief_id), indent=2)
+
+
 def design_brief_one_pager_detail(brief_id: str) -> str:
     """Get the one-pager for a specific design brief."""
     return json.dumps(get_design_brief_one_pager(brief_id), indent=2)
@@ -3811,6 +3919,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_buyer_faq)
     mcp.tool(get_design_brief_sales_battlecard)
     mcp.tool(get_design_brief_instrumentation_plan)
+    mcp.tool(get_design_brief_security_review_plan)
     mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
     mcp.tool(list_validation_experiments)
@@ -3859,9 +3968,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
     mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
     mcp.resource("ideas://{idea_id}/blast-radius")(blast_radius_detail)
-    mcp.resource("ideas://{idea_id}/customer-discovery-script")(
-        customer_discovery_script_detail
-    )
+    mcp.resource("ideas://{idea_id}/customer-discovery-script")(customer_discovery_script_detail)
     mcp.resource("ideas://{idea_id}/review-gate")(review_gate_detail)
     mcp.resource("design-briefs://list")(design_briefs_list)
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
@@ -3869,31 +3976,19 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
     mcp.resource("design-brief-roadmaps://{brief_id}")(design_brief_roadmap_detail)
     mcp.resource("design-brief-prd://{brief_id}")(design_brief_prd_detail)
-    mcp.resource("design-brief-executive-memos://{brief_id}")(
-        design_brief_executive_memo_detail
-    )
+    mcp.resource("design-brief-executive-memos://{brief_id}")(design_brief_executive_memo_detail)
     mcp.resource("design-brief-market-sizing://{brief_id}")(design_brief_market_sizing_detail)
     mcp.resource("design-brief-competitive-landscapes://{brief_id}")(
         design_brief_competitive_landscape_detail
     )
-    mcp.resource("design-brief-evidence-matrices://{brief_id}")(
-        design_brief_evidence_matrix_detail
-    )
-    mcp.resource("design-brief-launch-checklist://{brief_id}")(
-        design_brief_launch_checklist_detail
-    )
+    mcp.resource("design-brief-evidence-matrices://{brief_id}")(design_brief_evidence_matrix_detail)
+    mcp.resource("design-brief-launch-checklist://{brief_id}")(design_brief_launch_checklist_detail)
     mcp.resource("design-brief-compliance-checklist://{brief_id}")(
         design_brief_compliance_checklist_detail
     )
-    mcp.resource("design-brief-pilot-rollouts://{brief_id}")(
-        design_brief_pilot_rollout_detail
-    )
-    mcp.resource("design-brief-outreach-packs://{brief_id}")(
-        design_brief_outreach_pack_detail
-    )
-    mcp.resource("design-brief-success-metrics://{brief_id}")(
-        design_brief_success_metrics_detail
-    )
+    mcp.resource("design-brief-pilot-rollouts://{brief_id}")(design_brief_pilot_rollout_detail)
+    mcp.resource("design-brief-outreach-packs://{brief_id}")(design_brief_outreach_pack_detail)
+    mcp.resource("design-brief-success-metrics://{brief_id}")(design_brief_success_metrics_detail)
     mcp.resource("design-briefs://{brief_id}/support-playbook")(
         design_brief_support_playbook_detail
     )
@@ -3906,6 +4001,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-instrumentation-plan://{brief_id}")(
         design_brief_instrumentation_plan_detail
+    )
+    mcp.resource("design-brief-security-review-plan://{brief_id}")(
+        design_brief_security_review_plan_detail
     )
     mcp.resource("design-brief-one-pagers://{brief_id}")(design_brief_one_pager_detail)
     mcp.resource("design-brief-bundles://{brief_id}")(design_brief_bundle_detail)
