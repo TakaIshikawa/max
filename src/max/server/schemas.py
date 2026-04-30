@@ -1006,6 +1006,38 @@ class ValidationExperimentSummaryResponse(BaseModel):
     top_follow_up_actions: list[ValidationExperimentFollowUpActionResponse]
 
 
+class ValidationFollowUpStatusCountResponse(BaseModel):
+    key: str
+    count: int
+
+
+class ValidationFollowUpConfidenceDeltaSummaryResponse(BaseModel):
+    count: int
+    positive_count: int
+    negative_count: int
+    neutral_count: int
+    total: float
+    average: float | None = None
+    latest: float | None = None
+
+
+class ValidationFollowUpRecommendationResponse(BaseModel):
+    rank: int
+    action: Literal["continue", "pivot", "scale", "schedule_followup", "archive"]
+    reason: str
+    experiment_id: str | None = None
+
+
+class ValidationFollowUpsResponse(BaseModel):
+    idea_id: str
+    total_count: int
+    latest_experiment: ValidationExperimentResponse | None = None
+    status_counts: list[ValidationFollowUpStatusCountResponse]
+    evidence_url_count: int
+    confidence_delta_summary: ValidationFollowUpConfidenceDeltaSummaryResponse
+    follow_up_actions: list[ValidationFollowUpRecommendationResponse]
+
+
 class CustomerDiscoveryQuestionResponse(BaseModel):
     prompt: str
     rationale: str
