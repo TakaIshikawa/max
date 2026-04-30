@@ -4,6 +4,7 @@ from pathlib import Path
 
 import yaml
 
+from max.profiles.loader import get_profiles_dir
 from max.profiles.validation import validate_profile_file
 
 
@@ -98,3 +99,12 @@ def test_validate_profile_file_warns_for_missing_optional_file_reference(tmp_pat
     assert result.ok
     assert any(issue.code == "unreachable_file_reference" for issue in result.warning_issues)
     assert "missing-prompt.md" in result.warnings[0]
+
+
+def test_ai_infrastructure_profile_validates_without_errors() -> None:
+    profiles_dir = get_profiles_dir()
+    profile_path = profiles_dir / "ai-infrastructure.yaml"
+
+    result = validate_profile_file(profile_path, profiles_dir=profiles_dir)
+
+    assert result.ok, result.errors
