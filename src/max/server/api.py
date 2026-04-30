@@ -97,6 +97,7 @@ from max.analysis.market_sizing import (
     render_market_sizing_report,
 )
 from max.analysis.evidence_density import build_evidence_density_report
+from max.analysis.evidence_concentration import build_evidence_concentration_report
 from max.analysis.evaluation_calibration import build_evaluation_calibration_report
 from max.analysis.idea_similarity import find_similar_ideas
 from max.analysis.idea_product_brief_export import generate_idea_product_brief
@@ -277,6 +278,7 @@ from max.server.schemas import (
     DryRunEffectiveConfigResponse,
     DryRunReportResponse,
     EvidenceChainResponse,
+    EvidenceConcentrationResponse,
     EvidenceDensityResponse,
     ExperimentCardResponse,
     EvaluationExplanationResponse,
@@ -2740,6 +2742,18 @@ def get_portfolio_overlap(
         include_archived=include_archived,
     )
     return [PortfolioOverlapClusterResponse(**asdict(cluster)) for cluster in clusters]
+
+
+@router.get("/portfolio/evidence-concentration", response_model=EvidenceConcentrationResponse)
+def get_portfolio_evidence_concentration(
+    limit: int = Query(default=20, ge=1, le=100),
+    store: Store = Depends(get_store),
+) -> EvidenceConcentrationResponse:
+    try:
+        report = build_evidence_concentration_report(store, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return EvidenceConcentrationResponse.model_validate(report)
 
 
 def _opportunity_heatmap_response(
