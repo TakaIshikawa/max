@@ -108,6 +108,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.rubygems_download_trends:RubyGemsDownloadTrendsAdapter"
     ),
     "packagist": "max.sources.packagist:PackagistAdapter",
+    "packagist_download_trends": (
+        "max.sources.packagist_download_trends:PackagistDownloadTrendsAdapter"
+    ),
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "dockerhub_tag_velocity": (
         "max.sources.dockerhub_tag_velocity:DockerHubTagVelocityAdapter"
@@ -714,6 +717,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "include_maintenance", "active_release_days"],
         required_keys=[],
         description="Searches Packagist for PHP packages and release maintenance signals.",
+    ),
+    "packagist_download_trends": AdapterMetadata(
+        name="packagist_download_trends",
+        config_keys=["packages", "max_items", "max_results", "base_url"],
+        required_keys=[],
+        description="Fetches Packagist package download totals as market adoption signals.",
     ),
     "dockerhub": AdapterMetadata(
         name="dockerhub",
