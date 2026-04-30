@@ -85,6 +85,10 @@ from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
 )
+from max.analysis.design_brief_sales_battlecard import (
+    build_design_brief_sales_battlecard,
+    render_design_brief_sales_battlecard,
+)
 from max.analysis.design_brief_support_playbook import (
     build_design_brief_support_playbook,
     render_design_brief_support_playbook,
@@ -1466,6 +1470,43 @@ def get_design_brief_buyer_faq(brief_id: str, format: str = "json") -> dict:
                 )
 
         rendered = render_design_brief_buyer_faq(faq, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_sales_battlecard(brief_id: str, format: str = "json") -> dict:
+    """Get the sales battlecard for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    sales handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported sales battlecard format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            battlecard = build_design_brief_sales_battlecard(store, brief_id)
+            if not battlecard:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_sales_battlecard(battlecard, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -3600,6 +3641,11 @@ def design_brief_buyer_faq_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_buyer_faq(brief_id), indent=2)
 
 
+def design_brief_sales_battlecard_detail(brief_id: str) -> str:
+    """Get the sales battlecard for a specific design brief."""
+    return json.dumps(get_design_brief_sales_battlecard(brief_id), indent=2)
+
+
 def design_brief_instrumentation_plan_detail(brief_id: str) -> str:
     """Get the instrumentation plan for a specific design brief."""
     return json.dumps(get_design_brief_instrumentation_plan(brief_id), indent=2)
@@ -3763,6 +3809,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_support_playbook)
     mcp.tool(get_design_brief_pricing_strategy)
     mcp.tool(get_design_brief_buyer_faq)
+    mcp.tool(get_design_brief_sales_battlecard)
     mcp.tool(get_design_brief_instrumentation_plan)
     mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
@@ -3854,6 +3901,9 @@ def create_mcp_server() -> FastMCP:
         design_brief_pricing_strategy_detail
     )
     mcp.resource("design-briefs://{brief_id}/buyer-faq")(design_brief_buyer_faq_detail)
+    mcp.resource("design-briefs://{brief_id}/sales-battlecard")(
+        design_brief_sales_battlecard_detail
+    )
     mcp.resource("design-brief-instrumentation-plan://{brief_id}")(
         design_brief_instrumentation_plan_detail
     )
