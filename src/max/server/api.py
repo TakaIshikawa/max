@@ -60,6 +60,11 @@ from max.analysis.design_brief_compliance_checklist import (
     compliance_checklist_filename,
     render_design_brief_compliance_checklist,
 )
+from max.analysis.design_brief_instrumentation_plan import (
+    build_design_brief_instrumentation_plan,
+    instrumentation_plan_filename,
+    render_design_brief_instrumentation_plan,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -316,6 +321,7 @@ from max.server.schemas import (
     DesignBriefHubSpotDealPublishResponse,
     DesignBriefAssumptionLedgerResponse,
     DesignBriefBuyerFaqResponse,
+    DesignBriefInstrumentationPlanResponse,
     DesignBriefJiraIssuePublishRequest,
     DesignBriefJiraIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
@@ -8627,6 +8633,56 @@ def _design_brief_success_metrics_markdown_response(
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/instrumentation-plan",
+    response_model=DesignBriefInstrumentationPlanResponse,
+)
+def get_design_brief_instrumentation_plan(
+    brief_id: str,
+    format: str = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefInstrumentationPlanResponse | Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    plan = build_design_brief_instrumentation_plan(brief)
+    if format == "json":
+        return DesignBriefInstrumentationPlanResponse(**plan)
+    return _design_brief_instrumentation_plan_rendered_response(plan, fmt=format)
+
+
+@router.get("/design-briefs/{brief_id}/instrumentation-plan.md", response_model=None)
+def get_design_brief_instrumentation_plan_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    plan = build_design_brief_instrumentation_plan(brief)
+    return _design_brief_instrumentation_plan_rendered_response(plan, fmt="markdown")
+
+
+def _design_brief_instrumentation_plan_rendered_response(
+    plan: dict[str, Any],
+    *,
+    fmt: str,
+) -> Response:
+    try:
+        content = render_design_brief_instrumentation_plan(plan, fmt=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_type = "application/json" if fmt == "json" else "text/markdown"
+    headers: dict[str, str] = {}
+    if fmt == "markdown":
+        filename = instrumentation_plan_filename(plan["design_brief"], fmt="markdown")
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return Response(content=content, media_type=media_type, headers=headers)
 
 
 @router.get(

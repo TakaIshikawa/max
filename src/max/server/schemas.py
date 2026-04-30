@@ -2806,6 +2806,19 @@ class DesignBriefSuccessMetricsResponse(BaseModel):
     missing_inputs: list[DesignBriefSuccessMissingInputResponse]
 
 
+class DesignBriefInstrumentationPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    events: list[dict[str, Any]]
+    activation_funnel_steps: list[dict[str, Any]]
+    retention_checkpoints: list[dict[str, Any]]
+    guardrail_alerts: list[dict[str, Any]]
+    privacy_notes: list[str]
+    missing_inputs: list[dict[str, Any]]
+
+
 class DesignBriefAssumptionLedgerBriefResponse(BaseModel):
     id: str
     title: str
