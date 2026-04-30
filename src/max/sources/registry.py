@@ -47,6 +47,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
+    "github_marketplace_actions": (
+        "max.sources.github_marketplace_actions:GitHubMarketplaceActionsAdapter"
+    ),
     "github_octoverse": "max.sources.github_octoverse:GitHubOctoverseAdapter",
     "snyk_reports": "max.sources.snyk_reports:SnykReportsAdapter",
     "agentseal_mcp_scan": "max.sources.agentseal_mcp_scan:AgentSealMcpScanAdapter",
@@ -218,6 +221,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches GitHub Actions workflow failures from configured repositories.",
+    ),
+    "github_marketplace_actions": AdapterMetadata(
+        name="github_marketplace_actions",
+        config_keys=[
+            "queries",
+            "categories",
+            "max_results",
+            "min_stars",
+            "max_age_days",
+            "github_token",
+            "token",
+            "token_env",
+        ],
+        required_keys=[],
+        description=(
+            "Searches GitHub Marketplace Actions and action repositories for "
+            "adoption, category, publisher, star, and install signals."
+        ),
     ),
     "github_octoverse": AdapterMetadata(
         name="github_octoverse",
