@@ -1590,7 +1590,7 @@ class TestSpecBundleCommand:
         MockStore.return_value = store
         mock_generate.return_value = bundle
 
-        result = runner.invoke(main, ["spec-bundle", "bu-test001", "--format", "markdown"])
+        result = runner.invoke(main, ["spec-bundle", "bu-test001"])
 
         assert result.exit_code == 0, result.output
         assert result.output.startswith("# MCP Test Framework Implementation Packet")
@@ -1599,33 +1599,7 @@ class TestSpecBundleCommand:
 
     @patch("max.spec.bundle.generate_spec_bundle")
     @patch("max.store.db.Store")
-    def test_spec_bundle_stdout_yaml(
-        self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
-    ) -> None:
-        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
-        MockStore.return_value = store
-        mock_generate.return_value = _make_spec_bundle()
-
-        result = runner.invoke(main, ["spec-bundle", "bu-test001", "--format", "yaml"])
-
-        assert result.exit_code == 0, result.output
-        payload = yaml.safe_load(result.output)
-        assert list(payload.keys()) == [
-            "schema_version",
-            "kind",
-            "idea_id",
-            "generated_at",
-            "warnings",
-            "artifacts",
-        ]
-        assert payload["warnings"] == ["Utility evaluation is missing"]
-        assert payload["artifacts"]["review_gate"]["blocking_reasons"] == [
-            "utility evaluation is missing"
-        ]
-
-    @patch("max.spec.bundle.generate_spec_bundle")
-    @patch("max.store.db.Store")
-    def test_spec_bundle_writes_yaml(
+    def test_spec_bundle_writes_json(
         self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
     ) -> None:
         store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
@@ -1635,12 +1609,12 @@ class TestSpecBundleCommand:
         with runner.isolated_filesystem():
             result = runner.invoke(
                 main,
-                ["spec-bundle", "bu-test001", "--format", "yaml", "--output", "out/bundle.yaml"],
+                ["spec-bundle", "bu-test001", "--format", "json", "--output", "out/bundle.json"],
             )
 
             assert result.exit_code == 0, result.output
             assert result.output == ""
-            payload = yaml.safe_load(Path("out/bundle.yaml").read_text(encoding="utf-8"))
+            payload = json.loads(Path("out/bundle.json").read_text(encoding="utf-8"))
             assert payload["kind"] == "max.spec_bundle"
 
     @patch("max.store.db.Store")

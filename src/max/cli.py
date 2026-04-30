@@ -2512,8 +2512,8 @@ def _render_spec_preview(preview: dict, *, fmt: str) -> str:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["json", "markdown", "yaml"]),
-    default="json",
+    type=click.Choice(["json", "markdown"]),
+    default="markdown",
     show_default=True,
     help="Output format",
 )
@@ -2529,7 +2529,6 @@ def spec_bundle(idea_id: str, fmt: str, output: str | None) -> None:
     from max.spec.bundle import (
         generate_spec_bundle,
         render_spec_bundle_markdown,
-        render_spec_bundle_yaml,
     )
     from max.store.db import Store
 
@@ -2544,8 +2543,6 @@ def spec_bundle(idea_id: str, fmt: str, output: str | None) -> None:
             rendered = json.dumps(bundle, indent=2) + "\n"
         elif fmt == "markdown":
             rendered = render_spec_bundle_markdown(bundle)
-        elif fmt == "yaml":
-            rendered = render_spec_bundle_yaml(bundle)
         else:
             raise click.ClickException(f"Unsupported format: {fmt}")
 
