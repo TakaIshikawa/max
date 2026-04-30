@@ -245,13 +245,14 @@ def test_list_adapters_returns_strings():
     assert "hackernews" in names
     assert "npm_download_trends" in names
     assert "rubygems" in names
+    assert "rubygems_download_trends" in names
     assert "clinical_trials" in names
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,rubygems_download_trends,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -264,6 +265,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "crates_io",
         "maven_central",
         "rubygems",
+        "rubygems_download_trends",
         "dockerhub",
         "mcp_registry",
         "stackshare",
@@ -302,6 +304,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["rubygems"].config_keys == ["queries", "max_pages"]
     assert metadata["rubygems"].required_keys == []
     assert "RubyGems" in metadata["rubygems"].description
+    assert metadata["rubygems_download_trends"].config_keys == [
+        "packages",
+        "max_items",
+        "max_results",
+        "min_downloads",
+    ]
+    assert metadata["rubygems_download_trends"].required_keys == []
+    assert "RubyGems package download" in metadata["rubygems_download_trends"].description
     assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description
