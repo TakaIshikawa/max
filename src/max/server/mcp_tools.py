@@ -108,6 +108,10 @@ from max.analysis.design_brief_support_playbook import (
     build_design_brief_support_playbook,
     render_design_brief_support_playbook,
 )
+from max.analysis.design_brief_technical_feasibility import (
+    build_design_brief_technical_feasibility,
+    render_design_brief_technical_feasibility,
+)
 from max.analysis.design_brief_success_metrics import (
     build_design_brief_success_metrics,
     render_design_brief_success_metrics,
@@ -1731,6 +1735,44 @@ def get_design_brief_security_review_plan(brief_id: str, format: str = "json") -
 
         _add_security_review_plan_indexes(plan)
         rendered = render_design_brief_security_review_plan(plan, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_technical_feasibility(brief_id: str, format: str = "json") -> dict:
+    """Get the technical feasibility report for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    implementation constraint handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported technical feasibility format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            report = build_design_brief_technical_feasibility(brief)
+
+        rendered = render_design_brief_technical_feasibility(report, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -3852,6 +3894,11 @@ def design_brief_security_review_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_security_review_plan(brief_id), indent=2)
 
 
+def design_brief_technical_feasibility_detail(brief_id: str) -> str:
+    """Get the technical feasibility report for a specific design brief."""
+    return json.dumps(get_design_brief_technical_feasibility(brief_id), indent=2)
+
+
 def design_brief_one_pager_detail(brief_id: str) -> str:
     """Get the one-pager for a specific design brief."""
     return json.dumps(get_design_brief_one_pager(brief_id), indent=2)
@@ -4015,6 +4062,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_sales_battlecard)
     mcp.tool(get_design_brief_instrumentation_plan)
     mcp.tool(get_design_brief_security_review_plan)
+    mcp.tool(get_design_brief_technical_feasibility)
     mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
     mcp.tool(list_validation_experiments)
@@ -4105,6 +4153,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-security-review-plan://{brief_id}")(
         design_brief_security_review_plan_detail
+    )
+    mcp.resource("design-brief-technical-feasibility://{brief_id}")(
+        design_brief_technical_feasibility_detail
     )
     mcp.resource("design-brief-one-pagers://{brief_id}")(design_brief_one_pager_detail)
     mcp.resource("design-brief-bundles://{brief_id}")(design_brief_bundle_detail)
