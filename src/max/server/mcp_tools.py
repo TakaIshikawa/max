@@ -61,6 +61,10 @@ from max.analysis.design_brief_instrumentation_plan import (
     build_design_brief_instrumentation_plan,
     render_design_brief_instrumentation_plan,
 )
+from max.analysis.design_brief_one_pager import (
+    build_design_brief_one_pager,
+    render_design_brief_one_pager,
+)
 from max.analysis.design_brief_bundle import (
     build_design_brief_bundle,
     render_design_brief_bundle,
@@ -1465,6 +1469,57 @@ def get_design_brief_instrumentation_plan(brief_id: str, format: str = "json") -
         return e.to_dict()
 
 
+def get_design_brief_one_pager(brief_id: str, format: str = "json") -> dict:
+    """Get the one-page decision summary for a persisted design brief.
+
+    Set format to "json" for a structured payload with rendered JSON text or
+    "markdown" for rendered stakeholder handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported design brief one-pager format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            one_pager = build_design_brief_one_pager(store, brief_id)
+            if not one_pager:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            brief = store.get_design_brief(brief_id) or {}
+            mcp_fields = _design_brief_one_pager_mcp_fields(store, brief, one_pager)
+
+        rendered = render_design_brief_one_pager(one_pager, fmt=fmt)
+        if fmt == "markdown":
+            return {
+                "id": brief_id,
+                "format": "markdown",
+                "markdown": rendered,
+                "one_pager": one_pager,
+                **mcp_fields,
+            }
+        return {
+            **json.loads(rendered),
+            "id": brief_id,
+            "format": "json",
+            "rendered": rendered,
+            **mcp_fields,
+        }
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_design_brief_bundle(brief_id: str, format: str = "json") -> dict:
     """Get the consolidated handoff bundle for a persisted design brief.
 
@@ -1511,6 +1566,71 @@ def get_design_brief_bundle(brief_id: str, format: str = "json") -> dict:
         }
     except MCPToolError as e:
         return e.to_dict()
+
+
+def _design_brief_one_pager_mcp_fields(
+    store: Store,
+    brief: dict,
+    one_pager: dict,
+) -> dict:
+    """Add MCP-friendly handoff fields without changing the source artifact."""
+    source_idea_ids = list(one_pager.get("source_idea_ids") or [])
+    source_traceability = []
+    seen_source_ids: set[str] = set()
+    differentiation = ""
+    for source in brief.get("sources", []):
+        idea_id = source.get("idea_id")
+        if not idea_id or idea_id in seen_source_ids or idea_id not in source_idea_ids:
+            continue
+        seen_source_ids.add(idea_id)
+        unit = store.get_buildable_unit(idea_id)
+        source_row = {
+            "idea_id": idea_id,
+            "role": source.get("role", "source"),
+            "rank": source.get("rank", 0),
+            "title": unit.title if unit else "",
+            "source_fields": [
+                "buyer",
+                "problem",
+                "solution",
+                "value_proposition",
+                "validation_plan",
+                "domain_risks",
+            ],
+        }
+        if unit:
+            source_row.update(
+                {
+                    "buyer": unit.buyer,
+                    "problem": unit.problem,
+                    "solution": unit.solution,
+                    "differentiation": unit.value_proposition,
+                    "validation_plan": unit.validation_plan,
+                    "risks": list(unit.domain_risks),
+                }
+            )
+            if not differentiation and unit.value_proposition:
+                differentiation = unit.value_proposition
+        source_traceability.append(source_row)
+
+    return {
+        "brief_summary": {
+            "title": one_pager.get("title", ""),
+            "domain": one_pager.get("domain", ""),
+            "readiness_score": one_pager.get("readiness_score", 0.0),
+            "design_status": one_pager.get("design_brief", {}).get("design_status", ""),
+            "evidence_count": one_pager.get("evidence_count", 0),
+            "first_milestone": one_pager.get("first_milestone", ""),
+        },
+        "buyer": brief.get("buyer", ""),
+        "workflow": brief.get("workflow_context", ""),
+        "concept": brief.get("merged_product_concept", ""),
+        "differentiation": differentiation or brief.get("synthesis_rationale", ""),
+        "validation_plan": brief.get("validation_plan", ""),
+        "risks": one_pager.get("top_risks", []),
+        "source_idea_traceability": source_traceability,
+        "source_ids": source_idea_ids,
+    }
 
 
 def _design_brief_market_sizing_evidence_references(store: Store, brief: dict) -> list[dict]:
@@ -3438,6 +3558,11 @@ def design_brief_instrumentation_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_instrumentation_plan(brief_id), indent=2)
 
 
+def design_brief_one_pager_detail(brief_id: str) -> str:
+    """Get the one-pager for a specific design brief."""
+    return json.dumps(get_design_brief_one_pager(brief_id), indent=2)
+
+
 def design_brief_bundle_detail(brief_id: str) -> str:
     """Get the consolidated bundle for a specific design brief."""
     return json.dumps(get_design_brief_bundle(brief_id), indent=2)
@@ -3591,6 +3716,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_pricing_strategy)
     mcp.tool(get_design_brief_buyer_faq)
     mcp.tool(get_design_brief_instrumentation_plan)
+    mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
     mcp.tool(list_validation_experiments)
     mcp.tool(get_validation_experiment)
@@ -3680,6 +3806,7 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-instrumentation-plan://{brief_id}")(
         design_brief_instrumentation_plan_detail
     )
+    mcp.resource("design-brief-one-pagers://{brief_id}")(design_brief_one_pager_detail)
     mcp.resource("design-brief-bundles://{brief_id}")(design_brief_bundle_detail)
     mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
     mcp.resource("validation-experiments://summary")(validation_experiment_summary_detail)
