@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from max.profiles.schema import (
     ArchitectureConstraintsConfig,
@@ -2637,6 +2637,92 @@ class DesignBriefSuccessMetricsResponse(BaseModel):
     risk_guardrails: list[DesignBriefSuccessRiskGuardrailResponse]
     instrumentation_events: list[DesignBriefSuccessInstrumentationEventResponse]
     missing_inputs: list[DesignBriefSuccessMissingInputResponse]
+
+
+class DesignBriefTechnicalFeasibilityArtifactModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class DesignBriefTechnicalFeasibilityVerdictResponse(
+    DesignBriefTechnicalFeasibilityArtifactModel
+):
+    verdict: Literal["feasible_with_spikes", "conditionally_feasible", "spike_required"]
+    risk_level: Literal["low", "medium", "high"]
+    rationale: str
+    blocking_risks: list[str]
+    next_decision: str
+
+
+class DesignBriefTechnicalFeasibilityAssumptionResponse(
+    DesignBriefTechnicalFeasibilityArtifactModel
+):
+    id: str
+    assumption: str
+    rationale: str
+    confidence: Literal["low", "medium", "high"]
+    source_fields: list[str]
+
+
+class DesignBriefTechnicalFeasibilityIntegrationResponse(
+    DesignBriefTechnicalFeasibilityArtifactModel
+):
+    id: str
+    name: str
+    type: str
+    risk_level: Literal["low", "medium", "high"]
+    rationale: str
+    validation_step: str
+
+
+class DesignBriefTechnicalFeasibilityDataDependencyResponse(
+    DesignBriefTechnicalFeasibilityArtifactModel
+):
+    id: str
+    name: str
+    source: str
+    criticality: str
+    risk_level: Literal["low", "medium", "high"]
+    rationale: str
+    validation_step: str
+
+
+class DesignBriefTechnicalFeasibilityComplexityResponse(
+    DesignBriefTechnicalFeasibilityArtifactModel
+):
+    level: Literal["low", "medium", "high"]
+    score: int
+    estimated_mvp_effort: str
+    drivers: list[str]
+    constraints: list[str]
+
+
+class DesignBriefTechnicalFeasibilityUnknownResponse(DesignBriefTechnicalFeasibilityArtifactModel):
+    id: str
+    unknown: str
+    impact: str
+    resolution_path: str
+
+
+class DesignBriefTechnicalFeasibilitySpikeResponse(DesignBriefTechnicalFeasibilityArtifactModel):
+    id: str
+    title: str
+    duration: str
+    goal: str
+    steps: list[str]
+    exit_criteria: str
+
+
+class DesignBriefTechnicalFeasibilityResponse(DesignBriefTechnicalFeasibilityArtifactModel):
+    schema_version: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    feasibility_verdict: DesignBriefTechnicalFeasibilityVerdictResponse
+    architecture_assumptions: list[DesignBriefTechnicalFeasibilityAssumptionResponse]
+    integration_surface: list[DesignBriefTechnicalFeasibilityIntegrationResponse]
+    data_dependencies: list[DesignBriefTechnicalFeasibilityDataDependencyResponse]
+    build_complexity: DesignBriefTechnicalFeasibilityComplexityResponse
+    unknowns: list[DesignBriefTechnicalFeasibilityUnknownResponse]
+    recommended_spike_plan: list[DesignBriefTechnicalFeasibilitySpikeResponse]
 
 
 class DesignBriefCompetitorClusterResponse(BaseModel):

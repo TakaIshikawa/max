@@ -91,6 +91,11 @@ from max.analysis.design_brief_success_metrics import (
     render_design_brief_success_metrics,
     success_metrics_filename,
 )
+from max.analysis.design_brief_technical_feasibility import (
+    build_design_brief_technical_feasibility,
+    render_design_brief_technical_feasibility,
+    technical_feasibility_filename,
+)
 from max.analysis.market_sizing import (
     build_market_sizing_report,
     market_sizing_filename,
@@ -270,6 +275,7 @@ from max.server.schemas import (
     DesignBriefStatusUpdate,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTeamsPublishResponse,
+    DesignBriefTechnicalFeasibilityResponse,
     DesignBriefTrelloCardPublishRequest,
     DesignBriefTrelloCardPublishResponse,
     DesignBriefValidationPlanResponse,
@@ -7825,6 +7831,40 @@ def _design_brief_success_metrics_markdown_response(
     filename = success_metrics_filename(brief, fmt="markdown")
     return Response(
         content=render_design_brief_success_metrics(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/technical-feasibility",
+    response_model=DesignBriefTechnicalFeasibilityResponse,
+)
+def get_design_brief_technical_feasibility(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefTechnicalFeasibilityResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = build_design_brief_technical_feasibility(brief)
+    return DesignBriefTechnicalFeasibilityResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/technical-feasibility.md", response_model=None)
+def get_design_brief_technical_feasibility_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = build_design_brief_technical_feasibility(brief)
+    filename = technical_feasibility_filename(brief, fmt="markdown")
+    return Response(
+        content=render_design_brief_technical_feasibility(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
