@@ -1170,6 +1170,48 @@ def get_design_brief_launch_checklist(brief_id: str, format: str = "json") -> di
         return e.to_dict()
 
 
+def get_design_brief_compliance_checklist(brief_id: str, format: str = "json") -> dict:
+    """Get the compliance checklist for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    compliance gate handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    from max.analysis.design_brief_compliance_checklist import (
+        build_design_brief_compliance_checklist,
+        render_design_brief_compliance_checklist,
+    )
+
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported compliance checklist format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            checklist = build_design_brief_compliance_checklist(store, brief_id)
+            if not checklist:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_compliance_checklist(checklist, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_design_brief_pricing_strategy(brief_id: str, format: str = "json") -> dict:
     """Get the pricing strategy for a persisted design brief.
 
@@ -2996,6 +3038,11 @@ def design_brief_launch_checklist_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_launch_checklist(brief_id), indent=2)
 
 
+def design_brief_compliance_checklist_detail(brief_id: str) -> str:
+    """Get the compliance checklist for a specific design brief."""
+    return json.dumps(get_design_brief_compliance_checklist(brief_id), indent=2)
+
+
 def design_brief_pricing_strategy_detail(brief_id: str) -> str:
     """Get the pricing strategy for a specific design brief."""
     return json.dumps(get_design_brief_pricing_strategy(brief_id), indent=2)
@@ -3132,6 +3179,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_competitive_landscape)
     mcp.tool(get_design_brief_evidence_matrix)
     mcp.tool(get_design_brief_launch_checklist)
+    mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_pricing_strategy)
     mcp.tool(get_design_brief_bundle)
     mcp.tool(list_validation_experiments)
@@ -3199,6 +3247,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-launch-checklist://{brief_id}")(
         design_brief_launch_checklist_detail
+    )
+    mcp.resource("design-brief-compliance-checklist://{brief_id}")(
+        design_brief_compliance_checklist_detail
     )
     mcp.resource("design-brief-pricing-strategies://{brief_id}")(
         design_brief_pricing_strategy_detail
