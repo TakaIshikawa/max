@@ -243,6 +243,7 @@ def test_list_adapters_returns_strings():
     assert isinstance(names, list)
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
+    assert "npm_download_trends" in names
     assert "rubygems" in names
     assert "clinical_trials" in names
 
@@ -250,7 +251,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -258,6 +259,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
 
     assert set(metadata) == {
         "hackernews",
+        "npm_download_trends",
         "rss_feed",
         "crates_io",
         "maven_central",
@@ -280,6 +282,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
     assert metadata["hackernews"].required_keys == []
     assert "Hacker News" in metadata["hackernews"].description
+    assert metadata["npm_download_trends"].config_keys == [
+        "packages",
+        "period",
+        "max_results",
+        "max_items",
+    ]
+    assert metadata["npm_download_trends"].required_keys == []
+    assert "npm package download" in metadata["npm_download_trends"].description
     assert metadata["rss_feed"].config_keys == ["feeds", "tags", "max_age_days"]
     assert metadata["rss_feed"].required_keys == ["feeds"]
     assert "RSS" in metadata["rss_feed"].description

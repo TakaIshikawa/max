@@ -39,6 +39,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "hackernews_showhn": "max.sources.hackernews_showhn:HackerNewsShowHNAdapter",
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
+    "npm_download_trends": (
+        "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
+    ),
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
     "github_trending": "max.sources.github_trending:GitHubTrendingAdapter",
@@ -157,6 +160,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries"],
         required_keys=[],
         description="Searches the npm registry for packages matching configured query terms.",
+    ),
+    "npm_download_trends": AdapterMetadata(
+        name="npm_download_trends",
+        config_keys=["packages", "period", "max_results", "max_items"],
+        required_keys=[],
+        description="Fetches recent npm package download trend totals as market adoption signals.",
     ),
     "reddit": AdapterMetadata(
         name="reddit",
