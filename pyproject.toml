@@ -30,6 +30,7 @@ max = "max.cli:main"
 [project.entry-points."max.adapters"]
 hackernews = "max.sources.hackernews:HackerNewsAdapter"
 hackernews_whoishiring = "max.sources.hackernews_whoishiring:HackerNewsWhoIsHiringAdapter"
+hackernews_showhn = "max.sources.hackernews_showhn:HackerNewsShowHNAdapter"
 npm_registry = "max.sources.npm_registry:NpmRegistryAdapter"
 reddit = "max.sources.reddit:RedditAdapter"
 github = "max.sources.github:GitHubAdapter"

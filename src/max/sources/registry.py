@@ -37,6 +37,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "hackernews_whoishiring": (
         "max.sources.hackernews_whoishiring:HackerNewsWhoIsHiringAdapter"
     ),
+    "hackernews_showhn": "max.sources.hackernews_showhn:HackerNewsShowHNAdapter",
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
@@ -139,6 +140,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Fetches Hacker News Who Is Hiring monthly thread comments as "
             "market-demand signals."
         ),
+    ),
+    "hackernews_showhn": AdapterMetadata(
+        name="hackernews_showhn",
+        config_keys=["algolia_url", "query"],
+        required_keys=[],
+        description="Fetches recent Hacker News Show HN launch and prototype posts.",
     ),
     "npm_registry": AdapterMetadata(
         name="npm_registry",
