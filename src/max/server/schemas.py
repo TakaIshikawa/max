@@ -3065,6 +3065,21 @@ class DesignBriefSalesBattlecardResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefOutreachPackResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    target_segments: list[dict[str, Any]]
+    outreach_hypotheses: list[dict[str, Any]]
+    templates: list[dict[str, Any]]
+    objection_handling: list[dict[str, Any]]
+    qualification_questions: list[dict[str, Any]]
+    follow_up_artifacts: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefArtifactStatusResponse(BaseModel):
     status: Literal["generated", "missing", "errored"]
     error: str | None = None

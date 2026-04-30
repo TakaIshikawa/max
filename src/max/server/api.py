@@ -80,6 +80,10 @@ from max.analysis.design_brief_okrs import (
     build_design_brief_okrs,
     render_design_brief_okrs_markdown,
 )
+from max.analysis.design_brief_outreach_pack import (
+    build_design_brief_outreach_pack,
+    render_design_brief_outreach_pack,
+)
 from max.analysis.design_brief_pilot_rollout import (
     build_design_brief_pilot_rollout,
     render_design_brief_pilot_rollout,
@@ -307,6 +311,7 @@ from max.server.schemas import (
     DesignBriefMicrosoftPlannerTaskPublishResponse,
     DesignBriefOkrsResponse,
     DesignBriefOnePagerResponse,
+    DesignBriefOutreachPackResponse,
     DesignBriefPilotRolloutResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
@@ -8755,6 +8760,44 @@ def get_design_brief_sales_battlecard_markdown(
     filename = f"{_download_filename_part(brief_id)}-sales-battlecard.md"
     return Response(
         content=render_design_brief_sales_battlecard(battlecard, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/outreach-pack",
+    response_model=DesignBriefOutreachPackResponse,
+)
+def get_design_brief_outreach_pack(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefOutreachPackResponse | Response:
+    pack = build_design_brief_outreach_pack(store, brief_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_outreach_pack_markdown_response(pack)
+    return DesignBriefOutreachPackResponse(**pack)
+
+
+@router.get("/design-briefs/{brief_id}/outreach-pack.md", response_model=None)
+def get_design_brief_outreach_pack_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    pack = build_design_brief_outreach_pack(store, brief_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_outreach_pack_markdown_response(pack)
+
+
+def _design_brief_outreach_pack_markdown_response(pack: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(pack['design_brief']['id'])}-outreach-pack.md"
+    return Response(
+        content=render_design_brief_outreach_pack(pack, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
