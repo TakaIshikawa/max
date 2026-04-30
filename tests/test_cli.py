@@ -111,6 +111,29 @@ def _make_insight(insight_id: str = "ins-test001") -> Insight:
     )
 
 
+def _make_spec_bundle() -> dict:
+    return {
+        "schema_version": "max-spec-bundle/v1",
+        "kind": "max.spec_bundle",
+        "idea_id": "bu-test001",
+        "generated_at": "2026-04-30T00:00:00+00:00",
+        "warnings": ["Utility evaluation is missing"],
+        "artifacts": {
+            "spec_preview": {
+                "project": {"title": "MCP Test Framework", "summary": "Standardized testing"},
+                "evaluation": None,
+            },
+            "implementation_plan": {"schema_version": "max-implementation-plan/v1"},
+            "review_gate": {
+                "schema_version": "max-review-gate/v1",
+                "blocking_reasons": ["utility evaluation is missing"],
+            },
+            "evidence_density": {"signal_count": 1},
+            "evidence_chain_summary": {"insight_ids": ["ins-test001"]},
+        },
+    }
+
+
 def _mock_store(**overrides) -> MagicMock:
     """Build a mock Store with sensible defaults. Override individual methods via kwargs."""
     store = MagicMock()
@@ -1356,6 +1379,149 @@ class TestSpecPreviewCommand:
         MockStore.return_value = store
 
         result = runner.invoke(main, ["spec-preview", "bu-missing"])
+
+        assert result.exit_code != 0
+        assert "Idea not found: bu-missing" in result.output
+        store.get_evaluation.assert_not_called()
+
+
+class TestSpecBundleCommand:
+    @patch("max.spec.bundle.generate_spec_bundle")
+    @patch("max.store.db.Store")
+    def test_spec_bundle_stdout_json(
+        self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        mock_generate.return_value = _make_spec_bundle()
+
+        result = runner.invoke(main, ["spec-bundle", "bu-test001", "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max-spec-bundle/v1"
+        assert payload["idea_id"] == "bu-test001"
+        assert payload["artifacts"]["spec_preview"]["project"]["title"] == "MCP Test Framework"
+        mock_generate.assert_called_once()
+        assert mock_generate.call_args.args[0].id == "bu-test001"
+        assert mock_generate.call_args.args[1].buildable_unit_id == "bu-test001"
+        assert mock_generate.call_args.args[2] is store
+
+    @patch("max.spec.bundle.generate_spec_bundle")
+    @patch("max.store.db.Store")
+    def test_spec_bundle_stdout_markdown(
+        self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
+    ) -> None:
+        bundle = _make_spec_bundle()
+        bundle["artifacts"] = {
+            "spec_preview": {
+                "project": {
+                    "title": "MCP Test Framework",
+                    "summary": "Standardized testing",
+                    "specific_user": "developer",
+                    "workflow_context": "CI",
+                    "value_proposition": "Less manual validation",
+                },
+                "problem": {"statement": "No standard tests"},
+                "solution": {"approach": "Provide a CLI"},
+            },
+            "readiness": {"status": "hold", "score": 50.0, "failed_check_ids": [], "remediation": ""},
+            "implementation_plan": {
+                "summary": {"recommendation": "yes"},
+                "milestones": [],
+                "validation_steps": [],
+            },
+            "launch_checklist": {"summary": {"launch_gate": "hold"}, "checklist_items": []},
+            "acceptance_criteria": {"functional_criteria": [], "non_functional_criteria": []},
+            "experiment_card": {
+                "primary_hypothesis": "Users need this",
+                "target_participant": {"persona": "developer"},
+                "riskiest_assumptions": [],
+            },
+            "risk_register": {"summary": {"risk_count": 0, "critical_risk_count": 0, "high_risk_count": 0}, "risks": []},
+            "review_gate": {
+                "decision": "hold",
+                "confidence": 0.5,
+                "blocking_reasons": [],
+                "required_remediations": [],
+            },
+            "evidence_density": {
+                "signal_count": 1,
+                "insight_count": 1,
+                "density_score": 0.5,
+                "average_credibility": 0.7,
+                "missing_evidence_warnings": [],
+            },
+            "evidence_chain_summary": {
+                "insight_ids": ["ins-test001"],
+                "signal_ids": ["sig-test001"],
+                "edge_count": 0,
+                "edges": [],
+            },
+        }
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        mock_generate.return_value = bundle
+
+        result = runner.invoke(main, ["spec-bundle", "bu-test001", "--format", "markdown"])
+
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("# MCP Test Framework Implementation Packet")
+        assert "## Spec Preview" in result.output
+        assert "## Review Gate" in result.output
+
+    @patch("max.spec.bundle.generate_spec_bundle")
+    @patch("max.store.db.Store")
+    def test_spec_bundle_stdout_yaml(
+        self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        mock_generate.return_value = _make_spec_bundle()
+
+        result = runner.invoke(main, ["spec-bundle", "bu-test001", "--format", "yaml"])
+
+        assert result.exit_code == 0, result.output
+        payload = yaml.safe_load(result.output)
+        assert list(payload.keys()) == [
+            "schema_version",
+            "kind",
+            "idea_id",
+            "generated_at",
+            "warnings",
+            "artifacts",
+        ]
+        assert payload["warnings"] == ["Utility evaluation is missing"]
+        assert payload["artifacts"]["review_gate"]["blocking_reasons"] == [
+            "utility evaluation is missing"
+        ]
+
+    @patch("max.spec.bundle.generate_spec_bundle")
+    @patch("max.store.db.Store")
+    def test_spec_bundle_writes_yaml(
+        self, MockStore: MagicMock, mock_generate: MagicMock, runner: CliRunner
+    ) -> None:
+        store = _mock_store(unit=_make_unit(), evaluation=_make_evaluation())
+        MockStore.return_value = store
+        mock_generate.return_value = _make_spec_bundle()
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                ["spec-bundle", "bu-test001", "--format", "yaml", "--output", "out/bundle.yaml"],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert result.output == ""
+            payload = yaml.safe_load(Path("out/bundle.yaml").read_text(encoding="utf-8"))
+            assert payload["kind"] == "max.spec_bundle"
+
+    @patch("max.store.db.Store")
+    def test_spec_bundle_missing_idea(self, MockStore: MagicMock, runner: CliRunner) -> None:
+        store = _mock_store(unit=None)
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["spec-bundle", "bu-missing"])
 
         assert result.exit_code != 0
         assert "Idea not found: bu-missing" in result.output

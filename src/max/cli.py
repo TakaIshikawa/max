@@ -2463,6 +2463,58 @@ def _render_spec_preview(preview: dict, *, fmt: str) -> str:
     raise click.ClickException(f"Unsupported format: {fmt}")
 
 
+@main.command(name="spec-bundle")
+@click.argument("idea_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "markdown", "yaml"]),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write bundle to file",
+)
+def spec_bundle(idea_id: str, fmt: str, output: str | None) -> None:
+    """Export a complete implementation spec bundle for one idea."""
+    from max.spec.bundle import (
+        generate_spec_bundle,
+        render_spec_bundle_markdown,
+        render_spec_bundle_yaml,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            raise click.ClickException(f"Idea not found: {idea_id}")
+
+        bundle = generate_spec_bundle(unit, store.get_evaluation(idea_id), store)
+        if fmt == "json":
+            rendered = json.dumps(bundle, indent=2) + "\n"
+        elif fmt == "markdown":
+            rendered = render_spec_bundle_markdown(bundle)
+        elif fmt == "yaml":
+            rendered = render_spec_bundle_yaml(bundle)
+        else:
+            raise click.ClickException(f"Unsupported format: {fmt}")
+
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered, encoding="utf-8")
+            return
+        click.echo(rendered, nl=False)
+    finally:
+        store.close()
+
+
 @main.command(name="spec-readiness")
 @click.argument("idea_id")
 @click.option(

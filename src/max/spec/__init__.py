@@ -2,7 +2,7 @@
 
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.acceptance_criteria import generate_acceptance_criteria
-from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
+from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown, render_spec_bundle_yaml
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -18,6 +18,7 @@ __all__ = [
     "generate_spec_bundle",
     "generate_risk_register",
     "render_risk_register_markdown",
+    "render_spec_bundle_yaml",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
 ]
