@@ -100,6 +100,7 @@ apis_guru = "max.sources.apis_guru:ApisGuruAdapter"
 federal_register_healthcare = "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
 a2a_spec = "max.sources.a2a_spec:A2ASpecAdapter"
 ietf_datatracker = "max.sources.ietf_datatracker:IetfDatatrackerAdapter"
+openapi_specs = "max.sources.openapi_specs:OpenApiSpecsAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

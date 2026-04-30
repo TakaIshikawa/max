@@ -121,6 +121,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
     "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
+    "openapi_specs": "max.sources.openapi_specs:OpenApiSpecsAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -801,6 +802,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["base_url", "keywords", "streams", "statuses", "max_results"],
         required_keys=[],
         description="Fetches recent IETF Datatracker draft and RFC standards activity.",
+    ),
+    "openapi_specs": AdapterMetadata(
+        name="openapi_specs",
+        config_keys=[
+            "urls",
+            "local_paths",
+            "max_operations_per_signal",
+            "include_tags",
+            "request_timeout",
+        ],
+        required_keys=[],
+        description="Reads local and remote OpenAPI 3.x schemas as integration opportunity signals.",
     ),
     "federal_register_healthcare": AdapterMetadata(
         name="federal_register_healthcare",
