@@ -2752,7 +2752,6 @@ def max_signal_freshness(
         ResourceNotFoundError: If the profile is not found.
         ValidationError: If max_age_days is invalid.
     """
-    from max.analysis.signal_freshness import build_signal_freshness_report
     from max.profiles.loader import load_profile
 
     try:
@@ -2776,12 +2775,43 @@ def max_signal_freshness(
             else:
                 adapters = sorted(set(requested_adapters) & enabled_adapters)
 
+        result = get_signal_freshness_report(
+            max_age_days=max_age_days,
+            source_adapters=adapters,
+        )
+        if "error" in result:
+            return result
+        result["filters"] = {
+            "profile": resolved_profile.name if resolved_profile else profile,
+            "domain": resolved_profile.domain.name if resolved_profile else None,
+            "source_adapters": adapters,
+            "max_age_days": max_age_days,
+        }
+        return result
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_signal_freshness_report(
+    max_age_days: int = 30,
+    source_adapters: list[str] | None = None,
+) -> dict:
+    """Return signal freshness groups and stale-source recommendations.
+
+    Set source_adapters to restrict the report to one or more adapter names.
+
+    Raises:
+        ValidationError: If max_age_days is invalid.
+    """
+    from max.analysis.signal_freshness import build_signal_freshness_report
+
+    try:
         try:
             with _get_store() as store:
                 report = build_signal_freshness_report(
                     store,
                     max_age_days=max_age_days,
-                    source_adapters=adapters,
+                    source_adapters=source_adapters,
                 )
         except ValueError as e:
             raise ValidationError(
@@ -2792,10 +2822,10 @@ def max_signal_freshness(
             ) from e
 
         result = report.to_dict()
+        result["has_stale_signals"] = int(result.get("stale_signals") or 0) > 0
+        result["has_refresh_recommendations"] = bool(result.get("recommendations"))
         result["filters"] = {
-            "profile": resolved_profile.name if resolved_profile else profile,
-            "domain": resolved_profile.domain.name if resolved_profile else None,
-            "source_adapters": adapters,
+            "source_adapters": result.get("source_adapter_filters", []),
             "max_age_days": max_age_days,
         }
         return result
@@ -3233,7 +3263,12 @@ def validation_experiment_summary_for_domain_detail(domain: str) -> str:
 
 def signal_freshness_detail() -> str:
     """Browse the default signal freshness report."""
-    return json.dumps(max_signal_freshness(), indent=2)
+    return json.dumps(get_signal_freshness_report(), indent=2)
+
+
+def signal_freshness_report_detail() -> str:
+    """Browse the default signal freshness report."""
+    return json.dumps(get_signal_freshness_report(), indent=2)
 
 
 def portfolio_overlap_detail() -> str:
@@ -3363,6 +3398,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_review_thresholds)
     mcp.tool(get_roi_forecast)
     mcp.tool(max_source_reliability)
+    mcp.tool(get_signal_freshness_report)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
     mcp.tool(max_opportunity_heatmap)
@@ -3433,6 +3469,7 @@ def create_mcp_server() -> FastMCP:
         validation_experiment_summary_for_domain_detail
     )
     mcp.resource("validation-experiments://{experiment_id}")(validation_experiment_detail)
+    mcp.resource("signal-freshness://report")(signal_freshness_report_detail)
     mcp.resource("signals://freshness")(signal_freshness_detail)
     mcp.resource("portfolio://overlap")(portfolio_overlap_detail)
     mcp.resource("opportunities://heatmap")(opportunity_heatmap_detail)
