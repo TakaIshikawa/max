@@ -71,6 +71,10 @@ from max.analysis.design_brief_one_pager import (
     build_design_brief_one_pager,
     render_design_brief_one_pager,
 )
+from max.analysis.design_brief_okrs import (
+    build_design_brief_okrs,
+    render_design_brief_okrs_markdown,
+)
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
@@ -243,6 +247,7 @@ from max.server.schemas import (
     DesignBriefMarketSizingResponse,
     DesignBriefMicrosoftPlannerTaskPublishRequest,
     DesignBriefMicrosoftPlannerTaskPublishResponse,
+    DesignBriefOkrsResponse,
     DesignBriefOnePagerResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
@@ -7275,6 +7280,37 @@ def get_design_brief_one_pager_markdown(
     filename = f"{_download_filename_part(brief_id)}-one-pager.md"
     return Response(
         content=render_design_brief_one_pager(one_pager, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/okrs",
+    response_model=DesignBriefOkrsResponse,
+)
+def get_design_brief_okrs(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefOkrsResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefOkrsResponse(**build_design_brief_okrs(brief))
+
+
+@router.get("/design-briefs/{brief_id}/okrs.md", response_model=None)
+def get_design_brief_okrs_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-okrs.md"
+    return Response(
+        content=render_design_brief_okrs_markdown(build_design_brief_okrs(brief)),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
