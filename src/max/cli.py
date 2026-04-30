@@ -2645,6 +2645,53 @@ def spec_bundle(idea_id: str, fmt: str, output: str | None) -> None:
         store.close()
 
 
+@main.command(name="design-brief-bundle")
+@click.argument("brief_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "markdown"]),
+    default="markdown",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write bundle to file",
+)
+def design_brief_bundle(brief_id: str, fmt: str, output: str | None) -> None:
+    """Export a complete design brief bundle for one persisted brief."""
+    from max.analysis.design_brief_bundle import (
+        build_design_brief_bundle,
+        render_design_brief_bundle,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        bundle = build_design_brief_bundle(store, brief_id)
+        if not bundle:
+            raise click.ClickException(f"Design brief not found: {brief_id}")
+
+        try:
+            rendered = render_design_brief_bundle(bundle, fmt=fmt)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered, encoding="utf-8")
+            click.echo(f"Wrote design brief bundle to {output_path}")
+            return
+        click.echo(rendered, nl=False)
+    finally:
+        store.close()
+
+
 @main.command(name="spec-readiness")
 @click.argument("idea_id")
 @click.option(
