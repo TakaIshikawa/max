@@ -2442,6 +2442,35 @@ class DesignBriefOnePagerResponse(BaseModel):
     source_idea_ids: list[str]
 
 
+class DesignBriefOkrKeyResultResponse(BaseModel):
+    id: str
+    metric: str
+    target: str
+    evidence_source: str
+
+
+class DesignBriefOkrObjectiveResponse(BaseModel):
+    id: str
+    objective: str
+    owner_hint: str
+    confidence: Literal["low", "medium", "high"]
+    risk_level: Literal["low", "medium", "high"]
+    key_results: list[DesignBriefOkrKeyResultResponse]
+
+
+class DesignBriefOkrsResponse(BaseModel):
+    schema_version: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    confidence: dict[str, Any]
+    risk_summary: dict[str, Any]
+    evaluation_scores: list[dict[str, Any]]
+    validation_experiments: list[dict[str, Any]]
+    roadmap_items: list[dict[str, Any]]
+    objectives: list[DesignBriefOkrObjectiveResponse]
+
+
 class DesignBriefCompetitorClusterResponse(BaseModel):
     id: str
     name: str
