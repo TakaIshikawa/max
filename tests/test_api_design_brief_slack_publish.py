@@ -93,6 +93,9 @@ def test_publish_design_brief_slack_dry_run_returns_payload_without_network(
         return SlackWebhookPublisher(
             kwargs["webhook_url"],
             channel=kwargs["channel"],
+            username=kwargs["username"],
+            icon_emoji=kwargs["icon_emoji"],
+            icon_url=kwargs["icon_url"],
             timeout=kwargs["timeout"],
             client=httpx.Client(transport=httpx.MockTransport(handler)),
         )
@@ -104,6 +107,8 @@ def test_publish_design_brief_slack_dry_run_returns_payload_without_network(
         json={
             "webhook_url": "https://hooks.slack.com/services/T000/B000/secret",
             "channel": "#design-review",
+            "username": "Max Reviews",
+            "icon_emoji": ":memo:",
             "dry_run": True,
         },
     )
@@ -116,9 +121,22 @@ def test_publish_design_brief_slack_dry_run_returns_payload_without_network(
     assert data["publication_attempt"] is None
     assert data["payload"]["text"] == "[Max] Slack Design Brief"
     assert data["payload"]["channel"] == "#design-review"
+    assert data["payload"]["username"] == "Max Reviews"
+    assert data["payload"]["icon_emoji"] == ":memo:"
     assert data["payload"]["metadata"]["event_payload"]["design_brief_id"] == brief_id
+    assert data["payload"]["metadata"]["event_payload"]["readiness_score"] == 86.0
+    assert data["payload"]["metadata"]["event_payload"]["source_idea_ids"] == [
+        "bu-slack-brief",
+        "bu-supporting-slack",
+    ]
     assert data["request_summary"]["webhook_url"].endswith("/[redacted]")
+    assert data["request_summary"]["username"] == "Max Reviews"
     assert "secret" not in response.text
+    assert data["payload"]["blocks"][2]["fields"][6]["text"] == "*Buyer*\nProduct lead"
+    assert data["payload"]["blocks"][2]["fields"][7]["text"] == "*User*\nDesign reviewer"
+    assert data["payload"]["blocks"][2]["fields"][8]["text"] == (
+        "*Workflow*\nDesign synthesis review"
+    )
 
     store = Store(db_path=db_path, wal_mode=True)
     try:
@@ -143,6 +161,9 @@ def test_publish_design_brief_slack_live_success_records_publication_attempt(
         return SlackWebhookPublisher(
             kwargs["webhook_url"],
             channel=kwargs["channel"],
+            username=kwargs["username"],
+            icon_emoji=kwargs["icon_emoji"],
+            icon_url=kwargs["icon_url"],
             timeout=kwargs["timeout"],
             client=httpx.Client(transport=httpx.MockTransport(handler)),
         )
@@ -171,6 +192,12 @@ def test_publish_design_brief_slack_live_success_records_publication_attempt(
     posted = json.loads(requests[0].content)
     assert posted["text"] == "[Max] Slack Design Brief"
     assert posted["metadata"]["event_payload"]["source_type"] == "design_brief"
+    assert data["payload"]["metadata"]["event_payload"]["readiness_score"] == 86.0
+    assert data["payload"]["metadata"]["event_payload"]["source_idea_ids"] == [
+        "bu-slack-brief",
+        "bu-supporting-slack",
+    ]
+    assert data["payload"]["blocks"][2]["fields"][6]["text"] == "*Buyer*\nProduct lead"
 
     store = Store(db_path=db_path, wal_mode=True)
     try:
@@ -244,6 +271,9 @@ def test_publish_design_brief_slack_provider_error_redacts_webhook_secret(
         return SlackWebhookPublisher(
             kwargs["webhook_url"],
             channel=kwargs["channel"],
+            username=kwargs["username"],
+            icon_emoji=kwargs["icon_emoji"],
+            icon_url=kwargs["icon_url"],
             timeout=kwargs["timeout"],
             client=httpx.Client(transport=httpx.MockTransport(handler)),
         )

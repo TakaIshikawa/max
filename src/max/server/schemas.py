@@ -169,6 +169,9 @@ class ValidationExperimentUpdate(BaseModel):
 class SlackPublishRequest(BaseModel):
     webhook_url: str | None = None
     channel: str | None = None
+    username: str | None = None
+    icon_emoji: str | None = None
+    icon_url: str | None = None
     dry_run: bool = False
     timeout: float = Field(default=10.0, gt=0.0)
 
