@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
 import pytest
 
 from max.analysis.pipeline_run_export import (
     PipelineRunExportNotFound,
     export_pipeline_run,
     export_recent_pipeline_runs,
+    render_pipeline_runs_csv,
     render_pipeline_runs_markdown,
 )
 from max.store.db import Store
@@ -105,6 +109,28 @@ def test_render_pipeline_runs_markdown_includes_review_context(store: Store) -> 
     assert "### Budget" in markdown
     assert "Total tokens: 1250" in markdown
     assert "### Follow-up Recommendations" in markdown
+
+
+def test_render_pipeline_runs_csv_includes_review_columns(store: Store) -> None:
+    _seed_run(store)
+    record = export_pipeline_run(store, run_id="run-export-001")
+
+    csv_body = render_pipeline_runs_csv([record])
+
+    rows = list(csv.DictReader(StringIO(csv_body)))
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["id"] == "run-export-001"
+    assert row["status"] == "completed"
+    assert row["profile"] == "devtools"
+    assert row["domain"] == "developer tools"
+    assert row["signals_fetched"] == "12"
+    assert row["approved"] == "1"
+    assert row["total_tokens"] == "1250"
+    assert row["estimated_cost_usd"] == "0.0123"
+    assert row["adapter_count"] == "2"
+    assert row["adapter_error_count"] == "1"
+    assert row["follow_up_recommendation_count"] == "1"
 
 
 def test_export_pipeline_run_unknown_id_raises(store: Store) -> None:

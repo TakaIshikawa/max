@@ -118,6 +118,7 @@ from max.analysis.pipeline_run_export import (
     PipelineRunExportNotFound,
     export_pipeline_run,
     export_recent_pipeline_runs,
+    render_pipeline_runs_csv,
     render_pipeline_runs_markdown,
 )
 from max.analysis.pipeline_replay import (
@@ -460,7 +461,7 @@ def list_pipeline_runs(
 
 @router.get("/pipeline/runs/export", response_model=None)
 def export_pipeline_runs_endpoint(
-    format: Literal["json", "markdown"] = Query("json"),
+    format: Literal["json", "markdown", "csv"] = Query("json"),
     limit: int = Query(10, ge=1, le=500),
     store: Store = Depends(get_store),
 ) -> PipelineRunExportResponse | Response:
@@ -471,13 +472,16 @@ def export_pipeline_runs_endpoint(
             title="Pipeline Run Export",
         )
         return Response(content=body, media_type="text/markdown; charset=utf-8")
+    if format == "csv":
+        body = render_pipeline_runs_csv(export["runs"])  # type: ignore[arg-type]
+        return Response(content=body, media_type="text/csv; charset=utf-8")
     return PipelineRunExportResponse.model_validate(export)
 
 
 @router.get("/pipeline/runs/{run_id}/export", response_model=None)
 def export_pipeline_run_endpoint(
     run_id: str,
-    format: Literal["json", "markdown"] = Query("json"),
+    format: Literal["json", "markdown", "csv"] = Query("json"),
     store: Store = Depends(get_store),
 ) -> PipelineRunExportRecordResponse | Response:
     try:
@@ -494,6 +498,9 @@ def export_pipeline_run_endpoint(
     if format == "markdown":
         body = render_pipeline_runs_markdown([export], title=f"Pipeline Run {run_id} Export")
         return Response(content=body, media_type="text/markdown; charset=utf-8")
+    if format == "csv":
+        body = render_pipeline_runs_csv([export])
+        return Response(content=body, media_type="text/csv; charset=utf-8")
     return PipelineRunExportRecordResponse.model_validate(export)
 
 

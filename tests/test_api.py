@@ -4434,6 +4434,53 @@ def test_list_pipeline_runs_empty(client):
     assert resp.json() == []
 
 
+def test_export_pipeline_runs_csv_endpoint(pipeline_runs_client):
+    resp = pipeline_runs_client.get("/api/v1/pipeline/runs/export?format=csv&limit=2")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    rows = list(csv.DictReader(StringIO(resp.text)))
+    assert len(rows) == 2
+    assert rows[0]["id"]
+    assert rows[0]["status"] in {"completed", "running"}
+    assert "signals_fetched" in rows[0]
+    assert "total_tokens" in rows[0]
+    assert "adapter_count" in rows[0]
+    assert "adapter_error_count" in rows[0]
+    assert "follow_up_recommendation_count" in rows[0]
+
+
+def test_export_pipeline_run_csv_endpoint(client, db_path):
+    _seed_api_pipeline_run(
+        db_path,
+        "run-export-csv-api",
+        signals_fetched=4,
+        ideas_generated=2,
+        adapter_metrics={
+            "github": {"status": "ok", "signal_count": 4, "duration_ms": 50},
+            "hackernews": {
+                "status": "error",
+                "signal_count": 0,
+                "duration_ms": 20,
+                "error_message": "rate limited",
+            },
+        },
+    )
+
+    resp = client.get("/api/v1/pipeline/runs/run-export-csv-api/export?format=csv")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    rows = list(csv.DictReader(StringIO(resp.text)))
+    assert len(rows) == 1
+    assert rows[0]["id"] == "run-export-csv-api"
+    assert rows[0]["signals_fetched"] == "4"
+    assert rows[0]["ideas_generated"] == "2"
+    assert rows[0]["total_tokens"] == "150"
+    assert rows[0]["adapter_count"] == "2"
+    assert rows[0]["adapter_error_count"] == "1"
+
+
 def test_compare_pipeline_runs_endpoint(client, db_path):
     _seed_api_pipeline_run(
         db_path,

@@ -1,8 +1,10 @@
-"""Export persisted pipeline runs as review-friendly records and markdown."""
+"""Export persisted pipeline runs as review-friendly records, markdown, and CSV."""
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
+from io import StringIO
 from typing import Mapping
 
 from max import config
@@ -210,6 +212,82 @@ def export_pipeline_run(store: Store, *, run_id: str) -> dict[str, object]:
     if run is None:
         raise PipelineRunExportNotFound(run_id)
     return summarize_pipeline_run(store, run)
+
+
+CSV_COLUMNS = (
+    "id",
+    "started_at",
+    "finished_at",
+    "status",
+    "profile",
+    "domain",
+    "signals_fetched",
+    "signals_new",
+    "insights_generated",
+    "clusters_found",
+    "gaps_detected",
+    "ideas_generated",
+    "ideas_evaluated",
+    "approved",
+    "published",
+    "approved_or_published",
+    "avg_idea_score",
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "estimated_cost_usd",
+    "adapter_count",
+    "adapter_error_count",
+    "follow_up_recommendation_count",
+)
+
+
+def render_pipeline_runs_csv(records: list[dict[str, object]]) -> str:
+    """Render pipeline run export records as CSV for review tooling."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+
+    for record in records:
+        stage_counts = record.get("stage_counts") if isinstance(record.get("stage_counts"), Mapping) else {}
+        budget = record.get("budget") if isinstance(record.get("budget"), Mapping) else {}
+        adapters = record.get("adapter_stats")
+        errors = record.get("errors") if isinstance(record.get("errors"), Mapping) else {}
+        adapter_errors = errors.get("adapters")
+        recommendations = record.get("follow_up_recommendations")
+
+        writer.writerow(
+            {
+                "id": record.get("id") or "",
+                "started_at": record.get("started_at") or "",
+                "finished_at": record.get("finished_at") or "",
+                "status": record.get("status") or "",
+                "profile": record.get("profile") or "",
+                "domain": record.get("domain") or "",
+                "signals_fetched": stage_counts.get("signals_fetched", 0),
+                "signals_new": stage_counts.get("signals_new", 0),
+                "insights_generated": stage_counts.get("insights_generated", 0),
+                "clusters_found": stage_counts.get("clusters_found", 0),
+                "gaps_detected": stage_counts.get("gaps_detected", 0),
+                "ideas_generated": stage_counts.get("ideas_generated", 0),
+                "ideas_evaluated": stage_counts.get("ideas_evaluated", 0),
+                "approved": stage_counts.get("approved", 0),
+                "published": stage_counts.get("published", 0),
+                "approved_or_published": stage_counts.get("approved_or_published", 0),
+                "avg_idea_score": stage_counts.get("avg_idea_score", 0.0),
+                "input_tokens": budget.get("input_tokens", 0),
+                "output_tokens": budget.get("output_tokens", 0),
+                "total_tokens": budget.get("total_tokens", 0),
+                "estimated_cost_usd": budget.get("estimated_cost_usd", 0.0),
+                "adapter_count": len(adapters) if isinstance(adapters, list) else 0,
+                "adapter_error_count": len(adapter_errors) if isinstance(adapter_errors, list) else 0,
+                "follow_up_recommendation_count": (
+                    len(recommendations) if isinstance(recommendations, list) else 0
+                ),
+            }
+        )
+
+    return output.getvalue()
 
 
 def render_pipeline_runs_markdown(records: list[dict[str, object]], *, title: str) -> str:
