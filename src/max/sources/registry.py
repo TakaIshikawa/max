@@ -54,6 +54,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapter"
     ),
     "pypi_releases": "max.sources.pypi_releases:PyPIReleasesAdapter",
+    "pubdev": "max.sources.pubdev:PubDevAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
@@ -270,6 +271,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches recent PyPI release history and metadata for configured packages.",
+    ),
+    "pubdev": AdapterMetadata(
+        name="pubdev",
+        config_keys=["packages", "max_results", "max_items", "base_url"],
+        required_keys=[],
+        description="Fetches Pub.dev Dart and Flutter package metadata and score trend signals.",
     ),
     "github_issues": AdapterMetadata(
         name="github_issues",

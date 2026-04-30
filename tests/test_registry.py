@@ -249,6 +249,7 @@ def test_list_adapters_returns_strings():
     assert "rubygems" in names
     assert "rubygems_download_trends" in names
     assert "packagist_download_trends" in names
+    assert "pubdev" in names
     assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
 
@@ -256,7 +257,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,rss_feed,crates_io,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,rss_feed,crates_io,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -273,6 +274,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "rubygems",
         "rubygems_download_trends",
         "packagist_download_trends",
+        "pubdev",
         "dockerhub",
         "dockerhub_tag_velocity",
         "mcp_registry",
@@ -341,6 +343,9 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["packagist_download_trends"].required_keys == []
     assert "Packagist package download" in metadata["packagist_download_trends"].description
+    assert metadata["pubdev"].config_keys == ["packages", "max_results", "max_items", "base_url"]
+    assert metadata["pubdev"].required_keys == []
+    assert "Pub.dev" in metadata["pubdev"].description
     assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description
