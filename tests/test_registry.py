@@ -244,6 +244,7 @@ def test_list_adapters_returns_strings():
     assert all(isinstance(n, str) for n in names)
     assert "hackernews" in names
     assert "npm_download_trends" in names
+    assert "crates_download_trends" in names
     assert "rubygems" in names
     assert "rubygems_download_trends" in names
     assert "dockerhub_tag_velocity" in names
@@ -253,7 +254,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,rubygems_download_trends,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,rss_feed,crates_io,crates_download_trends,maven_central,rubygems,rubygems_download_trends,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -264,6 +265,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "npm_download_trends",
         "rss_feed",
         "crates_io",
+        "crates_download_trends",
         "maven_central",
         "rubygems",
         "rubygems_download_trends",
@@ -300,6 +302,16 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["crates_io"].config_keys == ["queries", "categories"]
     assert metadata["crates_io"].required_keys == []
     assert "Crates.io" in metadata["crates_io"].description
+    assert metadata["crates_download_trends"].config_keys == [
+        "crates",
+        "packages",
+        "window_days",
+        "max_items",
+        "max_results",
+        "min_downloads",
+    ]
+    assert metadata["crates_download_trends"].required_keys == []
+    assert "crate download history" in metadata["crates_download_trends"].description
     assert metadata["maven_central"].config_keys == ["queries", "coordinates"]
     assert metadata["maven_central"].required_keys == []
     assert "Maven Central" in metadata["maven_central"].description

@@ -96,6 +96,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "clinical_trials": "max.sources.clinical_trials:ClinicalTrialsAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
+    "crates_download_trends": (
+        "max.sources.crates_download_trends:CratesDownloadTrendsAdapter"
+    ),
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
     "maven_central": "max.sources.maven_central:MavenCentralAdapter",
@@ -655,6 +658,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "categories"],
         required_keys=[],
         description="Searches Crates.io for Rust packages matching configured queries and categories.",
+    ),
+    "crates_download_trends": AdapterMetadata(
+        name="crates_download_trends",
+        config_keys=[
+            "crates",
+            "packages",
+            "window_days",
+            "max_items",
+            "max_results",
+            "min_downloads",
+        ],
+        required_keys=[],
+        description="Fetches crates.io crate download history as Rust package adoption trend signals.",
     ),
     "lobsters": AdapterMetadata(
         name="lobsters",
