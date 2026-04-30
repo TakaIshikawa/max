@@ -2146,6 +2146,34 @@ class DesignBriefExecutiveMemoResponse(BaseModel):
     artifact_refs: dict[str, Any]
 
 
+class DesignBriefOnePagerRiskResponse(BaseModel):
+    id: str
+    title: str
+    severity: Literal["high", "medium", "low"]
+    likelihood: Literal["likely", "possible", "unlikely"]
+    priority: int
+    mitigation: str
+    validation_action: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefOnePagerResponse(BaseModel):
+    schema_version: str
+    source: dict
+    design_brief: dict
+    title: str
+    domain: str
+    target_customer: str
+    problem: str
+    solution: str
+    evidence_count: int
+    readiness_score: float
+    top_risks: list[DesignBriefOnePagerRiskResponse]
+    validation_next_step: str
+    first_milestone: str
+    source_idea_ids: list[str]
+
+
 class DesignBriefCompetitorClusterResponse(BaseModel):
     id: str
     name: str

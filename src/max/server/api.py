@@ -60,6 +60,10 @@ from max.analysis.design_brief_launch_checklist import (
     build_design_brief_launch_checklist,
     render_design_brief_launch_checklist,
 )
+from max.analysis.design_brief_one_pager import (
+    build_design_brief_one_pager,
+    render_design_brief_one_pager,
+)
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
@@ -223,6 +227,7 @@ from max.server.schemas import (
     DesignBriefMarketSizingResponse,
     DesignBriefMicrosoftPlannerTaskPublishRequest,
     DesignBriefMicrosoftPlannerTaskPublishResponse,
+    DesignBriefOnePagerResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
     DesignBriefRoadmapResponse,
@@ -6534,6 +6539,37 @@ def get_design_brief_prd_markdown(
     filename = f"{_download_filename_part(brief_id)}-prd.md"
     return Response(
         content=render_design_brief_prd(prd, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/one-pager",
+    response_model=DesignBriefOnePagerResponse,
+)
+def get_design_brief_one_pager(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefOnePagerResponse:
+    one_pager = build_design_brief_one_pager(store, brief_id)
+    if not one_pager:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefOnePagerResponse(**one_pager)
+
+
+@router.get("/design-briefs/{brief_id}/one-pager.md", response_model=None)
+def get_design_brief_one_pager_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    one_pager = build_design_brief_one_pager(store, brief_id)
+    if not one_pager:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-one-pager.md"
+    return Response(
+        content=render_design_brief_one_pager(one_pager, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
