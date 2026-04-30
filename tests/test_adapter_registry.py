@@ -163,6 +163,35 @@ def test_apis_guru_adapter_metadata_documents_config_keys() -> None:
     assert "APIs.guru OpenAPI Directory" in metadata["apis_guru"].description
 
 
+def test_ietf_datatracker_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "ietf_datatracker"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["ietf_datatracker"]
+        adapter = get_adapter("ietf_datatracker")
+
+    assert adapter.name == "ietf_datatracker"
+
+
+def test_ietf_datatracker_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "ietf_datatracker"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"ietf_datatracker"}
+    assert metadata["ietf_datatracker"].config_keys == [
+        "base_url",
+        "keywords",
+        "streams",
+        "statuses",
+        "max_results",
+    ]
+    assert metadata["ietf_datatracker"].required_keys == []
+    assert "IETF Datatracker" in metadata["ietf_datatracker"].description
+
+
 def test_github_octoverse_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "github_octoverse"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
