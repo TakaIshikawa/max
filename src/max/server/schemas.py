@@ -238,6 +238,21 @@ class GoogleSheetsRowPublishRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+class DesignBriefGoogleSheetsRowPublishRequest(BaseModel):
+    access_token: str | None = None
+    access_token_env: str | None = Field(default=None, min_length=1)
+    spreadsheet_id: str | None = Field(default=None, min_length=1)
+    sheet: str | None = Field(default=None, min_length=1)
+    range: str | None = Field(default=None, min_length=1)
+    markdown_summary_url: str | None = Field(default=None, min_length=1)
+    api_url: str | None = None
+    value_input_option: str = Field(default="RAW", min_length=1)
+    insert_data_option: str = Field(default="INSERT_ROWS", min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class GitHubGistPublishRequest(BaseModel):
     token: str | None = None
     api_url: str | None = None
@@ -1626,6 +1641,20 @@ class GoogleSheetsRowPublishResponse(BaseModel):
     dry_run: bool
     payload: dict[str, Any]
     publication_attempt: PublicationAttemptResponse
+
+
+class DesignBriefGoogleSheetsRowPublishResponse(BaseModel):
+    design_brief_id: str
+    spreadsheet_id: str
+    range: str
+    updated_range: str | None = None
+    updated_rows: int | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
 
 
 class GitHubGistPublishResponse(BaseModel):

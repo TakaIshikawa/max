@@ -13,6 +13,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -215,6 +216,8 @@ from max.server.schemas import (
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
+    DesignBriefGoogleSheetsRowPublishRequest,
+    DesignBriefGoogleSheetsRowPublishResponse,
     DesignBriefGitHubGistPublishRequest,
     DesignBriefGitHubGistPublishResponse,
     DesignBriefGitHubIssuePublishRequest,
@@ -1177,6 +1180,120 @@ def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
             "score": readiness_score,
             "status": brief.get("design_status"),
         },
+    }
+
+
+DESIGN_BRIEF_GOOGLE_SHEETS_COLUMNS = [
+    "design_brief_id",
+    "title",
+    "domain",
+    "theme",
+    "lead_idea_id",
+    "source_idea_ids",
+    "readiness_score",
+    "evidence_count",
+    "status",
+    "markdown_summary",
+]
+
+
+def _design_brief_google_sheets_payload(
+    brief: dict[str, Any],
+    *,
+    range: str,
+    markdown_summary_url: str | None = None,
+) -> dict[str, Any]:
+    title = str(brief.get("title") or brief.get("id") or "Design Brief")
+    source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    evidence_count = len(source_idea_ids)
+    markdown_summary = markdown_summary_url or _deterministic_design_brief_markdown(
+        brief,
+        title=title,
+    )
+    row = [
+        str(brief.get("id") or ""),
+        title,
+        str(brief.get("domain") or ""),
+        str(brief.get("theme") or ""),
+        str(brief.get("lead_idea_id") or ""),
+        ", ".join(source_idea_ids),
+        readiness_score,
+        evidence_count,
+        str(brief.get("design_status") or ""),
+        markdown_summary,
+    ]
+    return {"range": range, "majorDimension": "ROWS", "values": [row]}
+
+
+def _google_sheets_range(sheet: str | None, range_value: str | None) -> str | None:
+    if not range_value:
+        return f"{sheet}!A:J" if sheet else None
+    if sheet and "!" not in range_value:
+        return f"{sheet}!{range_value}"
+    return range_value
+
+
+def _google_sheets_json_response(response) -> dict[str, Any]:
+    try:
+        body = response.json()
+    except json.JSONDecodeError as exc:
+        raise GoogleSheetsRowPublishError(
+            "Google Sheets row publish failed: response was not valid JSON",
+            status_code=response.status_code,
+        ) from exc
+    if not isinstance(body, dict):
+        raise GoogleSheetsRowPublishError(
+            "Google Sheets row publish failed: response JSON was not an object",
+            status_code=response.status_code,
+        )
+    return body
+
+
+def _publish_google_sheets_payload(
+    publisher: GoogleSheetsRowPublisher,
+    payload: dict[str, Any],
+    *,
+    dry_run: bool,
+) -> dict[str, Any]:
+    if dry_run:
+        return {
+            "status_code": None,
+            "updated_range": None,
+            "updated_rows": None,
+            "dry_run": True,
+            "payload": payload,
+        }
+
+    close_client = publisher._client is None
+    client = publisher._client or httpx.Client(timeout=publisher.timeout)
+    try:
+        response = publisher._post_with_retries(client, payload)
+    finally:
+        if close_client:
+            client.close()
+
+    if not 200 <= response.status_code < 300:
+        raise GoogleSheetsRowPublishError(
+            f"Google Sheets row publish failed with HTTP {response.status_code}: "
+            f"{response.text.strip()}",
+            status_code=response.status_code,
+            access_token=publisher.access_token,
+        )
+
+    body = _google_sheets_json_response(response)
+    updates = body.get("updates") if isinstance(body.get("updates"), dict) else {}
+    updated_rows = updates.get("updatedRows")
+    if isinstance(updated_rows, str) and updated_rows.strip().isdigit():
+        updated_rows = int(updated_rows)
+    elif not isinstance(updated_rows, int):
+        updated_rows = None
+    return {
+        "status_code": response.status_code,
+        "updated_range": updates.get("updatedRange") if updates.get("updatedRange") else None,
+        "updated_rows": updated_rows,
+        "dry_run": False,
+        "payload": payload,
     }
 
 
@@ -3329,6 +3446,146 @@ def publish_idea_to_google_sheets(
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/google-sheets",
+    response_model=DesignBriefGoogleSheetsRowPublishResponse,
+)
+def publish_design_brief_to_google_sheets(
+    brief_id: str,
+    request: DesignBriefGoogleSheetsRowPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefGoogleSheetsRowPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    access_token = request.access_token
+    access_token_source = "request" if access_token else "none"
+    if not access_token and request.access_token_env:
+        access_token = os.getenv(request.access_token_env)
+        access_token_source = f"env:{request.access_token_env}" if access_token else "none"
+    elif not access_token and os.getenv("GOOGLE_SHEETS_ACCESS_TOKEN"):
+        access_token_source = "env:GOOGLE_SHEETS_ACCESS_TOKEN"
+
+    effective_range = _google_sheets_range(request.sheet, request.range)
+    try:
+        publisher = GoogleSheetsRowPublisher.from_env(
+            spreadsheet_id=request.spreadsheet_id,
+            range=effective_range,
+            access_token=access_token,
+            api_url=request.api_url,
+            value_input_option=request.value_input_option,
+            insert_data_option=request.insert_data_option,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except GoogleSheetsRowPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    request_summary = {
+        "spreadsheet_id": publisher.spreadsheet_id,
+        "sheet": request.sheet,
+        "range": publisher.range,
+        "value_input_option": publisher.value_input_option,
+        "insert_data_option": publisher.insert_data_option,
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "access_token": "[redacted]" if publisher.access_token else None,
+        "access_token_source": access_token_source
+        if access_token_source != "none"
+        else ("env:GOOGLE_SHEETS_ACCESS_TOKEN" if publisher.access_token else "none"),
+        "markdown_summary_url": request.markdown_summary_url,
+    }
+    provider_metadata = {
+        "provider": "google_sheets",
+        "target_type": "google_sheets_row",
+        "target_url": publisher.append_endpoint,
+        "append_endpoint": publisher.append_endpoint,
+        "spreadsheet_id": publisher.spreadsheet_id,
+        "range": publisher.range,
+        "columns": list(DESIGN_BRIEF_GOOGLE_SHEETS_COLUMNS),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+    }
+    payload = _design_brief_google_sheets_payload(
+        brief,
+        range=publisher.range,
+        markdown_summary_url=request.markdown_summary_url,
+    )
+
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "GOOGLE_SHEETS_ACCESS_TOKEN is required for live Google Sheets publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="google_sheets_row",
+            target_url=publisher.append_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = _publish_google_sheets_payload(
+            publisher,
+            payload,
+            dry_run=request.dry_run,
+        )
+    except GoogleSheetsRowPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="google_sheets_row",
+            target_url=publisher.append_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=exc.status_code if exc.status_code and 400 <= exc.status_code < 500 else 502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result["updated_range"] or publisher.append_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="google_sheets_row",
+        target_url=target_url,
+        status="success",
+        response_status=result["status_code"],
+    )
+    provider_metadata["target_url"] = target_url
+    provider_metadata["updated_range"] = result["updated_range"]
+    provider_metadata["updated_rows"] = result["updated_rows"]
+
+    return DesignBriefGoogleSheetsRowPublishResponse(
+        design_brief_id=brief_id,
+        spreadsheet_id=publisher.spreadsheet_id,
+        range=publisher.range,
+        updated_range=result["updated_range"],
+        updated_rows=result["updated_rows"],
+        status_code=result["status_code"],
+        dry_run=result["dry_run"],
+        payload=result["payload"],
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
         publication_attempt=PublicationAttemptResponse(**attempt),
     )
 
