@@ -49,6 +49,13 @@ from max.publisher.microsoft_planner_tasks import (
     MicrosoftPlannerTaskPublishResult,
     MicrosoftPlannerTasksPublisher,
 )
+from max.publisher.monday_items import (
+    MondayItemPayload,
+    MondayItemPublisher,
+    MondayItemPublishError,
+    MondayItemPublishResult,
+    MondayItemsPublisher,
+)
 from max.publisher.azure_devops_work_items import (
     AzureDevOpsWorkItemPayload,
     AzureDevOpsWorkItemPublisher,
@@ -144,6 +151,11 @@ __all__ = [
     "MicrosoftPlannerTaskPublishError",
     "MicrosoftPlannerTaskPublishResult",
     "MicrosoftPlannerTasksPublisher",
+    "MondayItemPayload",
+    "MondayItemPublisher",
+    "MondayItemPublishError",
+    "MondayItemPublishResult",
+    "MondayItemsPublisher",
     "AzureDevOpsWorkItemPayload",
     "AzureDevOpsWorkItemPublisher",
     "AzureDevOpsWorkItemPublishError",

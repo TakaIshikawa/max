@@ -174,6 +174,7 @@ from max.publisher.microsoft_planner_tasks import (
     MicrosoftPlannerTaskPublisher,
     MicrosoftPlannerTaskPublishError,
 )
+from max.publisher.monday_items import MondayItemPublisher, MondayItemPublishError
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
 from max.publisher.slack_webhook import (
     SlackWebhookPublisher,
@@ -315,6 +316,8 @@ from max.server.schemas import (
     LinearIssuePublishResponse,
     MicrosoftPlannerTaskPublishRequest,
     MicrosoftPlannerTaskPublishResponse,
+    MondayItemPublishRequest,
+    MondayItemPublishResponse,
     MCPSecurityFindingImportResult,
     MCPSecurityFindingsImportRequest,
     MCPSecurityFindingsImportResponse,
@@ -4029,6 +4032,96 @@ def publish_idea_to_clickup_task(
         list_id=result.list_id,
         task_id=result.task_id,
         task_url=result.task_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/monday", response_model=MondayItemPublishResponse)
+def publish_idea_to_monday_item(
+    idea_id: str,
+    request: MondayItemPublishRequest,
+    store: Store = Depends(get_store),
+) -> MondayItemPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+
+    try:
+        publisher = MondayItemPublisher.from_env(
+            board_id=request.board_id,
+            api_token=request.api_token,
+            group_id=request.group_id,
+            item_name=request.item_name,
+            column_values=request.column_values,
+            api_url=request.api_url,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except MondayItemPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "MONDAY_API_TOKEN is required for live Monday.com item publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="monday_item",
+            target_url=publisher.item_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except MondayItemPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="monday_item",
+            target_url=publisher.item_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.item_url or result.item_id or publisher.item_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="monday_item",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return MondayItemPublishResponse(
+        idea_id=idea_id,
+        board_id=result.board_id,
+        group_id=result.group_id,
+        item_id=result.item_id,
+        item_url=result.item_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
