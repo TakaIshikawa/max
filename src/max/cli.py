@@ -1916,6 +1916,7 @@ def validation_experiments_list(idea_id: str, fmt: str) -> None:
 @click.option("--success-metric", required=True, help="Success metric")
 @click.option("--status", default="planned", show_default=True, help="Experiment status")
 @click.option("--started-at", default=None, help="ISO timestamp when started")
+@click.option("--due-date", default=None, help="Due date as YYYY-MM-DD")
 @click.option("--completed-at", default=None, help="ISO timestamp when completed")
 @click.option("--result-summary", default="", help="Result summary")
 @click.option("--evidence-url", "evidence_urls", multiple=True, help="Evidence URL")
@@ -1929,6 +1930,7 @@ def validation_experiments_create(
     success_metric: str,
     status: str,
     started_at: str | None,
+    due_date: str | None,
     completed_at: str | None,
     result_summary: str,
     evidence_urls: tuple[str, ...],
@@ -1952,6 +1954,7 @@ def validation_experiments_create(
             success_metric=success_metric,
             status=status,
             started_at=started_at,
+            due_date=due_date,
             completed_at=completed_at,
             result_summary=result_summary,
             evidence_urls=list(evidence_urls),
@@ -1976,6 +1979,7 @@ def validation_experiments_create(
 @click.option("--success-metric", default=None, help="Success metric")
 @click.option("--status", default=None, help="Experiment status")
 @click.option("--started-at", default=None, help="ISO timestamp when started")
+@click.option("--due-date", default=None, help="Due date as YYYY-MM-DD")
 @click.option("--completed-at", default=None, help="ISO timestamp when completed")
 @click.option("--result-summary", default=None, help="Result summary")
 @click.option("--evidence-url", "evidence_urls", multiple=True, help="Replace evidence URLs")
@@ -1989,6 +1993,7 @@ def validation_experiments_update(
     success_metric: str | None,
     status: str | None,
     started_at: str | None,
+    due_date: str | None,
     completed_at: str | None,
     result_summary: str | None,
     evidence_urls: tuple[str, ...],
@@ -2010,6 +2015,7 @@ def validation_experiments_update(
         "success_metric": success_metric,
         "status": status,
         "started_at": started_at,
+        "due_date": due_date,
         "completed_at": completed_at,
         "result_summary": result_summary,
         "confidence_delta": confidence_delta,
@@ -2029,6 +2035,89 @@ def validation_experiments_update(
         return
 
     click.echo(f"Updated validation experiment {experiment['id']} ({experiment['status']})")
+
+
+@validation_experiments.command(name="calendar")
+@click.option("--idea-id", default=None, help="Filter by idea ID")
+@click.option("--domain", default=None, help="Filter by idea domain")
+@click.option("--status", default=None, help="Filter by experiment status")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write iCalendar output to file",
+)
+def validation_experiments_calendar(
+    idea_id: str | None,
+    domain: str | None,
+    status: str | None,
+    output: str | None,
+) -> None:
+    """Export dated validation experiments as an iCalendar file."""
+    from max.analysis.validation_experiment_calendar import (
+        render_validation_experiment_calendar,
+    )
+    from max.store.db import Store
+
+    with Store() as store:
+        experiments = store.query_validation_experiments(
+            domain=domain,
+            idea_id=idea_id,
+            status=status,
+        )
+        idea_ids = {
+            str(experiment.get("idea_id"))
+            for experiment in experiments
+            if experiment.get("idea_id")
+        }
+        ideas_by_id = {
+            current_id: idea
+            for current_id in idea_ids
+            if (idea := store.get_buildable_unit(current_id)) is not None
+        }
+        design_briefs_by_idea_id = _design_briefs_by_idea_id(
+            store.get_design_briefs(domain=domain, limit=500),
+            idea_ids,
+        )
+
+    calendar = render_validation_experiment_calendar(
+        experiments,
+        ideas_by_id=ideas_by_id,
+        design_briefs_by_idea_id=design_briefs_by_idea_id,
+    )
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(calendar.text, encoding="utf-8")
+        omitted = calendar.metadata["omitted_without_due_date_count"]
+        suffix = f" ({omitted} omitted without due date)" if omitted else ""
+        click.echo(
+            f"Wrote {calendar.metadata['exported_count']} validation experiment event(s) "
+            f"to {output_path}{suffix}"
+        )
+        return
+
+    click.echo(calendar.text, nl=False)
+
+
+def _design_briefs_by_idea_id(
+    design_briefs: list[dict],
+    idea_ids: set[str],
+) -> dict[str, dict]:
+    result: dict[str, dict] = {}
+    for brief in design_briefs:
+        related_ids = {str(brief.get("lead_idea_id") or "")}
+        related_ids.update(str(idea_id) for idea_id in brief.get("source_idea_ids") or [])
+        related_ids.update(
+            str(source.get("idea_id"))
+            for source in brief.get("sources") or []
+            if source.get("idea_id")
+        )
+        for current_id in idea_ids & related_ids:
+            result.setdefault(current_id, brief)
+    return result
 
 
 @main.group(name="export")
