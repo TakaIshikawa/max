@@ -37,6 +37,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "reddit": "max.sources.reddit:RedditAdapter",
     "github": "max.sources.github:GitHubAdapter",
+    "github_trending": "max.sources.github_trending:GitHubTrendingAdapter",
     "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
@@ -142,6 +143,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["topics"],
         required_keys=[],
         description="Searches GitHub repositories for configured topics.",
+    ),
+    "github_trending": AdapterMetadata(
+        name="github_trending",
+        config_keys=["languages", "since", "base_url", "topics"],
+        required_keys=[],
+        description="Fetches GitHub Trending repository pages as market demand signals.",
     ),
     "github_releases": AdapterMetadata(
         name="github_releases",

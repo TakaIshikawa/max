@@ -192,6 +192,34 @@ def test_github_octoverse_adapter_metadata_documents_config_keys() -> None:
     assert "Octoverse-style Markdown and JSON reports" in metadata["github_octoverse"].description
 
 
+def test_github_trending_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_trending"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["github_trending"]
+        adapter = get_adapter("github_trending")
+
+    assert adapter.name == "github_trending"
+
+
+def test_github_trending_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_trending"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"github_trending"}
+    assert metadata["github_trending"].config_keys == [
+        "languages",
+        "since",
+        "base_url",
+        "topics",
+    ]
+    assert metadata["github_trending"].required_keys == []
+    assert "GitHub Trending repository pages" in metadata["github_trending"].description
+
+
 def test_mcp_protocol_roadmap_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "mcp_protocol_roadmap"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
