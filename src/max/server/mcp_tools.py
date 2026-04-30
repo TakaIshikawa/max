@@ -112,6 +112,10 @@ from max.analysis.thresholds import (
     DEFAULT_REJECT_THRESHOLD,
     recommend_review_thresholds,
 )
+from max.analysis.unit_dependency_map import (
+    build_unit_dependency_map,
+    render_unit_dependency_map,
+)
 from max.analysis.validation_experiment_summary import (
     build_validation_experiment_summary,
 )
@@ -2225,6 +2229,66 @@ def get_profile_gap_matrix(
         return e.to_dict()
 
 
+def get_unit_dependency_map(
+    limit: int = 100,
+    min_shared_signals: int = 1,
+    format: str = "json",
+) -> dict:
+    """Return dependency clusters and edges across stored buildable units.
+
+    Set limit to cap analyzed units. Set min_shared_signals to require a
+    minimum shared evidence threshold for evidence-based links. Set format to
+    markdown to include a rendered dependency report for agent-readable planning.
+
+    Raises:
+        ValidationError: If limit, min_shared_signals, or format is invalid.
+    """
+
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                "format must be json or markdown",
+                field="format",
+                expected="json or markdown",
+                actual=str(format),
+            )
+        if limit < 1:
+            raise ValidationError(
+                "limit must be at least 1",
+                field="limit",
+                expected="integer >= 1",
+                actual=str(limit),
+            )
+        if min_shared_signals < 1:
+            raise ValidationError(
+                "min_shared_signals must be at least 1",
+                field="min_shared_signals",
+                expected="integer >= 1",
+                actual=str(min_shared_signals),
+            )
+
+        with _get_store() as store:
+            report = build_unit_dependency_map(
+                store,
+                limit=limit,
+                min_shared_signals=min_shared_signals,
+            )
+
+        if fmt == "markdown":
+            return {
+                "format": "markdown",
+                "summary": report["summary"],
+                "parameters": report["parameters"],
+                "markdown": render_unit_dependency_map(report, fmt="markdown"),
+            }
+        return report
+    except ValueError as e:
+        return ValidationError(str(e)).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_architecture_enforcement_report(
     domain: str | None = None,
     limit: int = DEFAULT_ARCHITECTURE_ENFORCEMENT_UNIT_LIMIT,
@@ -3371,6 +3435,11 @@ def profile_gap_matrix_detail() -> str:
     return json.dumps(get_profile_gap_matrix(), indent=2)
 
 
+def unit_dependency_map_detail() -> str:
+    """Browse the default buildable unit dependency map."""
+    return json.dumps(get_unit_dependency_map(), indent=2)
+
+
 def roi_forecast_detail() -> str:
     """Browse the default ROI forecast report."""
     return json.dumps(get_roi_forecast(), indent=2)
@@ -3457,6 +3526,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_profile_source_recommendations)
     mcp.tool(get_profile_drift)
     mcp.tool(get_profile_gap_matrix)
+    mcp.tool(get_unit_dependency_map)
     mcp.tool(get_architecture_enforcement_report)
     mcp.tool(max_mcp_capability_coverage)
     mcp.tool(get_schedule)
@@ -3531,6 +3601,7 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("profile-drift://{profile_name}")(profile_drift_detail)
     mcp.resource("profile-gap-matrix://all")(profile_gap_matrix_detail)
+    mcp.resource("unit-dependency-map://all")(unit_dependency_map_detail)
     mcp.resource("roi://forecast")(roi_forecast_detail)
     mcp.resource("mcp-capabilities://coverage")(mcp_capability_coverage_detail)
     mcp.resource("pipeline-run-comparisons://{baseline_run_id}/{candidate_run_id}")(
