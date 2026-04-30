@@ -123,6 +123,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "figma_community": "max.sources.figma_community:FigmaCommunityAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
     "go_packages": "max.sources.go_packages:GoPackagesAdapter",
+    "swift_package_index": "max.sources.swift_package_index:SwiftPackageIndexAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
     "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
     "federal_register_healthcare": (
@@ -849,6 +850,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_results", "min_imported_by", "include_stdlib"],
         required_keys=[],
         description="Searches pkg.go.dev for Go package and module discovery signals.",
+    ),
+    "swift_package_index": AdapterMetadata(
+        name="swift_package_index",
+        config_keys=["queries", "max_results", "keywords", "categories"],
+        required_keys=[],
+        description="Searches Swift Package Index for Swift package and repository discovery signals.",
     ),
     "kubernetes_keps": AdapterMetadata(
         name="kubernetes_keps",
