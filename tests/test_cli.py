@@ -330,12 +330,15 @@ def test_validation_experiments_cli_create_list_update(tmp_path: Path, runner: C
                 "5",
                 "--success-metric",
                 "4 useful reviews",
+                "--due-date",
+                "2026-05-15",
                 "--format",
                 "json",
             ],
         )
         assert created.exit_code == 0, created.output
         experiment = json.loads(created.output)
+        assert experiment["due_date"] == "2026-05-15"
 
         listed = runner.invoke(
             main,
@@ -354,12 +357,75 @@ def test_validation_experiments_cli_create_list_update(tmp_path: Path, runner: C
                 "completed",
                 "--result-summary",
                 "4 useful reviews",
+                "--due-date",
+                "2026-05-20",
                 "--format",
                 "json",
             ],
         )
         assert updated.exit_code == 0, updated.output
-        assert json.loads(updated.output)["status"] == "completed"
+        updated_payload = json.loads(updated.output)
+        assert updated_payload["status"] == "completed"
+        assert updated_payload["due_date"] == "2026-05-20"
+
+
+def test_validation_experiments_calendar_cli_stdout_and_output(
+    tmp_path: Path, runner: CliRunner
+) -> None:
+    from max.store.db import Store
+
+    db_path = str(tmp_path / "validation-calendar.db")
+    RealStore = Store
+    with RealStore(db_path=db_path) as store:
+        store.insert_buildable_unit(_make_unit(id="bu-cli-calendar"))
+        store.create_validation_experiment(
+            "bu-cli-calendar",
+            hypothesis="Users will book follow-up interviews, with notes",
+            method="Problem interviews",
+            target_sample_size=5,
+            success_metric="4 useful interviews",
+            due_date="2026-05-15",
+        )
+        store.create_validation_experiment(
+            "bu-cli-calendar",
+            hypothesis="Undated experiment is omitted",
+            method="Desk research",
+            target_sample_size=3,
+            success_metric="3 strong references",
+        )
+
+    def store_factory(*args, **kwargs):
+        return RealStore(db_path=db_path, **kwargs)
+
+    output_path = tmp_path / "validation.ics"
+    with patch("max.store.db.Store", side_effect=store_factory):
+        stdout_result = runner.invoke(
+            main,
+            ["validation-experiments", "calendar", "--idea-id", "bu-cli-calendar"],
+        )
+        assert stdout_result.exit_code == 0, stdout_result.output
+        unfolded_stdout = stdout_result.output.replace("\n ", "")
+        assert stdout_result.output.startswith("BEGIN:VCALENDAR\n")
+        assert stdout_result.output.count("BEGIN:VEVENT") == 1
+        assert "Users will book follow-up interviews\\, with notes" in unfolded_stdout
+
+        output_result = runner.invoke(
+            main,
+            [
+                "validation-experiments",
+                "calendar",
+                "--idea-id",
+                "bu-cli-calendar",
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert output_result.exit_code == 0, output_result.output
+        assert output_result.output == (
+            f"Wrote 1 validation experiment event(s) to {output_path} "
+            "(1 omitted without due date)\n"
+        )
+        assert b"BEGIN:VCALENDAR\r\n" in output_path.read_bytes()
 
 
 class TestCompareRunsCommand:
