@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters, reload_registry
+
+
+@pytest.fixture(autouse=True)
+def _reset_registry_cache() -> None:
+    reload_registry()
+    yield
+    reload_registry()
 
 
 def test_go_packages_adapter_is_registered() -> None:
@@ -432,6 +441,40 @@ def test_vscode_marketplace_adapter_metadata_documents_config_keys() -> None:
     assert metadata["vscode_marketplace"].required_keys == []
     assert "Visual Studio Code Marketplace" in metadata[
         "vscode_marketplace"
+    ].description
+
+
+def test_github_marketplace_actions_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_marketplace_actions"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["github_marketplace_actions"]
+        adapter = get_adapter("github_marketplace_actions")
+
+    assert adapter.name == "github_marketplace_actions"
+
+
+def test_github_marketplace_actions_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_marketplace_actions"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"github_marketplace_actions"}
+    assert metadata["github_marketplace_actions"].config_keys == [
+        "queries",
+        "categories",
+        "max_results",
+        "min_stars",
+        "max_age_days",
+        "github_token",
+        "token",
+        "token_env",
+    ]
+    assert metadata["github_marketplace_actions"].required_keys == []
+    assert "GitHub Marketplace Actions" in metadata[
+        "github_marketplace_actions"
     ].description
 
 
