@@ -95,6 +95,10 @@ from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
 )
+from max.analysis.design_brief_sales_battlecard import (
+    build_design_brief_sales_battlecard,
+    render_design_brief_sales_battlecard,
+)
 from max.analysis.design_brief_success_metrics import (
     build_design_brief_success_metrics,
     render_design_brief_success_metrics,
@@ -303,6 +307,7 @@ from max.server.schemas import (
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
+    DesignBriefSalesBattlecardResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
     DesignBriefStakeholderMapResponse,
@@ -8309,6 +8314,37 @@ def get_design_brief_support_playbook_markdown(
     filename = f"{_download_filename_part(brief_id)}-support-playbook.md"
     return Response(
         content=render_design_brief_support_playbook(playbook, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/sales-battlecard",
+    response_model=DesignBriefSalesBattlecardResponse,
+)
+def get_design_brief_sales_battlecard(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefSalesBattlecardResponse:
+    battlecard = build_design_brief_sales_battlecard(store, brief_id)
+    if not battlecard:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefSalesBattlecardResponse(**battlecard)
+
+
+@router.get("/design-briefs/{brief_id}/sales-battlecard.md", response_model=None)
+def get_design_brief_sales_battlecard_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    battlecard = build_design_brief_sales_battlecard(store, brief_id)
+    if not battlecard:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = f"{_download_filename_part(brief_id)}-sales-battlecard.md"
+    return Response(
+        content=render_design_brief_sales_battlecard(battlecard, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -2990,6 +2990,19 @@ class DesignBriefSupportPlaybookResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefSalesBattlecardResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    positioning: dict[str, Any]
+    objection_handling: list[dict[str, Any]]
+    demo_beats: list[dict[str, Any]]
+    proof_points: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefArtifactStatusResponse(BaseModel):
     status: Literal["generated", "missing", "errored"]
     error: str | None = None
