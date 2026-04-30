@@ -682,6 +682,34 @@ def test_pypi_download_trends_adapter_metadata_documents_config_keys() -> None:
     ].description
 
 
+def test_pypi_releases_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "pypi_releases"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["pypi_releases"]
+        adapter = get_adapter("pypi_releases")
+
+    assert adapter.name == "pypi_releases"
+
+
+def test_pypi_releases_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "pypi_releases"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"pypi_releases"}
+    assert metadata["pypi_releases"].config_keys == [
+        "packages",
+        "max_releases_per_package",
+        "include_prereleases",
+        "base_url",
+    ]
+    assert metadata["pypi_releases"].required_keys == []
+    assert "PyPI release history" in metadata["pypi_releases"].description
+
+
 def test_a2a_spec_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "a2a_spec"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
