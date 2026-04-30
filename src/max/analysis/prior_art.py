@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
@@ -62,6 +63,68 @@ class PriorArtResult:
     buildable_unit_id: str
     matches: list[PriorArtMatch]
     status: str  # clear | weak_match | strong_match
+
+
+# ── Rendering ──────────────────────────────────────────────────────
+
+def render_prior_art_report(
+    unit: BuildableUnit,
+    matches: list[PriorArtMatch | dict[str, Any]],
+) -> str:
+    """Render a persisted prior-art report as Markdown."""
+    lines = [
+        f"# Prior Art Report: {unit.title}",
+        "",
+        f"- Idea ID: `{unit.id}`",
+        f"- Status: `{unit.prior_art_status}`",
+        f"- Matches: {len(matches)}",
+        "",
+    ]
+
+    if not matches:
+        lines.extend([
+            "## Matches",
+            "",
+            "No persisted prior-art matches were found.",
+            "",
+        ])
+        return "\n".join(lines)
+
+    lines.extend(["## Matches", ""])
+    for index, match in enumerate(matches, start=1):
+        title = _match_value(match, "title")
+        url = _match_value(match, "url")
+        source = _match_value(match, "source")
+        description = _match_value(match, "description")
+        relevance_score = _match_value(match, "relevance_score")
+        search_query = _match_value(match, "search_query")
+        signals = _match_value(match, "match_signals") or {}
+
+        heading = f"### {index}. {title or 'Untitled match'}"
+        if url:
+            heading += f" ({url})"
+        lines.extend([
+            heading,
+            "",
+            f"- Source: `{source}`",
+            f"- Relevance score: {relevance_score}",
+            f"- Search query: `{search_query}`",
+        ])
+        if description:
+            lines.extend(["", str(description)])
+        if signals:
+            lines.extend(["", "Signals:"])
+            for key in sorted(signals):
+                lines.append(f"- {key}: {signals[key]}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _match_value(match: PriorArtMatch | dict[str, Any], key: str) -> Any:
+    if isinstance(match, dict):
+        return match.get(key, "")
+    return getattr(match, key, "")
 
 
 # ── Query construction ───────────────────────────────────────────

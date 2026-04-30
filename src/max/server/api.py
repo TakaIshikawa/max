@@ -116,6 +116,7 @@ from max.analysis.openapi_mcp_candidates import (
 )
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
+from max.analysis.prior_art import render_prior_art_report
 from max.analysis.profile_drift import (
     DEFAULT_INSIGHT_LIMIT as DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT,
     DEFAULT_SIGNAL_LIMIT as DEFAULT_PROFILE_DRIFT_SIGNAL_LIMIT,
@@ -3020,6 +3021,20 @@ def get_idea_prior_art(idea_id: str, store: Store = Depends(get_store)) -> Prior
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return _prior_art_response(unit, store.get_prior_art_matches(idea_id))
+
+
+@router.get("/ideas/{idea_id}/prior-art.md", response_model=None)
+def get_idea_prior_art_markdown(idea_id: str, store: Store = Depends(get_store)) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    matches = store.get_prior_art_matches(idea_id)
+    filename = f"{_download_filename_part(idea_id)}-prior-art.md"
+    return Response(
+        content=render_prior_art_report(unit, matches),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post(
