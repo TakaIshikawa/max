@@ -154,6 +154,7 @@ from max.analysis.thresholds import (
 )
 from max.analysis.validation_signal_export import validation_experiment_signal
 from max.analysis.validation_experiment_summary import build_validation_experiment_summary
+from max.analysis.validation_followups import build_validation_followups
 from max.publisher.discord_webhook import DiscordWebhookPublisher, DiscordWebhookPublishError
 from max.publisher.asana_tasks import AsanaTaskPublisher, AsanaTaskPublishError
 from max.publisher.azure_devops_work_items import (
@@ -390,6 +391,7 @@ from max.server.schemas import (
     ValidationExperimentSignalExportResponse,
     ValidationExperimentSummaryResponse,
     ValidationExperimentUpdate,
+    ValidationFollowUpsResponse,
     WebhookPublishRequest,
     WebhookPublishResponse,
 )
@@ -2799,6 +2801,20 @@ def list_validation_experiments(
     if experiments is None:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
     return [ValidationExperimentResponse(**experiment) for experiment in experiments]
+
+
+@router.get(
+    "/ideas/{idea_id}/validation-followups",
+    response_model=ValidationFollowUpsResponse,
+)
+def get_validation_followups(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> ValidationFollowUpsResponse:
+    followups = build_validation_followups(store, idea_id)
+    if followups is None:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return ValidationFollowUpsResponse.model_validate(followups)
 
 
 @router.get(
