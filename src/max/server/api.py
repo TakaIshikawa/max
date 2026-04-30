@@ -114,6 +114,11 @@ from max.analysis.design_brief_raci_matrix import (
     render_design_brief_raci_matrix,
 )
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
+from max.analysis.design_brief_retention_policy import (
+    build_design_brief_retention_policy,
+    render_design_brief_retention_policy,
+    retention_policy_filename,
+)
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
@@ -338,6 +343,7 @@ from max.server.schemas import (
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
     DesignBriefRaciMatrixResponse,
+    DesignBriefRetentionPolicyResponse,
     DesignBriefRoadmapResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
@@ -8733,6 +8739,37 @@ def _design_brief_assumption_ledger_rendered_response(
         filename = assumption_ledger_filename(ledger["design_brief"], fmt="markdown")
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return Response(content=content, media_type=media_type, headers=headers)
+
+
+@router.get(
+    "/design-briefs/{brief_id}/retention-policy",
+    response_model=DesignBriefRetentionPolicyResponse,
+)
+def get_design_brief_retention_policy(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefRetentionPolicyResponse:
+    policy = build_design_brief_retention_policy(store, brief_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefRetentionPolicyResponse(**policy)
+
+
+@router.get("/design-briefs/{brief_id}/retention-policy.md", response_model=None)
+def get_design_brief_retention_policy_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    policy = build_design_brief_retention_policy(store, brief_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = retention_policy_filename(policy["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_retention_policy(policy, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

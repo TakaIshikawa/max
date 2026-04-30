@@ -2880,6 +2880,21 @@ class DesignBriefAssumptionLedgerResponse(BaseModel):
     next_validation_actions: list[DesignBriefAssumptionLedgerActionResponse]
 
 
+class DesignBriefRetentionPolicyResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    data_classes: list[dict[str, Any]]
+    retention_rules: list[dict[str, Any]]
+    access_controls: list[dict[str, Any]]
+    deletion_controls: list[dict[str, Any]]
+    audit_requirements: list[str]
+    open_questions: list[str]
+    recommended_next_actions: list[str]
+
+
 class DesignBriefStakeholderMapResponse(BaseModel):
     schema_version: str
     kind: str
