@@ -91,6 +91,11 @@ from max.analysis.design_brief_success_metrics import (
     render_design_brief_success_metrics,
     success_metrics_filename,
 )
+from max.analysis.design_brief_stakeholder_map import (
+    build_design_brief_stakeholder_map,
+    render_design_brief_stakeholder_map,
+    stakeholder_map_filename,
+)
 from max.analysis.design_brief_technical_feasibility import (
     build_design_brief_technical_feasibility,
     render_design_brief_technical_feasibility,
@@ -279,6 +284,7 @@ from max.server.schemas import (
     DesignBriefRiskRegisterResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
+    DesignBriefStakeholderMapResponse,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTeamsPublishResponse,
     DesignBriefTechnicalFeasibilityResponse,
@@ -7978,6 +7984,44 @@ def _design_brief_success_metrics_markdown_response(
     filename = success_metrics_filename(brief, fmt="markdown")
     return Response(
         content=render_design_brief_success_metrics(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/stakeholder-map",
+    response_model=DesignBriefStakeholderMapResponse,
+)
+def get_design_brief_stakeholder_map(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefStakeholderMapResponse | Response:
+    report = build_design_brief_stakeholder_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_stakeholder_map_markdown_response(report)
+    return DesignBriefStakeholderMapResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/stakeholder-map.md", response_model=None)
+def get_design_brief_stakeholder_map_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_stakeholder_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_stakeholder_map_markdown_response(report)
+
+
+def _design_brief_stakeholder_map_markdown_response(report: dict[str, Any]) -> Response:
+    filename = stakeholder_map_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_stakeholder_map(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
