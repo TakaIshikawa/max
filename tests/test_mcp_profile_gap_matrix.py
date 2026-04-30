@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -37,6 +38,26 @@ def profiles_dir(tmp_path: Path) -> Path:
     return path
 
 
+@pytest.fixture
+def adapter_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    metadata = {
+        "hackernews": SimpleNamespace(source_categories=["forum"], description="Forum posts."),
+        "reddit": SimpleNamespace(source_categories=["forum"], description="Forum posts."),
+        "github_issues": SimpleNamespace(
+            source_categories=["code_hosting"],
+            description="Code hosting issue threads.",
+        ),
+        "product_hunt": SimpleNamespace(
+            source_categories=["marketplace"],
+            description="Product marketplace launches.",
+        ),
+    }
+    monkeypatch.setattr(
+        "max.analysis.profile_gap_matrix.get_adapter_metadata",
+        lambda: metadata,
+    )
+
+
 def _write_profile(
     profiles_dir: Path,
     name: str,
@@ -69,6 +90,7 @@ def _write_profile(
 def test_get_profile_gap_matrix_returns_structured_rows(
     mcp_profile_gap_db,
     profiles_dir: Path,
+    adapter_metadata: None,
 ) -> None:
     with Store(db_path=mcp_profile_gap_db, wal_mode=True) as store:
         store.insert_signal(
@@ -86,15 +108,22 @@ def test_get_profile_gap_matrix_returns_structured_rows(
 
     assert result["profiles_dir"] == str(profiles_dir)
     assert result["profile_count"] == 2
-    assert result["row_count"] == 4
-    rows = {(row["profile_name"], row["term"]): row for row in result["rows"]}
-    assert rows[("devtools", "mcp")]["status"] == "covered"
-    assert rows[("security", "dependency risk")]["recommended_adapters"] == ["reddit"]
+    assert result["row_count"] == 2
+    rows = {row["profile_name"]: row for row in result["rows"]}
+    assert rows["devtools"]["enabled_adapters"] == ["hackernews"]
+    assert rows["devtools"]["missing_source_categories"] == ["code_hosting", "marketplace"]
+    assert rows["devtools"]["recommended_next_adapters"] == [
+        "github_issues",
+        "product_hunt",
+    ]
+    assert rows["security"]["enabled_adapters"] == ["reddit"]
+    assert rows["security"]["status"] == "gaps"
 
 
 def test_get_profile_gap_matrix_markdown_mode(
     mcp_profile_gap_db,
     profiles_dir: Path,
+    adapter_metadata: None,
 ) -> None:
     result = get_profile_gap_matrix(
         profile_dir=str(profiles_dir),
@@ -104,7 +133,9 @@ def test_get_profile_gap_matrix_markdown_mode(
     assert result["format"] == "markdown"
     assert result["profile_count"] == 2
     assert "# Profile Gap Matrix" in result["markdown"]
-    assert "| devtools | devtools-domain | mcp | watchlist | 0 | undercovered |" in result["markdown"]
+    assert "| devtools | devtools-domain | gaps | forum | code_hosting, marketplace |" in result[
+        "markdown"
+    ]
 
 
 def test_get_profile_gap_matrix_invalid_profile_dir_returns_tool_error(
@@ -125,13 +156,14 @@ def test_profile_gap_matrix_resource_returns_json(
     mcp_profile_gap_db,
     profiles_dir: Path,
     monkeypatch,
+    adapter_metadata: None,
 ) -> None:
     monkeypatch.setattr("max.profiles.loader.get_profiles_dir", lambda: profiles_dir)
 
     result = profile_gap_matrix_detail()
 
     assert '"profile_count": 2' in result
-    assert '"row_count": 4' in result
+    assert '"row_count": 2' in result
 
 
 def test_create_mcp_server_registers_profile_gap_matrix(monkeypatch) -> None:

@@ -1008,6 +1008,31 @@ class AllProfileSourceLintReportResponse(BaseModel):
     profiles: list[ProfileSourceLintReportResponse] = Field(default_factory=list)
 
 
+class ProfileGapMatrixRowResponse(BaseModel):
+    profile_name: str
+    domain: str
+    enabled_source_categories: list[str]
+    missing_source_categories: list[str]
+    enabled_adapters: list[str]
+    disabled_relevant_adapters: list[str]
+    unknown_adapters: list[str]
+    missing_adapters: list[str]
+    evaluation_weight_profile: str
+    evaluation_weights: dict[str, float]
+    underweighted_evaluation_dimensions: list[str]
+    recommended_next_adapters: list[str]
+    status: str
+
+
+class ProfileGapMatrixResponse(BaseModel):
+    profiles_dir: str
+    profile_count: int
+    row_count: int
+    required_source_categories: list[str]
+    min_evaluation_weight: float
+    rows: list[ProfileGapMatrixRowResponse]
+
+
 class InsightResponse(BaseModel):
     id: str
     category: str
