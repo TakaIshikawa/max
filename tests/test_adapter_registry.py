@@ -308,6 +308,34 @@ def test_hackernews_whoishiring_adapter_metadata_documents_config_keys() -> None
     )
 
 
+def test_hackernews_showhn_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "hackernews_showhn"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["hackernews_showhn"]
+        adapter = get_adapter("hackernews_showhn")
+
+    assert adapter.name == "hackernews_showhn"
+
+
+def test_hackernews_showhn_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "hackernews_showhn"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"hackernews_showhn"}
+    assert metadata["hackernews_showhn"].config_keys == [
+        "algolia_url",
+        "query",
+    ]
+    assert metadata["hackernews_showhn"].required_keys == []
+    assert "Show HN launch and prototype posts" in metadata[
+        "hackernews_showhn"
+    ].description
+
+
 def test_mcp_protocol_roadmap_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "mcp_protocol_roadmap"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
