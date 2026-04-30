@@ -431,7 +431,7 @@ def _task_tags(
     tags = [
         "max",
         "tact-spec",
-        "idea",
+        _tag_value(source.get("type")) or "idea",
         _tag_value(source.get("category")),
         _tag_value(source.get("domain")),
         _tag_value(source.get("status")),

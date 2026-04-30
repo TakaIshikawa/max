@@ -234,6 +234,8 @@ from max.server.schemas import (
     DesignBriefBundleResponse,
     DesignBriefAzureDevOpsWorkItemPublishRequest,
     DesignBriefAzureDevOpsWorkItemPublishResponse,
+    DesignBriefClickUpTaskPublishRequest,
+    DesignBriefClickUpTaskPublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
     DesignBriefDiscordPublishResponse,
@@ -1234,6 +1236,79 @@ def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _design_brief_evidence_links(brief: dict[str, Any], store: Store) -> list[dict[str, Any]]:
+    links_by_url: dict[str, dict[str, Any]] = {}
+    for idea_id in brief.get("source_idea_ids") or []:
+        unit = store.get_buildable_unit(str(idea_id))
+        if not unit:
+            continue
+        for link in _webhook_evidence_links(unit, store):
+            url = link.get("url")
+            if isinstance(url, str) and url:
+                links_by_url[url] = link
+    return list(links_by_url.values())
+
+
+def _design_brief_clickup_spec(
+    brief: dict[str, Any],
+    *,
+    title: str,
+    markdown: str,
+    evidence_links: list[dict[str, Any]],
+) -> dict[str, Any]:
+    source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    return {
+        "schema_version": "max.design_brief.clickup_task.v1",
+        "kind": "max.design_brief",
+        "source": {
+            "system": "max",
+            "type": "design_brief",
+            "idea_id": brief["id"],
+            "design_brief_id": brief["id"],
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": source_idea_ids,
+            "status": brief.get("design_status"),
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "readiness_score": readiness_score,
+            "created_at": brief.get("created_at"),
+            "updated_at": brief.get("updated_at"),
+        },
+        "project": {
+            "title": title,
+            "summary": brief.get("merged_product_concept") or brief.get("why_this_now") or "",
+            "target_users": brief.get("target_users") or [],
+            "specific_user": brief.get("specific_user") or "",
+            "buyer": brief.get("buyer") or "",
+            "workflow_context": brief.get("workflow_context") or "",
+        },
+        "problem": {"statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""},
+        "solution": {"approach": brief.get("merged_product_concept") or ""},
+        "execution": {
+            "mvp_scope": list(brief.get("mvp_scope") or []),
+            "first_milestones": list(brief.get("first_milestones") or []),
+            "validation_plan": brief.get("validation_plan") or "",
+        },
+        "evidence": {
+            "rationale": brief.get("synthesis_rationale") or "",
+            "source_idea_ids": source_idea_ids,
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "links": evidence_links,
+        },
+        "quality": {"quality_score": readiness_score},
+        "design_brief": {
+            "id": brief["id"],
+            "title": title,
+            "summary": brief.get("merged_product_concept") or "",
+            "readiness_score": readiness_score,
+            "source_idea_ids": source_idea_ids,
+            "evidence_links": evidence_links,
+            "markdown": markdown,
+        },
+    }
+
+
 DESIGN_BRIEF_GOOGLE_SHEETS_COLUMNS = [
     "design_brief_id",
     "title",
@@ -1466,6 +1541,10 @@ def _redact_azure_devops_token(message: str, token: str | None) -> str:
     redacted = message.replace(token, "[redacted]")
     encoded = base64.b64encode(f":{token}".encode("utf-8")).decode("ascii")
     return redacted.replace(encoded, "[redacted]")
+
+
+def _redact_clickup_token(message: str, token: str | None) -> str:
+    return message.replace(token, "[redacted]") if token else message
 
 
 def _profile_summary_to_response(profile) -> ProfileSummaryResponse:
@@ -6770,6 +6849,160 @@ def publish_design_brief_to_linear_issue(
         team_id=result.team_id,
         issue_url=result.issue_url,
         issue_id=result_metadata.get("linear_issue_id"),
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/clickup",
+    response_model=DesignBriefClickUpTaskPublishResponse,
+)
+def publish_design_brief_to_clickup_task(
+    brief_id: str,
+    request: DesignBriefClickUpTaskPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefClickUpTaskPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = ClickUpTaskPublisher.from_env(
+            list_id=request.list_id,
+            api_token=request.api_token,
+            api_url=request.api_url,
+            assignees=request.assignees,
+            tags=request.tags,
+            priority=request.priority,
+            due_date=request.due_date,
+            custom_fields=request.custom_fields,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except ClickUpTaskPublishError as exc:
+        message = _redact_clickup_token(str(exc), request.api_token)
+        raise HTTPException(status_code=400, detail=message) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    evidence_links = _design_brief_evidence_links(brief, store)
+    payload = _design_brief_clickup_spec(
+        brief,
+        title=title,
+        markdown=markdown,
+        evidence_links=evidence_links,
+    )
+    request_summary = {
+        "api_url": redact_url(publisher.api_url),
+        "task_endpoint": redact_url(publisher.task_endpoint),
+        "list_id": publisher.list_id,
+        "assignees": list(publisher.assignees),
+        "tags": list(request.tags),
+        "priority": publisher.priority,
+        "due_date": publisher.due_date,
+        "custom_fields": list(request.custom_fields),
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "api_token": "[redacted]" if publisher.api_token else None,
+        "api_token_source": "request"
+        if request.api_token
+        else ("env:CLICKUP_API_TOKEN" if os.getenv("CLICKUP_API_TOKEN") else "none"),
+    }
+    provider_metadata = {
+        "provider": "clickup",
+        "target_type": "clickup_task",
+        "target_url": redact_url(publisher.task_endpoint),
+        "task_endpoint": redact_url(publisher.task_endpoint),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+        "readiness_score": float(brief.get("readiness_score") or 0.0),
+    }
+
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "CLICKUP_API_TOKEN is required for live ClickUp task publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="clickup_task",
+            target_url=redact_url(publisher.task_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except ClickUpTaskPublishError as exc:
+        message = _redact_clickup_token(str(exc), publisher.api_token)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="clickup_task",
+            target_url=redact_url(publisher.task_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    result.payload["design_brief"] = {
+        "id": brief_id,
+        "title": title,
+        "summary": payload["project"]["summary"],
+        "readiness_score": payload["quality"]["quality_score"],
+        "source_idea_ids": list(payload["evidence"]["source_idea_ids"]),
+        "evidence_links": evidence_links,
+        "markdown": markdown,
+    }
+    result.payload["metadata"] = {
+        **result.payload.get("metadata", {}),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(payload["evidence"]["source_idea_ids"]),
+        "readiness_score": payload["quality"]["quality_score"],
+    }
+
+    target_url = result.task_url or result.task_id or redact_url(publisher.task_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="clickup_task",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    provider_metadata.update(
+        {
+            "target_url": target_url,
+            "task_id": result.task_id,
+            "task_url": result.task_url,
+        }
+    )
+
+    return DesignBriefClickUpTaskPublishResponse(
+        design_brief_id=brief_id,
+        list_id=result.list_id,
+        task_id=result.task_id,
+        task_url=result.task_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
