@@ -2567,6 +2567,21 @@ class DesignBriefComplianceChecklistResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefProcurementChecklistResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    procurement_context: dict[str, Any]
+    sections: list[dict[str, Any]]
+    checklist_items: list[dict[str, Any]]
+    approval_gates: list[dict[str, Any]]
+    missing_inputs: list[dict[str, Any]]
+    recommended_next_actions: list[str]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefRoadmapItemResponse(BaseModel):
     id: str
     phase: Literal["discovery", "prototype", "validation", "beta", "launch"]
