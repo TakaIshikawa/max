@@ -104,6 +104,38 @@ def test_kubernetes_keps_adapter_metadata_documents_config_keys() -> None:
     assert "Kubernetes Enhancement Proposal" in metadata["kubernetes_keps"].description
 
 
+def test_python_peps_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "python_peps"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["python_peps"]
+        adapter = get_adapter("python_peps")
+
+    assert adapter.name == "python_peps"
+
+
+def test_python_peps_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "python_peps"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"python_peps"}
+    assert metadata["python_peps"].config_keys == [
+        "index_url",
+        "local_path",
+        "content",
+        "statuses",
+        "types",
+        "topics",
+        "keywords",
+        "max_results",
+    ]
+    assert metadata["python_peps"].required_keys == []
+    assert "Python PEP index standards metadata" in metadata["python_peps"].description
+
+
 def test_homebrew_formulae_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "homebrew_formulae"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):

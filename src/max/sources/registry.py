@@ -46,6 +46,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
+    "python_peps": "max.sources.python_peps:PythonPepsAdapter",
     "pypi_download_trends": (
         "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapter"
     ),
@@ -209,6 +210,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["keywords"],
         required_keys=[],
         description="Fetches PyPI package signals matching configured keywords.",
+    ),
+    "python_peps": AdapterMetadata(
+        name="python_peps",
+        config_keys=[
+            "index_url",
+            "local_path",
+            "content",
+            "statuses",
+            "types",
+            "topics",
+            "keywords",
+            "max_results",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches Python PEP index standards metadata for developer tooling, "
+            "packaging, typing, and compatibility workflow signals."
+        ),
     ),
     "pypi_download_trends": AdapterMetadata(
         name="pypi_download_trends",
