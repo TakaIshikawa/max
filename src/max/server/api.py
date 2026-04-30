@@ -215,6 +215,8 @@ from max.server.schemas import (
     DesignBriefGitHubGistPublishResponse,
     DesignBriefGitHubIssuePublishRequest,
     DesignBriefGitHubIssuePublishResponse,
+    DesignBriefJiraIssuePublishRequest,
+    DesignBriefJiraIssuePublishResponse,
     DesignBriefLaunchChecklistResponse,
     DesignBriefLinearPublishRequest,
     DesignBriefLinearPublishResponse,
@@ -1229,6 +1231,23 @@ def _markdown_preview(markdown: str, *, limit: int = 500) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + "..."
+
+
+def _jira_credential_source(
+    request: DesignBriefJiraIssuePublishRequest,
+    publisher: JiraIssuePublisher,
+) -> dict[str, str | None]:
+    return {
+        "email": "request" if request.email else ("env:JIRA_EMAIL" if publisher.email else None),
+        "api_token": (
+            "request" if request.api_token else ("env:JIRA_API_TOKEN" if publisher.api_token else None)
+        ),
+        "bearer_token": (
+            "request"
+            if request.bearer_token
+            else ("env:JIRA_BEARER_TOKEN" if publisher.bearer_token else None)
+        ),
+    }
 
 
 def _redact_azure_devops_token(message: str, token: str | None) -> str:
@@ -5528,6 +5547,160 @@ def publish_design_brief_to_github_issue(
         labels=list(result.payload.get("labels") or []),
         assignees=list(result.payload.get("assignees") or []),
         milestone=result.payload.get("milestone"),
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/jira",
+    response_model=DesignBriefJiraIssuePublishResponse,
+)
+def publish_design_brief_to_jira_issue(
+    brief_id: str,
+    request: DesignBriefJiraIssuePublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefJiraIssuePublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    try:
+        publisher = JiraIssuePublisher.from_env(
+            site_url=request.site_url,
+            project_key=request.project_key,
+            email=request.email,
+            api_token=request.api_token,
+            bearer_token=request.bearer_token,
+            issue_type=request.issue_type,
+            labels=request.labels,
+            assignee_account_id=request.assignee_account_id,
+            priority=request.priority,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except JiraIssuePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    title = request.title or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        markdown = _append_design_brief_source_ids(markdown, brief)
+
+    payload: dict[str, Any] = {
+        "summary": title,
+        "description": markdown,
+        "project_key": publisher.project_key,
+        "issue_type": publisher.issue_type,
+        "labels": list(request.labels),
+        "metadata": {
+            "publisher": "max.jira_issues",
+            "source_type": "design_brief",
+            "design_brief_id": brief_id,
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "project_key": publisher.project_key,
+            "issue_type": publisher.issue_type,
+            "include_source_ids": request.include_source_ids,
+        },
+    }
+    if publisher.assignee_account_id:
+        payload["assignee_account_id"] = publisher.assignee_account_id
+    if publisher.priority:
+        payload["priority"] = publisher.priority
+
+    request_summary = {
+        "site_url": redact_url(publisher.site_url),
+        "project_key": publisher.project_key,
+        "issue_type": publisher.issue_type,
+        "labels": list(request.labels),
+        "assignee_account_id": publisher.assignee_account_id,
+        "priority": publisher.priority,
+        "dry_run": request.dry_run,
+        "include_source_ids": request.include_source_ids,
+        "email": publisher.email,
+        "api_token": "[redacted]" if publisher.api_token else None,
+        "bearer_token": "[redacted]" if publisher.bearer_token else None,
+        "credential_source": _jira_credential_source(request, publisher),
+    }
+
+    if not request.dry_run and not publisher._has_auth:
+        message = (
+            "Jira email/api_token or bearer_token is required for live Jira issue publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="jira_issue",
+            target_url=redact_url(publisher.issue_endpoint),
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish_issue_payload(payload, dry_run=request.dry_run)
+    except JiraIssuePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="jira_issue",
+            target_url=redact_url(publisher.issue_endpoint),
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    target_url = result.issue_url or redact_url(publisher.issue_endpoint)
+    attempt = store.insert_publication_attempt(
+        idea_id=brief_id,
+        target_type="jira_issue",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata = {
+        "provider": "jira",
+        "target_type": "jira_issue",
+        "target_url": target_url,
+        "issue_endpoint": redact_url(publisher.issue_endpoint),
+        "jira_issue_id": result_metadata.get("jira_issue_id"),
+        "jira_issue_key": result.issue_key or result_metadata.get("jira_issue_key"),
+        "jira_issue_url": result.issue_url or result_metadata.get("jira_issue_url"),
+    }
+
+    return DesignBriefJiraIssuePublishResponse(
+        design_brief_id=brief_id,
+        project_key=result.project_key,
+        issue_key=result.issue_key,
+        issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        summary=str(result.payload["summary"]),
+        description_preview=_markdown_preview(str(result.payload["description"])),
+        issue_type=str(result.payload["issue_type"]),
+        labels=list(result.payload.get("labels") or []),
+        assignee_account_id=result.payload.get("assignee_account_id"),
+        priority=result.payload.get("priority"),
         payload=result.payload,
         provider_metadata=provider_metadata,
         request_summary=request_summary,

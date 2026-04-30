@@ -299,6 +299,23 @@ class DesignBriefGitHubIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class DesignBriefJiraIssuePublishRequest(BaseModel):
+    site_url: str | None = None
+    project_key: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+    bearer_token: str | None = None
+    issue_type: str | None = "Task"
+    title: str | None = Field(default=None, min_length=1)
+    labels: list[str] = Field(default_factory=list)
+    assignee_account_id: str | None = Field(default=None, min_length=1)
+    priority: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    include_source_ids: bool = False
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class AsanaTaskPublishRequest(BaseModel):
     access_token: str | None = None
     workspace_gid: str | None = Field(default=None, min_length=1)
@@ -1625,6 +1642,25 @@ class DesignBriefGitHubIssuePublishResponse(BaseModel):
     labels: list[str]
     assignees: list[str]
     milestone: int | None = None
+    payload: dict[str, Any]
+    provider_metadata: dict[str, Any]
+    request_summary: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse | None = None
+
+
+class DesignBriefJiraIssuePublishResponse(BaseModel):
+    design_brief_id: str
+    project_key: str
+    issue_key: str | None = None
+    issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    summary: str
+    description_preview: str
+    issue_type: str
+    labels: list[str]
+    assignee_account_id: str | None = None
+    priority: str | None = None
     payload: dict[str, Any]
     provider_metadata: dict[str, Any]
     request_summary: dict[str, Any]
