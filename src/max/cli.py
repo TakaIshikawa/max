@@ -4015,6 +4015,43 @@ def design_briefs_market_sizing(
         store.close()
 
 
+@design_briefs.command(name="outreach-pack")
+@click.argument("design_brief_id")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format",
+)
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write outreach pack to file")
+def design_briefs_outreach_pack(
+    design_brief_id: str,
+    fmt: str,
+    output: str | None,
+) -> None:
+    """Export a deterministic pilot outreach pack for a design brief."""
+    from max.analysis.design_brief_outreach_pack import (
+        build_design_brief_outreach_pack,
+        render_design_brief_outreach_pack,
+        write_design_brief_outreach_pack,
+    )
+    from max.store.db import Store
+
+    store = Store()
+    try:
+        pack = build_design_brief_outreach_pack(store, design_brief_id)
+        if not pack:
+            raise click.ClickException(f"Design brief not found: {design_brief_id}")
+        if output:
+            write_design_brief_outreach_pack(Path(output), pack, fmt=fmt)
+            click.echo(f"Wrote outreach pack to {output}")
+            return
+        click.echo(render_design_brief_outreach_pack(pack, fmt=fmt), nl=False)
+    finally:
+        store.close()
+
+
 @main.command(name="export-design-brief")
 @click.argument("design_brief_id")
 @click.option("--format", "fmt", type=click.Choice(["json", "yaml"]), default="json")

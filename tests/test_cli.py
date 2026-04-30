@@ -1208,6 +1208,102 @@ class TestDesignBriefMarketSizingCommand:
         assert "Design brief not found: dbf-missing" in result.output
 
 
+class TestDesignBriefOutreachPackCommand:
+    @patch("max.store.db.Store")
+    def test_outreach_pack_stdout_markdown(self, MockStore, runner: CliRunner) -> None:
+        unit = _make_unit()
+        unit.buyer = "engineering manager"
+        unit.specific_user = "platform engineer"
+        unit.workflow_context = "CI gate"
+        unit.current_workaround = "manual prompt testing"
+        store = _mock_store(unit=unit)
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "outreach-pack", "dbf-test001"])
+
+        assert result.exit_code == 0, result.output
+        assert "# Outreach Pack: AgentAdversarialBench" in result.output
+        assert "## Target Segments" in result.output
+        assert "## Templates" in result.output
+        assert "## Qualification Questions" in result.output
+        assert "## Follow-up Steps" in result.output
+
+    @patch("max.store.db.Store")
+    def test_outreach_pack_stdout_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        result = runner.invoke(
+            main,
+            ["design-briefs", "outreach-pack", "dbf-test001", "--format", "json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["schema_version"] == "max.design_brief.outreach_pack.v1"
+        assert payload["design_brief"]["id"] == "dbf-test001"
+        assert payload["target_segments"][0]["id"] == "primary_workflow_owner"
+
+    @patch("max.store.db.Store")
+    def test_outreach_pack_writes_markdown(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                [
+                    "design-briefs",
+                    "outreach-pack",
+                    "dbf-test001",
+                    "--output",
+                    "outreach.md",
+                ],
+            )
+
+            assert result.exit_code == 0, result.output
+            assert Path("outreach.md").exists()
+            assert "# Outreach Pack: AgentAdversarialBench" in Path("outreach.md").read_text()
+
+    @patch("max.store.db.Store")
+    def test_outreach_pack_writes_json(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store(unit=_make_unit())
+        store.get_design_brief.return_value = _design_brief_dict()
+        MockStore.return_value = store
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                main,
+                [
+                    "design-briefs",
+                    "outreach-pack",
+                    "dbf-test001",
+                    "--format",
+                    "json",
+                    "--output",
+                    "outreach.json",
+                ],
+            )
+
+            assert result.exit_code == 0, result.output
+            payload = json.loads(Path("outreach.json").read_text())
+            assert payload["kind"] == "max.design_brief.outreach_pack"
+
+    @patch("max.store.db.Store")
+    def test_outreach_pack_not_found(self, MockStore, runner: CliRunner) -> None:
+        store = _mock_store()
+        store.get_design_brief.return_value = None
+        MockStore.return_value = store
+
+        result = runner.invoke(main, ["design-briefs", "outreach-pack", "dbf-missing"])
+
+        assert result.exit_code != 0
+        assert "Design brief not found: dbf-missing" in result.output
+
+
 class TestSpecPreviewCommand:
     @patch("max.store.db.Store")
     def test_spec_preview_stdout_json(self, MockStore: MagicMock, runner: CliRunner) -> None:
