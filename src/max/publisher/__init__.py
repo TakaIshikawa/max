@@ -14,6 +14,13 @@ from max.publisher.github_gists import (
     GitHubGistPublishResult,
     GitHubGistsPublisher,
 )
+from max.publisher.github_discussions import (
+    GitHubDiscussionPayload,
+    GitHubDiscussionPublisher,
+    GitHubDiscussionPublishError,
+    GitHubDiscussionPublishResult,
+    GitHubDiscussionsPublisher,
+)
 from max.publisher.github_projects import (
     GitHubProjectItemPayload,
     GitHubProjectItemPublisher,
@@ -143,6 +150,11 @@ __all__ = [
     "GitHubGistPublishError",
     "GitHubGistPublishResult",
     "GitHubGistsPublisher",
+    "GitHubDiscussionPayload",
+    "GitHubDiscussionPublisher",
+    "GitHubDiscussionPublishError",
+    "GitHubDiscussionPublishResult",
+    "GitHubDiscussionsPublisher",
     "GitHubProjectItemPayload",
     "GitHubProjectItemPublisher",
     "GitHubProjectItemPublishResult",
