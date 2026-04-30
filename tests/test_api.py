@@ -13,7 +13,7 @@ import pytest
 import httpx
 from fastapi.testclient import TestClient
 
-from max.analysis.export import IDEA_EXPORT_FIELDS
+from max.analysis.export import IDEA_CSV_EXPORT_FIELDS, IDEA_EXPORT_FIELDS
 from max.analysis.prior_art import PriorArtMatch, PriorArtResult
 from max.evaluation.weights import WEIGHT_PROFILES, get_weights
 from max.server.app import create_app
@@ -1622,11 +1622,11 @@ def test_export_ideas_csv_header_output(seeded_client):
     assert resp.headers["content-disposition"] == 'attachment; filename="ideas-export.csv"'
 
     reader = csv.DictReader(StringIO(resp.text))
-    assert reader.fieldnames == list(IDEA_EXPORT_FIELDS)
+    assert reader.fieldnames == list(IDEA_CSV_EXPORT_FIELDS)
     rows = list(reader)
     assert rows[0]["id"] == "bu-api001"
-    assert rows[0]["evaluation_score"] == "78.0"
-    assert json.loads(rows[0]["inspiring_insight_ids"]) == ["ins-api001"]
+    assert rows[0]["overall_score"] == "78.0"
+    assert rows[0]["evidence_signal_count"] == "1"
 
 
 def test_export_ideas_invalid_fmt_returns_validation_error(client):

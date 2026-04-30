@@ -2289,6 +2289,7 @@ def get_review_thresholds(
 @router.get("/exports/ideas", response_class=Response)
 def export_ideas(
     fmt: Literal["jsonl", "csv"] = "jsonl",
+    format_: Literal["jsonl", "csv"] | None = Query(default=None, alias="format"),
     status: str | None = None,
     domain: str | None = None,
     min_score: float | None = Query(default=None, ge=0.0, le=100.0),
@@ -2297,6 +2298,7 @@ def export_ideas(
     store: Store = Depends(get_store),
 ) -> Response:
     """Export filtered idea summaries as JSON Lines or CSV."""
+    export_format = format_ or fmt
     units = store.get_buildable_units(limit=limit, status=status, domain=domain)
     if not include_archived and status != "archived":
         units = [unit for unit in units if unit.status != "archived"]
@@ -2307,10 +2309,10 @@ def export_ideas(
         get_latest_feedback=store.get_latest_feedback,
         min_score=min_score,
     )
-    media_type = "text/csv" if fmt == "csv" else "text/plain"
-    filename = f"ideas-export.{fmt}"
+    media_type = "text/csv" if export_format == "csv" else "text/plain"
+    filename = f"ideas-export.{export_format}"
     return Response(
-        content=render_idea_export(records, fmt=fmt),
+        content=render_idea_export(records, fmt=export_format),
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

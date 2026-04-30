@@ -2977,7 +2977,7 @@ class TestExportIdeasCommand:
         assert result.exit_code == 0, result.output
         assert result.output == f"Wrote 1 idea(s) to {output_path}\n"
         csv_text = output_path.read_text(encoding="utf-8")
-        assert "evaluation_score,recommendation" in csv_text
+        assert "recommendation,overall_score" in csv_text
         assert "bu-strong" in csv_text
         assert "bu-weak" not in csv_text
         store.get_buildable_units.assert_called_once_with(
@@ -3001,8 +3001,8 @@ class TestExportIdeasCommand:
         assert json.loads(jsonl)["evidence_signal_ids"] == ["sig-test001"]
 
         csv_text = render_idea_export([record], fmt="csv")
-        assert csv_text.splitlines()[0].startswith("id,title,one_liner")
-        assert "\"[\"\"sig-test001\"\"]\"" in csv_text
+        assert csv_text.splitlines()[0].startswith("id,title,domain")
+        assert "88.0" in csv_text
 
 
 class TestReviewThresholdsCommand:

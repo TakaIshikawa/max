@@ -38,6 +38,20 @@ IDEA_EXPORT_FIELDS = (
     "updated_at",
 )
 
+IDEA_CSV_EXPORT_FIELDS = (
+    "id",
+    "title",
+    "domain",
+    "status",
+    "category",
+    "recommendation",
+    "overall_score",
+    "source_adapters",
+    "evidence_signal_count",
+    "created_at",
+    "updated_at",
+)
+
 
 def idea_export_record(
     unit: BuildableUnit,
@@ -95,10 +109,11 @@ def render_idea_export(records: Iterable[dict[str, Any]], *, fmt: str) -> str:
         return "".join(json.dumps(row, default=_as_export_value) + "\n" for row in rows)
     if fmt == "csv":
         output = StringIO()
-        writer = csv.DictWriter(output, fieldnames=IDEA_EXPORT_FIELDS, extrasaction="ignore")
+        writer = csv.DictWriter(output, fieldnames=IDEA_CSV_EXPORT_FIELDS, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            writer.writerow({field: _csv_value(row.get(field)) for field in IDEA_EXPORT_FIELDS})
+            csv_row = _idea_csv_record(row)
+            writer.writerow({field: _csv_value(csv_row.get(field)) for field in IDEA_CSV_EXPORT_FIELDS})
         return output.getvalue()
     raise ValueError(f"Unsupported idea export format: {fmt}")
 
@@ -112,8 +127,6 @@ def write_idea_export(path: Path, records: Iterable[dict[str, Any]], *, fmt: str
 def _csv_value(value: Any) -> Any:
     if value is None:
         return ""
-    if isinstance(value, (list, dict)):
-        return json.dumps(value, default=_as_export_value)
     return _as_export_value(value)
 
 
@@ -121,3 +134,35 @@ def _as_export_value(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
     return value
+
+
+def _idea_csv_record(row: dict[str, Any]) -> dict[str, Any]:
+    evidence_signal_ids = row.get("evidence_signal_ids")
+    return {
+        "id": row.get("id"),
+        "title": row.get("title"),
+        "domain": row.get("domain"),
+        "status": row.get("status"),
+        "category": row.get("category"),
+        "recommendation": row.get("recommendation"),
+        "overall_score": row.get("overall_score", row.get("evaluation_score")),
+        "source_adapters": _joined_list(row.get("source_adapters")),
+        "evidence_signal_count": len(evidence_signal_ids) if isinstance(evidence_signal_ids, list) else "",
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+def _joined_list(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        items = value.keys()
+    elif isinstance(value, str):
+        return value
+    else:
+        try:
+            items = list(value)
+        except TypeError:
+            return str(value)
+    return ", ".join(sorted(str(item) for item in items))
