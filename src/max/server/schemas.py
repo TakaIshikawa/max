@@ -666,6 +666,63 @@ class SignalFreshnessResponse(BaseModel):
     recommendations: list[SignalFreshnessRecommendationResponse]
 
 
+class EvidenceConcentrationSourceAdapterResponse(BaseModel):
+    source_adapter: str
+    count: int
+    share: float
+
+
+class EvidenceConcentrationDomainTagResponse(BaseModel):
+    domain_tag: str
+    count: int
+    share: float
+
+
+class EvidenceConcentrationSignalRoleResponse(BaseModel):
+    signal_role: str
+    count: int
+    share: float
+
+
+class EvidenceConcentrationIdeaResponse(BaseModel):
+    idea_id: str
+    title: str
+    status: str
+    domain: str
+    evidence_signal_count: int
+    dominant_source_adapter: str | None = None
+    source_adapter_share: float
+    dominant_domain_tag: str | None = None
+    domain_tag_share: float
+    dominant_signal_role: str | None = None
+    signal_role_share: float
+    concentration_score: float
+
+
+class EvidenceConcentrationRecommendationResponse(BaseModel):
+    dimension: str
+    value: str
+    share: float
+    threshold: float
+    message: str
+    action: str
+
+
+class EvidenceConcentrationResponse(BaseModel):
+    schema_version: str
+    generated_at: str
+    limit: int
+    thresholds: dict[str, float]
+    total_ideas: int
+    ideas_with_evidence: int
+    total_evidence_links: int
+    by_source_adapter: list[EvidenceConcentrationSourceAdapterResponse]
+    by_domain_tag: list[EvidenceConcentrationDomainTagResponse]
+    by_signal_role: list[EvidenceConcentrationSignalRoleResponse]
+    top_concentrated_ideas: list[EvidenceConcentrationIdeaResponse]
+    recommendations: list[EvidenceConcentrationRecommendationResponse]
+
+
 class SourceReliabilityTypeResponse(BaseModel):
     source_type: str
     total_signals: int
