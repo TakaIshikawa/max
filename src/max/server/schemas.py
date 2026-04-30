@@ -669,6 +669,47 @@ class SourceReliabilityResponse(BaseModel):
     source_types: list[SourceReliabilityTypeResponse]
 
 
+class SourceReliabilityAdapterMetricsResponse(BaseModel):
+    adapter_health_score: float
+    signal_usefulness_score: float
+    corroboration_rate: float
+    downstream_idea_conversion_rate: float
+    feedback_approval_rate: float | None = None
+    reliability_score: float
+
+
+class SourceReliabilityFreshnessResponse(BaseModel):
+    signal_count: int
+    newest_fetched_at: str | None = None
+    oldest_fetched_at: str | None = None
+    newest_age_days: float | None = None
+    oldest_age_days: float | None = None
+
+
+class SourceReliabilityApprovalStatsResponse(BaseModel):
+    total_feedbacked: int
+    approved: int
+    rejected: int
+    approval_rate: float
+
+
+class SourceReliabilityDetailResponse(BaseModel):
+    generated_at: str
+    adapter_name: str
+    registered: bool
+    signal_limit: int
+    time_window: str | None = None
+    fetched_since: str | None = None
+    min_signal_count: int
+    total_signals: int
+    recent_signal_count: int
+    source_types: list[SourceReliabilityTypeResponse]
+    metrics: SourceReliabilityAdapterMetricsResponse
+    approval_stats: SourceReliabilityApprovalStatsResponse | None = None
+    freshness: SourceReliabilityFreshnessResponse
+    recommendations: list[str]
+
+
 class MCPCapabilityCategoryResponse(BaseModel):
     category: str
     total_count: int

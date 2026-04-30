@@ -10,6 +10,7 @@ import json
 import os
 import time
 from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -383,6 +384,9 @@ from max.server.schemas import (
     SignalImportRowResult,
     SlackPublishRequest,
     SlackPublishResponse,
+    SourceReliabilityAdapterMetricsResponse,
+    SourceReliabilityDetailResponse,
+    SourceReliabilityFreshnessResponse,
     SourceReliabilityResponse,
     SpecBundleBatchItemResponse,
     SpecBundleBatchRequest,
@@ -2010,6 +2014,203 @@ def get_source_reliability(
 ) -> SourceReliabilityResponse:
     report = build_source_reliability_report(store, signal_limit=signal_limit)
     return SourceReliabilityResponse.model_validate(report.to_dict())
+
+
+@router.get("/source-reliability/{adapter_name}", response_model=SourceReliabilityDetailResponse)
+def get_source_reliability_detail(
+    adapter_name: str,
+    signal_limit: int = Query(DEFAULT_SIGNAL_LIMIT, ge=1, le=10_000),
+    time_window: str | None = Query(default=None),
+    min_signal_count: int = Query(1, ge=1, le=10_000),
+    store: Store = Depends(get_store),
+) -> SourceReliabilityDetailResponse:
+    try:
+        fetched_since = _parse_source_reliability_time_window(time_window)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    registered_adapters = set(list_adapters())
+    observed_signals = [
+        signal
+        for signal in store.get_signals(limit=10_000)
+        if signal.source_adapter == adapter_name
+    ]
+    if adapter_name not in registered_adapters and not observed_signals:
+        raise HTTPException(status_code=404, detail=f"Source adapter not found: {adapter_name}")
+
+    report = build_source_reliability_report(
+        store,
+        signal_limit=signal_limit,
+        source_adapters={adapter_name},
+        fetched_since=fetched_since,
+        min_signal_count=min_signal_count,
+    )
+    report_payload = report.to_dict()
+    source_types = report_payload["source_types"]
+    approval_stats = store.get_adapter_approval_stats().get(adapter_name)
+    freshness_signals = _filter_reliability_detail_signals(
+        observed_signals,
+        fetched_since=fetched_since,
+        limit=signal_limit,
+    )
+
+    payload = {
+        "generated_at": report_payload["generated_at"],
+        "adapter_name": adapter_name,
+        "registered": adapter_name in registered_adapters,
+        "signal_limit": report_payload["signal_limit"],
+        "time_window": time_window,
+        "fetched_since": fetched_since.isoformat() if fetched_since else None,
+        "min_signal_count": min_signal_count,
+        "total_signals": report_payload["total_signals"],
+        "recent_signal_count": len(freshness_signals),
+        "source_types": source_types,
+        "metrics": _source_reliability_detail_metrics(source_types),
+        "approval_stats": approval_stats,
+        "freshness": _source_reliability_freshness(freshness_signals),
+        "recommendations": _source_reliability_recommendations(
+            adapter_name=adapter_name,
+            source_types=source_types,
+            total_signals=report_payload["total_signals"],
+        ),
+    }
+    return SourceReliabilityDetailResponse.model_validate(payload)
+
+
+def _parse_source_reliability_time_window(time_window: str | None) -> datetime | None:
+    if time_window is None or time_window.strip().lower() in ("", "all"):
+        return None
+
+    value = time_window.strip().lower()
+    unit = value[-1]
+    amount_text = value[:-1]
+    if unit.isdigit():
+        unit = "d"
+        amount_text = value
+
+    try:
+        amount = int(amount_text)
+    except ValueError as e:
+        raise ValueError("time_window must be a duration like '24h', '7d', or '4w'") from e
+    if amount < 1:
+        raise ValueError("time_window must be at least 1 unit")
+
+    if unit == "s":
+        delta = timedelta(seconds=amount)
+    elif unit == "m":
+        delta = timedelta(minutes=amount)
+    elif unit == "h":
+        delta = timedelta(hours=amount)
+    elif unit == "d":
+        delta = timedelta(days=amount)
+    elif unit == "w":
+        delta = timedelta(weeks=amount)
+    else:
+        raise ValueError("time_window must use one of: s, m, h, d, w")
+    return datetime.now(timezone.utc) - delta
+
+
+def _filter_reliability_detail_signals(
+    signals: list[Any],
+    *,
+    fetched_since: datetime | None,
+    limit: int,
+) -> list[Any]:
+    filtered = signals
+    if fetched_since is not None:
+        filtered = [
+            signal
+            for signal in filtered
+            if _normalize_reliability_datetime(signal.fetched_at) >= fetched_since
+        ]
+    return sorted(
+        filtered,
+        key=lambda signal: _normalize_reliability_datetime(signal.fetched_at),
+        reverse=True,
+    )[:limit]
+
+
+def _source_reliability_detail_metrics(
+    source_types: list[dict[str, Any]],
+) -> SourceReliabilityAdapterMetricsResponse:
+    total = sum(int(row["total_signals"]) for row in source_types)
+
+    def weighted(field: str) -> float:
+        if total == 0:
+            return 0.0
+        value = sum(float(row[field]) * int(row["total_signals"]) for row in source_types) / total
+        return round(max(0.0, min(1.0, value)), 4)
+
+    feedback_total = 0
+    feedback_weighted = 0.0
+    for row in source_types:
+        rate = row.get("feedback_approval_rate")
+        if rate is None:
+            continue
+        count = int(row["total_signals"])
+        feedback_total += count
+        feedback_weighted += float(rate) * count
+
+    return SourceReliabilityAdapterMetricsResponse(
+        adapter_health_score=weighted("adapter_health_score"),
+        signal_usefulness_score=weighted("signal_usefulness_score"),
+        corroboration_rate=weighted("corroboration_rate"),
+        downstream_idea_conversion_rate=weighted("downstream_idea_conversion_rate"),
+        feedback_approval_rate=(
+            round(feedback_weighted / feedback_total, 4) if feedback_total else None
+        ),
+        reliability_score=weighted("reliability_score"),
+    )
+
+
+def _source_reliability_freshness(signals: list[Any]) -> SourceReliabilityFreshnessResponse:
+    if not signals:
+        return SourceReliabilityFreshnessResponse(signal_count=0)
+
+    fetched_dates = [_normalize_reliability_datetime(signal.fetched_at) for signal in signals]
+    newest = max(fetched_dates)
+    oldest = min(fetched_dates)
+    now = datetime.now(timezone.utc)
+    return SourceReliabilityFreshnessResponse(
+        signal_count=len(signals),
+        newest_fetched_at=newest.isoformat(),
+        oldest_fetched_at=oldest.isoformat(),
+        newest_age_days=round((now - newest).total_seconds() / 86_400, 4),
+        oldest_age_days=round((now - oldest).total_seconds() / 86_400, 4),
+    )
+
+
+def _source_reliability_recommendations(
+    *,
+    adapter_name: str,
+    source_types: list[dict[str, Any]],
+    total_signals: int,
+) -> list[str]:
+    recommendations: list[str] = []
+    for row in source_types:
+        recommendations.extend(str(reason) for reason in row.get("reasons", []))
+    if not recommendations:
+        recommendations.append(
+            f"No recent signals matched adapter {adapter_name}; "
+            "verify the adapter is scheduled and fetching."
+        )
+    if total_signals == 0:
+        return recommendations
+    if all(float(row["signal_usefulness_score"]) == 0.0 for row in source_types):
+        recommendations.append(
+            "No recent signals are cited by synthesized insights; inspect signal quality."
+        )
+    if all(float(row["downstream_idea_conversion_rate"]) == 0.0 for row in source_types):
+        recommendations.append(
+            "No recent signals are used as buildable idea evidence; review source coverage."
+        )
+    return list(dict.fromkeys(recommendations))
+
+
+def _normalize_reliability_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 @router.get("/mcp/capability-coverage", response_model=MCPCapabilityCoverageResponse)
