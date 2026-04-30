@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -204,6 +205,8 @@ from max.server.schemas import (
     ContextBudgetWasteResponse,
     CustomerDiscoveryScriptResponse,
     DesignBriefBundleResponse,
+    DesignBriefAzureDevOpsWorkItemPublishRequest,
+    DesignBriefAzureDevOpsWorkItemPublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
@@ -1166,11 +1169,74 @@ def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _design_brief_azure_devops_spec(
+    brief: dict[str, Any],
+    *,
+    title: str,
+    markdown: str,
+) -> dict[str, Any]:
+    source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    return {
+        "schema_version": "max.design_brief.azure_devops_work_item.v1",
+        "kind": "max.design_brief",
+        "source": {
+            "system": "max",
+            "type": "design_brief",
+            "design_brief_id": brief["id"],
+            "idea_id": brief["id"],
+            "lead_idea_id": brief.get("lead_idea_id"),
+            "source_idea_ids": source_idea_ids,
+            "status": brief.get("design_status"),
+            "domain": brief.get("domain"),
+            "theme": brief.get("theme"),
+            "readiness_score": readiness_score,
+            "created_at": brief.get("created_at"),
+            "updated_at": brief.get("updated_at"),
+        },
+        "project": {
+            "title": title,
+            "summary": brief.get("merged_product_concept") or brief.get("why_this_now") or "",
+            "target_users": brief.get("target_users") or [],
+            "specific_user": brief.get("specific_user") or "",
+            "buyer": brief.get("buyer") or "",
+            "workflow_context": brief.get("workflow_context") or "",
+        },
+        "problem": {"statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""},
+        "solution": {"approach": brief.get("merged_product_concept") or ""},
+        "execution": {
+            "mvp_scope": list(brief.get("mvp_scope") or []),
+            "first_milestones": list(brief.get("first_milestones") or []),
+            "validation_plan": brief.get("validation_plan") or "",
+        },
+        "evidence": {
+            "rationale": brief.get("synthesis_rationale") or "",
+            "source_idea_ids": source_idea_ids,
+            "lead_idea_id": brief.get("lead_idea_id"),
+        },
+        "quality": {"quality_score": readiness_score},
+        "design_brief": {
+            "id": brief["id"],
+            "title": title,
+            "markdown": markdown,
+            "source_idea_ids": source_idea_ids,
+        },
+    }
+
+
 def _markdown_preview(markdown: str, *, limit: int = 500) -> str:
     text = markdown.strip()
     if len(text) <= limit:
         return text
     return text[:limit] + "..."
+
+
+def _redact_azure_devops_token(message: str, token: str | None) -> str:
+    if not token:
+        return message
+    redacted = message.replace(token, "[redacted]")
+    encoded = base64.b64encode(f":{token}".encode("utf-8")).decode("ascii")
+    return redacted.replace(encoded, "[redacted]")
 
 
 def _profile_summary_to_response(profile) -> ProfileSummaryResponse:
@@ -5733,6 +5799,191 @@ def publish_design_brief_to_trello_card(
         provider_metadata=provider_metadata,
         request_summary=request_summary,
         publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/design-briefs/{brief_id}/publish/azure-devops",
+    response_model=DesignBriefAzureDevOpsWorkItemPublishResponse,
+)
+def publish_design_brief_to_azure_devops_work_item(
+    brief_id: str,
+    request: DesignBriefAzureDevOpsWorkItemPublishRequest,
+    store: Store = Depends(get_store),
+) -> DesignBriefAzureDevOpsWorkItemPublishResponse:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    token_source = "request" if request.personal_access_token else "none"
+    if not request.personal_access_token:
+        if os.getenv("AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN"):
+            token_source = "env:AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN"
+        elif os.getenv("AZURE_DEVOPS_PAT"):
+            token_source = "env:AZURE_DEVOPS_PAT"
+
+    request_summary: dict[str, Any] = {
+        "organization": request.organization or os.getenv("AZURE_DEVOPS_ORGANIZATION"),
+        "project": request.project or os.getenv("AZURE_DEVOPS_PROJECT"),
+        "work_item_type": request.work_item_type
+        or os.getenv("AZURE_DEVOPS_WORK_ITEM_TYPE", "User Story"),
+        "area_path": request.area_path or os.getenv("AZURE_DEVOPS_AREA_PATH"),
+        "iteration_path": request.iteration_path or os.getenv("AZURE_DEVOPS_ITERATION_PATH"),
+        "tags": list(request.tags),
+        "title": request.title,
+        "include_source_ids": request.include_source_ids,
+        "dry_run": request.dry_run,
+        "timeout": request.timeout,
+        "max_retries": request.max_retries,
+        "personal_access_token": "[redacted]" if request.personal_access_token else None,
+        "personal_access_token_source": token_source,
+    }
+
+    try:
+        publisher = AzureDevOpsWorkItemPublisher.from_env(
+            organization=request.organization,
+            project=request.project,
+            personal_access_token=request.personal_access_token,
+            work_item_type=request.work_item_type,
+            area_path=request.area_path,
+            iteration_path=request.iteration_path,
+            tags=request.tags,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+    except AzureDevOpsWorkItemPublishError as exc:
+        message = _redact_azure_devops_token(str(exc), request.personal_access_token)
+        if not request.dry_run:
+            attempt = store.insert_publication_attempt(
+                idea_id=brief_id,
+                target_type="azure_devops_work_item",
+                status="failure",
+                error=message,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": message,
+                    "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                    "request_summary": request_summary,
+                },
+            ) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+    request_summary.update(
+        {
+            "organization": publisher.organization,
+            "project": publisher.project,
+            "work_item_type": publisher.work_item_type,
+            "area_path": publisher.area_path,
+            "iteration_path": publisher.iteration_path,
+            "tags": list(publisher.tags),
+            "personal_access_token": "[redacted]" if publisher.personal_access_token else None,
+        }
+    )
+
+    title = request.title or str(brief.get("title") or brief_id)
+    markdown = _deterministic_design_brief_markdown(brief, title=title)
+    if request.include_source_ids:
+        markdown = _append_design_brief_source_ids(markdown, brief)
+    payload = _design_brief_azure_devops_spec(brief, title=title, markdown=markdown)
+    provider_metadata = {
+        "provider": "azure_devops",
+        "source_type": "design_brief",
+        "target_type": "azure_devops_work_item",
+        "target_url": publisher.work_item_endpoint,
+        "work_item_endpoint": publisher.work_item_endpoint,
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+    }
+
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "AZURE_DEVOPS_PAT or AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN is required for live "
+            "Azure DevOps work item publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="azure_devops_work_item",
+            target_url=publisher.work_item_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except AzureDevOpsWorkItemPublishError as exc:
+        message = _redact_azure_devops_token(str(exc), publisher.personal_access_token)
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="azure_devops_work_item",
+            target_url=publisher.work_item_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
+
+    result.payload["design_brief"] = {
+        "id": brief_id,
+        "title": title,
+        "markdown": markdown,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+    }
+    result.payload["metadata"] = {
+        **result.payload.get("metadata", {}),
+        "design_brief_id": brief_id,
+        "source_idea_ids": list(brief.get("source_idea_ids") or []),
+    }
+    publication_attempt = None
+    if not result.dry_run:
+        target_url = result.work_item_url or publisher.work_item_endpoint
+        publication_attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="azure_devops_work_item",
+            target_url=target_url,
+            status="success",
+            response_status=result.status_code,
+        )
+        provider_metadata["target_url"] = target_url
+    result_metadata = result.payload.get("metadata", {})
+    provider_metadata["azure_devops_work_item_id"] = result_metadata.get(
+        "azure_devops_work_item_id"
+    )
+    provider_metadata["azure_devops_work_item_url"] = result_metadata.get(
+        "azure_devops_work_item_url"
+    )
+
+    return DesignBriefAzureDevOpsWorkItemPublishResponse(
+        design_brief_id=brief_id,
+        organization=result.organization,
+        project=result.project,
+        work_item_type=result.work_item_type,
+        work_item_id=result.work_item_id,
+        work_item_url=result.work_item_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        provider_metadata=provider_metadata,
+        request_summary=request_summary,
+        publication_attempt=PublicationAttemptResponse(**publication_attempt)
+        if publication_attempt
+        else None,
     )
 
 
