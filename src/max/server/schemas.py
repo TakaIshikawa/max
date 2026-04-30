@@ -2509,6 +2509,23 @@ class DesignBriefRoadmapResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefPilotRolloutResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    pilot_cohort: dict[str, Any]
+    entry_criteria: list[str]
+    rollout_phases: list[dict[str, Any]]
+    success_thresholds: list[dict[str, Any]]
+    stop_conditions: list[str]
+    operator_tasks: list[dict[str, Any]]
+    customer_touchpoints: list[dict[str, Any]]
+    evidence_gaps: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefPrdSectionResponse(BaseModel):
     heading: str
     content: str | list[str]

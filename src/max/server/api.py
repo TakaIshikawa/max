@@ -75,6 +75,10 @@ from max.analysis.design_brief_okrs import (
     build_design_brief_okrs,
     render_design_brief_okrs_markdown,
 )
+from max.analysis.design_brief_pilot_rollout import (
+    build_design_brief_pilot_rollout,
+    render_design_brief_pilot_rollout,
+)
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
@@ -277,6 +281,7 @@ from max.server.schemas import (
     DesignBriefMicrosoftPlannerTaskPublishResponse,
     DesignBriefOkrsResponse,
     DesignBriefOnePagerResponse,
+    DesignBriefPilotRolloutResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
     DesignBriefRoadmapResponse,
@@ -7847,6 +7852,40 @@ def get_design_brief_roadmap_markdown(
     filename = f"{_download_filename_part(brief_id)}-roadmap.md"
     return Response(
         content=render_design_brief_roadmap(roadmap, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/pilot-rollout",
+    response_model=DesignBriefPilotRolloutResponse,
+)
+def get_design_brief_pilot_rollout(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefPilotRolloutResponse:
+    rollout = build_design_brief_pilot_rollout(store, brief_id)
+    if not rollout:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefPilotRolloutResponse(**rollout)
+
+
+@router.get("/design-briefs/{brief_id}/pilot-rollout.md", response_model=None)
+def get_design_brief_pilot_rollout_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    rollout = build_design_brief_pilot_rollout(store, brief_id)
+    if not rollout:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = (
+        f"{_download_filename_part(brief_id)}-"
+        f"{_download_filename_part(rollout['design_brief']['title'])}-pilot-rollout.md"
+    )
+    return Response(
+        content=render_design_brief_pilot_rollout(rollout, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
