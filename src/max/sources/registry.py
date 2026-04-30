@@ -100,6 +100,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "nuget": "max.sources.nuget:NuGetAdapter",
     "maven_central": "max.sources.maven_central:MavenCentralAdapter",
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
+    "rubygems_download_trends": (
+        "max.sources.rubygems_download_trends:RubyGemsDownloadTrendsAdapter"
+    ),
     "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
     "artifact_hub": "max.sources.artifact_hub:ArtifactHubAdapter",
@@ -673,6 +676,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_pages"],
         required_keys=[],
         description="Searches RubyGems for Ruby packages matching configured query terms.",
+    ),
+    "rubygems_download_trends": AdapterMetadata(
+        name="rubygems_download_trends",
+        config_keys=["packages", "max_items", "max_results", "min_downloads"],
+        required_keys=[],
+        description="Fetches RubyGems package download totals as market adoption signals.",
     ),
     "packagist": AdapterMetadata(
         name="packagist",
