@@ -120,6 +120,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
     ),
     "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
+    "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -794,6 +795,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches APIs.guru OpenAPI Directory catalog signals for public API discovery.",
+    ),
+    "ietf_datatracker": AdapterMetadata(
+        name="ietf_datatracker",
+        config_keys=["base_url", "keywords", "streams", "statuses", "max_results"],
+        required_keys=[],
+        description="Fetches recent IETF Datatracker draft and RFC standards activity.",
     ),
     "federal_register_healthcare": AdapterMetadata(
         name="federal_register_healthcare",
