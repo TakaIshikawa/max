@@ -246,13 +246,14 @@ def test_list_adapters_returns_strings():
     assert "npm_download_trends" in names
     assert "rubygems" in names
     assert "rubygems_download_trends" in names
+    assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,rubygems_download_trends,dockerhub,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,rss_feed,crates_io,maven_central,rubygems,rubygems_download_trends,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -267,6 +268,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "rubygems",
         "rubygems_download_trends",
         "dockerhub",
+        "dockerhub_tag_velocity",
         "mcp_registry",
         "stackshare",
         "bluesky",
@@ -315,6 +317,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description
+    assert metadata["dockerhub_tag_velocity"].config_keys == [
+        "repositories",
+        "max_tags_per_repository",
+        "max_items",
+        "page_size",
+    ]
+    assert metadata["dockerhub_tag_velocity"].required_keys == []
+    assert "Docker Hub tag activity" in metadata["dockerhub_tag_velocity"].description
     assert metadata["mcp_registry"].config_keys == [
         "base_url",
         "endpoint",

@@ -105,6 +105,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "packagist": "max.sources.packagist:PackagistAdapter",
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "dockerhub_tag_velocity": (
+        "max.sources.dockerhub_tag_velocity:DockerHubTagVelocityAdapter"
+    ),
     "artifact_hub": "max.sources.artifact_hub:ArtifactHubAdapter",
     "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
@@ -694,6 +697,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "queries", "include_tags"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "dockerhub_tag_velocity": AdapterMetadata(
+        name="dockerhub_tag_velocity",
+        config_keys=["repositories", "max_tags_per_repository", "max_items", "page_size"],
+        required_keys=[],
+        description="Fetches recent Docker Hub tag activity as container release cadence and freshness signals.",
     ),
     "artifact_hub": AdapterMetadata(
         name="artifact_hub",
