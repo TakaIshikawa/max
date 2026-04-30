@@ -21,6 +21,13 @@ from max.publisher.gitlab_issues import (
     GitLabIssuePublishResult,
     GitLabIssuesPublisher,
 )
+from max.publisher.bitbucket_issues import (
+    BitbucketIssuePayload,
+    BitbucketIssuePublisher,
+    BitbucketIssuePublishError,
+    BitbucketIssuePublishResult,
+    BitbucketIssuesPublisher,
+)
 from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPayload,
     GoogleSheetsRowPublisher,
@@ -117,6 +124,11 @@ __all__ = [
     "GitLabIssuePublishError",
     "GitLabIssuePublishResult",
     "GitLabIssuesPublisher",
+    "BitbucketIssuePayload",
+    "BitbucketIssuePublisher",
+    "BitbucketIssuePublishError",
+    "BitbucketIssuePublishResult",
+    "BitbucketIssuesPublisher",
     "GoogleSheetsRowPayload",
     "GoogleSheetsRowPublisher",
     "GoogleSheetsRowPublishError",
