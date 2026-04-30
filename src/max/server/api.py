@@ -1088,16 +1088,23 @@ def _design_brief_slack_payload(brief: dict[str, Any]) -> dict[str, Any]:
     title = str(brief.get("title") or brief.get("id") or "Design Brief")
     markdown = _deterministic_design_brief_markdown(brief, title=title)
     summary = str(brief.get("merged_product_concept") or "").strip()
+    brief_id = str(brief["id"])
     return {
         "source": {
             "system": "max",
             "entity_type": "design_brief",
-            "id": brief["id"],
+            "id": brief_id,
             "generated_at": brief.get("updated_at") or brief.get("created_at"),
             "schema_version": "max.design_brief.slack_publish.v1",
+            "links": {
+                "api": f"/api/v1/design-briefs/{brief_id}",
+                "markdown": f"/api/v1/design-briefs/{brief_id}.md",
+                "bundle": f"/api/v1/design-briefs/{brief_id}/bundle",
+                "success_metrics": f"/api/v1/design-briefs/{brief_id}/success-metrics",
+            },
         },
         "design_brief": {
-            "id": brief["id"],
+            "id": brief_id,
             "title": title,
             "domain": brief.get("domain", ""),
             "theme": brief.get("theme", ""),
@@ -1105,12 +1112,21 @@ def _design_brief_slack_payload(brief: dict[str, Any]) -> dict[str, Any]:
             "design_status": brief.get("design_status", ""),
             "lead_idea_id": brief.get("lead_idea_id", ""),
             "source_idea_ids": list(brief.get("source_idea_ids") or []),
+            "buyer": brief.get("buyer") or "",
+            "specific_user": brief.get("specific_user") or "",
+            "workflow_context": brief.get("workflow_context") or "",
             "merged_product_concept": summary,
             "why_this_now": brief.get("why_this_now", ""),
             "mvp_scope": list(brief.get("mvp_scope") or []),
             "validation_plan": brief.get("validation_plan", ""),
             "summary": summary,
             "markdown": markdown,
+            "links": {
+                "api": f"/api/v1/design-briefs/{brief_id}",
+                "markdown": f"/api/v1/design-briefs/{brief_id}.md",
+                "bundle": f"/api/v1/design-briefs/{brief_id}/bundle",
+                "success_metrics": f"/api/v1/design-briefs/{brief_id}/success-metrics",
+            },
         },
     }
 
@@ -5686,6 +5702,9 @@ def publish_design_brief_to_slack(
         if request.webhook_url
         else ("env:SLACK_WEBHOOK_URL" if resolved_webhook_url else "none"),
         "channel": request.channel or os.getenv("SLACK_WEBHOOK_CHANNEL"),
+        "username": request.username or os.getenv("SLACK_WEBHOOK_USERNAME"),
+        "icon_emoji": request.icon_emoji or os.getenv("SLACK_WEBHOOK_ICON_EMOJI"),
+        "icon_url": request.icon_url or os.getenv("SLACK_WEBHOOK_ICON_URL"),
         "dry_run": request.dry_run,
         "timeout": request.timeout,
     }
@@ -5715,10 +5734,30 @@ def publish_design_brief_to_slack(
             webhook_url=resolved_webhook_url
             or "https://hooks.slack.com/services/dry-run/dry-run/redacted",
             channel=request.channel,
+            username=request.username,
+            icon_emoji=request.icon_emoji,
+            icon_url=request.icon_url,
             timeout=request.timeout,
         )
     except SlackWebhookPublishError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        error = str(exc)
+        if resolved_webhook_url:
+            error = error.replace(resolved_webhook_url, redact_slack_webhook_url(resolved_webhook_url))
+        attempt = store.insert_publication_attempt(
+            idea_id=brief_id,
+            target_type="slack_webhook",
+            target_url=redact_slack_webhook_url(resolved_webhook_url) if resolved_webhook_url else "",
+            status="failure",
+            error=error,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": error,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+                "request_summary": request_summary,
+            },
+        ) from exc
 
     payload = _design_brief_slack_payload(brief)
     provider_metadata = {

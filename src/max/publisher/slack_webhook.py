@@ -40,6 +40,9 @@ class SlackWebhookPublisher:
         webhook_url: str,
         *,
         channel: str | None = None,
+        username: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> None:
@@ -47,6 +50,9 @@ class SlackWebhookPublisher:
             raise SlackWebhookPublishError("Slack webhook URL is required")
         self.webhook_url = webhook_url
         self.channel = _clean_text(channel)
+        self.username = _clean_text(username)
+        self.icon_emoji = _clean_text(icon_emoji)
+        self.icon_url = _clean_text(icon_url)
         self.timeout = timeout
         self._client = client
 
@@ -56,6 +62,9 @@ class SlackWebhookPublisher:
         *,
         webhook_url: str | None = None,
         channel: str | None = None,
+        username: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.Client | None = None,
     ) -> SlackWebhookPublisher:
@@ -68,6 +77,9 @@ class SlackWebhookPublisher:
         return cls(
             resolved_url,
             channel=channel or os.getenv("SLACK_WEBHOOK_CHANNEL"),
+            username=username or os.getenv("SLACK_WEBHOOK_USERNAME"),
+            icon_emoji=icon_emoji or os.getenv("SLACK_WEBHOOK_ICON_EMOJI"),
+            icon_url=icon_url or os.getenv("SLACK_WEBHOOK_ICON_URL"),
             timeout=timeout,
             client=client,
         )
@@ -94,6 +106,12 @@ class SlackWebhookPublisher:
         }
         if self.channel:
             slack_payload["channel"] = self.channel
+        if self.username:
+            slack_payload["username"] = self.username
+        if self.icon_emoji:
+            slack_payload["icon_emoji"] = self.icon_emoji
+        if self.icon_url:
+            slack_payload["icon_url"] = self.icon_url
         return slack_payload
 
     def publish(
@@ -211,6 +229,8 @@ def _design_brief_message(payload: dict[str, Any]) -> dict[str, Any]:
         "lead_idea_id": brief.get("lead_idea_id"),
         "status": brief.get("design_status"),
         "domain": brief.get("domain"),
+        "readiness_score": brief.get("readiness_score"),
+        "source_idea_ids": brief.get("source_idea_ids") or [],
     }
     blocks = [
         _header_block(title),
@@ -223,6 +243,9 @@ def _design_brief_message(payload: dict[str, Any]) -> dict[str, Any]:
                 ("Theme", brief.get("theme")),
                 ("Readiness", _score_text(brief.get("readiness_score"))),
                 ("Lead idea", brief.get("lead_idea_id")),
+                ("Buyer", brief.get("buyer")),
+                ("User", brief.get("specific_user")),
+                ("Workflow", brief.get("workflow_context")),
             ]
         ),
         _section_block(f"*Why now*\n{_text(brief.get('why_this_now'), 'Not specified')}"),

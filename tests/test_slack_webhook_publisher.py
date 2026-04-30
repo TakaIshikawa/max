@@ -98,7 +98,11 @@ def test_live_publish_raises_for_slack_error_response() -> None:
 
 
 def test_build_payload_formats_design_brief() -> None:
-    publisher = SlackWebhookPublisher("https://hooks.slack.com/services/T000/B000/secret")
+    publisher = SlackWebhookPublisher(
+        "https://hooks.slack.com/services/T000/B000/secret",
+        username="Max Reviews",
+        icon_emoji=":memo:",
+    )
     payload = publisher.build_payload(
         {
             "source": {"entity_type": "design_brief", "id": "dbf-test001"},
@@ -110,6 +114,9 @@ def test_build_payload_formats_design_brief() -> None:
                 "readiness_score": 82.0,
                 "design_status": "approved",
                 "lead_idea_id": "bu-test001",
+                "buyer": "Platform lead",
+                "specific_user": "Agent reviewer",
+                "workflow_context": "Design review",
                 "merged_product_concept": "A validation workflow for agent tools.",
                 "why_this_now": "Agent tooling is maturing.",
                 "mvp_scope": ["Evidence matrix", "Validation CLI"],
@@ -120,5 +127,12 @@ def test_build_payload_formats_design_brief() -> None:
     )
 
     assert payload["text"] == "[Max] Agent QA Brief"
+    assert payload["username"] == "Max Reviews"
+    assert payload["icon_emoji"] == ":memo:"
     assert payload["metadata"]["event_payload"]["source_type"] == "design_brief"
     assert payload["metadata"]["event_payload"]["design_brief_id"] == "dbf-test001"
+    assert payload["metadata"]["event_payload"]["readiness_score"] == 82.0
+    assert payload["metadata"]["event_payload"]["source_idea_ids"] == ["bu-test001"]
+    assert payload["blocks"][2]["fields"][6]["text"] == "*Buyer*\nPlatform lead"
+    assert payload["blocks"][2]["fields"][7]["text"] == "*User*\nAgent reviewer"
+    assert payload["blocks"][2]["fields"][8]["text"] == "*Workflow*\nDesign review"
