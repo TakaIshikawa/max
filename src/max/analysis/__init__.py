@@ -53,6 +53,11 @@ from max.analysis.design_brief_release_notes import (
     release_notes_filename,
     render_design_brief_release_notes,
 )
+from max.analysis.design_brief_sales_enablement_checklist import (
+    build_design_brief_sales_enablement_checklist,
+    render_design_brief_sales_enablement_checklist,
+    sales_enablement_checklist_filename,
+)
 from max.analysis.design_brief_onboarding_checklist import (
     build_design_brief_onboarding_checklist,
     onboarding_checklist_filename,
@@ -99,6 +104,7 @@ __all__ = [
     "build_design_brief_qa_test_plan",
     "build_design_brief_investor_update",
     "build_design_brief_release_notes",
+    "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
     "build_design_brief_privacy_impact_assessment",
@@ -124,6 +130,7 @@ __all__ = [
     "qa_test_plan_filename",
     "raci_matrix_filename",
     "release_notes_filename",
+    "sales_enablement_checklist_filename",
     "render_design_brief_onboarding_checklist",
     "render_persona_interview_guide_markdown",
     "render_design_brief_procurement_checklist",
@@ -131,6 +138,7 @@ __all__ = [
     "render_design_brief_qa_test_plan",
     "render_design_brief_investor_update",
     "render_design_brief_release_notes",
+    "render_design_brief_sales_enablement_checklist",
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_legal_review_checklist_markdown",
