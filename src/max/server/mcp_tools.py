@@ -60,6 +60,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_event_dictionary import (
+    build_design_brief_event_dictionary,
+    render_design_brief_event_dictionary,
+)
 from max.analysis.design_brief_gtm_channel_plan import (
     build_design_brief_gtm_channel_plan,
     render_design_brief_gtm_channel_plan,
@@ -1388,6 +1392,43 @@ def get_design_brief_qa_test_plan(brief_id: str, format: str = "json") -> dict:
                 )
 
         rendered = render_design_brief_qa_test_plan(plan, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_event_dictionary(brief_id: str, format: str = "json") -> dict:
+    """Get the analytics event dictionary for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    analytics implementation handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported event dictionary format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            dictionary = build_design_brief_event_dictionary(store, brief_id)
+            if not dictionary:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_event_dictionary(dictionary, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -4435,6 +4476,11 @@ def design_brief_qa_test_plan_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_qa_test_plan(brief_id), indent=2)
 
 
+def design_brief_event_dictionary_detail(brief_id: str) -> str:
+    """Get the analytics event dictionary for a specific design brief."""
+    return json.dumps(get_design_brief_event_dictionary(brief_id), indent=2)
+
+
 def design_brief_launch_checklist_detail(brief_id: str) -> str:
     """Get the launch checklist for a specific design brief."""
     return json.dumps(get_design_brief_launch_checklist(brief_id), indent=2)
@@ -4685,6 +4731,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_competitive_landscape)
     mcp.tool(get_design_brief_evidence_matrix)
     mcp.tool(get_design_brief_qa_test_plan)
+    mcp.tool(get_design_brief_event_dictionary)
     mcp.tool(get_design_brief_launch_checklist)
     mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_procurement_checklist)
@@ -4773,6 +4820,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-evidence-matrices://{brief_id}")(design_brief_evidence_matrix_detail)
     mcp.resource("design-brief-qa-test-plans://{brief_id}")(design_brief_qa_test_plan_detail)
+    mcp.resource("design-brief-event-dictionaries://{brief_id}")(
+        design_brief_event_dictionary_detail
+    )
     mcp.resource("design-brief-launch-checklist://{brief_id}")(design_brief_launch_checklist_detail)
     mcp.resource("design-brief-compliance-checklist://{brief_id}")(
         design_brief_compliance_checklist_detail
