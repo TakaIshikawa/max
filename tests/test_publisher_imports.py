@@ -33,6 +33,11 @@ from max.publisher import (
     WebexWebhookPublishError,
     WebexWebhookPublishResult,
     WebexWebhooksPublisher,
+    GoogleChatWebhookPayload,
+    GoogleChatWebhookPublisher,
+    GoogleChatWebhookPublishError,
+    GoogleChatWebhookPublishResult,
+    GoogleChatWebhooksPublisher,
     OpsgenieAlertPayload,
     OpsgenieAlertPublisher,
     OpsgenieAlertPublishError,
@@ -61,6 +66,9 @@ from max.publisher.mattermost_webhook import (
 )
 from max.publisher.webex_webhook import (
     WebexWebhookPublisher as ModuleWebexWebhookPublisher,
+)
+from max.publisher.google_chat_webhook import (
+    GoogleChatWebhookPublisher as ModuleGoogleChatWebhookPublisher,
 )
 from max.publisher.opsgenie_alerts import (
     OpsgenieAlertPublisher as ModuleOpsgenieAlertPublisher,
@@ -135,3 +143,11 @@ def test_webex_webhook_publisher_exports() -> None:
     assert WebexWebhookPayload
     assert WebexWebhookPublishError
     assert WebexWebhookPublishResult
+
+
+def test_google_chat_webhook_publisher_exports() -> None:
+    assert GoogleChatWebhookPublisher is ModuleGoogleChatWebhookPublisher
+    assert GoogleChatWebhooksPublisher is GoogleChatWebhookPublisher
+    assert GoogleChatWebhookPayload
+    assert GoogleChatWebhookPublishError
+    assert GoogleChatWebhookPublishResult

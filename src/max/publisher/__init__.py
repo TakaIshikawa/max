@@ -280,6 +280,14 @@ from max.publisher.webex_webhook import (
     WebexWebhooksPublisher,
     publish_webex_webhook,
 )
+from max.publisher.google_chat_webhook import (
+    GoogleChatWebhookPayload,
+    GoogleChatWebhookPublisher,
+    GoogleChatWebhookPublishError,
+    GoogleChatWebhookPublishResult,
+    GoogleChatWebhooksPublisher,
+    publish_google_chat_webhook,
+)
 from max.publisher.teams_webhook import (
     TeamsWebhookPublisher,
     TeamsWebhookPublishError,
@@ -509,6 +517,12 @@ __all__ = [
     "WebexWebhookPublishResult",
     "WebexWebhooksPublisher",
     "publish_webex_webhook",
+    "GoogleChatWebhookPayload",
+    "GoogleChatWebhookPublisher",
+    "GoogleChatWebhookPublishError",
+    "GoogleChatWebhookPublishResult",
+    "GoogleChatWebhooksPublisher",
+    "publish_google_chat_webhook",
     "TeamsWebhookPublisher",
     "TeamsWebhookPublishError",
     "TeamsWebhookPublishResult",
