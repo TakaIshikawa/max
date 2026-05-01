@@ -35,6 +35,10 @@ from max.spec.deployment_topology import (
 )
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
+from max.spec.incident_response_plan import (
+    generate_incident_response_plan,
+    render_incident_response_plan_markdown,
+)
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.observability_plan import (
     generate_observability_plan,
@@ -74,6 +78,7 @@ __all__ = [
     "generate_deployment_topology",
     "generate_experiment_card",
     "generate_implementation_plan",
+    "generate_incident_response_plan",
     "generate_launch_checklist",
     "generate_observability_plan",
     "generate_operational_runbook",
@@ -99,6 +104,7 @@ __all__ = [
     "render_data_retention_schedule_markdown",
     "render_dependency_inventory_markdown",
     "render_deployment_topology_markdown",
+    "render_incident_response_plan_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
     "render_privacy_impact_assessment_markdown",
