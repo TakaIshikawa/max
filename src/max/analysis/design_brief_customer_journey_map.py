@@ -29,6 +29,8 @@ def build_design_brief_customer_journey_map(
     evidence = _evidence_references(design_brief, source_ideas)
     warnings = _readiness_warnings(design_brief, context, evidence)
     stages = _journey_stages(design_brief, context, evidence, source_idea_ids)
+    pain_points = _pain_points(stages)
+    moments_of_value = _moments_of_value(stages)
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -62,6 +64,9 @@ def build_design_brief_customer_journey_map(
             "readiness_warning_count": len(warnings),
         },
         "journey_stages": stages,
+        "pain_points": pain_points,
+        "moments_of_value": moments_of_value,
+        "follow_up_actions": _follow_up_actions(warnings, stages),
         "evidence_references": evidence,
         "readiness_warnings": warnings,
         "source_ideas": source_ideas,
@@ -118,6 +123,18 @@ def render_design_brief_customer_journey_map(
                 "",
             ]
         )
+
+    lines.extend(["## Pain Points", ""])
+    for point in report.get("pain_points") or []:
+        lines.append(f"- **{point['stage_name']}**: {point['pain_point']}")
+
+    lines.extend(["", "## Moments of Value", ""])
+    for moment in report.get("moments_of_value") or []:
+        lines.append(f"- **{moment['stage_name']}**: {moment['moment']}")
+
+    lines.extend(["", "## Follow-up Actions", ""])
+    for action in report.get("follow_up_actions") or []:
+        lines.append(f"- **{action['owner']}**: {action['action']}")
 
     lines.extend(["## Evidence References", ""])
     if report["evidence_references"]:
@@ -370,6 +387,61 @@ def _stage(
     }
 
 
+def _pain_points(stages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": f"{stage['id']}-P{index}",
+            "stage_id": stage["id"],
+            "stage_name": stage["name"],
+            "pain_point": point,
+            "source_idea_ids": stage["source_idea_ids"],
+        }
+        for stage in stages
+        for index, point in enumerate(stage["friction_points"], start=1)
+    ]
+
+
+def _moments_of_value(stages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": f"{stage['id']}-V{index}",
+            "stage_id": stage["id"],
+            "stage_name": stage["name"],
+            "moment": signal,
+            "source_idea_ids": stage["source_idea_ids"],
+        }
+        for stage in stages
+        for index, signal in enumerate(stage["success_signals"], start=1)
+    ]
+
+
+def _follow_up_actions(
+    warnings: list[dict[str, Any]],
+    stages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    actions = [
+        {
+            "id": f"FA{index}",
+            "owner": "Product lead",
+            "action": warning["recommended_action"],
+            "source": warning["id"],
+            "stage_id": None,
+        }
+        for index, warning in enumerate(warnings, start=1)
+    ]
+    if not actions:
+        actions.append(
+            {
+                "id": "FA1",
+                "owner": stages[-1]["owner"] if stages else "Product lead",
+                "action": "Review journey evidence after first use and decide whether to continue, pause, or expand.",
+                "source": "journey_stages",
+                "stage_id": stages[-1]["id"] if stages else None,
+            }
+        )
+    return actions
+
+
 def _evidence_references(
     design_brief: dict[str, Any],
     source_ideas: list[dict[str, Any]],
@@ -563,6 +635,20 @@ def _inline_ids(values: list[str]) -> str:
 
 def _inline_list(values: list[str]) -> str:
     return "; ".join(values) if values else "none"
+
+
+def customer_journey_map_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
+    extension = "md" if fmt == "markdown" else fmt
+    return (
+        f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
+        f"{_filename_part(str(design_brief.get('title') or 'customer-journey-map'))}-"
+        f"customer-journey-map.{extension}"
+    )
+
+
+def _filename_part(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() else "-" for ch in value.strip())
+    return "-".join(part for part in cleaned.split("-") if part) or "untitled"
 
 
 def _compact(value: Any) -> str:

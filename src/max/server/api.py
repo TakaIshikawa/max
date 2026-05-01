@@ -46,6 +46,11 @@ from max.analysis.design_brief_competitive_landscape import (
     build_design_brief_competitive_landscape,
     render_design_brief_competitive_landscape,
 )
+from max.analysis.design_brief_customer_journey_map import (
+    build_design_brief_customer_journey_map,
+    customer_journey_map_filename,
+    render_design_brief_customer_journey_map,
+)
 from max.analysis.design_brief_assumption_ledger import (
     assumption_ledger_filename,
     build_design_brief_assumption_ledger,
@@ -353,6 +358,7 @@ from max.server.schemas import (
     DesignBriefConfluencePagePublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
+    DesignBriefCustomerJourneyMapResponse,
     DesignBriefDataRoomIndexResponse,
     DesignBriefDependencyRiskMapResponse,
     DesignBriefDiscordPublishResponse,
@@ -8827,6 +8833,37 @@ def get_design_brief_dependency_risk_map_markdown(
     filename = dependency_risk_map_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_dependency_risk_map(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/customer-journey-map",
+    response_model=DesignBriefCustomerJourneyMapResponse,
+)
+def get_design_brief_customer_journey_map(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefCustomerJourneyMapResponse:
+    report = build_design_brief_customer_journey_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefCustomerJourneyMapResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/customer-journey-map.md", response_model=None)
+def get_design_brief_customer_journey_map_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_customer_journey_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = customer_journey_map_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_customer_journey_map(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

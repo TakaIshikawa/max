@@ -46,6 +46,7 @@ from max.server.schemas import (
     FetchAllocationSimulationQualityResponse,
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
+    DesignBriefCustomerJourneyMapResponse,
     DesignBriefEventDictionaryResponse,
     DesignBriefExperimentBacklogResponse,
     DesignBriefGtmChannelPlanResponse,
@@ -2135,6 +2136,89 @@ class TestDesignBriefEventDictionaryResponse:
         assert "design_brief" in missing_fields
         assert "event_groups" in missing_fields
         assert "property_contracts" in missing_fields
+
+
+class TestDesignBriefCustomerJourneyMapResponse:
+    def test_preserves_customer_journey_map_artifact_sections(self):
+        response = DesignBriefCustomerJourneyMapResponse(
+            schema_version="max.design_brief.customer_journey_map.v1",
+            kind="max.design_brief.customer_journey_map",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-journey"},
+            design_brief={"id": "dbf-journey", "title": "Journey Brief"},
+            summary={"target_user": "operator", "stage_count": 1},
+            journey_stages=[
+                {
+                    "id": "JM1",
+                    "sequence": 1,
+                    "name": "Problem Awareness",
+                    "owner": "Product marketing owner",
+                    "user_goals": ["Recognize the problem."],
+                    "touchpoints": ["discovery conversation"],
+                    "friction_points": ["The pain is described too generally."],
+                    "success_signals": ["User can restate the problem."],
+                    "evidence_reference_ids": ["design_brief.why_this_now"],
+                    "source_idea_ids": ["bu-journey"],
+                }
+            ],
+            pain_points=[
+                {
+                    "id": "JM1-P1",
+                    "stage_id": "JM1",
+                    "stage_name": "Problem Awareness",
+                    "pain_point": "The pain is described too generally.",
+                    "source_idea_ids": ["bu-journey"],
+                }
+            ],
+            moments_of_value=[
+                {
+                    "id": "JM1-V1",
+                    "stage_id": "JM1",
+                    "stage_name": "Problem Awareness",
+                    "moment": "User can restate the problem.",
+                    "source_idea_ids": ["bu-journey"],
+                }
+            ],
+            follow_up_actions=[
+                {
+                    "id": "FA1",
+                    "owner": "Product lead",
+                    "action": "Review journey evidence after first use.",
+                    "source": "journey_stages",
+                    "stage_id": "JM1",
+                }
+            ],
+            evidence_references=[
+                {
+                    "id": "design_brief.why_this_now",
+                    "type": "brief_field",
+                    "summary": "Why now.",
+                    "source_idea_ids": ["bu-journey"],
+                }
+            ],
+            readiness_warnings=[],
+            source_ideas=[{"id": "bu-journey"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.customer_journey_map.v1"
+        assert dumped["kind"] == "max.design_brief.customer_journey_map"
+        assert dumped["journey_stages"][0]["id"] == "JM1"
+        assert dumped["pain_points"][0]["stage_id"] == "JM1"
+        assert dumped["moments_of_value"][0]["moment"] == "User can restate the problem."
+        assert dumped["follow_up_actions"][0]["owner"] == "Product lead"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefCustomerJourneyMapResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "kind" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "journey_stages" in missing_fields
+        assert "pain_points" in missing_fields
+        assert "moments_of_value" in missing_fields
+        assert "follow_up_actions" in missing_fields
 
 
 class TestSecurityReviewResponse:

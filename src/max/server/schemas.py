@@ -2662,6 +2662,34 @@ class DesignBriefDependencyRiskMapResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefCustomerJourneyStageResponse(BaseModel):
+    id: str
+    sequence: int
+    name: str
+    owner: str
+    user_goals: list[str]
+    touchpoints: list[str]
+    friction_points: list[str]
+    success_signals: list[str]
+    evidence_reference_ids: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefCustomerJourneyMapResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    journey_stages: list[DesignBriefCustomerJourneyStageResponse]
+    pain_points: list[dict[str, Any]]
+    moments_of_value: list[dict[str, Any]]
+    follow_up_actions: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    readiness_warnings: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefRaciMatrixResponse(BaseModel):
     schema_version: str
     kind: str
