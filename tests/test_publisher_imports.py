@@ -43,6 +43,11 @@ from max.publisher import (
     GoogleChatWebhookPublishError,
     GoogleChatWebhookPublishResult,
     GoogleChatWebhooksPublisher,
+    TelegramWebhookPayload,
+    TelegramWebhookPublisher,
+    TelegramWebhookPublishError,
+    TelegramWebhookPublishResult,
+    TelegramWebhooksPublisher,
     OpsgenieAlertPayload,
     OpsgenieAlertPublisher,
     OpsgenieAlertPublishError,
@@ -77,6 +82,9 @@ from max.publisher.webex_webhook import (
 )
 from max.publisher.google_chat_webhook import (
     GoogleChatWebhookPublisher as ModuleGoogleChatWebhookPublisher,
+)
+from max.publisher.telegram_webhook import (
+    TelegramWebhookPublisher as ModuleTelegramWebhookPublisher,
 )
 from max.publisher.opsgenie_alerts import (
     OpsgenieAlertPublisher as ModuleOpsgenieAlertPublisher,
@@ -167,3 +175,11 @@ def test_google_chat_webhook_publisher_exports() -> None:
     assert GoogleChatWebhookPayload
     assert GoogleChatWebhookPublishError
     assert GoogleChatWebhookPublishResult
+
+
+def test_telegram_webhook_publisher_exports() -> None:
+    assert TelegramWebhookPublisher is ModuleTelegramWebhookPublisher
+    assert TelegramWebhooksPublisher is TelegramWebhookPublisher
+    assert TelegramWebhookPayload
+    assert TelegramWebhookPublishError
+    assert TelegramWebhookPublishResult

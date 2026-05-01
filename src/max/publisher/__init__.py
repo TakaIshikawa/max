@@ -295,6 +295,14 @@ from max.publisher.google_chat_webhook import (
     GoogleChatWebhooksPublisher,
     publish_google_chat_webhook,
 )
+from max.publisher.telegram_webhook import (
+    TelegramWebhookPayload,
+    TelegramWebhookPublisher,
+    TelegramWebhookPublishError,
+    TelegramWebhookPublishResult,
+    TelegramWebhooksPublisher,
+    publish_telegram_webhook,
+)
 from max.publisher.teams_webhook import (
     TeamsWebhookPublisher,
     TeamsWebhookPublishError,
@@ -535,6 +543,12 @@ __all__ = [
     "GoogleChatWebhookPublishResult",
     "GoogleChatWebhooksPublisher",
     "publish_google_chat_webhook",
+    "TelegramWebhookPayload",
+    "TelegramWebhookPublisher",
+    "TelegramWebhookPublishError",
+    "TelegramWebhookPublishResult",
+    "TelegramWebhooksPublisher",
+    "publish_telegram_webhook",
     "TeamsWebhookPublisher",
     "TeamsWebhookPublishError",
     "TeamsWebhookPublishResult",
