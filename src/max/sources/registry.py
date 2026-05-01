@@ -48,6 +48,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_trending": "max.sources.github_trending:GitHubTrendingAdapter",
     "github_releases": "max.sources.github_releases:GitHubReleasesAdapter",
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
+    "github_sponsors": "max.sources.github_sponsors:GitHubSponsorsAdapter",
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "python_peps": "max.sources.python_peps:PythonPepsAdapter",
@@ -230,6 +231,26 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "github_token", "token"],
         required_keys=[],
         description="Fetches funding and sponsorship links from configured GitHub repositories.",
+    ),
+    "github_sponsors": AdapterMetadata(
+        name="github_sponsors",
+        config_keys=[
+            "organizations",
+            "orgs",
+            "users",
+            "topics",
+            "repositories",
+            "max_repositories_per_query",
+            "github_token",
+            "token",
+            "token_env",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Discovers GitHub repositories and emits Sponsors funding metadata "
+            "as maintainer sustainability signals."
+        ),
     ),
     "funding_rounds": AdapterMetadata(
         name="funding_rounds",

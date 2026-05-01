@@ -134,6 +134,40 @@ def test_gitlab_epics_adapter_metadata_documents_config_keys() -> None:
     assert "roadmap and market planning signals" in metadata["gitlab_epics"].description
 
 
+def test_github_sponsors_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_sponsors"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["github_sponsors"]
+        adapter = get_adapter("github_sponsors")
+
+    assert adapter.name == "github_sponsors"
+
+
+def test_github_sponsors_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "github_sponsors"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"github_sponsors"}
+    assert metadata["github_sponsors"].config_keys == [
+        "organizations",
+        "orgs",
+        "users",
+        "topics",
+        "repositories",
+        "max_repositories_per_query",
+        "github_token",
+        "token",
+        "token_env",
+        "timeout",
+    ]
+    assert metadata["github_sponsors"].required_keys == []
+    assert "Sponsors funding metadata" in metadata["github_sponsors"].description
+
+
 def test_kubernetes_keps_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
