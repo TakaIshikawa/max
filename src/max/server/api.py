@@ -65,6 +65,11 @@ from max.analysis.design_brief_instrumentation_plan import (
     instrumentation_plan_filename,
     render_design_brief_instrumentation_plan,
 )
+from max.analysis.design_brief_gtm_channel_plan import (
+    build_design_brief_gtm_channel_plan,
+    gtm_channel_plan_filename,
+    render_design_brief_gtm_channel_plan,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -330,6 +335,7 @@ from max.server.schemas import (
     DesignBriefGitHubIssuePublishResponse,
     DesignBriefGitHubMilestonePublishRequest,
     DesignBriefGitHubMilestonePublishResponse,
+    DesignBriefGtmChannelPlanResponse,
     DesignBriefHubSpotDealPublishRequest,
     DesignBriefHubSpotDealPublishResponse,
     DesignBriefAssumptionLedgerResponse,
@@ -8929,6 +8935,37 @@ def _design_brief_instrumentation_plan_rendered_response(
         filename = instrumentation_plan_filename(plan["design_brief"], fmt="markdown")
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return Response(content=content, media_type=media_type, headers=headers)
+
+
+@router.get(
+    "/design-briefs/{brief_id}/gtm-channel-plan",
+    response_model=DesignBriefGtmChannelPlanResponse,
+)
+def get_design_brief_gtm_channel_plan(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefGtmChannelPlanResponse:
+    plan = build_design_brief_gtm_channel_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefGtmChannelPlanResponse(**plan)
+
+
+@router.get("/design-briefs/{brief_id}/gtm-channel-plan.md", response_model=None)
+def get_design_brief_gtm_channel_plan_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    plan = build_design_brief_gtm_channel_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = gtm_channel_plan_filename(plan["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_gtm_channel_plan(plan, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

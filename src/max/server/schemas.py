@@ -2863,6 +2863,18 @@ class DesignBriefInstrumentationPlanResponse(BaseModel):
     missing_inputs: list[dict[str, Any]]
 
 
+class DesignBriefGtmChannelPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    channel_recommendations: list[dict[str, Any]]
+    launch_sequence: list[dict[str, Any]]
+    measurement_plan: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefAssumptionLedgerBriefResponse(BaseModel):
     id: str
     title: str

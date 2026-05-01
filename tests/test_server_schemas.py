@@ -46,6 +46,7 @@ from max.server.schemas import (
     FetchAllocationSimulationQualityResponse,
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
+    DesignBriefGtmChannelPlanResponse,
     DesignBriefSuccessMetricsResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
@@ -2024,3 +2025,47 @@ class TestDesignBriefSuccessMetricsResponse:
         assert "schema_version" in missing_fields
         assert "brief_id" in missing_fields
         assert "north_star_metric" in missing_fields
+
+
+class TestDesignBriefGtmChannelPlanResponse:
+    def test_preserves_nested_channel_recommendation_fields(self):
+        response = DesignBriefGtmChannelPlanResponse(
+            schema_version="max.design_brief.gtm_channel_plan.v1",
+            kind="max.design_brief.gtm_channel_plan",
+            source={"id": "dbf-gtm"},
+            design_brief={"id": "dbf-gtm", "title": "GTM Brief"},
+            summary={"primary_channel": "design partner outreach"},
+            channel_recommendations=[
+                {
+                    "id": "GTM1",
+                    "channel": "design partner outreach",
+                    "success_metric": {
+                        "metric": "qualified_conversation_rate",
+                        "target": "25%+ positive replies",
+                    },
+                    "tactics": [
+                        {
+                            "name": "warm account list",
+                            "owner": "product marketing",
+                            "description": "Identify qualified accounts.",
+                        }
+                    ],
+                }
+            ],
+            launch_sequence=[],
+            measurement_plan=[],
+            source_ideas=[],
+        )
+
+        dumped = response.model_dump()
+        recommendation = dumped["channel_recommendations"][0]
+        assert recommendation["success_metric"]["target"] == "25%+ positive replies"
+        assert recommendation["tactics"][0]["owner"] == "product marketing"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefGtmChannelPlanResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "channel_recommendations" in missing_fields
