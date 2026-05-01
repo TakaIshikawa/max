@@ -261,6 +261,7 @@ from max.analysis.profile_source_mix import (
     DEFAULT_CONCENTRATION_THRESHOLD,
     build_profile_source_mix_for_profile,
 )
+from max.analysis.profile_signal_query_plan import build_profile_signal_query_plan
 from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
@@ -550,6 +551,8 @@ from max.server.schemas import (
     ProfileDriftResponse,
     ProfileSourceLintReportResponse,
     ProfileSourceMixResponse,
+    ProfileSourceQueryPlanRequest,
+    ProfileSourceQueryPlanResponse,
     ProfileSourceRecommendationsResponse,
     ProfileSummaryResponse,
     ProfileValidationIssueResponse,
@@ -2363,6 +2366,33 @@ def get_profile_source_mix(
         concentration_threshold=concentration_threshold,
     )
     return ProfileSourceMixResponse.model_validate(report.to_dict())
+
+
+@router.get(
+    "/profiles/{profile_name}/source-query-plan",
+    response_model=ProfileSourceQueryPlanResponse,
+)
+def get_profile_source_query_plan(
+    profile_name: str,
+) -> ProfileSourceQueryPlanResponse:
+    profile = _load_profile_or_404(profile_name)
+    return _profile_source_query_plan_response(profile)
+
+
+@router.post(
+    "/profiles/source-query-plan",
+    response_model=ProfileSourceQueryPlanResponse,
+)
+def create_profile_source_query_plan(
+    body: ProfileSourceQueryPlanRequest,
+) -> ProfileSourceQueryPlanResponse:
+    return _profile_source_query_plan_response(body.profile)
+
+
+def _profile_source_query_plan_response(profile) -> ProfileSourceQueryPlanResponse:
+    plan = build_profile_signal_query_plan(profile)
+    plan["warnings"] = list(plan["gaps"])
+    return ProfileSourceQueryPlanResponse.model_validate(plan)
 
 
 # ── Evaluation Weights ──────────────────────────────────────────────

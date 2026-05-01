@@ -10,6 +10,7 @@ from max.profiles.schema import (
     ArchitectureConstraintsConfig,
     DomainContext,
     EvaluationConfig,
+    PipelineProfile,
     SourceConfig,
 )
 
@@ -1027,6 +1028,56 @@ class ProfileSourceMixResponse(BaseModel):
     groups: list[ProfileSourceMixGroupResponse]
     concentration_flags: list[ProfileSourceMixConcentrationFlagResponse]
     recommendations: list[ProfileSourceMixRecommendationResponse]
+
+
+class ProfileSourceQueryPlanProfileResponse(BaseModel):
+    name: str
+    domain: str
+    description: str
+    signal_limit: int
+    ideation_mode: str
+
+
+class ProfileSourceQueryPlanSummaryResponse(BaseModel):
+    enabled_source_count: int
+    disabled_source_count: int
+    source_entry_count: int
+    suggested_query_count: int
+    gap_count: int
+
+
+class ProfileSourceQueryPlanSourceResponse(BaseModel):
+    adapter: str
+    enabled: bool
+    weight: float
+    query_terms: list[str]
+    suggested_queries: list[str]
+    freshness_window: str
+    expected_signal_roles: list[str]
+    params: dict[str, Any]
+
+
+class ProfileSourceQueryPlanWarningResponse(BaseModel):
+    field: str
+    severity: Literal["missing", "weak"]
+    reason: str
+
+
+class ProfileSourceQueryPlanResponse(BaseModel):
+    schema_version: str
+    kind: Literal["max.profile.signal_query_plan"]
+    profile: ProfileSourceQueryPlanProfileResponse
+    summary: ProfileSourceQueryPlanSummaryResponse
+    domain_terms: list[str]
+    category_terms: list[str]
+    target_user_terms: list[str]
+    sources: list[ProfileSourceQueryPlanSourceResponse]
+    gaps: list[ProfileSourceQueryPlanWarningResponse]
+    warnings: list[ProfileSourceQueryPlanWarningResponse]
+
+
+class ProfileSourceQueryPlanRequest(BaseModel):
+    profile: PipelineProfile
 
 
 class ProfileSourceLintIssueResponse(BaseModel):
