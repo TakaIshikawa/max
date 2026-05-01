@@ -6,10 +6,18 @@ from max.spec.adr import (
     generate_architecture_decision_record,
     render_architecture_decision_record_markdown,
 )
-from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown, render_spec_bundle_yaml
+from max.spec.bundle import (
+    generate_spec_bundle,
+    render_spec_bundle_markdown,
+    render_spec_bundle_yaml,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
+from max.spec.observability_plan import (
+    generate_observability_plan,
+    render_observability_plan_markdown,
+)
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
@@ -21,12 +29,14 @@ __all__ = [
     "generate_experiment_card",
     "generate_implementation_plan",
     "generate_launch_checklist",
+    "generate_observability_plan",
     "generate_rollback_plan",
     "generate_spec_bundle",
     "generate_risk_register",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
     "render_architecture_decision_record_markdown",
+    "render_observability_plan_markdown",
     "render_spec_bundle_yaml",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
