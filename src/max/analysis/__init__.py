@@ -19,6 +19,10 @@ from max.analysis.portfolio_regulatory_exposure import (
     build_portfolio_regulatory_exposure_from_records,
     build_portfolio_regulatory_exposure_report,
 )
+from max.analysis.portfolio_readiness_bottlenecks import (
+    build_portfolio_readiness_bottlenecks,
+    render_portfolio_readiness_bottlenecks,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -103,6 +107,7 @@ __all__ = [
     "build_portfolio_cannibalization_report",
     "build_portfolio_dependency_overlap_from_records",
     "build_portfolio_dependency_overlap_report",
+    "build_portfolio_readiness_bottlenecks",
     "build_portfolio_regulatory_exposure_from_records",
     "build_portfolio_regulatory_exposure_report",
     "build_portfolio_theme_saturation_report",
@@ -135,5 +140,6 @@ __all__ = [
     "render_design_brief_churn_risk_report",
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
+    "render_portfolio_readiness_bottlenecks",
     "work_breakdown_filename",
 ]
