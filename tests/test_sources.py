@@ -238,6 +238,7 @@ def test_list_adapters() -> None:
     assert "stackshare" in adapters
     assert "discourse" in adapters
     assert "github_workflow_runs" in adapters
+    assert "opencollective" in adapters
 
 
 def test_get_adapter() -> None:
@@ -258,6 +259,7 @@ def test_get_all_adapters() -> None:
     assert "npm_registry" in names
     assert "dockerhub" in names
     assert "mcp_registry" in names
+    assert "opencollective" in names
     assert "stackshare" in names
     assert "github_workflow_runs" in names
     assert "discourse" in names

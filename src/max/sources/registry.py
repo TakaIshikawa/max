@@ -51,6 +51,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_funding": "max.sources.github_funding:GitHubFundingAdapter",
     "github_sponsors": "max.sources.github_sponsors:GitHubSponsorsAdapter",
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
+    "opencollective": "max.sources.opencollective:OpenCollectiveAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
     "python_peps": "max.sources.python_peps:PythonPepsAdapter",
     "pypi_download_trends": (
@@ -279,6 +280,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Reads CSV, JSON, and JSONL funding round datasets as market validation signals.",
+    ),
+    "opencollective": AdapterMetadata(
+        name="opencollective",
+        config_keys=[
+            "slugs",
+            "collectives",
+            "search_terms",
+            "queries",
+            "max_results_per_query",
+            "graphql_url",
+            "api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches OpenCollective project funding, backer, and budget signals "
+            "from configured slugs and search terms."
+        ),
     ),
     "pypi_registry": AdapterMetadata(
         name="pypi_registry",
