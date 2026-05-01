@@ -136,6 +136,13 @@ from max.publisher.jira_issues import (
     JiraIssuePublishResult,
     JiraIssuesPublisher,
 )
+from max.publisher.jira_issue_comments import (
+    JiraIssueCommentPayload,
+    JiraIssueCommentPublisher,
+    JiraIssueCommentPublishError,
+    JiraIssueCommentPublishResult,
+    JiraIssueCommentsPublisher,
+)
 from max.publisher.shortcut_stories import (
     ShortcutStoryPayload,
     ShortcutStoryPublisher,
@@ -315,6 +322,11 @@ __all__ = [
     "JiraIssuePublishError",
     "JiraIssuePublishResult",
     "JiraIssuesPublisher",
+    "JiraIssueCommentPayload",
+    "JiraIssueCommentPublisher",
+    "JiraIssueCommentPublishError",
+    "JiraIssueCommentPublishResult",
+    "JiraIssueCommentsPublisher",
     "ShortcutStoryPayload",
     "ShortcutStoryPublisher",
     "ShortcutStoryPublishError",
