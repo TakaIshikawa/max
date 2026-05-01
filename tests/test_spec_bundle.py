@@ -36,6 +36,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "acceptance_criteria",
         "experiment_card",
         "data_classification",
+        "data_retention_schedule",
         "privacy_impact_assessment",
         "dependency_inventory",
         "risk_register",
@@ -59,6 +60,14 @@ def test_generate_spec_bundle_includes_all_artifacts(
         bundle["artifacts"]["data_classification"]["schema_version"] == "max-data-classification/v1"
     )
     assert bundle["artifacts"]["data_classification"]["kind"] == "max.spec.data_classification"
+    assert (
+        bundle["artifacts"]["data_retention_schedule"]["schema_version"]
+        == "max-data-retention-schedule/v1"
+    )
+    assert (
+        bundle["artifacts"]["data_retention_schedule"]["kind"]
+        == "max.spec.data_retention_schedule"
+    )
     assert (
         bundle["artifacts"]["privacy_impact_assessment"]["schema_version"]
         == "max-privacy-impact-assessment/v1"
@@ -97,6 +106,10 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert "evaluation_recommendation" in bundle["artifacts"]["readiness"]["failed_check_ids"]
     assert bundle["artifacts"]["experiment_card"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["data_classification"]["summary"]["category_count"] >= 1
+    assert bundle["artifacts"]["data_retention_schedule"]["source"]["evaluation_available"] is False
+    assert "missing_evaluation" in {
+        gap["category"] for gap in bundle["artifacts"]["data_retention_schedule"]["gaps"]
+    }
     assert bundle["artifacts"]["privacy_impact_assessment"]["summary"]["privacy_gate"] in {
         "field_inventory_required",
         "owner_review_required",
@@ -142,6 +155,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Experiment Card",
         "## Data Classification",
         "## Privacy Impact Assessment",
+        "## Data Retention Schedule",
         "## Dependency Inventory",
         "## Risk Register",
         "## Threat Model",
@@ -156,6 +170,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "MCP server maintainer" in markdown
     assert "Sensitivity:" in markdown
     assert "Privacy gate:" in markdown
+    assert "Retention gate:" in markdown
     assert "trigger_domain_risk_1" in markdown
     assert "Credential leakage enables service impersonation" in markdown
     assert "Schema version: max-slo-plan/v1" in markdown

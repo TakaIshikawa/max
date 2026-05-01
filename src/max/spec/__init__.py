@@ -21,6 +21,10 @@ from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_markdown,
 )
+from max.spec.data_retention_schedule import (
+    generate_data_retention_schedule,
+    render_data_retention_schedule_markdown,
+)
 from max.spec.dependency_inventory import (
     generate_dependency_inventory,
     render_dependency_inventory_markdown,
@@ -65,6 +69,7 @@ __all__ = [
     "generate_compliance_checklist",
     "generate_cost_estimate",
     "generate_data_classification",
+    "generate_data_retention_schedule",
     "generate_dependency_inventory",
     "generate_deployment_topology",
     "generate_experiment_card",
@@ -91,6 +96,7 @@ __all__ = [
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
     "render_data_classification_markdown",
+    "render_data_retention_schedule_markdown",
     "render_dependency_inventory_markdown",
     "render_deployment_topology_markdown",
     "render_observability_plan_markdown",
