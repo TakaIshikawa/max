@@ -102,6 +102,38 @@ def test_stackexchange_adapter_metadata_documents_config_keys() -> None:
     assert "Stack Exchange questions" in metadata["stackexchange"].description
 
 
+def test_gitlab_epics_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "gitlab_epics"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["gitlab_epics"]
+        adapter = get_adapter("gitlab_epics")
+
+    assert adapter.name == "gitlab_epics"
+
+
+def test_gitlab_epics_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "gitlab_epics"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"gitlab_epics"}
+    assert metadata["gitlab_epics"].config_keys == [
+        "groups",
+        "labels",
+        "state",
+        "gitlab_url",
+        "private_token",
+        "per_group_limit",
+        "timeout",
+        "max_age_days",
+    ]
+    assert metadata["gitlab_epics"].required_keys == []
+    assert "roadmap and market planning signals" in metadata["gitlab_epics"].description
+
+
 def test_kubernetes_keps_adapter_is_registered() -> None:
     with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
