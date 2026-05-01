@@ -56,6 +56,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "pypi_download_trends": (
         "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapter"
     ),
+    "pypi_classifiers": "max.sources.pypi_classifiers:PyPIClassifiersAdapter",
     "pypi_releases": "max.sources.pypi_releases:PyPIReleasesAdapter",
     "pubdev": "max.sources.pubdev:PubDevAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
@@ -305,6 +306,17 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["packages", "period", "max_items", "min_downloads"],
         required_keys=[],
         description="Fetches recent PyPI package download trend totals as market adoption signals.",
+    ),
+    "pypi_classifiers": AdapterMetadata(
+        name="pypi_classifiers",
+        config_keys=[
+            "packages",
+            "max_items",
+            "representatives_per_classifier",
+            "base_url",
+        ],
+        required_keys=[],
+        description="Aggregates PyPI package classifiers into ecosystem category momentum signals.",
     ),
     "pypi_releases": AdapterMetadata(
         name="pypi_releases",
