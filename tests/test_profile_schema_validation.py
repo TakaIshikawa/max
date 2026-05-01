@@ -171,6 +171,7 @@ class TestSchemaProperties:
             "hackernews",
             "reddit",
             "github",
+            "github_sponsors",
             "github_issues",
             "nuget",
             "npm_registry",

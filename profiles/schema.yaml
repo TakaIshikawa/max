@@ -324,6 +324,7 @@ properties:
             - github_octoverse
             - github_pull_requests
             - github_releases
+            - github_sponsors
             - github_trending
             - gitlab_epics
             - gitlab_issues
