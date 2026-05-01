@@ -14,6 +14,10 @@ from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.data_classification import generate_data_classification
 from max.spec.data_retention_schedule import generate_data_retention_schedule
 from max.spec.dependency_inventory import generate_dependency_inventory
+from max.spec.disaster_recovery_plan import (
+    generate_disaster_recovery_plan,
+    render_disaster_recovery_plan_markdown,
+)
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
@@ -36,6 +40,7 @@ def generate_spec_bundle(
     unit: BuildableUnit,
     evaluation: UtilityEvaluation | None,
     store: Store,
+    artifacts: list[str] | tuple[str, ...] | set[str] | None = None,
 ) -> dict[str, Any]:
     """Build a complete implementation packet without adding persistence."""
     warnings: list[str] = []
@@ -51,6 +56,7 @@ def generate_spec_bundle(
     implementation_plan = generate_implementation_plan(unit, evaluation, spec_preview)
     launch_checklist = generate_launch_checklist(unit, evaluation, spec_preview)
     rollback_plan = generate_rollback_plan(unit, evaluation, spec_preview)
+    disaster_recovery_plan = generate_disaster_recovery_plan(spec_preview)
     acceptance_criteria = generate_acceptance_criteria(unit, evaluation, evidence_density)
     experiment_card = generate_experiment_card(unit, evaluation)
     data_classification = generate_data_classification(spec_preview)
@@ -66,37 +72,43 @@ def generate_spec_bundle(
     warnings.extend(evidence_density.get("missing_evidence_warnings", []))
     warnings.extend(review_gate.get("warnings", []))
 
+    artifact_payload = {
+        "spec_preview": spec_preview,
+        "readiness": readiness,
+        "implementation_plan": implementation_plan,
+        "launch_checklist": launch_checklist,
+        "rollback_plan": rollback_plan,
+        "disaster_recovery_plan": disaster_recovery_plan,
+        "acceptance_criteria": acceptance_criteria,
+        "experiment_card": experiment_card,
+        "data_classification": data_classification,
+        "data_retention_schedule": data_retention_schedule,
+        "privacy_impact_assessment": privacy_impact_assessment,
+        "dependency_inventory": dependency_inventory,
+        "risk_register": risk_register,
+        "threat_model": threat_model,
+        "slo_plan": slo_plan,
+        "review_gate": review_gate,
+        "evidence_density": evidence_density,
+        "evidence_chain_summary": evidence_chain_summary,
+    }
+
     return {
         "schema_version": SPEC_BUNDLE_SCHEMA_VERSION,
         "kind": "max.spec_bundle",
         "idea_id": unit.id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "warnings": list(dict.fromkeys(warnings)),
-        "artifacts": {
-            "spec_preview": spec_preview,
-            "readiness": readiness,
-            "implementation_plan": implementation_plan,
-            "launch_checklist": launch_checklist,
-            "rollback_plan": rollback_plan,
-            "acceptance_criteria": acceptance_criteria,
-            "experiment_card": experiment_card,
-            "data_classification": data_classification,
-            "data_retention_schedule": data_retention_schedule,
-            "privacy_impact_assessment": privacy_impact_assessment,
-            "dependency_inventory": dependency_inventory,
-            "risk_register": risk_register,
-            "threat_model": threat_model,
-            "slo_plan": slo_plan,
-            "review_gate": review_gate,
-            "evidence_density": evidence_density,
-            "evidence_chain_summary": evidence_chain_summary,
-        },
+        "artifacts": _select_artifacts(artifact_payload, artifacts),
     }
 
 
 def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     """Render a bundled implementation packet as one readable markdown document."""
     artifacts = bundle["artifacts"]
+    if "spec_preview" not in artifacts:
+        return _render_selected_spec_bundle_markdown(bundle)
+
     preview = artifacts["spec_preview"]
     project = preview["project"]
     problem = preview["problem"]
@@ -105,6 +117,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     plan = artifacts["implementation_plan"]
     checklist = artifacts["launch_checklist"]
     rollback_plan = artifacts["rollback_plan"]
+    disaster_recovery_plan = artifacts.get("disaster_recovery_plan")
     criteria = artifacts["acceptance_criteria"]
     experiment = artifacts["experiment_card"]
     data_classification = artifacts["data_classification"]
@@ -204,6 +217,8 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
             ],
         )
     )
+    if disaster_recovery_plan:
+        lines.extend(_embedded_markdown_section(render_disaster_recovery_plan_markdown(disaster_recovery_plan)))
     lines.extend(
         _section(
             "Acceptance Criteria",
@@ -463,6 +478,52 @@ def render_spec_bundle_yaml(bundle: dict[str, Any]) -> str:
     import yaml
 
     return yaml.safe_dump(bundle, sort_keys=False, allow_unicode=True)
+
+
+def _select_artifacts(
+    artifact_payload: dict[str, Any],
+    requested: list[str] | tuple[str, ...] | set[str] | None,
+) -> dict[str, Any]:
+    if requested is None:
+        return artifact_payload
+
+    requested_names = list(dict.fromkeys(requested))
+    if any(name in {"all", "*", "all_artifacts"} for name in requested_names):
+        return artifact_payload
+
+    unknown = [name for name in requested_names if name not in artifact_payload]
+    if unknown:
+        raise ValueError(f"Unsupported spec bundle artifact(s): {', '.join(unknown)}")
+
+    return {name: artifact_payload[name] for name in requested_names}
+
+
+def _render_selected_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
+    artifacts = bundle["artifacts"]
+    title = bundle["idea_id"]
+    disaster_recovery_plan = artifacts.get("disaster_recovery_plan")
+    if disaster_recovery_plan:
+        title = disaster_recovery_plan.get("summary", {}).get("title") or title
+
+    lines = [
+        f"# {title} Implementation Packet",
+        "",
+        f"- Schema version: {bundle['schema_version']}",
+        f"- Idea ID: {bundle['idea_id']}",
+        f"- Generated: {bundle['generated_at']}",
+        "",
+    ]
+    lines.extend(_section("Warnings", _bullets(bundle.get("warnings", []), empty="No warnings.")))
+
+    if disaster_recovery_plan:
+        lines.extend(_embedded_markdown_section(render_disaster_recovery_plan_markdown(disaster_recovery_plan)))
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _embedded_markdown_section(markdown: str) -> list[str]:
+    lines = markdown.strip().splitlines()
+    return [line.replace("# ", "## ", 1) if line.startswith("# ") else line for line in lines] + [""]
 
 
 def _review_gate(idea_id: str, store: Store, warnings: list[str]) -> dict[str, Any]:

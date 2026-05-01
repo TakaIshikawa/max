@@ -1703,9 +1703,17 @@ class SpecBundleArtifactsResponse(BaseModel):
     readiness: dict[str, Any]
     implementation_plan: dict[str, Any]
     launch_checklist: LaunchChecklistResponse
+    rollback_plan: dict[str, Any]
+    disaster_recovery_plan: dict[str, Any]
     acceptance_criteria: AcceptanceCriteriaResponse
     experiment_card: ExperimentCardResponse
+    data_classification: dict[str, Any]
+    data_retention_schedule: dict[str, Any]
+    privacy_impact_assessment: dict[str, Any]
+    dependency_inventory: dict[str, Any]
     risk_register: dict[str, Any]
+    threat_model: dict[str, Any]
+    slo_plan: dict[str, Any]
     review_gate: ReviewGateResponse
     evidence_density: EvidenceDensityResponse
     evidence_chain_summary: dict[str, Any]

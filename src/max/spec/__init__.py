@@ -33,6 +33,10 @@ from max.spec.deployment_topology import (
     generate_deployment_topology,
     render_deployment_topology_markdown,
 )
+from max.spec.disaster_recovery_plan import (
+    generate_disaster_recovery_plan,
+    render_disaster_recovery_plan_markdown,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.incident_response_plan import (
@@ -76,6 +80,7 @@ __all__ = [
     "generate_data_retention_schedule",
     "generate_dependency_inventory",
     "generate_deployment_topology",
+    "generate_disaster_recovery_plan",
     "generate_experiment_card",
     "generate_implementation_plan",
     "generate_incident_response_plan",
@@ -104,6 +109,7 @@ __all__ = [
     "render_data_retention_schedule_markdown",
     "render_dependency_inventory_markdown",
     "render_deployment_topology_markdown",
+    "render_disaster_recovery_plan_markdown",
     "render_incident_response_plan_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",

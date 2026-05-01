@@ -33,6 +33,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "implementation_plan",
         "launch_checklist",
         "rollback_plan",
+        "disaster_recovery_plan",
         "acceptance_criteria",
         "experiment_card",
         "data_classification",
@@ -52,6 +53,10 @@ def test_generate_spec_bundle_includes_all_artifacts(
     )
     assert bundle["artifacts"]["launch_checklist"]["schema_version"] == "max-launch-checklist/v1"
     assert bundle["artifacts"]["rollback_plan"]["schema_version"] == "max-rollback-plan/v1"
+    assert (
+        bundle["artifacts"]["disaster_recovery_plan"]["schema_version"]
+        == "max-disaster-recovery-plan/v1"
+    )
     assert (
         bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
     )
@@ -151,6 +156,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Implementation Plan",
         "## Launch Checklist",
         "## Rollback Plan",
+        "## MCP Test Framework Disaster Recovery Plan",
         "## Acceptance Criteria",
         "## Experiment Card",
         "## Data Classification",
@@ -172,6 +178,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "Privacy gate:" in markdown
     assert "Retention gate:" in markdown
     assert "trigger_domain_risk_1" in markdown
+    assert "Recovery tier: priority_restore" in markdown
     assert "Credential leakage enables service impersonation" in markdown
     assert "Schema version: max-slo-plan/v1" in markdown
     assert "Launch tier: production_candidate" in markdown
