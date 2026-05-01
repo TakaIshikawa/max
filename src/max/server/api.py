@@ -528,6 +528,7 @@ from max.server.schemas import (
     SignalImportRequest,
     SignalImportResponse,
     SignalImportRowResult,
+    SecurityReviewResponse,
     ShortcutStoryPublishRequest,
     ShortcutStoryPublishResponse,
     SlackPublishRequest,
@@ -570,6 +571,7 @@ from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
+from max.spec.security_review import generate_security_review, render_security_review_markdown
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
@@ -5539,6 +5541,46 @@ def _risk_register_markdown_response(idea_id: str, register: dict[str, Any]) -> 
     filename = f"{_download_filename_part(idea_id)}-risk-register.md"
     return Response(
         content=render_risk_register_markdown(register),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/ideas/{idea_id}/security-review", response_model=SecurityReviewResponse)
+def get_idea_security_review(
+    idea_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> SecurityReviewResponse | Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    review = generate_security_review(tact_spec)
+    if format == "markdown":
+        return _security_review_markdown_response(idea_id, review)
+    return SecurityReviewResponse.model_validate(review)
+
+
+@router.get("/ideas/{idea_id}/security-review.md", response_model=None)
+def get_idea_security_review_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    review = generate_security_review(tact_spec)
+    return _security_review_markdown_response(idea_id, review)
+
+
+def _security_review_markdown_response(idea_id: str, review: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(idea_id)}-security-review.md"
+    return Response(
+        content=render_security_review_markdown(review),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -1636,6 +1636,17 @@ class ExperimentCardResponse(BaseModel):
     decision_rules: dict[str, str]
 
 
+class SecurityReviewResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    security_context: dict[str, Any]
+    findings: list[dict[str, Any]]
+    recommended_controls: list[dict[str, Any]]
+    open_questions: list[dict[str, Any]]
+
+
 class SpecBundleArtifactsResponse(BaseModel):
     spec_preview: dict[str, Any]
     readiness: dict[str, Any]

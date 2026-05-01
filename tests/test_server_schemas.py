@@ -54,6 +54,7 @@ from max.server.schemas import (
     DesignBriefTrainingPlanResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
+    SecurityReviewResponse,
     SignalCreate,
     SignalResponse,
     SimilarityRequest,
@@ -2068,6 +2069,37 @@ class TestDesignBriefEventDictionaryResponse:
         assert "design_brief" in missing_fields
         assert "event_groups" in missing_fields
         assert "property_contracts" in missing_fields
+
+
+class TestSecurityReviewResponse:
+    def test_preserves_security_review_artifact_sections(self):
+        response = SecurityReviewResponse(
+            schema_version="max-security-review/v1",
+            kind="max.security_review",
+            source={"idea_id": "bu-sec", "tact_spec_schema_version": "tact-spec-preview/v1"},
+            summary={"title": "Security Review", "finding_count": 1},
+            security_context={"mentions_authentication": True},
+            findings=[{"id": "SEC-F1", "category": "authentication", "severity": "high"}],
+            recommended_controls=[{"id": "SEC-C1", "category": "authentication"}],
+            open_questions=[{"id": "SEC-Q1", "category": "authentication"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max-security-review/v1"
+        assert dumped["source"]["idea_id"] == "bu-sec"
+        assert dumped["summary"]["finding_count"] == 1
+        assert dumped["findings"][0]["severity"] == "high"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            SecurityReviewResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "source" in missing_fields
+        assert "summary" in missing_fields
+        assert "security_context" in missing_fields
+        assert "findings" in missing_fields
 
 
 class TestDesignBriefTrainingPlanSchemas:
