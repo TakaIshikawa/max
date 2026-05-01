@@ -128,6 +128,11 @@ from max.analysis.mcp_capability_coverage import (
 )
 from max.analysis.opportunity_heatmap import build_opportunity_heatmap
 from max.analysis.pipeline_replay import PipelineReplayRunNotFound, build_pipeline_replay_plan
+from max.analysis.pipeline_run_handoff_digest import (
+    PipelineRunHandoffDigestNotFound,
+    build_pipeline_run_handoff_digest,
+    render_pipeline_run_handoff_digest,
+)
 from max.analysis.pipeline_cost_anomalies import (
     DEFAULT_BASELINE_WINDOW as DEFAULT_COST_ANOMALY_BASELINE_WINDOW,
     DEFAULT_LIMIT as DEFAULT_COST_ANOMALY_LIMIT,
@@ -3678,6 +3683,52 @@ def get_pipeline_replay_plan(run_id: str, include_commands: bool = True) -> dict
         return e.to_dict()
 
 
+def get_pipeline_run_handoff_digest(run_id: str, format: str = "json") -> dict:
+    """Build an action-oriented handoff digest for a stored pipeline run.
+
+    Set format to "json" for the structured digest payload or "markdown" for
+    rendered handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the pipeline run does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported pipeline run handoff digest format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            digest = build_pipeline_run_handoff_digest(store, run_id=run_id)
+
+        if fmt == "markdown":
+            return {
+                "id": run_id,
+                "format": "markdown",
+                "markdown": render_pipeline_run_handoff_digest(digest, fmt="markdown"),
+            }
+        return digest
+    except PipelineRunHandoffDigestNotFound as e:
+        return ResourceNotFoundError(
+            "Pipeline run ID not found",
+            resource_type="pipeline_run",
+            resource_id=e.run_id,
+        ).to_dict()
+    except MCPToolError as e:
+        return e.to_dict()
+    except Exception as e:
+        return ExternalServiceError(
+            "Failed to generate pipeline run handoff digest",
+            service="pipeline_run_handoff_digest",
+            details={"reason": str(e)},
+        ).to_dict()
+
+
 def compare_pipeline_runs(
     baseline_run_id: str,
     candidate_run_id: str,
@@ -4148,6 +4199,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(set_schedule)
     mcp.tool(dry_run_pipeline)
     mcp.tool(get_pipeline_replay_plan)
+    mcp.tool(get_pipeline_run_handoff_digest)
     mcp.tool(compare_pipeline_runs)
 
     # Register resources
