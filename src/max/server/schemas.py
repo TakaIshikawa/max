@@ -2869,9 +2869,15 @@ class DesignBriefGtmChannelPlanResponse(BaseModel):
     source: dict[str, Any]
     design_brief: dict[str, Any]
     summary: dict[str, Any]
+    channels: dict[str, Any] = Field(default_factory=dict)
     channel_recommendations: list[dict[str, Any]]
+    sequencing: list[dict[str, Any]] = Field(default_factory=list)
     launch_sequence: list[dict[str, Any]]
     measurement_plan: list[dict[str, Any]]
+    risks: list[dict[str, Any]] = Field(default_factory=list)
+    missing_inputs: list[dict[str, Any]] = Field(default_factory=list)
+    market_signals: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[dict[str, Any]] = Field(default_factory=list)
     source_ideas: list[dict[str, Any]]
 
 
