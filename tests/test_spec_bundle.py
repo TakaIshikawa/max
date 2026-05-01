@@ -36,6 +36,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "acceptance_criteria",
         "experiment_card",
         "data_classification",
+        "privacy_impact_assessment",
         "dependency_inventory",
         "risk_register",
         "threat_model",
@@ -44,14 +45,31 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "evidence_chain_summary",
     }
     assert bundle["artifacts"]["spec_preview"]["schema_version"] == "tact-spec-preview/v1"
-    assert bundle["artifacts"]["implementation_plan"]["schema_version"] == "max-implementation-plan/v1"
+    assert (
+        bundle["artifacts"]["implementation_plan"]["schema_version"] == "max-implementation-plan/v1"
+    )
     assert bundle["artifacts"]["launch_checklist"]["schema_version"] == "max-launch-checklist/v1"
     assert bundle["artifacts"]["rollback_plan"]["schema_version"] == "max-rollback-plan/v1"
-    assert bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
+    assert (
+        bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
+    )
     assert bundle["artifacts"]["experiment_card"]["schema_version"] == "max-experiment-card/v1"
-    assert bundle["artifacts"]["data_classification"]["schema_version"] == "max-data-classification/v1"
+    assert (
+        bundle["artifacts"]["data_classification"]["schema_version"] == "max-data-classification/v1"
+    )
     assert bundle["artifacts"]["data_classification"]["kind"] == "max.spec.data_classification"
-    assert bundle["artifacts"]["dependency_inventory"]["schema_version"] == "max-dependency-inventory/v1"
+    assert (
+        bundle["artifacts"]["privacy_impact_assessment"]["schema_version"]
+        == "max-privacy-impact-assessment/v1"
+    )
+    assert (
+        bundle["artifacts"]["privacy_impact_assessment"]["kind"]
+        == "max.spec.privacy_impact_assessment"
+    )
+    assert (
+        bundle["artifacts"]["dependency_inventory"]["schema_version"]
+        == "max-dependency-inventory/v1"
+    )
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
     assert bundle["artifacts"]["threat_model"]["schema_version"] == "max-threat-model/v1"
     assert bundle["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
@@ -77,6 +95,11 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert "evaluation_recommendation" in bundle["artifacts"]["readiness"]["failed_check_ids"]
     assert bundle["artifacts"]["experiment_card"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["data_classification"]["summary"]["category_count"] >= 1
+    assert bundle["artifacts"]["privacy_impact_assessment"]["summary"]["privacy_gate"] in {
+        "field_inventory_required",
+        "owner_review_required",
+        "privacy_review_required",
+    }
     assert bundle["artifacts"]["dependency_inventory"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["risk_register"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["threat_model"]["scope"]["evaluation_available"] is False
@@ -112,6 +135,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Acceptance Criteria",
         "## Experiment Card",
         "## Data Classification",
+        "## Privacy Impact Assessment",
         "## Dependency Inventory",
         "## Risk Register",
         "## Threat Model",
@@ -124,6 +148,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "bu-test001" in markdown
     assert "MCP server maintainer" in markdown
     assert "Sensitivity:" in markdown
+    assert "Privacy gate:" in markdown
     assert "trigger_domain_risk_1" in markdown
     assert "Credential leakage enables service impersonation" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown
