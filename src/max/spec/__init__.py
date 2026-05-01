@@ -52,6 +52,10 @@ from max.spec.operational_runbook import (
     generate_operational_runbook,
     render_operational_runbook_markdown,
 )
+from max.spec.post_launch_monitoring_plan import (
+    generate_post_launch_monitoring_plan,
+    render_post_launch_monitoring_plan_markdown,
+)
 from max.spec.privacy_impact_assessment import (
     generate_privacy_impact_assessment,
     render_privacy_impact_assessment_markdown,
@@ -87,6 +91,7 @@ __all__ = [
     "generate_launch_checklist",
     "generate_observability_plan",
     "generate_operational_runbook",
+    "generate_post_launch_monitoring_plan",
     "generate_privacy_impact_assessment",
     "generate_rollback_plan",
     "generate_spec_bundle",
@@ -113,6 +118,7 @@ __all__ = [
     "render_incident_response_plan_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
+    "render_post_launch_monitoring_plan_markdown",
     "render_privacy_impact_assessment_markdown",
     "render_spec_bundle_yaml",
     "generate_spec_preview",
