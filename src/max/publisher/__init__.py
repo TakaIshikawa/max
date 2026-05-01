@@ -122,6 +122,13 @@ from max.publisher.jira_issues import (
     JiraIssuePublishResult,
     JiraIssuesPublisher,
 )
+from max.publisher.shortcut_stories import (
+    ShortcutStoryPayload,
+    ShortcutStoryPublisher,
+    ShortcutStoryPublishError,
+    ShortcutStoryPublishResult,
+    ShortcutStoriesPublisher,
+)
 from max.publisher.notion_pages import (
     NotionPagePayload,
     NotionPagePublisher,
@@ -249,6 +256,11 @@ __all__ = [
     "JiraIssuePublishError",
     "JiraIssuePublishResult",
     "JiraIssuesPublisher",
+    "ShortcutStoryPayload",
+    "ShortcutStoryPublisher",
+    "ShortcutStoryPublishError",
+    "ShortcutStoryPublishResult",
+    "ShortcutStoriesPublisher",
     "NotionPagePayload",
     "NotionPagePublisher",
     "NotionPagePublishError",
