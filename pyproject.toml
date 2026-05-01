@@ -58,6 +58,7 @@ agent_failure_dataset = "max.sources.agent_failure_dataset:AgentFailureDatasetAd
 github_discussions = "max.sources.github_discussions:GitHubDiscussionsAdapter"
 gitlab_issues = "max.sources.gitlab_issues:GitLabIssuesAdapter"
 gitlab_merge_requests = "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter"
+gitlab_epics = "max.sources.gitlab_epics:GitLabEpicsAdapter"
 gitlab_releases = "max.sources.gitlab_releases:GitLabReleasesAdapter"
 bitbucket_pull_requests = "max.sources.bitbucket_pull_requests:BitbucketPullRequestsAdapter"
 security_advisories = "max.sources.security_advisories:SecurityAdvisoriesAdapter"

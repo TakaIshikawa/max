@@ -297,6 +297,7 @@ properties:
             - ai_code_trust_reports
             - apis_guru
             - arxiv
+            - artifact_hub
             - awesome_lists
             - bitbucket_pull_requests
             - bluesky
@@ -304,26 +305,36 @@ properties:
             - clinical_trials
             - cncf_landscape
             - chrome_web_store
+            - crates_download_trends
             - crates_io
             - devto
             - discourse
             - dockerhub
+            - dockerhub_tag_velocity
+            - epss_scores
             - federal_register_healthcare
+            - figma_community
             - funding_rounds
             - github
             - github_actions
             - github_discussions
             - github_funding
             - github_issues
+            - github_marketplace_actions
             - github_octoverse
             - github_pull_requests
             - github_releases
+            - github_trending
+            - gitlab_epics
             - gitlab_issues
             - gitlab_merge_requests
             - gitlab_releases
             - glama_mcp_stats
             - go_packages
             - hackernews
+            - hackernews_showhn
+            - hackernews_whoishiring
+            - hexpm
             - homebrew_formulae
             - huggingface
             - ietf_datatracker
@@ -335,27 +346,38 @@ properties:
             - mcp_protocol_roadmap
             - mcp_registry
             - metr_productivity_reports
+            - npm_dependents
+            - npm_download_trends
             - npm_registry
             - nuget
             - nvd_cve
+            - openapi_specs
             - open_vsx
             - openalex
             - openssf_scorecard
+            - openssf_security_insights
             - osv_vulnerabilities
             - packagist
+            - packagist_download_trends
             - product_hunt
             - pubmed
+            - pubdev
             - pypi_download_trends
             - pypi_registry
+            - pypi_releases
+            - python_peps
             - reddit
             - rss_feed
             - rubygems
+            - rubygems_download_trends
+            - rustsec_advisories
             - security_advisories
             - snyk_reports
             - stackshare
             - stackexchange
             - stackoverflow
             - stackoverflow_survey
+            - swift_package_index
             - terraform_registry
             - vscode_marketplace
 
