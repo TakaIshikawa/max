@@ -158,5 +158,6 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "Privacy gate:" in markdown
     assert "trigger_domain_risk_1" in markdown
     assert "Credential leakage enables service impersonation" in markdown
+    assert "Schema version: max-slo-plan/v1" in markdown
     assert "Launch tier: production_candidate" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown

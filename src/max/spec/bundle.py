@@ -346,6 +346,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
         _section(
             "SLO Plan",
             [
+                f"Schema version: {slo_plan['schema_version']}",
                 f"Launch tier: {slo_plan['summary']['launch_tier']}",
                 "Objectives:",
                 *_bullets(
