@@ -177,6 +177,11 @@ from max.analysis.design_brief_roi_forecast import (
     render_design_brief_roi_forecast,
     roi_forecast_filename,
 )
+from max.analysis.design_brief_unit_economics import (
+    build_design_brief_unit_economics,
+    render_design_brief_unit_economics,
+    unit_economics_filename,
+)
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
@@ -428,6 +433,7 @@ from max.server.schemas import (
     DesignBriefSalesBattlecardResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
+    DesignBriefUnitEconomicsResponse,
     DesignBriefStakeholderMapResponse,
     DesignBriefSupportPlaybookResponse,
     DesignBriefSuccessMetricsResponse,
@@ -9708,6 +9714,45 @@ def _design_brief_roi_forecast_markdown_response(report: dict[str, Any]) -> Resp
     filename = roi_forecast_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_roi_forecast(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/unit-economics",
+    response_model=DesignBriefUnitEconomicsResponse,
+)
+def get_design_brief_unit_economics(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefUnitEconomicsResponse | Response:
+    report = build_design_brief_unit_economics(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_unit_economics_markdown_response(report)
+    return DesignBriefUnitEconomicsResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/unit-economics.md", response_model=None)
+def get_design_brief_unit_economics_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_unit_economics(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_unit_economics_markdown_response(report)
+
+
+def _design_brief_unit_economics_markdown_response(report: dict[str, Any]) -> Response:
+    filename = unit_economics_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_unit_economics(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

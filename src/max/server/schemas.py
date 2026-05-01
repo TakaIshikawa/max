@@ -3566,6 +3566,21 @@ class DesignBriefPricingStrategyResponse(BaseModel):
     source_ideas: list[dict]
 
 
+class DesignBriefUnitEconomicsResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    assumptions: list[dict[str, Any]]
+    cost_drivers: list[dict[str, Any]]
+    payback_bands: dict[str, Any]
+    risks: list[dict[str, Any]]
+    validation_questions: list[str]
+    confidence: dict[str, Any]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefSupportPlaybookResponse(BaseModel):
     schema_version: str
     kind: str
