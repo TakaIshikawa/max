@@ -14,6 +14,13 @@ from max.publisher.github_issue_comments import (
     GitHubIssueCommentPublishResult,
     GitHubIssueCommentsPublisher,
 )
+from max.publisher.github_pull_request_review_comments import (
+    GitHubPullRequestReviewCommentPayload,
+    GitHubPullRequestReviewCommentPublisher,
+    GitHubPullRequestReviewCommentPublishError,
+    GitHubPullRequestReviewCommentPublishResult,
+    GitHubPullRequestReviewCommentsPublisher,
+)
 from max.publisher.airtable_records import (
     AirtableRecordPayload,
     AirtableRecordPublisher,
@@ -283,6 +290,11 @@ __all__ = [
     "GitHubIssueCommentPublishError",
     "GitHubIssueCommentPublishResult",
     "GitHubIssueCommentsPublisher",
+    "GitHubPullRequestReviewCommentPayload",
+    "GitHubPullRequestReviewCommentPublisher",
+    "GitHubPullRequestReviewCommentPublishError",
+    "GitHubPullRequestReviewCommentPublishResult",
+    "GitHubPullRequestReviewCommentsPublisher",
     "AirtableRecordPayload",
     "AirtableRecordPublisher",
     "AirtableRecordPublishError",
