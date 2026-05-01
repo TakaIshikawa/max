@@ -35,6 +35,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "rollback_plan",
         "acceptance_criteria",
         "experiment_card",
+        "data_classification",
         "dependency_inventory",
         "risk_register",
         "review_gate",
@@ -47,6 +48,8 @@ def test_generate_spec_bundle_includes_all_artifacts(
     assert bundle["artifacts"]["rollback_plan"]["schema_version"] == "max-rollback-plan/v1"
     assert bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
     assert bundle["artifacts"]["experiment_card"]["schema_version"] == "max-experiment-card/v1"
+    assert bundle["artifacts"]["data_classification"]["schema_version"] == "max-data-classification/v1"
+    assert bundle["artifacts"]["data_classification"]["kind"] == "max.spec.data_classification"
     assert bundle["artifacts"]["dependency_inventory"]["schema_version"] == "max-dependency-inventory/v1"
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
     assert bundle["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
@@ -71,6 +74,7 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert bundle["artifacts"]["readiness"]["passed"] is False
     assert "evaluation_recommendation" in bundle["artifacts"]["readiness"]["failed_check_ids"]
     assert bundle["artifacts"]["experiment_card"]["source"]["evaluation_available"] is False
+    assert bundle["artifacts"]["data_classification"]["summary"]["category_count"] >= 1
     assert bundle["artifacts"]["dependency_inventory"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["risk_register"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["rollback_plan"]["source"]["evaluation_available"] is False
@@ -104,6 +108,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Rollback Plan",
         "## Acceptance Criteria",
         "## Experiment Card",
+        "## Data Classification",
         "## Dependency Inventory",
         "## Risk Register",
         "## Review Gate",
@@ -114,5 +119,6 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         assert heading in markdown
     assert "bu-test001" in markdown
     assert "MCP server maintainer" in markdown
+    assert "Sensitivity:" in markdown
     assert "trigger_domain_risk_1" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown

@@ -11,6 +11,7 @@ from max.analysis.evidence_density import build_evidence_density_report
 from max.analysis.review_gate import build_review_gate_decision
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.spec.acceptance_criteria import generate_acceptance_criteria
+from max.spec.data_classification import generate_data_classification
 from max.spec.dependency_inventory import generate_dependency_inventory
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
@@ -48,6 +49,7 @@ def generate_spec_bundle(
     rollback_plan = generate_rollback_plan(unit, evaluation, spec_preview)
     acceptance_criteria = generate_acceptance_criteria(unit, evaluation, evidence_density)
     experiment_card = generate_experiment_card(unit, evaluation)
+    data_classification = generate_data_classification(spec_preview)
     dependency_inventory = generate_dependency_inventory(unit, evaluation, spec_preview)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
     review_gate = _review_gate(unit.id, store, warnings)
@@ -70,6 +72,7 @@ def generate_spec_bundle(
             "rollback_plan": rollback_plan,
             "acceptance_criteria": acceptance_criteria,
             "experiment_card": experiment_card,
+            "data_classification": data_classification,
             "dependency_inventory": dependency_inventory,
             "risk_register": risk_register,
             "review_gate": review_gate,
@@ -92,6 +95,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     rollback_plan = artifacts["rollback_plan"]
     criteria = artifacts["acceptance_criteria"]
     experiment = artifacts["experiment_card"]
+    data_classification = artifacts["data_classification"]
     dependency_inventory = artifacts["dependency_inventory"]
     risk_register = artifacts["risk_register"]
     review_gate = artifacts["review_gate"]
@@ -198,6 +202,33 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
                 f"Target participant: {_text(experiment['target_participant'].get('persona'))}",
                 "Riskiest assumptions:",
                 *_bullets([item["assumption"] for item in experiment["riskiest_assumptions"]]),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
+            "Data Classification",
+            [
+                f"Sensitivity: {data_classification['summary']['sensitivity_level']}",
+                f"Categories: {data_classification['summary']['category_count']}",
+                "Data categories:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['sensitivity']}]: {item['label']}"
+                        for item in data_classification["data_categories"][:10]
+                    ],
+                    empty="None.",
+                ),
+                "Risk notes:",
+                *_bullets(data_classification["risk_notes"][:5], empty="None."),
+                "Safeguards:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['requirement']}"
+                        for item in data_classification["implementation_safeguards"][:6]
+                    ],
+                    empty="None.",
+                ),
             ],
         )
     )
