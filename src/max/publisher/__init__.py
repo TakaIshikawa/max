@@ -143,6 +143,13 @@ from max.publisher.confluence_pages import (
     ConfluencePagePublishResult,
     ConfluencePagesPublisher,
 )
+from max.publisher.freshdesk_tickets import (
+    FreshdeskTicketPayload,
+    FreshdeskTicketPublisher,
+    FreshdeskTicketPublishError,
+    FreshdeskTicketPublishResult,
+    FreshdeskTicketsPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -271,6 +278,11 @@ __all__ = [
     "ConfluencePagePublishError",
     "ConfluencePagePublishResult",
     "ConfluencePagesPublisher",
+    "FreshdeskTicketPayload",
+    "FreshdeskTicketPublisher",
+    "FreshdeskTicketPublishError",
+    "FreshdeskTicketPublishResult",
+    "FreshdeskTicketsPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",
