@@ -56,12 +56,19 @@ from max.analysis.design_brief_privacy_impact_assessment import (
     build_design_brief_privacy_impact_assessment,
     render_design_brief_privacy_impact_assessment,
 )
+from max.analysis.design_brief_accessibility_review import (
+    accessibility_review_filename,
+    build_design_brief_accessibility_review,
+    render_design_brief_accessibility_review,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
 )
 
 __all__ = [
+    "accessibility_review_filename",
+    "build_design_brief_accessibility_review",
     "build_design_brief_procurement_checklist",
     "build_design_brief_dependency_risk_map",
     "build_design_brief_qa_test_plan",
@@ -96,4 +103,5 @@ __all__ = [
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
+    "render_design_brief_accessibility_review",
 ]

@@ -1,0 +1,755 @@
+"""Deterministic accessibility review artifacts for persisted design briefs."""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from max.store.db import Store
+
+KIND = "max.design_brief.accessibility_review"
+SCHEMA_VERSION = "max.design_brief.accessibility_review.v1"
+
+_USER_GROUP_CONFIGS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "visual",
+        "name": "Blind, low-vision, and color-sensitive users",
+        "access_needs": [
+            "Screen reader compatible structure, labels, and live updates.",
+            "Sufficient contrast and non-color-only status communication.",
+            "Keyboard reachable controls with visible focus indicators.",
+        ],
+        "keywords": ("dashboard", "visual", "chart", "color", "status", "summary", "report", "review"),
+        "owner": "Design owner",
+    },
+    {
+        "id": "motor",
+        "name": "Keyboard-only and limited-dexterity users",
+        "access_needs": [
+            "Full task completion without pointer-only interactions.",
+            "Predictable focus order, target size, and cancellation paths.",
+            "Low-error controls for repetitive or high-volume workflows.",
+        ],
+        "keywords": ("workflow", "triage", "approval", "handoff", "form", "queue", "bulk"),
+        "owner": "Engineering owner",
+    },
+    {
+        "id": "cognitive",
+        "name": "Neurodivergent and cognitive-load-sensitive users",
+        "access_needs": [
+            "Plain-language instructions, consistent navigation, and recoverable mistakes.",
+            "Progressive disclosure for dense decisions, risk reviews, and generated recommendations.",
+            "Clear success, error, and next-step states.",
+        ],
+        "keywords": ("complex", "review", "decision", "risk", "compliance", "recommendation", "agent"),
+        "owner": "Product owner",
+    },
+    {
+        "id": "hearing",
+        "name": "Deaf and hard-of-hearing users",
+        "access_needs": [
+            "Captions, transcripts, and text alternatives for audio or video content.",
+            "No audio-only alerts for time-sensitive or status-changing events.",
+        ],
+        "keywords": ("audio", "video", "call", "recording", "meeting", "voice", "webinar"),
+        "owner": "Product owner",
+    },
+)
+
+_WCAG_CHECK_CONFIGS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "WCAG1",
+        "principle": "perceivable",
+        "wcag_refs": ["1.1.1", "1.3.1", "1.4.1", "1.4.3"],
+        "check": "Provide text alternatives, semantic structure, and sufficient contrast for core workflow content.",
+        "owner": "Design owner",
+    },
+    {
+        "id": "WCAG2",
+        "principle": "operable",
+        "wcag_refs": ["2.1.1", "2.4.3", "2.4.7", "2.5.8"],
+        "check": "Verify keyboard access, focus order, visible focus, and target sizing for the primary journey.",
+        "owner": "Engineering owner",
+    },
+    {
+        "id": "WCAG3",
+        "principle": "understandable",
+        "wcag_refs": ["3.2.3", "3.3.1", "3.3.2", "3.3.3"],
+        "check": "Make navigation, input expectations, errors, and recovery steps consistent and explicit.",
+        "owner": "Product owner",
+    },
+    {
+        "id": "WCAG4",
+        "principle": "robust",
+        "wcag_refs": ["4.1.2", "4.1.3"],
+        "check": "Expose component names, roles, states, and status messages to assistive technology.",
+        "owner": "Engineering owner",
+    },
+)
+
+
+def build_design_brief_accessibility_review(store: Store, brief_id: str) -> dict[str, Any] | None:
+    """Build an accessibility review report from a persisted design brief."""
+    design_brief = store.get_design_brief(brief_id)
+    if not design_brief:
+        return None
+
+    source_ideas = _source_ideas(store, design_brief)
+    source_idea_ids = [idea["id"] for idea in source_ideas if not idea.get("missing")]
+    if not source_idea_ids:
+        source_idea_ids = _string_list(design_brief.get("source_idea_ids"))
+
+    context = _accessibility_context(design_brief, source_ideas)
+    evidence = _evidence_references(design_brief, source_ideas, source_idea_ids)
+    user_groups = _affected_user_groups(context, source_idea_ids)
+    risks = _accessibility_risks(context, user_groups, source_idea_ids)
+    checks = _wcag_checks(context, risks, source_idea_ids)
+    opportunities = _inclusive_design_opportunities(context, user_groups, source_idea_ids)
+    validation_tasks = _validation_tasks(context, risks, checks, source_idea_ids)
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "source": {
+            "project": "max",
+            "entity_type": "design_brief",
+            "id": design_brief["id"],
+            "generated_at": design_brief.get("updated_at") or design_brief.get("created_at"),
+        },
+        "design_brief": {
+            "id": design_brief["id"],
+            "title": context["title"],
+            "domain": design_brief.get("domain", ""),
+            "theme": design_brief.get("theme", ""),
+            "readiness_score": float(design_brief.get("readiness_score") or 0.0),
+            "design_status": design_brief.get("design_status", ""),
+            "lead_idea_id": design_brief.get("lead_idea_id", ""),
+            "source_idea_ids": source_idea_ids,
+            "summary": context["summary"],
+            "primary_user": context["primary_user"],
+            "buyer": context["buyer"],
+            "workflow_context": context["workflow_context"],
+        },
+        "summary": {
+            "review_gate": _review_gate(context, risks),
+            "affected_user_group_count": len(user_groups),
+            "risk_count": len(risks),
+            "high_risk_count": sum(1 for risk in risks if risk["severity"] == "high"),
+            "wcag_check_count": len(checks),
+            "opportunity_count": len(opportunities),
+            "validation_task_count": len(validation_tasks),
+            "fallbacks_used": context["fallbacks_used"],
+        },
+        "accessibility_context": context,
+        "affected_user_groups": user_groups,
+        "accessibility_risks": risks,
+        "wcag_oriented_checks": checks,
+        "inclusive_design_opportunities": opportunities,
+        "validation_tasks": validation_tasks,
+        "owners": _owners(),
+        "evidence_references": evidence,
+        "source_metadata": {
+            "source_idea_count": len(source_idea_ids),
+            "evidence_reference_count": len(evidence),
+            "missing_source_idea_ids": [idea["id"] for idea in source_ideas if idea.get("missing")],
+        },
+        "source_ideas": source_ideas,
+    }
+
+
+def render_design_brief_accessibility_review(report: dict[str, Any], fmt: str = "json") -> str:
+    """Render an accessibility review as deterministic JSON or Markdown."""
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported accessibility review format: {fmt}")
+
+    brief = report["design_brief"]
+    summary = report["summary"]
+    lines = [
+        f"# Accessibility Review: {brief['title']}",
+        "",
+        f"Schema: `{report['schema_version']}`",
+        f"Kind: `{report['kind']}`",
+        f"Design brief: `{brief['id']}`",
+        f"Status: {brief.get('design_status') or 'unknown'}",
+        f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
+        f"Review gate: {summary['review_gate']}",
+        f"Source ideas: {_inline_list(brief.get('source_idea_ids') or [])}",
+        "",
+        "## Design Brief Summary",
+        "",
+        f"- Summary: {brief['summary']}",
+        f"- Primary user: {brief['primary_user']}",
+        f"- Buyer: {brief['buyer']}",
+        f"- Workflow: {brief['workflow_context']}",
+        f"- Fallbacks used: {_inline_list(summary['fallbacks_used'])}",
+        "",
+        "## Affected User Groups",
+        "",
+    ]
+
+    for group in report["affected_user_groups"]:
+        lines.extend(
+            [
+                f"### {group['id']}: {group['name']}",
+                "",
+                f"- Owner: {group['owner']}",
+                f"- Relevance: {group['relevance']}",
+                f"- Source ideas: {_inline_list(group['source_idea_ids'])}",
+                "- Access needs:",
+            ]
+        )
+        for need in group["access_needs"]:
+            lines.append(f"  - {need}")
+        lines.append("")
+
+    lines.extend(["## Accessibility Risks", ""])
+    for risk in report["accessibility_risks"]:
+        lines.extend(
+            [
+                f"### {risk['id']}: {risk['title']}",
+                "",
+                f"- Severity: {risk['severity']}",
+                f"- Owner: {risk['owner']}",
+                f"- Affected user groups: {_inline_list(risk['affected_user_group_ids'])}",
+                f"- WCAG refs: {_inline_list(risk['wcag_refs'])}",
+                f"- Evidence/source ideas: {_inline_list(risk['source_idea_ids'])}",
+                "",
+                risk["description"],
+                "",
+            ]
+        )
+
+    lines.extend(["## WCAG-Oriented Checks", ""])
+    for check in report["wcag_oriented_checks"]:
+        lines.extend(
+            [
+                f"- **{check['id']} {check['principle']}** ({check['owner']}): {check['check']}",
+                f"  WCAG refs: {_inline_list(check['wcag_refs'])}",
+                f"  Validation method: {check['validation_method']}",
+                f"  Related risks: {_inline_list(check['risk_ids'])}",
+            ]
+        )
+
+    lines.extend(["", "## Inclusive Design Opportunities", ""])
+    for opportunity in report["inclusive_design_opportunities"]:
+        lines.extend(
+            [
+                f"- **{opportunity['id']} {opportunity['title']}** ({opportunity['owner']}): {opportunity['opportunity']}",
+                f"  Expected benefit: {opportunity['expected_benefit']}",
+            ]
+        )
+
+    lines.extend(["", "## Validation Tasks", ""])
+    for task in report["validation_tasks"]:
+        lines.extend(
+            [
+                f"- **{task['id']} {task['task']}** ({task['owner']}, {task['priority']}): {task['method']}",
+                f"  Acceptance criteria: {task['acceptance_criteria']}",
+                f"  Evidence/source ideas: {_inline_list(task['source_idea_ids'])}",
+            ]
+        )
+
+    lines.extend(["", "## Owners", ""])
+    for owner in report["owners"]:
+        lines.append(f"- **{owner['role']}**: {owner['responsibility']}")
+
+    lines.extend(["", "## Evidence References", ""])
+    if report["evidence_references"]:
+        for ref in report["evidence_references"]:
+            lines.append(f"- **{ref['id']}** ({ref['type']}): {ref['summary']}")
+    else:
+        lines.append("- None")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def accessibility_review_filename(design_brief: dict[str, Any], *, fmt: str = "json") -> str:
+    """Return a stable filename for an accessibility review export."""
+    extension = "json" if fmt == "json" else "md"
+    return (
+        f"{_filename_part(str(design_brief['id']))}-"
+        f"{_filename_part(str(design_brief['title']))}-accessibility-review.{extension}"
+    )
+
+
+def _accessibility_context(design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
+    fallbacks: list[str] = []
+    lead_idea = next((idea for idea in source_ideas if idea.get("role") == "lead"), None)
+    title = _first_text(design_brief.get("title"), "Untitled design brief")
+    primary_user = _first_with_label(
+        fallbacks,
+        "specific_user",
+        (design_brief.get("specific_user"), "design_brief.specific_user"),
+        (lead_idea and lead_idea.get("specific_user"), "lead_idea.specific_user"),
+        (_field_values(source_ideas, "specific_user"), "source_ideas.specific_user"),
+        ("target users", "explicit_fallback"),
+    )
+    buyer = _first_with_label(
+        fallbacks,
+        "buyer",
+        (design_brief.get("buyer"), "design_brief.buyer"),
+        (lead_idea and lead_idea.get("buyer"), "lead_idea.buyer"),
+        (_field_values(source_ideas, "buyer"), "source_ideas.buyer"),
+        ("product owner", "explicit_fallback"),
+    )
+    workflow = _first_with_label(
+        fallbacks,
+        "workflow_context",
+        (design_brief.get("workflow_context"), "design_brief.workflow_context"),
+        (lead_idea and lead_idea.get("workflow_context"), "lead_idea.workflow_context"),
+        (_field_values(source_ideas, "workflow_context"), "source_ideas.workflow_context"),
+        (f"{title} workflow", "explicit_fallback"),
+    )
+    product_concept = _first_text(
+        design_brief.get("merged_product_concept"),
+        lead_idea and lead_idea.get("solution"),
+        f"{title} product concept",
+    )
+    validation_plan = _first_with_label(
+        fallbacks,
+        "validation_plan",
+        (design_brief.get("validation_plan"), "design_brief.validation_plan"),
+        (lead_idea and lead_idea.get("validation_plan"), "lead_idea.validation_plan"),
+        (_field_values(source_ideas, "validation_plan"), "source_ideas.validation_plan"),
+        ("Run accessibility review with representative assistive technology users before implementation handoff.", "explicit_fallback"),
+    )
+    scope = _string_list(design_brief.get("mvp_scope"))
+    if not scope:
+        scope = [f"first usable {title} workflow"]
+        fallbacks.append("mvp_scope")
+    risks = _dedupe_strings([*_string_list(design_brief.get("risks")), *_field_values(source_ideas, "domain_risks")])
+    if not risks:
+        risks = ["Accessibility risks are under-specified; use conservative WCAG checks before implementation."]
+        fallbacks.append("risks")
+    source_text = " ".join(
+        _string_list(
+            [
+                design_brief.get("title"),
+                design_brief.get("domain"),
+                design_brief.get("theme"),
+                design_brief.get("why_this_now"),
+                design_brief.get("merged_product_concept"),
+                design_brief.get("mvp_scope"),
+                design_brief.get("first_milestones"),
+                design_brief.get("validation_plan"),
+                design_brief.get("risks"),
+                _field_values(source_ideas, "problem"),
+                _field_values(source_ideas, "solution"),
+                _field_values(source_ideas, "workflow_context"),
+                _field_values(source_ideas, "domain_risks"),
+            ]
+        )
+    ).lower()
+    return {
+        "title": title,
+        "summary": _first_text(design_brief.get("merged_product_concept"), lead_idea and lead_idea.get("one_liner"), title),
+        "primary_user": primary_user,
+        "buyer": buyer,
+        "workflow_context": workflow,
+        "product_concept": product_concept,
+        "validation_plan": validation_plan,
+        "primary_scope": scope[0],
+        "scope": scope[:5],
+        "risks": risks[:6],
+        "source_text": source_text,
+        "fallbacks_used": _dedupe_strings(fallbacks),
+    }
+
+
+def _affected_user_groups(context: dict[str, Any], source_idea_ids: list[str]) -> list[dict[str, Any]]:
+    groups = []
+    for config in _USER_GROUP_CONFIGS:
+        relevant = any(keyword in context["source_text"] for keyword in config["keywords"])
+        if config["id"] in {"visual", "motor", "cognitive"}:
+            relevant = True
+        if relevant:
+            groups.append(
+                {
+                    "id": config["id"],
+                    "name": config["name"],
+                    "owner": config["owner"],
+                    "access_needs": config["access_needs"],
+                    "relevance": _group_relevance(config["id"], context),
+                    "source_idea_ids": source_idea_ids,
+                }
+            )
+    return groups
+
+
+def _accessibility_risks(
+    context: dict[str, Any],
+    user_groups: list[dict[str, Any]],
+    source_idea_ids: list[str],
+) -> list[dict[str, Any]]:
+    group_ids = [group["id"] for group in user_groups]
+    risks = [
+        {
+            "title": "Primary workflow may not be keyboard operable",
+            "description": f"{context['primary_scope']} must be completable without pointer-only controls or hidden focus states.",
+            "severity": "high",
+            "owner": "Engineering owner",
+            "affected_user_group_ids": [group for group in group_ids if group in {"motor", "visual"}],
+            "wcag_refs": ["2.1.1", "2.4.3", "2.4.7"],
+        },
+        {
+            "title": "Generated or dense content may not be perceivable",
+            "description": f"{context['product_concept']} may rely on visual hierarchy, color, or generated summaries without semantic alternatives.",
+            "severity": "high" if _visual_heavy(context) else "medium",
+            "owner": "Design owner",
+            "affected_user_group_ids": [group for group in group_ids if group in {"visual", "cognitive"}],
+            "wcag_refs": ["1.1.1", "1.3.1", "1.4.1", "1.4.3"],
+        },
+        {
+            "title": "Errors and recommendations may be hard to understand or recover from",
+            "description": f"{context['primary_user']} needs clear explanations, validation states, and reversal paths in {context['workflow_context']}.",
+            "severity": "medium",
+            "owner": "Product owner",
+            "affected_user_group_ids": [group for group in group_ids if group in {"cognitive", "motor"}],
+            "wcag_refs": ["3.3.1", "3.3.2", "3.3.3"],
+        },
+    ]
+    if "hearing" in group_ids:
+        risks.append(
+            {
+                "title": "Audio or video evidence may lack text alternatives",
+                "description": "Meeting, call, audio, or video workflows require captions, transcripts, and non-audio alerts.",
+                "severity": "medium",
+                "owner": "Product owner",
+                "affected_user_group_ids": ["hearing"],
+                "wcag_refs": ["1.2.2", "1.2.3", "1.4.13"],
+            }
+        )
+    if context["fallbacks_used"]:
+        risks.append(
+            {
+                "title": "Accessibility acceptance criteria are under-specified",
+                "description": "Sparse brief inputs require conservative accessibility validation tasks before autonomous implementation.",
+                "severity": "high",
+                "owner": "Product owner",
+                "affected_user_group_ids": group_ids,
+                "wcag_refs": ["2.1.1", "3.3.2", "4.1.2"],
+            }
+        )
+    for text in context["risks"]:
+        if _accessibility_relevant(text):
+            risks.append(
+                {
+                    "title": _risk_title(text),
+                    "description": text,
+                    "severity": "high",
+                    "owner": "Design owner",
+                    "affected_user_group_ids": group_ids,
+                    "wcag_refs": ["1.3.1", "2.1.1", "3.3.2"],
+                }
+            )
+    return [{**risk, "id": f"AR{index}", "source_idea_ids": source_idea_ids} for index, risk in enumerate(risks, 1)]
+
+
+def _wcag_checks(context: dict[str, Any], risks: list[dict[str, Any]], source_idea_ids: list[str]) -> list[dict[str, Any]]:
+    risk_ids = [risk["id"] for risk in risks]
+    return [
+        {
+            **config,
+            "validation_method": _validation_method(config["principle"], context),
+            "risk_ids": risk_ids,
+            "source_idea_ids": source_idea_ids,
+        }
+        for config in _WCAG_CHECK_CONFIGS
+    ]
+
+
+def _inclusive_design_opportunities(
+    context: dict[str, Any],
+    user_groups: list[dict[str, Any]],
+    source_idea_ids: list[str],
+) -> list[dict[str, Any]]:
+    group_ids = [group["id"] for group in user_groups]
+    return [
+        {
+            "id": "IDO1",
+            "title": "Accessible task model",
+            "owner": "Product owner",
+            "opportunity": f"Define the minimal accessible path for {context['primary_user']} to complete {context['primary_scope']}.",
+            "expected_benefit": "Keeps accessibility requirements tied to the core value workflow instead of late-stage UI polish.",
+            "affected_user_group_ids": group_ids,
+            "source_idea_ids": source_idea_ids,
+        },
+        {
+            "id": "IDO2",
+            "title": "Multi-modal review evidence",
+            "owner": "Design owner",
+            "opportunity": "Represent status, priority, errors, and generated recommendations with text, structure, and state changes.",
+            "expected_benefit": "Improves comprehension for screen reader users and users scanning complex review workflows.",
+            "affected_user_group_ids": [group for group in group_ids if group in {"visual", "cognitive"}],
+            "source_idea_ids": source_idea_ids,
+        },
+        {
+            "id": "IDO3",
+            "title": "Assistive technology validation loop",
+            "owner": "Research owner",
+            "opportunity": f"Include keyboard and screen reader checks in the validation plan: {context['validation_plan']}",
+            "expected_benefit": "Finds blocking accessibility failures before implementation handoff or pilot launch.",
+            "affected_user_group_ids": group_ids,
+            "source_idea_ids": source_idea_ids,
+        },
+    ]
+
+
+def _validation_tasks(
+    context: dict[str, Any],
+    risks: list[dict[str, Any]],
+    checks: list[dict[str, Any]],
+    source_idea_ids: list[str],
+) -> list[dict[str, Any]]:
+    has_sparse_inputs = bool(context["fallbacks_used"])
+    return [
+        {
+            "id": "AVT1",
+            "task": "Keyboard-only primary journey",
+            "owner": "Engineering owner",
+            "priority": "high",
+            "method": f"Complete {context['primary_scope']} using keyboard navigation only.",
+            "acceptance_criteria": "No pointer-only controls, focus traps, missing focus indicators, or unreachable workflow steps.",
+            "risk_ids": [risk["id"] for risk in risks if "keyboard" in risk["title"].lower()],
+            "wcag_check_ids": ["WCAG2"],
+            "source_idea_ids": source_idea_ids,
+        },
+        {
+            "id": "AVT2",
+            "task": "Screen reader semantic pass",
+            "owner": "Design owner",
+            "priority": "high",
+            "method": "Review headings, labels, roles, names, status messages, and generated content with assistive technology.",
+            "acceptance_criteria": "A user can identify page purpose, control names, current state, errors, and completion result without visual-only cues.",
+            "risk_ids": [risk["id"] for risk in risks if set(risk["wcag_refs"]) & {"1.3.1", "4.1.2", "4.1.3"}],
+            "wcag_check_ids": ["WCAG1", "WCAG4"],
+            "source_idea_ids": source_idea_ids,
+        },
+        {
+            "id": "AVT3",
+            "task": "Error recovery and cognitive load review",
+            "owner": "Product owner",
+            "priority": "high" if has_sparse_inputs else "medium",
+            "method": "Walk through empty, error, loading, long-content, and recommendation-review states with plain-language criteria.",
+            "acceptance_criteria": "Every error has a clear cause, next step, owner, and recovery route; dense decisions are chunked and reversible.",
+            "risk_ids": [risk["id"] for risk in risks if "understand" in risk["title"].lower() or "under-specified" in risk["title"].lower()],
+            "wcag_check_ids": ["WCAG3"],
+            "source_idea_ids": source_idea_ids,
+        },
+        {
+            "id": "AVT4",
+            "task": "Accessibility acceptance criteria disposition",
+            "owner": "Product owner",
+            "priority": "high" if has_sparse_inputs else "medium",
+            "method": "Record pass, fail, defer, or not-applicable status for each WCAG-oriented check before implementation starts.",
+            "acceptance_criteria": f"All {len(checks)} WCAG-oriented checks have an owner-approved disposition and linked evidence.",
+            "risk_ids": [risk["id"] for risk in risks],
+            "wcag_check_ids": [check["id"] for check in checks],
+            "source_idea_ids": source_idea_ids,
+        },
+    ]
+
+
+def _evidence_references(
+    design_brief: dict[str, Any],
+    source_ideas: list[dict[str, Any]],
+    source_idea_ids: list[str],
+) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for field in ("why_this_now", "synthesis_rationale", "validation_plan"):
+        text = _first_text(design_brief.get(field))
+        if text:
+            refs.append(
+                {
+                    "id": f"design_brief.{field}",
+                    "type": "brief_field",
+                    "summary": text,
+                    "source_idea_ids": source_idea_ids,
+                }
+            )
+    for idea in source_ideas:
+        if idea.get("missing"):
+            continue
+        for signal_id in _string_list(idea.get("evidence_signals")):
+            refs.append(
+                {
+                    "id": signal_id,
+                    "type": "evidence_signal",
+                    "summary": _first_text(idea.get("one_liner"), idea.get("problem"), idea["id"]),
+                    "source_idea_ids": [idea["id"]],
+                }
+            )
+        for insight_id in _string_list(idea.get("inspiring_insights")):
+            refs.append(
+                {
+                    "id": insight_id,
+                    "type": "inspiring_insight",
+                    "summary": _first_text(idea.get("value_proposition"), idea.get("solution"), idea["id"]),
+                    "source_idea_ids": [idea["id"]],
+                }
+            )
+    return refs
+
+
+def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+    ideas: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    sources = list(design_brief.get("sources", []))
+    if not sources:
+        lead_id = design_brief.get("lead_idea_id")
+        if lead_id:
+            sources.append({"idea_id": lead_id, "role": "lead", "rank": 0})
+        for rank, idea_id in enumerate(design_brief.get("source_idea_ids", []), start=1):
+            if idea_id != lead_id:
+                sources.append({"idea_id": idea_id, "role": "source", "rank": rank})
+
+    for source in sources:
+        idea_id = str(source["idea_id"])
+        if idea_id in seen:
+            continue
+        seen.add(idea_id)
+        unit = store.get_buildable_unit(idea_id)
+        if not unit:
+            ideas.append({"id": idea_id, "role": source.get("role", "source"), "rank": source.get("rank", 0), "missing": True})
+            continue
+        data = unit.model_dump(mode="json")
+        data["role"] = source.get("role") or ("lead" if idea_id == design_brief.get("lead_idea_id") else "source")
+        data["rank"] = source.get("rank", 0 if data["role"] == "lead" else None)
+        ideas.append(data)
+    return ideas
+
+
+def _owners() -> list[dict[str, str]]:
+    return [
+        {"role": "Product owner", "responsibility": "Own inclusive task scope, acceptance criteria, and launch gating."},
+        {"role": "Design owner", "responsibility": "Own accessible information architecture, content alternatives, and visual design checks."},
+        {"role": "Engineering owner", "responsibility": "Own semantic implementation, keyboard behavior, focus management, and assistive technology support."},
+        {"role": "Research owner", "responsibility": "Include users with access needs and assistive technology validation in research plans."},
+    ]
+
+
+def _review_gate(context: dict[str, Any], risks: list[dict[str, Any]]) -> str:
+    if context["fallbacks_used"]:
+        return "needs_accessibility_discovery"
+    if any(risk["severity"] == "high" for risk in risks):
+        return "accessibility_review_required"
+    return "conditional_handoff_ok"
+
+
+def _group_relevance(group_id: str, context: dict[str, Any]) -> str:
+    if group_id == "visual":
+        return f"Applies to reading, reviewing, and acting on {context['product_concept']}."
+    if group_id == "motor":
+        return f"Applies to completing {context['primary_scope']} in {context['workflow_context']}."
+    if group_id == "cognitive":
+        return "Applies to understanding generated recommendations, errors, and next-step decisions."
+    return "Applies because source text references audio, video, call, voice, or meeting workflows."
+
+
+def _validation_method(principle: str, context: dict[str, Any]) -> str:
+    if principle == "perceivable":
+        return "Inspect semantic structure, text alternatives, contrast, and non-color status treatment."
+    if principle == "operable":
+        return f"Run keyboard-only completion of {context['primary_scope']} and record focus behavior."
+    if principle == "understandable":
+        return "Review language, errors, instructions, and recovery states with the product owner."
+    return "Inspect accessible names, roles, states, and live status announcements in implementation."
+
+
+def _visual_heavy(context: dict[str, Any]) -> bool:
+    terms = ("dashboard", "chart", "visual", "color", "status", "report", "summary", "analytics")
+    return any(term in context["source_text"] for term in terms)
+
+
+def _accessibility_relevant(text: str) -> bool:
+    normalized = text.lower()
+    terms = (
+        "accessibility",
+        "screen reader",
+        "keyboard",
+        "contrast",
+        "wcag",
+        "focus",
+        "visual",
+        "cognitive",
+        "assistive",
+    )
+    return any(term in normalized for term in terms)
+
+
+def _risk_title(text: str) -> str:
+    compacted = _compact(text).rstrip(".")
+    if len(compacted) <= 72:
+        return compacted
+    return compacted[:69].rstrip() + "..."
+
+
+def _field_values(items: list[dict[str, Any]], field: str) -> list[str]:
+    values: list[str] = []
+    for item in items:
+        if item.get("missing"):
+            continue
+        values.extend(_string_list(item.get(field)))
+    return _dedupe_strings(values)
+
+
+def _first_with_label(
+    fallbacks: list[str], field: str, *candidates: tuple[Any, str]
+) -> str:
+    for value, label in candidates:
+        text = _first_text(value)
+        if text:
+            if label == "explicit_fallback":
+                fallbacks.append(field)
+            return text
+    return ""
+
+
+def _first_text(*values: Any) -> str:
+    for value in values:
+        if isinstance(value, list):
+            text = _first_text(*value)
+        else:
+            text = _compact(value)
+        if text:
+            return text
+    return ""
+
+
+def _string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [_compact(value)] if _compact(value) else []
+    if isinstance(value, dict):
+        return [_compact(f"{key}: {item}") for key, item in sorted(value.items()) if _compact(item)]
+    if isinstance(value, list | tuple | set):
+        values: list[str] = []
+        for item in value:
+            values.extend(_string_list(item))
+        return [_compact(item) for item in values if _compact(item)]
+    return [_compact(value)] if _compact(value) else []
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(_compact(value) for value in values if _compact(value)))
+
+
+def _inline_list(values: list[str]) -> str:
+    return ", ".join(values) if values else "none"
+
+
+def _filename_part(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in value)
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-_")
+
+
+def _compact(value: Any) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split())
