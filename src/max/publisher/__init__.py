@@ -73,6 +73,13 @@ from max.publisher.gitlab_issues import (
     GitLabIssuePublishResult,
     GitLabIssuesPublisher,
 )
+from max.publisher.gitlab_snippets import (
+    GitLabSnippetPayload,
+    GitLabSnippetPublisher,
+    GitLabSnippetPublishError,
+    GitLabSnippetPublishResult,
+    GitLabSnippetsPublisher,
+)
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPayload,
     GitLabMergeRequestCommentPublisher,
@@ -347,6 +354,11 @@ __all__ = [
     "GitLabIssuePublishError",
     "GitLabIssuePublishResult",
     "GitLabIssuesPublisher",
+    "GitLabSnippetPayload",
+    "GitLabSnippetPublisher",
+    "GitLabSnippetPublishError",
+    "GitLabSnippetPublishResult",
+    "GitLabSnippetsPublisher",
     "GitLabMergeRequestCommentPayload",
     "GitLabMergeRequestCommentPublisher",
     "GitLabMergeRequestCommentPublishError",
