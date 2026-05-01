@@ -24,6 +24,11 @@ from max.analysis.design_brief_qa_test_plan import (
     qa_test_plan_filename,
     render_design_brief_qa_test_plan,
 )
+from max.analysis.design_brief_investor_update import (
+    build_design_brief_investor_update,
+    investor_update_filename,
+    render_design_brief_investor_update,
+)
 from max.analysis.design_brief_release_notes import (
     build_design_brief_release_notes,
     release_notes_filename,
@@ -56,6 +61,7 @@ __all__ = [
     "build_design_brief_procurement_checklist",
     "build_design_brief_dependency_risk_map",
     "build_design_brief_qa_test_plan",
+    "build_design_brief_investor_update",
     "build_design_brief_release_notes",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
@@ -68,6 +74,7 @@ __all__ = [
     "generate_design_brief_legal_review_checklist",
     "generate_persona_interview_guide",
     "dependency_risk_map_filename",
+    "investor_update_filename",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
     "qa_test_plan_filename",
@@ -78,6 +85,7 @@ __all__ = [
     "render_design_brief_procurement_checklist",
     "render_design_brief_dependency_risk_map",
     "render_design_brief_qa_test_plan",
+    "render_design_brief_investor_update",
     "render_design_brief_release_notes",
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
