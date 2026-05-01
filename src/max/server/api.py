@@ -98,6 +98,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_evidence_quality_scorecard import (
+    build_design_brief_evidence_quality_scorecard,
+    render_design_brief_evidence_quality_scorecard,
+)
 from max.analysis.design_brief_event_dictionary import (
     build_design_brief_event_dictionary,
     event_dictionary_filename,
@@ -372,6 +376,7 @@ from max.server.schemas import (
     DesignBriefDependencyRiskMapResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
+    DesignBriefEvidenceQualityScorecardResponse,
     DesignBriefEventDictionaryResponse,
     DesignBriefExecutiveMemoResponse,
     DesignBriefExperimentBacklogResponse,
@@ -8619,6 +8624,58 @@ def get_design_brief_evidence_matrix_markdown(
             build_design_brief_evidence_matrix(store, brief),
             fmt="markdown",
         ),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/evidence-quality-scorecard",
+    response_model=DesignBriefEvidenceQualityScorecardResponse,
+)
+def get_design_brief_evidence_quality_scorecard(
+    brief_id: str,
+    fmt: str = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefEvidenceQualityScorecardResponse | Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    if fmt not in {"json", "markdown"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported evidence quality scorecard format: "
+            f"{fmt}. Supported formats: json, markdown",
+        )
+
+    scorecard = build_design_brief_evidence_quality_scorecard(store, brief)
+    if fmt == "markdown":
+        return _design_brief_evidence_quality_scorecard_markdown_response(scorecard)
+    return DesignBriefEvidenceQualityScorecardResponse(**scorecard)
+
+
+@router.get("/design-briefs/{brief_id}/evidence-quality-scorecard.md", response_model=None)
+def get_design_brief_evidence_quality_scorecard_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    scorecard = build_design_brief_evidence_quality_scorecard(store, brief)
+    return _design_brief_evidence_quality_scorecard_markdown_response(scorecard)
+
+
+def _design_brief_evidence_quality_scorecard_markdown_response(
+    scorecard: dict[str, Any],
+) -> Response:
+    filename = (
+        f"{_download_filename_part(scorecard['design_brief']['id'])}-"
+        "evidence-quality-scorecard.md"
+    )
+    return Response(
+        content=render_design_brief_evidence_quality_scorecard(scorecard, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -2506,6 +2506,28 @@ class DesignBriefEvidenceMatrixResponse(BaseModel):
     rows: list[DesignBriefEvidenceMatrixRowResponse]
 
 
+class DesignBriefEvidenceQualityDimensionScoreResponse(BaseModel):
+    id: str
+    label: str
+    score: int
+    weight: float
+    summary: str
+    evidence_refs: list[str]
+
+
+class DesignBriefEvidenceQualityScorecardResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    dimension_scores: list[DesignBriefEvidenceQualityDimensionScoreResponse]
+    blockers: list[str]
+    warnings: list[str]
+    recommended_next_evidence_actions: list[str]
+    evidence_refs: dict[str, list[str]]
+
+
 class DesignBriefRiskItemResponse(BaseModel):
     id: str
     category: Literal[
