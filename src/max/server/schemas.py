@@ -2881,6 +2881,101 @@ class DesignBriefGtmChannelPlanResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefRolloutCommsAudienceResponse(BaseModel):
+    id: str
+    name: str
+    type: Literal["internal", "external"]
+    need: str
+    message_angle: str
+    preferred_channels: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefRolloutCommsPhaseResponse(BaseModel):
+    id: str
+    sequence: int
+    name: str
+    timing: str
+    objective: str
+    owner: str
+    exit_criteria: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefRolloutCommsMatrixRowResponse(BaseModel):
+    id: str
+    phase_id: str
+    phase: str
+    audience_id: str
+    audience: str
+    channel: str
+    message: str
+    call_to_action: str
+    owner: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+
+
+class DesignBriefRolloutCommsEnablementNoteResponse(BaseModel):
+    id: str
+    topic: str
+    owner: str
+    detail: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+
+
+class DesignBriefRolloutCommsAnnouncementResponse(BaseModel):
+    id: str
+    name: str
+    channel: str
+    audience: str
+    headline: str
+    body: str
+    call_to_action: str
+    source_idea_ids: list[str]
+    source_fields: list[str]
+
+
+class DesignBriefRolloutCommsFaqHookResponse(BaseModel):
+    id: str
+    question: str
+    answer_hook: str
+    source: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefRolloutCommsEvidenceReferenceResponse(BaseModel):
+    id: str
+    type: Literal["brief_field", "evidence_signal", "insight"]
+    summary: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefRolloutCommsWarningResponse(BaseModel):
+    id: str
+    severity: Literal["low", "medium", "high"]
+    warning: str
+    recommended_action: str
+
+
+class DesignBriefRolloutCommsPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    target_audiences: list[DesignBriefRolloutCommsAudienceResponse]
+    launch_phases: list[DesignBriefRolloutCommsPhaseResponse]
+    channel_message_matrix: list[DesignBriefRolloutCommsMatrixRowResponse]
+    internal_enablement_notes: list[DesignBriefRolloutCommsEnablementNoteResponse]
+    customer_facing_announcement_drafts: list[DesignBriefRolloutCommsAnnouncementResponse]
+    risk_faq_hooks: list[DesignBriefRolloutCommsFaqHookResponse]
+    evidence_references: list[DesignBriefRolloutCommsEvidenceReferenceResponse]
+    readiness_warnings: list[DesignBriefRolloutCommsWarningResponse]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefAssumptionLedgerBriefResponse(BaseModel):
     id: str
     title: str

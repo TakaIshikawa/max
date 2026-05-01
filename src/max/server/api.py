@@ -112,6 +112,11 @@ from max.analysis.design_brief_pilot_rollout import (
     build_design_brief_pilot_rollout,
     render_design_brief_pilot_rollout,
 )
+from max.analysis.design_brief_rollout_comms_plan import (
+    build_design_brief_rollout_comms_plan,
+    render_design_brief_rollout_comms_plan,
+    rollout_comms_plan_filename,
+)
 from max.analysis.design_brief_prd import build_design_brief_prd, render_design_brief_prd
 from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
@@ -359,6 +364,7 @@ from max.server.schemas import (
     DesignBriefRaciMatrixResponse,
     DesignBriefRetentionPolicyResponse,
     DesignBriefRoadmapResponse,
+    DesignBriefRolloutCommsPlanResponse,
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
     DesignBriefSalesBattlecardResponse,
@@ -8963,6 +8969,43 @@ def get_design_brief_gtm_channel_plan_markdown(
     filename = gtm_channel_plan_filename(plan["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_gtm_channel_plan(plan, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/rollout-comms-plan",
+    response_model=DesignBriefRolloutCommsPlanResponse,
+)
+def get_design_brief_rollout_comms_plan(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefRolloutCommsPlanResponse:
+    if not store.get_design_brief(brief_id):
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    plan = build_design_brief_rollout_comms_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefRolloutCommsPlanResponse(**plan)
+
+
+@router.get("/design-briefs/{brief_id}/rollout-comms-plan.md", response_model=None)
+def get_design_brief_rollout_comms_plan_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    if not store.get_design_brief(brief_id):
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    plan = build_design_brief_rollout_comms_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = rollout_comms_plan_filename(plan["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_rollout_comms_plan(plan, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

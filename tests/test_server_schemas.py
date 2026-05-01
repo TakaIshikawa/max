@@ -47,6 +47,7 @@ from max.server.schemas import (
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
     DesignBriefGtmChannelPlanResponse,
+    DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
@@ -2069,3 +2070,118 @@ class TestDesignBriefGtmChannelPlanResponse:
         missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
         assert "schema_version" in missing_fields
         assert "channel_recommendations" in missing_fields
+
+
+class TestDesignBriefRolloutCommsPlanResponse:
+    def test_preserves_nested_rollout_comms_fields(self):
+        response = DesignBriefRolloutCommsPlanResponse(
+            schema_version="max.design_brief.rollout_comms_plan.v1",
+            kind="max.design_brief.rollout_comms_plan",
+            source={"id": "dbf-rollout"},
+            design_brief={"id": "dbf-rollout", "title": "Rollout Brief"},
+            summary={"rollout_goal": "Coordinate rollout communications."},
+            target_audiences=[
+                {
+                    "id": "pilot_customers",
+                    "name": "Pilot customers",
+                    "type": "external",
+                    "need": "Know what changed.",
+                    "message_angle": "Early value",
+                    "preferred_channels": ["email"],
+                    "source_idea_ids": ["bu-rollout"],
+                }
+            ],
+            launch_phases=[
+                {
+                    "id": "prep",
+                    "sequence": 1,
+                    "name": "Prep and message lock",
+                    "timing": "T-10",
+                    "objective": "Confirm scope.",
+                    "owner": "Product lead",
+                    "exit_criteria": "Messages approved.",
+                    "source_idea_ids": ["bu-rollout"],
+                }
+            ],
+            channel_message_matrix=[
+                {
+                    "id": "RCM1",
+                    "phase_id": "prep",
+                    "phase": "Prep and message lock",
+                    "audience_id": "pilot_customers",
+                    "audience": "Pilot customers",
+                    "channel": "email",
+                    "message": "Try the launch.",
+                    "call_to_action": "Reply with feedback.",
+                    "owner": "Product lead",
+                    "source_idea_ids": ["bu-rollout"],
+                    "source_fields": ["mvp_scope"],
+                }
+            ],
+            internal_enablement_notes=[
+                {
+                    "id": "IEN1",
+                    "topic": "Positioning",
+                    "owner": "Product marketing",
+                    "detail": "Explain the rollout.",
+                    "source_idea_ids": ["bu-rollout"],
+                    "source_fields": ["title"],
+                }
+            ],
+            customer_facing_announcement_drafts=[
+                {
+                    "id": "CFA1",
+                    "name": "Pilot invitation email",
+                    "channel": "email",
+                    "audience": "pilot user",
+                    "headline": "Join the rollout",
+                    "body": "The rollout is ready.",
+                    "call_to_action": "Request access.",
+                    "source_idea_ids": ["bu-rollout"],
+                    "source_fields": ["workflow_context"],
+                }
+            ],
+            risk_faq_hooks=[
+                {
+                    "id": "FAQ1",
+                    "question": "How are we handling support?",
+                    "answer_hook": "Name the owner.",
+                    "source": "design_brief.risks",
+                    "source_idea_ids": ["bu-rollout"],
+                }
+            ],
+            evidence_references=[
+                {
+                    "id": "sig-rollout",
+                    "type": "evidence_signal",
+                    "summary": "Evidence signal linked to source idea.",
+                    "source_idea_ids": ["bu-rollout"],
+                }
+            ],
+            readiness_warnings=[
+                {
+                    "id": "RW1",
+                    "severity": "medium",
+                    "warning": "Keep rollout controlled.",
+                    "recommended_action": "Limit broad announcement.",
+                }
+            ],
+            source_ideas=[{"id": "bu-rollout"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["target_audiences"][0]["preferred_channels"] == ["email"]
+        assert dumped["launch_phases"][0]["sequence"] == 1
+        assert dumped["channel_message_matrix"][0]["call_to_action"] == "Reply with feedback."
+        assert dumped["customer_facing_announcement_drafts"][0]["headline"] == "Join the rollout"
+        assert dumped["evidence_references"][0]["type"] == "evidence_signal"
+        assert dumped["readiness_warnings"][0]["severity"] == "medium"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefRolloutCommsPlanResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "target_audiences" in missing_fields
+        assert "channel_message_matrix" in missing_fields
