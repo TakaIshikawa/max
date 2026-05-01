@@ -235,6 +235,13 @@ from max.publisher.trello_card_comments import (
     TrelloCardCommentPublishResult,
     TrelloCardCommentsPublisher,
 )
+from max.publisher.trello_checklist_items import (
+    TrelloChecklistItemPayload,
+    TrelloChecklistItemPublisher,
+    TrelloChecklistItemPublishError,
+    TrelloChecklistItemPublishResult,
+    TrelloChecklistItemsPublisher,
+)
 from max.publisher.webhook import WebhookPublishError, WebhookPublisher, WebhookPublishResult
 
 __all__ = [
@@ -405,6 +412,11 @@ __all__ = [
     "TrelloCardCommentPublishError",
     "TrelloCardCommentPublishResult",
     "TrelloCardCommentsPublisher",
+    "TrelloChecklistItemPayload",
+    "TrelloChecklistItemPublisher",
+    "TrelloChecklistItemPublishError",
+    "TrelloChecklistItemPublishResult",
+    "TrelloChecklistItemsPublisher",
     "WebhookPublisher",
     "WebhookPublishError",
     "WebhookPublishResult",
