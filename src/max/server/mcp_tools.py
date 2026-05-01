@@ -88,6 +88,10 @@ from max.analysis.design_brief_bundle import (
     build_design_brief_bundle,
     render_design_brief_bundle,
 )
+from max.analysis.design_brief_data_room_index import (
+    build_design_brief_data_room_index,
+    render_design_brief_data_room_index,
+)
 from max.analysis.design_brief_buyer_faq import (
     build_design_brief_buyer_faq,
     render_design_brief_buyer_faq,
@@ -2178,6 +2182,54 @@ def get_design_brief_bundle(brief_id: str, format: str = "json") -> dict:
                 "markdown": rendered,
                 "bundle": bundle,
                 "artifact_status": bundle["artifact_status"],
+            }
+        return {
+            **json.loads(rendered),
+            "id": brief_id,
+            "format": "json",
+            "rendered": rendered,
+        }
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_data_room_index(brief_id: str, format: str = "json") -> dict:
+    """Get the data-room artifact index for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported design brief data room index format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            index = build_design_brief_data_room_index(store, brief_id)
+            if not index:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_data_room_index(index, fmt=fmt)
+        if fmt == "markdown":
+            return {
+                "id": brief_id,
+                "format": "markdown",
+                "markdown": rendered,
+                "data_room_index": index,
+                "sections": index["sections"],
             }
         return {
             **json.loads(rendered),
@@ -4485,6 +4537,11 @@ def design_brief_bundle_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_bundle(brief_id), indent=2)
 
 
+def design_brief_data_room_index_detail(brief_id: str) -> str:
+    """Get the data-room artifact index for a specific design brief."""
+    return json.dumps(get_design_brief_data_room_index(brief_id), indent=2)
+
+
 def validation_experiments_for_idea_detail(idea_id: str) -> str:
     """Browse validation experiments for a specific idea."""
     return json.dumps(list_validation_experiments(idea_id), indent=2)
@@ -4648,6 +4705,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_technical_feasibility)
     mcp.tool(get_design_brief_one_pager)
     mcp.tool(get_design_brief_bundle)
+    mcp.tool(get_design_brief_data_room_index)
     mcp.tool(list_validation_experiments)
     mcp.tool(get_validation_experiment)
     mcp.tool(create_validation_experiment)
@@ -4757,6 +4815,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-one-pagers://{brief_id}")(design_brief_one_pager_detail)
     mcp.resource("design-brief-bundles://{brief_id}")(design_brief_bundle_detail)
+    mcp.resource("design-brief-data-room-indexes://{brief_id}")(
+        design_brief_data_room_index_detail
+    )
     mcp.resource("ideas://{idea_id}/validation-experiments")(validation_experiments_for_idea_detail)
     mcp.resource("validation-experiments://summary")(validation_experiment_summary_detail)
     mcp.resource("validation-experiments://summary/{domain}")(
