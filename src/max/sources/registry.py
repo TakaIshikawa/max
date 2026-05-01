@@ -38,6 +38,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.hackernews_whoishiring:HackerNewsWhoIsHiringAdapter"
     ),
     "hackernews_showhn": "max.sources.hackernews_showhn:HackerNewsShowHNAdapter",
+    "hackernews_askhn": "max.sources.hackernews_askhn:HackerNewsAskHNAdapter",
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "npm_download_trends": (
         "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
@@ -172,6 +173,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["algolia_url", "query"],
         required_keys=[],
         description="Fetches recent Hacker News Show HN launch and prototype posts.",
+    ),
+    "hackernews_askhn": AdapterMetadata(
+        name="hackernews_askhn",
+        config_keys=["algolia_url", "query"],
+        required_keys=[],
+        description="Fetches recent Hacker News Ask HN question and pain-point posts.",
     ),
     "npm_registry": AdapterMetadata(
         name="npm_registry",
