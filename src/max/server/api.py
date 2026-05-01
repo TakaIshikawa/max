@@ -172,6 +172,11 @@ from max.analysis.design_brief_retention_policy import (
     render_design_brief_retention_policy,
     retention_policy_filename,
 )
+from max.analysis.design_brief_roi_forecast import (
+    build_design_brief_roi_forecast,
+    render_design_brief_roi_forecast,
+    roi_forecast_filename,
+)
 from max.analysis.design_brief_risk_register import (
     build_design_brief_risk_register,
     render_design_brief_risk_register,
@@ -9634,6 +9639,45 @@ def get_design_brief_pricing_strategy_markdown(
     filename = pricing_strategy_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_pricing_strategy(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/roi-forecast",
+    response_model=dict[str, Any],
+)
+def get_design_brief_roi_forecast(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    report = build_design_brief_roi_forecast(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_roi_forecast_markdown_response(report)
+    return report
+
+
+@router.get("/design-briefs/{brief_id}/roi-forecast.md", response_model=None)
+def get_design_brief_roi_forecast_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_roi_forecast(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_roi_forecast_markdown_response(report)
+
+
+def _design_brief_roi_forecast_markdown_response(report: dict[str, Any]) -> Response:
+    filename = roi_forecast_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_roi_forecast(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
