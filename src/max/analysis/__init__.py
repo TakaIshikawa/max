@@ -30,6 +30,11 @@ from max.analysis.design_brief_qa_test_plan import (
     qa_test_plan_filename,
     render_design_brief_qa_test_plan,
 )
+from max.analysis.design_brief_work_breakdown import (
+    build_design_brief_work_breakdown,
+    render_design_brief_work_breakdown,
+    work_breakdown_filename,
+)
 from max.analysis.design_brief_investor_update import (
     build_design_brief_investor_update,
     investor_update_filename,
@@ -89,6 +94,7 @@ __all__ = [
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
     "build_design_brief_privacy_impact_assessment",
+    "build_design_brief_work_breakdown",
     "build_portfolio_cannibalization_from_records",
     "build_portfolio_cannibalization_report",
     "build_portfolio_dependency_overlap_from_records",
@@ -118,8 +124,10 @@ __all__ = [
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
+    "render_design_brief_work_breakdown",
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
+    "work_breakdown_filename",
 ]
