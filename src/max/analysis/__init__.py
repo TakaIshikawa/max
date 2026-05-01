@@ -9,6 +9,12 @@ from max.analysis.portfolio_cannibalization import (
     build_portfolio_cannibalization_from_records,
     build_portfolio_cannibalization_report,
 )
+from max.analysis.portfolio_dependency_overlap import (
+    build_portfolio_dependency_overlap_from_records,
+    build_portfolio_dependency_overlap_report,
+    render_portfolio_dependency_overlap,
+    render_portfolio_dependency_overlap_markdown,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -79,6 +85,8 @@ __all__ = [
     "build_design_brief_privacy_impact_assessment",
     "build_portfolio_cannibalization_from_records",
     "build_portfolio_cannibalization_report",
+    "build_portfolio_dependency_overlap_from_records",
+    "build_portfolio_dependency_overlap_report",
     "build_portfolio_theme_saturation_report",
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
@@ -104,4 +112,6 @@ __all__ = [
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_accessibility_review",
+    "render_portfolio_dependency_overlap",
+    "render_portfolio_dependency_overlap_markdown",
 ]
