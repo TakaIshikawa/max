@@ -98,6 +98,11 @@ from max.analysis.design_brief_event_dictionary import (
     event_dictionary_filename,
     render_design_brief_event_dictionary,
 )
+from max.analysis.design_brief_failure_modes import (
+    build_design_brief_failure_modes,
+    failure_modes_filename,
+    render_design_brief_failure_modes,
+)
 from max.analysis.design_brief_experiment_backlog import (
     build_design_brief_experiment_backlog,
     experiment_backlog_filename,
@@ -8629,6 +8634,37 @@ def get_design_brief_risk_register_markdown(
     )
     return Response(
         content=render_design_brief_risk_register(register, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/failure-modes",
+    response_model=dict[str, Any],
+)
+def get_design_brief_failure_modes(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> dict[str, Any]:
+    report = build_design_brief_failure_modes(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return report
+
+
+@router.get("/design-briefs/{brief_id}/failure-modes.md", response_model=None)
+def get_design_brief_failure_modes_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_failure_modes(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = failure_modes_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_failure_modes(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
