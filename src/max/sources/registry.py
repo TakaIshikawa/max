@@ -108,6 +108,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "clinical_trials": "max.sources.clinical_trials:ClinicalTrialsAdapter",
     "rss_feed": "max.sources.rss_feed:RssFeedAdapter",
     "crates_io": "max.sources.crates_io:CratesIoAdapter",
+    "crates_dependents": "max.sources.crates_dependents:CratesDependentsAdapter",
     "crates_download_trends": (
         "max.sources.crates_download_trends:CratesDownloadTrendsAdapter"
     ),
@@ -800,6 +801,21 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "categories"],
         required_keys=[],
         description="Searches Crates.io for Rust packages matching configured queries and categories.",
+    ),
+    "crates_dependents": AdapterMetadata(
+        name="crates_dependents",
+        config_keys=[
+            "crate_names",
+            "crates",
+            "packages",
+            "max_dependents_per_crate",
+            "max_items",
+            "page_size",
+            "crates_api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description="Fetches crates.io reverse-dependency metadata as Rust ecosystem adoption signals.",
     ),
     "crates_download_trends": AdapterMetadata(
         name="crates_download_trends",

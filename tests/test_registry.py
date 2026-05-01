@@ -246,6 +246,7 @@ def test_list_adapters_returns_strings():
     assert "npm_download_trends" in names
     assert "npm_dependents" in names
     assert "crates_download_trends" in names
+    assert "crates_dependents" in names
     assert "hexpm" in names
     assert "rubygems" in names
     assert "rubygems_download_trends" in names
@@ -258,7 +259,7 @@ def test_list_adapters_returns_strings():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,rss_feed,crates_io,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -270,6 +271,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "npm_dependents",
         "rss_feed",
         "crates_io",
+        "crates_dependents",
         "crates_download_trends",
         "hexpm",
         "maven_central",
@@ -318,6 +320,18 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     assert metadata["crates_io"].config_keys == ["queries", "categories"]
     assert metadata["crates_io"].required_keys == []
     assert "Crates.io" in metadata["crates_io"].description
+    assert metadata["crates_dependents"].config_keys == [
+        "crate_names",
+        "crates",
+        "packages",
+        "max_dependents_per_crate",
+        "max_items",
+        "page_size",
+        "crates_api_url",
+        "timeout",
+    ]
+    assert metadata["crates_dependents"].required_keys == []
+    assert "reverse-dependency" in metadata["crates_dependents"].description
     assert metadata["crates_download_trends"].config_keys == [
         "crates",
         "packages",
