@@ -21,6 +21,7 @@ from max.spec.privacy_impact_assessment import generate_privacy_impact_assessmen
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan
 from max.spec.risk_register import generate_risk_register
+from max.spec.slo_plan import generate_slo_plan
 from max.spec.threat_model import generate_threat_model
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
@@ -56,6 +57,7 @@ def generate_spec_bundle(
     dependency_inventory = generate_dependency_inventory(unit, evaluation, spec_preview)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
     threat_model = generate_threat_model(unit, evaluation, spec_preview)
+    slo_plan = generate_slo_plan(unit, evaluation, spec_preview)
     review_gate = _review_gate(unit.id, store, warnings)
     evidence_chain_summary = _evidence_chain_summary(unit, store)
 
@@ -81,6 +83,7 @@ def generate_spec_bundle(
             "dependency_inventory": dependency_inventory,
             "risk_register": risk_register,
             "threat_model": threat_model,
+            "slo_plan": slo_plan,
             "review_gate": review_gate,
             "evidence_density": evidence_density,
             "evidence_chain_summary": evidence_chain_summary,
@@ -106,6 +109,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     dependency_inventory = artifacts["dependency_inventory"]
     risk_register = artifacts["risk_register"]
     threat_model = artifacts["threat_model"]
+    slo_plan = artifacts["slo_plan"]
     review_gate = artifacts["review_gate"]
     density = artifacts["evidence_density"]
     chain = artifacts["evidence_chain_summary"]
@@ -335,6 +339,38 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
                 ),
                 "Required mitigations:",
                 *_bullets(threat_model["review_gate"]["required_mitigations"], empty="None."),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
+            "SLO Plan",
+            [
+                f"Launch tier: {slo_plan['summary']['launch_tier']}",
+                "Objectives:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['type']}]: {item['target']}"
+                        for item in slo_plan["objectives"]
+                    ],
+                    empty="None.",
+                ),
+                "Alerts:",
+                *_bullets(
+                    [
+                        f"{item['id']} ({item['severity']}): {item['name']}"
+                        for item in slo_plan["alerts"][:8]
+                    ],
+                    empty="None.",
+                ),
+                "Gaps:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['description']}"
+                        for item in slo_plan["gaps"][:8]
+                    ],
+                    empty="None.",
+                ),
             ],
         )
     )
