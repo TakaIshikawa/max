@@ -28,6 +28,11 @@ from max.publisher import (
     MattermostWebhookPublishError,
     MattermostWebhookPublishResult,
     MattermostWebhooksPublisher,
+    WebexWebhookPayload,
+    WebexWebhookPublisher,
+    WebexWebhookPublishError,
+    WebexWebhookPublishResult,
+    WebexWebhooksPublisher,
     OpsgenieAlertPayload,
     OpsgenieAlertPublisher,
     OpsgenieAlertPublishError,
@@ -53,6 +58,9 @@ from max.publisher.gitlab_snippets import (
 )
 from max.publisher.mattermost_webhook import (
     MattermostWebhookPublisher as ModuleMattermostWebhookPublisher,
+)
+from max.publisher.webex_webhook import (
+    WebexWebhookPublisher as ModuleWebexWebhookPublisher,
 )
 from max.publisher.opsgenie_alerts import (
     OpsgenieAlertPublisher as ModuleOpsgenieAlertPublisher,
@@ -119,3 +127,11 @@ def test_mattermost_webhook_publisher_exports() -> None:
     assert MattermostWebhookPayload
     assert MattermostWebhookPublishError
     assert MattermostWebhookPublishResult
+
+
+def test_webex_webhook_publisher_exports() -> None:
+    assert WebexWebhookPublisher is ModuleWebexWebhookPublisher
+    assert WebexWebhooksPublisher is WebexWebhookPublisher
+    assert WebexWebhookPayload
+    assert WebexWebhookPublishError
+    assert WebexWebhookPublishResult
