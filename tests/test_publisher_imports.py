@@ -23,6 +23,11 @@ from max.publisher import (
     GitLabMergeRequestCommentPublishError,
     GitLabMergeRequestCommentPublishResult,
     GitLabMergeRequestCommentsPublisher,
+    GitLabEpicPayload,
+    GitLabEpicPublisher,
+    GitLabEpicPublishError,
+    GitLabEpicPublishResult,
+    GitLabEpicsPublisher,
     MattermostWebhookPayload,
     MattermostWebhookPublisher,
     MattermostWebhookPublishError,
@@ -58,6 +63,9 @@ from max.publisher.github_releases import (
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPublisher as ModuleGitLabMergeRequestCommentPublisher,
 )
+from max.publisher.gitlab_epics import (
+    GitLabEpicPublisher as ModuleGitLabEpicPublisher,
+)
 from max.publisher.gitlab_snippets import (
     GitLabSnippetPublisher as ModuleGitLabSnippetPublisher,
 )
@@ -84,6 +92,14 @@ def test_gitlab_merge_request_comment_publisher_exports() -> None:
     assert GitLabMergeRequestCommentPayload
     assert GitLabMergeRequestCommentPublishError
     assert GitLabMergeRequestCommentPublishResult
+
+
+def test_gitlab_epic_publisher_exports() -> None:
+    assert GitLabEpicPublisher is ModuleGitLabEpicPublisher
+    assert GitLabEpicsPublisher is GitLabEpicPublisher
+    assert GitLabEpicPayload
+    assert GitLabEpicPublishError
+    assert GitLabEpicPublishResult
 
 
 def test_gitlab_snippet_publisher_exports() -> None:
