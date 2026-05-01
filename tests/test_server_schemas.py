@@ -51,6 +51,8 @@ from max.server.schemas import (
     DesignBriefExperimentBacklogResponse,
     DesignBriefGtmChannelPlanResponse,
     DesignBriefInstrumentationPlanResponse,
+    DesignBriefPrivacyImpactAssessmentRequest,
+    DesignBriefPrivacyImpactAssessmentResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTrainingPlanRequest,
@@ -2292,6 +2294,47 @@ class TestDesignBriefTrainingPlanSchemas:
         assert "schema_version" in missing_fields
         assert "design_brief" in missing_fields
         assert "learning_objectives" in missing_fields
+
+
+class TestDesignBriefPrivacyImpactAssessmentSchemas:
+    def test_request_defaults_to_json(self):
+        request = DesignBriefPrivacyImpactAssessmentRequest()
+
+        assert request.model_dump() == {"format": "json"}
+
+    def test_response_preserves_privacy_assessment_artifact_sections(self):
+        response = DesignBriefPrivacyImpactAssessmentResponse(
+            schema_version="max.design_brief.privacy_impact_assessment.v1",
+            kind="max.design_brief.privacy_impact_assessment",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-privacy"},
+            design_brief={"id": "dbf-privacy", "title": "Privacy Brief"},
+            summary={"privacy_gate": "privacy_review_required", "sensitive_data_expected": True},
+            privacy_context={"buyer": "hospital compliance lead"},
+            data_categories=[{"id": "regulated_sensitive_data", "classification": "sensitive_personal_data"}],
+            processing_purposes=[{"id": "core_workflow_delivery"}],
+            risk_areas=[{"id": "PR1", "severity": "high"}],
+            mitigations=[{"id": "M6", "owner": "Privacy owner"}],
+            open_questions=[],
+            owners=[{"role": "Privacy owner"}],
+            launch_gates=[{"id": "LG1", "status": "blocked"}],
+            source_ideas=[{"id": "bu-privacy"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.privacy_impact_assessment.v1"
+        assert dumped["design_brief"]["id"] == "dbf-privacy"
+        assert dumped["summary"]["privacy_gate"] == "privacy_review_required"
+        assert dumped["data_categories"][0]["id"] == "regulated_sensitive_data"
+
+    def test_response_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefPrivacyImpactAssessmentResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "privacy_context" in missing_fields
+        assert "data_categories" in missing_fields
 
 
 class TestDesignBriefExperimentBacklogResponse:
