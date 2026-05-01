@@ -66,6 +66,13 @@ from max.publisher.bitbucket_issues import (
     BitbucketIssuePublishResult,
     BitbucketIssuesPublisher,
 )
+from max.publisher.bitbucket_snippets import (
+    BitbucketSnippetPayload,
+    BitbucketSnippetPublisher,
+    BitbucketSnippetPublishError,
+    BitbucketSnippetPublishResult,
+    BitbucketSnippetsPublisher,
+)
 from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPayload,
     GoogleSheetsRowPublisher,
@@ -258,6 +265,11 @@ __all__ = [
     "BitbucketIssuePublishError",
     "BitbucketIssuePublishResult",
     "BitbucketIssuesPublisher",
+    "BitbucketSnippetPayload",
+    "BitbucketSnippetPublisher",
+    "BitbucketSnippetPublishError",
+    "BitbucketSnippetPublishResult",
+    "BitbucketSnippetsPublisher",
     "GoogleSheetsRowPayload",
     "GoogleSheetsRowPublisher",
     "GoogleSheetsRowPublishError",
