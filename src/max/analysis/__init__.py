@@ -5,6 +5,10 @@ from max.analysis.persona_interview_guide import (
 from max.analysis.portfolio_theme_saturation import (
     build_portfolio_theme_saturation_report,
 )
+from max.analysis.portfolio_cannibalization import (
+    build_portfolio_cannibalization_from_records,
+    build_portfolio_cannibalization_report,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -35,6 +39,8 @@ __all__ = [
     "build_design_brief_release_notes",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
+    "build_portfolio_cannibalization_from_records",
+    "build_portfolio_cannibalization_report",
     "build_portfolio_theme_saturation_report",
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
