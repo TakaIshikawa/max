@@ -142,6 +142,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "chrome_web_store": "max.sources.chrome_web_store:ChromeWebStoreAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
+    "sourceforge_projects": (
+        "max.sources.sourceforge_projects:SourceForgeProjectsAdapter"
+    ),
     "vscode_marketplace": "max.sources.vscode_marketplace:VSCodeMarketplaceAdapter",
     "figma_community": "max.sources.figma_community:FigmaCommunityAdapter",
     "terraform_registry": "max.sources.terraform_registry:TerraformRegistryAdapter",
@@ -965,6 +968,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "extensions", "extension_identifiers"],
         required_keys=[],
         description="Searches Open VSX Registry for VS Code-compatible extension adoption signals.",
+    ),
+    "sourceforge_projects": AdapterMetadata(
+        name="sourceforge_projects",
+        config_keys=["queries", "categories", "projects", "project_names"],
+        required_keys=[],
+        description="Searches SourceForge projects for mature open-source ecosystem signals.",
     ),
     "vscode_marketplace": AdapterMetadata(
         name="vscode_marketplace",
