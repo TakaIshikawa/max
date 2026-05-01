@@ -92,6 +92,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
     "stackoverflow_survey": "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter",
     "jetbrains_survey": "max.sources.jetbrains_survey:JetBrainsSurveyAdapter",
+    "jetbrains_marketplace": (
+        "max.sources.jetbrains_marketplace:JetBrainsMarketplaceAdapter"
+    ),
     "discourse": "max.sources.discourse:DiscourseAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
@@ -666,6 +669,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Reads JetBrains Developer Ecosystem survey CSV exports as quantified market "
             "and developer-pain signals."
+        ),
+    ),
+    "jetbrains_marketplace": AdapterMetadata(
+        name="jetbrains_marketplace",
+        config_keys=["queries", "plugin_ids", "plugins", "max_items"],
+        required_keys=[],
+        description=(
+            "Searches JetBrains Marketplace for IDE plugin adoption, vendor, "
+            "download, rating, tag, and update signals."
         ),
     ),
     "discourse": AdapterMetadata(
