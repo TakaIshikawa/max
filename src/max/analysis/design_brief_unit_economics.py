@@ -35,8 +35,19 @@ def build_design_brief_unit_economics(store: Store, brief_id: str) -> dict[str, 
     average_evaluation = _average_evaluation_score(evaluations)
     confidence = _confidence(readiness_score, average_evaluation, len(evidence_signal_ids))
     assumptions = _assumptions(design_brief, source_ideas, confidence)
+    revenue_model = _revenue_model(design_brief, source_ideas, confidence)
+    acquisition_channels = _acquisition_channels(design_brief, source_ideas, evidence_signal_ids)
     cost_drivers = _cost_drivers(design_brief, source_ideas, average_evaluation)
-    payback_bands = _payback_bands(assumptions, cost_drivers, confidence)
+    payback_bands = _payback_bands(assumptions, revenue_model, cost_drivers, confidence)
+    gross_margin_risk_notes = _gross_margin_risk_notes(
+        design_brief,
+        source_ideas,
+        revenue_model,
+        cost_drivers,
+        confidence,
+        evidence_signal_ids,
+    )
+    sensitivity_cases = _sensitivity_cases(payback_bands, revenue_model, cost_drivers, confidence)
     risks = _risks(design_brief, source_ideas, confidence, evidence_signal_ids)
 
     return {
@@ -57,27 +68,44 @@ def build_design_brief_unit_economics(store: Store, brief_id: str) -> dict[str, 
             "design_status": design_brief.get("design_status", ""),
             "lead_idea_id": design_brief.get("lead_idea_id", ""),
             "source_idea_ids": source_idea_ids,
-            "buyer": _first_text(design_brief.get("buyer"), _field_values(source_ideas, "buyer")),
+            "buyer": _first_text(
+                design_brief.get("buyer"),
+                _field_values(source_ideas, "buyer"),
+                "target buyer",
+            ),
             "specific_user": _first_text(
                 design_brief.get("specific_user"),
                 _field_values(source_ideas, "specific_user"),
+                "target user",
             ),
             "workflow_context": _first_text(
                 design_brief.get("workflow_context"),
                 _field_values(source_ideas, "workflow_context"),
+                "target workflow",
             ),
         },
         "summary": {
             "gross_margin_band": payback_bands["gross_margin_band"],
             "expected_payback_months": payback_bands["expected_months"],
+            "target_monthly_price_band_usd": revenue_model["target_monthly_price_band_usd"],
             "confidence_level": confidence["level"],
             "evidence_signal_count": len(evidence_signal_ids),
         },
         "assumptions": assumptions,
+        "revenue_model": revenue_model,
+        "acquisition_channels": acquisition_channels,
         "cost_drivers": cost_drivers,
         "payback_bands": payback_bands,
+        "gross_margin_risk_notes": gross_margin_risk_notes,
+        "sensitivity_cases": sensitivity_cases,
         "risks": risks,
-        "validation_questions": _validation_questions(design_brief, assumptions, cost_drivers),
+        "validation_questions": _validation_questions(
+            design_brief,
+            assumptions,
+            revenue_model,
+            acquisition_channels,
+            cost_drivers,
+        ),
         "confidence": confidence,
         "source_ideas": source_ideas,
     }
@@ -116,6 +144,28 @@ def render_design_brief_unit_economics(report: dict[str, Any], fmt: str = "json"
         f"- **{item['id']}**: {item['label']} = {item['value']} ({item['basis']})"
         for item in report["assumptions"]
     )
+    revenue = report["revenue_model"]
+    lines.extend(
+        [
+            "",
+            "## Revenue Model",
+            "",
+            f"- **Packaging**: {revenue['packaging']}",
+            f"- **Pricing basis**: {revenue['pricing_basis']}",
+            f"- **Target monthly price band**: "
+            f"${revenue['target_monthly_price_band_usd']['low']:,}-"
+            f"${revenue['target_monthly_price_band_usd']['high']:,}",
+            f"- **Expansion trigger**: {revenue['expansion_trigger']}",
+            f"- **Source ideas**: {', '.join(revenue['source_idea_ids']) or 'None'}",
+            "",
+            "## Acquisition Channels",
+            "",
+        ]
+    )
+    lines.extend(
+        f"- **{item['channel']}**: {item['motion']} - {item['rationale']}"
+        for item in report["acquisition_channels"]
+    )
     lines.extend(["", "## Cost Drivers", ""])
     lines.extend(
         f"- **{item['name']}**: {item['direction']} - {item['rationale']}"
@@ -129,6 +179,17 @@ def render_design_brief_unit_economics(report: dict[str, Any], fmt: str = "json"
             f"- Conservative: {payback['conservative_months']} months",
             f"- Gross margin: {payback['gross_margin_band']}",
         ]
+    )
+    lines.extend(["", "## Gross Margin Risks", ""])
+    lines.extend(
+        f"- **{risk['severity']}**: {risk['note']} - {risk['watch_metric']}"
+        for risk in report["gross_margin_risk_notes"]
+    )
+    lines.extend(["", "## Sensitivity Cases", ""])
+    lines.extend(
+        f"- **{case['case']}**: {case['payback_months']} months, "
+        f"{case['gross_margin_band']} margin - {case['assumption_shift']}"
+        for case in report["sensitivity_cases"]
     )
     lines.extend(["", "## Risks", ""])
     lines.extend(
@@ -175,7 +236,9 @@ def _assumptions(
     source_ideas: list[dict[str, Any]],
     confidence: dict[str, Any],
 ) -> list[dict[str, str]]:
-    buyer = _first_text(design_brief.get("buyer"), _field_values(source_ideas, "buyer"), "target buyer")
+    buyer = _first_text(
+        design_brief.get("buyer"), _field_values(source_ideas, "buyer"), "target buyer"
+    )
     workflow = _first_text(
         design_brief.get("workflow_context"),
         _field_values(source_ideas, "workflow_context"),
@@ -213,6 +276,111 @@ def _assumptions(
             "basis": "value proposition from the brief and source ideas",
         },
     ]
+
+
+def _revenue_model(
+    design_brief: dict[str, Any],
+    source_ideas: list[dict[str, Any]],
+    confidence: dict[str, Any],
+) -> dict[str, Any]:
+    source_idea_ids = [
+        str(idea["id"]) for idea in source_ideas if idea.get("id") and not idea.get("missing")
+    ]
+    buyer = _first_text(
+        design_brief.get("buyer"), _field_values(source_ideas, "buyer"), "target buyer"
+    )
+    workflow = _first_text(
+        design_brief.get("workflow_context"),
+        _field_values(source_ideas, "workflow_context"),
+        "target workflow",
+    )
+    first_customers = _first_text(
+        design_brief.get("first_10_customers"),
+        _field_values(source_ideas, "first_10_customers"),
+        "first 10 design partners",
+    )
+    scope_count = max(1, len(_string_list(design_brief.get("mvp_scope"))))
+    readiness_score = float(design_brief.get("readiness_score") or 0.0)
+    if confidence["score"] >= 75:
+        low, high = 1200 + scope_count * 250, 3000 + scope_count * 500
+        packaging = "paid pilot converting to per-team subscription"
+    elif confidence["score"] >= 55:
+        low, high = 600 + scope_count * 200, 1800 + scope_count * 400
+        packaging = "validation pilot with conservative team subscription"
+    else:
+        low, high = 250 + scope_count * 100, 900 + scope_count * 250
+        packaging = "concierge pilot before recurring pricing"
+
+    return {
+        "packaging": packaging,
+        "pricing_basis": f"monthly subscription anchored to successful {workflow} outcomes",
+        "buyer_budget_owner": buyer,
+        "initial_customer_segment": first_customers,
+        "target_monthly_price_band_usd": {
+            "low": int(low),
+            "high": int(high),
+        },
+        "expected_conversion_rate_band": "25-40%" if readiness_score >= 75 else "10-25%",
+        "expansion_trigger": f"repeat usage across more {workflow} teams or higher workflow volume",
+        "source_idea_ids": source_idea_ids or _string_list(design_brief.get("source_idea_ids")),
+    }
+
+
+def _acquisition_channels(
+    design_brief: dict[str, Any],
+    source_ideas: list[dict[str, Any]],
+    evidence_signal_ids: list[str],
+) -> list[dict[str, Any]]:
+    buyer = _first_text(
+        design_brief.get("buyer"), _field_values(source_ideas, "buyer"), "target buyer"
+    )
+    customer_segment = _first_text(
+        design_brief.get("first_10_customers"),
+        _field_values(source_ideas, "first_10_customers"),
+        "first 10 design partners",
+    )
+    validation_plan = _first_text(
+        design_brief.get("validation_plan"),
+        *_field_values(source_ideas, "validation_plan"),
+        "direct discovery with buyer-owned teams",
+    )
+    channels = [
+        {
+            "id": "channel_design_partner_outreach",
+            "channel": "Design partner outreach",
+            "motion": "founder-led",
+            "rationale": f"Start with {customer_segment} and validate budget ownership with {buyer}.",
+            "source_fields": ["first_10_customers", "buyer", "source_ideas"],
+        },
+        {
+            "id": "channel_validation_interviews",
+            "channel": "Validation interviews",
+            "motion": "consultative",
+            "rationale": validation_plan,
+            "source_fields": ["validation_plan"],
+        },
+    ]
+    if evidence_signal_ids:
+        channels.append(
+            {
+                "id": "channel_evidence_followups",
+                "channel": "Evidence follow-ups",
+                "motion": "warm research-led",
+                "rationale": "Use linked evidence signals to identify language, objections, and reachable communities.",
+                "source_fields": ["evidence_signals"],
+            }
+        )
+    else:
+        channels.append(
+            {
+                "id": "channel_manual_research",
+                "channel": "Manual market research",
+                "motion": "cold discovery",
+                "rationale": "No linked evidence signals exist, so acquisition assumptions require new market proof.",
+                "source_fields": ["fallback_missing_evidence"],
+            }
+        )
+    return channels
 
 
 def _cost_drivers(
@@ -266,11 +434,14 @@ def _cost_drivers(
 
 def _payback_bands(
     assumptions: list[dict[str, str]],
+    revenue_model: dict[str, Any],
     cost_drivers: list[dict[str, str]],
     confidence: dict[str, Any],
 ) -> dict[str, Any]:
     expected = 9 if confidence["score"] >= 75 else 12 if confidence["score"] >= 55 else 15
     if any(driver["direction"] == "high-touch" for driver in cost_drivers):
+        expected += 2
+    if revenue_model["target_monthly_price_band_usd"]["high"] < 1000:
         expected += 2
     margin = next(
         (item["value"] for item in assumptions if item["id"] == "assumption_margin"),
@@ -285,6 +456,101 @@ def _payback_bands(
     }
 
 
+def _gross_margin_risk_notes(
+    design_brief: dict[str, Any],
+    source_ideas: list[dict[str, Any]],
+    revenue_model: dict[str, Any],
+    cost_drivers: list[dict[str, str]],
+    confidence: dict[str, Any],
+    evidence_signal_ids: list[str],
+) -> list[dict[str, str]]:
+    notes = [
+        {
+            "id": "margin_risk_onboarding",
+            "severity": "medium" if confidence["score"] >= 55 else "high",
+            "note": "Manual onboarding or bespoke implementation can dilute gross margin.",
+            "watch_metric": "implementation hours per activated customer",
+        }
+    ]
+    if any(driver["direction"] == "usage-sensitive" for driver in cost_drivers):
+        notes.append(
+            {
+                "id": "margin_risk_runtime_usage",
+                "severity": "medium",
+                "note": "Model, integration, or hosted runtime usage may scale with customer activity.",
+                "watch_metric": "runtime cost as percent of monthly recurring revenue",
+            }
+        )
+    if revenue_model["target_monthly_price_band_usd"]["low"] < 500:
+        notes.append(
+            {
+                "id": "margin_risk_low_price",
+                "severity": "high",
+                "note": "Low starting price leaves little room for support-heavy pilots.",
+                "watch_metric": "support tickets and success calls per account",
+            }
+        )
+    if not evidence_signal_ids:
+        notes.append(
+            {
+                "id": "margin_risk_missing_evidence",
+                "severity": "high",
+                "note": "Revenue and usage assumptions are not backed by linked evidence signals.",
+                "watch_metric": "validated willingness-to-pay interviews",
+            }
+        )
+    if _string_list(design_brief.get("risks")) or any(
+        _string_list(idea.get("domain_risks")) for idea in source_ideas
+    ):
+        notes.append(
+            {
+                "id": "margin_risk_domain_constraints",
+                "severity": "medium",
+                "note": "Domain constraints may add review, compliance, or support burden.",
+                "watch_metric": "non-product work required before each paid deployment",
+            }
+        )
+    return notes
+
+
+def _sensitivity_cases(
+    payback_bands: dict[str, Any],
+    revenue_model: dict[str, Any],
+    cost_drivers: list[dict[str, str]],
+    confidence: dict[str, Any],
+) -> list[dict[str, Any]]:
+    base = int(payback_bands["expected_months"])
+    low_price = revenue_model["target_monthly_price_band_usd"]["low"]
+    high_price = revenue_model["target_monthly_price_band_usd"]["high"]
+    high_touch_penalty = (
+        2 if any(driver["direction"] == "high-touch" for driver in cost_drivers) else 0
+    )
+    return [
+        {
+            "case": "conservative",
+            "payback_months": base + 5 + high_touch_penalty,
+            "gross_margin_band": "45-60%" if confidence["score"] < 55 else "55-68%",
+            "assumption_shift": (
+                f"price lands near ${low_price:,}/month and onboarding remains support-heavy"
+            ),
+        },
+        {
+            "case": "base",
+            "payback_months": base,
+            "gross_margin_band": payback_bands["gross_margin_band"],
+            "assumption_shift": "price, conversion, and implementation effort match the current report assumptions",
+        },
+        {
+            "case": "upside",
+            "payback_months": max(3, base - 4),
+            "gross_margin_band": "75-85%" if confidence["score"] >= 75 else "65-80%",
+            "assumption_shift": (
+                f"price lands near ${high_price:,}/month and onboarding becomes repeatable"
+            ),
+        },
+    ]
+
+
 def _risks(
     design_brief: dict[str, Any],
     source_ideas: list[dict[str, Any]],
@@ -295,11 +561,7 @@ def _risks(
         str(risk)
         for risk in [
             *list(design_brief.get("risks") or []),
-            *[
-                risk
-                for idea in source_ideas
-                for risk in _string_list(idea.get("domain_risks"))
-            ],
+            *[risk for idea in source_ideas for risk in _string_list(idea.get("domain_risks"))],
         ]
         if str(risk).strip()
     ]
@@ -341,6 +603,8 @@ def _risks(
 def _validation_questions(
     design_brief: dict[str, Any],
     assumptions: list[dict[str, str]],
+    revenue_model: dict[str, Any],
+    acquisition_channels: list[dict[str, Any]],
     cost_drivers: list[dict[str, str]],
 ) -> list[str]:
     buyer = _first_text(design_brief.get("buyer"), "the target buyer")
@@ -349,8 +613,12 @@ def _validation_questions(
         "the proposed value metric",
     )
     primary_cost = cost_drivers[0]["name"].lower()
+    primary_channel = acquisition_channels[0]["channel"].lower()
+    price_band = revenue_model["target_monthly_price_band_usd"]
     return [
         f"What budget line would {buyer} use for {value_metric}?",
+        f"Would {buyer} accept a ${price_band['low']:,}-${price_band['high']:,}/month starting price for the first paid pilot?",
+        f"Which proof point makes {primary_channel} convert without heavy discounting?",
         f"Which {primary_cost} activities must be standardized before pilots scale?",
         "What usage threshold creates a clear expansion or upgrade moment?",
         "What payback window would make the buyer comfortable approving a first paid pilot?",
@@ -375,7 +643,9 @@ def _confidence(
         "level": level,
         "drivers": [
             f"readiness_score={readiness_score:.1f}",
-            f"average_evaluation={average_evaluation:.1f}" if average_evaluation is not None else "average_evaluation=missing",
+            f"average_evaluation={average_evaluation:.1f}"
+            if average_evaluation is not None
+            else "average_evaluation=missing",
             f"evidence_signal_count={evidence_signal_count}",
         ],
     }
@@ -389,7 +659,9 @@ def _average_evaluation_score(evaluations: list[Any]) -> float | None:
 
 
 def _field_values(source_ideas: list[dict[str, Any]], field: str) -> list[str]:
-    return [str(idea.get(field) or "") for idea in source_ideas if str(idea.get(field) or "").strip()]
+    return [
+        str(idea.get(field) or "") for idea in source_ideas if str(idea.get(field) or "").strip()
+    ]
 
 
 def _first_text(*values: Any) -> str:
