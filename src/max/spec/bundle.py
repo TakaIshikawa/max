@@ -16,6 +16,7 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
+from max.spec.rollback_plan import generate_rollback_plan
 from max.spec.risk_register import generate_risk_register
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
@@ -43,6 +44,7 @@ def generate_spec_bundle(
     contradictions = build_idea_contradiction_report(unit, store)
     implementation_plan = generate_implementation_plan(unit, evaluation, spec_preview)
     launch_checklist = generate_launch_checklist(unit, evaluation, spec_preview)
+    rollback_plan = generate_rollback_plan(unit, evaluation, spec_preview)
     acceptance_criteria = generate_acceptance_criteria(unit, evaluation, evidence_density)
     experiment_card = generate_experiment_card(unit, evaluation)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
@@ -63,6 +65,7 @@ def generate_spec_bundle(
             "readiness": readiness,
             "implementation_plan": implementation_plan,
             "launch_checklist": launch_checklist,
+            "rollback_plan": rollback_plan,
             "acceptance_criteria": acceptance_criteria,
             "experiment_card": experiment_card,
             "risk_register": risk_register,
@@ -83,6 +86,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     readiness = artifacts["readiness"]
     plan = artifacts["implementation_plan"]
     checklist = artifacts["launch_checklist"]
+    rollback_plan = artifacts["rollback_plan"]
     criteria = artifacts["acceptance_criteria"]
     experiment = artifacts["experiment_card"]
     risk_register = artifacts["risk_register"]
@@ -144,6 +148,28 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
                     [
                         f"{item['id']} [{item['section_title']}]: {item['task']}"
                         for item in checklist["checklist_items"][:12]
+                    ]
+                ),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
+            "Rollback Plan",
+            [
+                f"Rollback window: {_text(rollback_plan['summary'].get('rollback_window'))}",
+                "Rollback triggers:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['severity']}]: {item['name']} - {item['threshold']}"
+                        for item in rollback_plan["rollback_triggers"][:8]
+                    ]
+                ),
+                "Go/no-go checklist:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['task']}"
+                        for item in rollback_plan["go_no_go_checklist"]
                     ]
                 ),
             ],

@@ -32,6 +32,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "readiness",
         "implementation_plan",
         "launch_checklist",
+        "rollback_plan",
         "acceptance_criteria",
         "experiment_card",
         "risk_register",
@@ -42,6 +43,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
     assert bundle["artifacts"]["spec_preview"]["schema_version"] == "tact-spec-preview/v1"
     assert bundle["artifacts"]["implementation_plan"]["schema_version"] == "max-implementation-plan/v1"
     assert bundle["artifacts"]["launch_checklist"]["schema_version"] == "max-launch-checklist/v1"
+    assert bundle["artifacts"]["rollback_plan"]["schema_version"] == "max-rollback-plan/v1"
     assert bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
     assert bundle["artifacts"]["experiment_card"]["schema_version"] == "max-experiment-card/v1"
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
@@ -68,6 +70,10 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert "evaluation_recommendation" in bundle["artifacts"]["readiness"]["failed_check_ids"]
     assert bundle["artifacts"]["experiment_card"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["risk_register"]["source"]["evaluation_available"] is False
+    assert bundle["artifacts"]["rollback_plan"]["source"]["evaluation_available"] is False
+    assert "trigger_missing_evaluation" in {
+        trigger["id"] for trigger in bundle["artifacts"]["rollback_plan"]["rollback_triggers"]
+    }
     assert "utility evaluation is missing" in bundle["artifacts"]["review_gate"]["blocking_reasons"]
 
 
@@ -92,6 +98,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Readiness",
         "## Implementation Plan",
         "## Launch Checklist",
+        "## Rollback Plan",
         "## Acceptance Criteria",
         "## Experiment Card",
         "## Risk Register",
@@ -103,4 +110,5 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         assert heading in markdown
     assert "bu-test001" in markdown
     assert "MCP server maintainer" in markdown
+    assert "trigger_domain_risk_1" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown
