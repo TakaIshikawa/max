@@ -158,6 +158,9 @@ from max.analysis.run_comparison import (
     compare_pipeline_runs as build_pipeline_run_comparison,
 )
 from max.analysis.roi_forecast import generate_roi_forecast
+from max.analysis.source_adapter_reliability_digest import (
+    build_source_adapter_reliability_digest,
+)
 from max.analysis.thresholds import (
     DEFAULT_APPROVE_THRESHOLD,
     DEFAULT_MIN_SAMPLES as DEFAULT_THRESHOLD_MIN_SAMPLES,
@@ -3446,6 +3449,104 @@ def max_source_reliability(
         return e.to_dict()
 
 
+def max_source_adapter_reliability_digest(
+    source_adapter: str | list[str] | None = None,
+    profile: str | None = None,
+    limit: int = 20,
+    min_runs: int = 1,
+) -> dict:
+    """Return source adapter reliability digest data for safer source selection.
+
+    Set source_adapter to one adapter, a comma-delimited string, or a list of
+    adapter names. Set profile to restrict the digest to enabled adapters from
+    a named pipeline profile.
+
+    Raises:
+        ResourceNotFoundError: If the profile is not found.
+        ValidationError: If filters are invalid.
+    """
+    from max.profiles.loader import load_profile
+
+    try:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "limit must be an integer between 1 and 1000",
+                field="limit",
+                expected="integer between 1 and 1000",
+                actual=str(limit),
+            )
+        if limit < 1 or limit > 1000:
+            raise ValidationError(
+                "limit must be between 1 and 1000",
+                field="limit",
+                expected="integer between 1 and 1000",
+                actual=str(limit),
+            )
+        if isinstance(min_runs, bool) or not isinstance(min_runs, int):
+            raise ValidationError(
+                "min_runs must be an integer between 1 and 1000",
+                field="min_runs",
+                expected="integer between 1 and 1000",
+                actual=str(min_runs),
+            )
+        if min_runs < 1 or min_runs > 1000:
+            raise ValidationError(
+                "min_runs must be between 1 and 1000",
+                field="min_runs",
+                expected="integer between 1 and 1000",
+                actual=str(min_runs),
+            )
+
+        requested_adapters = _normalize_required_source_adapter_filter(source_adapter)
+        resolved_profile = None
+        adapter_filter = requested_adapters
+        if profile is not None:
+            if not isinstance(profile, str) or not profile.strip():
+                raise ValidationError(
+                    "profile must be a non-empty string",
+                    field="profile",
+                    expected="non-empty string",
+                    actual=str(profile),
+                )
+            profile_name = profile.strip()
+            try:
+                resolved_profile = load_profile(profile_name)
+            except FileNotFoundError as e:
+                raise ResourceNotFoundError(
+                    f"Profile not found: {profile_name}",
+                    resource_type="profile",
+                    resource_id=profile_name,
+                ) from e
+
+            enabled_adapters = sorted(
+                source.adapter for source in resolved_profile.sources if source.enabled
+            )
+            if requested_adapters is None:
+                adapter_filter = enabled_adapters
+            else:
+                adapter_filter = sorted(set(requested_adapters) & set(enabled_adapters))
+
+        with _get_store() as store:
+            report = build_source_adapter_reliability_digest(
+                store,
+                limit=limit,
+                min_runs=min_runs,
+            )
+
+        if adapter_filter is not None:
+            report = _filter_source_adapter_reliability_digest(report, adapter_filter)
+
+        report["filters"] = {
+            **report.get("filters", {}),
+            "profile": resolved_profile.name if resolved_profile else profile,
+            "domain": resolved_profile.domain.name if resolved_profile else None,
+            "source_adapters": adapter_filter,
+        }
+        return report
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def max_signal_freshness(
     max_age_days: int = 30,
     source_adapter: str | list[str] | None = None,
@@ -3553,6 +3654,91 @@ def _normalize_source_adapter_filter(source_adapter: str | list[str] | None) -> 
             continue
         adapters.update(part.strip() for part in value.split(",") if part.strip())
     return sorted(adapters)
+
+
+def _normalize_required_source_adapter_filter(
+    source_adapter: str | list[str] | None,
+) -> list[str] | None:
+    if source_adapter is None:
+        return None
+    if isinstance(source_adapter, str):
+        values = [source_adapter]
+    elif isinstance(source_adapter, list):
+        values = source_adapter
+    else:
+        raise ValidationError(
+            "source_adapter must be a non-empty string or list of strings",
+            field="source_adapter",
+            expected="non-empty string or list of strings",
+            actual=str(source_adapter),
+        )
+
+    adapters: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(
+                "source_adapter must contain non-empty strings",
+                field="source_adapter",
+                expected="non-empty string or list of strings",
+                actual=str(source_adapter),
+            )
+        adapters.update(part.strip() for part in value.split(",") if part.strip())
+    if not adapters:
+        raise ValidationError(
+            "source_adapter must contain at least one adapter name",
+            field="source_adapter",
+            expected="non-empty string or list of strings",
+            actual=str(source_adapter),
+        )
+    return sorted(adapters)
+
+
+def _filter_source_adapter_reliability_digest(
+    report: dict,
+    adapter_filter: list[str],
+) -> dict:
+    requested = set(adapter_filter)
+    rows = [row for row in report.get("adapters", []) if row.get("adapter") in requested]
+    report = {
+        **report,
+        "adapters": rows,
+        "reliability_bands": {
+            band: [row["adapter"] for row in rows if row.get("reliability_band") == band]
+            for band in ("failing", "low_yield", "watch", "healthy")
+        },
+        "next_actions": _source_adapter_reliability_next_actions(rows),
+    }
+    summary = {**report.get("summary", {})}
+    summary.update(
+        {
+            "adapter_count": len(rows),
+            "healthy_count": len(report["reliability_bands"]["healthy"]),
+            "watch_count": len(report["reliability_bands"]["watch"]),
+            "low_yield_count": len(report["reliability_bands"]["low_yield"]),
+            "failing_count": len(report["reliability_bands"]["failing"]),
+        }
+    )
+    report["summary"] = summary
+    return report
+
+
+def _source_adapter_reliability_next_actions(rows: list[dict]) -> list[str]:
+    if not rows:
+        return ["No adapter run metrics matched the requested filters."]
+
+    actions: list[str] = []
+    failing = [row["adapter"] for row in rows if row.get("reliability_band") == "failing"]
+    low_yield = [row["adapter"] for row in rows if row.get("reliability_band") == "low_yield"]
+    watch = [row["adapter"] for row in rows if row.get("reliability_band") == "watch"]
+    if failing:
+        actions.append(f"Repair failing adapters first: {', '.join(failing)}.")
+    if low_yield:
+        actions.append(f"Reduce allocation or retune low-yield adapters: {', '.join(low_yield)}.")
+    if watch:
+        actions.append(f"Monitor watch-list adapters for retry, quota, or relevance drift: {', '.join(watch)}.")
+    if not actions:
+        actions.append("Keep current adapter allocation and revisit after the next pipeline run.")
+    return actions
 
 
 def _parse_time_window(time_window: str | None) -> datetime | None:
@@ -4233,6 +4419,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_review_thresholds)
     mcp.tool(get_roi_forecast)
     mcp.tool(max_source_reliability)
+    mcp.tool(max_source_adapter_reliability_digest)
     mcp.tool(get_signal_freshness_report)
     mcp.tool(max_signal_freshness)
     mcp.tool(max_portfolio_overlap)
