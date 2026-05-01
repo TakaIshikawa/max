@@ -2631,6 +2631,23 @@ class DesignBriefExperimentBacklogResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefChurnRiskReportResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    score: int
+    tier: Literal["low", "medium", "high"]
+    risk_drivers: list[dict[str, Any]]
+    retention_levers: list[dict[str, Any]]
+    warning_indicators: list[dict[str, Any]]
+    follow_up_experiments: list[dict[str, Any]]
+    dimension_scores: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefLaunchChecklistItemResponse(BaseModel):
     id: str
     task: str
