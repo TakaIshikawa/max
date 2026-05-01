@@ -110,6 +110,7 @@ openssf_security_insights = "max.sources.openssf_security_insights:OpenSSFSecuri
 cncf_landscape = "max.sources.cncf_landscape:CncfLandscapeAdapter"
 chrome_web_store = "max.sources.chrome_web_store:ChromeWebStoreAdapter"
 open_vsx = "max.sources.open_vsx:OpenVsxAdapter"
+sourceforge_projects = "max.sources.sourceforge_projects:SourceForgeProjectsAdapter"
 vscode_marketplace = "max.sources.vscode_marketplace:VSCodeMarketplaceAdapter"
 figma_community = "max.sources.figma_community:FigmaCommunityAdapter"
 terraform_registry = "max.sources.terraform_registry:TerraformRegistryAdapter"
