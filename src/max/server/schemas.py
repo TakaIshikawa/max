@@ -867,6 +867,59 @@ class SourceReliabilityDetailResponse(BaseModel):
     recommendations: list[str]
 
 
+class SourceAdapterReliabilityDigestFiltersResponse(BaseModel):
+    limit: int
+    min_runs: int
+    profile: str | None = None
+    domain: str | None = None
+    source_adapters: list[str] | None = None
+
+
+class SourceAdapterReliabilityDigestSummaryResponse(BaseModel):
+    run_count: int
+    adapter_count: int
+    excluded_below_min_runs_count: int
+    healthy_count: int
+    watch_count: int
+    low_yield_count: int
+    failing_count: int
+    latest_run_started_at: str | None = None
+
+
+class SourceAdapterReliabilityDigestUtilizationResponse(BaseModel):
+    available: bool
+    total_signals: int
+    insight_hit_rate: float
+    idea_hit_rate: float
+    combined_hit_rate: float
+
+
+class SourceAdapterReliabilityDigestAdapterResponse(BaseModel):
+    adapter: str
+    reliability_band: Literal["failing", "low_yield", "watch", "healthy"]
+    reliability_score: float
+    run_count: int
+    success_count: int
+    failure_count: int
+    success_rate: float
+    latest_status: str
+    last_error: str | None = None
+    average_fetched_signals: float
+    average_duration_ms: float | None = None
+    utilization: SourceAdapterReliabilityDigestUtilizationResponse
+    recommendations: list[str]
+
+
+class SourceAdapterReliabilityDigestResponse(BaseModel):
+    schema_version: str
+    kind: str
+    filters: SourceAdapterReliabilityDigestFiltersResponse
+    summary: SourceAdapterReliabilityDigestSummaryResponse
+    reliability_bands: dict[str, list[str]]
+    adapters: list[SourceAdapterReliabilityDigestAdapterResponse]
+    next_actions: list[str]
+
+
 class MCPCapabilityCategoryResponse(BaseModel):
     category: str
     total_count: int

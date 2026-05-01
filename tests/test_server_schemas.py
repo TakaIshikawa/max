@@ -63,6 +63,7 @@ from max.server.schemas import (
     ScheduleUpdateRequest,
     SecurityReviewResponse,
     SignalCreate,
+    SourceAdapterReliabilityDigestResponse,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -943,6 +944,108 @@ class TestSignalResponse:
         assert dumped["id"] == "sig_789"
         assert dumped["source_type"] == "hn"
         assert dumped["tags"] == ["tech"]
+
+
+class TestSourceAdapterReliabilityDigestResponse:
+    def test_valid_construction(self):
+        response = SourceAdapterReliabilityDigestResponse(
+            schema_version="max.source_adapter.reliability_digest.v1",
+            kind="max.source_adapter.reliability_digest",
+            filters={
+                "limit": 20,
+                "min_runs": 1,
+                "profile": None,
+                "domain": None,
+                "source_adapters": None,
+            },
+            summary={
+                "run_count": 1,
+                "adapter_count": 1,
+                "excluded_below_min_runs_count": 0,
+                "healthy_count": 0,
+                "watch_count": 0,
+                "low_yield_count": 1,
+                "failing_count": 0,
+                "latest_run_started_at": "2026-05-01T00:00:00+00:00",
+            },
+            reliability_bands={
+                "failing": [],
+                "low_yield": ["api"],
+                "watch": [],
+                "healthy": [],
+            },
+            adapters=[
+                {
+                    "adapter": "api",
+                    "reliability_band": "low_yield",
+                    "reliability_score": 0.55,
+                    "run_count": 1,
+                    "success_count": 1,
+                    "failure_count": 0,
+                    "success_rate": 1.0,
+                    "latest_status": "ok",
+                    "last_error": None,
+                    "average_fetched_signals": 1.0,
+                    "average_duration_ms": 25.0,
+                    "utilization": {
+                        "available": True,
+                        "total_signals": 2,
+                        "insight_hit_rate": 0.5,
+                        "idea_hit_rate": 0.0,
+                        "combined_hit_rate": 0.5,
+                    },
+                    "recommendations": ["Retune api."],
+                }
+            ],
+            next_actions=["Retune low-yield adapters."],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["filters"]["limit"] == 20
+        assert dumped["summary"]["adapter_count"] == 1
+        assert dumped["adapters"][0]["utilization"]["combined_hit_rate"] == 0.5
+
+    def test_reliability_band_validation(self):
+        payload = {
+            "schema_version": "max.source_adapter.reliability_digest.v1",
+            "kind": "max.source_adapter.reliability_digest",
+            "filters": {"limit": 20, "min_runs": 1},
+            "summary": {
+                "run_count": 1,
+                "adapter_count": 1,
+                "excluded_below_min_runs_count": 0,
+                "healthy_count": 0,
+                "watch_count": 0,
+                "low_yield_count": 0,
+                "failing_count": 0,
+            },
+            "reliability_bands": {},
+            "adapters": [
+                {
+                    "adapter": "api",
+                    "reliability_band": "unknown",
+                    "reliability_score": 0.0,
+                    "run_count": 1,
+                    "success_count": 0,
+                    "failure_count": 1,
+                    "success_rate": 0.0,
+                    "latest_status": "error",
+                    "average_fetched_signals": 0.0,
+                    "utilization": {
+                        "available": False,
+                        "total_signals": 0,
+                        "insight_hit_rate": 0.0,
+                        "idea_hit_rate": 0.0,
+                        "combined_hit_rate": 0.0,
+                    },
+                    "recommendations": [],
+                }
+            ],
+            "next_actions": [],
+        }
+
+        with pytest.raises(ValidationError):
+            SourceAdapterReliabilityDigestResponse(**payload)
 
 
 class TestInsightResponse:

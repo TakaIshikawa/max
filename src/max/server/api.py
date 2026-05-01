@@ -297,6 +297,10 @@ from max.analysis.pipeline_cost_anomalies import (
 from max.analysis.roi_forecast import generate_roi_forecast
 from max.analysis.revision_brief import build_revision_brief
 from max.analysis.signal_freshness import DEFAULT_MAX_AGE_DAYS, build_signal_freshness_report
+from max.analysis.source_adapter_reliability_digest import (
+    build_source_adapter_reliability_digest,
+    render_source_adapter_reliability_digest,
+)
 from max.analysis.source_reliability import DEFAULT_SIGNAL_LIMIT, build_source_reliability_report
 from max.analysis.status import (
     InvalidBuildableUnitStatusTransition,
@@ -589,6 +593,7 @@ from max.server.schemas import (
     SlackPublishRequest,
     SlackPublishResponse,
     SourceReliabilityAdapterMetricsResponse,
+    SourceAdapterReliabilityDigestResponse,
     SourceReliabilityDetailResponse,
     SourceReliabilityFreshnessResponse,
     SourceReliabilityResponse,
@@ -2601,6 +2606,166 @@ def get_source_reliability_detail(
         ),
     }
     return SourceReliabilityDetailResponse.model_validate(payload)
+
+
+@router.get(
+    "/source-adapters/reliability-digest",
+    response_model=SourceAdapterReliabilityDigestResponse,
+)
+def get_source_adapter_reliability_digest(
+    limit: int = Query(20, ge=1, le=1000),
+    min_runs: int = Query(1, ge=1, le=1000),
+    source_adapter: list[str] | None = Query(default=None),
+    profile: str | None = Query(default=None, min_length=1),
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> SourceAdapterReliabilityDigestResponse | Response:
+    report = _source_adapter_reliability_digest_report(
+        store,
+        limit=limit,
+        min_runs=min_runs,
+        source_adapter=source_adapter,
+        profile=profile,
+    )
+    if format == "markdown":
+        return _source_adapter_reliability_digest_markdown_response(report)
+    return SourceAdapterReliabilityDigestResponse.model_validate(report)
+
+
+@router.get("/source-adapters/reliability-digest.md", response_model=None)
+def get_source_adapter_reliability_digest_markdown(
+    limit: int = Query(20, ge=1, le=1000),
+    min_runs: int = Query(1, ge=1, le=1000),
+    source_adapter: list[str] | None = Query(default=None),
+    profile: str | None = Query(default=None, min_length=1),
+    store: Store = Depends(get_store),
+) -> Response:
+    report = _source_adapter_reliability_digest_report(
+        store,
+        limit=limit,
+        min_runs=min_runs,
+        source_adapter=source_adapter,
+        profile=profile,
+    )
+    return _source_adapter_reliability_digest_markdown_response(report)
+
+
+def _source_adapter_reliability_digest_report(
+    store: Store,
+    *,
+    limit: int,
+    min_runs: int,
+    source_adapter: list[str] | None,
+    profile: str | None,
+) -> dict[str, Any]:
+    requested_adapters = _normalize_source_adapter_filters(source_adapter)
+    resolved_profile = None
+    adapter_filter = requested_adapters
+
+    if profile is not None:
+        resolved_profile = _load_profile_or_404(profile.strip())
+        enabled_adapters = sorted(
+            source.adapter for source in resolved_profile.sources if source.enabled
+        )
+        if requested_adapters is None:
+            adapter_filter = enabled_adapters
+        else:
+            adapter_filter = sorted(set(requested_adapters) & set(enabled_adapters))
+
+    report = build_source_adapter_reliability_digest(
+        store,
+        limit=limit,
+        min_runs=min_runs,
+    )
+    if adapter_filter is not None:
+        report = _filter_source_adapter_reliability_digest_report(report, adapter_filter)
+
+    report["filters"] = {
+        **report.get("filters", {}),
+        "profile": resolved_profile.name if resolved_profile else profile,
+        "domain": resolved_profile.domain.name if resolved_profile else None,
+        "source_adapters": adapter_filter,
+    }
+    return report
+
+
+def _source_adapter_reliability_digest_markdown_response(report: dict[str, Any]) -> Response:
+    return Response(
+        content=render_source_adapter_reliability_digest(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": 'attachment; filename="source-adapter-reliability-digest.md"'
+        },
+    )
+
+
+def _normalize_source_adapter_filters(source_adapter: list[str] | None) -> list[str] | None:
+    if source_adapter is None:
+        return None
+    adapters: set[str] = set()
+    for value in source_adapter:
+        if not isinstance(value, str) or not value.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="source_adapter must contain non-empty strings",
+            )
+        adapters.update(part.strip() for part in value.split(",") if part.strip())
+    if not adapters:
+        raise HTTPException(
+            status_code=422,
+            detail="source_adapter must contain at least one adapter name",
+        )
+    return sorted(adapters)
+
+
+def _filter_source_adapter_reliability_digest_report(
+    report: dict[str, Any],
+    adapter_filter: list[str],
+) -> dict[str, Any]:
+    requested = set(adapter_filter)
+    rows = [row for row in report.get("adapters", []) if row.get("adapter") in requested]
+    filtered = {
+        **report,
+        "adapters": rows,
+        "reliability_bands": {
+            band: [row["adapter"] for row in rows if row.get("reliability_band") == band]
+            for band in ("failing", "low_yield", "watch", "healthy")
+        },
+        "next_actions": _source_adapter_reliability_digest_next_actions(rows),
+    }
+    summary = {**filtered.get("summary", {})}
+    summary.update(
+        {
+            "adapter_count": len(rows),
+            "healthy_count": len(filtered["reliability_bands"]["healthy"]),
+            "watch_count": len(filtered["reliability_bands"]["watch"]),
+            "low_yield_count": len(filtered["reliability_bands"]["low_yield"]),
+            "failing_count": len(filtered["reliability_bands"]["failing"]),
+        }
+    )
+    filtered["summary"] = summary
+    return filtered
+
+
+def _source_adapter_reliability_digest_next_actions(rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return ["No adapter run metrics matched the requested filters."]
+
+    actions: list[str] = []
+    failing = [row["adapter"] for row in rows if row.get("reliability_band") == "failing"]
+    low_yield = [row["adapter"] for row in rows if row.get("reliability_band") == "low_yield"]
+    watch = [row["adapter"] for row in rows if row.get("reliability_band") == "watch"]
+    if failing:
+        actions.append(f"Repair failing adapters first: {', '.join(failing)}.")
+    if low_yield:
+        actions.append(f"Reduce allocation or retune low-yield adapters: {', '.join(low_yield)}.")
+    if watch:
+        actions.append(
+            f"Monitor watch-list adapters for retry, quota, or relevance drift: {', '.join(watch)}."
+        )
+    if not actions:
+        actions.append("Keep current adapter allocation and revisit after the next pipeline run.")
+    return actions
 
 
 def _parse_source_reliability_time_window(time_window: str | None) -> datetime | None:
