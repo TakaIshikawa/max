@@ -129,6 +129,13 @@ from max.publisher.azure_devops_work_items import (
     AzureDevOpsWorkItemPublishResult,
     AzureDevOpsWorkItemsPublisher,
 )
+from max.publisher.azure_devops_work_item_comments import (
+    AzureDevOpsWorkItemCommentPayload,
+    AzureDevOpsWorkItemCommentPublisher,
+    AzureDevOpsWorkItemCommentPublishError,
+    AzureDevOpsWorkItemCommentPublishResult,
+    AzureDevOpsWorkItemCommentsPublisher,
+)
 from max.publisher.asana_tasks import (
     AsanaTaskPayload,
     AsanaTaskPublisher,
@@ -345,6 +352,11 @@ __all__ = [
     "AzureDevOpsWorkItemPublishError",
     "AzureDevOpsWorkItemPublishResult",
     "AzureDevOpsWorkItemsPublisher",
+    "AzureDevOpsWorkItemCommentPayload",
+    "AzureDevOpsWorkItemCommentPublisher",
+    "AzureDevOpsWorkItemCommentPublishError",
+    "AzureDevOpsWorkItemCommentPublishResult",
+    "AzureDevOpsWorkItemCommentsPublisher",
     "AsanaTaskPayload",
     "AsanaTaskPublisher",
     "AsanaTaskPublishError",
