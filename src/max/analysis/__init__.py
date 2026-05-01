@@ -33,6 +33,10 @@ from max.analysis.design_brief_kpi_tree import (
     generate_design_brief_kpi_tree,
     render_design_brief_kpi_tree_markdown,
 )
+from max.analysis.design_brief_legal_review_checklist import (
+    generate_design_brief_legal_review_checklist,
+    render_design_brief_legal_review_checklist_markdown,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -49,6 +53,7 @@ __all__ = [
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
     "generate_design_brief_kpi_tree",
+    "generate_design_brief_legal_review_checklist",
     "generate_persona_interview_guide",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
@@ -60,4 +65,5 @@ __all__ = [
     "render_design_brief_release_notes",
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
+    "render_design_brief_legal_review_checklist_markdown",
 ]
