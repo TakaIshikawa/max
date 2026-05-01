@@ -25,6 +25,10 @@ from max.spec.dependency_inventory import (
     generate_dependency_inventory,
     render_dependency_inventory_markdown,
 )
+from max.spec.deployment_topology import (
+    generate_deployment_topology,
+    render_deployment_topology_markdown,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -52,6 +56,7 @@ __all__ = [
     "generate_cost_estimate",
     "generate_data_classification",
     "generate_dependency_inventory",
+    "generate_deployment_topology",
     "generate_experiment_card",
     "generate_implementation_plan",
     "generate_launch_checklist",
@@ -70,6 +75,7 @@ __all__ = [
     "render_cost_estimate_markdown",
     "render_data_classification_markdown",
     "render_dependency_inventory_markdown",
+    "render_deployment_topology_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
     "render_spec_bundle_yaml",
