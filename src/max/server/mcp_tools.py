@@ -68,6 +68,10 @@ from max.analysis.design_brief_instrumentation_plan import (
     build_design_brief_instrumentation_plan,
     render_design_brief_instrumentation_plan,
 )
+from max.analysis.design_brief_migration_plan import (
+    build_design_brief_migration_plan,
+    render_design_brief_migration_plan,
+)
 from max.analysis.design_brief_one_pager import (
     build_design_brief_one_pager,
     render_design_brief_one_pager,
@@ -984,6 +988,50 @@ def get_design_brief_risk_register(
                 )
 
         rendered = render_design_brief_risk_register(register, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_migration_plan(
+    brief_id: str,
+    markdown: bool = False,
+    format: str | None = None,
+) -> dict:
+    """Get a migration plan for a persisted design brief.
+
+    Set markdown=true for rendered handoff text. The format parameter is kept
+    for compatibility with existing MCP clients.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        if format is not None:
+            fmt = format.strip().lower()
+        else:
+            fmt = "markdown" if markdown else "json"
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported migration plan format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            report = build_design_brief_migration_plan(store, brief_id)
+            if not report:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_migration_plan(report, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -3891,6 +3939,11 @@ def design_brief_risk_register_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_risk_register(brief_id), indent=2)
 
 
+def design_brief_migration_plan_detail(brief_id: str) -> str:
+    """Get the migration plan for a specific design brief."""
+    return json.dumps(get_design_brief_migration_plan(brief_id), indent=2)
+
+
 def design_brief_roadmap_detail(brief_id: str) -> str:
     """Get the roadmap for a specific design brief."""
     return json.dumps(get_design_brief_roadmap(brief_id), indent=2)
@@ -4140,6 +4193,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_markdown)
     mcp.tool(get_design_brief_validation_plan)
     mcp.tool(get_design_brief_risk_register)
+    mcp.tool(get_design_brief_migration_plan)
     mcp.tool(get_design_brief_roadmap)
     mcp.tool(get_design_brief_prd)
     mcp.tool(get_design_brief_executive_memo)
@@ -4216,6 +4270,9 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-briefs://{brief_id}")(design_brief_detail)
     mcp.resource("design-brief-validation-plans://{brief_id}")(design_brief_validation_plan_detail)
     mcp.resource("design-brief-risk-registers://{brief_id}")(design_brief_risk_register_detail)
+    mcp.resource("design-brief-migration-plans://{brief_id}")(
+        design_brief_migration_plan_detail
+    )
     mcp.resource("design-brief-roadmaps://{brief_id}")(design_brief_roadmap_detail)
     mcp.resource("design-brief-prd://{brief_id}")(design_brief_prd_detail)
     mcp.resource("design-brief-executive-memos://{brief_id}")(design_brief_executive_memo_detail)
