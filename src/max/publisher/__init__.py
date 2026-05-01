@@ -21,6 +21,13 @@ from max.publisher.github_pull_request_review_comments import (
     GitHubPullRequestReviewCommentPublishResult,
     GitHubPullRequestReviewCommentsPublisher,
 )
+from max.publisher.github_releases import (
+    GitHubReleasePayload,
+    GitHubReleasePublisher,
+    GitHubReleasePublishError,
+    GitHubReleasePublishResult,
+    GitHubReleasesPublisher,
+)
 from max.publisher.airtable_records import (
     AirtableRecordPayload,
     AirtableRecordPublisher,
@@ -295,6 +302,11 @@ __all__ = [
     "GitHubPullRequestReviewCommentPublishError",
     "GitHubPullRequestReviewCommentPublishResult",
     "GitHubPullRequestReviewCommentsPublisher",
+    "GitHubReleasePayload",
+    "GitHubReleasePublisher",
+    "GitHubReleasePublishError",
+    "GitHubReleasePublishResult",
+    "GitHubReleasesPublisher",
     "AirtableRecordPayload",
     "AirtableRecordPublisher",
     "AirtableRecordPublishError",

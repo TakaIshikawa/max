@@ -8,6 +8,11 @@ from max.publisher import (
     GitHubPullRequestReviewCommentPublishError,
     GitHubPullRequestReviewCommentPublishResult,
     GitHubPullRequestReviewCommentsPublisher,
+    GitHubReleasePayload,
+    GitHubReleasePublisher,
+    GitHubReleasePublishError,
+    GitHubReleasePublishResult,
+    GitHubReleasesPublisher,
     GitLabMergeRequestCommentPayload,
     GitLabMergeRequestCommentPublisher,
     GitLabMergeRequestCommentPublishError,
@@ -26,6 +31,9 @@ from max.publisher import (
 )
 from max.publisher.github_pull_request_review_comments import (
     GitHubPullRequestReviewCommentPublisher as ModuleGitHubPullRequestReviewCommentPublisher,
+)
+from max.publisher.github_releases import (
+    GitHubReleasePublisher as ModuleGitHubReleasePublisher,
 )
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPublisher as ModuleGitLabMergeRequestCommentPublisher,
@@ -55,6 +63,14 @@ def test_github_pull_request_review_comment_publisher_exports() -> None:
     assert GitHubPullRequestReviewCommentPayload
     assert GitHubPullRequestReviewCommentPublishError
     assert GitHubPullRequestReviewCommentPublishResult
+
+
+def test_github_release_publisher_exports() -> None:
+    assert GitHubReleasePublisher is ModuleGitHubReleasePublisher
+    assert GitHubReleasesPublisher is GitHubReleasePublisher
+    assert GitHubReleasePayload
+    assert GitHubReleasePublishError
+    assert GitHubReleasePublishResult
 
 
 def test_servicenow_incident_publisher_exports() -> None:
