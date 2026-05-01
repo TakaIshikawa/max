@@ -150,6 +150,13 @@ from max.publisher.freshdesk_tickets import (
     FreshdeskTicketPublishResult,
     FreshdeskTicketsPublisher,
 )
+from max.publisher.datadog_monitors import (
+    DatadogMonitorPayload,
+    DatadogMonitorPublisher,
+    DatadogMonitorPublishError,
+    DatadogMonitorPublishResult,
+    DatadogMonitorsPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -283,6 +290,11 @@ __all__ = [
     "FreshdeskTicketPublishError",
     "FreshdeskTicketPublishResult",
     "FreshdeskTicketsPublisher",
+    "DatadogMonitorPayload",
+    "DatadogMonitorPublisher",
+    "DatadogMonitorPublishError",
+    "DatadogMonitorPublishResult",
+    "DatadogMonitorsPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",
