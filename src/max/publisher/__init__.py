@@ -157,6 +157,13 @@ from max.publisher.datadog_monitors import (
     DatadogMonitorPublishResult,
     DatadogMonitorsPublisher,
 )
+from max.publisher.salesforce_cases import (
+    SalesforceCasePayload,
+    SalesforceCasePublisher,
+    SalesforceCasePublishError,
+    SalesforceCasePublishResult,
+    SalesforceCasesPublisher,
+)
 from max.publisher.discord_webhook import (
     DiscordWebhookPublisher,
     DiscordWebhookPublishError,
@@ -295,6 +302,11 @@ __all__ = [
     "DatadogMonitorPublishError",
     "DatadogMonitorPublishResult",
     "DatadogMonitorsPublisher",
+    "SalesforceCasePayload",
+    "SalesforceCasePublisher",
+    "SalesforceCasePublishError",
+    "SalesforceCasePublishResult",
+    "SalesforceCasesPublisher",
     "DiscordWebhookPublisher",
     "DiscordWebhookPublishError",
     "DiscordWebhookPublishResult",
