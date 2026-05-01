@@ -258,6 +258,13 @@ from max.publisher.slack_webhook import (
     SlackWebhookPublishError,
     SlackWebhookPublishResult,
 )
+from max.publisher.mattermost_webhook import (
+    MattermostWebhookPayload,
+    MattermostWebhookPublisher,
+    MattermostWebhookPublishError,
+    MattermostWebhookPublishResult,
+    MattermostWebhooksPublisher,
+)
 from max.publisher.teams_webhook import (
     TeamsWebhookPublisher,
     TeamsWebhookPublishError,
@@ -471,6 +478,11 @@ __all__ = [
     "SlackWebhookPublisher",
     "SlackWebhookPublishError",
     "SlackWebhookPublishResult",
+    "MattermostWebhookPayload",
+    "MattermostWebhookPublisher",
+    "MattermostWebhookPublishError",
+    "MattermostWebhookPublishResult",
+    "MattermostWebhooksPublisher",
     "TeamsWebhookPublisher",
     "TeamsWebhookPublishError",
     "TeamsWebhookPublishResult",

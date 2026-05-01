@@ -18,6 +18,11 @@ from max.publisher import (
     GitLabMergeRequestCommentPublishError,
     GitLabMergeRequestCommentPublishResult,
     GitLabMergeRequestCommentsPublisher,
+    MattermostWebhookPayload,
+    MattermostWebhookPublisher,
+    MattermostWebhookPublishError,
+    MattermostWebhookPublishResult,
+    MattermostWebhooksPublisher,
     OpsgenieAlertPayload,
     OpsgenieAlertPublisher,
     OpsgenieAlertPublishError,
@@ -37,6 +42,9 @@ from max.publisher.github_releases import (
 )
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPublisher as ModuleGitLabMergeRequestCommentPublisher,
+)
+from max.publisher.mattermost_webhook import (
+    MattermostWebhookPublisher as ModuleMattermostWebhookPublisher,
 )
 from max.publisher.opsgenie_alerts import (
     OpsgenieAlertPublisher as ModuleOpsgenieAlertPublisher,
@@ -87,3 +95,11 @@ def test_opsgenie_alert_publisher_exports() -> None:
     assert OpsgenieAlertPayload
     assert OpsgenieAlertPublishError
     assert OpsgenieAlertPublishResult
+
+
+def test_mattermost_webhook_publisher_exports() -> None:
+    assert MattermostWebhookPublisher is ModuleMattermostWebhookPublisher
+    assert MattermostWebhooksPublisher is MattermostWebhookPublisher
+    assert MattermostWebhookPayload
+    assert MattermostWebhookPublishError
+    assert MattermostWebhookPublishResult
