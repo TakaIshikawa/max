@@ -101,6 +101,13 @@ from max.publisher.linear_issues import (
     LinearIssuePublishResult,
     LinearIssuesPublisher,
 )
+from max.publisher.linear_issue_comments import (
+    LinearIssueCommentPayload,
+    LinearIssueCommentPublisher,
+    LinearIssueCommentPublishError,
+    LinearIssueCommentPublishResult,
+    LinearIssueCommentsPublisher,
+)
 from max.publisher.microsoft_planner_tasks import (
     MicrosoftPlannerTaskPayload,
     MicrosoftPlannerTaskPublisher,
@@ -318,6 +325,11 @@ __all__ = [
     "LinearIssuePublishError",
     "LinearIssuePublishResult",
     "LinearIssuesPublisher",
+    "LinearIssueCommentPayload",
+    "LinearIssueCommentPublisher",
+    "LinearIssueCommentPublishError",
+    "LinearIssueCommentPublishResult",
+    "LinearIssueCommentsPublisher",
     "MicrosoftPlannerTaskPayload",
     "MicrosoftPlannerTaskPublisher",
     "MicrosoftPlannerTaskPublishError",
