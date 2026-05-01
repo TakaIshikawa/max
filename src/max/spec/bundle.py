@@ -12,6 +12,7 @@ from max.analysis.review_gate import build_review_gate_decision
 from max.server.evidence_chain import build_evidence_chain_graph
 from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.data_classification import generate_data_classification
+from max.spec.data_retention_schedule import generate_data_retention_schedule
 from max.spec.dependency_inventory import generate_dependency_inventory
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
@@ -53,6 +54,7 @@ def generate_spec_bundle(
     acceptance_criteria = generate_acceptance_criteria(unit, evaluation, evidence_density)
     experiment_card = generate_experiment_card(unit, evaluation)
     data_classification = generate_data_classification(spec_preview)
+    data_retention_schedule = generate_data_retention_schedule(unit, evaluation, spec_preview)
     privacy_impact_assessment = generate_privacy_impact_assessment(spec_preview)
     dependency_inventory = generate_dependency_inventory(unit, evaluation, spec_preview)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
@@ -79,6 +81,7 @@ def generate_spec_bundle(
             "acceptance_criteria": acceptance_criteria,
             "experiment_card": experiment_card,
             "data_classification": data_classification,
+            "data_retention_schedule": data_retention_schedule,
             "privacy_impact_assessment": privacy_impact_assessment,
             "dependency_inventory": dependency_inventory,
             "risk_register": risk_register,
@@ -105,6 +108,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     criteria = artifacts["acceptance_criteria"]
     experiment = artifacts["experiment_card"]
     data_classification = artifacts["data_classification"]
+    data_retention_schedule = artifacts["data_retention_schedule"]
     privacy_impact_assessment = artifacts["privacy_impact_assessment"]
     dependency_inventory = artifacts["dependency_inventory"]
     risk_register = artifacts["risk_register"]
@@ -286,6 +290,33 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
                     [
                         f"{item['id']} [{item['owner']}]: {item['action']}"
                         for item in privacy_impact_assessment["review_actions"][:6]
+                    ],
+                    empty="None.",
+                ),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
+            "Data Retention Schedule",
+            [
+                f"Retention gate: {data_retention_schedule['summary']['retention_gate']}",
+                f"Rules: {data_retention_schedule['summary']['retention_rule_count']}",
+                "Retention rules:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['data_category']} - {item['retention_period']}"
+                        for item in data_retention_schedule["retention_rules"][:8]
+                    ],
+                    empty="None.",
+                ),
+                "Missing inputs:",
+                *_bullets(data_retention_schedule["missing_inputs"][:8], empty="None."),
+                "Next actions:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['action']}"
+                        for item in data_retention_schedule["next_actions"][:6]
                     ],
                     empty="None.",
                 ),
