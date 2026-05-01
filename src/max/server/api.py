@@ -272,6 +272,7 @@ from max.publisher.microsoft_planner_tasks import (
 )
 from max.publisher.monday_items import MondayItemPublisher, MondayItemPublishError
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
+from max.publisher.shortcut_stories import ShortcutStoryPublisher, ShortcutStoryPublishError
 from max.publisher.slack_webhook import (
     SlackWebhookPublisher,
     SlackWebhookPublishError,
@@ -496,6 +497,8 @@ from max.server.schemas import (
     SignalImportRequest,
     SignalImportResponse,
     SignalImportRowResult,
+    ShortcutStoryPublishRequest,
+    ShortcutStoryPublishResponse,
     SlackPublishRequest,
     SlackPublishResponse,
     SourceReliabilityAdapterMetricsResponse,
@@ -4549,6 +4552,94 @@ def publish_idea_to_linear_issue(
         idea_id=idea_id,
         team_id=result.team_id,
         issue_url=result.issue_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/shortcut", response_model=ShortcutStoryPublishResponse)
+def publish_idea_to_shortcut_story(
+    idea_id: str,
+    request: ShortcutStoryPublishRequest,
+    store: Store = Depends(get_store),
+) -> ShortcutStoryPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    try:
+        publisher = ShortcutStoryPublisher.from_env(
+            api_token=request.api_token,
+            api_url=request.api_url,
+            workflow_state_id=request.workflow_state_id,
+            epic_id=request.epic_id,
+            labels=request.labels,
+            owner_ids=request.owner_ids,
+            story_type=request.story_type,
+            estimate=request.estimate,
+            deadline=request.deadline,
+            iteration_id=request.iteration_id,
+            timeout=request.timeout,
+        )
+    except ShortcutStoryPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    endpoint_url = redact_url(publisher.story_endpoint)
+    if not request.dry_run and not publisher.has_auth:
+        message = (
+            "SHORTCUT_API_TOKEN is required for live Shortcut story publishing; "
+            "use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="shortcut_story",
+            target_url=endpoint_url,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except ShortcutStoryPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="shortcut_story",
+            target_url=endpoint_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.story_url or endpoint_url
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="shortcut_story",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+
+    return ShortcutStoryPublishResponse(
+        idea_id=idea_id,
+        story_id=result.story_id,
+        story_url=result.story_url,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
