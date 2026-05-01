@@ -150,6 +150,13 @@ from max.publisher.freshdesk_tickets import (
     FreshdeskTicketPublishResult,
     FreshdeskTicketsPublisher,
 )
+from max.publisher.zendesk_tickets import (
+    ZendeskTicketPayload,
+    ZendeskTicketPublisher,
+    ZendeskTicketPublishError,
+    ZendeskTicketPublishResult,
+    ZendeskTicketsPublisher,
+)
 from max.publisher.datadog_monitors import (
     DatadogMonitorPayload,
     DatadogMonitorPublisher,
@@ -304,6 +311,11 @@ __all__ = [
     "FreshdeskTicketPublishError",
     "FreshdeskTicketPublishResult",
     "FreshdeskTicketsPublisher",
+    "ZendeskTicketPayload",
+    "ZendeskTicketPublisher",
+    "ZendeskTicketPublishError",
+    "ZendeskTicketPublishResult",
+    "ZendeskTicketsPublisher",
     "DatadogMonitorPayload",
     "DatadogMonitorPublisher",
     "DatadogMonitorPublishError",
