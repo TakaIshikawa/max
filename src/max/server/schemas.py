@@ -2964,6 +2964,27 @@ class DesignBriefTrainingPlanResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefPrivacyImpactAssessmentRequest(BaseModel):
+    format: Literal["json", "markdown"] = "json"
+
+
+class DesignBriefPrivacyImpactAssessmentResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    privacy_context: dict[str, Any]
+    data_categories: list[dict[str, Any]]
+    processing_purposes: list[dict[str, Any]]
+    risk_areas: list[dict[str, Any]]
+    mitigations: list[dict[str, Any]]
+    open_questions: list[dict[str, Any]]
+    owners: list[dict[str, Any]]
+    launch_gates: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefGtmChannelPlanResponse(BaseModel):
     schema_version: str
     kind: str

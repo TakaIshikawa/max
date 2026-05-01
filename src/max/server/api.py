@@ -148,6 +148,10 @@ from max.analysis.design_brief_pricing_strategy import (
     pricing_strategy_filename,
     render_design_brief_pricing_strategy,
 )
+from max.analysis.design_brief_privacy_impact_assessment import (
+    build_design_brief_privacy_impact_assessment,
+    render_design_brief_privacy_impact_assessment,
+)
 from max.analysis.design_brief_raci_matrix import (
     build_design_brief_raci_matrix,
     raci_matrix_filename,
@@ -395,6 +399,8 @@ from max.server.schemas import (
     DesignBriefProcurementChecklistResponse,
     DesignBriefPrdResponse,
     DesignBriefPricingStrategyResponse,
+    DesignBriefPrivacyImpactAssessmentRequest,
+    DesignBriefPrivacyImpactAssessmentResponse,
     DesignBriefRaciMatrixResponse,
     DesignBriefRetentionPolicyResponse,
     DesignBriefRoadmapResponse,
@@ -9234,6 +9240,45 @@ def _design_brief_training_plan_markdown_response(plan: dict[str, Any]) -> Respo
     filename = training_plan_filename(plan["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_training_plan(plan, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/privacy-impact-assessment",
+    response_model=DesignBriefPrivacyImpactAssessmentResponse,
+)
+def get_design_brief_privacy_impact_assessment(
+    brief_id: str,
+    request: DesignBriefPrivacyImpactAssessmentRequest = Depends(),
+    store: Store = Depends(get_store),
+) -> DesignBriefPrivacyImpactAssessmentResponse | Response:
+    assessment = build_design_brief_privacy_impact_assessment(store, brief_id)
+    if not assessment:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if request.format == "markdown":
+        return _design_brief_privacy_impact_assessment_markdown_response(assessment)
+    return DesignBriefPrivacyImpactAssessmentResponse(**assessment)
+
+
+@router.get("/design-briefs/{brief_id}/privacy-impact-assessment.md", response_model=None)
+def get_design_brief_privacy_impact_assessment_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    assessment = build_design_brief_privacy_impact_assessment(store, brief_id)
+    if not assessment:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_privacy_impact_assessment_markdown_response(assessment)
+
+
+def _design_brief_privacy_impact_assessment_markdown_response(assessment: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(assessment['design_brief']['id'])}-privacy-impact-assessment.md"
+    return Response(
+        content=render_design_brief_privacy_impact_assessment(assessment, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
