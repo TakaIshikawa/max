@@ -73,6 +73,13 @@ from max.publisher.gitlab_issues import (
     GitLabIssuePublishResult,
     GitLabIssuesPublisher,
 )
+from max.publisher.gitlab_epics import (
+    GitLabEpicPayload,
+    GitLabEpicPublisher,
+    GitLabEpicPublishError,
+    GitLabEpicPublishResult,
+    GitLabEpicsPublisher,
+)
 from max.publisher.gitlab_snippets import (
     GitLabSnippetPayload,
     GitLabSnippetPublisher,
@@ -370,6 +377,11 @@ __all__ = [
     "GitLabIssuePublishError",
     "GitLabIssuePublishResult",
     "GitLabIssuesPublisher",
+    "GitLabEpicPayload",
+    "GitLabEpicPublisher",
+    "GitLabEpicPublishError",
+    "GitLabEpicPublishResult",
+    "GitLabEpicsPublisher",
     "GitLabSnippetPayload",
     "GitLabSnippetPublisher",
     "GitLabSnippetPublishError",
