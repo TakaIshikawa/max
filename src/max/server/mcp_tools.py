@@ -96,6 +96,10 @@ from max.analysis.design_brief_pricing_strategy import (
     build_design_brief_pricing_strategy,
     render_design_brief_pricing_strategy,
 )
+from max.analysis.design_brief_qa_test_plan import (
+    build_design_brief_qa_test_plan,
+    render_design_brief_qa_test_plan,
+)
 from max.analysis.design_brief_procurement_checklist import (
     build_design_brief_procurement_checklist,
     render_design_brief_procurement_checklist,
@@ -1343,6 +1347,43 @@ def get_design_brief_evidence_matrix(brief_id: str, format: str = "json") -> dic
             matrix = build_design_brief_evidence_matrix(store, brief)
 
         rendered = render_design_brief_evidence_matrix(matrix, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_qa_test_plan(brief_id: str, format: str = "json") -> dict:
+    """Get the QA test plan for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    QA handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported QA test plan format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            plan = build_design_brief_qa_test_plan(store, brief_id)
+            if not plan:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_qa_test_plan(plan, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -4337,6 +4378,11 @@ def design_brief_evidence_matrix_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_evidence_matrix(brief_id), indent=2)
 
 
+def design_brief_qa_test_plan_detail(brief_id: str) -> str:
+    """Get the QA test plan for a specific design brief."""
+    return json.dumps(get_design_brief_qa_test_plan(brief_id), indent=2)
+
+
 def design_brief_launch_checklist_detail(brief_id: str) -> str:
     """Get the launch checklist for a specific design brief."""
     return json.dumps(get_design_brief_launch_checklist(brief_id), indent=2)
@@ -4581,6 +4627,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_market_sizing)
     mcp.tool(get_design_brief_competitive_landscape)
     mcp.tool(get_design_brief_evidence_matrix)
+    mcp.tool(get_design_brief_qa_test_plan)
     mcp.tool(get_design_brief_launch_checklist)
     mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_procurement_checklist)
@@ -4667,6 +4714,7 @@ def create_mcp_server() -> FastMCP:
         design_brief_competitive_landscape_detail
     )
     mcp.resource("design-brief-evidence-matrices://{brief_id}")(design_brief_evidence_matrix_detail)
+    mcp.resource("design-brief-qa-test-plans://{brief_id}")(design_brief_qa_test_plan_detail)
     mcp.resource("design-brief-launch-checklist://{brief_id}")(design_brief_launch_checklist_detail)
     mcp.resource("design-brief-compliance-checklist://{brief_id}")(
         design_brief_compliance_checklist_detail
