@@ -47,6 +47,7 @@ from max.server.schemas import (
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
     DesignBriefEventDictionaryResponse,
+    DesignBriefExperimentBacklogResponse,
     DesignBriefGtmChannelPlanResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
@@ -2142,6 +2143,43 @@ class TestDesignBriefTrainingPlanSchemas:
         assert "schema_version" in missing_fields
         assert "design_brief" in missing_fields
         assert "learning_objectives" in missing_fields
+
+
+class TestDesignBriefExperimentBacklogResponse:
+    def test_preserves_experiment_backlog_artifact_sections(self):
+        response = DesignBriefExperimentBacklogResponse(
+            schema_version="max.design_brief.experiment_backlog.v1",
+            kind="max.design_brief.experiment_backlog",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-backlog"},
+            design_brief={"id": "dbf-backlog", "title": "Experiment Backlog Brief"},
+            summary={"backlog_item_count": 1, "evidence_gap_count": 1},
+            backlog_items=[
+                {
+                    "id": "EXP-001",
+                    "title": "Validate buyer urgency",
+                    "priority_score": 92,
+                }
+            ],
+            evidence_references=[{"id": "sig-backlog", "kind": "signal"}],
+            evidence_gaps=[{"id": "GAP-001", "field": "buyer", "gap": "Missing buyer proof"}],
+            recommended_next_actions=[{"id": "NEXT-001", "action": "Run interviews"}],
+            source_ideas=[{"id": "bu-backlog"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.experiment_backlog.v1"
+        assert dumped["design_brief"]["id"] == "dbf-backlog"
+        assert dumped["summary"]["backlog_item_count"] == 1
+        assert dumped["backlog_items"][0]["priority_score"] == 92
+
+    def test_response_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefExperimentBacklogResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "backlog_items" in missing_fields
 
 
 class TestDesignBriefGtmChannelPlanResponse:

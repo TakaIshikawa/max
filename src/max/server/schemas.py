@@ -2537,6 +2537,19 @@ class DesignBriefRiskRegisterResponse(BaseModel):
     validation_actions: list[str]
 
 
+class DesignBriefExperimentBacklogResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    backlog_items: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    evidence_gaps: list[dict[str, Any]]
+    recommended_next_actions: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefLaunchChecklistItemResponse(BaseModel):
     id: str
     task: str
