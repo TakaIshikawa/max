@@ -35,6 +35,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "rollback_plan",
         "acceptance_criteria",
         "experiment_card",
+        "dependency_inventory",
         "risk_register",
         "review_gate",
         "evidence_density",
@@ -46,6 +47,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
     assert bundle["artifacts"]["rollback_plan"]["schema_version"] == "max-rollback-plan/v1"
     assert bundle["artifacts"]["acceptance_criteria"]["schema_version"] == "max-acceptance-criteria/v1"
     assert bundle["artifacts"]["experiment_card"]["schema_version"] == "max-experiment-card/v1"
+    assert bundle["artifacts"]["dependency_inventory"]["schema_version"] == "max-dependency-inventory/v1"
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
     assert bundle["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
     assert bundle["artifacts"]["evidence_density"]["signal_count"] == 1
@@ -69,6 +71,7 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert bundle["artifacts"]["readiness"]["passed"] is False
     assert "evaluation_recommendation" in bundle["artifacts"]["readiness"]["failed_check_ids"]
     assert bundle["artifacts"]["experiment_card"]["source"]["evaluation_available"] is False
+    assert bundle["artifacts"]["dependency_inventory"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["risk_register"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["rollback_plan"]["source"]["evaluation_available"] is False
     assert "trigger_missing_evaluation" in {
@@ -101,6 +104,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Rollback Plan",
         "## Acceptance Criteria",
         "## Experiment Card",
+        "## Dependency Inventory",
         "## Risk Register",
         "## Review Gate",
         "## Evidence Density",

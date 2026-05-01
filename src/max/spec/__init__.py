@@ -17,6 +17,10 @@ from max.spec.compliance_checklist import (
     render_compliance_checklist_markdown,
 )
 from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
+from max.spec.dependency_inventory import (
+    generate_dependency_inventory,
+    render_dependency_inventory_markdown,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -42,6 +46,7 @@ __all__ = [
     "generate_architecture_decision_record",
     "generate_compliance_checklist",
     "generate_cost_estimate",
+    "generate_dependency_inventory",
     "generate_experiment_card",
     "generate_implementation_plan",
     "generate_launch_checklist",
@@ -58,6 +63,7 @@ __all__ = [
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
+    "render_dependency_inventory_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
     "render_spec_bundle_yaml",
