@@ -49,6 +49,8 @@ from max.server.schemas import (
     DesignBriefGtmChannelPlanResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
+    DesignBriefTrainingPlanRequest,
+    DesignBriefTrainingPlanResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -2026,6 +2028,48 @@ class TestDesignBriefSuccessMetricsResponse:
         assert "schema_version" in missing_fields
         assert "brief_id" in missing_fields
         assert "north_star_metric" in missing_fields
+
+
+class TestDesignBriefTrainingPlanSchemas:
+    def test_request_defaults_to_json(self):
+        request = DesignBriefTrainingPlanRequest()
+
+        assert request.model_dump() == {"format": "json"}
+
+    def test_response_preserves_training_artifact_sections(self):
+        response = DesignBriefTrainingPlanResponse(
+            schema_version="max.design_brief.training_plan.v1",
+            kind="max.design_brief.training_plan",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-training"},
+            design_brief={"id": "dbf-training", "title": "Training Brief"},
+            summary={"buyer": "engineering director", "target_user": "platform lead"},
+            learner_segments=[{"id": "customer_practitioners", "name": "Practitioners"}],
+            learning_objectives=[{"id": "LO1", "objective": "Complete setup"}],
+            session_outline=[{"id": "SO1", "title": "Context"}],
+            prerequisite_setup=[{"id": "PS1", "name": "Workspace"}],
+            hands_on_exercises=[{"id": "EX1", "title": "Run workflow"}],
+            success_checks=[{"id": "SC1", "check": "Workflow completed"}],
+            follow_up_materials=[{"id": "FM1", "name": "Runbook"}],
+            evidence_references=[{"id": "sig-training", "type": "signal"}],
+            gaps_to_resolve=[],
+            next_actions=[],
+            source_ideas=[{"id": "bu-training"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.training_plan.v1"
+        assert dumped["design_brief"]["id"] == "dbf-training"
+        assert dumped["learning_objectives"][0]["id"] == "LO1"
+        assert dumped["evidence_references"][0]["id"] == "sig-training"
+
+    def test_response_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefTrainingPlanResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "learning_objectives" in missing_fields
 
 
 class TestDesignBriefGtmChannelPlanResponse:

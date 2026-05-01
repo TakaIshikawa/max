@@ -147,6 +147,11 @@ from max.analysis.design_brief_success_metrics import (
     render_design_brief_success_metrics,
     success_metrics_filename,
 )
+from max.analysis.design_brief_training_plan import (
+    build_design_brief_training_plan,
+    render_design_brief_training_plan,
+    training_plan_filename,
+)
 from max.analysis.design_brief_stakeholder_map import (
     build_design_brief_stakeholder_map,
     render_design_brief_stakeholder_map,
@@ -375,6 +380,8 @@ from max.server.schemas import (
     DesignBriefSuccessMetricsResponse,
     DesignBriefTeamsPublishResponse,
     DesignBriefTechnicalFeasibilityResponse,
+    DesignBriefTrainingPlanRequest,
+    DesignBriefTrainingPlanResponse,
     DesignBriefTrelloCardPublishRequest,
     DesignBriefTrelloCardPublishResponse,
     DesignBriefValidationPlanResponse,
@@ -8941,6 +8948,45 @@ def _design_brief_instrumentation_plan_rendered_response(
         filename = instrumentation_plan_filename(plan["design_brief"], fmt="markdown")
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return Response(content=content, media_type=media_type, headers=headers)
+
+
+@router.get(
+    "/design-briefs/{brief_id}/training-plan",
+    response_model=DesignBriefTrainingPlanResponse,
+)
+def get_design_brief_training_plan(
+    brief_id: str,
+    request: DesignBriefTrainingPlanRequest = Depends(),
+    store: Store = Depends(get_store),
+) -> DesignBriefTrainingPlanResponse | Response:
+    plan = build_design_brief_training_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if request.format == "markdown":
+        return _design_brief_training_plan_markdown_response(plan)
+    return DesignBriefTrainingPlanResponse(**plan)
+
+
+@router.get("/design-briefs/{brief_id}/training-plan.md", response_model=None)
+def get_design_brief_training_plan_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    plan = build_design_brief_training_plan(store, brief_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_training_plan_markdown_response(plan)
+
+
+def _design_brief_training_plan_markdown_response(plan: dict[str, Any]) -> Response:
+    filename = training_plan_filename(plan["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_training_plan(plan, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

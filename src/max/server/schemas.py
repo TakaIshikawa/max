@@ -2863,6 +2863,29 @@ class DesignBriefInstrumentationPlanResponse(BaseModel):
     missing_inputs: list[dict[str, Any]]
 
 
+class DesignBriefTrainingPlanRequest(BaseModel):
+    format: Literal["json", "markdown"] = "json"
+
+
+class DesignBriefTrainingPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    learner_segments: list[dict[str, Any]]
+    learning_objectives: list[dict[str, Any]]
+    session_outline: list[dict[str, Any]]
+    prerequisite_setup: list[dict[str, Any]]
+    hands_on_exercises: list[dict[str, Any]]
+    success_checks: list[dict[str, Any]]
+    follow_up_materials: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    gaps_to_resolve: list[dict[str, Any]]
+    next_actions: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefGtmChannelPlanResponse(BaseModel):
     schema_version: str
     kind: str
