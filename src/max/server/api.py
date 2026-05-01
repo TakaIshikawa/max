@@ -112,6 +112,11 @@ from max.analysis.design_brief_failure_modes import (
     failure_modes_filename,
     render_design_brief_failure_modes,
 )
+from max.analysis.design_brief_churn_risk_report import (
+    build_design_brief_churn_risk_report,
+    churn_risk_report_filename,
+    render_design_brief_churn_risk_report,
+)
 from max.analysis.design_brief_experiment_backlog import (
     build_design_brief_experiment_backlog,
     experiment_backlog_filename,
@@ -383,6 +388,7 @@ from max.server.schemas import (
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
     DesignBriefCustomerJourneyMapResponse,
+    DesignBriefChurnRiskReportResponse,
     DesignBriefDataRoomIndexResponse,
     DesignBriefDependencyRiskMapResponse,
     DesignBriefDiscordPublishResponse,
@@ -8782,6 +8788,44 @@ def get_design_brief_failure_modes_markdown(
     filename = failure_modes_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_failure_modes(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/churn-risk-report",
+    response_model=DesignBriefChurnRiskReportResponse,
+)
+def get_design_brief_churn_risk_report(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefChurnRiskReportResponse | Response:
+    report = build_design_brief_churn_risk_report(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_churn_risk_report_markdown_response(report)
+    return DesignBriefChurnRiskReportResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/churn-risk-report.md", response_model=None)
+def get_design_brief_churn_risk_report_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_churn_risk_report(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_churn_risk_report_markdown_response(report)
+
+
+def _design_brief_churn_risk_report_markdown_response(report: dict[str, Any]) -> Response:
+    filename = churn_risk_report_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_churn_risk_report(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
