@@ -11,6 +11,7 @@ from max.spec.bundle import (
     render_spec_bundle_markdown,
     render_spec_bundle_yaml,
 )
+from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
@@ -30,6 +31,7 @@ __all__ = [
     "evaluate_spec_readiness",
     "generate_acceptance_criteria",
     "generate_architecture_decision_record",
+    "generate_cost_estimate",
     "generate_experiment_card",
     "generate_implementation_plan",
     "generate_launch_checklist",
@@ -42,6 +44,7 @@ __all__ = [
     "render_risk_register_markdown",
     "render_security_review_markdown",
     "render_architecture_decision_record_markdown",
+    "render_cost_estimate_markdown",
     "render_observability_plan_markdown",
     "render_spec_bundle_yaml",
     "generate_spec_preview",
