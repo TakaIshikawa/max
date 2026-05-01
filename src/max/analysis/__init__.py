@@ -52,6 +52,10 @@ from max.analysis.design_brief_legal_review_checklist import (
     generate_design_brief_legal_review_checklist,
     render_design_brief_legal_review_checklist_markdown,
 )
+from max.analysis.design_brief_privacy_impact_assessment import (
+    build_design_brief_privacy_impact_assessment,
+    render_design_brief_privacy_impact_assessment,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -65,6 +69,7 @@ __all__ = [
     "build_design_brief_release_notes",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
+    "build_design_brief_privacy_impact_assessment",
     "build_portfolio_cannibalization_from_records",
     "build_portfolio_cannibalization_report",
     "build_portfolio_theme_saturation_report",
@@ -90,4 +95,5 @@ __all__ = [
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_legal_review_checklist_markdown",
+    "render_design_brief_privacy_impact_assessment",
 ]
