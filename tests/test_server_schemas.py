@@ -49,6 +49,7 @@ from max.server.schemas import (
     DesignBriefEventDictionaryResponse,
     DesignBriefExperimentBacklogResponse,
     DesignBriefGtmChannelPlanResponse,
+    DesignBriefInstrumentationPlanResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTrainingPlanRequest,
@@ -2031,6 +2032,70 @@ class TestDesignBriefSuccessMetricsResponse:
         assert "schema_version" in missing_fields
         assert "brief_id" in missing_fields
         assert "north_star_metric" in missing_fields
+
+
+class TestDesignBriefInstrumentationPlanResponse:
+    def test_preserves_instrumentation_plan_artifact_sections(self):
+        response = DesignBriefInstrumentationPlanResponse(
+            schema_version="max.design_brief.instrumentation_plan.v1",
+            kind="max.design_brief.instrumentation_plan",
+            design_brief={"id": "dbf-instrumentation", "title": "Instrumentation Brief"},
+            summary={"event_count": 1, "guardrail_event_count": 1},
+            events=[
+                {
+                    "id": "E1",
+                    "name": "activation_started",
+                    "category": "activation",
+                    "trigger": "A qualified actor starts the workflow.",
+                    "required_properties": ["brief_id", "actor_role"],
+                    "privacy_notes": [],
+                }
+            ],
+            activation_funnel_steps=[
+                {
+                    "step": "Start",
+                    "event_name": "activation_started",
+                    "description": "User starts activation.",
+                    "required_properties": ["brief_id"],
+                }
+            ],
+            retention_checkpoints=[
+                {
+                    "checkpoint": "Repeat use",
+                    "event_name": "core_workflow_repeated",
+                    "description": "Activated account repeats the workflow.",
+                    "window": "14 days",
+                }
+            ],
+            guardrail_alerts=[
+                {
+                    "name": "security_approval_blocked",
+                    "event_name": "guardrail_alert_triggered",
+                    "severity": "high",
+                    "condition": "Security approval blocks rollout.",
+                    "response": "Pause rollout.",
+                }
+            ],
+            privacy_notes=["Do not include raw customer content."],
+            missing_inputs=[],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.instrumentation_plan.v1"
+        assert dumped["kind"] == "max.design_brief.instrumentation_plan"
+        assert dumped["events"][0]["name"] == "activation_started"
+        assert dumped["guardrail_alerts"][0]["severity"] == "high"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefInstrumentationPlanResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "kind" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "events" in missing_fields
+        assert "guardrail_alerts" in missing_fields
 
 
 class TestDesignBriefEventDictionaryResponse:
