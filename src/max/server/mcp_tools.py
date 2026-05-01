@@ -80,6 +80,10 @@ from max.analysis.design_brief_one_pager import (
     build_design_brief_one_pager,
     render_design_brief_one_pager,
 )
+from max.analysis.design_brief_okrs import (
+    build_design_brief_okrs,
+    render_design_brief_okrs_markdown,
+)
 from max.analysis.design_brief_bundle import (
     build_design_brief_bundle,
     render_design_brief_bundle,
@@ -1701,6 +1705,47 @@ def get_design_brief_success_metrics(brief_id: str, format: str = "json") -> dic
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_okrs(brief_id: str, format: str = "json") -> dict:
+    """Get execution OKRs for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    planning handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported OKR format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            brief = store.get_design_brief(brief_id)
+            if not brief:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+            report = build_design_brief_okrs(brief)
+
+        if fmt == "markdown":
+            return {
+                "id": brief_id,
+                "format": "markdown",
+                "markdown": render_design_brief_okrs_markdown(report),
+            }
+        return report
     except MCPToolError as e:
         return e.to_dict()
 
@@ -4339,6 +4384,11 @@ def design_brief_success_metrics_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_success_metrics(brief_id), indent=2)
 
 
+def design_brief_okrs_detail(brief_id: str) -> str:
+    """Get execution OKRs for a specific design brief."""
+    return json.dumps(get_design_brief_okrs(brief_id), indent=2)
+
+
 def design_brief_support_playbook_detail(brief_id: str) -> str:
     """Get the support playbook for a specific design brief."""
     return json.dumps(get_design_brief_support_playbook(brief_id), indent=2)
@@ -4540,6 +4590,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_outreach_pack)
     mcp.tool(get_design_brief_gtm_channel_plan)
     mcp.tool(get_design_brief_success_metrics)
+    mcp.tool(get_design_brief_okrs)
     mcp.tool(get_design_brief_support_playbook)
     mcp.tool(get_design_brief_pricing_strategy)
     mcp.tool(get_design_brief_buyer_faq)
@@ -4635,6 +4686,7 @@ def create_mcp_server() -> FastMCP:
         design_brief_gtm_channel_plan_detail
     )
     mcp.resource("design-brief-success-metrics://{brief_id}")(design_brief_success_metrics_detail)
+    mcp.resource("design-brief-okrs://{brief_id}")(design_brief_okrs_detail)
     mcp.resource("design-briefs://{brief_id}/support-playbook")(
         design_brief_support_playbook_detail
     )
