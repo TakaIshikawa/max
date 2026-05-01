@@ -19,6 +19,11 @@ from max.analysis.design_brief_dependency_risk_map import (
     dependency_risk_map_filename,
     render_design_brief_dependency_risk_map,
 )
+from max.analysis.design_brief_qa_test_plan import (
+    build_design_brief_qa_test_plan,
+    qa_test_plan_filename,
+    render_design_brief_qa_test_plan,
+)
 from max.analysis.design_brief_release_notes import (
     build_design_brief_release_notes,
     release_notes_filename,
@@ -50,6 +55,7 @@ from max.analysis.source_adapter_coverage_gaps import (
 __all__ = [
     "build_design_brief_procurement_checklist",
     "build_design_brief_dependency_risk_map",
+    "build_design_brief_qa_test_plan",
     "build_design_brief_release_notes",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
@@ -64,12 +70,14 @@ __all__ = [
     "dependency_risk_map_filename",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
+    "qa_test_plan_filename",
     "raci_matrix_filename",
     "release_notes_filename",
     "render_design_brief_onboarding_checklist",
     "render_persona_interview_guide_markdown",
     "render_design_brief_procurement_checklist",
     "render_design_brief_dependency_risk_map",
+    "render_design_brief_qa_test_plan",
     "render_design_brief_release_notes",
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
