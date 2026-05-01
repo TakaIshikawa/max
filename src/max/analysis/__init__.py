@@ -29,6 +29,10 @@ from max.analysis.design_brief_raci_matrix import (
     raci_matrix_filename,
     render_design_brief_raci_matrix,
 )
+from max.analysis.design_brief_kpi_tree import (
+    generate_design_brief_kpi_tree,
+    render_design_brief_kpi_tree_markdown,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -44,6 +48,7 @@ __all__ = [
     "build_portfolio_theme_saturation_report",
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
+    "generate_design_brief_kpi_tree",
     "generate_persona_interview_guide",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
@@ -54,4 +59,5 @@ __all__ = [
     "render_design_brief_procurement_checklist",
     "render_design_brief_release_notes",
     "render_design_brief_raci_matrix",
+    "render_design_brief_kpi_tree_markdown",
 ]
