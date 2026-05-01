@@ -152,6 +152,11 @@ from max.analysis.design_brief_privacy_impact_assessment import (
     build_design_brief_privacy_impact_assessment,
     render_design_brief_privacy_impact_assessment,
 )
+from max.analysis.design_brief_release_notes import (
+    build_design_brief_release_notes,
+    release_notes_filename,
+    render_design_brief_release_notes,
+)
 from max.analysis.design_brief_raci_matrix import (
     build_design_brief_raci_matrix,
     raci_matrix_filename,
@@ -402,6 +407,8 @@ from max.server.schemas import (
     DesignBriefPrivacyImpactAssessmentRequest,
     DesignBriefPrivacyImpactAssessmentResponse,
     DesignBriefRaciMatrixResponse,
+    DesignBriefReleaseNotesRequest,
+    DesignBriefReleaseNotesResponse,
     DesignBriefRetentionPolicyResponse,
     DesignBriefRoadmapResponse,
     DesignBriefRolloutCommsPlanResponse,
@@ -9279,6 +9286,45 @@ def _design_brief_privacy_impact_assessment_markdown_response(assessment: dict[s
     filename = f"{_download_filename_part(assessment['design_brief']['id'])}-privacy-impact-assessment.md"
     return Response(
         content=render_design_brief_privacy_impact_assessment(assessment, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/release-notes",
+    response_model=DesignBriefReleaseNotesResponse,
+)
+def get_design_brief_release_notes(
+    brief_id: str,
+    request: DesignBriefReleaseNotesRequest = Depends(),
+    store: Store = Depends(get_store),
+) -> DesignBriefReleaseNotesResponse | Response:
+    notes = build_design_brief_release_notes(store, brief_id)
+    if not notes:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if request.format == "markdown":
+        return _design_brief_release_notes_markdown_response(notes)
+    return DesignBriefReleaseNotesResponse(**notes)
+
+
+@router.get("/design-briefs/{brief_id}/release-notes.md", response_model=None)
+def get_design_brief_release_notes_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    notes = build_design_brief_release_notes(store, brief_id)
+    if not notes:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_release_notes_markdown_response(notes)
+
+
+def _design_brief_release_notes_markdown_response(notes: dict[str, Any]) -> Response:
+    filename = release_notes_filename(notes["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_release_notes(notes, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

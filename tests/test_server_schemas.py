@@ -53,6 +53,8 @@ from max.server.schemas import (
     DesignBriefInstrumentationPlanResponse,
     DesignBriefPrivacyImpactAssessmentRequest,
     DesignBriefPrivacyImpactAssessmentResponse,
+    DesignBriefReleaseNotesRequest,
+    DesignBriefReleaseNotesResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
     DesignBriefTrainingPlanRequest,
@@ -2335,6 +2337,128 @@ class TestDesignBriefPrivacyImpactAssessmentSchemas:
         assert "design_brief" in missing_fields
         assert "privacy_context" in missing_fields
         assert "data_categories" in missing_fields
+
+
+class TestDesignBriefReleaseNotesSchemas:
+    def test_request_defaults_to_json(self):
+        request = DesignBriefReleaseNotesRequest()
+
+        assert request.model_dump() == {"format": "json"}
+
+    def test_response_preserves_release_notes_artifact_sections(self):
+        response = DesignBriefReleaseNotesResponse(
+            schema_version="max.design_brief.release_notes.v1",
+            kind="max.design_brief.release_notes",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-release"},
+            design_brief={"id": "dbf-release", "title": "Release Brief"},
+            summary={
+                "headline": "Release Brief is ready for implementation lead",
+                "target_user": "implementation lead",
+                "buyer": "customer success director",
+                "workflow_context": "pilot launch handoff workflow",
+                "release_stage": "ready_for_customer_rollout",
+                "fallbacks_used": [],
+                "capability_count": 1,
+                "known_limitation_count": 1,
+                "evidence_count": 1,
+                "follow_up_milestone_count": 1,
+            },
+            customer_facing={
+                "headline": "Release Brief is ready for implementation lead",
+                "overview": "Release overview.",
+                "shipped_capabilities": [
+                    {
+                        "id": "CAP1",
+                        "title": "Structured release note JSON",
+                        "description": "Shipped support for JSON.",
+                        "customer_value": "Helps implementation leads.",
+                        "source_fields": ["mvp_scope"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "target_users": [
+                    {
+                        "id": "primary_user",
+                        "name": "implementation lead",
+                        "reason": "Owns launch handoff.",
+                        "source_fields": ["specific_user"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "rollout_notes": [
+                    {
+                        "id": "RN1",
+                        "stage": "Availability",
+                        "note": "Controlled rollout first.",
+                        "owner": "Product lead",
+                        "source_fields": ["design_status"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "known_limitations": [
+                    {
+                        "id": "KL1",
+                        "title": "Launch limitation",
+                        "description": "Readiness can be overstated.",
+                        "mitigation": "Route unresolved feedback to the release owner.",
+                        "source_fields": ["risks"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "follow_up_milestones": [
+                    {
+                        "id": "FM1",
+                        "name": "Validate Markdown download",
+                        "owner": "Product lead",
+                        "success_signal": "Milestone reviewed with evidence.",
+                        "source_fields": ["first_milestones"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+            },
+            internal={
+                "release_summary": "Release summary.",
+                "validation_evidence": [
+                    {
+                        "kind": "brief_field",
+                        "id": "design_brief.validation_plan",
+                        "summary": "Run client contract tests.",
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "support_handoff": [
+                    {
+                        "id": "SH1",
+                        "topic": "Primary support path",
+                        "detail": "Help users complete launch handoff.",
+                        "owner": "Support owner",
+                        "source_fields": ["workflow_context"],
+                        "source_idea_ids": ["bu-release"],
+                    }
+                ],
+                "source_idea_ids": ["bu-release"],
+                "source_fields": ["mvp_scope", "validation_plan", "risks"],
+            },
+            source_ideas=[{"id": "bu-release"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.release_notes.v1"
+        assert dumped["summary"]["release_stage"] == "ready_for_customer_rollout"
+        assert dumped["customer_facing"]["shipped_capabilities"][0]["id"] == "CAP1"
+        assert dumped["internal"]["validation_evidence"][0]["kind"] == "brief_field"
+        assert dumped["source_ideas"][0]["id"] == "bu-release"
+
+    def test_response_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefReleaseNotesResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "summary" in missing_fields
+        assert "customer_facing" in missing_fields
+        assert "internal" in missing_fields
 
 
 class TestDesignBriefExperimentBacklogResponse:
