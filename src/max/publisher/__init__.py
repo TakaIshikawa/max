@@ -220,6 +220,13 @@ from max.publisher.servicenow_incidents import (
     ServiceNowIncidentPublishResult,
     ServiceNowIncidentsPublisher,
 )
+from max.publisher.opsgenie_alerts import (
+    OpsgenieAlertPayload,
+    OpsgenieAlertPublisher,
+    OpsgenieAlertPublishError,
+    OpsgenieAlertPublishResult,
+    OpsgenieAlertsPublisher,
+)
 from max.publisher.salesforce_cases import (
     SalesforceCasePayload,
     SalesforceCasePublisher,
@@ -424,6 +431,11 @@ __all__ = [
     "ServiceNowIncidentPublishError",
     "ServiceNowIncidentPublishResult",
     "ServiceNowIncidentsPublisher",
+    "OpsgenieAlertPayload",
+    "OpsgenieAlertPublisher",
+    "OpsgenieAlertPublishError",
+    "OpsgenieAlertPublishResult",
+    "OpsgenieAlertsPublisher",
     "SalesforceCasePayload",
     "SalesforceCasePublisher",
     "SalesforceCasePublishError",
