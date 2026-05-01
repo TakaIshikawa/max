@@ -17,6 +17,7 @@ from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
+from max.spec.privacy_impact_assessment import generate_privacy_impact_assessment
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan
 from max.spec.risk_register import generate_risk_register
@@ -51,6 +52,7 @@ def generate_spec_bundle(
     acceptance_criteria = generate_acceptance_criteria(unit, evaluation, evidence_density)
     experiment_card = generate_experiment_card(unit, evaluation)
     data_classification = generate_data_classification(spec_preview)
+    privacy_impact_assessment = generate_privacy_impact_assessment(spec_preview)
     dependency_inventory = generate_dependency_inventory(unit, evaluation, spec_preview)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
     threat_model = generate_threat_model(unit, evaluation, spec_preview)
@@ -75,6 +77,7 @@ def generate_spec_bundle(
             "acceptance_criteria": acceptance_criteria,
             "experiment_card": experiment_card,
             "data_classification": data_classification,
+            "privacy_impact_assessment": privacy_impact_assessment,
             "dependency_inventory": dependency_inventory,
             "risk_register": risk_register,
             "threat_model": threat_model,
@@ -99,6 +102,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     criteria = artifacts["acceptance_criteria"]
     experiment = artifacts["experiment_card"]
     data_classification = artifacts["data_classification"]
+    privacy_impact_assessment = artifacts["privacy_impact_assessment"]
     dependency_inventory = artifacts["dependency_inventory"]
     risk_register = artifacts["risk_register"]
     threat_model = artifacts["threat_model"]
@@ -145,7 +149,12 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
             [
                 f"Recommendation: {_text(plan['summary'].get('recommendation'))}",
                 "Milestones:",
-                *_bullets([f"{item['id']} - {item['title']}: {item['goal']}" for item in plan["milestones"]]),
+                *_bullets(
+                    [
+                        f"{item['id']} - {item['title']}: {item['goal']}"
+                        for item in plan["milestones"]
+                    ]
+                ),
                 "Validation steps:",
                 *_bullets([item["description"] for item in plan["validation_steps"]]),
             ],
@@ -192,9 +201,19 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
             "Acceptance Criteria",
             [
                 "Functional:",
-                *_bullets([f"{item['id']} - {item['statement']}" for item in criteria["functional_criteria"]]),
+                *_bullets(
+                    [
+                        f"{item['id']} - {item['statement']}"
+                        for item in criteria["functional_criteria"]
+                    ]
+                ),
                 "Non-functional:",
-                *_bullets([f"{item['id']} - {item['statement']}" for item in criteria["non_functional_criteria"]]),
+                *_bullets(
+                    [
+                        f"{item['id']} - {item['statement']}"
+                        for item in criteria["non_functional_criteria"]
+                    ]
+                ),
             ],
         )
     )
@@ -238,6 +257,39 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     )
     lines.extend(
         _section(
+            "Privacy Impact Assessment",
+            [
+                f"Privacy gate: {privacy_impact_assessment['summary']['privacy_gate']}",
+                f"Privacy-sensitive inputs: {privacy_impact_assessment['summary']['privacy_sensitive_input_status']}",
+                "Data subjects:",
+                *_bullets(
+                    [
+                        f"{item['id']}: {item['label']}"
+                        for item in privacy_impact_assessment["data_subjects"][:8]
+                    ],
+                    empty="None.",
+                ),
+                "Personal data:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['risk_level']}]: {item['label']}"
+                        for item in privacy_impact_assessment["personal_data"][:8]
+                    ],
+                    empty="No privacy-sensitive inputs were detected in the spec.",
+                ),
+                "Review actions:",
+                *_bullets(
+                    [
+                        f"{item['id']} [{item['owner']}]: {item['action']}"
+                        for item in privacy_impact_assessment["review_actions"][:6]
+                    ],
+                    empty="None.",
+                ),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
             "Dependency Inventory",
             [
                 f"Dependency count: {dependency_inventory['summary']['dependency_count']}",
@@ -258,7 +310,12 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
             [
                 f"Risk count: {risk_register['summary']['risk_count']}",
                 f"Critical: {risk_register['summary']['critical_risk_count']}; High: {risk_register['summary']['high_risk_count']}",
-                *_bullets([f"{item['id']} ({item['severity']}): {item['description']}" for item in risk_register["risks"][:10]]),
+                *_bullets(
+                    [
+                        f"{item['id']} ({item['severity']}): {item['description']}"
+                        for item in risk_register["risks"][:10]
+                    ]
+                ),
             ],
         )
     )
