@@ -51,6 +51,10 @@ from max.spec.security_review import (
     generate_security_review,
     render_security_review_markdown,
 )
+from max.spec.support_playbook import (
+    generate_support_playbook,
+    render_support_playbook_markdown,
+)
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 
 __all__ = [
@@ -71,11 +75,13 @@ __all__ = [
     "generate_rollback_plan",
     "generate_spec_bundle",
     "generate_security_review",
+    "generate_support_playbook",
     "generate_risk_register",
     "generate_threat_model",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
     "render_security_review_markdown",
+    "render_support_playbook_markdown",
     "render_threat_model_markdown",
     "render_architecture_decision_record_markdown",
     "render_compliance_checklist_json",
