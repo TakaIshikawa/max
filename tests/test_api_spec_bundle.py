@@ -77,6 +77,10 @@ def test_get_spec_bundle_json(spec_bundle_client: TestClient) -> None:
     assert payload["generated_at"]
     assert payload["artifacts"]["spec_preview"]["project"]["title"] == "Bundle Idea"
     assert payload["artifacts"]["implementation_plan"]["schema_version"] == "max-implementation-plan/v1"
+    assert (
+        payload["artifacts"]["post_launch_monitoring_plan"]["schema_version"]
+        == "max-post-launch-monitoring-plan/v1"
+    )
     assert payload["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
     assert payload["artifacts"]["evidence_density"]["signal_count"] == 1
     assert payload["artifacts"]["evidence_chain_summary"]["insight_ids"] == ["ins-bundle001"]
@@ -100,6 +104,7 @@ def test_get_spec_bundle_markdown(spec_bundle_client: TestClient) -> None:
     assert response.headers["content-type"].startswith("text/markdown")
     assert response.text.startswith("# Bundle Idea Implementation Packet")
     assert "## Spec Preview" in response.text
+    assert "## Bundle Idea Post-Launch Monitoring Plan" in response.text
     assert "## Review Gate" in response.text
     assert "## Evidence Chain Summary" in response.text
 
