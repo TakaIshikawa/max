@@ -10,6 +10,11 @@ from max.analysis.design_brief_procurement_checklist import (
     procurement_checklist_filename,
     render_design_brief_procurement_checklist,
 )
+from max.analysis.design_brief_release_notes import (
+    build_design_brief_release_notes,
+    release_notes_filename,
+    render_design_brief_release_notes,
+)
 from max.analysis.design_brief_onboarding_checklist import (
     build_design_brief_onboarding_checklist,
     onboarding_checklist_filename,
@@ -27,6 +32,7 @@ from max.analysis.source_adapter_coverage_gaps import (
 
 __all__ = [
     "build_design_brief_procurement_checklist",
+    "build_design_brief_release_notes",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
     "build_portfolio_theme_saturation_report",
@@ -36,8 +42,10 @@ __all__ = [
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
     "raci_matrix_filename",
+    "release_notes_filename",
     "render_design_brief_onboarding_checklist",
     "render_persona_interview_guide_markdown",
     "render_design_brief_procurement_checklist",
+    "render_design_brief_release_notes",
     "render_design_brief_raci_matrix",
 ]
