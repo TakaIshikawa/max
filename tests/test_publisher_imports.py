@@ -8,6 +8,11 @@ from max.publisher import (
     GitLabMergeRequestCommentPublishError,
     GitLabMergeRequestCommentPublishResult,
     GitLabMergeRequestCommentsPublisher,
+    OpsgenieAlertPayload,
+    OpsgenieAlertPublisher,
+    OpsgenieAlertPublishError,
+    OpsgenieAlertPublishResult,
+    OpsgenieAlertsPublisher,
     ServiceNowIncidentPayload,
     ServiceNowIncidentPublisher,
     ServiceNowIncidentPublishError,
@@ -16,6 +21,9 @@ from max.publisher import (
 )
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPublisher as ModuleGitLabMergeRequestCommentPublisher,
+)
+from max.publisher.opsgenie_alerts import (
+    OpsgenieAlertPublisher as ModuleOpsgenieAlertPublisher,
 )
 from max.publisher.servicenow_incidents import (
     ServiceNowIncidentPublisher as ModuleServiceNowIncidentPublisher,
@@ -36,3 +44,11 @@ def test_servicenow_incident_publisher_exports() -> None:
     assert ServiceNowIncidentPayload
     assert ServiceNowIncidentPublishError
     assert ServiceNowIncidentPublishResult
+
+
+def test_opsgenie_alert_publisher_exports() -> None:
+    assert OpsgenieAlertPublisher is ModuleOpsgenieAlertPublisher
+    assert OpsgenieAlertsPublisher is OpsgenieAlertPublisher
+    assert OpsgenieAlertPayload
+    assert OpsgenieAlertPublishError
+    assert OpsgenieAlertPublishResult
