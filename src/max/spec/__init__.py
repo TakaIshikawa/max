@@ -21,6 +21,10 @@ from max.spec.observability_plan import (
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
+from max.spec.security_review import (
+    generate_security_review,
+    render_security_review_markdown,
+)
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -32,9 +36,11 @@ __all__ = [
     "generate_observability_plan",
     "generate_rollback_plan",
     "generate_spec_bundle",
+    "generate_security_review",
     "generate_risk_register",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
+    "render_security_review_markdown",
     "render_architecture_decision_record_markdown",
     "render_observability_plan_markdown",
     "render_spec_bundle_yaml",
