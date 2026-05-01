@@ -1714,6 +1714,7 @@ class SpecBundleArtifactsResponse(BaseModel):
     risk_register: dict[str, Any]
     threat_model: dict[str, Any]
     slo_plan: dict[str, Any]
+    post_launch_monitoring_plan: dict[str, Any]
     review_gate: ReviewGateResponse
     evidence_density: EvidenceDensityResponse
     evidence_chain_summary: dict[str, Any]

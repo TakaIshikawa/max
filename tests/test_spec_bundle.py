@@ -43,6 +43,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "risk_register",
         "threat_model",
         "slo_plan",
+        "post_launch_monitoring_plan",
         "review_gate",
         "evidence_density",
         "evidence_chain_summary",
@@ -88,6 +89,10 @@ def test_generate_spec_bundle_includes_all_artifacts(
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
     assert bundle["artifacts"]["threat_model"]["schema_version"] == "max-threat-model/v1"
     assert bundle["artifacts"]["slo_plan"]["schema_version"] == "max-slo-plan/v1"
+    assert (
+        bundle["artifacts"]["post_launch_monitoring_plan"]["schema_version"]
+        == "max-post-launch-monitoring-plan/v1"
+    )
     assert bundle["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
     assert bundle["artifacts"]["evidence_density"]["signal_count"] == 1
     assert bundle["artifacts"]["evidence_chain_summary"]["signal_ids"] == ["sig-test001"]
@@ -127,6 +132,10 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert "missing_evaluation" in {
         gap["category"] for gap in bundle["artifacts"]["slo_plan"]["gaps"]
     }
+    assert (
+        bundle["artifacts"]["post_launch_monitoring_plan"]["source"]["evaluation_available"]
+        is False
+    )
     assert bundle["artifacts"]["rollback_plan"]["source"]["evaluation_available"] is False
     assert "trigger_missing_evaluation" in {
         trigger["id"] for trigger in bundle["artifacts"]["rollback_plan"]["rollback_triggers"]
@@ -166,6 +175,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Risk Register",
         "## Threat Model",
         "## SLO Plan",
+        "## MCP Test Framework Post-Launch Monitoring Plan",
         "## Review Gate",
         "## Evidence Density",
         "## Evidence Links",
@@ -182,4 +192,6 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "Credential leakage enables service impersonation" in markdown
     assert "Schema version: max-slo-plan/v1" in markdown
     assert "Launch tier: production_candidate" in markdown
+    assert "Launch posture: production_candidate" in markdown
+    assert "### HM1: workflow_success_rate" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown

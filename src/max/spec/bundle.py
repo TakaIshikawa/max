@@ -23,6 +23,10 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.privacy_impact_assessment import generate_privacy_impact_assessment
+from max.spec.post_launch_monitoring_plan import (
+    generate_post_launch_monitoring_plan,
+    render_post_launch_monitoring_plan_markdown,
+)
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan
 from max.spec.risk_register import generate_risk_register
@@ -66,6 +70,9 @@ def generate_spec_bundle(
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
     threat_model = generate_threat_model(unit, evaluation, spec_preview)
     slo_plan = generate_slo_plan(unit, evaluation, spec_preview)
+    post_launch_monitoring_plan = generate_post_launch_monitoring_plan(
+        unit, evaluation, spec_preview
+    )
     review_gate = _review_gate(unit.id, store, warnings)
     evidence_chain_summary = _evidence_chain_summary(unit, store)
 
@@ -88,6 +95,7 @@ def generate_spec_bundle(
         "risk_register": risk_register,
         "threat_model": threat_model,
         "slo_plan": slo_plan,
+        "post_launch_monitoring_plan": post_launch_monitoring_plan,
         "review_gate": review_gate,
         "evidence_density": evidence_density,
         "evidence_chain_summary": evidence_chain_summary,
@@ -127,6 +135,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     risk_register = artifacts["risk_register"]
     threat_model = artifacts["threat_model"]
     slo_plan = artifacts["slo_plan"]
+    post_launch_monitoring_plan = artifacts["post_launch_monitoring_plan"]
     review_gate = artifacts["review_gate"]
     density = artifacts["evidence_density"]
     chain = artifacts["evidence_chain_summary"]
@@ -422,6 +431,11 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
         )
     )
     lines.extend(
+        _embedded_markdown_section(
+            render_post_launch_monitoring_plan_markdown(post_launch_monitoring_plan)
+        )
+    )
+    lines.extend(
         _section(
             "Review Gate",
             [
@@ -502,8 +516,11 @@ def _render_selected_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     artifacts = bundle["artifacts"]
     title = bundle["idea_id"]
     disaster_recovery_plan = artifacts.get("disaster_recovery_plan")
+    post_launch_monitoring_plan = artifacts.get("post_launch_monitoring_plan")
     if disaster_recovery_plan:
         title = disaster_recovery_plan.get("summary", {}).get("title") or title
+    elif post_launch_monitoring_plan:
+        title = post_launch_monitoring_plan.get("summary", {}).get("title") or title
 
     lines = [
         f"# {title} Implementation Packet",
@@ -517,6 +534,12 @@ def _render_selected_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
 
     if disaster_recovery_plan:
         lines.extend(_embedded_markdown_section(render_disaster_recovery_plan_markdown(disaster_recovery_plan)))
+    if post_launch_monitoring_plan:
+        lines.extend(
+            _embedded_markdown_section(
+                render_post_launch_monitoring_plan_markdown(post_launch_monitoring_plan)
+            )
+        )
 
     return "\n".join(lines).rstrip() + "\n"
 
