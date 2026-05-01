@@ -1,0 +1,204 @@
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from max.analysis.design_brief_gtm_channel_plan import SCHEMA_VERSION
+from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
+from max.server.mcp_tools import (
+    create_mcp_server,
+    design_brief_gtm_channel_plan_detail,
+    get_design_brief_gtm_channel_plan,
+    set_store_factory,
+)
+from max.store.db import Store
+from max.types.buildable_unit import BuildableUnit
+
+
+@pytest.fixture
+def mcp_gtm_channel_plan_db(tmp_path):
+    db_path = str(tmp_path / "mcp_design_brief_gtm_channel_plan.db")
+    store = Store(db_path=db_path, wal_mode=True)
+    store.close()
+
+    set_store_factory(lambda: Store(db_path=db_path, wal_mode=True))
+    yield db_path
+    set_store_factory(lambda: Store(wal_mode=True))
+
+
+@pytest.fixture
+def seeded_gtm_channel_plan_brief_id(mcp_gtm_channel_plan_db) -> str:
+    store = Store(db_path=mcp_gtm_channel_plan_db, wal_mode=True)
+    try:
+        lead = BuildableUnit(
+            id="bu-mcp-gtm-channel-lead",
+            title="GTM Channel Plan MCP Lead",
+            one_liner="Expose design brief GTM channel plans over MCP.",
+            category="application",
+            problem="Agents cannot inspect launch channel recommendations.",
+            solution="Return structured GTM channel plans and Markdown exports.",
+            value_proposition="Make launch planning available to agent workflows.",
+            specific_user="developer tools founder",
+            buyer="growth lead",
+            workflow_context="design partner recruiting",
+            why_now="Launch-planning artifacts are ready for external dashboards.",
+            validation_plan="Review channel priorities with two launch owners.",
+            first_10_customers="seed-stage developer tools teams",
+            domain_risks=["Message-market fit may vary by channel."],
+            domain="developer-tools",
+            status="approved",
+        )
+        supporting = BuildableUnit(
+            id="bu-mcp-gtm-channel-support",
+            title="GTM Channel Plan MCP Support",
+            one_liner="Keep channel planning traceable to source ideas.",
+            category="application",
+            problem="Launch plans lose source idea context.",
+            solution="Attach source ideas to channel recommendations.",
+            value_proposition="Make GTM planning auditable.",
+            specific_user="product marketer",
+            buyer="growth lead",
+            workflow_context="launch readiness review",
+            validation_plan="Compare channel recommendations with launch owners.",
+            domain_risks=["Partner timing may slip."],
+            domain="developer-tools",
+            status="approved",
+        )
+        store.insert_buildable_unit(lead)
+        store.insert_buildable_unit(supporting)
+
+        return store.insert_design_brief(
+            ProjectBrief(
+                title="GTM Channel Plan MCP Brief",
+                domain="developer-tools",
+                theme="gtm-channel-plan-mcp",
+                lead=Candidate(unit=lead),
+                supporting=[Candidate(unit=supporting)],
+                readiness_score=87.0,
+                why_this_now="MCP access lets agents consume channel plans.",
+                merged_product_concept="A deterministic launch channel plan for design briefs.",
+                synthesis_rationale="The GTM channel module creates a stable launch artifact.",
+                mvp_scope=["JSON GTM channel plan", "Markdown GTM channel plan"],
+                first_milestones=["Return structured channel recommendations from MCP"],
+                validation_plan="Confirm the MCP payload preserves nested recommendation fields.",
+                risks=["Message-market fit may vary by channel."],
+                source_idea_ids=[lead.id, supporting.id],
+                design_status="approved",
+            )
+        )
+    finally:
+        store.close()
+
+
+def test_get_design_brief_gtm_channel_plan_json(
+    seeded_gtm_channel_plan_brief_id,
+) -> None:
+    result = get_design_brief_gtm_channel_plan(seeded_gtm_channel_plan_brief_id)
+
+    assert result["schema_version"] == SCHEMA_VERSION
+    assert result["kind"] == "max.design_brief.gtm_channel_plan"
+    assert result["design_brief"]["id"] == seeded_gtm_channel_plan_brief_id
+    assert result["design_brief"]["title"] == "GTM Channel Plan MCP Brief"
+    assert result["summary"]["primary_channel"] == "design partner outreach"
+    assert [item["id"] for item in result["channel_recommendations"]] == [
+        "GTM1",
+        "GTM2",
+        "GTM3",
+    ]
+    first_recommendation = result["channel_recommendations"][0]
+    assert first_recommendation["success_metric"]["metric"] == "qualified_conversation_rate"
+    assert first_recommendation["tactics"][0]["owner"] == "product marketing"
+    assert first_recommendation["source_idea_ids"] == [
+        "bu-mcp-gtm-channel-lead",
+        "bu-mcp-gtm-channel-support",
+    ]
+    assert result["launch_sequence"][0]["channels"] == [
+        "design partner outreach",
+        "buyer enablement content",
+    ]
+
+
+def test_get_design_brief_gtm_channel_plan_markdown(
+    seeded_gtm_channel_plan_brief_id,
+) -> None:
+    result = get_design_brief_gtm_channel_plan(
+        seeded_gtm_channel_plan_brief_id,
+        format="markdown",
+    )
+
+    assert result["id"] == seeded_gtm_channel_plan_brief_id
+    assert result["format"] == "markdown"
+    assert result["markdown"].startswith("# GTM Channel Plan: GTM Channel Plan MCP Brief")
+    assert f"Schema: `{SCHEMA_VERSION}`" in result["markdown"]
+    assert "## Channel Recommendations" in result["markdown"]
+    assert "design partner outreach" in result["markdown"]
+    assert "## Measurement Plan" in result["markdown"]
+
+
+def test_get_design_brief_gtm_channel_plan_not_found(mcp_gtm_channel_plan_db) -> None:
+    result = get_design_brief_gtm_channel_plan("dbf-missing")
+
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "dbf-missing"
+
+
+def test_get_design_brief_gtm_channel_plan_invalid_format(
+    seeded_gtm_channel_plan_brief_id,
+) -> None:
+    result = get_design_brief_gtm_channel_plan(
+        seeded_gtm_channel_plan_brief_id,
+        format="yaml",
+    )
+
+    assert result["error"] == "Unsupported GTM channel plan format: yaml"
+    assert result["code"] == 400
+    assert result["details"]["field"] == "format"
+    assert result["details"]["expected"] == "json or markdown"
+    assert result["details"]["actual"] == "yaml"
+
+
+def test_design_brief_gtm_channel_plan_resource(
+    seeded_gtm_channel_plan_brief_id,
+) -> None:
+    result = json.loads(
+        design_brief_gtm_channel_plan_detail(seeded_gtm_channel_plan_brief_id)
+    )
+
+    assert result["schema_version"] == SCHEMA_VERSION
+    assert result["design_brief"]["id"] == seeded_gtm_channel_plan_brief_id
+    assert result["channel_recommendations"]
+
+
+def test_create_mcp_server_registers_gtm_channel_plan_tool(monkeypatch) -> None:
+    class FakeMCP:
+        latest = None
+
+        def __init__(self, name):
+            self.name = name
+            self.tools = []
+            self.resources = {}
+            FakeMCP.latest = self
+
+        def tool(self, fn):
+            self.tools.append(fn.__name__)
+            return fn
+
+        def resource(self, uri):
+            def decorator(fn):
+                self.resources[uri] = fn.__name__
+                return fn
+
+            return decorator
+
+    monkeypatch.setattr("max.server.mcp_tools.FastMCP", FakeMCP)
+
+    create_mcp_server()
+
+    assert "get_design_brief_gtm_channel_plan" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-gtm-channel-plans://{brief_id}"]
+        == "design_brief_gtm_channel_plan_detail"
+    )

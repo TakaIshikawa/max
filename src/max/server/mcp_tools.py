@@ -60,6 +60,10 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_gtm_channel_plan import (
+    build_design_brief_gtm_channel_plan,
+    render_design_brief_gtm_channel_plan,
+)
 from max.analysis.design_brief_assumption_ledger import (
     build_design_brief_assumption_ledger,
     render_design_brief_assumption_ledger,
@@ -1619,6 +1623,43 @@ def get_design_brief_outreach_pack(brief_id: str, format: str = "json") -> dict:
                 )
 
         rendered = render_design_brief_outreach_pack(pack, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_gtm_channel_plan(brief_id: str, format: str = "json") -> dict:
+    """Get the GTM channel plan for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    launch-planning handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported GTM channel plan format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            plan = build_design_brief_gtm_channel_plan(store, brief_id)
+            if not plan:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_gtm_channel_plan(plan, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -4288,6 +4329,11 @@ def design_brief_outreach_pack_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_outreach_pack(brief_id), indent=2)
 
 
+def design_brief_gtm_channel_plan_detail(brief_id: str) -> str:
+    """Get the GTM channel plan for a specific design brief."""
+    return json.dumps(get_design_brief_gtm_channel_plan(brief_id), indent=2)
+
+
 def design_brief_success_metrics_detail(brief_id: str) -> str:
     """Get success metrics for a specific design brief."""
     return json.dumps(get_design_brief_success_metrics(brief_id), indent=2)
@@ -4492,6 +4538,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_assumption_ledger)
     mcp.tool(get_design_brief_pilot_rollout)
     mcp.tool(get_design_brief_outreach_pack)
+    mcp.tool(get_design_brief_gtm_channel_plan)
     mcp.tool(get_design_brief_success_metrics)
     mcp.tool(get_design_brief_support_playbook)
     mcp.tool(get_design_brief_pricing_strategy)
@@ -4584,6 +4631,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-pilot-rollouts://{brief_id}")(design_brief_pilot_rollout_detail)
     mcp.resource("design-brief-outreach-packs://{brief_id}")(design_brief_outreach_pack_detail)
+    mcp.resource("design-brief-gtm-channel-plans://{brief_id}")(
+        design_brief_gtm_channel_plan_detail
+    )
     mcp.resource("design-brief-success-metrics://{brief_id}")(design_brief_success_metrics_detail)
     mcp.resource("design-briefs://{brief_id}/support-playbook")(
         design_brief_support_playbook_detail
