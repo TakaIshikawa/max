@@ -93,6 +93,11 @@ from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
 )
+from max.analysis.design_brief_event_dictionary import (
+    build_design_brief_event_dictionary,
+    event_dictionary_filename,
+    render_design_brief_event_dictionary,
+)
 from max.analysis.design_brief_executive_memo import (
     build_design_brief_executive_memo,
     render_design_brief_executive_memo,
@@ -342,6 +347,7 @@ from max.server.schemas import (
     DesignBriefDependencyRiskMapResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
+    DesignBriefEventDictionaryResponse,
     DesignBriefExecutiveMemoResponse,
     DesignBriefGoogleSheetsRowPublishRequest,
     DesignBriefGoogleSheetsRowPublishResponse,
@@ -8983,6 +8989,54 @@ def _design_brief_instrumentation_plan_rendered_response(
     headers: dict[str, str] = {}
     if fmt == "markdown":
         filename = instrumentation_plan_filename(plan["design_brief"], fmt="markdown")
+        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return Response(content=content, media_type=media_type, headers=headers)
+
+
+@router.get(
+    "/design-briefs/{brief_id}/event-dictionary",
+    response_model=DesignBriefEventDictionaryResponse,
+)
+def get_design_brief_event_dictionary(
+    brief_id: str,
+    format: str = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefEventDictionaryResponse | Response:
+    dictionary = build_design_brief_event_dictionary(store, brief_id)
+    if not dictionary:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "json":
+        return DesignBriefEventDictionaryResponse(**dictionary)
+    return _design_brief_event_dictionary_rendered_response(dictionary, fmt=format)
+
+
+@router.get("/design-briefs/{brief_id}/event-dictionary.md", response_model=None)
+def get_design_brief_event_dictionary_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    dictionary = build_design_brief_event_dictionary(store, brief_id)
+    if not dictionary:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return _design_brief_event_dictionary_rendered_response(dictionary, fmt="markdown")
+
+
+def _design_brief_event_dictionary_rendered_response(
+    dictionary: dict[str, Any],
+    *,
+    fmt: str,
+) -> Response:
+    try:
+        content = render_design_brief_event_dictionary(dictionary, fmt=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_type = "application/json" if fmt == "json" else "text/markdown"
+    headers: dict[str, str] = {}
+    if fmt == "markdown":
+        filename = event_dictionary_filename(dictionary["design_brief"], fmt="markdown")
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return Response(content=content, media_type=media_type, headers=headers)
 

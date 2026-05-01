@@ -46,6 +46,7 @@ from max.server.schemas import (
     FetchAllocationSimulationQualityResponse,
     FetchAllocationSimulationResponse,
     FetchAllocationSimulationSourceResponse,
+    DesignBriefEventDictionaryResponse,
     DesignBriefGtmChannelPlanResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
@@ -2028,6 +2029,45 @@ class TestDesignBriefSuccessMetricsResponse:
         assert "schema_version" in missing_fields
         assert "brief_id" in missing_fields
         assert "north_star_metric" in missing_fields
+
+
+class TestDesignBriefEventDictionaryResponse:
+    def test_preserves_event_dictionary_artifact_sections(self):
+        response = DesignBriefEventDictionaryResponse(
+            schema_version="max.design_brief.event_dictionary.v1",
+            kind="max.design_brief.event_dictionary",
+            source={"project": "max", "entity_type": "design_brief", "id": "dbf-event"},
+            design_brief={"id": "dbf-event", "title": "Event Dictionary Brief"},
+            summary={"event_count": 1, "event_group_count": 1},
+            event_context={"target_user": "platform engineer"},
+            linked_metrics=[{"id": "activation_rate", "definition": "Activated accounts"}],
+            event_groups=[
+                {
+                    "category": "activation",
+                    "title": "Activation Events",
+                    "events": [{"event_name": "design_brief_workflow_started"}],
+                }
+            ],
+            events=[{"event_name": "design_brief_workflow_started"}],
+            property_contracts=[{"name": "user_id", "type": "string"}],
+            source_ideas=[{"id": "bu-event"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.event_dictionary.v1"
+        assert dumped["design_brief"]["id"] == "dbf-event"
+        assert dumped["linked_metrics"][0]["id"] == "activation_rate"
+        assert dumped["property_contracts"][0]["name"] == "user_id"
+
+    def test_required_fields(self):
+        with pytest.raises(ValidationError) as exc_info:
+            DesignBriefEventDictionaryResponse()
+
+        missing_fields = {error["loc"][0] for error in exc_info.value.errors()}
+        assert "schema_version" in missing_fields
+        assert "design_brief" in missing_fields
+        assert "event_groups" in missing_fields
+        assert "property_contracts" in missing_fields
 
 
 class TestDesignBriefTrainingPlanSchemas:

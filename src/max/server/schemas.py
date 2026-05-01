@@ -2875,6 +2875,20 @@ class DesignBriefInstrumentationPlanResponse(BaseModel):
     missing_inputs: list[dict[str, Any]]
 
 
+class DesignBriefEventDictionaryResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    event_context: dict[str, Any]
+    linked_metrics: list[dict[str, Any]]
+    event_groups: list[dict[str, Any]]
+    events: list[dict[str, Any]]
+    property_contracts: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefTrainingPlanRequest(BaseModel):
     format: Literal["json", "markdown"] = "json"
 
