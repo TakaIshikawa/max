@@ -30,6 +30,7 @@ from max.server.mcp_tools import (
     get_design_brief_competitive_landscape,
     get_design_brief_markdown,
     get_design_brief_market_sizing,
+    get_design_brief_onboarding_plan,
     get_design_brief_prd,
     get_design_brief_executive_memo,
     get_design_brief_roadmap,
@@ -62,6 +63,7 @@ from max.server.mcp_tools import (
     design_brief_risk_register_detail,
     design_brief_competitive_landscape_detail,
     design_brief_market_sizing_detail,
+    design_brief_onboarding_plan_detail,
     design_brief_validation_plan_detail,
     spec_preview_detail,
 )
@@ -819,6 +821,41 @@ def test_design_brief_validation_plan_resource(seeded_design_brief_db):
     assert result["design_brief"]["id"] == seeded_design_brief_db
 
 
+def test_get_design_brief_onboarding_plan_json(seeded_design_brief_db):
+    result = get_design_brief_onboarding_plan(seeded_design_brief_db)
+
+    assert result["schema_version"] == "max.design_brief.onboarding_plan.v1"
+    assert result["kind"] == "max.design_brief.onboarding_plan"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+    assert result["onboarding_phases"]
+    assert result["success_criteria"]
+
+
+def test_get_design_brief_onboarding_plan_markdown(seeded_design_brief_db):
+    result = get_design_brief_onboarding_plan(seeded_design_brief_db, format="markdown")
+
+    assert result["id"] == seeded_design_brief_db
+    assert result["format"] == "markdown"
+    assert "# Onboarding Plan: MCP Design Brief" in result["markdown"]
+    assert "## Onboarding Phases" in result["markdown"]
+
+
+def test_get_design_brief_onboarding_plan_not_found(mcp_db):
+    result = get_design_brief_onboarding_plan("dbf-missing")
+
+    assert result["error"] == "Design brief not found: dbf-missing"
+    assert result["code"] == 404
+    assert result["details"]["resource_type"] == "design_brief"
+    assert result["details"]["resource_id"] == "dbf-missing"
+
+
+def test_design_brief_onboarding_plan_resource(seeded_design_brief_db):
+    result = json.loads(design_brief_onboarding_plan_detail(seeded_design_brief_db))
+
+    assert result["schema_version"] == "max.design_brief.onboarding_plan.v1"
+    assert result["design_brief"]["id"] == seeded_design_brief_db
+
+
 def test_get_design_brief_risk_register_matches_rest_core_items(seeded_design_brief_db, mcp_db):
     mcp_result = get_design_brief_risk_register(seeded_design_brief_db)
 
@@ -1552,6 +1589,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-gtm-channel-plans://{brief_id}"]
         == "design_brief_gtm_channel_plan_detail"
+    )
+    assert "get_design_brief_onboarding_plan" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-onboarding-plans://{brief_id}"]
+        == "design_brief_onboarding_plan_detail"
     )
     assert "get_design_brief_bundle" in FakeMCP.latest.tools
     assert (
