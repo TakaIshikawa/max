@@ -47,6 +47,7 @@ from max.spec.security_review import (
     generate_security_review,
     render_security_review_markdown,
 )
+from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -66,9 +67,11 @@ __all__ = [
     "generate_spec_bundle",
     "generate_security_review",
     "generate_risk_register",
+    "generate_threat_model",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
     "render_security_review_markdown",
+    "render_threat_model_markdown",
     "render_architecture_decision_record_markdown",
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",

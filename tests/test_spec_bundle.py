@@ -38,6 +38,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
         "data_classification",
         "dependency_inventory",
         "risk_register",
+        "threat_model",
         "review_gate",
         "evidence_density",
         "evidence_chain_summary",
@@ -52,6 +53,7 @@ def test_generate_spec_bundle_includes_all_artifacts(
     assert bundle["artifacts"]["data_classification"]["kind"] == "max.spec.data_classification"
     assert bundle["artifacts"]["dependency_inventory"]["schema_version"] == "max-dependency-inventory/v1"
     assert bundle["artifacts"]["risk_register"]["schema_version"] == "max-risk-register/v1"
+    assert bundle["artifacts"]["threat_model"]["schema_version"] == "max-threat-model/v1"
     assert bundle["artifacts"]["review_gate"]["schema_version"] == "max-review-gate/v1"
     assert bundle["artifacts"]["evidence_density"]["signal_count"] == 1
     assert bundle["artifacts"]["evidence_chain_summary"]["signal_ids"] == ["sig-test001"]
@@ -77,6 +79,7 @@ def test_generate_spec_bundle_degrades_without_evaluation(
     assert bundle["artifacts"]["data_classification"]["summary"]["category_count"] >= 1
     assert bundle["artifacts"]["dependency_inventory"]["source"]["evaluation_available"] is False
     assert bundle["artifacts"]["risk_register"]["source"]["evaluation_available"] is False
+    assert bundle["artifacts"]["threat_model"]["scope"]["evaluation_available"] is False
     assert bundle["artifacts"]["rollback_plan"]["source"]["evaluation_available"] is False
     assert "trigger_missing_evaluation" in {
         trigger["id"] for trigger in bundle["artifacts"]["rollback_plan"]["rollback_triggers"]
@@ -111,6 +114,7 @@ def test_render_spec_bundle_markdown_has_separated_sections(
         "## Data Classification",
         "## Dependency Inventory",
         "## Risk Register",
+        "## Threat Model",
         "## Review Gate",
         "## Evidence Density",
         "## Evidence Links",
@@ -121,4 +125,5 @@ def test_render_spec_bundle_markdown_has_separated_sections(
     assert "MCP server maintainer" in markdown
     assert "Sensitivity:" in markdown
     assert "trigger_domain_risk_1" in markdown
+    assert "Credential leakage enables service impersonation" in markdown
     assert "- bu-test001 -> ins-test001 (inspired_by; inspires)" in markdown

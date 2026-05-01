@@ -20,6 +20,7 @@ from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.rollback_plan import generate_rollback_plan
 from max.spec.risk_register import generate_risk_register
+from max.spec.threat_model import generate_threat_model
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
@@ -52,6 +53,7 @@ def generate_spec_bundle(
     data_classification = generate_data_classification(spec_preview)
     dependency_inventory = generate_dependency_inventory(unit, evaluation, spec_preview)
     risk_register = generate_risk_register(unit, evaluation, evidence_density, contradictions)
+    threat_model = generate_threat_model(unit, evaluation, spec_preview)
     review_gate = _review_gate(unit.id, store, warnings)
     evidence_chain_summary = _evidence_chain_summary(unit, store)
 
@@ -75,6 +77,7 @@ def generate_spec_bundle(
             "data_classification": data_classification,
             "dependency_inventory": dependency_inventory,
             "risk_register": risk_register,
+            "threat_model": threat_model,
             "review_gate": review_gate,
             "evidence_density": evidence_density,
             "evidence_chain_summary": evidence_chain_summary,
@@ -98,6 +101,7 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     data_classification = artifacts["data_classification"]
     dependency_inventory = artifacts["dependency_inventory"]
     risk_register = artifacts["risk_register"]
+    threat_model = artifacts["threat_model"]
     review_gate = artifacts["review_gate"]
     density = artifacts["evidence_density"]
     chain = artifacts["evidence_chain_summary"]
@@ -255,6 +259,25 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
                 f"Risk count: {risk_register['summary']['risk_count']}",
                 f"Critical: {risk_register['summary']['critical_risk_count']}; High: {risk_register['summary']['high_risk_count']}",
                 *_bullets([f"{item['id']} ({item['severity']}): {item['description']}" for item in risk_register["risks"][:10]]),
+            ],
+        )
+    )
+    lines.extend(
+        _section(
+            "Threat Model",
+            [
+                f"Decision: {threat_model['review_gate']['decision']}",
+                f"High severity scenarios: {len(threat_model['review_gate']['high_severity_scenario_ids'])}",
+                "Threat scenarios:",
+                *_bullets(
+                    [
+                        f"{item['id']} ({item['severity']}): {item['title']} - {item['affected_asset']}"
+                        for item in threat_model["threat_scenarios"][:10]
+                    ],
+                    empty="None.",
+                ),
+                "Required mitigations:",
+                *_bullets(threat_model["review_gate"]["required_mitigations"], empty="None."),
             ],
         )
     )
