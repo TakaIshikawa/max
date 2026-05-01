@@ -2985,6 +2985,117 @@ class DesignBriefPrivacyImpactAssessmentResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefReleaseNotesRequest(BaseModel):
+    format: Literal["json", "markdown"] = "json"
+
+
+class DesignBriefReleaseNotesSummaryResponse(BaseModel):
+    headline: str
+    target_user: str
+    buyer: str
+    workflow_context: str
+    release_stage: str
+    fallbacks_used: list[str]
+    capability_count: int
+    known_limitation_count: int
+    evidence_count: int
+    follow_up_milestone_count: int
+
+
+class DesignBriefReleaseNotesChangeResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    customer_value: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesTargetUserResponse(BaseModel):
+    id: str
+    name: str
+    reason: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesRolloutNoteResponse(BaseModel):
+    id: str
+    stage: str
+    note: str
+    owner: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesRiskResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    mitigation: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesMilestoneResponse(BaseModel):
+    id: str
+    name: str
+    owner: str
+    success_signal: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesCustomerFacingResponse(BaseModel):
+    headline: str
+    overview: str
+    shipped_capabilities: list[DesignBriefReleaseNotesChangeResponse]
+    target_users: list[DesignBriefReleaseNotesTargetUserResponse]
+    rollout_notes: list[DesignBriefReleaseNotesRolloutNoteResponse]
+    known_limitations: list[DesignBriefReleaseNotesRiskResponse]
+    follow_up_milestones: list[DesignBriefReleaseNotesMilestoneResponse]
+
+
+class DesignBriefReleaseNotesValidationNoteResponse(BaseModel):
+    kind: str
+    id: str
+    summary: str
+    source_idea_ids: list[str]
+    source_type: str | None = None
+    source_adapter: str | None = None
+    url: str | None = None
+    credibility: float | None = None
+    tags: list[str] | None = None
+
+
+class DesignBriefReleaseNotesSupportHandoffResponse(BaseModel):
+    id: str
+    topic: str
+    detail: str
+    owner: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
+class DesignBriefReleaseNotesInternalResponse(BaseModel):
+    release_summary: str
+    validation_evidence: list[DesignBriefReleaseNotesValidationNoteResponse]
+    support_handoff: list[DesignBriefReleaseNotesSupportHandoffResponse]
+    source_idea_ids: list[str]
+    source_fields: list[str]
+
+
+class DesignBriefReleaseNotesResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: DesignBriefReleaseNotesSummaryResponse
+    customer_facing: DesignBriefReleaseNotesCustomerFacingResponse
+    internal: DesignBriefReleaseNotesInternalResponse
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefGtmChannelPlanResponse(BaseModel):
     schema_version: str
     kind: str
