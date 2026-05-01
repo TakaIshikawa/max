@@ -298,6 +298,21 @@ class LinearIssuePublishRequest(BaseModel):
     timeout: float = Field(default=10.0, gt=0.0)
 
 
+class ShortcutStoryPublishRequest(BaseModel):
+    api_token: str | None = None
+    api_url: str | None = None
+    workflow_state_id: int | str | None = None
+    epic_id: int | str | None = None
+    labels: list[str] = Field(default_factory=list)
+    owner_ids: list[str] = Field(default_factory=list)
+    story_type: str | None = None
+    estimate: int | str | None = None
+    deadline: str | None = None
+    iteration_id: int | str | None = None
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+
+
 class DesignBriefLinearPublishRequest(BaseModel):
     api_key: str | None = None
     api_key_env: str | None = Field(default=None, min_length=1)
@@ -2009,6 +2024,16 @@ class LinearIssuePublishResponse(BaseModel):
     idea_id: str
     team_id: str
     issue_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class ShortcutStoryPublishResponse(BaseModel):
+    idea_id: str
+    story_id: int | None = None
+    story_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
