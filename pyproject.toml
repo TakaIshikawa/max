@@ -70,6 +70,7 @@ security_advisories = "max.sources.security_advisories:SecurityAdvisoriesAdapter
 rustsec_advisories = "max.sources.rustsec_advisories:RustSecAdvisoriesAdapter"
 osv_vulnerabilities = "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter"
 cisa_kev = "max.sources.cisa_kev:CisaKevAdapter"
+cve_project = "max.sources.cve_project:CveProjectAdapter"
 nvd_cve = "max.sources.nvd_cve:NvdCveAdapter"
 epss_scores = "max.sources.epss_scores:EpssScoresAdapter"
 product_hunt = "max.sources.product_hunt:ProductHuntAdapter"

@@ -87,6 +87,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rustsec_advisories": "max.sources.rustsec_advisories:RustSecAdvisoriesAdapter",
     "osv_vulnerabilities": "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter",
     "cisa_kev": "max.sources.cisa_kev:CisaKevAdapter",
+    "cve_project": "max.sources.cve_project:CveProjectAdapter",
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "epss_scores": "max.sources.epss_scores:EpssScoresAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
@@ -649,6 +650,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches CISA Known Exploited Vulnerabilities catalog signals.",
+    ),
+    "cve_project": AdapterMetadata(
+        name="cve_project",
+        config_keys=["base_url", "recent_path", "keywords", "max_age_days", "include_rejected"],
+        required_keys=[],
+        description="Fetches recent CVEProject cvelist v5 records as security signals.",
     ),
     "nvd_cve": AdapterMetadata(
         name="nvd_cve",
