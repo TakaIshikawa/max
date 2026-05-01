@@ -84,6 +84,11 @@ from max.analysis.design_brief_data_room_index import (
     data_room_index_filename,
     render_design_brief_data_room_index,
 )
+from max.analysis.design_brief_dependency_risk_map import (
+    build_design_brief_dependency_risk_map,
+    dependency_risk_map_filename,
+    render_design_brief_dependency_risk_map,
+)
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -334,6 +339,7 @@ from max.server.schemas import (
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
     DesignBriefDataRoomIndexResponse,
+    DesignBriefDependencyRiskMapResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
@@ -8662,6 +8668,37 @@ def get_design_brief_procurement_checklist_markdown(
     filename = procurement_checklist_filename(checklist["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_procurement_checklist(checklist, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/dependency-risk-map",
+    response_model=DesignBriefDependencyRiskMapResponse,
+)
+def get_design_brief_dependency_risk_map(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefDependencyRiskMapResponse:
+    report = build_design_brief_dependency_risk_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefDependencyRiskMapResponse(**report)
+
+
+@router.get("/design-briefs/{brief_id}/dependency-risk-map.md", response_model=None)
+def get_design_brief_dependency_risk_map_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_dependency_risk_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = dependency_risk_map_filename(report["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_dependency_risk_map(report, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

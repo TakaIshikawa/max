@@ -2626,6 +2626,18 @@ class DesignBriefProcurementChecklistResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefDependencyRiskMapResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    dependency_context: dict[str, Any]
+    dependency_risks: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefRaciMatrixResponse(BaseModel):
     schema_version: str
     kind: str
