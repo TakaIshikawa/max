@@ -3170,6 +3170,16 @@ class DesignBriefOutreachPackResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefDataRoomIndexResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    sections: list[dict[str, Any]]
+    artifacts: list[dict[str, Any]]
+
+
 class DesignBriefArtifactStatusResponse(BaseModel):
     status: Literal["generated", "missing", "errored"]
     error: str | None = None

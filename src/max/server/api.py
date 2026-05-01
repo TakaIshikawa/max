@@ -74,6 +74,11 @@ from max.analysis.design_brief_bundle import (
     build_design_brief_bundle,
     render_design_brief_bundle,
 )
+from max.analysis.design_brief_data_room_index import (
+    build_design_brief_data_room_index,
+    data_room_index_filename,
+    render_design_brief_data_room_index,
+)
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -312,6 +317,7 @@ from max.server.schemas import (
     DesignBriefConfluencePagePublishResponse,
     DesignBriefCompetitiveLandscapeResponse,
     DesignBriefComplianceChecklistResponse,
+    DesignBriefDataRoomIndexResponse,
     DesignBriefDiscordPublishResponse,
     DesignBriefEvidenceMatrixResponse,
     DesignBriefExecutiveMemoResponse,
@@ -6108,6 +6114,44 @@ def get_design_brief_bundle_markdown(
     filename = f"{_download_filename_part(brief_id)}-bundle.md"
     return Response(
         content=render_design_brief_bundle(bundle, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/data-room-index",
+    response_model=DesignBriefDataRoomIndexResponse,
+)
+def get_design_brief_data_room_index(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> DesignBriefDataRoomIndexResponse | Response:
+    index = build_design_brief_data_room_index(store, brief_id)
+    if not index:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    if format == "markdown":
+        return _design_brief_data_room_index_markdown_response(index)
+    return DesignBriefDataRoomIndexResponse(**index)
+
+
+@router.get("/design-briefs/{brief_id}/data-room-index.md", response_model=None)
+def get_design_brief_data_room_index_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    index = build_design_brief_data_room_index(store, brief_id)
+    if not index:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_data_room_index_markdown_response(index)
+
+
+def _design_brief_data_room_index_markdown_response(index: dict[str, Any]) -> Response:
+    filename = data_room_index_filename(index["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_data_room_index(index, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
