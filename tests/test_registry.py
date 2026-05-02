@@ -259,6 +259,7 @@ def test_list_adapters_returns_strings():
     assert "packagist_download_trends" in names
     assert "pubdev" in names
     assert "deno_registry" in names
+    assert "docker_hub" in names
     assert "dockerhub_image_trends" in names
     assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
@@ -297,7 +298,7 @@ def test_get_adapter_creates_npm_security_advisories_adapter():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,npm_security_advisories,pypi_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,nuget_package_activity,rubygems,rubygems_maintainer_activity,rubygems_download_trends,packagist_maintainer_activity,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_image_trends,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry,go_module_trends",
+        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,npm_security_advisories,pypi_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,nuget_package_activity,rubygems,rubygems_maintainer_activity,rubygems_download_trends,packagist_maintainer_activity,packagist_download_trends,pubdev,deno_registry,dockerhub,docker_hub,dockerhub_image_trends,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry,go_module_trends",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -325,6 +326,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "pubdev",
         "deno_registry",
         "dockerhub",
+        "docker_hub",
         "dockerhub_image_trends",
         "dockerhub_tag_velocity",
         "mcp_registry",
@@ -495,9 +497,12 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["deno_registry"].required_keys == []
     assert "Deno JSR" in metadata["deno_registry"].description
-    assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags"]
+    assert metadata["dockerhub"].config_keys == ["repositories", "queries", "include_tags", "timeout"]
     assert metadata["dockerhub"].required_keys == []
     assert "Docker Hub" in metadata["dockerhub"].description
+    assert metadata["docker_hub"].config_keys == ["repositories", "queries", "include_tags", "timeout"]
+    assert metadata["docker_hub"].required_keys == []
+    assert "Docker Hub repository activity" in metadata["docker_hub"].description
     assert metadata["dockerhub_image_trends"].config_keys == [
         "repositories",
         "repository_names",
