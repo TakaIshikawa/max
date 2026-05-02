@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,6 +13,25 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.sales_enablement_checklist"
 SCHEMA_VERSION = "max.design_brief.sales_enablement_checklist.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "sales_readiness_gate",
+    "section",
+    "item_id",
+    "item_type",
+    "owner_role",
+    "question_action_proof_detail",
+    "required",
+    "source_fields",
+    "source_idea_ids",
+    "target_buyer",
+    "target_user",
+    "workflow_context",
+    "primary_value",
+    "fallbacks_used",
+)
 
 SECTION_CONFIGS: tuple[dict[str, Any], ...] = (
     {
@@ -175,9 +196,11 @@ def build_design_brief_sales_enablement_checklist(
 def render_design_brief_sales_enablement_checklist(
     checklist: dict[str, Any], fmt: str = "markdown"
 ) -> str:
-    """Render the sales enablement checklist as Markdown or deterministic JSON."""
+    """Render the sales enablement checklist as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(checklist, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_sales_enablement_checklist_csv(checklist)
     if fmt != "markdown":
         raise ValueError(f"Unsupported sales enablement checklist format: {fmt}")
 
@@ -240,11 +263,241 @@ def render_design_brief_sales_enablement_checklist(
 def sales_enablement_checklist_filename(
     design_brief: dict[str, Any], *, fmt: str = "markdown"
 ) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-sales-enablement-checklist.{extension}"
     )
+
+
+def render_sales_enablement_checklist_csv(checklist: dict[str, Any]) -> str:
+    """Render checklist items and supporting sales assets as deterministic CSV text."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(checklist):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(checklist: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in checklist.get("qualification_signals") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="qualification",
+                item_id=item.get("id"),
+                item_type="qualification_signal",
+                owner_role=_section_owner("qualification"),
+                question_action_proof_detail=_csv_join(
+                    [
+                        item.get("signal"),
+                        item.get("qualification_prompt"),
+                        item.get("positive_evidence"),
+                        item.get("disqualification_signal"),
+                    ]
+                ),
+                required=True,
+                source_fields=_section_source_fields("qualification"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("discovery_questions") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="discovery",
+                item_id=item.get("id"),
+                item_type="discovery_question",
+                owner_role=_section_owner("discovery"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("question"), item.get("listen_for"), item.get("follow_up")]
+                ),
+                required=True,
+                source_fields=_section_source_fields("discovery"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("proof_points") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="proof",
+                item_id=item.get("id"),
+                item_type="proof_point",
+                owner_role=_section_owner("proof"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("claim"), item.get("evidence"), item.get("seller_use")]
+                ),
+                required=True,
+                source_fields=_section_source_fields("proof"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("demo_prep") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="demo_readiness",
+                item_id=item.get("id"),
+                item_type="demo_prep",
+                owner_role=_section_owner("demo_readiness"),
+                question_action_proof_detail=_csv_join(
+                    [
+                        item.get("step"),
+                        item.get("prep"),
+                        item.get("demo_asset"),
+                        item.get("success_check"),
+                    ]
+                ),
+                required=True,
+                source_fields=_section_source_fields("demo_readiness"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("objection_handling_assets") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="objection_handling",
+                item_id=item.get("id"),
+                item_type="objection_handling_asset",
+                owner_role=_section_owner("objection_handling"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("objection"), item.get("response_asset"), item.get("proof_asset")]
+                ),
+                required=False,
+                source_fields=_section_source_fields("objection_handling"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("handoff_criteria") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="handoff",
+                item_id=item.get("id"),
+                item_type="handoff_criterion",
+                owner_role=item.get("owner_role") or _section_owner("handoff"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("criterion"), item.get("handoff_evidence")]
+                ),
+                required=True,
+                source_fields=_section_source_fields("handoff"),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("checklist_items") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section=item.get("section_id"),
+                item_id=item.get("id"),
+                item_type="checklist_item",
+                owner_role=item.get("owner_role"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("task"), item.get("rationale"), item.get("completion_evidence")]
+                ),
+                required=True,
+                source_fields=_section_source_fields(item.get("section_id")),
+                source_idea_ids=item.get("source_reference_ids"),
+            )
+        )
+
+    for item in checklist.get("missing_evidence_actions") or []:
+        rows.append(
+            _csv_row(
+                checklist,
+                section="missing_evidence",
+                item_id=item.get("field"),
+                item_type="missing_evidence_action",
+                owner_role=item.get("owner_role"),
+                question_action_proof_detail=_csv_join(
+                    [item.get("label"), item.get("action"), _missing_action_context(checklist, item)]
+                ),
+                required=True,
+                source_fields=item.get("field"),
+                source_idea_ids=_brief_source_idea_ids(checklist),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(checklist: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = checklist.get("design_brief") or {}
+    summary = checklist.get("summary") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "sales_readiness_gate": summary.get("sales_readiness_gate"),
+        "target_buyer": summary.get("target_buyer"),
+        "target_user": summary.get("target_user"),
+        "workflow_context": summary.get("workflow_context"),
+        "primary_value": summary.get("primary_value"),
+        "fallbacks_used": summary.get("fallbacks_used"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _section_owner(section_id: Any) -> str:
+    section = _section_config(section_id)
+    return str(section.get("owner_role") or "") if section else ""
+
+
+def _section_source_fields(section_id: Any) -> list[str]:
+    section = _section_config(section_id)
+    return list(section.get("source_fields") or []) if section else []
+
+
+def _section_config(section_id: Any) -> dict[str, Any] | None:
+    text = _csv_text(section_id)
+    return next((section for section in SECTION_CONFIGS if section["id"] == text), None)
+
+
+def _brief_source_idea_ids(checklist: dict[str, Any]) -> list[str]:
+    brief = checklist.get("design_brief") or {}
+    return _string_list(brief.get("source_idea_ids"))
+
+
+def _missing_action_context(checklist: dict[str, Any], action: dict[str, Any]) -> str:
+    summary = checklist.get("summary") or {}
+    field = _csv_text(action.get("field"))
+    return _csv_join(
+        [
+            f"target_buyer={summary.get('target_buyer') or ''}",
+            f"target_user={summary.get('target_user') or ''}",
+            f"workflow_context={summary.get('workflow_context') or ''}",
+            f"primary_value={summary.get('primary_value') or ''}",
+            f"fallbacks_used={_csv_text(summary.get('fallbacks_used'))}",
+            f"missing_field={field}",
+        ]
+    )
+
+
+def _csv_join(values: list[Any]) -> str:
+    return "; ".join(text for text in (_csv_text(value) for value in values) if text)
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple, set)):
+        return ";".join(_csv_text(item) for item in value if _csv_text(item))
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _sales_enablement_context(

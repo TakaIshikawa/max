@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_sales_enablement_checklist import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_sales_enablement_checklist,
@@ -126,6 +129,178 @@ def test_render_design_brief_sales_enablement_checklist_markdown_json_and_invali
         render_design_brief_sales_enablement_checklist(checklist, fmt="yaml")
 
 
+def test_render_design_brief_sales_enablement_checklist_csv_is_deterministic(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    csv_text = render_design_brief_sales_enablement_checklist(checklist, fmt="csv")
+    repeated = render_design_brief_sales_enablement_checklist(checklist, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == 30
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "design_brief_title": "Sales Enablement Brief",
+        "sales_readiness_gate": "ready_for_seller_use",
+        "section": "qualification",
+        "item_id": "QS1",
+        "item_type": "qualification_signal",
+        "owner_role": "Account executive",
+        "question_action_proof_detail": (
+            "Prospect owns pre-demo qualification and handoff.; Where does this workflow break "
+            "today, and who owns fixing it?; Sellers lack a structured way to qualify prospects "
+            "before demos.; No active ownership of pre-demo qualification and handoff."
+        ),
+        "required": "true",
+        "source_fields": "buyer;specific_user;workflow_context;first_10_customers",
+        "source_idea_ids": "bu-sales-enable-lead",
+        "target_buyer": "VP of Revenue Operations",
+        "target_user": "sales engineer",
+        "workflow_context": "pre-demo qualification and handoff",
+        "primary_value": "Increase qualified demos and reduce post-demo handoff gaps.",
+        "fallbacks_used": "",
+    }
+    assert rows[-1]["item_id"] == "DBSE12"
+    assert rows[-1]["item_type"] == "checklist_item"
+
+
+def test_render_design_brief_sales_enablement_checklist_csv_covers_sections(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    rows = list(
+        csv.DictReader(
+            io.StringIO(render_design_brief_sales_enablement_checklist(checklist, fmt="csv"))
+        )
+    )
+
+    assert [row["section"] for row in rows[:18]] == [
+        "qualification",
+        "qualification",
+        "qualification",
+        "discovery",
+        "discovery",
+        "discovery",
+        "proof",
+        "proof",
+        "proof",
+        "demo_readiness",
+        "demo_readiness",
+        "demo_readiness",
+        "objection_handling",
+        "objection_handling",
+        "objection_handling",
+        "handoff",
+        "handoff",
+        "handoff",
+    ]
+    assert {row["item_type"] for row in rows} == {
+        "qualification_signal",
+        "discovery_question",
+        "proof_point",
+        "demo_prep",
+        "objection_handling_asset",
+        "handoff_criterion",
+        "checklist_item",
+    }
+    assert [row["item_id"] for row in rows if row["item_type"] == "checklist_item"] == [
+        f"DBSE{index}" for index in range(1, 13)
+    ]
+
+
+def test_render_design_brief_sales_enablement_checklist_csv_escapes_special_values(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    checklist["design_brief"]["title"] = 'Sales "Enablement", Brief'
+    checklist["qualification_signals"][0]["qualification_prompt"] = 'Ask "why", now\nwith owner'
+    checklist["checklist_items"][0]["task"] = 'Confirm "buyer", scope\nwith AE'
+
+    rows = list(
+        csv.DictReader(
+            io.StringIO(render_design_brief_sales_enablement_checklist(checklist, fmt="csv"))
+        )
+    )
+
+    assert rows[0]["design_brief_title"] == 'Sales "Enablement", Brief'
+    assert 'Ask "why", now\nwith owner' in rows[0]["question_action_proof_detail"]
+    checklist_row = next(row for row in rows if row["item_id"] == "DBSE1")
+    assert 'Confirm "buyer", scope\nwith AE' in checklist_row["question_action_proof_detail"]
+
+
+def test_render_design_brief_sales_enablement_checklist_csv_sparse_missing_actions(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path, sparse=True)
+    try:
+        checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    csv_text = render_design_brief_sales_enablement_checklist(checklist, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+    missing_rows = [row for row in rows if row["item_type"] == "missing_evidence_action"]
+
+    assert csv_text == render_design_brief_sales_enablement_checklist(checklist, fmt="csv")
+    assert len(missing_rows) == 7
+    assert [row["item_id"] for row in missing_rows] == [
+        "buyer",
+        "target_buyer",
+        "qualification_signals",
+        "discovery_questions",
+        "proof_points",
+        "demo_prep",
+        "handoff_criteria",
+    ]
+    assert missing_rows[0]["owner_role"] == "Account executive"
+    assert missing_rows[0]["required"] == "true"
+    assert missing_rows[0]["target_buyer"] == "economic buyer"
+    assert missing_rows[0]["target_user"] == "both"
+    assert missing_rows[0]["workflow_context"] == "Sales Enablement Brief workflow"
+    assert missing_rows[0]["fallbacks_used"] == (
+        "buyer;workflow_context;value_proposition;current_workaround"
+    )
+    assert "Confirm the economic buyer" in missing_rows[0]["question_action_proof_detail"]
+    assert "missing_field=buyer" in missing_rows[0]["question_action_proof_detail"]
+    assert "target_buyer=economic buyer" in missing_rows[0]["question_action_proof_detail"]
+    assert "target_user=both" in missing_rows[0]["question_action_proof_detail"]
+
+
+def test_render_design_brief_sales_enablement_checklist_csv_sparse_empty_report_header_only() -> None:
+    checklist = {
+        "design_brief": {"id": "dbf-empty", "title": "Empty Sales Checklist"},
+        "summary": {"sales_readiness_gate": "needs_sales_evidence"},
+    }
+
+    assert (
+        render_design_brief_sales_enablement_checklist(checklist, fmt="csv")
+        == ",".join(CSV_COLUMNS) + "\n"
+    )
+
+
 def test_build_design_brief_sales_enablement_checklist_missing_brief_returns_none(
     tmp_path,
 ) -> None:
@@ -152,6 +327,13 @@ def test_sales_enablement_checklist_filename_uses_brief_id_and_title() -> None:
             fmt="json",
         )
         == "dbf-test001-Sales-Enablement-API-Brief-sales-enablement-checklist.json"
+    )
+    assert (
+        sales_enablement_checklist_filename(
+            {"id": "dbf-test001", "title": "Sales Enablement API Brief"},
+            fmt="csv",
+        )
+        == "dbf-test001-Sales-Enablement-API-Brief-sales-enablement-checklist.csv"
     )
 
 
