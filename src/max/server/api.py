@@ -630,6 +630,8 @@ from max.server.schemas import (
     ValidationExperimentSummaryResponse,
     ValidationExperimentUpdate,
     ValidationFollowUpsResponse,
+    VendorRiskAssessmentRequest,
+    VendorRiskAssessmentResponse,
     WebhookPublishRequest,
     WebhookPublishResponse,
 )
@@ -651,6 +653,7 @@ from max.spec.security_review import generate_security_review, render_security_r
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_markdown
 from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
+from max.spec.vendor_risk_assessment import generate_vendor_risk_assessment
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
@@ -5936,11 +5939,40 @@ def _slo_plan_markdown_response(idea_id: str, plan: dict[str, Any]) -> Response:
     )
 
 
+@router.get(
+    "/ideas/{idea_id}/vendor-risk-assessment",
+    response_model=VendorRiskAssessmentResponse,
+)
+def get_idea_vendor_risk_assessment(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> VendorRiskAssessmentResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
+    return VendorRiskAssessmentResponse.model_validate(
+        generate_vendor_risk_assessment(tact_spec)
+    )
+
+
 @router.post("/spec/smoke-test-plan", response_model=SmokeTestPlanResponse)
 @router.post("/ideas/spec-smoke-test-plan", response_model=SmokeTestPlanResponse)
 def generate_spec_smoke_test_plan(body: SmokeTestPlanRequest) -> SmokeTestPlanResponse:
     tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
     return SmokeTestPlanResponse.model_validate(generate_smoke_test_plan(tact_spec))
+
+
+@router.post("/spec/vendor-risk-assessment", response_model=VendorRiskAssessmentResponse)
+@router.post("/ideas/spec-vendor-risk-assessment", response_model=VendorRiskAssessmentResponse)
+def generate_spec_vendor_risk_assessment(
+    body: VendorRiskAssessmentRequest,
+) -> VendorRiskAssessmentResponse:
+    tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
+    return VendorRiskAssessmentResponse.model_validate(
+        generate_vendor_risk_assessment(tact_spec)
+    )
 
 
 @router.post("/spec/cost-estimate", response_model=CostEstimateResponse)
