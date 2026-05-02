@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.sales_battlecard.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "readiness_score",
+    "section",
+    "type",
+    "item_order",
+    "item_id",
+    "item_name",
+    "item_claim",
+    "response",
+    "outcome",
+    "evidence",
+    "source_idea_ids",
+)
 
 
 def build_design_brief_sales_battlecard(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -77,9 +94,11 @@ def build_design_brief_sales_battlecard(store: Store, brief_id: str) -> dict[str
 def render_design_brief_sales_battlecard(
     battlecard: dict[str, Any], fmt: str = "markdown"
 ) -> str:
-    """Render the sales battlecard as Markdown or JSON."""
+    """Render the sales battlecard as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(battlecard, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(battlecard)
     if fmt != "markdown":
         raise ValueError(f"Unsupported sales battlecard format: {fmt}")
 
@@ -148,6 +167,97 @@ def render_design_brief_sales_battlecard(
         lines.append(f"- **{proof['claim']}**: {proof['evidence']}")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(battlecard: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(battlecard):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(battlecard: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for order, objection in enumerate(battlecard.get("objection_handling") or [], start=1):
+        if not isinstance(objection, dict):
+            continue
+        rows.append(
+            _csv_row(
+                battlecard,
+                section="objection_handling",
+                type="objection",
+                item_order=order,
+                item_id=objection.get("id"),
+                item_name=objection.get("objection"),
+                item_claim=objection.get("objection"),
+                response=objection.get("response"),
+                outcome=objection.get("discovery_follow_up"),
+                evidence=objection.get("proof_point"),
+                source_idea_ids=objection.get("source_idea_ids"),
+            )
+        )
+
+    for order, beat in enumerate(battlecard.get("demo_beats") or [], start=1):
+        if not isinstance(beat, dict):
+            continue
+        rows.append(
+            _csv_row(
+                battlecard,
+                section="demo_beats",
+                type="demo_beat",
+                item_order=order,
+                item_id=beat.get("id"),
+                item_name=beat.get("name"),
+                item_claim=beat.get("setup"),
+                response=beat.get("show"),
+                outcome=beat.get("outcome"),
+                evidence=beat.get("ask"),
+                source_idea_ids=beat.get("source_idea_ids"),
+            )
+        )
+
+    for order, proof in enumerate(battlecard.get("proof_points") or [], start=1):
+        if not isinstance(proof, dict):
+            continue
+        rows.append(
+            _csv_row(
+                battlecard,
+                section="proof_points",
+                type="proof_point",
+                item_order=order,
+                item_id=proof.get("id") or f"PP{order}",
+                item_name=proof.get("claim"),
+                item_claim=proof.get("claim"),
+                evidence=proof.get("evidence"),
+                source_idea_ids=proof.get("source_idea_ids"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(battlecard: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = battlecard.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "readiness_score": brief.get("readiness_score"),
+        **values,
+    }
+    if not row.get("source_idea_ids"):
+        row["source_idea_ids"] = brief.get("source_idea_ids")
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ";".join(_csv_text(item) for item in value if _csv_text(item))
+    return str(value)
 
 
 def _sales_context(
