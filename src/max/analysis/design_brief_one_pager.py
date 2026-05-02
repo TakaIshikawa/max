@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 import json
 from typing import Any
 
@@ -13,6 +15,30 @@ from max.analysis.design_validation import build_validation_plan
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.one_pager.v1"
+
+CSV_COLUMNS = (
+    "design_brief_id",
+    "design_brief_title",
+    "row_type",
+    "field",
+    "value",
+    "risk_id",
+    "severity",
+    "likelihood",
+    "priority",
+    "mitigation",
+    "validation_action",
+    "source_idea_ids",
+)
+
+DECISION_CSV_FIELDS = (
+    ("target_customer", "Target customer"),
+    ("problem", "Problem"),
+    ("solution", "Solution"),
+    ("validation_next_step", "Validation next step"),
+    ("first_milestone", "First milestone"),
+    ("source_idea_ids", "Source idea IDs"),
+)
 
 
 def build_design_brief_one_pager(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -65,9 +91,11 @@ def build_design_brief_one_pager(store: Store, brief_id: str) -> dict[str, Any] 
 
 
 def render_design_brief_one_pager(one_pager: dict[str, Any], fmt: str = "json") -> str:
-    """Render the one-page design brief summary as JSON or Markdown."""
+    """Render the one-page design brief summary as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(one_pager, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(one_pager)
     if fmt != "markdown":
         raise ValueError(f"Unsupported one-pager format: {fmt}")
 
@@ -102,6 +130,86 @@ def render_design_brief_one_pager(one_pager: dict[str, Any], fmt: str = "json") 
     else:
         lines.append("- No explicit top risks are captured yet.")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(one_pager: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(one_pager):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(one_pager: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    source_idea_ids = _csv_list(one_pager.get("source_idea_ids", []))
+    for key, label in DECISION_CSV_FIELDS:
+        value = one_pager.get(key)
+        rows.append(
+            _csv_row(
+                one_pager,
+                row_type="decision_field",
+                field=label,
+                value=_csv_list(value) if key == "source_idea_ids" else value,
+                source_idea_ids=source_idea_ids,
+            )
+        )
+
+    for risk in one_pager.get("top_risks", []):
+        rows.append(
+            _csv_row(
+                one_pager,
+                row_type="top_risk",
+                field=risk.get("title"),
+                value=risk.get("title"),
+                risk_id=risk.get("id"),
+                severity=risk.get("severity"),
+                likelihood=risk.get("likelihood"),
+                priority=risk.get("priority"),
+                mitigation=risk.get("mitigation"),
+                validation_action=risk.get("validation_action"),
+                source_idea_ids=_csv_list(risk.get("source_idea_ids")) or source_idea_ids,
+            )
+        )
+    return rows
+
+
+def _csv_row(one_pager: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = one_pager["design_brief"]
+    row = {
+        "design_brief_id": _csv_cell(brief.get("id")),
+        "design_brief_title": _csv_cell(brief.get("title") or one_pager.get("title")),
+        "row_type": "",
+        "field": "",
+        "value": "",
+        "risk_id": "",
+        "severity": "",
+        "likelihood": "",
+        "priority": "",
+        "mitigation": "",
+        "validation_action": "",
+        "source_idea_ids": "",
+    }
+    for key, value in values.items():
+        row[key] = _csv_cell(value)
+    return row
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return _csv_list(value)
+    return str(value).strip()
+
+
+def _csv_list(values: Any) -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values.strip()
+    return "; ".join(text for value in values if (text := _csv_cell(value)))
 
 
 def _target_customer(design_brief: dict[str, Any], prd: dict[str, Any] | None) -> str:
