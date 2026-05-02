@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -68,6 +70,20 @@ _CONTRADICTION_TERMS = {
     "rejected",
     "weak demand",
 }
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "criterion_type",
+    "criterion_id",
+    "category",
+    "label",
+    "status",
+    "threshold",
+    "evidence_backed_reason",
+    "action",
+    "source_reference_ids",
+)
 
 
 @dataclass(frozen=True)
@@ -156,9 +172,11 @@ def render_design_brief_kill_criteria(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render kill criteria as Markdown or deterministic JSON."""
+    """Render kill criteria as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported kill criteria format: {fmt}")
 
@@ -200,7 +218,7 @@ def render_design_brief_kill_criteria(
 
 def kill_criteria_filename(design_brief: BuildableUnit | dict[str, Any], *, fmt: str = "markdown") -> str:
     """Return a stable filename for a kill criteria export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _get_field(design_brief, "id") or "design-brief"
     title = _get_field(design_brief, "title") or "kill-criteria"
     return f"{_filename_part(str(brief_id))}-{_filename_part(str(title))}-kill-criteria.{extension}"
@@ -642,6 +660,39 @@ def _render_criteria(lines: list[str], criteria: list[dict[str, Any]]) -> None:
                 f"  Source references: {_inline_ids(criterion['source_reference_ids'])}",
             ]
         )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    brief = report["design_brief"]
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for criterion_type, group_name in (
+        ("stop", "stop_triggers"),
+        ("pivot", "pivot_triggers"),
+        ("continue", "continue_signals"),
+    ):
+        for criterion in report[group_name]:
+            writer.writerow(
+                {
+                    "design_brief_id": brief["id"],
+                    "design_brief_title": brief["title"],
+                    "criterion_type": criterion_type,
+                    "criterion_id": criterion["id"],
+                    "category": criterion["category"],
+                    "label": criterion["label"],
+                    "status": criterion["status"],
+                    "threshold": criterion["threshold"],
+                    "evidence_backed_reason": criterion["evidence_backed_reason"],
+                    "action": criterion["action"],
+                    "source_reference_ids": json.dumps(
+                        criterion["source_reference_ids"],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                }
+            )
+    return output.getvalue()
 
 
 def _term_hits(text: str, terms: set[str]) -> list[str]:
