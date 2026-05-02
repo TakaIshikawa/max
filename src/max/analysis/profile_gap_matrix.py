@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import csv
+import json
 from dataclasses import asdict, dataclass, field
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +20,17 @@ from max.store.db import Store
 
 DEFAULT_MIN_EVALUATION_WEIGHT = 0.10
 DEFAULT_MAX_RECOMMENDED_ADAPTERS = 5
+CSV_COLUMNS: tuple[str, ...] = (
+    "profile",
+    "category",
+    "source",
+    "gap_type",
+    "severity_or_score",
+    "observed_count",
+    "target_count",
+    "recommendation",
+    "evidence_or_signal_references",
+)
 
 
 @dataclass(frozen=True)
@@ -118,6 +132,22 @@ def build_profile_gap_matrix(
     )
 
 
+def render_profile_gap_matrix(
+    matrix: ProfileGapMatrix | dict[str, Any],
+    fmt: str = "markdown",
+) -> str:
+    """Render a profile gap matrix as Markdown, CSV, or deterministic JSON."""
+
+    payload = matrix.to_dict() if isinstance(matrix, ProfileGapMatrix) else matrix
+    if fmt == "json":
+        return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_profile_gap_matrix_csv(payload)
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported profile gap matrix format: {fmt}")
+    return render_profile_gap_matrix_markdown(payload)
+
+
 def render_profile_gap_matrix_markdown(matrix: ProfileGapMatrix | dict[str, Any]) -> str:
     """Render a profile gap matrix as markdown."""
 
@@ -165,6 +195,18 @@ def render_profile_gap_matrix_markdown(matrix: ProfileGapMatrix | dict[str, Any]
             + " |"
         )
     return "\n".join(lines) + "\n"
+
+
+def render_profile_gap_matrix_csv(matrix: ProfileGapMatrix | dict[str, Any]) -> str:
+    """Render a profile gap matrix as deterministic CSV gap rows."""
+
+    payload = matrix.to_dict() if isinstance(matrix, ProfileGapMatrix) else matrix
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(payload):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _load_profile_yaml(path: Path) -> PipelineProfile:
@@ -273,6 +315,186 @@ def _source_categories(adapter: str, metadata: AdapterMetadata | None) -> list[s
         return explicit
     source_type = _metadata_value(metadata, "source_type") or _adapter_source_type(adapter)
     return [_adapter_category(adapter, metadata, source_type)]
+
+
+def _csv_rows(matrix: dict[str, Any]) -> list[dict[str, str]]:
+    metadata = get_adapter_metadata()
+    rows: list[dict[str, str]] = []
+    for profile_row in sorted(
+        matrix.get("rows") or [],
+        key=lambda item: (str(item.get("profile_name") or ""), str(item.get("domain") or "")),
+    ):
+        rows.extend(_profile_gap_csv_rows(profile_row, matrix, metadata))
+    return rows
+
+
+def _profile_gap_csv_rows(
+    row: dict[str, Any],
+    matrix: dict[str, Any],
+    metadata: dict[str, AdapterMetadata],
+) -> list[dict[str, str]]:
+    csv_rows: list[dict[str, str]] = []
+    enabled_categories = _string_list(row.get("enabled_source_categories"))
+    min_weight = matrix.get("min_evaluation_weight", DEFAULT_MIN_EVALUATION_WEIGHT)
+
+    for category in _string_list(row.get("missing_source_categories")):
+        recommendations = _recommended_adapters_for_category(row, category, metadata)
+        csv_rows.append(
+            _csv_row(
+                profile=row.get("profile_name"),
+                category=category,
+                source=_csv_join(recommendations),
+                gap_type="missing_source_category",
+                severity_or_score="high",
+                observed_count="0",
+                target_count="1",
+                recommendation=_recommendation_text(
+                    "Add or enable source coverage",
+                    recommendations or [category],
+                ),
+                evidence_or_signal_references=_csv_join(
+                    [
+                        f"required_category:{category}",
+                        f"enabled_categories:{_csv_join(enabled_categories)}",
+                    ]
+                ),
+            )
+        )
+
+    for adapter in _string_list(row.get("disabled_relevant_adapters")):
+        categories = _source_categories(adapter, metadata.get(adapter))
+        csv_rows.append(
+            _csv_row(
+                profile=row.get("profile_name"),
+                category=_csv_join(categories),
+                source=adapter,
+                gap_type="disabled_relevant_adapter",
+                severity_or_score="medium",
+                observed_count="0",
+                target_count="1",
+                recommendation=f"Enable adapter {adapter}",
+                evidence_or_signal_references=_csv_join(
+                    [
+                        f"adapter_categories:{_csv_join(categories)}",
+                        f"enabled_categories:{_csv_join(enabled_categories)}",
+                    ]
+                ),
+            )
+        )
+
+    for adapter in _string_list(row.get("missing_adapters")):
+        categories = _source_categories(adapter, metadata.get(adapter))
+        csv_rows.append(
+            _csv_row(
+                profile=row.get("profile_name"),
+                category=_csv_join(categories),
+                source=adapter,
+                gap_type="missing_adapter",
+                severity_or_score="medium",
+                observed_count="0",
+                target_count="1",
+                recommendation=f"Configure adapter {adapter}",
+                evidence_or_signal_references=_csv_join(
+                    [f"adapter_categories:{_csv_join(categories)}"]
+                ),
+            )
+        )
+
+    for adapter in _string_list(row.get("unknown_adapters")):
+        csv_rows.append(
+            _csv_row(
+                profile=row.get("profile_name"),
+                category="unknown",
+                source=adapter,
+                gap_type="unknown_adapter",
+                severity_or_score="high",
+                observed_count="1",
+                target_count="0",
+                recommendation=f"Register or remove adapter {adapter}",
+                evidence_or_signal_references="configured adapter not found in registry",
+            )
+        )
+
+    weights = row.get("evaluation_weights") or {}
+    for dimension in _string_list(row.get("underweighted_evaluation_dimensions")):
+        score = _float_text(weights.get(dimension, 0.0))
+        csv_rows.append(
+            _csv_row(
+                profile=row.get("profile_name"),
+                category="evaluation",
+                source=dimension,
+                gap_type="underweighted_evaluation_dimension",
+                severity_or_score=score,
+                observed_count=score,
+                target_count=_float_text(min_weight),
+                recommendation=f"Raise {dimension} evaluation weight",
+                evidence_or_signal_references=f"weight_profile:{row.get('evaluation_weight_profile')}",
+            )
+        )
+
+    return sorted(
+        csv_rows,
+        key=lambda item: (
+            item["profile"],
+            item["category"],
+            item["source"],
+            item["gap_type"],
+        ),
+    )
+
+
+def _recommended_adapters_for_category(
+    row: dict[str, Any],
+    category: str,
+    metadata: dict[str, AdapterMetadata],
+) -> list[str]:
+    candidates = _dedupe(
+        [
+            *_string_list(row.get("recommended_next_adapters")),
+            *_string_list(row.get("disabled_relevant_adapters")),
+            *_string_list(row.get("missing_adapters")),
+        ]
+    )
+    return sorted(
+        adapter
+        for adapter in candidates
+        if category in _source_categories(adapter, metadata.get(adapter))
+    )
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _recommendation_text(action: str, targets: list[str]) -> str:
+    target_text = _csv_join(targets)
+    return f"{action}: {target_text}" if target_text else action
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return _csv_join(_csv_text(item) for item in value)
+    return str(value)
+
+
+def _csv_join(values) -> str:
+    return "; ".join(text for value in values if (text := _csv_text(value)))
+
+
+def _string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list | tuple | set):
+        return sorted(str(item) for item in value if str(item))
+    return [str(value)]
+
+
+def _float_text(value: Any) -> str:
+    return f"{float(value):.2f}"
 
 
 def _metadata_values(metadata: AdapterMetadata | None, *names: str) -> list[str]:
