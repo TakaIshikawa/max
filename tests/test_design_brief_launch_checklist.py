@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
+import pytest
+
 from max.analysis.design_brief_launch_checklist import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_launch_checklist,
+    launch_checklist_filename,
     render_design_brief_launch_checklist,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -63,6 +69,95 @@ def test_render_design_brief_launch_checklist_markdown(tmp_path) -> None:
     assert "### DBLC1: Confirm launch scope from the persisted MVP scope." in markdown
     assert "- Exit criteria: MVP scope and explicit non-goals are approved for execution." in markdown
     assert f"Design brief: `{brief_id}`" in markdown
+
+
+def test_render_design_brief_launch_checklist_csv_rows_are_stable(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_launch_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    csv_text = render_design_brief_launch_checklist(checklist, fmt="csv")
+    repeated = render_design_brief_launch_checklist(checklist, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == len(checklist["checklist_items"])
+    assert [row["item_id"] for row in rows] == [item["id"] for item in checklist["checklist_items"]]
+    assert rows[0] == {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.design_brief.launch_checklist",
+        "design_brief_id": brief_id,
+        "design_brief_title": "Launch Checklist Brief",
+        "section_id": "readiness",
+        "section_title": "Readiness",
+        "section_owner_role": "Product lead",
+        "item_id": "DBLC1",
+        "task": "Confirm launch scope from the persisted MVP scope.",
+        "status": "pending",
+        "owner": "product_owner",
+        "required": "true",
+        "rationale": "JSON launch checklist; Markdown launch checklist",
+        "exit_criteria": "MVP scope and explicit non-goals are approved for execution.",
+        "source_idea_ids": "bu-launch-brief-lead;bu-launch-brief-support",
+        "source_fields": "mvp_scope;merged_product_concept",
+    }
+
+
+def test_render_design_brief_launch_checklist_csv_escapes_special_characters(tmp_path) -> None:
+    store, _brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_launch_checklist(store, _brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    checklist["checklist_items"][0]["task"] = 'Confirm "launch", scope\nwith owner'
+    checklist["checklist_items"][0]["rationale"] = 'Line one\nLine "two", with comma'
+
+    csv_text = render_design_brief_launch_checklist(checklist, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["task"] == 'Confirm "launch", scope\nwith owner'
+    assert rows[0]["rationale"] == 'Line one\nLine "two", with comma'
+
+
+def test_render_design_brief_launch_checklist_csv_empty_items_header_only(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_launch_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    checklist = {**checklist, "checklist_items": []}
+
+    assert render_design_brief_launch_checklist(checklist, fmt="csv") == ",".join(CSV_COLUMNS) + "\n"
+
+
+def test_render_design_brief_launch_checklist_invalid_format_raises(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_launch_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    with pytest.raises(ValueError):
+        render_design_brief_launch_checklist(checklist, fmt="yaml")
+
+
+def test_launch_checklist_filename_supports_csv_extension() -> None:
+    design_brief = {"id": "dbf launch/csv"}
+
+    assert launch_checklist_filename(design_brief, fmt="markdown") == "dbf-launch-csv-launch-checklist.md"
+    assert launch_checklist_filename(design_brief, fmt="json") == "dbf-launch-csv-launch-checklist.json"
+    assert launch_checklist_filename(design_brief, fmt="csv") == "dbf-launch-csv-launch-checklist.csv"
 
 
 def test_build_design_brief_launch_checklist_missing_brief_returns_none(tmp_path) -> None:

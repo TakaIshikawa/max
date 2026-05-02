@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.launch_checklist.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "section_id",
+    "section_title",
+    "section_owner_role",
+    "item_id",
+    "task",
+    "status",
+    "owner",
+    "required",
+    "rationale",
+    "exit_criteria",
+    "source_idea_ids",
+    "source_fields",
+)
 
 
 def build_design_brief_launch_checklist(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -74,9 +95,11 @@ def build_design_brief_launch_checklist(store: Store, brief_id: str) -> dict[str
 
 
 def render_design_brief_launch_checklist(checklist: dict[str, Any], fmt: str = "json") -> str:
-    """Render the design brief launch checklist as JSON or Markdown."""
+    """Render the design brief launch checklist as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(checklist, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(checklist)
     if fmt != "markdown":
         raise ValueError(f"Unsupported launch checklist format: {fmt}")
 
@@ -122,6 +145,44 @@ def render_design_brief_launch_checklist(checklist: dict[str, Any], fmt: str = "
             )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def launch_checklist_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
+    """Return a stable filename for a launch checklist export."""
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
+    brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
+    return f"{brief_id}-launch-checklist.{extension}"
+
+
+def _render_csv(checklist: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for item in checklist.get("checklist_items", []):
+        writer.writerow(_csv_row(checklist, item))
+    return output.getvalue()
+
+
+def _csv_row(checklist: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
+    brief = checklist["design_brief"]
+    return {
+        "schema_version": str(checklist["schema_version"]),
+        "kind": str(checklist["kind"]),
+        "design_brief_id": str(brief["id"]),
+        "design_brief_title": str(brief["title"]),
+        "section_id": str(item.get("section_id", "")),
+        "section_title": str(item.get("section_title", "")),
+        "section_owner_role": str(item.get("section_owner_role", "")),
+        "item_id": str(item.get("id", "")),
+        "task": str(item.get("task", "")),
+        "status": str(item.get("status", "")),
+        "owner": str(item.get("owner", "")),
+        "required": _csv_bool(item.get("required")),
+        "rationale": str(item.get("rationale", "")),
+        "exit_criteria": str(item.get("exit_criteria", "")),
+        "source_idea_ids": _csv_list(item.get("source_idea_ids", [])),
+        "source_fields": _csv_list(item.get("source_fields", [])),
+    }
 
 
 def _sections(
@@ -523,6 +584,21 @@ def _first_text(*values: Any) -> str:
 
 def _dedupe_strings(values: list[str]) -> list[str]:
     return list(dict.fromkeys(_compact(value) for value in values if _compact(value)))
+
+
+def _csv_list(values: Any) -> str:
+    return ";".join(_string_list(values))
+
+
+def _csv_bool(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value) if value is not None else ""
+
+
+def _filename_part(value: str) -> str:
+    cleaned = "".join(character.lower() if character.isalnum() else "-" for character in value)
+    return "-".join(part for part in cleaned.split("-") if part)
 
 
 def _compact(value: Any) -> str:
