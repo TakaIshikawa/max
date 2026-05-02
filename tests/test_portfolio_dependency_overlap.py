@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
+
+import pytest
 
 from max.analysis import build_portfolio_dependency_overlap_report as exported_build
 from max.analysis import render_portfolio_dependency_overlap_markdown as exported_render
@@ -185,6 +189,135 @@ def test_dependency_overlap_exports_from_analysis_package(store: Store) -> None:
 
     assert _bucket(report, "Python")["overlap_count"] == 2
     assert exported_render(report) == render_portfolio_dependency_overlap_markdown(report)
+
+
+def test_dependency_overlap_csv_headers_and_bucket_rows(store: Store) -> None:
+    store.insert_buildable_unit(
+        _unit(
+            "bu-csv-a",
+            "CSV A",
+            domain="backend",
+            stack={"language": "python", "framework": "fastapi"},
+            tech="FastAPI Python service.",
+        )
+    )
+    store.insert_buildable_unit(
+        _unit(
+            "bu-csv-b",
+            "CSV B",
+            domain="backend",
+            stack={"language": "python", "framework": "FastAPI"},
+            tech="FastAPI Python worker.",
+        )
+    )
+
+    report = build_portfolio_dependency_overlap_report(store)
+    rendered_csv = render_portfolio_dependency_overlap(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(rendered_csv)))
+
+    assert csv.DictReader(StringIO(rendered_csv)).fieldnames == [
+        "dependency_name",
+        "overlap_count",
+        "portfolio_share",
+        "concentration_risk_level",
+        "affected_item_ids",
+        "domains",
+        "source_type_counts",
+        "recommended_action",
+    ]
+    fastapi = next(row for row in rows if row["dependency_name"] == "FastAPI")
+    assert fastapi["overlap_count"] == "2"
+    assert fastapi["portfolio_share"] == "1.0"
+    assert fastapi["concentration_risk_level"] == "high"
+    assert "fallback path" in fastapi["recommended_action"]
+
+
+def test_dependency_overlap_csv_serializes_multi_value_fields(store: Store) -> None:
+    lead = _unit(
+        "bu-csv-release",
+        "CSV Release",
+        stack={"language": "typescript", "ci": "github-action"},
+        tech="TypeScript GitHub Action release gate.",
+    )
+    store.insert_buildable_unit(lead)
+    store.insert_buildable_unit(
+        _unit(
+            "bu-csv-package",
+            "CSV Package",
+            stack={"language": "typescript", "ci": "GitHub Actions"},
+            tech="GitHub Actions package workflow.",
+        )
+    )
+    brief_id = store.insert_design_brief(
+        ProjectBrief(
+            title="CSV Governance Brief",
+            domain="devtools",
+            theme="release",
+            lead=Candidate(unit=lead),
+            readiness_score=84.0,
+            why_this_now="Release teams need shared guardrails.",
+            merged_product_concept="A GitHub Actions release gate with TypeScript checks.",
+            synthesis_rationale="The source ideas depend on the same CI surface.",
+            mvp_scope=["GitHub Actions workflow"],
+            first_milestones=["Ship the first GitHub Actions gate"],
+            validation_plan="Test with two package teams.",
+            source_idea_ids=[lead.id],
+            design_status="approved",
+        )
+    )
+
+    report = build_portfolio_dependency_overlap_report(store, high_overlap_count=3)
+    rows = list(
+        csv.DictReader(StringIO(render_portfolio_dependency_overlap(report, fmt="csv")))
+    )
+    github_actions = next(row for row in rows if row["dependency_name"] == "GitHub Actions")
+
+    assert json.loads(github_actions["affected_item_ids"]) == [
+        "bu-csv-package",
+        "bu-csv-release",
+        brief_id,
+    ]
+    assert json.loads(github_actions["domains"]) == ["devtools"]
+    assert json.loads(github_actions["source_type_counts"]) == [
+        {"count": 2, "source_type": "buildable_unit"},
+        {"count": 1, "source_type": "design_brief"},
+    ]
+
+
+def test_dependency_overlap_csv_empty_bucket_output_has_header_only() -> None:
+    report = build_portfolio_dependency_overlap_from_records(
+        buildable_units=[
+            _unit(
+                "bu-csv-react-only",
+                "CSV React Only",
+                stack={"frontend": "react"},
+                tech="React UI.",
+            )
+        ],
+        design_briefs=[],
+        min_count=2,
+    )
+
+    rendered_csv = render_portfolio_dependency_overlap(report, fmt="csv")
+
+    assert list(csv.DictReader(StringIO(rendered_csv))) == []
+    assert rendered_csv == (
+        "dependency_name,overlap_count,portfolio_share,concentration_risk_level,"
+        "affected_item_ids,domains,source_type_counts,recommended_action\n"
+    )
+
+
+def test_dependency_overlap_unsupported_format_error() -> None:
+    report = build_portfolio_dependency_overlap_from_records(
+        buildable_units=[],
+        design_briefs=[],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported portfolio dependency overlap format: yaml",
+    ):
+        render_portfolio_dependency_overlap(report, fmt="yaml")
 
 
 def _bucket(report: dict, dependency_name: str) -> dict:

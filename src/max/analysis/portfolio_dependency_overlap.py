@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from collections import Counter
@@ -17,6 +19,16 @@ KIND = "max.portfolio_dependency_overlap"
 DEFAULT_LIMIT = 10_000
 DEFAULT_MIN_COUNT = 2
 DEFAULT_HIGH_OVERLAP_COUNT = 3
+_CSV_COLUMNS = (
+    "dependency_name",
+    "overlap_count",
+    "portfolio_share",
+    "concentration_risk_level",
+    "affected_item_ids",
+    "domains",
+    "source_type_counts",
+    "recommended_action",
+)
 
 
 def build_portfolio_dependency_overlap_report(
@@ -116,10 +128,12 @@ def render_portfolio_dependency_overlap(
     report: Mapping[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a dependency overlap report as Markdown or deterministic JSON."""
+    """Render a dependency overlap report as Markdown, deterministic JSON, or CSV."""
 
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_portfolio_dependency_overlap_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported portfolio dependency overlap format: {fmt}")
     return render_portfolio_dependency_overlap_markdown(report)
@@ -181,6 +195,26 @@ def render_portfolio_dependency_overlap_markdown(report: Mapping[str, Any]) -> s
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_portfolio_dependency_overlap_csv(report: Mapping[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for bucket in report.get("dependency_buckets", []):
+        writer.writerow(
+            {
+                "dependency_name": bucket["dependency_name"],
+                "overlap_count": bucket["overlap_count"],
+                "portfolio_share": bucket["portfolio_share"],
+                "concentration_risk_level": bucket["concentration_risk_level"],
+                "affected_item_ids": _csv_json(bucket["affected_item_ids"]),
+                "domains": _csv_json(bucket["domains"]),
+                "source_type_counts": _csv_json(bucket["source_type_counts"]),
+                "recommended_action": bucket["recommended_action"],
+            }
+        )
+    return output.getvalue()
 
 
 def _dependency_buckets(
@@ -482,6 +516,10 @@ def _matches_filter(value: str, allowed: set[str] | None) -> bool:
 
 def _inline_list(values: Iterable[Any]) -> str:
     return ", ".join(_clean(value) for value in values if _clean(value))
+
+
+def _csv_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def _title_dependency(value: str) -> str:
