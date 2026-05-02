@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,6 +12,27 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.release_notes"
 SCHEMA_VERSION = "max.design_brief.release_notes.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "design_status",
+    "readiness_score",
+    "audience",
+    "category",
+    "item_id",
+    "title",
+    "summary",
+    "impact",
+    "rollout_or_version",
+    "action_required",
+    "owner",
+    "evidence_refs",
+    "source_idea_ids",
+    "source_fields",
+)
 
 
 def build_design_brief_release_notes(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -90,9 +113,11 @@ def build_design_brief_release_notes(store: Store, brief_id: str) -> dict[str, A
 
 
 def render_design_brief_release_notes(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render release notes as Markdown or deterministic JSON."""
+    """Render release notes as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported release notes format: {fmt}")
 
@@ -200,10 +225,184 @@ def render_design_brief_release_notes(report: dict[str, Any], fmt: str = "markdo
 
 def release_notes_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for release notes exports."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "release-notes"))
     return f"{brief_id}-{title}-release-notes.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    customer = report.get("customer_facing") or {}
+    internal = report.get("internal") or {}
+    release_stage = (report.get("summary") or {}).get("release_stage")
+
+    for item in customer.get("shipped_capabilities") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="customer",
+                category="shipped_capabilities",
+                item_id=item.get("id"),
+                title=item.get("title"),
+                summary=item.get("description"),
+                impact=item.get("customer_value"),
+                rollout_or_version=release_stage,
+            )
+        )
+
+    for item in customer.get("target_users") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="customer",
+                category="target_users",
+                item_id=item.get("id"),
+                title=item.get("name"),
+                summary=item.get("reason"),
+                impact="Included in release targeting.",
+                rollout_or_version=release_stage,
+            )
+        )
+
+    for item in customer.get("rollout_notes") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="customer",
+                category="rollout_notes",
+                item_id=item.get("id"),
+                title=item.get("stage"),
+                summary=item.get("note"),
+                rollout_or_version=item.get("stage"),
+                action_required=item.get("note"),
+                owner=item.get("owner"),
+            )
+        )
+
+    for item in customer.get("known_limitations") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="customer",
+                category="known_limitations",
+                item_id=item.get("id"),
+                title=item.get("title"),
+                summary=item.get("description"),
+                impact=item.get("description"),
+                rollout_or_version=release_stage,
+                action_required=item.get("mitigation"),
+            )
+        )
+
+    for item in customer.get("follow_up_milestones") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="customer",
+                category="follow_up_milestones",
+                item_id=item.get("id"),
+                title=item.get("name"),
+                summary=item.get("success_signal"),
+                impact=item.get("success_signal"),
+                rollout_or_version=release_stage,
+                action_required=item.get("name"),
+                owner=item.get("owner"),
+            )
+        )
+
+    for item in internal.get("validation_evidence") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="internal",
+                category="validation_evidence",
+                item_id=item.get("id"),
+                title=item.get("id"),
+                summary=item.get("summary"),
+                impact=item.get("kind"),
+                rollout_or_version=release_stage,
+                evidence_refs=[item.get("id")],
+            )
+        )
+
+    for item in internal.get("support_handoff") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                item,
+                audience="internal",
+                category="support_handoff",
+                item_id=item.get("id"),
+                title=item.get("topic"),
+                summary=item.get("detail"),
+                impact=item.get("detail"),
+                rollout_or_version=release_stage,
+                action_required=item.get("detail"),
+                owner=item.get("owner"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    report: dict[str, Any],
+    item: dict[str, Any],
+    **values: Any,
+) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
+        "source_idea_ids": item.get("source_idea_ids"),
+        "source_fields": item.get("source_fields"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return ";".join(_csv_text(item) for item in value if _csv_text(item))
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _release_context(

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_release_notes import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_release_notes,
@@ -110,6 +113,135 @@ def test_render_design_brief_release_notes_markdown_is_stable(tmp_path) -> None:
     assert "- **sig-release-1** (signal): Release proof" in markdown
 
 
+def test_render_design_brief_release_notes_csv_has_stable_header_and_category_order(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_complete_brief(tmp_path)
+    try:
+        report = build_design_brief_release_notes(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_release_notes(report, fmt="csv")
+    repeated = render_design_brief_release_notes(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["category"] for row in rows] == [
+        "shipped_capabilities",
+        "shipped_capabilities",
+        "target_users",
+        "target_users",
+        "rollout_notes",
+        "rollout_notes",
+        "rollout_notes",
+        "known_limitations",
+        "known_limitations",
+        "follow_up_milestones",
+        "follow_up_milestones",
+        "validation_evidence",
+        "validation_evidence",
+        "validation_evidence",
+        "validation_evidence",
+        "validation_evidence",
+        "support_handoff",
+        "support_handoff",
+        "support_handoff",
+    ]
+    assert rows[0]["schema_version"] == SCHEMA_VERSION
+    assert rows[0]["kind"] == KIND
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["design_brief_title"] == "Release Notes Brief"
+    assert rows[0]["audience"] == "customer"
+    assert rows[0]["item_id"] == "CAP1"
+    assert rows[0]["title"] == "Release-notes generation"
+    assert rows[0]["summary"] == (
+        "Shipped support for release-notes generation in developer platform launch handoff."
+    )
+    assert rows[0]["impact"] == (
+        "Helps platform operator make progress without the prior workaround."
+    )
+    assert rows[0]["rollout_or_version"] == "ready_for_customer_rollout"
+    assert rows[0]["source_idea_ids"] == "bu-release-lead;bu-release-support"
+    assert rows[0]["source_fields"] == "mvp_scope;workflow_context;specific_user"
+    assert rows[11]["audience"] == "internal"
+    assert rows[11]["category"] == "validation_evidence"
+    assert rows[11]["evidence_refs"] == "design_brief.why_this_now"
+
+
+def test_render_design_brief_release_notes_csv_empty_items_is_header_only() -> None:
+    csv_text = render_design_brief_release_notes(
+        {
+            "customer_facing": {},
+            "internal": {},
+        },
+        fmt="csv",
+    )
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    reader = csv.DictReader(StringIO(csv_text))
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert list(reader) == []
+
+
+def test_render_design_brief_release_notes_csv_joins_list_fields(tmp_path) -> None:
+    store, brief_id = _store_with_complete_brief(tmp_path)
+    try:
+        report = build_design_brief_release_notes(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(csv.DictReader(StringIO(render_design_brief_release_notes(report, fmt="csv"))))
+
+    capability = rows[0]
+    evidence = next(row for row in rows if row["item_id"] == "sig-release-1")
+    assert capability["source_idea_ids"] == "bu-release-lead;bu-release-support"
+    assert capability["source_fields"] == "mvp_scope;workflow_context;specific_user"
+    assert evidence["evidence_refs"] == "sig-release-1"
+    assert evidence["source_idea_ids"] == "bu-release-lead"
+
+
+def test_render_design_brief_release_notes_csv_escapes_commas_and_newlines(tmp_path) -> None:
+    store, brief_id = _store_with_complete_brief(tmp_path)
+    try:
+        report = build_design_brief_release_notes(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["design_brief"]["title"] = 'Release Notes, "Enterprise"\nPilot'
+    report["customer_facing"]["shipped_capabilities"] = [
+        dict(report["customer_facing"]["shipped_capabilities"][0])
+    ]
+    report["customer_facing"]["shipped_capabilities"][0].update(
+        {
+            "title": 'Launch notes, "quoted"\nready',
+            "description": 'Publish release notes with commas,\nand "quoted" evidence.',
+        }
+    )
+    report["customer_facing"]["target_users"] = []
+    report["customer_facing"]["rollout_notes"] = []
+    report["customer_facing"]["known_limitations"] = []
+    report["customer_facing"]["follow_up_milestones"] = []
+    report["internal"]["validation_evidence"] = []
+    report["internal"]["support_handoff"] = []
+
+    csv_text = render_design_brief_release_notes(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 1
+    assert rows[0]["design_brief_title"] == 'Release Notes, "Enterprise"\nPilot'
+    assert rows[0]["title"] == 'Launch notes, "quoted"\nready'
+    assert rows[0]["summary"] == 'Publish release notes with commas,\nand "quoted" evidence.'
+    assert '"Release Notes, ""Enterprise""\nPilot"' in csv_text
+    assert '"Launch notes, ""quoted""\nready"' in csv_text
+
+
 def test_design_brief_release_notes_sparse_brief_uses_readable_fallbacks(tmp_path) -> None:
     store, brief_id = _store_with_sparse_brief(tmp_path)
     try:
@@ -155,6 +287,12 @@ def test_design_brief_release_notes_missing_brief_filename_and_invalid_format(tm
             {"id": "dbf-123", "title": "Release Notes: Alpha / Beta"}, fmt="json"
         )
         == "dbf-123-Release-Notes-Alpha-Beta-release-notes.json"
+    )
+    assert (
+        release_notes_filename(
+            {"id": "dbf-123", "title": "Release Notes: Alpha / Beta"}, fmt="csv"
+        )
+        == "dbf-123-Release-Notes-Alpha-Beta-release-notes.csv"
     )
     with pytest.raises(ValueError, match="Unsupported release notes format: yaml"):
         render_design_brief_release_notes({"design_brief": {}}, fmt="yaml")
