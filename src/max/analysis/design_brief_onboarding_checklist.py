@@ -2,13 +2,44 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.onboarding_checklist.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "title",
+    "description",
+    "owner",
+    "due_stage",
+    "required",
+    "status_or_gap",
+    "evidence_reference_ids",
+    "source_idea_ids",
+    "recommended_action",
+)
+
+_CSV_SECTION_KEYS: tuple[tuple[str, str], ...] = (
+    ("setup_tasks", "setup_tasks"),
+    ("data_access_requirements", "data_access_requirements"),
+    ("kickoff_agenda", "kickoff_agenda"),
+    ("activation_milestones", "activation_milestones"),
+    ("readiness_checks", "readiness_checks"),
+    ("readiness_gaps", "readiness_gaps"),
+    ("gaps", "gaps"),
+    ("gap_items", "gap_items"),
+    ("follow_ups", "follow_ups"),
+    ("follow_up_items", "follow_up_items"),
+    ("followup_items", "followup_items"),
+)
 
 
 def build_design_brief_onboarding_checklist(
@@ -94,9 +125,11 @@ def render_design_brief_onboarding_checklist(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render an onboarding checklist as Markdown or deterministic JSON."""
+    """Render an onboarding checklist as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_onboarding_checklist_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported onboarding checklist format: {fmt}")
 
@@ -174,11 +207,138 @@ def render_design_brief_onboarding_checklist(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_onboarding_checklist_csv(report: dict[str, Any]) -> str:
+    """Render one CSV row per actionable onboarding checklist item."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def onboarding_checklist_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-onboarding-checklist.{extension}"
+    )
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for section_key, section_name in _csv_sections(report):
+        for item in _section_items_for_csv(report, section_key):
+            rows.append(_csv_row(report, section_name, item))
+    return rows
+
+
+def _csv_sections(report: dict[str, Any]) -> list[tuple[str, str]]:
+    sections = [(key, label) for key, label in _CSV_SECTION_KEYS if report.get(key)]
+    if not sections and report.get("checklist_items"):
+        return [("checklist_items", "checklist_items")]
+    return sections
+
+
+def _section_items_for_csv(report: dict[str, Any], section_key: str) -> list[dict[str, Any]]:
+    value = report.get(section_key) or []
+    if isinstance(value, dict):
+        items = value.get("items") or value.get("checklist_items") or value.get("actions") or []
+        return [item for item in items if isinstance(item, dict)]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _csv_row(report: dict[str, Any], section: str, item: dict[str, Any]) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    values = {
+        "design_brief_id": brief.get("id") or report.get("brief_id"),
+        "design_brief_title": brief.get("title") or report.get("title"),
+        "section": section,
+        "item_id": item.get("id") or item.get("item_id"),
+        "title": _csv_item_title(item),
+        "description": _csv_item_description(item),
+        "owner": item.get("owner_role") or item.get("owner"),
+        "due_stage": _csv_due_stage(section, item),
+        "required": item.get("required", True),
+        "status_or_gap": _csv_status_or_gap(item),
+        "evidence_reference_ids": _csv_evidence_reference_ids(report, item),
+        "source_idea_ids": item.get("source_idea_ids"),
+        "recommended_action": _csv_recommended_action(item),
+    }
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_item_title(item: dict[str, Any]) -> Any:
+    return (
+        item.get("title")
+        or item.get("task")
+        or item.get("topic")
+        or item.get("name")
+        or item.get("action")
+    )
+
+
+def _csv_item_description(item: dict[str, Any]) -> Any:
+    return (
+        item.get("description")
+        or item.get("rationale")
+        or item.get("goal")
+        or item.get("activation_signal")
+        or item.get("gap")
+    )
+
+
+def _csv_due_stage(section: str, item: dict[str, Any]) -> Any:
+    return (
+        item.get("due_stage")
+        or item.get("target")
+        or {
+            "setup_tasks": "before_kickoff",
+            "data_access_requirements": "before_first_use",
+            "kickoff_agenda": "kickoff",
+            "activation_milestones": "activation",
+            "readiness_checks": "readiness_review",
+            "readiness_gaps": "readiness_review",
+            "gaps": "readiness_review",
+            "gap_items": "readiness_review",
+            "follow_ups": "post_kickoff_follow_up",
+            "follow_up_items": "post_kickoff_follow_up",
+            "followup_items": "post_kickoff_follow_up",
+        }.get(section, "")
+    )
+
+
+def _csv_status_or_gap(item: dict[str, Any]) -> Any:
+    return item.get("status") or item.get("status_or_gap") or item.get("gap") or item.get("readiness_gap")
+
+
+def _csv_evidence_reference_ids(report: dict[str, Any], item: dict[str, Any]) -> Any:
+    explicit = item.get("evidence_reference_ids") or item.get("evidence_refs")
+    if explicit:
+        return explicit
+    item_source_ids = set(_string_list(item.get("source_idea_ids")))
+    references = report.get("evidence_references") or []
+    matched = [
+        reference.get("id")
+        for reference in references
+        if isinstance(reference, dict)
+        and reference.get("id")
+        and item_source_ids.intersection(_string_list(reference.get("source_idea_ids")))
+    ]
+    if matched:
+        return matched
+    return item.get("source_fields")
+
+
+def _csv_recommended_action(item: dict[str, Any]) -> Any:
+    return (
+        item.get("recommended_action")
+        or item.get("completion_evidence")
+        or item.get("evidence_to_capture")
+        or item.get("action")
+        or item.get("next_action")
     )
 
 
@@ -672,6 +832,20 @@ def _compact(value: Any) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return _csv_join(value)
+    if isinstance(value, dict):
+        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+    return str(value)
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
 
 
 def _filename_part(value: str) -> str:
