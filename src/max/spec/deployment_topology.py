@@ -2,11 +2,38 @@
 
 from __future__ import annotations
 
+import csv
 import re
+from io import StringIO
 from typing import Any
 
 
 DEPLOYMENT_TOPOLOGY_SCHEMA_VERSION = "max-deployment-topology/v1"
+DEPLOYMENT_TOPOLOGY_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_idea_id",
+    "title",
+    "item_id",
+    "name",
+    "category",
+    "technology",
+    "purpose",
+    "network_boundary",
+    "required",
+    "secret",
+    "example",
+    "traffic",
+    "controls",
+    "owner",
+    "action",
+    "dependencies",
+    "environment",
+    "isolation",
+    "note",
+    "description",
+    "derived_from",
+)
 
 _EXTERNAL_INTEGRATION_TERMS = {
     "Azure DevOps": ("azure devops",),
@@ -147,6 +174,18 @@ def render_deployment_topology_markdown(topology: dict[str, Any]) -> str:
     lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_deployment_topology_csv(topology: dict[str, Any]) -> str:
+    """Render a generated deployment topology as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output, fieldnames=DEPLOYMENT_TOPOLOGY_CSV_COLUMNS, lineterminator="\n"
+    )
+    writer.writeheader()
+    for row in _csv_rows(topology):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _runtime_components(
@@ -893,6 +932,234 @@ def _render_note(item: dict[str, Any]) -> list[str]:
         f"- Note: {_text(item.get('note'))}",
         f"- Derived from: {_join_code(item.get('derived_from'))}",
     ]
+
+
+def _csv_rows(topology: dict[str, Any]) -> list[dict[str, str]]:
+    body = topology.get("topology") if isinstance(topology.get("topology"), dict) else {}
+    rows: list[dict[str, str]] = []
+
+    for item in _dict_items(body.get("runtime_components")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="runtime_components",
+                type_="component",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                category=item.get("category"),
+                technology=item.get("technology"),
+                purpose=item.get("purpose"),
+                network_boundary=item.get("network_boundary"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(body.get("backing_services")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="backing_services",
+                type_="service",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                category=item.get("category"),
+                technology=item.get("technology"),
+                purpose=item.get("purpose"),
+                network_boundary=item.get("network_boundary"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(body.get("external_services")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="external_services",
+                type_="integration",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                category=item.get("category"),
+                technology=item.get("technology"),
+                purpose=item.get("purpose"),
+                network_boundary=item.get("network_boundary"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(body.get("configuration")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="configuration",
+                type_="setting",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                required=item.get("required"),
+                secret=item.get("secret"),
+                example="[redacted]" if item.get("secret") is True else item.get("example"),
+                description=item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(body.get("network_boundaries")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="network_boundaries",
+                type_="boundary",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                traffic=item.get("traffic"),
+                controls=item.get("controls"),
+                description=item.get("description"),
+            )
+        )
+
+    for item in _dict_items(body.get("deployment_sequence")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="deployment_sequence",
+                type_="step",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                owner=item.get("owner"),
+                action=item.get("action"),
+                dependencies=item.get("dependencies"),
+            )
+        )
+
+    for item in _dict_items(topology.get("environments")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="environments",
+                type_="environment",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                environment=item.get("name"),
+                purpose=item.get("purpose"),
+                isolation=item.get("isolation"),
+            )
+        )
+
+    for item in _dict_items(topology.get("operational_notes")):
+        rows.append(
+            _csv_row(
+                topology,
+                section="operational_notes",
+                type_="note",
+                item_id=item.get("id"),
+                name=item.get("category"),
+                category=item.get("category"),
+                note=item.get("note"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    assumptions = _list(topology.get("assumptions"))
+    assumption_row_count = 0
+    for index, assumption in enumerate(assumptions, start=1):
+        if not _csv_text(assumption):
+            continue
+        assumption_row_count += 1
+        rows.append(
+            _csv_row(
+                topology,
+                section="assumptions",
+                type_="assumption",
+                item_id=f"ASM{index}",
+                description=assumption,
+            )
+        )
+    if assumption_row_count == 0:
+        rows.append(
+            _csv_row(
+                topology,
+                section="assumptions",
+                type_="assumption",
+                item_id="ASM0",
+                description="none",
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    topology: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    technology: Any = None,
+    purpose: Any = None,
+    network_boundary: Any = None,
+    required: Any = None,
+    secret: Any = None,
+    example: Any = None,
+    traffic: Any = None,
+    controls: Any = None,
+    owner: Any = None,
+    action: Any = None,
+    dependencies: Any = None,
+    environment: Any = None,
+    isolation: Any = None,
+    note: Any = None,
+    description: Any = None,
+    derived_from: Any = None,
+) -> dict[str, str]:
+    source = topology.get("source") if isinstance(topology.get("source"), dict) else {}
+    summary = topology.get("summary") if isinstance(topology.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "title": summary.get("title"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "technology": technology,
+        "purpose": purpose,
+        "network_boundary": network_boundary,
+        "required": required,
+        "secret": secret,
+        "example": example,
+        "traffic": traffic,
+        "controls": controls,
+        "owner": owner,
+        "action": action,
+        "dependencies": dependencies,
+        "environment": environment,
+        "isolation": isolation,
+        "note": note,
+        "description": description,
+        "derived_from": derived_from,
+    }
+    return {column: _csv_text(values.get(column)) for column in DEPLOYMENT_TOPOLOGY_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _join_code(values: Any) -> str:
