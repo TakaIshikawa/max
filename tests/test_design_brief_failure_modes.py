@@ -153,14 +153,23 @@ def test_csv_renderer_has_stable_headers_and_deterministic_order(tmp_path) -> No
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
     assert len(rows) == report["summary"]["failure_mode_count"]
     assert [int(row["rank"]) for row in rows] == list(range(1, len(rows) + 1))
+    assert [int(row["risk_priority_number"]) for row in rows] == sorted(
+        [int(row["risk_priority_number"]) for row in rows],
+        reverse=True,
+    )
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
     assert rows[0]["failure_mode"] == report["failure_modes"][-1]["failure_mode"]
-    assert rows[0]["trigger"]
-    assert rows[0]["impact"]
+    assert rows[0]["title"]
+    assert rows[0]["cause"]
+    assert rows[0]["effect"]
+    assert rows[0]["severity"]
     assert rows[0]["likelihood"]
+    assert rows[0]["detectability"]
+    assert rows[0]["severity_label"]
+    assert rows[0]["detection_method"] == report["failure_modes"][-1]["detection_method"]
     assert rows[0]["mitigation"]
-    assert rows[0]["owner_next_action"].startswith(report["failure_modes"][-1]["owner_role"])
-    assert report["failure_modes"][-1]["detection_method"] in rows[0]["owner_next_action"]
-    assert rows[0]["evidence_source_references"]
+    assert rows[0]["owner_role"] == report["failure_modes"][-1]["owner_role"]
+    assert rows[0]["source_references"]
 
 
 def test_csv_renderer_escapes_commas_quotes_and_newlines(tmp_path) -> None:
@@ -186,8 +195,8 @@ def test_csv_renderer_escapes_commas_quotes_and_newlines(tmp_path) -> None:
 
     assert len(rows) == 1
     assert rows[0]["failure_mode"] == 'Buyer says "no", then stalls\nuntil legal review.'
-    assert rows[0]["trigger"] == "Procurement, security, and champion incentives conflict."
-    assert rows[0]["impact"] == "Launch slips\nand pilot evidence goes stale."
+    assert rows[0]["cause"] == "Procurement, security, and champion incentives conflict."
+    assert rows[0]["effect"] == "Launch slips\nand pilot evidence goes stale."
     assert rows[0]["mitigation"] == 'Add a "stop or continue" launch gate, with owner signoff.'
     assert '"Buyer says ""no"", then stalls' in csv_text
 
