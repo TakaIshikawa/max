@@ -112,6 +112,12 @@ from max.analysis.design_brief_conversion_risk import (
     conversion_risk_filename,
     render_design_brief_conversion_risk,
 )
+from max.analysis.design_brief_competitive_alternatives import (
+    build_buildable_unit_competitive_alternatives,
+    build_design_brief_competitive_alternatives,
+    competitive_alternatives_filename,
+    render_design_brief_competitive_alternatives,
+)
 from max.analysis.design_brief_renewal_expansion_plan import (
     build_design_brief_renewal_expansion_plan,
     render_design_brief_renewal_expansion_plan,
@@ -127,6 +133,8 @@ __all__ = [
     "accessibility_review_filename",
     "build_design_brief_accessibility_review",
     "build_design_brief_churn_risk_report",
+    "build_buildable_unit_competitive_alternatives",
+    "build_design_brief_competitive_alternatives",
     "build_design_brief_conversion_risk",
     "build_design_brief_procurement_checklist",
     "build_design_brief_dependency_risk_map",
@@ -154,6 +162,7 @@ __all__ = [
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
     "churn_risk_report_filename",
+    "competitive_alternatives_filename",
     "conversion_risk_filename",
     "generate_design_brief_kpi_tree",
     "generate_design_brief_legal_review_checklist",
@@ -185,6 +194,7 @@ __all__ = [
     "render_design_brief_work_breakdown",
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
+    "render_design_brief_competitive_alternatives",
     "render_design_brief_conversion_risk",
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
