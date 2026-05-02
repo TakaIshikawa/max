@@ -63,6 +63,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "pypi_classifiers": "max.sources.pypi_classifiers:PyPIClassifiersAdapter",
     "pypi_releases": "max.sources.pypi_releases:PyPIReleasesAdapter",
+    "pypi_maintainer_activity": (
+        "max.sources.pypi_maintainer_activity:PyPIMaintainerActivityAdapter"
+    ),
     "pubdev": "max.sources.pubdev:PubDevAdapter",
     "deno_registry": "max.sources.deno_registry:DenoRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
@@ -399,6 +402,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches recent PyPI release history and metadata for configured packages.",
+    ),
+    "pypi_maintainer_activity": AdapterMetadata(
+        name="pypi_maintainer_activity",
+        config_keys=["packages", "pypi_api_url", "max_releases", "timeout"],
+        required_keys=[],
+        description=(
+            "Fetches PyPI package maintainer, release cadence, project URL, "
+            "and classifier health metadata."
+        ),
     ),
     "pubdev": AdapterMetadata(
         name="pubdev",
