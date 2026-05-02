@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_gtm_channel_plan import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_gtm_channel_plan,
+    gtm_channel_plan_filename,
     render_design_brief_gtm_channel_plan,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -171,6 +175,119 @@ def test_render_design_brief_gtm_channel_plan_json_markdown_and_invalid_format(t
 
     with pytest.raises(ValueError):
         render_design_brief_gtm_channel_plan(report, "yaml")
+
+
+def test_render_design_brief_gtm_channel_plan_csv_recommendations_are_stable(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_gtm_brief(store)
+        report = build_design_brief_gtm_channel_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_gtm_channel_plan(report, "csv")
+    repeated = render_design_brief_gtm_channel_plan(report, "csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["priority"] for row in rows] == ["1", "2", "3"]
+    first = rows[0]
+    assert first["design_brief_id"] == brief_id
+    assert first["channel"] == "design partner outreach"
+    assert first["type"] == "acquisition"
+    assert first["audience"] == "developer tools founder"
+    assert first["owner"] == "product marketing"
+    assert first["confidence"] == "high"
+    assert first["call_to_action"] == "Schedule a 30-minute workflow review."
+    assert json.loads(first["evidence_refs"]) == [
+        "sig-gtm-forum",
+        "sig-gtm-funding",
+        "sig-gtm-survey",
+    ]
+    assert json.loads(first["sequencing_phase"]) == ["validation"]
+    assert json.loads(first["risk_refs"]) == ["R1"]
+    assert "Validate through design partner outreach" in json.loads(first["mitigation_refs"])[0]
+
+
+def test_render_design_brief_gtm_channel_plan_csv_serializes_nested_tactics_and_metrics(
+    tmp_path,
+) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_gtm_brief(store)
+        report = build_design_brief_gtm_channel_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(csv.DictReader(io.StringIO(render_design_brief_gtm_channel_plan(report, "csv"))))
+    first = rows[0]
+
+    assert json.loads(first["tactic_names"]) == ["warm account list", "problem-led email"]
+    assert json.loads(first["tactic_descriptions"]) == [
+        "Identify existing relationships with developer tools founder ownership.",
+        "Lead with the design partner recruiting pain and request validation.",
+    ]
+    assert json.loads(first["tactic_owners"]) == [
+        "product marketing",
+        "founder or product lead",
+    ]
+    assert json.loads(first["success_metric"]) == {
+        "metric": "qualified_conversation_rate",
+        "target": "25%+ positive replies from qualified accounts",
+    }
+    assert rows[1]["risk_refs"] == "[]"
+
+
+def test_render_design_brief_gtm_channel_plan_csv_escapes_special_characters(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_gtm_brief(store)
+        report = build_design_brief_gtm_channel_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report = json.loads(json.dumps(report))
+    recommendation = report["channel_recommendations"][0]
+    recommendation["channel"] = 'design, partner "alpha"\noutreach'
+    recommendation["rationale"] = 'Use "quoted", comma-led\ncopy.'
+    recommendation["tactics"][0]["description"] = 'List "warm", accounts\ncarefully.'
+    report["sequencing"][0]["channels"][0] = recommendation["channel"]
+
+    rows = list(csv.DictReader(io.StringIO(render_design_brief_gtm_channel_plan(report, "csv"))))
+
+    assert rows[0]["channel"] == 'design, partner "alpha"\noutreach'
+    assert rows[0]["rationale"] == 'Use "quoted", comma-led\ncopy.'
+    assert json.loads(rows[0]["tactic_descriptions"])[0] == 'List "warm", accounts\ncarefully.'
+
+
+def test_render_design_brief_gtm_channel_plan_csv_header_only_without_recommendations() -> None:
+    csv_text = render_design_brief_gtm_channel_plan(
+        {"design_brief": {"id": "dbf-empty"}, "channel_recommendations": []},
+        "csv",
+    )
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(io.StringIO(csv_text))) == []
+
+
+def test_gtm_channel_plan_filename_supports_csv() -> None:
+    assert (
+        gtm_channel_plan_filename({"id": "dbf-gtm/csv"}, fmt="markdown")
+        == "dbf-gtm-csv-gtm-channel-plan.md"
+    )
+    assert (
+        gtm_channel_plan_filename({"id": "dbf-gtm/csv"}, fmt="json")
+        == "dbf-gtm-csv-gtm-channel-plan.json"
+    )
+    assert (
+        gtm_channel_plan_filename({"id": "dbf-gtm/csv"}, fmt="csv")
+        == "dbf-gtm-csv-gtm-channel-plan.csv"
+    )
 
 
 def test_build_design_brief_gtm_channel_plan_reports_missing_inputs(tmp_path) -> None:
