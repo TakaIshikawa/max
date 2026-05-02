@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 from fastapi.testclient import TestClient
 
 from max.analysis.design_brief_roadmap import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_roadmap,
     render_design_brief_roadmap,
@@ -157,6 +160,134 @@ def test_render_design_brief_roadmap_json_and_markdown(tmp_path) -> None:
 
     with pytest.raises(ValueError):
         render_design_brief_roadmap(roadmap, "yaml")
+
+
+def test_render_design_brief_roadmap_csv_populated_rows_and_ordering(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        roadmap = build_design_brief_roadmap(store, brief_id)
+    finally:
+        store.close()
+
+    assert roadmap is not None
+    csv_text = render_design_brief_roadmap(roadmap, "csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == len(roadmap["phases"]) + len(roadmap["items"])
+    assert [row["row_type"] for row in rows[:2]] == ["phase", "milestone"]
+
+    phase_rows = [row for row in rows if row["row_type"] == "phase"]
+    assert [row["phase_id"] for row in phase_rows] == [
+        "discovery",
+        "prototype",
+        "validation",
+        "beta",
+        "launch",
+    ]
+    assert [row["phase_order"] for row in phase_rows] == ["1", "2", "3", "4", "5"]
+
+    beta_rows = [
+        row for row in rows if row["row_type"] == "milestone" and row["phase_id"] == "beta"
+    ]
+    assert [row["milestone_order"] for row in beta_rows] == ["1", "2"]
+    assert beta_rows[0]["milestone_title"] == "Beta milestone: Generate roadmap phases"
+    assert beta_rows[1]["milestone_title"] == "Beta milestone: Compare REST and MCP outputs"
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+
+
+def test_render_design_brief_roadmap_csv_is_deterministic(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        roadmap = build_design_brief_roadmap(store, brief_id)
+    finally:
+        store.close()
+
+    assert roadmap is not None
+    assert render_design_brief_roadmap(roadmap, "csv") == render_design_brief_roadmap(roadmap, "csv")
+
+
+def test_render_design_brief_roadmap_csv_serializes_nested_dependencies_risks_and_sources(
+    tmp_path,
+) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        roadmap = build_design_brief_roadmap(store, brief_id)
+    finally:
+        store.close()
+
+    assert roadmap is not None
+    rows = list(csv.DictReader(io.StringIO(render_design_brief_roadmap(roadmap, "csv"))))
+
+    risk_row = next(row for row in rows if row["milestone_title"].startswith("Probe risk:"))
+    assert json.loads(risk_row["dependency_ids"]) == ["roadmap-discovery-01"]
+    assert json.loads(risk_row["risk_references"]) == [
+        "Roadmap quality may be too generic for delegation."
+    ]
+    assert json.loads(risk_row["source_idea_ids"]) == [
+        "bu-roadmap-lead",
+        "bu-roadmap-support",
+    ]
+    assert json.loads(risk_row["source_fields"]) == ["risks", "domain_risks"]
+
+    discovery_phase = next(
+        row for row in rows if row["row_type"] == "phase" and row["phase_id"] == "discovery"
+    )
+    assert json.loads(discovery_phase["risk_references"]) == [
+        "Roadmap quality may be too generic for delegation.",
+        "Planner adoption may be weak without owner assignments.",
+        "API integration details may change during implementation.",
+    ]
+    assert json.loads(discovery_phase["source_idea_ids"]) == [
+        "bu-roadmap-lead",
+        "bu-roadmap-support",
+    ]
+
+
+def test_render_design_brief_roadmap_csv_escapes_special_characters(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        roadmap = build_design_brief_roadmap(store, brief_id)
+    finally:
+        store.close()
+
+    assert roadmap is not None
+    roadmap["design_brief"]["title"] = 'Roadmap, "Brief"\nNext'
+    item = roadmap["phases"][0]["items"][0]
+    item["title"] = 'Confirm "target", workflow'
+    item["dependency_ids"] = ["roadmap-alpha,one", 'roadmap-"quoted"']
+    item["source_idea_ids"] = ["bu-roadmap-lead", "bu,quoted"]
+
+    csv_text = render_design_brief_roadmap(roadmap, "csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+    special_row = next(row for row in rows if row["milestone_id"] == item["id"])
+
+    assert '"Roadmap, ""Brief""\nNext"' in csv_text
+    assert '"Confirm ""target"", workflow"' in csv_text
+    assert json.loads(special_row["dependency_ids"]) == ["roadmap-alpha,one", 'roadmap-"quoted"']
+    assert json.loads(special_row["source_idea_ids"]) == ["bu-roadmap-lead", "bu,quoted"]
+
+
+def test_render_design_brief_roadmap_csv_empty_content_header_only() -> None:
+    csv_text = render_design_brief_roadmap(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "source": {},
+            "design_brief": {},
+            "summary": {},
+            "phases": [],
+            "items": [],
+            "source_ideas": [],
+        },
+        "csv",
+    )
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(io.StringIO(csv_text))) == []
 
 
 @pytest.fixture
