@@ -19,6 +19,10 @@ from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 
 
+def reader_fieldnames(csv_text: str) -> list[str]:
+    return list(csv.DictReader(io.StringIO(csv_text)).fieldnames or [])
+
+
 def test_build_design_brief_pilot_rollout_translates_persisted_brief(tmp_path) -> None:
     store, brief_id = _store_with_brief(tmp_path)
     try:
@@ -126,7 +130,7 @@ def test_render_design_brief_pilot_rollout_markdown_is_deterministic(tmp_path) -
 
     rendered_json = render_design_brief_pilot_rollout(report, fmt="json")
     assert json.loads(rendered_json) == report
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unsupported pilot rollout format: yaml"):
         render_design_brief_pilot_rollout(report, fmt="yaml")
 
 
@@ -144,32 +148,59 @@ def test_render_design_brief_pilot_rollout_csv_headers_sections_and_order(tmp_pa
 
     assert csv_text == repeated
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
-    assert len(rows) == 4 + 4 + 4 + 5 + 4
-    assert {row["design_brief_id"] for row in rows} == {brief_id}
-    assert {row["design_brief_title"] for row in rows} == {"Pilot Rollout Brief"}
+    assert reader_fieldnames(csv_text) == list(CSV_COLUMNS)
+    assert len(rows) == 1 + 5 + 4 + 4 + 4 + 5 + 4
     assert [row["section"] for row in rows] == [
+        "pilot_cohort",
+        *(["entry_criteria"] * 5),
         *(["rollout_phases"] * 4),
         *(["success_thresholds"] * 4),
         *(["stop_conditions"] * 4),
         *(["operator_tasks"] * 5),
         *(["customer_touchpoints"] * 4),
     ]
-    assert [row["item_id"] for row in rows[:4]] == [
+    assert rows[0]["item_id"] == "pilot-cohort"
+    assert rows[0]["name"] == "product operator"
+    assert rows[0]["owner"] == "product lead"
+    assert rows[0]["timing"] == "pilot recruitment"
+    assert rows[0]["success_or_exit_criteria"] == "3-5 qualified teams"
+    assert rows[0]["evidence_or_output"] == "internal product operators"
+    assert [row["item_id"] for row in rows[1:6]] == [
+        "entry-1",
+        "entry-2",
+        "entry-3",
+        "entry-4",
+        "entry-5",
+    ]
+    assert [row["item_id"] for row in rows[6:10]] == [
         "phase-1",
         "phase-2",
         "phase-3",
         "phase-4",
     ]
-    assert rows[0]["name"] == "Pilot Prep"
-    assert rows[0]["owner"] == "Product lead"
-    assert rows[0]["target_or_duration"] == "3-5 business days"
-    assert rows[4]["name"] == "Workflow completion"
-    assert rows[8]["item_id"] == "stop-1"
-    assert rows[12]["item_id"] == "operator-task-1"
-    assert rows[17]["item_id"] == "touchpoint-1"
+    assert rows[6]["name"] == "Pilot Prep"
+    assert rows[6]["owner"] == "Product lead"
+    assert rows[6]["timing"] == "3-5 business days"
+    assert rows[6]["goal_or_task"] == (
+        "Confirm cohort, scope, success metrics, and risk owners before any customer exposure."
+    )
+    assert rows[6]["success_or_exit_criteria"] == (
+        "Pilot cohort, entry criteria, stop conditions, and evidence capture plan are approved."
+    )
+    assert rows[10]["name"] == "Workflow completion"
+    assert rows[10]["goal_or_task"] == "Workflow completion"
+    assert rows[10]["evidence_or_output"] == (
+        "Observed sessions, event logs, or customer-confirmed completion notes."
+    )
+    assert rows[14]["item_id"] == "stop-1"
+    assert rows[18]["item_id"] == "operator-task-1"
+    assert rows[18]["timing"] == "weekly"
+    assert rows[18]["evidence_or_output"] == "Decision log with owner and date."
+    assert rows[23]["item_id"] == "touchpoint-1"
+    assert rows[23]["timing"] == "Kickoff"
 
 
-def test_render_design_brief_pilot_rollout_csv_includes_gaps_and_json_details(
+def test_render_design_brief_pilot_rollout_csv_includes_gaps(
     tmp_path,
 ) -> None:
     store, brief_id = _store_with_brief(tmp_path, sparse=True)
@@ -193,32 +224,33 @@ def test_render_design_brief_pilot_rollout_csv_includes_gaps_and_json_details(
         "evidence-gap-risks",
         "evidence-gap-source_evidence",
     ]
-    assert {row["design_brief_id"] for row in gap_rows} == {brief_id}
-    assert gap_rows[0]["evidence"] == "Specific pilot user is not defined."
-    assert gap_rows[0]["action"] == "Name the user role that will perform the pilot workflow."
-
-    phase_details = json.loads(rows[0]["details"])
-    task_details = json.loads(
-        next(row for row in rows if row["item_id"] == "operator-task-1")["details"]
+    assert gap_rows[0]["success_or_exit_criteria"] == "Specific pilot user is not defined."
+    assert gap_rows[0]["evidence_or_output"] == "Specific pilot user is not defined."
+    assert gap_rows[0]["goal_or_task"] == (
+        "Name the user role that will perform the pilot workflow."
     )
-    gap_details = json.loads(gap_rows[0]["details"])
 
-    assert phase_details == {
-        "exit_criteria": "Pilot cohort, entry criteria, stop conditions, and evidence capture plan are approved.",
-        "goal": "Confirm cohort, scope, success metrics, and risk owners before any customer exposure.",
-    }
-    assert task_details == {
-        "cadence": "weekly",
-        "output": "Decision log with owner and date.",
-    }
-    assert gap_details == {
-        "action": "Name the user role that will perform the pilot workflow.",
-        "field": "specific_user",
-        "gap": "Specific pilot user is not defined.",
-    }
-    assert rows[0]["details"] == json.dumps(
-        phase_details, sort_keys=True, separators=(",", ":")
-    )
+
+def test_render_design_brief_pilot_rollout_csv_escapes_commas_quotes_and_newlines(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_pilot_rollout(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["pilot_cohort"]["target_users"] = 'product, "ops"\nlead'
+    report["operator_tasks"][0]["task"] = 'Track "launch", blockers\nand decisions.'
+
+    csv_text = render_design_brief_pilot_rollout(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert '"product, ""ops""\nlead"' in csv_text
+    assert '"Track ""launch"", blockers\nand decisions."' in csv_text
+    assert rows[0]["name"] == 'product, "ops"\nlead'
+    assert rows[18]["goal_or_task"] == 'Track "launch", blockers\nand decisions.'
 
 
 def test_build_design_brief_pilot_rollout_missing_brief_returns_none(tmp_path) -> None:
