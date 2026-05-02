@@ -16,6 +16,8 @@ from max.analysis.profile_evidence_diversity import (
 from max.analysis.portfolio_cannibalization import (
     build_portfolio_cannibalization_from_records,
     build_portfolio_cannibalization_report,
+    render_portfolio_cannibalization_markdown,
+    render_portfolio_cannibalization_report,
 )
 from max.analysis.portfolio_dependency_overlap import (
     build_portfolio_dependency_overlap_from_records,
@@ -196,6 +198,8 @@ __all__ = [
     "render_design_brief_churn_risk_report",
     "render_design_brief_competitive_alternatives",
     "render_design_brief_conversion_risk",
+    "render_portfolio_cannibalization_markdown",
+    "render_portfolio_cannibalization_report",
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",

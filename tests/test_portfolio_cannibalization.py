@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from max.analysis.portfolio_cannibalization import (
     SCHEMA_VERSION,
     build_portfolio_cannibalization_from_records,
     build_portfolio_cannibalization_report,
+    render_portfolio_cannibalization_report,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -52,6 +55,7 @@ def test_cannibalization_does_not_flag_unrelated_items_above_default_threshold(
     assert report["kind"] == "max.portfolio_cannibalization"
     assert report["summary"]["total_items"] == 2
     assert report["summary"]["flagged_pair_count"] == 0
+    assert report["analyzed_idea_ids"] == ["bu-payroll", "bu-security"]
     assert report["pair_findings"] == []
     assert "no item pair crossed" in report["recommendations"][0]["action"]
 
@@ -87,6 +91,7 @@ def test_cannibalization_flags_high_buyer_and_workflow_overlap(store: Store) -> 
     assert report["summary"]["flagged_pair_count"] == 1
     finding = report["pair_findings"][0]
     assert finding["ids"] == ["bu-retro", "bu-runbook"]
+    assert finding["severity"] in {"low", "medium", "high"}
     assert finding["score_components"]["buyer"] >= 0.5
     assert finding["score_components"]["workflow"] >= 0.5
     assert {reason["type"] for reason in finding["reasons"]} >= {"buyer", "workflow"}
@@ -235,6 +240,80 @@ def test_cannibalization_ordering_is_stable_for_equal_scores_and_sparse_metadata
     assert report["clusters"][0]["ids"] == ["bu-a", "bu-b", "bu-c"]
     assert report["pair_findings"] == repeated["pair_findings"]
     assert json.loads(json.dumps(report))["summary"]["cluster_count"] == 1
+
+
+def test_render_cannibalization_report_json_round_trip_and_is_deterministic() -> None:
+    report = build_portfolio_cannibalization_from_records(
+        buildable_units=[
+            _unit(
+                "bu-runbook",
+                "Incident Runbook Drafter",
+                buyer="platform engineering director",
+                specific_user="sre lead",
+                workflow="incident response handoff",
+                problem="SRE leads lose context when incident notes become follow up tasks.",
+                solution="Draft runbooks and owners from incident notes.",
+            ),
+            _unit(
+                "bu-retro",
+                "Incident Retro Planner",
+                buyer="platform engineering director",
+                specific_user="sre lead",
+                workflow="incident response handoff",
+                problem="SRE leads struggle to turn incident notes into retro agendas.",
+                solution="Create retrospectives, agenda items, and follow up owner lists.",
+            ),
+        ],
+        design_briefs=[],
+    )
+
+    first = render_portfolio_cannibalization_report(report, fmt="json")
+    second = render_portfolio_cannibalization_report(report, fmt="json")
+
+    assert first == second
+    assert first.endswith("\n")
+    parsed = json.loads(first)
+    assert parsed == report
+    assert parsed["schema_version"] == SCHEMA_VERSION
+    assert parsed["analyzed_idea_ids"] == ["bu-retro", "bu-runbook"]
+    assert parsed["pair_findings"][0]["severity"] in {"low", "medium", "high"}
+    assert parsed["recommendations"][0]["action"]
+
+
+def test_render_cannibalization_report_markdown_remains_supported() -> None:
+    report = build_portfolio_cannibalization_from_records(
+        buildable_units=[
+            _unit(
+                "bu-payroll",
+                "Payroll Export Cleaner",
+                buyer="finance operations director",
+                specific_user="payroll analyst",
+                workflow="payroll spreadsheet close",
+                problem="Payroll teams fix malformed spreadsheet exports before monthly close.",
+                solution=(
+                    "Normalize payroll CSV exports with field validation and exception review."
+                ),
+            )
+        ],
+        design_briefs=[],
+    )
+
+    markdown = render_portfolio_cannibalization_report(report)
+
+    assert markdown.endswith("\n")
+    assert "# Portfolio Cannibalization Report" in markdown
+    assert f"Schema: `{SCHEMA_VERSION}`" in markdown
+    assert "No item pair crossed the cannibalization threshold." in markdown
+
+
+def test_render_cannibalization_report_rejects_unsupported_format() -> None:
+    report = build_portfolio_cannibalization_from_records(
+        buildable_units=[],
+        design_briefs=[],
+    )
+
+    with pytest.raises(ValueError, match="Unsupported portfolio cannibalization format: yaml"):
+        render_portfolio_cannibalization_report(report, fmt="yaml")
 
 
 def _unit(

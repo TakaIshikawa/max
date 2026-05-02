@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections import Counter
@@ -105,10 +106,85 @@ def build_portfolio_cannibalization_from_records(
             "flagged_pair_count": len(pair_findings),
             "cluster_count": len(clusters),
         },
+        "analyzed_idea_ids": [record["id"] for record in records],
         "pair_findings": pair_findings,
         "clusters": clusters,
         "recommendations": _recommendations(pair_findings, clusters),
     }
+
+
+def render_portfolio_cannibalization_report(
+    report: Mapping[str, Any],
+    fmt: str = "markdown",
+) -> str:
+    """Render a portfolio cannibalization report as Markdown or deterministic JSON."""
+
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported portfolio cannibalization format: {fmt}")
+    return render_portfolio_cannibalization_markdown(report)
+
+
+def render_portfolio_cannibalization_markdown(report: Mapping[str, Any]) -> str:
+    """Render a deterministic Markdown summary of portfolio cannibalization risk."""
+
+    summary = report["summary"]
+    filters = report.get("filters", {})
+    lines = [
+        "# Portfolio Cannibalization Report",
+        "",
+        f"Schema: `{report['schema_version']}`",
+        f"Kind: `{report['kind']}`",
+        f"Items analyzed: {summary['total_items']}",
+        f"Buildable units: {summary['buildable_unit_count']}",
+        f"Design briefs: {summary['design_brief_count']}",
+        f"Flagged pairs: {summary['flagged_pair_count']}",
+        f"Clusters: {summary['cluster_count']}",
+        f"Domain filter: {_inline_list(filters.get('domain') or []) or 'all'}",
+        "",
+        "## Cannibalization Findings",
+        "",
+    ]
+
+    pair_findings = list(report.get("pair_findings", []))
+    if not pair_findings:
+        lines.append("- No item pair crossed the cannibalization threshold.")
+    else:
+        for finding in pair_findings:
+            lines.extend(
+                [
+                    f"### {finding['ids'][0]} / {finding['ids'][1]}",
+                    "",
+                    f"- Score: {finding['score']:.3f}",
+                    f"- Severity: {finding['severity']}",
+                    f"- Reasons: {_inline_list(reason['type'] for reason in finding['reasons'])}",
+                    f"- Actions: {_inline_list(finding['differentiation_actions'])}",
+                    "",
+                ]
+            )
+
+    lines.extend(["", "## Clusters", ""])
+    clusters = list(report.get("clusters", []))
+    if not clusters:
+        lines.append("- No above-threshold cannibalization clusters.")
+    else:
+        for cluster in clusters:
+            lines.extend(
+                [
+                    f"- **{cluster['id']}** ({cluster['severity']}, {cluster['score']:.3f}): "
+                    f"{_inline_list(cluster['ids'])}",
+                ]
+            )
+
+    lines.extend(["", "## Recommended Portfolio Actions", ""])
+    for recommendation in report.get("recommendations", []):
+        lines.append(
+            f"- **{recommendation['priority']}**: {recommendation['action']} "
+            f"({recommendation['rationale']})"
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _pair_finding(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
@@ -145,6 +221,7 @@ def _pair_finding(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]
         "ids": [left["id"], right["id"]],
         "items": [_item_summary(left), _item_summary(right)],
         "score": score,
+        "severity": _severity(score),
         "score_components": {key: round(value, 3) for key, value in components.items()},
         "reasons": reasons,
         "differentiation_actions": _differentiation_actions(components, left, right),
@@ -258,6 +335,7 @@ def _clusters(
                 "id": "cannibalization-" + "-".join(component[:3]),
                 "ids": component,
                 "score": score,
+                "severity": _severity(score),
                 "reason_types": reason_types,
                 "representative_items": [
                     _item_summary(by_id[item_id])
@@ -467,6 +545,18 @@ def _recommendations(
             }
         )
     return recommendations
+
+
+def _severity(score: float) -> str:
+    if score >= 0.75:
+        return "high"
+    if score >= 0.55:
+        return "medium"
+    return "low"
+
+
+def _inline_list(values: Iterable[Any]) -> str:
+    return ", ".join(str(value) for value in values)
 
 
 def _unit_readiness_score(unit: Any) -> float:
