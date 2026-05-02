@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+import json
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,6 +12,18 @@ import pytest
 import yaml
 
 from max.analysis import profile_gap_matrix
+
+CSV_COLUMNS = [
+    "profile",
+    "category",
+    "source",
+    "gap_type",
+    "severity_or_score",
+    "observed_count",
+    "target_count",
+    "recommendation",
+    "evidence_or_signal_references",
+]
 
 
 def _write_profile(
@@ -200,6 +215,103 @@ def test_render_profile_gap_matrix_markdown_includes_deterministic_table(
         in markdown
     )
     assert markdown.index("| devtools |") < markdown.index("| security |")
+
+
+def test_render_profile_gap_matrix_supports_json_format_without_changing_payload(
+    profiles_dir: Path,
+    adapter_metadata: None,
+) -> None:
+    matrix = profile_gap_matrix.build_profile_gap_matrix(profiles_dir=profiles_dir)
+
+    rendered = profile_gap_matrix.render_profile_gap_matrix(matrix, fmt="json")
+
+    assert json.loads(rendered) == matrix.to_dict()
+
+
+def test_render_profile_gap_matrix_csv_has_stable_header_and_multiple_gap_rows(
+    profiles_dir: Path,
+    adapter_metadata: None,
+) -> None:
+    matrix = profile_gap_matrix.build_profile_gap_matrix(profiles_dir=profiles_dir)
+
+    csv_text = profile_gap_matrix.render_profile_gap_matrix(matrix, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) > matrix.row_count
+    assert rows[0] == {
+        "profile": "devtools",
+        "category": "code_hosting",
+        "source": "github_issues",
+        "gap_type": "disabled_relevant_adapter",
+        "severity_or_score": "medium",
+        "observed_count": "0",
+        "target_count": "1",
+        "recommendation": "Enable adapter github_issues",
+        "evidence_or_signal_references": (
+            "adapter_categories:code_hosting; enabled_categories:forum"
+        ),
+    }
+    assert {
+        "profile": "devtools",
+        "category": "code_hosting",
+        "source": "github_issues",
+        "gap_type": "missing_source_category",
+        "severity_or_score": "high",
+        "observed_count": "0",
+        "target_count": "1",
+        "recommendation": "Add or enable source coverage: github_issues",
+        "evidence_or_signal_references": (
+            "required_category:code_hosting; enabled_categories:forum"
+        ),
+    } in rows
+    assert {
+        "profile": "devtools",
+        "category": "unknown",
+        "source": "ghost_adapter",
+        "gap_type": "unknown_adapter",
+        "severity_or_score": "high",
+        "observed_count": "1",
+        "target_count": "0",
+        "recommendation": "Register or remove adapter ghost_adapter",
+        "evidence_or_signal_references": "configured adapter not found in registry",
+    } in rows
+    assert {
+        "profile": "devtools",
+        "category": "evaluation",
+        "source": "competitive_density",
+        "gap_type": "underweighted_evaluation_dimension",
+        "severity_or_score": "0.05",
+        "observed_count": "0.05",
+        "target_count": "0.10",
+        "recommendation": "Raise competitive_density evaluation weight",
+        "evidence_or_signal_references": "weight_profile:custom",
+    } in rows
+
+
+def test_render_profile_gap_matrix_csv_is_deterministic(
+    profiles_dir: Path,
+    adapter_metadata: None,
+) -> None:
+    matrix = profile_gap_matrix.build_profile_gap_matrix(profiles_dir=profiles_dir)
+
+    first = profile_gap_matrix.render_profile_gap_matrix_csv(matrix)
+    second = profile_gap_matrix.render_profile_gap_matrix(matrix.to_dict(), fmt="csv")
+
+    assert first == second
+    assert first.index("devtools,code_hosting,github_issues,disabled_relevant_adapter") < (
+        first.index("security,forum,reddit,disabled_relevant_adapter")
+    )
+
+
+def test_render_profile_gap_matrix_rejects_unsupported_format(
+    profiles_dir: Path,
+    adapter_metadata: None,
+) -> None:
+    matrix = profile_gap_matrix.build_profile_gap_matrix(profiles_dir=profiles_dir)
+
+    with pytest.raises(ValueError, match="Unsupported profile gap matrix format"):
+        profile_gap_matrix.render_profile_gap_matrix(matrix, fmt="yaml")
 
 
 def test_build_profile_gap_matrix_rejects_invalid_profiles_dir(tmp_path: Path) -> None:
