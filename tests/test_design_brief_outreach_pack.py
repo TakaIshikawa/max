@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 from max.analysis.design_brief_outreach_pack import (
+    OUTREACH_PACK_CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_outreach_pack,
     render_design_brief_outreach_pack,
@@ -82,6 +85,65 @@ def test_render_design_brief_outreach_pack_markdown(tmp_path) -> None:
     assert "## Follow-up Steps" in markdown
     assert "### Primary User Email" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
+
+
+def test_render_design_brief_outreach_pack_csv_headers_sections_and_rows(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        pack = build_design_brief_outreach_pack(store, brief_id)
+    finally:
+        store.close()
+
+    assert pack is not None
+    csv_text = render_design_brief_outreach_pack(pack, fmt="csv")
+    repeated = render_design_brief_outreach_pack(pack, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(OUTREACH_PACK_CSV_COLUMNS)
+    assert reader.fieldnames == list(OUTREACH_PACK_CSV_COLUMNS)
+    assert [row["section"] for row in rows] == [
+        *(["target_segments"] * 3),
+        *(["outreach_hypotheses"] * 3),
+        *(["templates"] * 3),
+        *(["objection_handling"] * 3),
+        *(["qualification_questions"] * 6),
+        *(["follow_up_artifacts"] * 3),
+    ]
+    assert [row["order"] for row in rows[:3]] == ["1", "2", "3"]
+
+    first_segment = rows[0]
+    assert first_segment["type"] == "segment"
+    assert first_segment["id"] == "primary_workflow_owner"
+    assert first_segment["title_name"] == "Primary workflow owners"
+    assert "Recruiting angle: Validate whether" in first_segment["body_detail"]
+    assert first_segment["evidence_source_idea_ids"] == "bu-outreach-lead;bu-outreach-support"
+    assert first_segment["design_brief_id"] == brief_id
+    assert first_segment["design_brief_title"] == "Outreach Pack Brief"
+    assert first_segment["buyer"] == "engineering manager"
+    assert first_segment["specific_user"] == "platform engineer"
+    assert first_segment["workflow_context"] == "pilot intake workflow"
+
+    template = rows[6]
+    assert template["section"] == "templates"
+    assert template["type"] == "template"
+    assert template["id"] == "email_primary_user"
+    assert template["channel_stage"] == "email"
+    assert "Subject: Question about pilot intake workflow" in template["body_detail"]
+    assert template["cta"] == "Ask for a 20 minute discovery call this week."
+
+    question = rows[12]
+    assert question["section"] == "qualification_questions"
+    assert question["type"] == "qualification_question"
+    assert question["channel_stage"] == "fit"
+    assert "Who owns pilot intake workflow today" in question["body_detail"]
+
+    follow_up = rows[-1]
+    assert follow_up["section"] == "follow_up_artifacts"
+    assert follow_up["type"] == "follow_up_artifact"
+    assert follow_up["title_name"] == "No-response follow-up"
+    assert follow_up["channel_stage"] == "3 to 5 business days after first outreach"
 
 
 def test_build_design_brief_outreach_pack_missing_brief_returns_none(tmp_path) -> None:
