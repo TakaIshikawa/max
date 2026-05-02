@@ -14,6 +14,7 @@ from max.sources.registry import (
     _get_registry,
     get_adapter_metadata,
     get_adapter,
+    get_adapter_class,
     get_all_adapters,
     list_adapters,
     reload_registry,
@@ -257,12 +258,24 @@ def test_list_adapters_returns_strings():
     assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
     assert "github_discussion_comments" in names
+    assert "open_vsx_download_trends" in names
+
+
+def test_get_adapter_class_returns_registered_class():
+    from max.sources.open_vsx_download_trends import OpenVsxDownloadTrendsAdapter
+
+    with patch("max.config.MAX_ADAPTERS", "open_vsx_download_trends"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        cls = get_adapter_class("open_vsx_download_trends")
+
+    assert cls is OpenVsxDownloadTrendsAdapter
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -299,6 +312,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "agent_failure_dataset",
         "clinical_trials",
         "open_vsx",
+        "open_vsx_download_trends",
         "terraform_registry",
     }
     assert metadata["hackernews"].config_keys == ["filter_keywords"]
@@ -518,6 +532,15 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["clinical_trials"].required_keys == []
     assert "ClinicalTrials.gov" in metadata["clinical_trials"].description
+    assert metadata["open_vsx_download_trends"].config_keys == [
+        "extensions",
+        "open_vsx_api_url",
+        "max_results",
+        "max_items",
+        "timeout",
+    ]
+    assert metadata["open_vsx_download_trends"].required_keys == []
+    assert "Open VSX extension download" in metadata["open_vsx_download_trends"].description
     assert metadata["open_vsx"].config_keys == ["queries", "extensions", "extension_identifiers"]
     assert metadata["open_vsx"].required_keys == []
     assert "Open VSX Registry" in metadata["open_vsx"].description

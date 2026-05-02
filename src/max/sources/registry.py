@@ -159,6 +159,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "cncf_landscape": "max.sources.cncf_landscape:CncfLandscapeAdapter",
     "chrome_web_store": "max.sources.chrome_web_store:ChromeWebStoreAdapter",
     "open_vsx": "max.sources.open_vsx:OpenVsxAdapter",
+    "open_vsx_download_trends": (
+        "max.sources.open_vsx_download_trends:OpenVsxDownloadTrendsAdapter"
+    ),
     "sourceforge_projects": (
         "max.sources.sourceforge_projects:SourceForgeProjectsAdapter"
     ),
@@ -1105,6 +1108,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         required_keys=[],
         description="Searches Open VSX Registry for VS Code-compatible extension adoption signals.",
     ),
+    "open_vsx_download_trends": AdapterMetadata(
+        name="open_vsx_download_trends",
+        config_keys=["extensions", "open_vsx_api_url", "max_results", "max_items", "timeout"],
+        required_keys=[],
+        description=(
+            "Fetches Open VSX extension download totals and rating data as "
+            "developer-tool adoption signals."
+        ),
+    ),
     "sourceforge_projects": AdapterMetadata(
         name="sourceforge_projects",
         config_keys=["queries", "categories", "projects", "project_names"],
@@ -1330,11 +1342,17 @@ def _get_registry() -> dict[str, type[SourceAdapter]]:
 
 def get_adapter(name: str) -> SourceAdapter:
     """Get a single adapter by name."""
+    cls = get_adapter_class(name)
+    return cls()
+
+
+def get_adapter_class(name: str) -> type[SourceAdapter]:
+    """Get a single adapter class by name."""
     registry = _get_registry()
     cls = registry.get(name)
     if cls is None:
         raise KeyError(f"Unknown adapter: {name}. Available: {list(registry)}")
-    return cls()
+    return cls
 
 
 def list_adapters() -> list[str]:
