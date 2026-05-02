@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -124,6 +126,95 @@ def test_render_design_brief_success_metrics_json_and_markdown() -> None:
         render_design_brief_success_metrics(report, fmt="yaml")
 
 
+def test_render_design_brief_success_metrics_csv_headers_sections_and_ordering() -> None:
+    report = build_design_brief_success_metrics(_brief())
+
+    csv_text = render_design_brief_success_metrics(report, fmt="csv")
+    repeated = render_design_brief_success_metrics(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.endswith("\n")
+    assert csv_text.splitlines()[0] == (
+        "section,item_id,metric_event_field,target_threshold,"
+        "confidence_severity,rationale_action,source_fields"
+    )
+    assert [(row["section"], row["item_id"]) for row in rows[:4]] == [
+        ("north_star", "NS1"),
+        ("activation", "A1"),
+        ("activation", "A2"),
+        ("activation", "A3"),
+    ]
+    assert [row["section"] for row in rows] == [
+        "north_star",
+        "activation",
+        "activation",
+        "activation",
+        "retention",
+        "retention",
+        "validation",
+        "validation",
+        "validation",
+        "risk_guardrail",
+        "risk_guardrail",
+        "risk_guardrail",
+        "instrumentation_event",
+        "instrumentation_event",
+        "instrumentation_event",
+        "instrumentation_event",
+        "instrumentation_event",
+        "instrumentation_event",
+    ]
+
+    north_star = rows[0]
+    assert north_star["metric_event_field"] == "Qualified workflow success"
+    assert north_star["target_threshold"].startswith("3+ qualified teams")
+    assert north_star["confidence_severity"] == "high"
+    assert north_star["source_fields"] == (
+        "title; specific_user; workflow_context; merged_product_concept; readiness_score"
+    )
+
+    event = next(row for row in rows if row["item_id"] == "E3")
+    assert event["metric_event_field"] == "first_value_reached"
+    assert event["source_fields"] == "brief_id; account_id; mvp_scope_item; time_to_value_minutes"
+
+
+def test_render_design_brief_success_metrics_csv_includes_missing_inputs_and_quotes() -> None:
+    report = build_design_brief_success_metrics(
+        _brief(
+            risks=['Buyer says "no", then stalls'],
+            specific_user="",
+            workflow_context="",
+            merged_product_concept="",
+            mvp_scope=[],
+            validation_plan="",
+            source_idea_ids=[],
+            evidence_counts={},
+        )
+    )
+
+    csv_text = render_design_brief_success_metrics(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert '"Risk controlled: Buyer says ""no"", then stalls"' in csv_text
+    assert any(
+        row["section"] == "risk_guardrail"
+        and row["metric_event_field"] == 'Risk controlled: Buyer says "no", then stalls'
+        for row in rows
+    )
+    missing_rows = [row for row in rows if row["section"] == "missing_input"]
+    assert [row["metric_event_field"] for row in missing_rows] == [
+        "specific_user",
+        "workflow_context",
+        "merged_product_concept",
+        "validation_plan",
+        "mvp_scope",
+        "source_idea_ids",
+        "evidence_counts",
+    ]
+    assert all(row["rationale_action"] for row in missing_rows)
+
+
 def test_write_design_brief_success_metrics_and_filename(tmp_path) -> None:
     report = build_design_brief_success_metrics(_brief())
     path = tmp_path / success_metrics_filename(_brief(), fmt="markdown")
@@ -132,3 +223,4 @@ def test_write_design_brief_success_metrics_and_filename(tmp_path) -> None:
 
     assert path.name == "dbf-success-success-metrics.md"
     assert path.read_text(encoding="utf-8").startswith("# Success Metrics: AgentAdversarialBench")
+    assert success_metrics_filename(_brief(), fmt="csv") == "dbf-success-success-metrics.csv"
