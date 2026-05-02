@@ -1751,6 +1751,19 @@ class SecurityReviewResponse(BaseModel):
     open_questions: list[dict[str, Any]]
 
 
+class ThreatModelResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    scope: dict[str, Any]
+    assets: list[dict[str, Any]]
+    trust_boundaries: list[dict[str, Any]]
+    threat_scenarios: list[dict[str, Any]]
+    mitigations: list[dict[str, Any]]
+    residual_risks: list[dict[str, Any]]
+    review_gate: dict[str, Any]
+
+
 class SpecBundleArtifactsResponse(BaseModel):
     spec_preview: dict[str, Any]
     readiness: dict[str, Any]
