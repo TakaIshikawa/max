@@ -44,6 +44,10 @@ from max.spec.incident_response_plan import (
     render_incident_response_plan_markdown,
 )
 from max.spec.launch_checklist import generate_launch_checklist
+from max.spec.migration_checklist import (
+    generate_migration_checklist,
+    render_migration_checklist_markdown,
+)
 from max.spec.observability_plan import (
     generate_observability_plan,
     render_observability_plan_markdown,
@@ -89,6 +93,7 @@ __all__ = [
     "generate_implementation_plan",
     "generate_incident_response_plan",
     "generate_launch_checklist",
+    "generate_migration_checklist",
     "generate_observability_plan",
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
@@ -116,6 +121,7 @@ __all__ = [
     "render_deployment_topology_markdown",
     "render_disaster_recovery_plan_markdown",
     "render_incident_response_plan_markdown",
+    "render_migration_checklist_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
     "render_post_launch_monitoring_plan_markdown",
