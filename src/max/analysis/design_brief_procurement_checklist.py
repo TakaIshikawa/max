@@ -13,19 +13,14 @@ if TYPE_CHECKING:
 SCHEMA_VERSION = "max.design_brief.procurement_checklist.v1"
 
 CSV_COLUMNS = (
-    "design_brief_id",
-    "section_id",
-    "section_title",
-    "item_id",
     "category",
-    "task",
+    "requirement",
+    "priority",
     "owner",
-    "evidence",
-    "blocker",
-    "status",
-    "source_fields",
-    "source_idea_ids",
-    "rationale",
+    "vendor_evidence",
+    "approval_gate",
+    "due_timing",
+    "notes",
 )
 
 
@@ -279,23 +274,38 @@ def _csv_checklist_items(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _csv_row(report: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
-    brief = report.get("design_brief") or {}
     section_title = _csv_cell(item.get("section_title"))
+    approval_gate = _csv_cell(
+        item.get("approval_gate")
+        or item.get("approval_gate_name")
+        or item.get("gate")
+        or _approval_gate_for_item(report, item)
+    )
     return {
-        "design_brief_id": _csv_cell(brief.get("id")),
-        "section_id": _csv_cell(item.get("section_id")),
-        "section_title": section_title,
-        "item_id": _csv_cell(item.get("id") or item.get("item_id")),
         "category": _csv_cell(item.get("category") or section_title),
-        "task": _csv_cell(item.get("task")),
+        "requirement": _csv_cell(item.get("requirement") or item.get("task")),
+        "priority": _csv_cell(item.get("priority") or item.get("severity")),
         "owner": _csv_cell(item.get("owner") or item.get("owner_role") or item.get("section_owner_role")),
-        "evidence": _csv_cell(item.get("evidence") or item.get("completion_evidence")),
-        "blocker": _csv_cell(item.get("blocker") or item.get("blockers")),
-        "status": _csv_cell(item.get("status") or item.get("inference_status") or item.get("state")),
-        "source_fields": _csv_cell(item.get("source_fields")),
-        "source_idea_ids": _csv_cell(item.get("source_idea_ids")),
-        "rationale": _csv_cell(item.get("rationale")),
+        "vendor_evidence": _csv_cell(
+            item.get("vendor_evidence") or item.get("evidence") or item.get("completion_evidence")
+        ),
+        "approval_gate": approval_gate,
+        "due_timing": _csv_cell(
+            item.get("due_timing") or item.get("due_date") or item.get("due_at") or item.get("timing")
+        ),
+        "notes": _csv_cell(item.get("notes") or item.get("rationale")),
     }
+
+
+def _approval_gate_for_item(report: dict[str, Any], item: dict[str, Any]) -> str:
+    owner = _csv_cell(item.get("owner") or item.get("owner_role") or item.get("section_owner_role"))
+    if owner:
+        for gate in report.get("approval_gates", []):
+            if _csv_cell(gate.get("owner_role") or gate.get("owner")) == owner:
+                return _csv_cell(gate.get("name") or gate.get("id"))
+    if item.get("section_id") == "approval_gates":
+        return _csv_cell(item.get("category") or item.get("section_title"))
+    return ""
 
 
 def _procurement_context(

@@ -9,6 +9,7 @@ import json
 import pytest
 
 from max.analysis.design_brief_procurement_checklist import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_procurement_checklist,
     procurement_checklist_filename,
@@ -133,53 +134,47 @@ def test_render_procurement_checklist_csv_headers_ordering_and_fields(tmp_path) 
     reader = csv.DictReader(io.StringIO(csv_output))
     rows = list(reader)
 
-    assert reader.fieldnames == [
-        "design_brief_id",
-        "section_id",
-        "section_title",
-        "item_id",
-        "category",
-        "task",
-        "owner",
-        "evidence",
-        "blocker",
-        "status",
-        "source_fields",
-        "source_idea_ids",
-        "rationale",
-    ]
-    assert [row["item_id"] for row in rows] == [item["id"] for item in checklist["checklist_items"]]
-    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_output.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["requirement"] for row in rows] == [item["task"] for item in checklist["checklist_items"]]
 
     first = rows[0]
-    assert first["section_id"] == "security_review"
-    assert first["section_title"] == "Security Review"
     assert first["category"] == "Security Review"
+    assert first["requirement"] == (
+        "Prepare security questionnaire inputs for architecture, access, and data boundaries."
+    )
+    assert first["priority"] == ""
     assert first["owner"] == "Security owner"
-    assert first["evidence"] == "Completed security questionnaire notes or not-applicable decision."
-    assert first["status"] == "pending"
-    assert first["source_fields"] == "tech_approach; suggested_stack; merged_product_concept"
-    assert first["source_idea_ids"] == "bu-procurement-lead"
-    assert first["blocker"] == ""
+    assert first["vendor_evidence"] == "Completed security questionnaire notes or not-applicable decision."
+    assert first["approval_gate"] == "Security review"
+    assert first["due_timing"] == ""
+    assert first["notes"] == (
+        "FastAPI and persisted checklist generation with audit-friendly JSON.; "
+        "language: python; framework: fastapi"
+    )
 
 
 def test_render_procurement_checklist_csv_escapes_commas_newlines_and_optional_fields() -> None:
     report = {
         "design_brief": {"id": "dbf-csv"},
+        "approval_gates": [
+            {"name": "Budget approval", "owner_role": "Revenue, Ops"},
+            {"name": "Security review", "owner_role": "Security owner"},
+        ],
         "checklist_items": [
             {
                 "id": "DBPC2",
                 "section_id": "budget_owner",
                 "section_title": "Budget Owner",
                 "category": "Commercial, buyer enablement",
-                "task": "Confirm signer,\nand budget path",
+                "requirement": "Confirm signer,\nand budget path",
+                "priority": "high",
                 "owner": "Revenue, Ops",
-                "evidence": ["quote, signed", "approval\nmemo"],
-                "blockers": ["legal, pending", "security\nreview"],
-                "status": "blocked",
+                "vendor_evidence": ["quote, signed", "approval\nmemo"],
+                "due_timing": "Before vendor review",
                 "source_fields": ["buyer", "pricing_strategy"],
                 "source_idea_ids": ["bu-2", "bu-1"],
-                "rationale": "Needs buyer-ready, spreadsheet-safe output.",
+                "notes": "Needs buyer-ready, spreadsheet-safe output.",
             },
             {
                 "id": "DBPC1",
@@ -194,17 +189,24 @@ def test_render_procurement_checklist_csv_escapes_commas_newlines_and_optional_f
     reader = csv.DictReader(io.StringIO(csv_output))
     rows = list(reader)
 
-    assert [row["item_id"] for row in rows] == ["DBPC2", "DBPC1"]
+    assert [row["requirement"] for row in rows] == [
+        "Confirm signer,\nand budget path",
+        "Prepare packet",
+    ]
     assert rows[0]["category"] == "Commercial, buyer enablement"
-    assert rows[0]["task"] == "Confirm signer,\nand budget path"
+    assert rows[0]["requirement"] == "Confirm signer,\nand budget path"
+    assert rows[0]["priority"] == "high"
     assert rows[0]["owner"] == "Revenue, Ops"
-    assert rows[0]["evidence"] == "quote, signed; approval\nmemo"
-    assert rows[0]["blocker"] == "legal, pending; security\nreview"
-    assert rows[0]["status"] == "blocked"
+    assert rows[0]["vendor_evidence"] == "quote, signed; approval\nmemo"
+    assert rows[0]["approval_gate"] == "Budget approval"
+    assert rows[0]["due_timing"] == "Before vendor review"
+    assert rows[0]["notes"] == "Needs buyer-ready, spreadsheet-safe output."
+    assert rows[1]["priority"] == ""
     assert rows[1]["owner"] == ""
-    assert rows[1]["evidence"] == ""
-    assert rows[1]["blocker"] == ""
-    assert rows[1]["status"] == ""
+    assert rows[1]["vendor_evidence"] == ""
+    assert rows[1]["approval_gate"] == ""
+    assert rows[1]["due_timing"] == ""
+    assert rows[1]["notes"] == ""
     assert "{'" not in csv_output
     assert '"Confirm signer,\nand budget path"' in csv_output
 
@@ -214,10 +216,7 @@ def test_render_procurement_checklist_csv_empty_checklist_has_header_only() -> N
 
     csv_output = render_procurement_checklist_csv(report)
 
-    assert csv_output == (
-        "design_brief_id,section_id,section_title,item_id,category,task,owner,evidence,"
-        "blocker,status,source_fields,source_idea_ids,rationale\n"
-    )
+    assert csv_output == ",".join(CSV_COLUMNS) + "\n"
     assert list(csv.DictReader(io.StringIO(csv_output))) == []
 
 
