@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import csv
+import io
+
 from max.spec import generate_release_readiness_gate as exported_generate
+from max.spec import render_release_readiness_gate_csv as exported_render_csv
 from max.spec import render_release_readiness_gate_markdown as exported_render
 from max.spec.release_readiness_gate import (
+    RELEASE_READINESS_GATE_CSV_COLUMNS,
     RELEASE_READINESS_GATE_SCHEMA_VERSION,
     generate_release_readiness_gate,
+    render_release_readiness_gate_csv,
     render_release_readiness_gate_markdown,
 )
 
@@ -173,6 +179,65 @@ def test_render_release_readiness_gate_markdown_lists_dimensions_blockers_and_si
     assert "### SO6: launch_owner" in first
 
 
+def test_render_release_readiness_gate_csv_lists_summary_checks_conditions_and_actions() -> None:
+    gate = generate_release_readiness_gate(_complete_tact_spec())
+
+    first = render_release_readiness_gate_csv(gate)
+    second = render_release_readiness_gate_csv(gate)
+    reader = csv.DictReader(io.StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert reader.fieldnames == list(RELEASE_READINESS_GATE_CSV_COLUMNS)
+    assert first.splitlines()[0] == ",".join(RELEASE_READINESS_GATE_CSV_COLUMNS)
+
+    summary_row = rows[0]
+    assert summary_row["section"] == "summary"
+    assert summary_row["type"] == "gate"
+    assert summary_row["source_idea_id"] == "bu-release-gate"
+    assert summary_row["title"] == "Agent Release Gate"
+    assert summary_row["decision"] == "go"
+    assert summary_row["go"] == "true"
+    assert summary_row["workflow_context"] == "release approval for generated TactSpec projects"
+
+    scope_row = next(row for row in rows if row["section"] == "readiness" and row["item_id"] == "scope")
+    assert scope_row["type"] == "check"
+    assert scope_row["dimension_id"] == "scope"
+    assert scope_row["label"] == "Scope"
+    assert scope_row["status"] == "ready"
+    assert scope_row["required"] == "true"
+    assert scope_row["owner"] == "product_owner"
+    assert "project.workflow_context=release approval for generated TactSpec projects" in scope_row["evidence"]
+
+    condition_row = next(row for row in rows if row["section"] == "conditions" and row["item_id"] == "SO6")
+    assert condition_row["type"] == "signoff"
+    assert condition_row["status"] == "pending"
+    assert condition_row["owner"] == "launch_owner"
+    assert condition_row["owner_hint"] == "engineering manager"
+
+    action_row = next(
+        row
+        for row in rows
+        if row["section"] == "next_actions" and row["owner"] == "launch_owner"
+    )
+    assert action_row["type"] == "owner_follow_up"
+    assert action_row["status"] == "pending"
+    assert action_row["next_action"] == "Collect launch_owner signoff."
+
+
+def test_render_release_readiness_gate_csv_includes_blocker_rows_for_no_go() -> None:
+    gate = generate_release_readiness_gate({})
+    rows = list(csv.DictReader(io.StringIO(render_release_readiness_gate_csv(gate))))
+
+    blocker_row = next(row for row in rows if row["section"] == "blockers")
+    assert blocker_row["type"] == "blocker"
+    assert blocker_row["status"] == "blocked"
+    assert blocker_row["severity"] == "critical"
+    assert blocker_row["owner"]
+    assert blocker_row["missing_evidence"]
+    assert blocker_row["next_action"]
+
+
 def test_release_readiness_gate_handles_missing_optional_fields() -> None:
     gate = generate_release_readiness_gate({})
     markdown = render_release_readiness_gate_markdown(gate)
@@ -189,6 +254,8 @@ def test_release_readiness_gate_handles_missing_optional_fields() -> None:
 def test_release_readiness_gate_is_importable_from_spec_package() -> None:
     gate = exported_generate(_complete_tact_spec())
     markdown = exported_render(gate)
+    csv_text = exported_render_csv(gate)
 
     assert gate["schema_version"] == RELEASE_READINESS_GATE_SCHEMA_VERSION
     assert markdown.startswith("# Agent Release Gate Release Readiness Gate")
+    assert csv_text.startswith(",".join(RELEASE_READINESS_GATE_CSV_COLUMNS))

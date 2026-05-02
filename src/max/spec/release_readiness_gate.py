@@ -2,10 +2,44 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 RELEASE_READINESS_GATE_SCHEMA_VERSION = "max-release-readiness-gate/v1"
+RELEASE_READINESS_GATE_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_system",
+    "source_type",
+    "source_idea_id",
+    "source_status",
+    "source_domain",
+    "source_category",
+    "tact_spec_schema_version",
+    "title",
+    "decision",
+    "go",
+    "workflow_context",
+    "target_user",
+    "buyer",
+    "recommendation",
+    "overall_score",
+    "item_id",
+    "dimension_id",
+    "label",
+    "status",
+    "required",
+    "severity",
+    "owner",
+    "owner_hint",
+    "description",
+    "missing_evidence",
+    "evidence",
+    "blocked_by",
+    "next_action",
+)
 
 _DIMENSIONS = (
     "scope",
@@ -112,6 +146,20 @@ def render_release_readiness_gate_markdown(gate: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_release_readiness_gate_csv(gate: dict[str, Any]) -> str:
+    """Render a generated release readiness gate as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=RELEASE_READINESS_GATE_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(gate):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _scope_dimension(project: dict[str, Any], execution: dict[str, Any]) -> dict[str, Any]:
@@ -444,6 +492,166 @@ def _extend_section(
     for item in items:
         lines.extend(renderer(item))
         lines.append("")
+
+
+def _csv_rows(gate: dict[str, Any]) -> list[dict[str, str]]:
+    rows = [
+        _csv_row(
+            gate,
+            section="summary",
+            type_="gate",
+            item_id="gate",
+            status=(gate.get("summary") or {}).get("decision"),
+            description="Overall release readiness gate decision.",
+        )
+    ]
+    for dimension in gate.get("readiness_dimensions") or []:
+        if not isinstance(dimension, dict):
+            continue
+        rows.append(
+            _csv_row(
+                gate,
+                section="readiness",
+                type_="check",
+                item_id=dimension.get("id"),
+                dimension_id=dimension.get("id"),
+                label=dimension.get("label"),
+                status=dimension.get("status"),
+                required=dimension.get("required"),
+                owner=_owner_for_dimension(_text(dimension.get("id"))),
+                description=dimension.get("remediation") or "Ready.",
+                missing_evidence=dimension.get("missing_evidence"),
+                evidence=dimension.get("evidence"),
+            )
+        )
+    for blocker in gate.get("blockers") or []:
+        if not isinstance(blocker, dict):
+            continue
+        rows.append(
+            _csv_row(
+                gate,
+                section="blockers",
+                type_="blocker",
+                item_id=blocker.get("id"),
+                dimension_id=blocker.get("dimension_id"),
+                status="blocked",
+                severity=blocker.get("severity"),
+                owner=blocker.get("owner"),
+                description=blocker.get("description"),
+                missing_evidence=blocker.get("missing_evidence"),
+                next_action=blocker.get("description"),
+            )
+        )
+    for signoff in gate.get("required_signoffs") or []:
+        if not isinstance(signoff, dict):
+            continue
+        rows.append(
+            _csv_row(
+                gate,
+                section="conditions",
+                type_="signoff",
+                item_id=signoff.get("id"),
+                status=signoff.get("status"),
+                owner=signoff.get("role"),
+                owner_hint=signoff.get("owner_hint"),
+                description=signoff.get("requirement"),
+                blocked_by=signoff.get("blocked_by_dimensions"),
+            )
+        )
+        rows.append(
+            _csv_row(
+                gate,
+                section="next_actions",
+                type_="owner_follow_up",
+                item_id=f"{signoff.get('id') or 'signoff'}-NA",
+                status="blocked" if signoff.get("status") == "blocked" else "pending",
+                owner=signoff.get("role"),
+                owner_hint=signoff.get("owner_hint"),
+                description=signoff.get("requirement"),
+                blocked_by=signoff.get("blocked_by_dimensions"),
+                next_action=_next_action_for_signoff(signoff),
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    gate: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    item_id: Any = None,
+    dimension_id: Any = None,
+    label: Any = None,
+    status: Any = None,
+    required: Any = None,
+    severity: Any = None,
+    owner: Any = None,
+    owner_hint: Any = None,
+    description: Any = None,
+    missing_evidence: Any = None,
+    evidence: Any = None,
+    blocked_by: Any = None,
+    next_action: Any = None,
+) -> dict[str, str]:
+    source = gate.get("source") if isinstance(gate.get("source"), dict) else {}
+    summary = gate.get("summary") if isinstance(gate.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_system": source.get("system"),
+        "source_type": source.get("type"),
+        "source_idea_id": source.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_domain": source.get("domain"),
+        "source_category": source.get("category"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "decision": summary.get("decision"),
+        "go": summary.get("go"),
+        "workflow_context": summary.get("workflow_context"),
+        "target_user": summary.get("target_user"),
+        "buyer": summary.get("buyer"),
+        "recommendation": summary.get("recommendation"),
+        "overall_score": summary.get("overall_score"),
+        "item_id": item_id,
+        "dimension_id": dimension_id,
+        "label": label,
+        "status": status,
+        "required": required,
+        "severity": severity,
+        "owner": owner,
+        "owner_hint": owner_hint,
+        "description": description,
+        "missing_evidence": missing_evidence,
+        "evidence": evidence,
+        "blocked_by": blocked_by,
+        "next_action": next_action,
+    }
+    return {column: _csv_value(values.get(column)) for column in RELEASE_READINESS_GATE_CSV_COLUMNS}
+
+
+def _next_action_for_signoff(signoff: dict[str, Any]) -> str:
+    blocked_by = signoff.get("blocked_by_dimensions") or []
+    if blocked_by:
+        return f"Resolve blocked dimensions: {_csv_value(blocked_by)}."
+    return f"Collect {_text(signoff.get('role')) or 'owner'} signoff."
+
+
+def _csv_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_compact(key)}={_csv_value(item)}"
+            for key, item in sorted(value.items())
+            if _csv_value(item)
+        )
+    if isinstance(value, list):
+        return "; ".join(_csv_value(item) for item in value if _csv_value(item))
+    return _compact(value)
 
 
 def _evidence(items: list[tuple[str, Any]]) -> dict[str, Any]:
