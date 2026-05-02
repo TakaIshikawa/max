@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from collections import Counter, defaultdict
+from io import StringIO
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -12,6 +14,30 @@ from max.store.db import Store
 SCHEMA_VERSION = "max.design_brief.market_sizing.v1"
 
 SIGNAL_BUCKETS = ("survey", "funding", "security", "forum")
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "row_type",
+    "design_brief_id",
+    "design_brief_title",
+    "segment_name",
+    "buyer",
+    "user",
+    "source_idea_ids",
+    "estimate_scope",
+    "estimate_value",
+    "assumption",
+    "evidence",
+    "confidence_level",
+    "confidence_score",
+    "evidence_strength",
+    "risk",
+    "next_step",
+    "survey_signals",
+    "funding_signals",
+    "security_signals",
+    "forum_signals",
+    "total_signals",
+)
 
 
 def build_market_sizing_report(
@@ -56,9 +82,13 @@ def build_market_sizing_report(
 
 
 def render_market_sizing_report(report: dict[str, Any], *, fmt: str = "markdown") -> str:
-    """Render a market-sizing report as Markdown or JSON."""
+    """Render a market-sizing report as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported market sizing format: {fmt}")
 
     brief = report["design_brief"]
     counts = report["signal_counts"]
@@ -115,11 +145,135 @@ def write_market_sizing_report(path: Path, report: dict[str, Any], *, fmt: str =
 
 
 def market_sizing_filename(design_brief: dict[str, Any], *, fmt: str) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief["id"]))
     title = _filename_part(str(design_brief.get("title") or ""))
     title_part = f"-{title}" if title else ""
     return f"{brief_id}{title_part}-market-sizing.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    brief = report.get("design_brief") or {}
+    segments = sorted(
+        report.get("segments") or [],
+        key=lambda segment: (
+            str(segment.get("name") or ""),
+            str(segment.get("buyer") or ""),
+            str(segment.get("user") or ""),
+        ),
+    )
+    if not brief or not segments:
+        return []
+
+    rows: list[dict[str, str]] = []
+    assumptions = _string_list(report.get("market_hypotheses"))
+    recommendations = _string_list(report.get("recommendations"))
+    risks = [gap for gap in _string_list(report.get("gaps")) if not gap.startswith("No major")]
+    confidence = report.get("confidence") or {}
+
+    for segment in segments:
+        segment_risks = [
+            gap for gap in _string_list(segment.get("gaps")) if not gap.startswith("No major")
+        ]
+        row_context = {
+            "design_brief_id": brief.get("id"),
+            "design_brief_title": brief.get("title"),
+            "segment_name": segment.get("name"),
+            "buyer": segment.get("buyer"),
+            "user": segment.get("user"),
+            "source_idea_ids": _csv_join(segment.get("source_idea_ids")),
+            "evidence": _evidence_summary(segment),
+            "confidence_level": confidence.get("level"),
+            "confidence_score": segment.get("confidence"),
+            "evidence_strength": segment.get("evidence_strength"),
+            **_signal_count_columns(segment.get("signal_counts") or {}),
+        }
+        for scope, estimate in _segment_estimates(segment):
+            rows.append(
+                _csv_row(
+                    **row_context,
+                    row_type="estimate",
+                    estimate_scope=scope,
+                    estimate_value=estimate,
+                    assumption=_csv_join(assumptions),
+                    risk=_csv_join([*risks, *segment_risks]),
+                    next_step=_csv_join(recommendations),
+                )
+            )
+        for assumption in assumptions:
+            rows.append(_csv_row(**row_context, row_type="assumption", assumption=assumption))
+        for risk in [*risks, *segment_risks]:
+            rows.append(_csv_row(**row_context, row_type="risk", risk=risk))
+        for next_step in recommendations:
+            rows.append(_csv_row(**row_context, row_type="next_step", next_step=next_step))
+    return rows
+
+
+def _segment_estimates(segment: dict[str, Any]) -> list[tuple[str, str]]:
+    buyer = _clean(segment.get("buyer")) or "target buyer"
+    user = _clean(segment.get("user")) or "target user"
+    strength = _clean(segment.get("evidence_strength")) or "unknown"
+    confidence = _clean(segment.get("confidence")) or "0"
+    return [
+        ("TAM", f"All {buyer} teams with recurring {user} workflow pain; evidence strength={strength}."),
+        ("SAM", f"Reachable {buyer} segment represented by linked source ideas and evidence signals."),
+        ("SOM", f"Near-term pilotable share requiring validation; segment confidence={confidence}."),
+    ]
+
+
+def _evidence_summary(segment: dict[str, Any]) -> str:
+    counts = segment.get("signal_counts") or {}
+    adapters = counts.get("by_source_adapter") or {}
+    source_types = counts.get("by_source_type") or {}
+    parts = [
+        f"survey={counts.get('survey', 0)}",
+        f"funding={counts.get('funding', 0)}",
+        f"security={counts.get('security', 0)}",
+        f"forum={counts.get('forum', 0)}",
+        f"total={counts.get('total', 0)}",
+    ]
+    if adapters:
+        parts.append(
+            "adapters="
+            + "; ".join(f"{key}:{adapters[key]}" for key in sorted(adapters))
+        )
+    if source_types:
+        parts.append(
+            "source_types="
+            + "; ".join(f"{key}:{source_types[key]}" for key in sorted(source_types))
+        )
+    return " | ".join(parts)
+
+
+def _signal_count_columns(counts: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "survey_signals": counts.get("survey", 0),
+        "funding_signals": counts.get("funding", 0),
+        "security_signals": counts.get("security", 0),
+        "forum_signals": counts.get("forum", 0),
+        "total_signals": counts.get("total", 0),
+    }
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in _string_list(values) if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    return "" if value is None else str(value)
 
 
 def _filename_part(value: str) -> str:
