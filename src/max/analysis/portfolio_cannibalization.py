@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import math
 import re
@@ -18,6 +20,19 @@ SCHEMA_VERSION = "max.portfolio_cannibalization.v1"
 KIND = "max.portfolio_cannibalization"
 DEFAULT_LIMIT = 10_000
 DEFAULT_MIN_SCORE = 0.45
+_CSV_COLUMNS = (
+    "left_id",
+    "right_id",
+    "left_source_type",
+    "right_source_type",
+    "score",
+    "severity",
+    "reason_types",
+    "differentiation_actions",
+    "domain_filter",
+    "min_score",
+    "cluster_count",
+)
 
 
 def build_portfolio_cannibalization_report(
@@ -117,10 +132,12 @@ def render_portfolio_cannibalization_report(
     report: Mapping[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a portfolio cannibalization report as Markdown or deterministic JSON."""
+    """Render a portfolio cannibalization report as Markdown, CSV, or deterministic JSON."""
 
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_portfolio_cannibalization_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported portfolio cannibalization format: {fmt}")
     return render_portfolio_cannibalization_markdown(report)
@@ -185,6 +202,68 @@ def render_portfolio_cannibalization_markdown(report: Mapping[str, Any]) -> str:
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_portfolio_cannibalization_csv(report: Mapping[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for finding in sorted(
+        report.get("pair_findings", []),
+        key=lambda item: (-_float(item.get("score")), *_finding_ids(item)),
+    ):
+        writer.writerow(_portfolio_cannibalization_csv_row(report, finding))
+    return output.getvalue()
+
+
+def _portfolio_cannibalization_csv_row(
+    report: Mapping[str, Any],
+    finding: Mapping[str, Any],
+) -> dict[str, Any]:
+    ids = _finding_ids(finding)
+    source_types = _finding_source_types(finding, ids)
+    filters = report.get("filters", {})
+    summary = report.get("summary", {})
+    return {
+        "left_id": ids[0],
+        "right_id": ids[1],
+        "left_source_type": source_types[0],
+        "right_source_type": source_types[1],
+        "score": finding.get("score", 0.0),
+        "severity": finding.get("severity", ""),
+        "reason_types": _csv_join(
+            sorted(
+                reason.get("type", "")
+                for reason in finding.get("reasons", [])
+                if isinstance(reason, Mapping)
+            )
+        ),
+        "differentiation_actions": _csv_join(
+            finding.get("differentiation_actions", []),
+            separator=" | ",
+        ),
+        "domain_filter": _csv_join(filters.get("domain") or []),
+        "min_score": filters.get("min_score", ""),
+        "cluster_count": summary.get("cluster_count", 0),
+    }
+
+
+def _finding_ids(finding: Mapping[str, Any]) -> tuple[str, str]:
+    ids = [_clean(value) for value in list(finding.get("ids", []))[:2]]
+    ids.extend([""] * (2 - len(ids)))
+    return ids[0], ids[1]
+
+
+def _finding_source_types(
+    finding: Mapping[str, Any],
+    ids: tuple[str, str],
+) -> tuple[str, str]:
+    by_id = {
+        _clean(item.get("id")): _clean(item.get("source_type"))
+        for item in finding.get("items", [])
+        if isinstance(item, Mapping)
+    }
+    return by_id.get(ids[0], ""), by_id.get(ids[1], "")
 
 
 def _pair_finding(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
@@ -557,6 +636,18 @@ def _severity(score: float) -> str:
 
 def _inline_list(values: Iterable[Any]) -> str:
     return ", ".join(str(value) for value in values)
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values
+    try:
+        items = list(values)
+    except TypeError:
+        return _clean(values)
+    return separator.join(_clean(item) for item in items if _clean(item))
 
 
 def _unit_readiness_score(unit: Any) -> float:

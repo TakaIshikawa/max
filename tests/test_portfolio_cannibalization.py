@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -306,6 +308,99 @@ def test_render_cannibalization_report_markdown_remains_supported() -> None:
     assert "No item pair crossed the cannibalization threshold." in markdown
 
 
+def test_render_cannibalization_report_csv_sorts_rows_and_escapes_values() -> None:
+    report = _csv_report(
+        pair_findings=[
+            _csv_finding(
+                ids=["bu-low", "dbf-low"],
+                source_types=["buildable_unit", "design_brief"],
+                score=0.55,
+                severity="medium",
+                reasons=["solution", "buyer"],
+                actions=[
+                    "Split capabilities by must-have scope, integration depth, or delivery surface."
+                ],
+            ),
+            _csv_finding(
+                ids=["bu-high", "dbf-high"],
+                source_types=["buildable_unit", "design_brief"],
+                score=0.81,
+                severity="high",
+                reasons=["workflow"],
+                actions=[
+                    "Choose distinct market wedges before writing specs or running pilots.",
+                    "Assign one item to a narrower buyer, budget owner, or adoption trigger.",
+                ],
+            ),
+        ],
+        domain=["devtools", "finops"],
+        min_score=0.5,
+        cluster_count=2,
+    )
+
+    rendered = render_portfolio_cannibalization_report(report, fmt="csv")
+
+    assert rendered.splitlines()[0] == (
+        "left_id,right_id,left_source_type,right_source_type,score,severity,reason_types,"
+        "differentiation_actions,domain_filter,min_score,cluster_count"
+    )
+    assert (
+        '"Choose distinct market wedges before writing specs or running pilots. | '
+        'Assign one item to a narrower buyer, budget owner, or adoption trigger."'
+    ) in rendered
+    rows = list(csv.DictReader(StringIO(rendered)))
+    assert [row["left_id"] for row in rows] == ["bu-high", "bu-low"]
+    assert rows[0] == {
+        "left_id": "bu-high",
+        "right_id": "dbf-high",
+        "left_source_type": "buildable_unit",
+        "right_source_type": "design_brief",
+        "score": "0.81",
+        "severity": "high",
+        "reason_types": "workflow",
+        "differentiation_actions": (
+            "Choose distinct market wedges before writing specs or running pilots. | "
+            "Assign one item to a narrower buyer, budget owner, or adoption trigger."
+        ),
+        "domain_filter": "devtools;finops",
+        "min_score": "0.5",
+        "cluster_count": "2",
+    }
+    assert rows[1]["reason_types"] == "buyer;solution"
+
+
+def test_render_cannibalization_report_csv_orders_score_ties_by_ids() -> None:
+    report = _csv_report(
+        pair_findings=[
+            _csv_finding(ids=["bu-b", "bu-c"], score=0.72),
+            _csv_finding(ids=["bu-a", "bu-c"], score=0.72),
+            _csv_finding(ids=["bu-a", "bu-b"], score=0.72),
+        ],
+    )
+
+    rows = list(
+        csv.DictReader(StringIO(render_portfolio_cannibalization_report(report, fmt="csv")))
+    )
+
+    assert [[row["left_id"], row["right_id"]] for row in rows] == [
+        ["bu-a", "bu-b"],
+        ["bu-a", "bu-c"],
+        ["bu-b", "bu-c"],
+    ]
+
+
+def test_render_cannibalization_report_csv_keeps_header_for_empty_findings() -> None:
+    report = _csv_report(pair_findings=[])
+
+    rendered = render_portfolio_cannibalization_report(report, fmt="csv")
+
+    assert rendered == (
+        "left_id,right_id,left_source_type,right_source_type,score,severity,reason_types,"
+        "differentiation_actions,domain_filter,min_score,cluster_count\n"
+    )
+    assert list(csv.DictReader(StringIO(rendered))) == []
+
+
 def test_render_cannibalization_report_rejects_unsupported_format() -> None:
     report = build_portfolio_cannibalization_from_records(
         buildable_units=[],
@@ -314,6 +409,54 @@ def test_render_cannibalization_report_rejects_unsupported_format() -> None:
 
     with pytest.raises(ValueError, match="Unsupported portfolio cannibalization format: yaml"):
         render_portfolio_cannibalization_report(report, fmt="yaml")
+
+
+def _csv_report(
+    *,
+    pair_findings: list[dict],
+    domain: list[str] | None = None,
+    min_score: float = 0.45,
+    cluster_count: int = 0,
+) -> dict:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.portfolio_cannibalization",
+        "filters": {"domain": domain, "min_score": min_score},
+        "summary": {
+            "total_items": 0,
+            "buildable_unit_count": 0,
+            "design_brief_count": 0,
+            "flagged_pair_count": len(pair_findings),
+            "cluster_count": cluster_count,
+        },
+        "analyzed_idea_ids": [],
+        "pair_findings": pair_findings,
+        "clusters": [],
+        "recommendations": [],
+    }
+
+
+def _csv_finding(
+    *,
+    ids: list[str],
+    score: float,
+    source_types: list[str] | None = None,
+    severity: str = "medium",
+    reasons: list[str] | None = None,
+    actions: list[str] | None = None,
+) -> dict:
+    source_types = source_types or ["", ""]
+    return {
+        "ids": ids,
+        "items": [
+            {"id": item_id, "source_type": source_type}
+            for item_id, source_type in zip(ids, source_types, strict=False)
+        ],
+        "score": score,
+        "severity": severity,
+        "reasons": [{"type": reason} for reason in reasons or []],
+        "differentiation_actions": actions or [],
+    }
 
 
 def _unit(
