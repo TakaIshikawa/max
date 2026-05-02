@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_training_plan import (
+    CSV_COLUMNS,
+    CSV_SECTIONS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_training_plan,
@@ -111,6 +115,81 @@ def test_render_design_brief_training_plan_markdown_and_json(tmp_path) -> None:
     assert "## Next Actions" in markdown
 
 
+def test_render_design_brief_training_plan_csv_headers_and_sections(tmp_path) -> None:
+    store, brief_id = _store_with_sparse_brief(tmp_path)
+    try:
+        report = build_design_brief_training_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rendered = render_design_brief_training_plan(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert rows
+    assert set(rows[0]) == set(CSV_COLUMNS)
+    assert {row["section"] for row in rows} == set(CSV_SECTIONS)
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert {row["design_brief_title"] for row in rows} == {"Sparse Training Brief"}
+
+
+def test_render_design_brief_training_plan_csv_is_deterministic_and_serializes_nested_values(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_training_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    first = render_design_brief_training_plan(report, fmt="csv")
+    second = render_design_brief_training_plan(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(first)))
+
+    assert first == second
+    lo1 = next(
+        row
+        for row in rows
+        if row["section"] == "learning_objectives" and row["item_id"] == "LO1"
+    )
+    assert json.loads(lo1["details"]) == {
+        "source_fields": ["specific_user", "workflow_context"],
+        "source_idea_ids": ["bu-training-lead", "bu-training-support"],
+    }
+    assert lo1["details"] == (
+        '{"source_fields":["specific_user","workflow_context"],'
+        '"source_idea_ids":["bu-training-lead","bu-training-support"]}'
+    )
+    ex3 = next(
+        row
+        for row in rows
+        if row["section"] == "hands_on_exercises" and row["item_id"] == "EX3"
+    )
+    assert json.loads(ex3["details"])["learning_objective_ids"] == ["LO1", "LO2", "LO3", "LO4"]
+
+
+def test_render_design_brief_training_plan_csv_does_not_change_json_or_markdown(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_training_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    before_json = render_design_brief_training_plan(report, fmt="json")
+    before_markdown = render_design_brief_training_plan(report, fmt="markdown")
+
+    render_design_brief_training_plan(report, fmt="csv")
+
+    assert render_design_brief_training_plan(report, fmt="json") == before_json
+    assert json.loads(before_json) == report
+    assert render_design_brief_training_plan(report, fmt="markdown") == before_markdown
+    assert before_markdown.startswith("# Training Plan: Training Plan Brief")
+    assert f"Design brief: `{brief_id}`" in before_markdown
+
+
 def test_training_plan_filename_generation() -> None:
     design_brief = {"id": "dbf-123", "title": "Training Plan: Alpha / Beta"}
 
@@ -121,6 +200,10 @@ def test_training_plan_filename_generation() -> None:
     assert (
         training_plan_filename(design_brief, fmt="json")
         == "dbf-123-Training-Plan-Alpha-Beta-training-plan.json"
+    )
+    assert (
+        training_plan_filename(design_brief, fmt="csv")
+        == "dbf-123-Training-Plan-Alpha-Beta-training-plan.csv"
     )
 
 

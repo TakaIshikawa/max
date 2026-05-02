@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +12,32 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.training_plan"
 SCHEMA_VERSION = "max.design_brief.training_plan.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "audience_or_owner",
+    "title",
+    "objective",
+    "action",
+    "evidence_or_output",
+    "details",
+)
+
+CSV_SECTIONS: tuple[str, ...] = (
+    "learner_segments",
+    "learning_objectives",
+    "session_outline",
+    "prerequisite_setup",
+    "hands_on_exercises",
+    "success_checks",
+    "follow_up_materials",
+    "evidence_references",
+    "gaps_to_resolve",
+    "next_actions",
+)
 
 
 def build_design_brief_training_plan(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -83,9 +111,11 @@ def build_design_brief_training_plan(store: Store, brief_id: str) -> dict[str, A
 
 
 def render_design_brief_training_plan(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render a training plan as JSON or Markdown."""
+    """Render a training plan as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return render_design_brief_training_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported training plan format: {fmt}")
 
@@ -219,12 +249,235 @@ def render_design_brief_training_plan(report: dict[str, Any], fmt: str = "json")
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_training_plan_csv(report: dict[str, Any]) -> str:
+    """Render training plan sections as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def training_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a training plan export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "training-plan"))
     return f"{brief_id}-{title}-training-plan.{extension}"
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for section in CSV_SECTIONS:
+        section_rows = _csv_section_rows(report, section)
+        if section_rows:
+            rows.extend(section_rows)
+        else:
+            rows.append(_csv_row(report, section=section))
+    return rows
+
+
+def _csv_section_rows(report: dict[str, Any], section: str) -> list[dict[str, str]]:
+    if section == "learner_segments":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=segment.get("id"),
+                audience_or_owner=segment.get("type"),
+                title=segment.get("name"),
+                objective=segment.get("training_need"),
+                action=segment.get("delivery_mode"),
+                evidence_or_output=segment.get("expected_outcome"),
+                details=_csv_details(
+                    segment,
+                    exclude={
+                        "id",
+                        "type",
+                        "name",
+                        "training_need",
+                        "delivery_mode",
+                        "expected_outcome",
+                    },
+                ),
+            )
+            for segment in report.get("learner_segments", [])
+        ]
+    if section == "learning_objectives":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=objective.get("id"),
+                objective=objective.get("objective"),
+                evidence_or_output=objective.get("measure"),
+                details=_csv_details(objective, exclude={"id", "objective", "measure"}),
+            )
+            for objective in report.get("learning_objectives", [])
+        ]
+    if section == "session_outline":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=item.get("id"),
+                audience_or_owner=item.get("audience"),
+                title=item.get("title"),
+                objective=item.get("purpose"),
+                action=item.get("duration"),
+                evidence_or_output=item.get("output"),
+                details=_csv_details(
+                    item,
+                    exclude={"id", "audience", "title", "purpose", "duration", "output"},
+                ),
+            )
+            for item in report.get("session_outline", [])
+        ]
+    if section == "prerequisite_setup":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=item.get("id"),
+                audience_or_owner=item.get("owner"),
+                title=item.get("name"),
+                action=item.get("instruction"),
+                evidence_or_output=item.get("ready_when"),
+                details=_csv_details(
+                    item,
+                    exclude={"id", "owner", "name", "instruction", "ready_when"},
+                ),
+            )
+            for item in report.get("prerequisite_setup", [])
+        ]
+    if section == "hands_on_exercises":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=exercise.get("id"),
+                audience_or_owner=exercise.get("learner_segment_id"),
+                title=exercise.get("title"),
+                objective=exercise.get("scenario"),
+                action=exercise.get("task"),
+                evidence_or_output=exercise.get("debrief_prompt"),
+                details=_csv_details(
+                    exercise,
+                    exclude={
+                        "id",
+                        "learner_segment_id",
+                        "title",
+                        "scenario",
+                        "task",
+                        "debrief_prompt",
+                    },
+                ),
+            )
+            for exercise in report.get("hands_on_exercises", [])
+        ]
+    if section == "success_checks":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=check.get("id"),
+                objective=check.get("check"),
+                evidence_or_output=check.get("passing_signal"),
+                details=_csv_details(check, exclude={"id", "check", "passing_signal"}),
+            )
+            for check in report.get("success_checks", [])
+        ]
+    if section == "follow_up_materials":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=material.get("id"),
+                audience_or_owner=_csv_join([material.get("audience"), material.get("owner")]),
+                title=material.get("name"),
+                objective=material.get("purpose"),
+                details=_csv_details(
+                    material,
+                    exclude={"id", "audience", "owner", "name", "purpose"},
+                ),
+            )
+            for material in report.get("follow_up_materials", [])
+        ]
+    if section == "evidence_references":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=reference.get("id"),
+                title=reference.get("type"),
+                objective=reference.get("summary"),
+                details=_csv_details(reference, exclude={"id", "type", "summary"}),
+            )
+            for reference in report.get("evidence_references", [])
+        ]
+    if section == "gaps_to_resolve":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=gap.get("id"),
+                audience_or_owner=_owner_for_gap(str(gap.get("field") or "")),
+                title=gap.get("field"),
+                objective=gap.get("gap"),
+                action=gap.get("next_action"),
+                evidence_or_output=gap.get("impact"),
+                details=_csv_details(gap, exclude={"id", "field", "gap", "next_action", "impact"}),
+            )
+            for gap in report.get("gaps_to_resolve", [])
+        ]
+    if section == "next_actions":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=action.get("id"),
+                audience_or_owner=action.get("owner"),
+                action=action.get("action"),
+                details=_csv_details(action, exclude={"id", "owner", "action"}),
+            )
+            for action in report.get("next_actions", [])
+        ]
+    return []
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        **values,
+    }
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_details(item: dict[str, Any], *, exclude: set[str]) -> dict[str, Any]:
+    return {
+        key: item[key]
+        for key in sorted(item)
+        if key not in exclude and item.get(key) not in (None, "", [])
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        if not value:
+            return ""
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    if isinstance(value, list):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value)
+
+
+def _csv_join(values: list[Any]) -> str:
+    return "; ".join(text for value in values if (text := _csv_cell(value)))
 
 
 def _training_context(
