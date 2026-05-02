@@ -18,10 +18,12 @@ CSV_COLUMNS: tuple[str, ...] = (
     "phase",
     "phase_id",
     "activity",
-    "responsible",
     "accountable",
+    "responsible",
     "consulted",
     "informed",
+    "evidence",
+    "notes",
     "ownership_status",
     "gap_ids",
     "source_fields",
@@ -145,7 +147,7 @@ def render_design_brief_raci_matrix(matrix: dict[str, Any], fmt: str = "markdown
     if fmt == "json":
         return json.dumps(matrix, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_csv(matrix)
+        return render_raci_matrix_csv(matrix)
     if fmt != "markdown":
         raise ValueError(f"Unsupported RACI matrix format: {fmt}")
 
@@ -204,7 +206,8 @@ def raci_matrix_filename(design_brief: dict[str, Any], *, fmt: str = "markdown")
     )
 
 
-def _render_csv(matrix: dict[str, Any]) -> str:
+def render_raci_matrix_csv(matrix: dict[str, Any]) -> str:
+    """Render one CSV row per RACI matrix activity or decision."""
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
@@ -227,17 +230,27 @@ def _csv_row(activity: dict[str, Any], *, phase: str) -> dict[str, str]:
         "phase": phase,
         "phase_id": activity.get("phase_id"),
         "activity": activity.get("activity"),
-        "responsible": activity.get("responsible_role"),
         "accountable": activity.get("accountable_role"),
-        "consulted": activity.get("consulted_roles"),
-        "informed": activity.get("informed_roles"),
+        "responsible": activity.get("responsible_role"),
+        "consulted": activity.get("consulted_roles") or [],
+        "informed": activity.get("informed_roles") or [],
+        "evidence": activity.get("source_summary"),
+        "notes": _activity_notes(activity),
         "ownership_status": activity.get("ownership_status"),
-        "gap_ids": activity.get("gap_ids"),
-        "source_fields": activity.get("source_fields"),
-        "source_idea_ids": activity.get("source_idea_ids"),
+        "gap_ids": activity.get("gap_ids") or [],
+        "source_fields": activity.get("source_fields") or [],
+        "source_idea_ids": activity.get("source_idea_ids") or [],
         "source_summary": activity.get("source_summary"),
     }
     return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _activity_notes(activity: dict[str, Any]) -> str:
+    status = _compact(activity.get("ownership_status"))
+    gap_ids = _string_list(activity.get("gap_ids"))
+    if status == "gap" and gap_ids:
+        return f"Ownership gap: {', '.join(gap_ids)}"
+    return status
 
 
 def _raci_context(
