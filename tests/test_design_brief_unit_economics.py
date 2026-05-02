@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_unit_economics import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_unit_economics,
     render_design_brief_unit_economics,
@@ -124,6 +127,42 @@ def test_render_design_brief_unit_economics_json_markdown_and_invalid_format(tmp
     assert "## Validation Questions" in markdown
     assert "bu-unit-econ-lead" in markdown
 
+    csv_text = render_design_brief_unit_economics(report, fmt="csv")
+    repeated_csv = render_design_brief_unit_economics(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    rows_by_id = {row["row_id"]: row for row in rows}
+
+    assert csv_text == repeated_csv
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert {row["section"] for row in rows} == {
+        "acquisition_costs",
+        "revenue_assumptions",
+        "margin_drivers",
+        "payback_notes",
+        "sensitivity_rows",
+    }
+    assert rows_by_id["revenue_target_monthly_price_band_usd"]["low_usd"] == str(
+        report["revenue_model"]["target_monthly_price_band_usd"]["low"]
+    )
+    assert rows_by_id["revenue_target_monthly_price_band_usd"]["high_usd"] == str(
+        report["revenue_model"]["target_monthly_price_band_usd"]["high"]
+    )
+    assert rows_by_id["assumption_margin"]["label"] == "Gross margin target"
+    assert rows_by_id["assumption_margin"]["basis"]
+    assert (
+        rows_by_id["channel_design_partner_outreach"]["note"]
+        == report["acquisition_channels"][0]["rationale"]
+    )
+    assert rows_by_id["payback_expected_months"]["months"] == str(
+        report["payback_bands"]["expected_months"]
+    )
+    assert rows_by_id["sensitivity_conservative"]["note"] == report["sensitivity_cases"][0][
+        "assumption_shift"
+    ]
+    assert rows_by_id["revenue_source_idea_ids"]["source_idea_ids"] == (
+        "bu-unit-econ-lead;bu-unit-econ-support"
+    )
+
     with pytest.raises(ValueError, match="Unsupported unit economics format: yaml"):
         render_design_brief_unit_economics(report, fmt="yaml")
 
@@ -138,6 +177,10 @@ def test_unit_economics_filename_sanitizes_brief_id_and_title() -> None:
     assert (
         unit_economics_filename(brief, fmt="json")
         == "dbf-unit-econ-001-Unit-Economics-API-Brief-unit-economics.json"
+    )
+    assert (
+        unit_economics_filename(brief, fmt="csv")
+        == "dbf-unit-econ-001-Unit-Economics-API-Brief-unit-economics.csv"
     )
 
 

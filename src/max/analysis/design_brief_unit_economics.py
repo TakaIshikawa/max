@@ -2,13 +2,37 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.unit_economics.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "row_id",
+    "label",
+    "metric",
+    "value",
+    "low_usd",
+    "high_usd",
+    "months",
+    "gross_margin_band",
+    "direction",
+    "motion",
+    "severity",
+    "basis",
+    "note",
+    "source_idea_ids",
+)
 
 
 def build_design_brief_unit_economics(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -112,9 +136,11 @@ def build_design_brief_unit_economics(store: Store, brief_id: str) -> dict[str, 
 
 
 def render_design_brief_unit_economics(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render unit economics as deterministic JSON or Markdown."""
+    """Render unit economics as deterministic JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported unit economics format: {fmt}")
 
@@ -202,11 +228,210 @@ def render_design_brief_unit_economics(report: dict[str, Any], fmt: str = "json"
 
 
 def unit_economics_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief["id"]))
     title = _filename_part(str(design_brief.get("title") or ""))
     title_part = f"-{title}" if title else ""
     return f"{brief_id}{title_part}-unit-economics.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    revenue = report["revenue_model"]
+    price_band = revenue["target_monthly_price_band_usd"]
+    payback = report["payback_bands"]
+    rows = [
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_packaging",
+            label="Packaging",
+            value=revenue["packaging"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_pricing_basis",
+            label="Pricing basis",
+            value=revenue["pricing_basis"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_buyer_budget_owner",
+            label="Buyer budget owner",
+            value=revenue["buyer_budget_owner"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_initial_customer_segment",
+            label="Initial customer segment",
+            value=revenue["initial_customer_segment"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_target_monthly_price_band_usd",
+            label="Target monthly price band",
+            metric="monthly_price_usd",
+            low_usd=price_band["low"],
+            high_usd=price_band["high"],
+            value=f"${price_band['low']:,}-${price_band['high']:,}",
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_expected_conversion_rate_band",
+            label="Expected conversion rate band",
+            metric="conversion_rate",
+            value=revenue["expected_conversion_rate_band"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_expansion_trigger",
+            label="Expansion trigger",
+            value=revenue["expansion_trigger"],
+        ),
+        _csv_row(
+            report,
+            section="revenue_assumptions",
+            row_id="revenue_source_idea_ids",
+            label="Source ideas",
+            value=_csv_list(revenue["source_idea_ids"]),
+            source_idea_ids=_csv_list(revenue["source_idea_ids"]),
+        ),
+    ]
+
+    for assumption in report["assumptions"]:
+        rows.append(
+            _csv_row(
+                report,
+                section="revenue_assumptions",
+                row_id=assumption["id"],
+                label=assumption["label"],
+                value=assumption["value"],
+                basis=assumption["basis"],
+            )
+        )
+
+    for channel in report["acquisition_channels"]:
+        rows.append(
+            _csv_row(
+                report,
+                section="acquisition_costs",
+                row_id=channel["id"],
+                label=channel["channel"],
+                motion=channel["motion"],
+                note=channel["rationale"],
+                basis=_csv_list(channel.get("source_fields", [])),
+            )
+        )
+
+    for driver in report["cost_drivers"]:
+        rows.append(
+            _csv_row(
+                report,
+                section="margin_drivers",
+                row_id=driver["id"],
+                label=driver["name"],
+                direction=driver["direction"],
+                note=driver["rationale"],
+            )
+        )
+
+    for risk_note in report["gross_margin_risk_notes"]:
+        rows.append(
+            _csv_row(
+                report,
+                section="margin_drivers",
+                row_id=risk_note["id"],
+                label="Gross margin risk",
+                severity=risk_note["severity"],
+                note=risk_note["note"],
+                metric=risk_note["watch_metric"],
+            )
+        )
+
+    rows.extend(
+        [
+            _csv_row(
+                report,
+                section="payback_notes",
+                row_id="payback_optimistic_months",
+                label="Optimistic payback",
+                metric="payback_months",
+                months=payback["optimistic_months"],
+                gross_margin_band=payback["gross_margin_band"],
+            ),
+            _csv_row(
+                report,
+                section="payback_notes",
+                row_id="payback_expected_months",
+                label="Expected payback",
+                metric="payback_months",
+                months=payback["expected_months"],
+                gross_margin_band=payback["gross_margin_band"],
+                basis=payback["basis"],
+            ),
+            _csv_row(
+                report,
+                section="payback_notes",
+                row_id="payback_conservative_months",
+                label="Conservative payback",
+                metric="payback_months",
+                months=payback["conservative_months"],
+                gross_margin_band=payback["gross_margin_band"],
+            ),
+            _csv_row(
+                report,
+                section="payback_notes",
+                row_id="payback_basis",
+                label="Payback basis",
+                value=payback["basis"],
+            ),
+        ]
+    )
+
+    for case in report["sensitivity_cases"]:
+        rows.append(
+            _csv_row(
+                report,
+                section="sensitivity_rows",
+                row_id=f"sensitivity_{case['case']}",
+                label=case["case"],
+                metric="payback_months",
+                months=case["payback_months"],
+                gross_margin_band=case["gross_margin_band"],
+                note=case["assumption_shift"],
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, Any]:
+    brief = report["design_brief"]
+    row = {column: "" for column in CSV_COLUMNS}
+    row.update(
+        {
+            "schema_version": report["schema_version"],
+            "kind": report["kind"],
+            "design_brief_id": brief["id"],
+            "design_brief_title": brief["title"],
+        }
+    )
+    row.update(values)
+    return row
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
@@ -685,6 +910,10 @@ def _string_list(value: Any) -> list[str]:
     if isinstance(value, (list, tuple, set)):
         return [str(item) for item in value if str(item).strip()]
     return []
+
+
+def _csv_list(values: Any) -> str:
+    return ";".join(_string_list(values))
 
 
 def _filename_part(value: str) -> str:
