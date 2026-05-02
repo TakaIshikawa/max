@@ -19,6 +19,7 @@ from max.analysis.design_brief_competitive_alternatives import (
     build_design_brief_competitive_alternatives,
     competitive_alternatives_filename,
     render_design_brief_competitive_alternatives,
+    render_design_brief_competitive_alternatives_csv,
     render_design_brief_competitive_alternatives_markdown,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -202,10 +203,12 @@ def test_render_competitive_alternatives_csv_headers_order_and_escaping(tmp_path
 
     csv_text = render_design_brief_competitive_alternatives(report, fmt="csv")
     repeated = render_design_brief_competitive_alternatives(report, fmt="csv")
+    direct_csv = render_design_brief_competitive_alternatives_csv(report)
     reader = csv.DictReader(StringIO(csv_text))
     rows = list(reader)
 
     assert csv_text == repeated
+    assert csv_text == direct_csv
     assert reader.fieldnames == list(CSV_COLUMNS)
     assert len(rows) == len(report["matrix_rows"])
     assert [row["competitor_alternative_name"] for row in rows[:3]] == [
@@ -225,6 +228,51 @@ def test_render_competitive_alternatives_csv_headers_order_and_escaping(tmp_path
     assert '"RenewalAI, ""Watchtower""\nEnterprise"' in csv_text
     assert '"Lead with buyer proof, ""workflow"" fit,\nand governance readiness."' in csv_text
     assert '"pa-1, ""bu-renewal-lead"""' in csv_text
+
+
+def test_render_competitive_alternatives_csv_missing_optional_values(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_alternatives(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["summary"]["target_user"] = None
+    report["matrix_rows"] = [
+        {
+            "alternative": "Spreadsheet status quo",
+            "substitution_risk": None,
+            "switching_friction": None,
+            "differentiation_response": None,
+            "evidence": None,
+        }
+    ]
+
+    rows = list(
+        csv.DictReader(
+            StringIO(render_design_brief_competitive_alternatives(report, fmt="csv"))
+        )
+    )
+
+    assert rows == [
+        {
+            "competitor_alternative_name": "Spreadsheet status quo",
+            "target_segment": "",
+            "differentiators": "",
+            "weaknesses": "",
+            "switching_triggers": (
+                "Reduce renewal surprise by comparing alternatives and proof gaps before handoff.; "
+                "manual spreadsheets and Slack deal reviews; "
+                "Users must move renewal risk review from the current workaround.; "
+                "VP of Revenue Operations must believe the focused alternative is worth a new adoption path.; "
+                "Security, compliance, procurement, or legal terms appear in the persisted inputs."
+            ),
+            "evidence_references": "",
+            "recommended_positioning": "",
+        }
+    ]
 
 
 def test_render_competitive_alternatives_csv_empty_matrix_exports_header_only(tmp_path) -> None:
