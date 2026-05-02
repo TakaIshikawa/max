@@ -614,6 +614,26 @@ class ReleaseReadinessGateRequest(BaseModel):
         return data
 
 
+class SmokeTestPlanRequest(BaseModel):
+    tact_spec: dict[str, Any] | None = Field(default=None, min_length=1)
+    idea: IdeaCreate | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_wrapped_tact_spec_or_direct_payload(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "tact_spec" in data or "idea" in data:
+            return data
+        if "schema_version" in data or data.get("kind") == "tact.project_spec":
+            return {"tact_spec": data}
+        return {"idea": data}
+
+    @model_validator(mode="after")
+    def require_tact_spec_or_idea(self) -> "SmokeTestPlanRequest":
+        if self.tact_spec is None and self.idea is None:
+            raise ValueError("Provide tact_spec or idea")
+        return self
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -1812,6 +1832,21 @@ class ReleaseReadinessGateResponse(BaseModel):
     warnings: list[ReleaseReadinessGateWarningResponse]
     recommended_next_actions: list[ReleaseReadinessGateNextActionResponse]
     required_signoffs: list[dict[str, Any]]
+
+
+class SmokeTestPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    user_journey_checks: list[dict[str, Any]]
+    deployment_verification_checks: list[dict[str, Any]]
+    integration_checks: list[dict[str, Any]]
+    data_integrity_checks: list[dict[str, Any]]
+    observability_checks: list[dict[str, Any]]
+    rollback_verification_checks: list[dict[str, Any]]
+    owners: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
 
 
 class SpecBundleArtifactsResponse(BaseModel):

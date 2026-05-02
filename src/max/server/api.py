@@ -609,6 +609,8 @@ from max.server.schemas import (
     SpecBundleBatchRequest,
     SpecBundleBatchResponse,
     SpecBundleResponse,
+    SmokeTestPlanRequest,
+    SmokeTestPlanResponse,
     SignalResponse,
     SimilarityRequest,
     SimilarityResult,
@@ -642,6 +644,7 @@ from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import generate_release_readiness_gate
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import generate_security_review, render_security_review_markdown
+from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
@@ -5884,6 +5887,40 @@ def _threat_model_markdown_response(idea_id: str, threat_model: dict[str, Any]) 
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/spec/smoke-test-plan", response_model=SmokeTestPlanResponse)
+@router.post("/ideas/spec-smoke-test-plan", response_model=SmokeTestPlanResponse)
+def generate_spec_smoke_test_plan(body: SmokeTestPlanRequest) -> SmokeTestPlanResponse:
+    tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
+    return SmokeTestPlanResponse.model_validate(generate_smoke_test_plan(tact_spec))
+
+
+def _tact_spec_from_idea(idea: IdeaCreate | None) -> dict[str, Any]:
+    if idea is None:
+        raise HTTPException(status_code=422, detail="Provide tact_spec or idea")
+    unit = BuildableUnit(
+        title=idea.title,
+        one_liner=idea.one_liner,
+        category=idea.category,
+        problem=idea.problem,
+        solution=idea.solution,
+        target_users=idea.target_users,
+        value_proposition=idea.value_proposition,
+        specific_user=idea.specific_user,
+        buyer=idea.buyer,
+        workflow_context=idea.workflow_context,
+        current_workaround=idea.current_workaround,
+        why_now=idea.why_now,
+        validation_plan=idea.validation_plan,
+        first_10_customers=idea.first_10_customers,
+        domain_risks=idea.domain_risks,
+        evidence_rationale=idea.evidence_rationale,
+        tech_approach=idea.tech_approach,
+        suggested_stack=idea.suggested_stack,
+        composability_notes=idea.composability_notes,
+    )
+    return generate_spec_preview(unit)
 
 
 @router.post("/spec/release-readiness-gate", response_model=ReleaseReadinessGateResponse)
