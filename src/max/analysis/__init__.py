@@ -126,6 +126,7 @@ from max.analysis.design_brief_competitive_alternatives import (
     build_design_brief_competitive_alternatives,
     competitive_alternatives_filename,
     render_design_brief_competitive_alternatives,
+    render_design_brief_competitive_alternatives_markdown,
 )
 from max.analysis.design_brief_renewal_expansion_plan import (
     build_design_brief_renewal_expansion_plan,
@@ -207,6 +208,7 @@ __all__ = [
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
     "render_design_brief_competitive_alternatives",
+    "render_design_brief_competitive_alternatives_markdown",
     "render_design_brief_conversion_risk",
     "render_portfolio_cannibalization_markdown",
     "render_portfolio_cannibalization_report",
