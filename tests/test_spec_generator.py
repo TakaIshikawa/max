@@ -28,6 +28,14 @@ def test_generate_spec_preview_maps_buildable_unit(sample_unit, sample_evaluatio
         "confidence": 0.7,
         "reasoning": "test",
     }
+    assert (
+        spec["artifacts"]["stakeholder_handoff"]["schema_version"]
+        == "max-stakeholder-handoff/v1"
+    )
+    assert spec["artifacts"]["stakeholder_handoff"]["idea_id"] == "bu-test001"
+    assert spec["artifacts"]["stakeholder_handoff"]["source"]["tact_spec_schema_version"] == (
+        SPEC_PREVIEW_SCHEMA_VERSION
+    )
 
 
 def test_generate_spec_preview_is_json_serializable(sample_unit, sample_evaluation):
@@ -40,3 +48,4 @@ def test_generate_spec_preview_allows_missing_evaluation(sample_unit):
     spec = generate_spec_preview(sample_unit)
 
     assert spec["evaluation"] is None
+    assert spec["artifacts"]["stakeholder_handoff"]["source"]["evaluation_available"] is False
