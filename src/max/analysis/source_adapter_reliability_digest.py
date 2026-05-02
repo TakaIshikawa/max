@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from collections.abc import Mapping
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -20,6 +22,19 @@ _BAND_ORDER = {
     "watch": 2,
     "healthy": 3,
 }
+_CSV_COLUMNS = [
+    "adapter",
+    "reliability_band",
+    "reliability_score",
+    "run_count",
+    "success_count",
+    "failure_count",
+    "average_fetched_signals",
+    "average_duration_ms",
+    "combined_hit_rate",
+    "latest_status",
+    "last_error",
+]
 
 
 def build_source_adapter_reliability_digest(
@@ -78,9 +93,11 @@ def render_source_adapter_reliability_digest(
     report: dict[str, Any],
     fmt: str = "json",
 ) -> str:
-    """Render a source adapter reliability digest as deterministic JSON or Markdown."""
+    """Render a source adapter reliability digest as deterministic JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported source adapter reliability digest format: {fmt}")
 
@@ -121,6 +138,29 @@ def render_source_adapter_reliability_digest(
     lines.extend(["", "## Follow-Up Actions", ""])
     lines.extend(f"- {action}" for action in report["next_actions"])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in report["adapters"]:
+        writer.writerow(
+            {
+                "adapter": row["adapter"],
+                "reliability_band": row["reliability_band"],
+                "reliability_score": row["reliability_score"],
+                "run_count": row["run_count"],
+                "success_count": row["success_count"],
+                "failure_count": row["failure_count"],
+                "average_fetched_signals": row["average_fetched_signals"],
+                "average_duration_ms": row["average_duration_ms"],
+                "combined_hit_rate": row["utilization"]["combined_hit_rate"],
+                "latest_status": row["latest_status"],
+                "last_error": row["last_error"] or "",
+            }
+        )
+    return output.getvalue()
 
 
 def _adapter_rollups(runs: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

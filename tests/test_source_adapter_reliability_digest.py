@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -103,6 +105,58 @@ def test_render_source_adapter_reliability_digest_json_markdown_and_invalid_form
 
     with pytest.raises(ValueError, match="Unsupported source adapter reliability digest format: yaml"):
         render_source_adapter_reliability_digest(report, fmt="yaml")
+
+
+def test_render_source_adapter_reliability_digest_csv_headers_and_ordering(
+    store: Store,
+) -> None:
+    _seed_runs(store)
+    _seed_signals_and_utilization(store)
+    report = build_source_adapter_reliability_digest(store, limit=10, min_runs=1)
+
+    rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
+
+    assert rendered_csv.splitlines()[0] == (
+        "adapter,reliability_band,reliability_score,run_count,success_count,"
+        "failure_count,average_fetched_signals,average_duration_ms,combined_hit_rate,"
+        "latest_status,last_error"
+    )
+    rows = list(csv.DictReader(StringIO(rendered_csv)))
+    assert [row["adapter"] for row in rows] == [
+        "broken_adapter",
+        "low_yield_adapter",
+        "healthy_adapter",
+    ]
+    assert rows[0] == {
+        "adapter": "broken_adapter",
+        "reliability_band": "failing",
+        "reliability_score": "0.0",
+        "run_count": "3",
+        "success_count": "0",
+        "failure_count": "3",
+        "average_fetched_signals": "0.0",
+        "average_duration_ms": "500.0",
+        "combined_hit_rate": "0.0",
+        "latest_status": "error",
+        "last_error": "HTTP 500",
+    }
+
+
+def test_render_source_adapter_reliability_digest_csv_escapes_values(
+    store: Store,
+) -> None:
+    _seed_runs(store)
+    report = build_source_adapter_reliability_digest(store, limit=10, min_runs=1)
+    report["adapters"][0]["adapter"] = 'broken, "quoted" adapter'
+    report["adapters"][0]["last_error"] = 'HTTP 500, "retry later"'
+
+    rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
+
+    assert '"broken, ""quoted"" adapter"' in rendered_csv
+    assert '"HTTP 500, ""retry later"""' in rendered_csv
+    rows = list(csv.DictReader(StringIO(rendered_csv)))
+    assert rows[0]["adapter"] == 'broken, "quoted" adapter'
+    assert rows[0]["last_error"] == 'HTTP 500, "retry later"'
 
 
 def test_source_adapter_reliability_digest_validates_arguments(store: Store) -> None:
