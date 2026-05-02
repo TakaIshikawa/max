@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 from fastapi.testclient import TestClient
 
 from max.analysis.design_brief_risk_register import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_risk_register,
     render_design_brief_risk_register,
@@ -188,6 +191,109 @@ def test_render_design_brief_risk_register_markdown_unchanged(tmp_path) -> None:
     assert "Risks: 5" in markdown
     assert "## 1. Privacy review is required for customer workflow data" in markdown
     assert "Validation action:" in markdown
+
+
+def test_render_design_brief_risk_register_csv_exports_populated_rows(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        register = build_design_brief_risk_register(store, brief_id)
+    finally:
+        store.close()
+
+    assert register is not None
+    rendered = render_design_brief_risk_register(register, "csv")
+    repeated = render_design_brief_risk_register(register, "csv")
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert rendered == repeated
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == register["summary"]["risk_count"]
+
+    adapter_risk = next(row for row in rows if row["description"] == "Framework adapters may change quickly")
+    assert adapter_risk["risk_id"] == "dbrr-003-dependency-framework-adapters-may-change-quickl"
+    assert adapter_risk["category"] == "dependency"
+    assert adapter_risk["likelihood"] == "possible"
+    assert adapter_risk["severity"] == "high"
+    assert adapter_risk["score"] == "3"
+    assert adapter_risk["mitigation"]
+    assert adapter_risk["next_action"]
+    assert json.loads(adapter_risk["source_idea_ids"]) == ["bu-risk-lead", "bu-risk-support"]
+    assert json.loads(adapter_risk["source_fields"]) == ["domain_risks"]
+    assert json.loads(adapter_risk["evidence"]) == {
+        "source_fields": ["domain_risks"],
+        "source_idea_ids": ["bu-risk-lead", "bu-risk-support"],
+    }
+
+
+def test_render_design_brief_risk_register_csv_handles_sparse_and_empty_reports() -> None:
+    sparse_register = {
+        "risks": [
+            {
+                "risk_id": "risk-sparse",
+                "category": "technical",
+                "description": "Sparse risk",
+                "likelihood": "unlikely",
+                "source_idea_ids": [],
+            }
+        ]
+    }
+
+    rows = list(csv.DictReader(StringIO(render_design_brief_risk_register(sparse_register, "csv"))))
+    assert rows == [
+        {
+            "risk_id": "risk-sparse",
+            "category": "technical",
+            "title": "",
+            "description": "Sparse risk",
+            "likelihood": "unlikely",
+            "impact": "",
+            "severity": "",
+            "score": "",
+            "mitigation": "",
+            "owner": "",
+            "trigger": "",
+            "status": "",
+            "evidence": '{"source_fields": [], "source_idea_ids": []}',
+            "next_action": "",
+            "source_idea_ids": "[]",
+            "source_fields": "",
+        }
+    ]
+
+    header_only = render_design_brief_risk_register({"risks": []}, "csv")
+    assert header_only == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(StringIO(header_only))) == []
+
+
+def test_render_design_brief_risk_register_csv_escapes_special_characters() -> None:
+    register = {
+        "risks": [
+            {
+                "id": "risk,quoted",
+                "category": "market",
+                "title": 'Quoted "risk"',
+                "description": 'Line one\nLine two, with "quotes"',
+                "likelihood": "likely",
+                "severity": "high",
+                "score": 9,
+                "mitigation": 'Ask buyers, then document "go/no-go".',
+                "owner": "PM, Risk",
+                "trigger": "Quote appears",
+                "status": "open",
+                "evidence": {"quote": 'Buyer said "maybe, later"'},
+                "next_action": "Run interview\nRecord notes",
+            }
+        ]
+    }
+
+    rendered = render_design_brief_risk_register(register, "csv")
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert '"risk,quoted"' in rendered
+    assert '"Line one\nLine two, with ""quotes"""' in rendered
+    assert rows[0]["description"] == 'Line one\nLine two, with "quotes"'
+    assert json.loads(rows[0]["evidence"]) == {"quote": 'Buyer said "maybe, later"'}
 
 
 def test_render_design_brief_risk_register_unsupported_format_raises(tmp_path) -> None:
