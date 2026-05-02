@@ -35,6 +35,13 @@ from max.publisher.github_releases import (
     GitHubReleasePublishResult,
     GitHubReleasesPublisher,
 )
+from max.publisher.github_workflow_dispatch import (
+    GitHubWorkflowDispatchPayload,
+    GitHubWorkflowDispatchPublisher,
+    GitHubWorkflowDispatchPublishError,
+    GitHubWorkflowDispatchPublishResult,
+    GitHubWorkflowDispatchesPublisher,
+)
 from max.publisher.airtable_records import (
     AirtableRecordPayload,
     AirtableRecordPublisher,
@@ -371,6 +378,11 @@ __all__ = [
     "GitHubReleasePublishError",
     "GitHubReleasePublishResult",
     "GitHubReleasesPublisher",
+    "GitHubWorkflowDispatchPayload",
+    "GitHubWorkflowDispatchPublisher",
+    "GitHubWorkflowDispatchPublishError",
+    "GitHubWorkflowDispatchPublishResult",
+    "GitHubWorkflowDispatchesPublisher",
     "AirtableRecordPayload",
     "AirtableRecordPublisher",
     "AirtableRecordPublishError",
