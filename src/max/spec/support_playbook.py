@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,20 @@ from max.types.evaluation import UtilityEvaluation
 
 
 SUPPORT_PLAYBOOK_SCHEMA_VERSION = "max-support-playbook/v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "idea_id",
+    "section",
+    "item_id",
+    "title_or_question",
+    "trigger",
+    "action",
+    "owner_or_path",
+    "expected_outcome",
+    "related_evidence",
+    "evaluation_available",
+    "tact_spec_available",
+    "tact_spec_schema_version",
+)
 
 _DIMENSION_NAMES = (
     "pain_severity",
@@ -84,17 +100,30 @@ def render_support_playbook_markdown(playbook: dict[str, Any]) -> str:
         "",
     ]
 
-    _extend_section(lines, "Likely Support Scenarios", playbook.get("support_scenarios") or [], _render_scenario)
-    _extend_section(lines, "Triage Questions", playbook.get("triage_questions") or [], _render_question)
-    _extend_section(lines, "Escalation Paths", playbook.get("escalation_paths") or [], _render_escalation)
-    _extend_section(lines, "Known Limitations", playbook.get("known_limitations") or [], _render_limitation)
+    _extend_section(
+        lines, "Likely Support Scenarios", playbook.get("support_scenarios") or [], _render_scenario
+    )
+    _extend_section(
+        lines, "Triage Questions", playbook.get("triage_questions") or [], _render_question
+    )
+    _extend_section(
+        lines, "Escalation Paths", playbook.get("escalation_paths") or [], _render_escalation
+    )
+    _extend_section(
+        lines, "Known Limitations", playbook.get("known_limitations") or [], _render_limitation
+    )
     _extend_section(
         lines,
         "Troubleshooting Checklist",
         playbook.get("troubleshooting_checklist") or [],
         _render_checklist_item,
     )
-    _extend_section(lines, "Evidence-Linked Risk Notes", playbook.get("evidence_risk_notes") or [], _render_risk_note)
+    _extend_section(
+        lines,
+        "Evidence-Linked Risk Notes",
+        playbook.get("evidence_risk_notes") or [],
+        _render_risk_note,
+    )
 
     lines.extend(
         [
@@ -109,16 +138,38 @@ def render_support_playbook_markdown(playbook: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_support_playbook_csv(playbook: dict[str, Any]) -> str:
+    """Render a generated support playbook as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(playbook):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def _idea_summary(
     unit: BuildableUnit,
     evaluation: UtilityEvaluation | None,
     project: dict[str, Any],
     execution: dict[str, Any],
 ) -> dict[str, Any]:
-    target_user = _compact(project.get("specific_user") or unit.specific_user or project.get("target_users") or unit.target_users)
+    target_user = _compact(
+        project.get("specific_user")
+        or unit.specific_user
+        or project.get("target_users")
+        or unit.target_users
+    )
     buyer = _compact(project.get("buyer") or unit.buyer) or "support sponsor"
-    workflow = _compact(project.get("workflow_context") or unit.workflow_context) or f"{unit.title} workflow"
-    scope = _first_string(execution.get("mvp_scope")) or unit.solution or f"first usable {unit.title} workflow"
+    workflow = (
+        _compact(project.get("workflow_context") or unit.workflow_context)
+        or f"{unit.title} workflow"
+    )
+    scope = (
+        _first_string(execution.get("mvp_scope"))
+        or unit.solution
+        or f"first usable {unit.title} workflow"
+    )
 
     return {
         "title": _compact(project.get("title")) or unit.title,
@@ -128,7 +179,9 @@ def _idea_summary(
         "workflow_context": workflow,
         "primary_scope": scope,
         "current_workaround": unit.current_workaround or "current manual process",
-        "validation_plan": _compact(execution.get("validation_plan")) or unit.validation_plan or f"Validate {workflow}.",
+        "validation_plan": _compact(execution.get("validation_plan"))
+        or unit.validation_plan
+        or f"Validate {workflow}.",
         "recommendation": evaluation.recommendation if evaluation else None,
         "overall_score": evaluation.overall_score if evaluation else None,
         "support_goal": f"Help {_compact(target_user) or 'primary users'} complete {workflow}.",
@@ -139,7 +192,9 @@ def _support_scenarios(
     idea: dict[str, Any],
     risks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    primary_risk = risks[0]["note"] if risks else "Support receives a request not covered by launch notes."
+    primary_risk = (
+        risks[0]["note"] if risks else "Support receives a request not covered by launch notes."
+    )
     return [
         _scenario(
             "SC1",
@@ -185,10 +240,34 @@ def _triage_questions(
     risks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     questions = [
-        _question("TQ1", "Who is affected?", f"Is the requester the expected {idea['target_user']} or another role?", "support_owner", ["idea.target_user"]),
-        _question("TQ2", "Where did it fail?", f"Which step of {idea['workflow_context']} failed, and what input was used?", "support_owner", ["idea.workflow_context"]),
-        _question("TQ3", "What changed?", "Did this begin after a release, configuration change, integration outage, or new customer data?", "technical_owner", ["release_notes", "configuration"]),
-        _question("TQ4", "Can the validation path reproduce it?", idea["validation_plan"], "qa_owner", ["idea.validation_plan"]),
+        _question(
+            "TQ1",
+            "Who is affected?",
+            f"Is the requester the expected {idea['target_user']} or another role?",
+            "support_owner",
+            ["idea.target_user"],
+        ),
+        _question(
+            "TQ2",
+            "Where did it fail?",
+            f"Which step of {idea['workflow_context']} failed, and what input was used?",
+            "support_owner",
+            ["idea.workflow_context"],
+        ),
+        _question(
+            "TQ3",
+            "What changed?",
+            "Did this begin after a release, configuration change, integration outage, or new customer data?",
+            "technical_owner",
+            ["release_notes", "configuration"],
+        ),
+        _question(
+            "TQ4",
+            "Can the validation path reproduce it?",
+            idea["validation_plan"],
+            "qa_owner",
+            ["idea.validation_plan"],
+        ),
     ]
     if risks:
         questions.append(
@@ -260,7 +339,9 @@ def _known_limitations(
         _limitation(
             "LIM1",
             "First-release scope",
-            _first_string(execution.get("mvp_scope")) or unit.solution or "MVP scope is not fully specified.",
+            _first_string(execution.get("mvp_scope"))
+            or unit.solution
+            or "MVP scope is not fully specified.",
             "Treat requests outside this scope as product feedback unless they block the documented workflow.",
             ["execution.mvp_scope", "unit.solution"],
         ),
@@ -300,11 +381,41 @@ def _troubleshooting_checklist(
     risks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     checklist = [
-        _check("CHK1", "Confirm requester and account context.", "support_owner", "Requester role and customer impact are recorded.", ["triage_questions.TQ1"]),
-        _check("CHK2", f"Reproduce {idea['workflow_context']} with the reported input.", "support_owner", "Failure is reproduced or marked intermittent with timestamps.", ["triage_questions.TQ2"]),
-        _check("CHK3", "Compare behavior against the validation plan.", "qa_owner", "Expected behavior, actual behavior, and validation gap are documented.", ["idea.validation_plan"]),
-        _check("CHK4", "Check release, configuration, and integration changes.", "technical_owner", "Recent changes are ruled in or out.", ["triage_questions.TQ3"]),
-        _check("CHK5", "Send customer-safe status and next step.", "support_owner", "Customer receives current status, workaround, and follow-up owner.", ["support_scenarios"]),
+        _check(
+            "CHK1",
+            "Confirm requester and account context.",
+            "support_owner",
+            "Requester role and customer impact are recorded.",
+            ["triage_questions.TQ1"],
+        ),
+        _check(
+            "CHK2",
+            f"Reproduce {idea['workflow_context']} with the reported input.",
+            "support_owner",
+            "Failure is reproduced or marked intermittent with timestamps.",
+            ["triage_questions.TQ2"],
+        ),
+        _check(
+            "CHK3",
+            "Compare behavior against the validation plan.",
+            "qa_owner",
+            "Expected behavior, actual behavior, and validation gap are documented.",
+            ["idea.validation_plan"],
+        ),
+        _check(
+            "CHK4",
+            "Check release, configuration, and integration changes.",
+            "technical_owner",
+            "Recent changes are ruled in or out.",
+            ["triage_questions.TQ3"],
+        ),
+        _check(
+            "CHK5",
+            "Send customer-safe status and next step.",
+            "support_owner",
+            "Customer receives current status, workaround, and follow-up owner.",
+            ["support_scenarios"],
+        ),
     ]
     if risks:
         checklist.append(
@@ -582,6 +693,151 @@ def _render_risk_note(note: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for scenario in _dict_items(playbook.get("support_scenarios")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="support_scenarios",
+                item_id=scenario.get("id"),
+                title_or_question=scenario.get("name"),
+                trigger=scenario.get("trigger"),
+                action=scenario.get("first_response"),
+                owner_or_path=_join(scenario.get("triage_questions")),
+                expected_outcome=scenario.get("resolution_target"),
+                related_evidence=scenario.get("evidence_links"),
+            )
+        )
+
+    for question in _dict_items(playbook.get("triage_questions")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="triage_questions",
+                item_id=question.get("id"),
+                title_or_question=question.get("prompt"),
+                trigger=question.get("detail"),
+                action=question.get("detail"),
+                owner_or_path=question.get("owner"),
+                expected_outcome="Answer captured for support triage.",
+                related_evidence=question.get("derived_from"),
+            )
+        )
+
+    for escalation in _dict_items(playbook.get("escalation_paths")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="escalation_paths",
+                item_id=escalation.get("id"),
+                title_or_question=escalation.get("severity"),
+                trigger=escalation.get("escalate_when"),
+                action=escalation.get("path"),
+                owner_or_path=escalation.get("owner"),
+                expected_outcome=escalation.get("response_sla"),
+                related_evidence=escalation.get("evidence_links"),
+            )
+        )
+
+    for limitation in _dict_items(playbook.get("known_limitations")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="known_limitations",
+                item_id=limitation.get("id"),
+                title_or_question=limitation.get("name"),
+                trigger=limitation.get("description"),
+                action=limitation.get("support_guidance"),
+                expected_outcome="Limitation documented or routed to product owner.",
+                related_evidence=limitation.get("evidence_links"),
+            )
+        )
+
+    for item in _dict_items(playbook.get("troubleshooting_checklist")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="troubleshooting_checklist",
+                item_id=item.get("id"),
+                title_or_question=item.get("task"),
+                action=item.get("task"),
+                owner_or_path=item.get("owner"),
+                expected_outcome=item.get("done_when"),
+                related_evidence=item.get("evidence_links"),
+            )
+        )
+
+    for note in _dict_items(playbook.get("evidence_risk_notes")):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="evidence_risk_notes",
+                item_id=note.get("id"),
+                title_or_question=note.get("note"),
+                trigger=note.get("severity"),
+                action=note.get("support_action"),
+                owner_or_path=note.get("source"),
+                expected_outcome="Risk note linked to support handling.",
+                related_evidence=note.get("evidence_links"),
+            )
+        )
+
+    source = playbook.get("source") if isinstance(playbook.get("source"), dict) else {}
+    if any(
+        key in source
+        for key in ("evaluation_available", "tact_spec_available", "tact_spec_schema_version")
+    ):
+        rows.append(
+            _csv_row(
+                playbook,
+                section="source_flags",
+                item_id="source",
+                title_or_question="Source availability",
+                expected_outcome=source.get("tact_spec_kind"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    playbook: dict[str, Any],
+    *,
+    section: str,
+    item_id: Any = None,
+    title_or_question: Any = None,
+    trigger: Any = None,
+    action: Any = None,
+    owner_or_path: Any = None,
+    expected_outcome: Any = None,
+    related_evidence: Any = None,
+) -> dict[str, str]:
+    source = playbook.get("source") if isinstance(playbook.get("source"), dict) else {}
+    values = {
+        "idea_id": playbook.get("idea_id") or source.get("idea_id"),
+        "section": section,
+        "item_id": item_id,
+        "title_or_question": title_or_question,
+        "trigger": trigger,
+        "action": action,
+        "owner_or_path": owner_or_path,
+        "expected_outcome": expected_outcome,
+        "related_evidence": related_evidence,
+        "evaluation_available": source.get("evaluation_available"),
+        "tact_spec_available": source.get("tact_spec_available"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+    }
+    return {column: _csv_value(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
 def _evidence_refs(unit: BuildableUnit, evidence: dict[str, Any]) -> list[str]:
     refs = [
         *[f"insight:{item}" for item in _string_list(evidence.get("insight_ids"))],
@@ -639,3 +895,19 @@ def _text(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)
+
+
+def _csv_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_compact(key)}={_csv_value(item)}"
+            for key, item in sorted(value.items())
+            if _csv_value(item)
+        )
+    if isinstance(value, list):
+        return "; ".join(_csv_value(item) for item in value if _csv_value(item))
+    return _compact(value)
