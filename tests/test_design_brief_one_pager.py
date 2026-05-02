@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from copy import deepcopy
 from dataclasses import dataclass
+from io import StringIO
 from typing import Any
 
 import pytest
 
 from max.analysis.design_brief_one_pager import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_one_pager,
     render_design_brief_one_pager,
@@ -169,3 +173,98 @@ def test_render_design_brief_one_pager_markdown_has_decision_fields_without_repr
 
     with pytest.raises(ValueError):
         render_design_brief_one_pager(one_pager, fmt="yaml")
+
+
+def test_render_design_brief_one_pager_csv_has_decision_and_risk_rows(
+    one_pager_store: tuple[InMemoryDesignBriefStore, str],
+) -> None:
+    store, brief_id = one_pager_store
+    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    assert one_pager is not None
+
+    csv_text = render_design_brief_one_pager(one_pager, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["row_type"] for row in rows[:6]] == ["decision_field"] * 6
+    assert [row["field"] for row in rows[:6]] == [
+        "Target customer",
+        "Problem",
+        "Solution",
+        "Validation next step",
+        "First milestone",
+        "Source idea IDs",
+    ]
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["design_brief_title"] == "One-Pager Brief"
+    assert rows[0]["value"] == "Primary user: portfolio reviewer. Buyer or sponsor: VP product."
+    assert rows[0]["source_idea_ids"] == "bu-one-lead"
+    assert rows[5]["value"] == "bu-one-lead"
+
+    risk_rows = rows[6:]
+    assert risk_rows
+    assert {row["row_type"] for row in risk_rows} == {"top_risk"}
+    assert risk_rows[0]["field"] == "Owner alignment may be unclear"
+    assert risk_rows[0]["value"] == "Owner alignment may be unclear"
+    assert risk_rows[0]["risk_id"]
+    assert risk_rows[0]["severity"] == "high"
+    assert risk_rows[0]["likelihood"] == "possible"
+    assert risk_rows[0]["priority"] == "1"
+    assert risk_rows[0]["mitigation"]
+    assert risk_rows[0]["validation_action"]
+    assert risk_rows[0]["source_idea_ids"] == "bu-one-lead"
+
+
+def test_render_design_brief_one_pager_csv_without_risks_keeps_decision_rows(
+    one_pager_store: tuple[InMemoryDesignBriefStore, str],
+) -> None:
+    store, brief_id = one_pager_store
+    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    assert one_pager is not None
+    no_risk_one_pager = deepcopy(one_pager)
+    no_risk_one_pager["top_risks"] = []
+
+    csv_text = render_design_brief_one_pager(no_risk_one_pager, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 6
+    assert {row["row_type"] for row in rows} == {"decision_field"}
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert all(row["risk_id"] == "" for row in rows)
+
+
+def test_render_design_brief_one_pager_csv_is_deterministic(
+    one_pager_store: tuple[InMemoryDesignBriefStore, str],
+) -> None:
+    store, brief_id = one_pager_store
+    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    assert one_pager is not None
+
+    assert render_design_brief_one_pager(one_pager, fmt="csv") == render_design_brief_one_pager(
+        one_pager,
+        fmt="csv",
+    )
+
+
+def test_render_design_brief_one_pager_csv_escapes_long_text(
+    one_pager_store: tuple[InMemoryDesignBriefStore, str],
+) -> None:
+    store, brief_id = one_pager_store
+    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    assert one_pager is not None
+    escaped_one_pager = deepcopy(one_pager)
+    escaped_one_pager["problem"] = (
+        'Review "portfolio", owner, and sponsor decisions\n'
+        "before the full design brief bundle is opened by the review group."
+    )
+    escaped_one_pager["top_risks"][0]["mitigation"] = (
+        'Assign an "owner", reviewer, and fallback\nbefore kickoff.'
+    )
+
+    csv_text = render_design_brief_one_pager(escaped_one_pager, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Review ""portfolio"", owner, and sponsor decisions' in csv_text
+    assert '"Assign an ""owner"", reviewer, and fallback' in csv_text
+    assert rows[1]["value"] == escaped_one_pager["problem"]
+    assert rows[6]["mitigation"] == escaped_one_pager["top_risks"][0]["mitigation"]
