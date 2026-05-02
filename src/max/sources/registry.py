@@ -75,6 +75,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
     "github_workflow_runs": "max.sources.github_workflow_runs:GitHubWorkflowRunsAdapter",
+    "github_workflow_templates": (
+        "max.sources.github_workflow_templates:GitHubWorkflowTemplatesAdapter"
+    ),
     "github_marketplace_actions": (
         "max.sources.github_marketplace_actions:GitHubMarketplaceActionsAdapter"
     ),
@@ -509,6 +512,25 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Fetches recent failed or slow GitHub Actions workflow runs as "
             "engineering workflow failure_data signals."
+        ),
+    ),
+    "github_workflow_templates": AdapterMetadata(
+        name="github_workflow_templates",
+        config_keys=[
+            "repositories",
+            "repos",
+            "paths",
+            "max_templates_per_repo",
+            "token",
+            "github_token",
+            "token_env",
+            "api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches GitHub Actions workflow templates and starter workflows "
+            "as stack, category, automation pattern, and freshness signals."
         ),
     ),
     "github_marketplace_actions": AdapterMetadata(
