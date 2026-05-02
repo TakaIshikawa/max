@@ -9387,11 +9387,14 @@ def get_design_brief_procurement_checklist_markdown(
 )
 def get_design_brief_dependency_risk_map(
     brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
     store: Store = Depends(get_store),
-) -> DesignBriefDependencyRiskMapResponse:
+) -> DesignBriefDependencyRiskMapResponse | Response:
     report = build_design_brief_dependency_risk_map(store, brief_id)
     if not report:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    if format == "markdown":
+        return _design_brief_dependency_risk_map_markdown_response(report)
     return DesignBriefDependencyRiskMapResponse(**report)
 
 
@@ -9403,7 +9406,10 @@ def get_design_brief_dependency_risk_map_markdown(
     report = build_design_brief_dependency_risk_map(store, brief_id)
     if not report:
         raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_dependency_risk_map_markdown_response(report)
 
+
+def _design_brief_dependency_risk_map_markdown_response(report: dict[str, Any]) -> Response:
     filename = dependency_risk_map_filename(report["design_brief"], fmt="markdown")
     return Response(
         content=render_design_brief_dependency_risk_map(report, fmt="markdown"),

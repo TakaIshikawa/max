@@ -2978,15 +2978,79 @@ class DesignBriefProcurementChecklistResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefDependencyRiskMapSourceResponse(BaseModel):
+    project: str
+    entity_type: Literal["design_brief"]
+    id: str
+    generated_at: str | None = None
+
+
+class DesignBriefDependencyRiskMapBriefResponse(BaseModel):
+    id: str
+    title: str
+    domain: str
+    theme: str
+    readiness_score: float
+    design_status: str
+    lead_idea_id: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefDependencyRiskMapSummaryResponse(BaseModel):
+    risk_count: int
+    high_severity_count: int
+    category_count: int
+    source_reference_count: int
+    fallbacks_used: list[str]
+
+
+class DesignBriefDependencyRiskMapContextResponse(BaseModel):
+    target_user: str
+    buyer: str
+    workflow_context: str
+    first_milestone: str
+    risks: list[str]
+    detected_vendors: list[str]
+    missing_owner_inputs: list[str]
+    fallbacks_used: list[str]
+    text_corpus: list[str]
+
+
+class DesignBriefDependencyRiskEvidenceReferenceResponse(BaseModel):
+    id: str
+    type: str
+    summary: str
+    source_idea_ids: list[str]
+
+
+class DesignBriefDependencyRiskEntryResponse(BaseModel):
+    id: str
+    dependency_name: str
+    risk_category: Literal[
+        "vendor/API dependency",
+        "data dependency",
+        "compliance dependency",
+        "staffing dependency",
+        "launch dependency",
+    ]
+    severity: Literal["high", "medium", "low"]
+    owner: str
+    mitigation: str
+    evidence_reference_id: str
+    evidence_reference_summary: str
+    source_fields: list[str]
+    source_idea_ids: list[str]
+
+
 class DesignBriefDependencyRiskMapResponse(BaseModel):
     schema_version: str
-    kind: str
-    source: dict[str, Any]
-    design_brief: dict[str, Any]
-    summary: dict[str, Any]
-    dependency_context: dict[str, Any]
-    dependency_risks: list[dict[str, Any]]
-    evidence_references: list[dict[str, Any]]
+    kind: Literal["max.design_brief.dependency_risk_map"]
+    source: DesignBriefDependencyRiskMapSourceResponse
+    design_brief: DesignBriefDependencyRiskMapBriefResponse
+    summary: DesignBriefDependencyRiskMapSummaryResponse
+    dependency_context: DesignBriefDependencyRiskMapContextResponse
+    dependency_risks: list[DesignBriefDependencyRiskEntryResponse]
+    evidence_references: list[DesignBriefDependencyRiskEvidenceReferenceResponse]
     source_ideas: list[dict[str, Any]]
 
 
