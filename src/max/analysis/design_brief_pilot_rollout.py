@@ -12,17 +12,14 @@ from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.pilot_rollout.v1"
 CSV_COLUMNS: tuple[str, ...] = (
-    "design_brief_id",
-    "design_brief_title",
     "section",
     "item_id",
     "name",
     "owner",
-    "metric_or_when",
-    "target_or_duration",
-    "action",
-    "evidence",
-    "details",
+    "timing",
+    "goal_or_task",
+    "success_or_exit_criteria",
+    "evidence_or_output",
 )
 
 
@@ -182,95 +179,92 @@ def _render_csv(report: dict[str, Any]) -> str:
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
+    cohort = report.get("pilot_cohort") or {}
+    if cohort:
+        rows.append(
+            _csv_row(
+                section="pilot_cohort",
+                item_id="pilot-cohort",
+                name=cohort.get("target_users"),
+                owner=cohort.get("buyer"),
+                timing="pilot recruitment",
+                goal_or_task=cohort.get("qualification"),
+                success_or_exit_criteria=cohort.get("size"),
+                evidence_or_output=cohort.get("recruitment_source"),
+            )
+        )
+
+    for index, criterion in enumerate(report.get("entry_criteria") or [], start=1):
+        rows.append(
+            _csv_row(
+                section="entry_criteria",
+                item_id=f"entry-{index}",
+                name=f"Entry criterion {index}",
+                timing="before kickoff",
+                goal_or_task=criterion,
+                success_or_exit_criteria=criterion,
+            )
+        )
+
     for phase in report.get("rollout_phases") or []:
         rows.append(
             _csv_row(
-                report,
                 section="rollout_phases",
                 item_id=phase.get("id"),
                 name=phase.get("name"),
                 owner=phase.get("owner"),
-                metric_or_when=phase.get("goal"),
-                target_or_duration=phase.get("duration"),
-                action=phase.get("exit_criteria"),
-                details=_csv_details(
-                    {
-                        "goal": phase.get("goal"),
-                        "exit_criteria": phase.get("exit_criteria"),
-                    }
-                ),
+                timing=phase.get("duration"),
+                goal_or_task=phase.get("goal"),
+                success_or_exit_criteria=phase.get("exit_criteria"),
             )
         )
 
     for index, threshold in enumerate(report.get("success_thresholds") or [], start=1):
         rows.append(
             _csv_row(
-                report,
                 section="success_thresholds",
                 item_id=f"threshold-{index}",
                 name=threshold.get("metric"),
-                metric_or_when=threshold.get("metric"),
-                target_or_duration=threshold.get("target"),
-                evidence=threshold.get("evidence"),
-                details=_csv_details(
-                    {
-                        "metric": threshold.get("metric"),
-                        "target": threshold.get("target"),
-                        "evidence": threshold.get("evidence"),
-                    }
-                ),
+                goal_or_task=threshold.get("metric"),
+                success_or_exit_criteria=threshold.get("target"),
+                evidence_or_output=threshold.get("evidence"),
             )
         )
 
     for index, condition in enumerate(report.get("stop_conditions") or [], start=1):
         rows.append(
             _csv_row(
-                report,
                 section="stop_conditions",
                 item_id=f"stop-{index}",
                 name=f"Stop condition {index}",
-                action=condition,
-                details=_csv_details({"condition": condition}),
+                goal_or_task=condition,
+                success_or_exit_criteria=condition,
             )
         )
 
     for index, task in enumerate(report.get("operator_tasks") or [], start=1):
         rows.append(
             _csv_row(
-                report,
                 section="operator_tasks",
                 item_id=f"operator-task-{index}",
                 name=task.get("task"),
                 owner=task.get("owner"),
-                metric_or_when=task.get("cadence"),
-                action=task.get("task"),
-                evidence=task.get("output"),
-                details=_csv_details(
-                    {
-                        "cadence": task.get("cadence"),
-                        "output": task.get("output"),
-                    }
-                ),
+                timing=task.get("cadence"),
+                goal_or_task=task.get("task"),
+                evidence_or_output=task.get("output"),
             )
         )
 
     for index, touchpoint in enumerate(report.get("customer_touchpoints") or [], start=1):
         rows.append(
             _csv_row(
-                report,
                 section="customer_touchpoints",
                 item_id=f"touchpoint-{index}",
                 name=touchpoint.get("touchpoint"),
                 owner=touchpoint.get("owner"),
-                metric_or_when=touchpoint.get("when"),
-                action=touchpoint.get("touchpoint"),
-                evidence=touchpoint.get("evidence_to_capture"),
-                details=_csv_details(
-                    {
-                        "when": touchpoint.get("when"),
-                        "evidence_to_capture": touchpoint.get("evidence_to_capture"),
-                    }
-                ),
+                timing=touchpoint.get("when"),
+                goal_or_task=touchpoint.get("touchpoint"),
+                evidence_or_output=touchpoint.get("evidence_to_capture"),
             )
         )
 
@@ -278,40 +272,20 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
         field = _first_text(gap.get("field"), str(index))
         rows.append(
             _csv_row(
-                report,
                 section="evidence_gaps",
                 item_id=f"evidence-gap-{field}",
                 name=field,
-                action=gap.get("action"),
-                evidence=gap.get("gap"),
-                details=_csv_details(
-                    {
-                        "field": gap.get("field"),
-                        "gap": gap.get("gap"),
-                        "action": gap.get("action"),
-                    }
-                ),
+                goal_or_task=gap.get("action"),
+                success_or_exit_criteria=gap.get("gap"),
+                evidence_or_output=gap.get("gap"),
             )
         )
 
     return rows
 
 
-def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
-    brief = report.get("design_brief") or {}
-    row = {
-        "design_brief_id": brief.get("id"),
-        "design_brief_title": brief.get("title"),
-        **values,
-    }
-    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
-
-
-def _csv_details(details: dict[str, Any]) -> str:
-    cleaned = {key: value for key, value in details.items() if value not in (None, "", [], {})}
-    if not cleaned:
-        return ""
-    return json.dumps(cleaned, sort_keys=True, separators=(",", ":"))
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
 
 
 def _csv_text(value: Any) -> str:
