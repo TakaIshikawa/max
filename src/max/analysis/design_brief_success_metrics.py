@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "max.design_brief.success_metrics.v1"
+
+CSV_COLUMNS = [
+    "section",
+    "item_id",
+    "metric_event_field",
+    "target_threshold",
+    "confidence_severity",
+    "rationale_action",
+    "source_fields",
+]
 
 _HIGH_RISK_TERMS = (
     "compliance",
@@ -55,9 +67,11 @@ def build_design_brief_success_metrics(design_brief: dict[str, Any]) -> dict[str
 
 
 def render_design_brief_success_metrics(report: dict[str, Any], *, fmt: str = "markdown") -> str:
-    """Render a success metrics report as Markdown or JSON."""
+    """Render a success metrics report as Markdown, CSV, or JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported success metrics format: {fmt}")
 
@@ -126,8 +140,106 @@ def write_design_brief_success_metrics(
 
 
 def success_metrics_filename(design_brief: dict[str, Any], *, fmt: str) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return f"{_filename_part(_clean(design_brief.get('id')) or 'design-brief')}-success-metrics.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(_csv_rows(report))
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    north_star = report["north_star_metric"]
+    rows.append(
+        _csv_row(
+            section="north_star",
+            item_id="NS1",
+            name=north_star.get("metric"),
+            target=north_star.get("target"),
+            confidence=north_star.get("confidence"),
+            rationale=north_star.get("rationale"),
+            source_fields=north_star.get("source_fields"),
+        )
+    )
+
+    for section, key in (
+        ("activation", "activation_metrics"),
+        ("retention", "retention_metrics"),
+        ("validation", "validation_metrics"),
+    ):
+        for item in report[key]:
+            rows.append(
+                _csv_row(
+                    section=section,
+                    item_id=item.get("id"),
+                    name=item.get("metric"),
+                    target=item.get("target"),
+                    rationale=item.get("rationale"),
+                    source_fields=item.get("source_fields"),
+                )
+            )
+
+    for item in report["risk_guardrails"]:
+        rows.append(
+            _csv_row(
+                section="risk_guardrail",
+                item_id=item.get("id"),
+                name=item.get("metric"),
+                target=item.get("threshold"),
+                confidence=item.get("severity"),
+                rationale=item.get("action"),
+                source_fields=item.get("source_fields"),
+            )
+        )
+
+    for item in report["instrumentation_events"]:
+        rows.append(
+            _csv_row(
+                section="instrumentation_event",
+                item_id=item.get("id"),
+                name=item.get("event"),
+                rationale=item.get("description"),
+                source_fields=item.get("properties"),
+            )
+        )
+
+    for item in report["missing_inputs"]:
+        rows.append(
+            _csv_row(
+                section="missing_input",
+                item_id="",
+                name=item.get("field"),
+                rationale=item.get("reason"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    *,
+    section: str,
+    item_id: Any,
+    name: Any,
+    target: Any = "",
+    confidence: Any = "",
+    rationale: Any = "",
+    source_fields: Any = "",
+) -> dict[str, str]:
+    return {
+        "section": _clean(section),
+        "item_id": _clean(item_id),
+        "metric_event_field": _clean(name),
+        "target_threshold": _clean(target),
+        "confidence_severity": _clean(confidence),
+        "rationale_action": _clean(rationale),
+        "source_fields": _csv_list(source_fields),
+    }
 
 
 def _north_star_metric(
@@ -401,6 +513,10 @@ def _append_metric_list(lines: list[str], metrics: list[dict[str, Any]]) -> None
                 f"  Rationale: {item['rationale']}",
             ]
         )
+
+
+def _csv_list(values: Any) -> str:
+    return "; ".join(_string_list(values))
 
 
 def _string_list(value: Any) -> list[str]:
