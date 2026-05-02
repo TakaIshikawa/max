@@ -634,6 +634,26 @@ class SmokeTestPlanRequest(BaseModel):
         return self
 
 
+class CostEstimateRequest(BaseModel):
+    tact_spec: dict[str, Any] | None = Field(default=None, min_length=1)
+    idea: IdeaCreate | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_wrapped_tact_spec_or_direct_payload(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "tact_spec" in data or "idea" in data:
+            return data
+        if "schema_version" in data or data.get("kind") == "tact.project_spec":
+            return {"tact_spec": data}
+        return {"idea": data}
+
+    @model_validator(mode="after")
+    def require_tact_spec_or_idea(self) -> "CostEstimateRequest":
+        if self.tact_spec is None and self.idea is None:
+            raise ValueError("Provide tact_spec or idea")
+        return self
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -1780,6 +1800,18 @@ class SecurityReviewResponse(BaseModel):
     findings: list[dict[str, Any]]
     recommended_controls: list[dict[str, Any]]
     open_questions: list[dict[str, Any]]
+
+
+class CostEstimateResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    cost_drivers: list[dict[str, Any]]
+    effort_estimate: dict[str, Any]
+    risks: list[dict[str, Any]]
+    recommendations: list[dict[str, Any]]
+    markdown: str
 
 
 class ThreatModelResponse(BaseModel):

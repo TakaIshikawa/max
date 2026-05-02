@@ -460,6 +460,8 @@ from max.server.schemas import (
     DesignBriefTrelloCardPublishRequest,
     DesignBriefTrelloCardPublishResponse,
     DesignBriefValidationPlanResponse,
+    CostEstimateRequest,
+    CostEstimateResponse,
     DiscordPublishRequest,
     DiscordPublishResponse,
     DomainQualityMemoryResponse,
@@ -638,6 +640,7 @@ from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
+from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
@@ -5938,6 +5941,16 @@ def _slo_plan_markdown_response(idea_id: str, plan: dict[str, Any]) -> Response:
 def generate_spec_smoke_test_plan(body: SmokeTestPlanRequest) -> SmokeTestPlanResponse:
     tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
     return SmokeTestPlanResponse.model_validate(generate_smoke_test_plan(tact_spec))
+
+
+@router.post("/spec/cost-estimate", response_model=CostEstimateResponse)
+@router.post("/ideas/spec-cost-estimate", response_model=CostEstimateResponse)
+def generate_spec_cost_estimate(body: CostEstimateRequest) -> CostEstimateResponse:
+    tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
+    estimate = generate_cost_estimate(tact_spec)
+    return CostEstimateResponse.model_validate(
+        {**estimate, "markdown": render_cost_estimate_markdown(estimate)}
+    )
 
 
 def _tact_spec_from_idea(idea: IdeaCreate | None) -> dict[str, Any]:
