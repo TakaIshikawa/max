@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_experiment_backlog import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_experiment_backlog,
@@ -91,6 +94,111 @@ def test_markdown_rendering_includes_experiment_details_and_source_references(tm
     assert "## Recommended Next Actions" in markdown
 
 
+def test_csv_rendering_includes_stable_experiment_rows(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_experiment_backlog(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_experiment_backlog(report, fmt="csv")
+    repeated = render_design_brief_experiment_backlog(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert len(rows) == len(report["backlog_items"])
+
+    first_item = report["backlog_items"][0]
+    first_row = rows[0]
+    assert first_row["design_brief_id"] == brief_id
+    assert first_row["design_brief_title"] == "Experiment Backlog Brief"
+    assert first_row["experiment_id"] == first_item["id"]
+    assert first_row["experiment_title"] == first_item["title"]
+    assert first_row["rank"] == str(first_item["rank"])
+    assert first_row["priority"] == str(first_item["priority_score"])
+    assert first_row["hypothesis"] == first_item["hypothesis"]
+    assert first_row["owner_or_persona"] == first_item["target_persona"]
+    assert first_row["method"] == first_item["experiment_type"]
+    assert first_row["success_metric"] == first_item["success_metric"]
+    assert first_row["evidence_inputs"] == "; ".join(first_item["required_evidence"])
+    assert first_row["effort"] == first_item["effort"]
+    assert first_row["risk"] == first_item["risk_reduction"]
+    assert first_row["next_action"] == "; ".join(first_item["recommended_next_actions"])
+
+
+def test_csv_rendering_handles_sparse_and_empty_reports(tmp_path) -> None:
+    store, brief_id = _store_with_sparse_brief(tmp_path)
+    try:
+        report = build_design_brief_experiment_backlog(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(
+        csv.DictReader(StringIO(render_design_brief_experiment_backlog(report, fmt="csv")))
+    )
+    assert rows
+    assert all(row["experiment_id"] for row in rows)
+    assert all(row["hypothesis"] for row in rows)
+    assert all(row["method"] for row in rows)
+    assert all(row["next_action"] for row in rows)
+
+    header_only = render_design_brief_experiment_backlog({"backlog_items": []}, fmt="csv")
+    assert header_only == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(StringIO(header_only))) == []
+
+
+def test_csv_rendering_orders_rows_by_rank_then_id() -> None:
+    report = {
+        "design_brief": {"id": "dbf-order", "title": "Ordering"},
+        "backlog_items": [
+            {
+                "id": "EXP2",
+                "rank": 2,
+                "title": "Second",
+                "hypothesis": "Second hypothesis",
+                "experiment_type": "prototype test",
+                "target_persona": "designer",
+                "success_metric": "Second metric",
+                "required_evidence": ["second evidence"],
+                "source_idea_ids": ["bu-2"],
+                "source_fields": ["mvp_scope"],
+                "effort": "medium",
+                "risk_reduction": "medium",
+                "priority_score": 50,
+                "recommended_next_actions": ["Run second."],
+            },
+            {
+                "id": "EXP1",
+                "rank": 1,
+                "title": "First",
+                "hypothesis": "First hypothesis",
+                "experiment_type": "interview",
+                "target_persona": "buyer",
+                "success_metric": "First metric",
+                "required_evidence": ["first evidence"],
+                "source_idea_ids": ["bu-1"],
+                "source_fields": ["buyer"],
+                "effort": "low",
+                "risk_reduction": "high",
+                "priority_score": 70,
+                "recommended_next_actions": ["Run first."],
+            },
+        ],
+    }
+
+    rows = list(
+        csv.DictReader(StringIO(render_design_brief_experiment_backlog(report, fmt="csv")))
+    )
+
+    assert [row["experiment_id"] for row in rows] == ["EXP1", "EXP2"]
+    assert [row["experiment_title"] for row in rows] == ["First", "Second"]
+
+
 def test_sparse_brief_returns_actionable_fallback_experiments(tmp_path) -> None:
     store, brief_id = _store_with_sparse_brief(tmp_path)
     try:
@@ -125,6 +233,10 @@ def test_experiment_backlog_missing_brief_invalid_format_and_filename(tmp_path) 
     assert (
         experiment_backlog_filename(design_brief, fmt="json")
         == "dbf-123-Experiment-Backlog-Alpha-Beta-experiment-backlog.json"
+    )
+    assert (
+        experiment_backlog_filename(design_brief, fmt="csv")
+        == "dbf-123-Experiment-Backlog-Alpha-Beta-experiment-backlog.csv"
     )
 
 

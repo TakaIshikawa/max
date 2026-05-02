@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,6 +13,24 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.experiment_backlog"
 SCHEMA_VERSION = "max.design_brief.experiment_backlog.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "experiment_id",
+    "experiment_title",
+    "rank",
+    "priority",
+    "hypothesis",
+    "owner_or_persona",
+    "method",
+    "success_metric",
+    "evidence_inputs",
+    "evidence_source_idea_ids",
+    "evidence_source_fields",
+    "effort",
+    "risk",
+    "next_action",
+)
 
 _HIGH_RISK_TERMS = (
     "compliance",
@@ -84,9 +104,11 @@ def build_design_brief_experiment_backlog(store: Store, brief_id: str) -> dict[s
 
 
 def render_design_brief_experiment_backlog(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render an experiment backlog as JSON or Markdown."""
+    """Render an experiment backlog as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported experiment backlog format: {fmt}")
 
@@ -145,10 +167,62 @@ def render_design_brief_experiment_backlog(report: dict[str, Any], fmt: str = "j
 
 def experiment_backlog_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for an experiment backlog export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "experiment-backlog"))
     return f"{brief_id}-{title}-experiment-backlog.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    brief = report.get("design_brief") or {}
+    rows: list[dict[str, str]] = []
+    items = sorted(
+        report.get("backlog_items") or [],
+        key=lambda item: (int(item.get("rank") or 0), str(item.get("id") or "")),
+    )
+    for index, item in enumerate(items, start=1):
+        rows.append(
+            _csv_row(
+                design_brief_id=brief.get("id"),
+                design_brief_title=brief.get("title"),
+                experiment_id=item.get("id"),
+                experiment_title=item.get("title"),
+                rank=item.get("rank") or index,
+                priority=item.get("priority_score"),
+                hypothesis=item.get("hypothesis"),
+                owner_or_persona=item.get("owner") or item.get("target_persona"),
+                method=item.get("method") or item.get("experiment_type"),
+                success_metric=item.get("success_metric"),
+                evidence_inputs=_csv_join(item.get("required_evidence") or []),
+                evidence_source_idea_ids=_csv_join(item.get("source_idea_ids") or []),
+                evidence_source_fields=_csv_join(item.get("source_fields") or []),
+                effort=item.get("effort"),
+                risk=item.get("risk") or item.get("risk_reduction"),
+                next_action=_csv_join(item.get("recommended_next_actions") or []),
+            )
+        )
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    return "" if value is None else str(value)
 
 
 def _prioritized_items(
