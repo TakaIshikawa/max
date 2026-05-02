@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -10,6 +12,7 @@ from max.analysis import build_design_brief_dependency_risk_map as exported_buil
 from max.analysis import render_design_brief_dependency_risk_map as exported_render
 from max.analysis.design_brief_dependency_risk_map import (
     KIND,
+    CSV_COLUMNS,
     RISK_CATEGORIES,
     SCHEMA_VERSION,
     build_design_brief_dependency_risk_map,
@@ -108,8 +111,80 @@ def test_render_design_brief_dependency_risk_map_markdown_json_and_invalid_forma
     assert "- Evidence reference: design_brief.merged_product_concept" in markdown
     assert "## Evidence References" in markdown
 
+    csv_text = render_design_brief_dependency_risk_map(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert len(rows) == 5
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "dependency_id": "DBDR1",
+        "dependency_name": "Salesforce, Slack, OAuth or SSO provider",
+        "category": "vendor/API dependency",
+        "owner": "Engineering owner",
+        "risk_level": "high",
+        "impacted_workstreams": "merged_product_concept; mvp_scope; tech_approach; suggested_stack",
+        "evidence_ids": "design_brief.merged_product_concept",
+        "mitigation": report["dependency_risks"][0]["mitigation"],
+        "next_action": (
+            "Engineering owner to validate dependency assumptions for "
+            "Salesforce, Slack, OAuth or SSO provider."
+        ),
+    }
+    assert '"Salesforce, Slack, OAuth or SSO provider"' in csv_text
+
     with pytest.raises(ValueError, match="Unsupported dependency risk map format: yaml"):
         render_design_brief_dependency_risk_map(report, fmt="yaml")
+
+
+def test_render_design_brief_dependency_risk_map_csv_escapes_special_values(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_dependency_risk_map(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["dependency_risks"][0]["dependency_name"] = 'CRM, "enterprise"\nworkflow'
+    report["dependency_risks"][0]["source_fields"] = [
+        "merged_product_concept",
+        'customer, "success"',
+        "validation\nplan",
+    ]
+    report["dependency_risks"][0]["evidence_reference_id"] = 'evidence, "alpha"'
+
+    csv_text = render_design_brief_dependency_risk_map(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert rows[0]["dependency_name"] == 'CRM, "enterprise"\nworkflow'
+    assert rows[0]["impacted_workstreams"] == (
+        'merged_product_concept; customer, "success"; validation\nplan'
+    )
+    assert rows[0]["evidence_ids"] == 'evidence, "alpha"'
+    assert '"CRM, ""enterprise""\nworkflow"' in csv_text
+    assert '"merged_product_concept; customer, ""success""; validation\nplan"' in csv_text
+    assert '"evidence, ""alpha"""' in csv_text
+
+
+def test_render_design_brief_dependency_risk_map_csv_sparse_inputs(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path, sparse=True)
+    try:
+        report = build_design_brief_dependency_risk_map(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_dependency_risk_map(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 5
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["dependency_name"] == "External API or vendor service"
+    assert rows[0]["risk_level"] == "medium"
+    assert rows[3]["category"] == "staffing dependency"
+    assert rows[3]["risk_level"] == "high"
 
 
 def test_design_brief_dependency_risk_map_empty_store_returns_none(tmp_path) -> None:
@@ -132,6 +207,10 @@ def test_dependency_risk_map_filename_uses_brief_id_and_title() -> None:
     assert (
         dependency_risk_map_filename(brief, fmt="json")
         == "dbf-risk001-Dependency-Risk-Alpha-Beta-dependency-risk-map.json"
+    )
+    assert (
+        dependency_risk_map_filename(brief, fmt="csv")
+        == "dbf-risk001-Dependency-Risk-Alpha-Beta-dependency-risk-map.csv"
     )
 
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from dataclasses import asdict, dataclass
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -19,6 +21,19 @@ RISK_CATEGORIES: tuple[str, ...] = (
     "compliance dependency",
     "staffing dependency",
     "launch dependency",
+)
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "dependency_id",
+    "dependency_name",
+    "category",
+    "owner",
+    "risk_level",
+    "impacted_workstreams",
+    "evidence_ids",
+    "mitigation",
+    "next_action",
 )
 
 _VENDOR_KEYWORDS: tuple[tuple[str, str], ...] = (
@@ -105,9 +120,11 @@ def render_design_brief_dependency_risk_map(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a dependency risk map as Markdown or deterministic JSON."""
+    """Render a dependency risk map as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported dependency risk map format: {fmt}")
 
@@ -154,11 +171,41 @@ def render_design_brief_dependency_risk_map(
 
 
 def dependency_risk_map_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-dependency-risk-map.{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for risk in report["dependency_risks"]:
+        writer.writerow(_csv_row(report, risk))
+    return output.getvalue()
+
+
+def _csv_row(report: dict[str, Any], risk: dict[str, Any]) -> dict[str, str]:
+    return {
+        "design_brief_id": str(report["design_brief"]["id"]),
+        "dependency_id": str(risk["id"]),
+        "dependency_name": str(risk["dependency_name"]),
+        "category": str(risk["risk_category"]),
+        "owner": str(risk["owner"]),
+        "risk_level": str(risk["severity"]),
+        "impacted_workstreams": _csv_list(risk.get("source_fields", [])),
+        "evidence_ids": _csv_list([risk.get("evidence_reference_id")]),
+        "mitigation": str(risk["mitigation"]),
+        "next_action": _next_action(risk),
+    }
+
+
+def _next_action(risk: dict[str, Any]) -> str:
+    owner = str(risk["owner"])
+    dependency = str(risk["dependency_name"])
+    return f"{owner} to validate dependency assumptions for {dependency}."
 
 
 def _risk_entries(
@@ -543,6 +590,10 @@ def _dedupe_refs(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "none"
+
+
+def _csv_list(values: list[Any]) -> str:
+    return "; ".join(str(value) for value in values if value)
 
 
 def _filename_part(value: str) -> str:
