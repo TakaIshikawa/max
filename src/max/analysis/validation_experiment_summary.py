@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from csv import DictWriter
 from datetime import UTC, date, datetime
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
@@ -13,6 +15,23 @@ from max.store.db import Store
 COMPLETED_STATUSES = {"completed"}
 FOLLOW_UP_STATUSES = {"blocked", "inconclusive"}
 FOLLOW_UP_OUTCOMES = {"blocked", "inconclusive"}
+VALIDATION_EXPERIMENT_SUMMARY_CSV_COLUMNS = [
+    "filter_domain",
+    "filter_idea_id",
+    "filter_status",
+    "filter_overdue_only",
+    "row_type",
+    "group",
+    "key",
+    "count",
+    "value",
+    "total_count",
+    "completed_count",
+    "overdue_count",
+    "completion_rate",
+    "average_confidence_delta",
+    "average_result_score",
+]
 
 
 def _breakdown(counter: Counter[str]) -> list[dict]:
@@ -186,3 +205,104 @@ def build_validation_experiment_summary(
             )[:5]
         ],
     }
+
+
+def render_validation_experiment_summary_csv(summary: dict[str, Any]) -> str:
+    """Render a validation experiment summary as deterministic CSV."""
+    output = StringIO()
+    writer = DictWriter(
+        output,
+        fieldnames=VALIDATION_EXPERIMENT_SUMMARY_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _validation_experiment_summary_csv_rows(summary):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _validation_experiment_summary_csv_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
+    rows = [
+        _validation_experiment_summary_csv_row(
+            summary,
+            row_type="overall",
+            group="summary",
+            key="all",
+            count=summary.get("total_count"),
+            total_count=summary.get("total_count"),
+            completed_count=summary.get("completed_count"),
+            overdue_count=summary.get("overdue_count"),
+            completion_rate=summary.get("completion_rate"),
+            average_confidence_delta=summary.get("average_confidence_delta"),
+            average_result_score=summary.get("average_result_score"),
+        )
+    ]
+
+    for metric in ("average_confidence_delta", "average_result_score"):
+        value = summary.get(metric)
+        if value is not None:
+            rows.append(
+                _validation_experiment_summary_csv_row(
+                    summary,
+                    row_type="average",
+                    group="metrics",
+                    key=metric,
+                    value=value,
+                )
+            )
+
+    for group, summary_key in (
+        ("status", "by_status"),
+        ("domain", "by_domain"),
+        ("experiment_type", "by_experiment_type"),
+        ("outcome", "by_outcome"),
+    ):
+        for item in summary.get(summary_key) or []:
+            rows.append(
+                _validation_experiment_summary_csv_row(
+                    summary,
+                    row_type="breakdown",
+                    group=group,
+                    key=item.get("key"),
+                    count=item.get("count"),
+                )
+            )
+
+    for item in summary.get("top_follow_up_actions") or []:
+        rows.append(
+            _validation_experiment_summary_csv_row(
+                summary,
+                row_type="follow_up_action",
+                group="top_follow_up_actions",
+                key=item.get("action"),
+                count=item.get("count"),
+            )
+        )
+
+    return rows
+
+
+def _validation_experiment_summary_csv_row(
+    summary: dict[str, Any],
+    **values: Any,
+) -> dict[str, str]:
+    filters = summary.get("filters") or {}
+    row = {
+        "filter_domain": filters.get("domain"),
+        "filter_idea_id": filters.get("idea_id"),
+        "filter_status": filters.get("status"),
+        "filter_overdue_only": filters.get("overdue_only"),
+    }
+    row.update(values)
+    return {
+        column: _validation_experiment_summary_csv_text(row.get(column))
+        for column in VALIDATION_EXPERIMENT_SUMMARY_CSV_COLUMNS
+    }
+
+
+def _validation_experiment_summary_csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
