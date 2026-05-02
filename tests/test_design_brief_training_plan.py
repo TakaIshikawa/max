@@ -105,14 +105,84 @@ def test_render_design_brief_training_plan_markdown_and_json(tmp_path) -> None:
     assert "## Training Summary" in markdown
     assert "## Learner Segments" in markdown
     assert "## Learning Objectives" in markdown
+    assert "## Modules" in markdown
     assert "## Session Outline" in markdown
     assert "## Prerequisite Setup" in markdown
     assert "## Hands-On Exercises" in markdown
     assert "## Success Checks" in markdown
     assert "## Follow-Up Materials" in markdown
+    assert "## Enablement Assets" in markdown
+    assert "## Rollout Schedule" in markdown
+    assert "## Owners And Accountability" in markdown
+    assert "## Assessment Criteria" in markdown
     assert "## Evidence References" in markdown
     assert "## Gaps To Resolve Before Training" in markdown
     assert "## Next Actions" in markdown
+
+
+def test_render_design_brief_training_plan_markdown_module_rows(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_training_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    markdown = render_design_brief_training_plan(report, fmt="markdown")
+
+    assert "| Module | Duration | Audience | Purpose | Output |" in markdown
+    assert (
+        "| 1. Workflow framing | 10 minutes | all learners | "
+        "Explain where Training Plan Brief fits in internal developer platform adoption. | "
+        "Shared understanding of internal developer platform adoption. |"
+    ) in markdown
+    assert (
+        "| 3. Hands-on practice | 30 minutes | segment-specific breakout groups | "
+        "Practice the workflow, sponsor interpretation, and support coaching paths. | "
+        "Completed exercises and open questions. |"
+    ) in markdown
+
+
+def test_render_design_brief_training_plan_markdown_owner_and_schedule_rows(tmp_path) -> None:
+    store, brief_id = _store_with_sparse_brief(tmp_path)
+    try:
+        report = build_design_brief_training_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    markdown = render_design_brief_training_plan(report, fmt="markdown")
+
+    assert "| Step | Timing | Owner | Output |" in markdown
+    assert (
+        "| Training cohort | Before training | Customer success | "
+        "Each learner has a named role, session time, and attendance owner. |"
+    ) in markdown
+    assert (
+        "| Owner | Accountability | Evidence |\n"
+        "| --- | --- | --- |\n"
+        "| Customer success | Invite Sparse Training Brief user learners and the training sponsor sponsor. | "
+        "Each learner has a named role, session time, and attendance owner. |"
+    ) in markdown
+    assert "| Customer success | Name the customer practitioner role for training invitations. | Next action: NA1 |" in markdown
+
+
+def test_render_design_brief_training_plan_markdown_empty_sections() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {"id": "dbf-empty", "title": "Empty Training Plan"},
+        "summary": {},
+    }
+
+    markdown = render_design_brief_training_plan(report, fmt="markdown")
+
+    assert markdown.startswith("# Training Plan: Empty Training Plan")
+    assert "| None | Not scheduled | Not specified | Not specified | Not specified |" in markdown
+    assert "| None | Not specified | Unassigned | Not specified |" in markdown
+    assert "| None | Not scheduled | Unassigned | Not specified |" in markdown
+    assert "| Unassigned | No owner/accountability fields provided | Not specified |" in markdown
+    assert "| None | none | Not specified |" in markdown
+    assert markdown.count("- None") >= 7
 
 
 def test_render_design_brief_training_plan_csv_headers_and_sections(tmp_path) -> None:
