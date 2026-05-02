@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -136,6 +138,62 @@ def test_render_design_brief_raci_matrix_markdown_json_and_invalid_format(
         render_design_brief_raci_matrix(matrix, fmt="yaml")
 
 
+def test_render_design_brief_raci_matrix_csv_is_parseable_and_stable(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        matrix = build_design_brief_raci_matrix(store, brief_id)
+    finally:
+        store.close()
+
+    assert matrix is not None
+    rendered_once = render_design_brief_raci_matrix(matrix, fmt="csv")
+    rendered_twice = render_design_brief_raci_matrix(matrix, fmt="csv")
+    assert rendered_once == rendered_twice
+    assert rendered_once.endswith("\n")
+
+    reader = csv.DictReader(io.StringIO(rendered_once))
+    rows = list(reader)
+
+    assert reader.fieldnames == [
+        "activity_id",
+        "phase",
+        "phase_id",
+        "activity",
+        "responsible",
+        "accountable",
+        "consulted",
+        "informed",
+        "ownership_status",
+        "gap_ids",
+        "source_fields",
+        "source_idea_ids",
+        "source_summary",
+    ]
+    assert len(rows) == matrix["summary"]["activity_count"]
+
+    first = rows[0]
+    assert first["activity_id"] == "DBRACI1"
+    assert first["phase"] == "Alignment"
+    assert first["phase_id"] == "alignment"
+    assert first["activity"] == "Confirm buyer outcome and approval path."
+    assert first["responsible"] == "Product lead"
+    assert first["accountable"] == "VP of Operations"
+    assert json.loads(first["consulted"]) == ["implementation manager", "Security/legal approver"]
+    assert first["consulted"] == '["implementation manager","Security/legal approver"]'
+    assert json.loads(first["informed"]) == ["Engineering lead"]
+    assert json.loads(first["gap_ids"]) == []
+    assert json.loads(first["source_fields"]) == ["buyer", "why_this_now", "synthesis_rationale"]
+    assert json.loads(first["source_idea_ids"]) == ["bu-raci-lead", "bu-raci-support"]
+    assert "VP of Operations" in first["source_summary"]
+
+    validation_risk = rows[5]
+    assert validation_risk["responsible"] == "Security/legal approver"
+    assert validation_risk["accountable"] == "Product lead"
+    assert json.loads(validation_risk["consulted"]) == ["Engineering lead", "Support/playbook owner"]
+
+
 def test_build_design_brief_raci_matrix_missing_brief_returns_none(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "missing_raci_matrix.db"), wal_mode=True)
     try:
@@ -160,6 +218,13 @@ def test_raci_matrix_filename_uses_brief_id_and_title() -> None:
             fmt="json",
         )
         == "dbf-test001-RACI-Matrix-API-Brief-raci-matrix.json"
+    )
+    assert (
+        raci_matrix_filename(
+            {"id": "dbf-test001", "title": "RACI Matrix API Brief"},
+            fmt="csv",
+        )
+        == "dbf-test001-RACI-Matrix-API-Brief-raci-matrix.csv"
     )
 
 

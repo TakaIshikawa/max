@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -9,6 +11,23 @@ if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.raci_matrix.v1"
+
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "activity_id",
+    "phase",
+    "phase_id",
+    "activity",
+    "responsible",
+    "accountable",
+    "consulted",
+    "informed",
+    "ownership_status",
+    "gap_ids",
+    "source_fields",
+    "source_idea_ids",
+    "source_summary",
+)
 
 
 PHASE_CONFIGS: tuple[dict[str, Any], ...] = (
@@ -122,9 +141,11 @@ def build_design_brief_raci_matrix(store: Store, brief_id: str) -> dict[str, Any
 
 
 def render_design_brief_raci_matrix(matrix: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a RACI matrix as Markdown or deterministic JSON."""
+    """Render a RACI matrix as Markdown, deterministic JSON, or parseable CSV."""
     if fmt == "json":
         return json.dumps(matrix, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(matrix)
     if fmt != "markdown":
         raise ValueError(f"Unsupported RACI matrix format: {fmt}")
 
@@ -176,11 +197,47 @@ def render_design_brief_raci_matrix(matrix: dict[str, Any], fmt: str = "markdown
 
 
 def raci_matrix_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-raci-matrix.{extension}"
     )
+
+
+def _render_csv(matrix: dict[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(matrix):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(matrix: dict[str, Any]) -> list[dict[str, str]]:
+    phases_by_id = {phase["id"]: phase["title"] for phase in matrix["phases"]}
+    return [
+        _csv_row(activity, phase=phases_by_id.get(activity.get("phase_id"), ""))
+        for activity in matrix["activities"]
+    ]
+
+
+def _csv_row(activity: dict[str, Any], *, phase: str) -> dict[str, str]:
+    row = {
+        "activity_id": activity.get("id"),
+        "phase": phase,
+        "phase_id": activity.get("phase_id"),
+        "activity": activity.get("activity"),
+        "responsible": activity.get("responsible_role"),
+        "accountable": activity.get("accountable_role"),
+        "consulted": activity.get("consulted_roles"),
+        "informed": activity.get("informed_roles"),
+        "ownership_status": activity.get("ownership_status"),
+        "gap_ids": activity.get("gap_ids"),
+        "source_fields": activity.get("source_fields"),
+        "source_idea_ids": activity.get("source_idea_ids"),
+        "source_summary": activity.get("source_summary"),
+    }
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
 
 
 def _raci_context(
@@ -601,6 +658,14 @@ def _compact(value: Any) -> str:
 
 def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "none"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value)
 
 
 def _filename_part(value: str) -> str:
