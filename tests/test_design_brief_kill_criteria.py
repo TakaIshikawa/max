@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -12,6 +14,21 @@ from max.analysis import (
 from max.analysis.design_brief_kill_criteria import KIND, SCHEMA_VERSION
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import DimensionScore, UtilityEvaluation
+
+
+CSV_COLUMNS = [
+    "design_brief_id",
+    "design_brief_title",
+    "criterion_type",
+    "criterion_id",
+    "category",
+    "label",
+    "status",
+    "threshold",
+    "evidence_backed_reason",
+    "action",
+    "source_reference_ids",
+]
 
 
 def test_empty_evidence_creates_stop_criteria() -> None:
@@ -125,6 +142,97 @@ def test_markdown_json_invalid_format_and_filename() -> None:
         kill_criteria_filename(unit, fmt="json")
         == "bu-kill-strong-Agent-Evidence-Gate-kill-criteria.json"
     )
+    assert (
+        kill_criteria_filename(unit, fmt="csv")
+        == "bu-kill-strong-Agent-Evidence-Gate-kill-criteria.csv"
+    )
+
+
+def test_csv_renderer_has_stable_headers_and_rows_across_criterion_groups() -> None:
+    unit = _strong_unit()
+    continue_report = build_design_brief_kill_criteria(
+        unit,
+        evaluation=_evaluation(unit.id, recommendation="yes", pain=8.5, overall=86.0),
+    )
+    stop_report = build_design_brief_kill_criteria(_sparse_unit())
+    pivot_report = build_design_brief_kill_criteria(
+        _strong_unit(
+            evidence_signals=[],
+            inspiring_insights=[],
+            source_idea_ids=[],
+            evidence_rationale="",
+            tech_approach=(
+                "OAuth API integration with vendor webhook dependency and platform permission review."
+            ),
+            domain_risks=["Security review needed for OAuth credentials and regulated PII processing."],
+        ),
+        evaluation={"recommendation": "maybe", "overall_score": 54.0, "pain_severity": {"value": 6.5}},
+        evidence=[
+            {
+                "id": "sig-negative",
+                "source_type": "signal",
+                "summary": "Pilot users reported weak demand and rejected the workflow.",
+                "polarity": "negative",
+            }
+        ],
+    )
+    report = json.loads(json.dumps(continue_report))
+    report["stop_triggers"] = stop_report["stop_triggers"]
+    report["pivot_triggers"] = pivot_report["pivot_triggers"]
+
+    csv_text = render_design_brief_kill_criteria(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert reader.fieldnames == CSV_COLUMNS
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert csv_text == render_design_brief_kill_criteria(report, fmt="csv")
+    assert len(rows) == (
+        len(report["stop_triggers"])
+        + len(report["pivot_triggers"])
+        + len(report["continue_signals"])
+    )
+    assert [row["criterion_type"] for row in rows] == (
+        ["stop"] * len(report["stop_triggers"])
+        + ["pivot"] * len(report["pivot_triggers"])
+        + ["continue"] * len(report["continue_signals"])
+    )
+    assert [row["criterion_id"] for row in rows[:3]] == ["DBKC-S1", "DBKC-S3", "DBKC-S4"]
+    pivot_row = next(row for row in rows if row["criterion_id"] == "DBKC-P1")
+    continue_row = next(row for row in rows if row["criterion_id"] == "DBKC-C2")
+    assert pivot_row["design_brief_id"] == "bu-kill-strong"
+    assert pivot_row["design_brief_title"] == "Agent Evidence Gate"
+    assert pivot_row["category"] == "pivot"
+    assert pivot_row["label"] == "Contradictory demand evidence"
+    assert pivot_row["status"] == "active"
+    assert pivot_row["threshold"]
+    assert pivot_row["evidence_backed_reason"]
+    assert pivot_row["action"]
+    assert pivot_row["source_reference_ids"] == '["sig-negative"]'
+    assert json.loads(pivot_row["source_reference_ids"]) == ["sig-negative"]
+    assert json.loads(continue_row["source_reference_ids"]) == [
+        "ins-kill-1",
+        "sig-kill-1",
+        "sig-kill-2",
+        "bu-source-kill",
+        "evidence-rationale",
+    ]
+
+
+def test_csv_renderer_returns_header_for_empty_criterion_groups() -> None:
+    report = build_design_brief_kill_criteria(
+        _strong_unit(),
+        evaluation=_evaluation("bu-kill-strong", recommendation="yes", pain=8.5, overall=86.0),
+    )
+    empty_report = json.loads(json.dumps(report))
+    empty_report["stop_triggers"] = []
+    empty_report["pivot_triggers"] = []
+    empty_report["continue_signals"] = []
+
+    csv_text = render_design_brief_kill_criteria(empty_report, fmt="csv")
+
+    assert list(csv.DictReader(io.StringIO(csv_text))) == []
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
 
 
 def test_helpers_are_importable_from_max_analysis() -> None:
