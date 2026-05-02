@@ -117,19 +117,31 @@ def test_render_design_brief_dependency_risk_map_markdown_json_and_invalid_forma
     assert reader.fieldnames == list(CSV_COLUMNS)
     assert len(rows) == 5
     assert rows[0] == {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
         "design_brief_id": brief_id,
+        "design_brief_title": "Dependency Risk Brief",
+        "design_status": "approved",
+        "readiness_score": "88.0",
+        "row_type": "dependency_risk",
+        "item_order": "1",
         "dependency_id": "DBDR1",
         "dependency_name": "Salesforce, Slack, OAuth or SSO provider",
+        "impacted_area": "merged_product_concept; mvp_scope; tech_approach; suggested_stack",
         "category": "vendor/API dependency",
-        "owner": "Engineering owner",
         "risk_level": "high",
-        "impacted_workstreams": "merged_product_concept; mvp_scope; tech_approach; suggested_stack",
-        "evidence_ids": "design_brief.merged_product_concept",
+        "blocker_status": "at_risk",
         "mitigation": report["dependency_risks"][0]["mitigation"],
+        "owner": "Engineering owner",
+        "due_date": "",
+        "timing": "",
         "next_action": (
             "Engineering owner to validate dependency assumptions for "
             "Salesforce, Slack, OAuth or SSO provider."
         ),
+        "evidence_refs": "design_brief.merged_product_concept",
+        "source_idea_ids": "bu-dependency-risk-lead",
+        "source_fields": "merged_product_concept; mvp_scope; tech_approach; suggested_stack",
     }
     assert '"Salesforce, Slack, OAuth or SSO provider"' in csv_text
 
@@ -159,13 +171,54 @@ def test_render_design_brief_dependency_risk_map_csv_escapes_special_values(
     rows = list(csv.DictReader(StringIO(csv_text)))
 
     assert rows[0]["dependency_name"] == 'CRM, "enterprise"\nworkflow'
-    assert rows[0]["impacted_workstreams"] == (
+    assert rows[0]["impacted_area"] == (
         'merged_product_concept; customer, "success"; validation\nplan'
     )
-    assert rows[0]["evidence_ids"] == 'evidence, "alpha"'
+    assert rows[0]["source_fields"] == (
+        'merged_product_concept; customer, "success"; validation\nplan'
+    )
+    assert rows[0]["evidence_refs"] == 'evidence, "alpha"'
     assert '"CRM, ""enterprise""\nworkflow"' in csv_text
     assert '"merged_product_concept; customer, ""success""; validation\nplan"' in csv_text
     assert '"evidence, ""alpha"""' in csv_text
+
+
+def test_render_design_brief_dependency_risk_map_csv_preserves_blockers_and_timing() -> None:
+    report = _render_report()
+
+    csv_text = render_design_brief_dependency_risk_map(report, fmt="csv")
+    repeated = render_design_brief_dependency_risk_map(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [(row["dependency_id"], row["risk_level"], row["blocker_status"]) for row in rows] == [
+        ("dep-salesforce", "high", "blocked"),
+        ("dep-data", "medium", "watch"),
+    ]
+    assert rows[0]["dependency_name"] == 'Salesforce, "enterprise"\nAPI'
+    assert rows[0]["impacted_area"] == "CRM import; renewal, alerts"
+    assert rows[0]["mitigation"] == "Secure sandbox access and define retry behavior."
+    assert rows[0]["owner"] == "Engineering"
+    assert rows[0]["due_date"] == "2026-05-15"
+    assert rows[0]["timing"] == "before_pilot"
+    assert rows[0]["evidence_refs"] == "ev-api; ev-security"
+    assert rows[0]["source_idea_ids"] == "bu-lead; bu-support"
+    assert rows[0]["source_fields"] == "tech_approach; risks"
+    assert rows[1]["dependency_name"] == "Customer data export"
+    assert rows[1]["impacted_area"] == "Data readiness; compliance review"
+    assert rows[1]["evidence_refs"] == "ev-data"
+    assert '"Salesforce, ""enterprise""\nAPI"' in csv_text
+    assert '"CRM import; renewal, alerts"' in csv_text
+
+
+def test_render_design_brief_dependency_risk_map_csv_empty_maps_are_header_only() -> None:
+    report = _render_report()
+    report["dependency_risks"] = []
+
+    csv_text = render_design_brief_dependency_risk_map(report, fmt="csv")
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
 
 
 def test_render_design_brief_dependency_risk_map_csv_sparse_inputs(tmp_path) -> None:
@@ -183,6 +236,7 @@ def test_render_design_brief_dependency_risk_map_csv_sparse_inputs(tmp_path) -> 
     assert rows[0]["design_brief_id"] == brief_id
     assert rows[0]["dependency_name"] == "External API or vendor service"
     assert rows[0]["risk_level"] == "medium"
+    assert rows[0]["blocker_status"] == "not_blocked"
     assert rows[3]["category"] == "staffing dependency"
     assert rows[3]["risk_level"] == "high"
 
@@ -223,6 +277,59 @@ def test_design_brief_dependency_risk_map_is_importable_from_analysis_package(tm
 
     assert report is not None
     assert exported_render(report).startswith("# Dependency Risk Map: Dependency Risk Brief")
+
+
+def _render_report() -> dict:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "design_brief": {
+            "id": "dbf-dependency-csv",
+            "title": "Dependency CSV Brief",
+            "readiness_score": 72.5,
+            "design_status": "approved",
+            "source_idea_ids": ["bu-lead", "bu-support"],
+        },
+        "summary": {
+            "risk_count": 2,
+            "high_severity_count": 1,
+            "category_count": 2,
+            "source_reference_count": 3,
+            "fallbacks_used": [],
+        },
+        "dependency_risks": [
+            {
+                "id": "dep-salesforce",
+                "dependency_name": 'Salesforce, "enterprise"\nAPI',
+                "risk_category": "vendor/API dependency",
+                "severity": "high",
+                "blocker_status": "blocked",
+                "owner": "Engineering",
+                "due_date": "2026-05-15",
+                "timing": "before_pilot",
+                "impacted_area": ["CRM import", "renewal, alerts"],
+                "mitigation": "Secure sandbox access and define retry behavior.",
+                "evidence_refs": ["ev-api", "ev-security"],
+                "source_fields": ["tech_approach", "risks"],
+                "source_idea_ids": ["bu-lead", "bu-support"],
+            },
+            {
+                "id": "dep-data",
+                "dependency_name": "Customer data export",
+                "risk_category": "data dependency",
+                "severity": "medium",
+                "blocker_status": "watch",
+                "owner": "Data",
+                "impacted_areas": ["Data readiness", "compliance review"],
+                "mitigation": "Confirm fixture data and retention rules.",
+                "evidence_reference_id": "ev-data",
+                "source_fields": ["mvp_scope", "validation_plan"],
+                "source_idea_ids": ["bu-support"],
+            },
+        ],
+        "evidence_references": [],
+        "source_ideas": [],
+    }
 
 
 def _store_with_brief(tmp_path, *, sparse: bool = False) -> tuple[Store, str]:
