@@ -36,6 +36,7 @@ from max.server.mcp_tools import (
     get_design_brief_executive_memo,
     get_design_brief_roadmap,
     get_design_brief_risk_register,
+    get_design_brief_unit_economics,
     get_design_brief_validation_plan,
     get_evidence_chain,
     get_idea,
@@ -67,6 +68,7 @@ from max.server.mcp_tools import (
     design_brief_market_sizing_detail,
     design_brief_onboarding_plan_detail,
     design_brief_validation_plan_detail,
+    design_brief_unit_economics_detail,
     spec_preview_detail,
 )
 from max.server.scheduler import Scheduler
@@ -1578,6 +1580,11 @@ def test_signal_freshness_resource_registered(monkeypatch):
             "design-brief-evidence-quality-scorecards://{brief_id}"
         ]
         == "design_brief_evidence_quality_scorecard_detail"
+    )
+    assert "get_design_brief_unit_economics" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources["design-brief-unit-economics://{brief_id}"]
+        == "design_brief_unit_economics_detail"
     )
     assert "get_design_brief_launch_checklist" in FakeMCP.latest.tools
     assert (
