@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from max.analysis.market_sizing import SCHEMA_VERSION, build_market_sizing_report
+import csv
+from io import StringIO
+
+import pytest
+
+from max.analysis.market_sizing import (
+    CSV_COLUMNS,
+    SCHEMA_VERSION,
+    build_market_sizing_report,
+    market_sizing_filename,
+    render_market_sizing_report,
+)
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
@@ -177,3 +188,90 @@ def test_build_market_sizing_report_surfaces_missing_market_evidence(tmp_path) -
     assert "No quantified survey evidence is linked to the brief lineage." in report["gaps"]
     assert "No funding signal is linked to the brief lineage." in report["gaps"]
     assert report["segments"][0]["evidence_strength"] == "weak"
+
+
+def test_render_market_sizing_report_csv_has_stable_rows_and_header(tmp_path) -> None:
+    store, brief = _seed_report_brief(tmp_path)
+    try:
+        report = build_market_sizing_report(store, brief)
+        report["gaps"] = ["Security urgency may not imply budget."]
+        csv_text = render_market_sizing_report(report, fmt="csv")
+        repeated = render_market_sizing_report(report, fmt="csv")
+    finally:
+        store.close()
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert rows
+
+    estimate_rows = [row for row in rows if row["row_type"] == "estimate"]
+    assert [row["estimate_scope"] for row in estimate_rows[:3]] == ["TAM", "SAM", "SOM"]
+    assert estimate_rows[0]["segment_name"] == "engineering manager / platform engineer"
+    assert estimate_rows[0]["buyer"] == "engineering manager"
+    assert estimate_rows[0]["user"] == "platform engineer"
+    assert estimate_rows[0]["source_idea_ids"] == "bu-market-lead"
+    assert estimate_rows[0]["survey_signals"] == "1"
+    assert estimate_rows[0]["funding_signals"] == "1"
+    assert estimate_rows[0]["security_signals"] == "1"
+    assert estimate_rows[0]["forum_signals"] == "1"
+    assert estimate_rows[0]["total_signals"] == "4"
+    assert "survey=1" in estimate_rows[0]["evidence"]
+    assert "adapters=" in estimate_rows[0]["evidence"]
+    assert estimate_rows[0]["assumption"]
+    assert estimate_rows[0]["confidence_level"] in {"medium", "high"}
+    assert estimate_rows[0]["confidence_score"]
+    assert estimate_rows[0]["risk"]
+    assert estimate_rows[0]["next_step"]
+    assert any(row["row_type"] == "assumption" for row in rows)
+    assert any(row["row_type"] == "risk" for row in rows)
+    assert any(row["row_type"] == "next_step" for row in rows)
+
+
+def test_render_market_sizing_report_csv_uses_csv_quoting(tmp_path) -> None:
+    store, brief = _seed_report_brief(tmp_path)
+    try:
+        report = build_market_sizing_report(store, brief)
+    finally:
+        store.close()
+    report["market_hypotheses"] = ['Budget owner says "yes", if audit trail is clear.']
+
+    csv_text = render_market_sizing_report(report, fmt="csv")
+
+    assert '"Budget owner says ""yes"", if audit trail is clear."' in csv_text
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    assert rows[0]["assumption"] == 'Budget owner says "yes", if audit trail is clear.'
+
+
+def test_render_market_sizing_report_csv_sparse_report_is_header_only() -> None:
+    assert render_market_sizing_report({}, fmt="csv") == ",".join(CSV_COLUMNS) + "\n"
+    assert (
+        render_market_sizing_report({"design_brief": {"id": "brief-1"}, "segments": []}, fmt="csv")
+        == ",".join(CSV_COLUMNS) + "\n"
+    )
+
+
+def test_render_market_sizing_report_rejects_invalid_format(tmp_path) -> None:
+    store, brief = _seed_report_brief(tmp_path)
+    try:
+        report = build_market_sizing_report(store, brief)
+    finally:
+        store.close()
+
+    with pytest.raises(ValueError, match="Unsupported market sizing format: yaml"):
+        render_market_sizing_report(report, fmt="yaml")
+
+
+def test_market_sizing_filename_uses_csv_extension(tmp_path) -> None:
+    store, brief = _seed_report_brief(tmp_path)
+    try:
+        report = build_market_sizing_report(store, brief)
+    finally:
+        store.close()
+
+    assert market_sizing_filename(report["design_brief"], fmt="csv").endswith(
+        "-market-sizing.csv"
+    )
