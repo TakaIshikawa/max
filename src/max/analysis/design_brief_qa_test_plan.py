@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -16,6 +18,19 @@ TEST_SUITE_TYPES: tuple[str, ...] = (
     "integration",
     "acceptance",
     "regression",
+)
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "area",
+    "scenario_name",
+    "priority",
+    "test_type",
+    "preconditions",
+    "steps",
+    "expected_result",
+    "owner",
+    "evidence_source_references",
 )
 
 
@@ -87,9 +102,11 @@ def build_design_brief_qa_test_plan(store: Store, brief_id: str) -> dict[str, An
 
 
 def render_design_brief_qa_test_plan(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a QA test plan as Markdown or deterministic JSON."""
+    """Render a QA test plan as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_qa_test_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported QA test plan format: {fmt}")
 
@@ -194,11 +211,91 @@ def render_design_brief_qa_test_plan(report: dict[str, Any], fmt: str = "markdow
 
 def qa_test_plan_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
     """Return a stable filename for a QA test plan export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-qa-test-plan.{extension}"
     )
+
+
+def render_qa_test_plan_csv(report: dict[str, Any]) -> str:
+    """Render QA scenarios and test cases as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+
+    for row in _csv_rows(report):
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    brief = report.get("design_brief") or {}
+    design_brief_id = _csv_cell(brief.get("id"))
+    evidence_reference_ids = _evidence_reference_ids(report)
+
+    for suite in report.get("test_suites", []):
+        source_references = _csv_references(suite.get("source_idea_ids"), evidence_reference_ids)
+        for test_case in suite.get("test_cases", []):
+            rows.append(
+                {
+                    "design_brief_id": design_brief_id,
+                    "area": _csv_cell(suite.get("name") or suite.get("id")),
+                    "scenario_name": _csv_cell(test_case),
+                    "priority": _csv_cell(_suite_priority(suite)),
+                    "test_type": _csv_cell(suite.get("coverage_type")),
+                    "preconditions": _csv_cell(suite.get("objective")),
+                    "steps": _csv_cell(test_case),
+                    "expected_result": _csv_cell(suite.get("exit_criteria")),
+                    "owner": _csv_cell(suite.get("owner")),
+                    "evidence_source_references": source_references,
+                }
+            )
+
+    for path in report.get("critical_paths", []):
+        rows.append(
+            {
+                "design_brief_id": design_brief_id,
+                "area": "Critical Path",
+                "scenario_name": _csv_cell(path.get("name") or path.get("id")),
+                "priority": "high",
+                "test_type": "acceptance",
+                "preconditions": _csv_cell(path.get("user_journey")),
+                "steps": _csv_cell(path.get("user_journey")),
+                "expected_result": _csv_cell(path.get("expected_outcome")),
+                "owner": "Product owner",
+                "evidence_source_references": _csv_references(
+                    path.get("source_idea_ids"),
+                    evidence_reference_ids,
+                ),
+            }
+        )
+
+    return rows
+
+
+def _evidence_reference_ids(report: dict[str, Any]) -> list[str]:
+    return [
+        _csv_cell(reference.get("id"))
+        for reference in report.get("evidence_references", [])
+        if _csv_cell(reference.get("id"))
+    ]
+
+
+def _csv_references(source_idea_ids: Any, evidence_reference_ids: list[str]) -> str:
+    values = [*_string_list(source_idea_ids), *evidence_reference_ids]
+    return _csv_cell(_dedupe_strings(values))
+
+
+def _suite_priority(suite: dict[str, Any]) -> str:
+    coverage_type = suite.get("coverage_type")
+    if coverage_type in {"unit", "integration", "acceptance"}:
+        return "high"
+    if coverage_type == "regression":
+        return "medium"
+    return _csv_cell(suite.get("priority"))
 
 
 def _qa_context(design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
@@ -657,6 +754,20 @@ def _dedupe_strings(values: list[str]) -> list[str]:
 
 def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "none"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {_csv_cell(item)}" for key, item in value.items())
+    if isinstance(value, set):
+        return "; ".join(_csv_cell(item) for item in sorted(value, key=str))
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_cell(item) for item in value)
+    return str(value)
 
 
 def _filename_part(value: str) -> str:
