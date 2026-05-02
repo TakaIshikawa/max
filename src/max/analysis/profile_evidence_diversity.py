@@ -202,6 +202,8 @@ def render_profile_evidence_diversity_markdown(report: Mapping[str, Any]) -> str
         f"# Profile Evidence Diversity: {profile['name']}",
         "",
         f"Schema: `{report['schema_version']}`",
+        f"Kind: `{report['kind']}`",
+        f"Generated at: {report['generated_at']}",
         f"Domain: `{profile['domain']}`",
         "",
         "## Summary",
@@ -254,6 +256,9 @@ def render_profile_evidence_diversity_markdown(report: Mapping[str, Any]) -> str
             )
     else:
         lines.append("No concentration warnings.")
+
+    lines.extend(["", "## Actionable Evidence Gaps", ""])
+    _append_actionable_gap_table(lines, report)
 
     lines.extend(["", "## Recommended Source Mix Adjustments", ""])
     adjustments = report.get("recommended_source_mix_adjustments") or []
@@ -754,6 +759,47 @@ def _append_share_table(
     for row in rows:
         lines.append(
             f"| {_escape_cell(row[key])} | {row['count']} | {_format_share(row['share'])} |"
+        )
+
+
+def _append_actionable_gap_table(lines: list[str], report: Mapping[str, Any]) -> None:
+    warnings = report.get("concentration_warnings") or []
+    underused_sources = report.get("underused_sources") or []
+    if not warnings and not underused_sources:
+        lines.append("- No actionable evidence gaps.")
+        return
+
+    lines.append("| Gap | Severity | Evidence | Action |")
+    lines.append("| --- | --- | --- | --- |")
+    for warning in warnings:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    _escape_cell(warning["type"]),
+                    _escape_cell(warning["severity"]),
+                    _escape_cell(warning["message"]),
+                    _escape_cell(warning["recommendation"]),
+                ]
+            )
+            + " |"
+        )
+    for source in underused_sources:
+        evidence = (
+            f"`{source['source']}` has {source['count']} signal(s) "
+            f"({_format_share(source['share'])})."
+        )
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    "underused_source",
+                    "medium",
+                    _escape_cell(evidence),
+                    _escape_cell(source["recommendation"]),
+                ]
+            )
+            + " |"
         )
 
 

@@ -153,11 +153,60 @@ def test_profile_evidence_diversity_accepts_mapping_rows_and_renders_markdown() 
     second = render_profile_evidence_diversity_markdown(report)
 
     assert first == second
-    assert "# Profile Evidence Diversity: diversity" in first
-    assert "## Summary" in first
-    assert "## Concentration Warnings" in first
-    assert "## Recommended Source Mix Adjustments" in first
-    assert "| workflow automation | 2 | `github_issues`, `reddit` |" in first
+    assert first == """# Profile Evidence Diversity: diversity
+
+Schema: `max.profile.evidence_diversity.v1`
+Kind: `max.profile.evidence_diversity`
+Generated at: 2026-04-30T00:00:00+00:00
+Domain: `developer-tools`
+
+## Summary
+
+- Total signals: 2
+- Unique sources: 2
+- Unique categories: 2
+- Top source share: 50.0%
+- Top category share: 50.0%
+- Concentration warnings: 1
+
+## Source Diversity
+
+| Source | Count | Share |
+| --- | ---: | ---: |
+| github_issues | 1 | 50.0% |
+| reddit | 1 | 50.0% |
+
+## Category Diversity
+
+| Category | Count | Share |
+| --- | ---: | ---: |
+| security | 1 | 50.0% |
+| workflow automation | 1 | 50.0% |
+
+## Repeated Query/Topic Terms
+
+| Term | Count | Sources |
+| --- | ---: | --- |
+| workflow automation | 2 | `github_issues`, `reddit` |
+
+## Concentration Warnings
+
+| Severity | Type | Detail | Recommendation |
+| --- | --- | --- | --- |
+| high | repeated_term | Configured term 'workflow automation' appears in 2 recent signals. | Add variant queries and adjacent topics so one term does not dominate profile evidence. |
+
+## Actionable Evidence Gaps
+
+| Gap | Severity | Evidence | Action |
+| --- | --- | --- | --- |
+| repeated_term | high | Configured term 'workflow automation' appears in 2 recent signals. | Add variant queries and adjacent topics so one term does not dominate profile evidence. |
+| underused_source | medium | `hackernews` has 0 signal(s) (0.0%). | Retune or allocate more fetch budget to `hackernews`. |
+
+## Recommended Source Mix Adjustments
+
+- Increase collection from underused enabled sources: `hackernews`.
+- Rotate repeated query/topic terms with synonyms, adjacent workflows, and negated filters.
+"""
     assert exported_render_markdown(report) == first
 
 
@@ -188,7 +237,9 @@ def test_profile_evidence_diversity_empty_input_has_no_evidence_warning() -> Non
     markdown = render_profile_evidence_diversity_markdown(report)
     assert "No source evidence is available." in markdown
     assert "No category evidence is available." in markdown
+    assert "## Actionable Evidence Gaps" in markdown
     assert "No recent evidence signals were provided" in markdown
+    assert "| underused_source | medium | `hackernews` has 0 signal(s) (0.0%). |" in markdown
     assert "`hackernews`, `reddit`, `github_issues`" in markdown
 
 
