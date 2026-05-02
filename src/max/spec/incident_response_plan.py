@@ -2,10 +2,36 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 INCIDENT_RESPONSE_PLAN_SCHEMA_VERSION = "max-incident-response-plan/v1"
+INCIDENT_RESPONSE_PLAN_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_idea_id",
+    "title",
+    "item_id",
+    "name",
+    "category",
+    "severity",
+    "response_target",
+    "owner",
+    "escalation_condition",
+    "trigger",
+    "detection_signals",
+    "response_steps",
+    "response_refs",
+    "incident_class_refs",
+    "communication_timing",
+    "message_guidance",
+    "recovery_criteria",
+    "status",
+    "description",
+    "recommendation",
+)
 
 _SECURITY_TERMS = (
     "authentication",
@@ -163,6 +189,18 @@ def render_incident_response_plan_markdown(plan: dict[str, Any]) -> str:
     _extend_section(lines, "Gaps", plan.get("gaps") or [], _render_gap)
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_incident_response_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a generated incident response plan as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output, fieldnames=INCIDENT_RESPONSE_PLAN_CSV_COLUMNS, lineterminator="\n"
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _incident_context(
@@ -674,6 +712,205 @@ def _render_gap(item: dict[str, Any]) -> list[str]:
         f"- Description: {_text(item.get('description'))}",
         f"- Recommendation: {_text(item.get('recommendation'))}",
     ]
+
+
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in _dict_items(plan.get("severity_levels")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="severity_levels",
+                type_="severity",
+                item_id=item.get("id"),
+                name=item.get("level"),
+                severity=item.get("id"),
+                response_target=item.get("response_target"),
+                owner=item.get("default_owner"),
+                description=item.get("definition"),
+            )
+        )
+
+    for item in _dict_items(plan.get("incident_classes")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="incident_classes",
+                type_="scenario",
+                item_id=item.get("id"),
+                name=item.get("title"),
+                category=item.get("category"),
+                severity=item.get("default_severity"),
+                trigger=item.get("trigger"),
+                detection_signals=item.get("evidence"),
+                response_refs=item.get("response_refs"),
+            )
+        )
+
+    for item in _dict_items(plan.get("escalation_roles")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="escalation_roles",
+                type_="owner",
+                item_id=item.get("id"),
+                name=item.get("role"),
+                owner=item.get("suggested_owner"),
+                escalation_condition=item.get("escalation_condition"),
+                response_steps=item.get("responsibility"),
+            )
+        )
+
+    for item in _dict_items(plan.get("triage_steps")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="triage_steps",
+                type_="response_step",
+                item_id=item.get("id"),
+                owner=item.get("owner"),
+                detection_signals=item.get("evidence"),
+                response_steps=item.get("task"),
+                status=item.get("status"),
+            )
+        )
+
+    for item in _dict_items(plan.get("containment_actions")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="containment_actions",
+                type_="response_step",
+                item_id=item.get("id"),
+                name=item.get("category"),
+                category=item.get("category"),
+                owner=item.get("owner"),
+                trigger=item.get("trigger"),
+                response_steps=item.get("action"),
+                incident_class_refs=item.get("incident_class_refs"),
+            )
+        )
+
+    for item in _dict_items(plan.get("communication_checkpoints")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="communication_checkpoints",
+                type_="communication",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                owner=item.get("owner"),
+                detection_signals=item.get("evidence"),
+                communication_timing=item.get("timing"),
+                message_guidance=item.get("message_guidance"),
+            )
+        )
+
+    for item in _dict_items(plan.get("postmortem_requirements")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="postmortem_requirements",
+                type_="recovery_criterion",
+                item_id=item.get("id"),
+                name=item.get("category"),
+                category=item.get("category"),
+                owner=item.get("owner"),
+                recovery_criteria=item.get("requirement"),
+                trigger=item.get("applies_when"),
+            )
+        )
+
+    for item in _dict_items(plan.get("gaps")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="gaps",
+                type_="gap",
+                item_id=item.get("id"),
+                name=item.get("category"),
+                category=item.get("category"),
+                owner=item.get("owner"),
+                description=item.get("description"),
+                recommendation=item.get("recommendation"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    severity: Any = None,
+    response_target: Any = None,
+    owner: Any = None,
+    escalation_condition: Any = None,
+    trigger: Any = None,
+    detection_signals: Any = None,
+    response_steps: Any = None,
+    response_refs: Any = None,
+    incident_class_refs: Any = None,
+    communication_timing: Any = None,
+    message_guidance: Any = None,
+    recovery_criteria: Any = None,
+    status: Any = None,
+    description: Any = None,
+    recommendation: Any = None,
+) -> dict[str, str]:
+    source = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "title": summary.get("title"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "severity": severity,
+        "response_target": response_target,
+        "owner": owner,
+        "escalation_condition": escalation_condition,
+        "trigger": trigger,
+        "detection_signals": detection_signals,
+        "response_steps": response_steps,
+        "response_refs": response_refs,
+        "incident_class_refs": incident_class_refs,
+        "communication_timing": communication_timing,
+        "message_guidance": message_guidance,
+        "recovery_criteria": recovery_criteria,
+        "status": status,
+        "description": description,
+        "recommendation": recommendation,
+    }
+    return {column: _csv_text(values.get(column)) for column in INCIDENT_RESPONSE_PLAN_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _join_code(values: Any) -> str:
