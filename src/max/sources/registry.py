@@ -40,6 +40,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "hackernews_showhn": "max.sources.hackernews_showhn:HackerNewsShowHNAdapter",
     "hackernews_askhn": "max.sources.hackernews_askhn:HackerNewsAskHNAdapter",
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
+    "npm_maintainer_activity": (
+        "max.sources.npm_maintainer_activity:NpmMaintainerActivityAdapter"
+    ),
     "npm_download_trends": (
         "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
     ),
@@ -201,6 +204,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries"],
         required_keys=[],
         description="Searches the npm registry for packages matching configured query terms.",
+    ),
+    "npm_maintainer_activity": AdapterMetadata(
+        name="npm_maintainer_activity",
+        config_keys=[
+            "packages",
+            "package_names",
+            "queries",
+            "search_terms",
+            "max_results_per_query",
+            "max_items",
+            "npm_api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches npm package maintainer, publisher, repository, release freshness, "
+            "and package health metadata."
+        ),
     ),
     "npm_download_trends": AdapterMetadata(
         name="npm_download_trends",
