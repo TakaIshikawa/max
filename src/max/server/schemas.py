@@ -3693,6 +3693,25 @@ class DesignBriefSalesBattlecardResponse(BaseModel):
     source_ideas: list[dict[str, Any]]
 
 
+class DesignBriefSalesEnablementChecklistResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    design_brief: dict[str, Any]
+    summary: dict[str, Any]
+    sales_context: dict[str, Any]
+    qualification_signals: list[dict[str, Any]]
+    discovery_questions: list[dict[str, Any]]
+    proof_points: list[dict[str, Any]]
+    demo_prep: list[dict[str, Any]]
+    objection_handling_assets: list[dict[str, Any]]
+    handoff_criteria: list[dict[str, Any]]
+    sections: list[dict[str, Any]]
+    checklist_items: list[dict[str, Any]]
+    missing_evidence_actions: list[dict[str, Any]]
+    source_ideas: list[dict[str, Any]]
+
+
 class DesignBriefOutreachPackResponse(BaseModel):
     schema_version: str
     kind: str

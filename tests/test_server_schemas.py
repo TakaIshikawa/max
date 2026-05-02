@@ -57,6 +57,7 @@ from max.server.schemas import (
     DesignBriefReleaseNotesResponse,
     DesignBriefRolloutCommsPlanResponse,
     DesignBriefSuccessMetricsResponse,
+    DesignBriefSalesEnablementChecklistResponse,
     DesignBriefTrainingPlanRequest,
     DesignBriefTrainingPlanResponse,
     ScheduleStatusResponse,
@@ -1046,6 +1047,57 @@ class TestSourceAdapterReliabilityDigestResponse:
 
         with pytest.raises(ValidationError):
             SourceAdapterReliabilityDigestResponse(**payload)
+
+
+class TestDesignBriefSalesEnablementChecklistResponse:
+    def test_valid_construction(self):
+        response = DesignBriefSalesEnablementChecklistResponse(
+            schema_version="max.design_brief.sales_enablement_checklist.v1",
+            kind="max.design_brief.sales_enablement_checklist",
+            source={
+                "project": "max",
+                "entity_type": "design_brief",
+                "id": "dbf-test001",
+                "generated_at": "2026-05-01T00:00:00+00:00",
+            },
+            design_brief={
+                "id": "dbf-test001",
+                "title": "Sales Enablement API Brief",
+                "domain": "sales",
+                "theme": "sales-readiness",
+                "readiness_score": 88.0,
+                "design_status": "approved",
+                "lead_idea_id": "bu-sales-enablement-api",
+                "source_idea_ids": ["bu-sales-enablement-api"],
+            },
+            summary={
+                "target_buyer": "VP of Revenue Operations",
+                "target_user": "sales engineer",
+                "workflow_context": "pre-demo qualification and handoff",
+                "primary_value": "Increase qualified demos.",
+                "sales_readiness_gate": "ready_for_seller_use",
+                "section_count": 1,
+                "checklist_item_count": 1,
+                "missing_evidence_count": 0,
+                "fallbacks_used": [],
+            },
+            sales_context={"buyer": "VP of Revenue Operations"},
+            qualification_signals=[{"signal": "Prospect owns revenue operations."}],
+            discovery_questions=[{"question": "How do you qualify demos today?"}],
+            proof_points=[{"evidence": "Pilot demo proof."}],
+            demo_prep=[{"prep": "Qualification scorecard"}],
+            objection_handling_assets=[{"objection": "We use spreadsheets."}],
+            handoff_criteria=[{"criterion": "Next owner is named."}],
+            sections=[{"id": "qualification", "title": "Qualification", "items": []}],
+            checklist_items=[{"id": "DBSE1", "task": "Confirm fit."}],
+            missing_evidence_actions=[],
+            source_ideas=[{"id": "bu-sales-enablement-api"}],
+        )
+
+        dumped = response.model_dump()
+        assert dumped["schema_version"] == "max.design_brief.sales_enablement_checklist.v1"
+        assert dumped["summary"]["sales_readiness_gate"] == "ready_for_seller_use"
+        assert dumped["checklist_items"][0]["id"] == "DBSE1"
 
 
 class TestInsightResponse:

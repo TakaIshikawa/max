@@ -195,6 +195,11 @@ from max.analysis.design_brief_sales_battlecard import (
     build_design_brief_sales_battlecard,
     render_design_brief_sales_battlecard,
 )
+from max.analysis.design_brief_sales_enablement_checklist import (
+    build_design_brief_sales_enablement_checklist,
+    render_design_brief_sales_enablement_checklist,
+    sales_enablement_checklist_filename,
+)
 from max.analysis.design_brief_success_metrics import (
     build_design_brief_success_metrics,
     render_design_brief_success_metrics,
@@ -441,6 +446,7 @@ from max.server.schemas import (
     DesignBriefResponse,
     DesignBriefRiskRegisterResponse,
     DesignBriefSalesBattlecardResponse,
+    DesignBriefSalesEnablementChecklistResponse,
     DesignBriefSlackPublishResponse,
     DesignBriefStatusUpdate,
     DesignBriefUnitEconomicsResponse,
@@ -10055,6 +10061,43 @@ def get_design_brief_sales_battlecard_markdown(
     filename = f"{_download_filename_part(brief_id)}-sales-battlecard.md"
     return Response(
         content=render_design_brief_sales_battlecard(battlecard, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/sales-enablement-checklist",
+    response_model=DesignBriefSalesEnablementChecklistResponse,
+)
+def get_design_brief_sales_enablement_checklist(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> DesignBriefSalesEnablementChecklistResponse:
+    if not store.get_design_brief(brief_id):
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return DesignBriefSalesEnablementChecklistResponse(**checklist)
+
+
+@router.get("/design-briefs/{brief_id}/sales-enablement-checklist.md", response_model=None)
+def get_design_brief_sales_enablement_checklist_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    if not store.get_design_brief(brief_id):
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    checklist = build_design_brief_sales_enablement_checklist(store, brief_id)
+    if not checklist:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    filename = sales_enablement_checklist_filename(checklist["design_brief"], fmt="markdown")
+    return Response(
+        content=render_design_brief_sales_enablement_checklist(checklist, fmt="markdown"),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
