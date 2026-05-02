@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "max.design_brief.technical_feasibility.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "name",
+    "risk_level",
+    "confidence",
+    "owner_or_type",
+    "rationale",
+    "validation_step",
+    "details",
+)
 
 _INTEGRATION_KEYWORDS = {
     "api": "external_api",
@@ -101,9 +117,11 @@ def build_design_brief_technical_feasibility(design_brief: dict[str, Any]) -> di
 
 
 def render_design_brief_technical_feasibility(report: dict[str, Any], *, fmt: str = "markdown") -> str:
-    """Render a technical-feasibility report as Markdown or JSON."""
+    """Render a technical-feasibility report as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported technical feasibility format: {fmt}")
 
@@ -202,8 +220,112 @@ def write_design_brief_technical_feasibility(
 
 
 def technical_feasibility_filename(design_brief: dict[str, Any], *, fmt: str) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return f"{_filename_part(str(design_brief['id']))}-technical-feasibility.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    brief = report["design_brief"]
+    base = {
+        "design_brief_id": str(brief["id"]),
+        "design_brief_title": str(brief["title"]),
+    }
+    rows: list[dict[str, str]] = []
+
+    for item in report.get("architecture_assumptions", []):
+        rows.append(
+            {
+                **base,
+                "section": "architecture_assumptions",
+                "item_id": str(item.get("id", "")),
+                "name": str(item.get("assumption", "")),
+                "risk_level": "",
+                "confidence": str(item.get("confidence", "")),
+                "owner_or_type": "",
+                "rationale": str(item.get("rationale", "")),
+                "validation_step": "",
+                "details": _compact_json({"source_fields": item.get("source_fields", [])}),
+            }
+        )
+
+    for item in report.get("integration_surface", []):
+        rows.append(
+            {
+                **base,
+                "section": "integration_surface",
+                "item_id": str(item.get("id", "")),
+                "name": str(item.get("name", "")),
+                "risk_level": str(item.get("risk_level", "")),
+                "confidence": "",
+                "owner_or_type": str(item.get("type", "")),
+                "rationale": str(item.get("rationale", "")),
+                "validation_step": str(item.get("validation_step", "")),
+                "details": "",
+            }
+        )
+
+    for item in report.get("data_dependencies", []):
+        rows.append(
+            {
+                **base,
+                "section": "data_dependencies",
+                "item_id": str(item.get("id", "")),
+                "name": str(item.get("name", "")),
+                "risk_level": str(item.get("risk_level", "")),
+                "confidence": "",
+                "owner_or_type": str(item.get("criticality", "")),
+                "rationale": str(item.get("rationale", "")),
+                "validation_step": str(item.get("validation_step", "")),
+                "details": _compact_json({"source": item.get("source", "")}),
+            }
+        )
+
+    for item in report.get("unknowns", []):
+        rows.append(
+            {
+                **base,
+                "section": "unknowns",
+                "item_id": str(item.get("id", "")),
+                "name": str(item.get("unknown", "")),
+                "risk_level": "",
+                "confidence": "",
+                "owner_or_type": "",
+                "rationale": str(item.get("impact", "")),
+                "validation_step": str(item.get("resolution_path", "")),
+                "details": "",
+            }
+        )
+
+    for item in report.get("recommended_spike_plan", []):
+        rows.append(
+            {
+                **base,
+                "section": "recommended_spike_plan",
+                "item_id": str(item.get("id", "")),
+                "name": str(item.get("title", "")),
+                "risk_level": "",
+                "confidence": "",
+                "owner_or_type": str(item.get("duration", "")),
+                "rationale": str(item.get("goal", "")),
+                "validation_step": str(item.get("exit_criteria", "")),
+                "details": _compact_json({"steps": item.get("steps", [])}),
+            }
+        )
+
+    return rows
+
+
+def _compact_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def _architecture_assumptions(design_brief: dict[str, Any]) -> list[dict[str, Any]]:

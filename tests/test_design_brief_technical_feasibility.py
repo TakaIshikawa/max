@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_technical_feasibility import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_technical_feasibility,
     render_design_brief_technical_feasibility,
+    technical_feasibility_filename,
 )
 
 
@@ -104,3 +108,67 @@ def test_render_design_brief_technical_feasibility_json_and_markdown() -> None:
 
     with pytest.raises(ValueError):
         render_design_brief_technical_feasibility(report, fmt="yaml")
+
+
+def test_render_design_brief_technical_feasibility_csv_has_stable_headers_and_sections() -> None:
+    report = build_design_brief_technical_feasibility(_brief())
+
+    csv_text = render_design_brief_technical_feasibility(report, fmt="csv")
+    repeated = render_design_brief_technical_feasibility(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == (
+        ["architecture_assumptions"] * len(report["architecture_assumptions"])
+        + ["integration_surface"] * len(report["integration_surface"])
+        + ["data_dependencies"] * len(report["data_dependencies"])
+        + ["unknowns"] * len(report["unknowns"])
+        + ["recommended_spike_plan"] * len(report["recommended_spike_plan"])
+    )
+    assert len(rows) == sum(
+        len(report[section])
+        for section in (
+            "architecture_assumptions",
+            "integration_surface",
+            "data_dependencies",
+            "unknowns",
+            "recommended_spike_plan",
+        )
+    )
+    assert rows[0]["design_brief_id"] == "dbf-feasibility"
+    assert rows[0]["design_brief_title"] == "AgentAdversarialBench"
+
+
+def test_render_design_brief_technical_feasibility_csv_serializes_detail_json() -> None:
+    report = build_design_brief_technical_feasibility(_brief())
+
+    rows = list(
+        csv.DictReader(StringIO(render_design_brief_technical_feasibility(report, fmt="csv")))
+    )
+    rows_by_id = {row["item_id"]: row for row in rows}
+
+    assert rows_by_id["A1"]["details"] == '{"source_fields":["merged_product_concept"]}'
+    assert json.loads(rows_by_id["A1"]["details"]) == {"source_fields": ["merged_product_concept"]}
+    assert rows_by_id["D1"]["details"] == '{"source":"max.store.design_briefs"}'
+    assert rows_by_id["S1"]["details"].startswith('{"steps":["Sketch the core workflow sequence')
+    assert json.loads(rows_by_id["S1"]["details"]) == {
+        "steps": report["recommended_spike_plan"][0]["steps"]
+    }
+
+
+def test_technical_feasibility_filename_supports_csv_extension() -> None:
+    brief = _brief(id="dbf-technical/export")
+
+    assert (
+        technical_feasibility_filename(brief, fmt="markdown")
+        == "dbf-technical-export-technical-feasibility.md"
+    )
+    assert (
+        technical_feasibility_filename(brief, fmt="json")
+        == "dbf-technical-export-technical-feasibility.json"
+    )
+    assert (
+        technical_feasibility_filename(brief, fmt="csv")
+        == "dbf-technical-export-technical-feasibility.csv"
+    )
