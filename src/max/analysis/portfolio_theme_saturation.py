@@ -24,6 +24,7 @@ _CSV_COLUMNS = (
     "theme_bucket_id",
     "domain_coverage",
     "theme",
+    "category",
     "item_count",
     "source_idea_count",
     "buildable_unit_count",
@@ -31,13 +32,21 @@ _CSV_COLUMNS = (
     "evidence_count",
     "evidence_concentration",
     "recent_validation_count",
+    "readiness_high_count",
+    "readiness_medium_count",
+    "readiness_low_count",
     "saturation_score",
+    "saturation_level",
     "flags",
     "representative_idea_ids",
+    "representative_idea_titles",
     "representative_design_brief_ids",
+    "representative_design_brief_titles",
     "source_idea_ids",
     "recent_validation_idea_ids",
-    "recommendations",
+    "recommended_action_priorities",
+    "recommended_actions",
+    "recommended_action_rationales",
 )
 
 
@@ -222,7 +231,15 @@ def _render_portfolio_theme_saturation_csv(report: Mapping[str, Any]) -> str:
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
-    for bucket in report.get("theme_buckets", []):
+    buckets = sorted(
+        report.get("theme_buckets", []),
+        key=lambda bucket: (
+            _clean(bucket.get("domain")),
+            _clean(bucket.get("theme")),
+            _clean(bucket.get("id")),
+        ),
+    )
+    for bucket in buckets:
         writer.writerow(_portfolio_theme_saturation_csv_row(report, bucket))
     return output.getvalue()
 
@@ -237,15 +254,28 @@ def _portfolio_theme_saturation_csv_row(
         for item in representative_items
         if item.get("source_type") == "buildable_unit"
     ]
+    representative_idea_titles = [
+        item.get("title", "")
+        for item in representative_items
+        if item.get("source_type") == "buildable_unit"
+    ]
     representative_design_brief_ids = [
         item.get("id", "")
         for item in representative_items
         if item.get("source_type") == "design_brief"
     ]
+    representative_design_brief_titles = [
+        item.get("title", "")
+        for item in representative_items
+        if item.get("source_type") == "design_brief"
+    ]
+    recommendations = _bucket_recommendations(report, bucket)
+    readiness_counts = _readiness_counts(bucket)
     return {
         "theme_bucket_id": bucket.get("id", ""),
         "domain_coverage": bucket.get("domain", ""),
         "theme": bucket.get("theme", ""),
+        "category": _csv_join(_counter_values(bucket.get("categories"), "category")),
         "item_count": bucket.get("item_count", 0),
         "source_idea_count": bucket.get("source_idea_count", 0),
         "buildable_unit_count": bucket.get("buildable_unit_count", 0),
@@ -253,15 +283,29 @@ def _portfolio_theme_saturation_csv_row(
         "evidence_count": bucket.get("evidence_count", 0),
         "evidence_concentration": bucket.get("evidence_concentration", 0.0),
         "recent_validation_count": bucket.get("recent_validation_count", 0),
+        "readiness_high_count": readiness_counts.get("high", 0),
+        "readiness_medium_count": readiness_counts.get("medium", 0),
+        "readiness_low_count": readiness_counts.get("low", 0),
         "saturation_score": bucket.get("saturation_score", 0.0),
+        "saturation_level": _saturation_level(bucket),
         "flags": _csv_join(bucket.get("flags")),
         "representative_idea_ids": _csv_join(representative_idea_ids),
+        "representative_idea_titles": _csv_join(representative_idea_titles),
         "representative_design_brief_ids": _csv_join(representative_design_brief_ids),
+        "representative_design_brief_titles": _csv_join(representative_design_brief_titles),
         "source_idea_ids": _csv_join(sorted(bucket.get("source_idea_ids") or [])),
         "recent_validation_idea_ids": _csv_join(
             sorted(bucket.get("recent_validation_idea_ids") or [])
         ),
-        "recommendations": _csv_join(_bucket_recommendations(report, bucket), separator=" | "),
+        "recommended_action_priorities": _csv_join(
+            recommendation.get("priority", "") for recommendation in recommendations
+        ),
+        "recommended_actions": _csv_join(
+            recommendation.get("action", "") for recommendation in recommendations
+        ),
+        "recommended_action_rationales": _csv_join(
+            recommendation.get("rationale", "") for recommendation in recommendations
+        ),
     }
 
 
@@ -641,13 +685,41 @@ def _bucket_id(domain: str, theme: str) -> str:
 def _bucket_recommendations(
     report: Mapping[str, Any],
     bucket: Mapping[str, Any],
-) -> list[str]:
+) -> list[Mapping[str, Any]]:
     needle = f"{bucket.get('domain', '')} / {bucket.get('theme', '')}"
     return [
-        _clean(recommendation.get("action"))
+        recommendation
         for recommendation in report.get("recommendations", [])
         if isinstance(recommendation, Mapping) and needle in _clean(recommendation.get("action"))
     ]
+
+
+def _counter_values(rows: Any, key: str) -> list[str]:
+    return [
+        _clean(row.get(key))
+        for row in _list(rows)
+        if isinstance(row, Mapping) and _clean(row.get(key))
+    ]
+
+
+def _readiness_counts(bucket: Mapping[str, Any]) -> dict[str, int]:
+    counts = {"high": 0, "medium": 0, "low": 0}
+    for row in _list(bucket.get("readiness_bands")):
+        if not isinstance(row, Mapping):
+            continue
+        band = _clean(row.get("readiness_band"))
+        if band in counts:
+            counts[band] = int(_float(row.get("count")))
+    return counts
+
+
+def _saturation_level(bucket: Mapping[str, Any]) -> str:
+    if "crowded" in _list(bucket.get("flags")):
+        return "high"
+    score = _float(bucket.get("saturation_score"))
+    if score >= 0.5:
+        return "medium"
+    return "low"
 
 
 def _representative_ids(bucket: Mapping[str, Any]) -> list[str]:
