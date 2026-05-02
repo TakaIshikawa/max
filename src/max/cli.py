@@ -4173,7 +4173,7 @@ def design_briefs_blueprint(design_brief_id: str, output: str | None) -> None:
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(["markdown", "json"]),
+    type=click.Choice(["markdown", "json", "csv"]),
     default="markdown",
     help="Output format",
 )

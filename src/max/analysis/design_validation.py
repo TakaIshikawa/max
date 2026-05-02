@@ -2,14 +2,33 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from datetime import datetime, timezone
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.validation_plan.v1"
+
+CSV_COLUMNS = [
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "hypothesis",
+    "method",
+    "metric",
+    "target",
+    "owner",
+    "cadence",
+    "risk",
+    "evidence_refs",
+    "source_idea_ids",
+    "source_fields",
+]
 
 
 def build_validation_plan(
@@ -276,12 +295,24 @@ def build_validation_plan(
 
 
 def render_validation_plan(plan: dict[str, Any], *, fmt: str) -> str:
-    """Render a validation plan as JSON or Markdown."""
+    """Render a validation plan as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(plan, indent=2) + "\n"
     if fmt == "markdown":
         return render_validation_plan_markdown(plan)
+    if fmt == "csv":
+        return render_validation_plan_csv(plan)
     raise ValueError(f"Unsupported validation plan format: {fmt}")
+
+
+def render_validation_plan_csv(plan: dict[str, Any]) -> str:
+    """Render validation plan execution rows as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _validation_plan_csv_rows(plan):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def render_validation_plan_markdown(plan: dict[str, Any]) -> str:
@@ -384,8 +415,212 @@ def write_validation_plan(path: Path, plan: dict[str, Any], *, fmt: str) -> None
 
 
 def validation_plan_filename(design_brief: dict[str, Any], *, fmt: str) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"json": "json", "csv": "csv"}.get(fmt, "md")
     return f"{design_brief['id']}-validation-plan.{extension}"
+
+
+def _validation_plan_csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    brief = plan.get("design_brief") or {}
+    source_idea_ids = _source_idea_ids(plan, brief)
+    base = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "source_idea_ids": _csv_join(source_idea_ids),
+    }
+
+    rows: list[dict[str, str]] = []
+    for item in _list_items(plan.get("validation_experiments")) + _list_items(plan.get("experiments")):
+        rows.append(
+            _csv_row(
+                **base,
+                section="validation_experiment",
+                item_id=_first_text(item.get("id"), item.get("experiment_id"), item.get("title")),
+                hypothesis=_first_text(item.get("hypothesis"), item.get("assumption"), item.get("title")),
+                method=_first_text(item.get("method"), item.get("experiment_type"), item.get("channel")),
+                metric=_first_text(item.get("metric"), item.get("success_metric")),
+                target=_first_text(item.get("target"), item.get("success_criteria"), item.get("expected_result")),
+                owner=item.get("owner"),
+                cadence=item.get("cadence"),
+                risk=_first_text(item.get("risk"), item.get("risk_to_probe")),
+                evidence_refs=_csv_join(_evidence_ref_ids(item)),
+                source_fields=_csv_join(item.get("source_fields") or ["validation_experiments"]),
+            )
+        )
+
+    for item in _list_items(plan.get("target_user_hypotheses")):
+        rows.append(
+            _csv_row(
+                **base,
+                section="target_user_hypothesis",
+                item_id=item.get("id"),
+                hypothesis=item.get("hypothesis"),
+                evidence_refs=_csv_join(_evidence_ref_ids(item)),
+                source_fields="specific_user;buyer;workflow_context;current_workaround;problem",
+            )
+        )
+
+    for item in _list_items(plan.get("success_metrics")):
+        rows.append(
+            _csv_row(
+                **base,
+                section="success_metric",
+                item_id=item.get("id") or item.get("metric"),
+                metric=item.get("metric"),
+                target=item.get("target"),
+                evidence_refs=_csv_join(_evidence_ref_ids(item)),
+                source_fields="success_metrics",
+            )
+        )
+
+    for index, risk in enumerate(_list_items(plan.get("risks_to_probe")), start=1):
+        risk_text = risk.get("risk") if isinstance(risk, dict) else risk
+        rows.append(
+            _csv_row(
+                **base,
+                section="risk_to_probe",
+                item_id=f"R{index}",
+                risk=risk_text,
+                evidence_refs=_csv_join(_evidence_ref_ids(risk) if isinstance(risk, dict) else []),
+                source_fields="risks;domain_risks",
+            )
+        )
+
+    for item in _list_items(plan.get("missing_inputs")):
+        rows.append(
+            _csv_row(
+                **base,
+                section="missing_input",
+                item_id=_first_text(item.get("id"), item.get("field"), item.get("input")),
+                target=_first_text(item.get("reason"), item.get("description"), item.get("recommendation")),
+                owner=item.get("owner"),
+                source_fields=_first_text(item.get("field"), item.get("input")),
+            )
+        )
+
+    for item in _evidence_refs(plan):
+        evidence_base = {
+            **base,
+            "source_idea_ids": _csv_join(_source_idea_ids_for_ref(item, source_idea_ids)),
+        }
+        rows.append(
+            _csv_row(
+                **evidence_base,
+                section="evidence_reference",
+                item_id=_evidence_ref_id(item),
+                evidence_refs=_evidence_ref_id(item),
+                source_fields=_csv_join(_evidence_source_fields(item)),
+            )
+        )
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    return separator.join(text for value in _list_items(values) if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def _list_items(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, set):
+        return sorted(value)
+    return [value]
+
+
+def _source_idea_ids(plan: dict[str, Any], brief: dict[str, Any]) -> list[str]:
+    ids = [str(item) for item in _list_items(brief.get("source_idea_ids")) if _csv_text(item)]
+    ids.extend(
+        str(idea["id"])
+        for idea in _list_items(plan.get("source_ideas"))
+        if isinstance(idea, dict) and _csv_text(idea.get("id"))
+    )
+    return list(dict.fromkeys(ids))
+
+
+def _evidence_refs(plan: dict[str, Any]) -> list[Any]:
+    refs: list[Any] = []
+    refs.extend(_list_items(plan.get("evidence_refs")))
+    refs.extend(_list_items(plan.get("evidence_references")))
+    refs.extend(
+        {
+            "id": f"source_idea:{idea['id']}",
+            "source_idea_id": idea["id"],
+            "source_fields": _present_source_idea_fields(idea),
+        }
+        for idea in _list_items(plan.get("source_ideas"))
+        if isinstance(idea, dict) and _csv_text(idea.get("id"))
+    )
+    return refs
+
+
+def _present_source_idea_fields(idea: dict[str, Any]) -> list[str]:
+    return [
+        field
+        for field in [
+            "problem",
+            "solution",
+            "value_proposition",
+            "specific_user",
+            "buyer",
+            "workflow_context",
+            "current_workaround",
+            "validation_plan",
+            "domain_risks",
+        ]
+        if idea.get(field)
+    ]
+
+
+def _evidence_ref_ids(item: dict[str, Any]) -> list[str]:
+    refs: list[str] = []
+    for key in ("evidence_refs", "evidence_references", "evidence_ref_ids", "evidence_urls"):
+        for ref in _list_items(item.get(key)):
+            ref_id = _evidence_ref_id(ref)
+            if ref_id:
+                refs.append(ref_id)
+    return list(dict.fromkeys(refs))
+
+
+def _evidence_ref_id(item: Any) -> str:
+    if isinstance(item, dict):
+        return _first_text(item.get("id"), item.get("ref"), item.get("url"), item.get("source_idea_id"))
+    return _csv_text(item)
+
+
+def _source_idea_ids_for_ref(item: Any, fallback_ids: list[str]) -> list[str]:
+    if not isinstance(item, dict):
+        return []
+    source_id = _first_text(item.get("source_idea_id"), item.get("idea_id"))
+    if source_id:
+        return [source_id]
+    ref_id = _evidence_ref_id(item)
+    prefix = "source_idea:"
+    if ref_id.startswith(prefix):
+        return [ref_id.removeprefix(prefix)]
+    if item.get("type") == "source_idea" and ref_id in fallback_ids:
+        return [ref_id]
+    return []
+
+
+def _evidence_source_fields(item: Any) -> list[str]:
+    if not isinstance(item, dict):
+        return []
+    return [str(field) for field in _list_items(item.get("source_fields")) if _csv_text(field)]
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:

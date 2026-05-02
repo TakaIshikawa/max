@@ -9061,6 +9061,23 @@ def get_design_brief_validation_plan_markdown(
     )
 
 
+@router.get("/design-briefs/{brief_id}/validation-plan.csv", response_model=None)
+def get_design_brief_validation_plan_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    from max.analysis.design_validation import build_validation_plan, render_validation_plan
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    return Response(
+        content=render_validation_plan(build_validation_plan(store, brief), fmt="csv"),
+        media_type="text/csv",
+    )
+
+
 @router.get(
     "/design-briefs/{brief_id}/evidence-matrix",
     response_model=DesignBriefEvidenceMatrixResponse,
