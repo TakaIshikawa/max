@@ -53,6 +53,7 @@ from max.analysis.design_brief_qa_test_plan import (
 from max.analysis.design_brief_work_breakdown import (
     build_design_brief_work_breakdown,
     render_design_brief_work_breakdown,
+    render_design_brief_work_breakdown_csv,
     work_breakdown_filename,
 )
 from max.analysis.design_brief_investor_update import (
@@ -211,6 +212,7 @@ __all__ = [
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_renewal_expansion_plan",
     "render_design_brief_work_breakdown",
+    "render_design_brief_work_breakdown_csv",
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
     "render_design_brief_competitive_alternatives",

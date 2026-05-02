@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,12 +12,38 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.work_breakdown"
 SCHEMA_VERSION = "max.design_brief.work_breakdown.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "implementation_gate",
+    "phase",
+    "workstream",
+    "task_id",
+    "task_title",
+    "description",
+    "owner_role",
+    "dependencies",
+    "acceptance_check_ids",
+    "estimate_size",
+    "readiness_status",
+    "evidence_reference_ids",
+    "source_idea_ids",
+    "source_fields",
+)
 
 _REQUIRED_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("specific_user", "medium", "Implementation tasks need a named primary actor."),
     ("buyer", "medium", "Owner review and acceptance checks need a buyer or accountable approver."),
-    ("workflow_context", "high", "Task sequencing needs the workflow where the first release is used."),
-    ("merged_product_concept", "high", "Epics need a concrete product concept to avoid speculative work."),
+    (
+        "workflow_context",
+        "high",
+        "Task sequencing needs the workflow where the first release is used.",
+    ),
+    (
+        "merged_product_concept",
+        "high",
+        "Epics need a concrete product concept to avoid speculative work.",
+    ),
     ("mvp_scope", "high", "Task boundaries need an explicit MVP scope."),
     ("first_milestones", "medium", "Sequencing needs first milestone expectations."),
     ("validation_plan", "high", "Acceptance checks need owner-approved validation criteria."),
@@ -90,9 +118,11 @@ def build_design_brief_work_breakdown(store: Store, brief_id: str) -> dict[str, 
 
 
 def render_design_brief_work_breakdown(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a design brief work breakdown as Markdown or deterministic JSON."""
+    """Render a design brief work breakdown as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_work_breakdown_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported work breakdown format: {fmt}")
 
@@ -149,7 +179,9 @@ def render_design_brief_work_breakdown(report: dict[str, Any], fmt: str = "markd
 
     lines.extend(["", "## Owners", ""])
     for owner in report["owners"]:
-        lines.append(f"- **{owner['role']}**: {owner['responsibility']} Handoff: {owner['handoff']}")
+        lines.append(
+            f"- **{owner['role']}**: {owner['responsibility']} Handoff: {owner['handoff']}"
+        )
 
     lines.extend(["", "## Acceptance Checks", ""])
     for check in report["acceptance_checks"]:
@@ -157,7 +189,9 @@ def render_design_brief_work_breakdown(report: dict[str, Any], fmt: str = "markd
 
     lines.extend(["", "## Sequencing Risks", ""])
     for risk in report["sequencing_risks"]:
-        lines.append(f"- **{risk['id']} {risk['risk']}** ({risk['severity']}): {risk['mitigation']}")
+        lines.append(
+            f"- **{risk['id']} {risk['risk']}** ({risk['severity']}): {risk['mitigation']}"
+        )
 
     lines.extend(["", "## Gaps", ""])
     if report["gaps"]:
@@ -173,16 +207,83 @@ def render_design_brief_work_breakdown(report: dict[str, Any], fmt: str = "markd
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_work_breakdown_csv(report: dict[str, Any]) -> str:
+    """Render one CSV row per work breakdown task."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def work_breakdown_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
     """Return a stable filename for a work breakdown export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-work-breakdown.{extension}"
     )
 
 
-def _work_context(design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    epics_by_id = {
+        epic.get("id"): epic
+        for epic in report.get("epics") or []
+        if isinstance(epic, dict) and epic.get("id")
+    }
+    return [_csv_row(report, task, epics_by_id) for task in _task_items_for_csv(report)]
+
+
+def _task_items_for_csv(report: dict[str, Any]) -> list[dict[str, Any]]:
+    tasks = report.get("tasks") or report.get("work_items") or []
+    if isinstance(tasks, dict):
+        tasks = tasks.get("items") or tasks.get("tasks") or []
+    if not isinstance(tasks, list):
+        return []
+    return [task for task in tasks if isinstance(task, dict)]
+
+
+def _csv_row(
+    report: dict[str, Any],
+    task: dict[str, Any],
+    epics_by_id: dict[Any, dict[str, Any]],
+) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    epic = epics_by_id.get(task.get("epic_id")) or {}
+    values = {
+        "design_brief_id": brief.get("id") or report.get("brief_id"),
+        "design_brief_title": brief.get("title") or report.get("title"),
+        "implementation_gate": summary.get("implementation_gate")
+        or report.get("implementation_gate"),
+        "phase": epic.get("id") or task.get("phase") or task.get("epic_id"),
+        "workstream": epic.get("title") or task.get("workstream") or task.get("epic_title"),
+        "task_id": task.get("id") or task.get("task_id"),
+        "task_title": task.get("title") or task.get("task") or task.get("name"),
+        "description": task.get("description") or task.get("rationale"),
+        "owner_role": task.get("owner") or task.get("owner_role"),
+        "dependencies": task.get("depends_on") or task.get("dependencies"),
+        "acceptance_check_ids": task.get("acceptance_check_ids"),
+        "estimate_size": task.get("estimate_size") or task.get("estimate") or task.get("size"),
+        "readiness_status": task.get("status")
+        or task.get("readiness")
+        or task.get("readiness_status"),
+        "evidence_reference_ids": (
+            task.get("evidence_reference_ids")
+            or task.get("evidence_refs")
+            or task.get("evidence_references")
+            or task.get("source_fields")
+        ),
+        "source_idea_ids": task.get("source_idea_ids"),
+        "source_fields": task.get("source_fields"),
+    }
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _work_context(
+    design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]
+) -> dict[str, Any]:
     fallbacks: list[str] = []
     lead_idea = next((idea for idea in source_ideas if idea.get("role") == "lead"), None)
     title = _first_text(design_brief.get("title"), "Untitled design brief")
@@ -232,7 +333,10 @@ def _work_context(design_brief: dict[str, Any], source_ideas: list[dict[str, Any
         (design_brief.get("validation_plan"), "design_brief.validation_plan"),
         (lead_idea and lead_idea.get("validation_plan"), "lead_idea.validation_plan"),
         (_field_values(source_ideas, "validation_plan"), "source_ideas.validation_plan"),
-        ("Record product, engineering, and QA acceptance before implementation starts.", "explicit_fallback"),
+        (
+            "Record product, engineering, and QA acceptance before implementation starts.",
+            "explicit_fallback",
+        ),
     )
     risks = _dedupe_strings(
         [
@@ -314,14 +418,94 @@ def _tasks(
 ) -> list[dict[str, Any]]:
     check_ids = [check["id"] for check in checks]
     tasks = [
-        _task("WBT1", epics[0], "Resolve build contract", "Confirm MVP scope, non-goals, source assumptions, and open gaps.", "Product owner", [], check_ids[:2], ["mvp_scope", "merged_product_concept", "source_idea_ids"], source_idea_ids),
-        _task("WBT2", epics[0], "Define implementation slices", f"Break {context['primary_scope']} into reviewable engineering slices.", "Implementation engineer", ["WBT1"], check_ids[:2], ["first_milestones", "workflow_context"], source_idea_ids),
-        _task("WBT3", epics[1], "Build primary workflow", f"Implement the {context['workflow_context']} happy path for {context['specific_user']}.", "Implementation engineer", ["WBT2"], check_ids[1:4], ["specific_user", "workflow_context", "mvp_scope"], source_idea_ids),
-        _task("WBT4", epics[1], "Build operational edge handling", f"Handle empty, invalid, duplicated, and deferred states for {context['secondary_scope']}.", "Implementation engineer", ["WBT3"], check_ids[2:4], ["risks", "first_milestones"], source_idea_ids),
-        _task("WBT5", epics[2], "Automate regression coverage", "Add deterministic tests for structured output, rendering, and repeated generation.", "QA engineer", ["WBT3", "WBT4"], check_ids[2:5], ["validation_plan", "risks"], source_idea_ids),
-        _task("WBT6", epics[2], "Run owner acceptance review", f"Validate the build against: {context['validation_plan']}", "Product owner", ["WBT5"], check_ids[3:6], ["validation_plan", "buyer"], source_idea_ids),
-        _task("WBT7", epics[3], "Prepare launch handoff", f"Document release notes, support expectations, and recovery triggers for {context['buyer']}.", "Release owner", ["WBT6"], check_ids[4:6], ["buyer", "risks"], source_idea_ids),
-        _task("WBT8", epics[3], "Close evidence loop", "Record acceptance evidence, unresolved decisions, and the next build increment.", "Product owner", ["WBT7"], check_ids[5:], ["validation_plan", "first_milestones"], source_idea_ids),
+        _task(
+            "WBT1",
+            epics[0],
+            "Resolve build contract",
+            "Confirm MVP scope, non-goals, source assumptions, and open gaps.",
+            "Product owner",
+            [],
+            check_ids[:2],
+            ["mvp_scope", "merged_product_concept", "source_idea_ids"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT2",
+            epics[0],
+            "Define implementation slices",
+            f"Break {context['primary_scope']} into reviewable engineering slices.",
+            "Implementation engineer",
+            ["WBT1"],
+            check_ids[:2],
+            ["first_milestones", "workflow_context"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT3",
+            epics[1],
+            "Build primary workflow",
+            f"Implement the {context['workflow_context']} happy path for {context['specific_user']}.",
+            "Implementation engineer",
+            ["WBT2"],
+            check_ids[1:4],
+            ["specific_user", "workflow_context", "mvp_scope"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT4",
+            epics[1],
+            "Build operational edge handling",
+            f"Handle empty, invalid, duplicated, and deferred states for {context['secondary_scope']}.",
+            "Implementation engineer",
+            ["WBT3"],
+            check_ids[2:4],
+            ["risks", "first_milestones"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT5",
+            epics[2],
+            "Automate regression coverage",
+            "Add deterministic tests for structured output, rendering, and repeated generation.",
+            "QA engineer",
+            ["WBT3", "WBT4"],
+            check_ids[2:5],
+            ["validation_plan", "risks"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT6",
+            epics[2],
+            "Run owner acceptance review",
+            f"Validate the build against: {context['validation_plan']}",
+            "Product owner",
+            ["WBT5"],
+            check_ids[3:6],
+            ["validation_plan", "buyer"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT7",
+            epics[3],
+            "Prepare launch handoff",
+            f"Document release notes, support expectations, and recovery triggers for {context['buyer']}.",
+            "Release owner",
+            ["WBT6"],
+            check_ids[4:6],
+            ["buyer", "risks"],
+            source_idea_ids,
+        ),
+        _task(
+            "WBT8",
+            epics[3],
+            "Close evidence loop",
+            "Record acceptance evidence, unresolved decisions, and the next build increment.",
+            "Product owner",
+            ["WBT7"],
+            check_ids[5:],
+            ["validation_plan", "first_milestones"],
+            source_idea_ids,
+        ),
     ]
     if has_gaps:
         tasks[0]["status"] = "blocked_until_gap_review"
@@ -528,7 +712,9 @@ def _gaps(
         elif field in {"mvp_scope", "first_milestones", "risks"}:
             missing = not _string_list(design_brief.get(field))
         else:
-            missing = not _string_list(design_brief.get(field)) and not _field_values(source_ideas, field)
+            missing = not _string_list(design_brief.get(field)) and not _field_values(
+                source_ideas, field
+            )
         if missing or field in context["fallbacks_used"]:
             gaps.append(
                 {
@@ -677,6 +863,18 @@ def _dedupe_strings(values: list[str]) -> list[str]:
 
 def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "None"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, set):
+        value = sorted(value, key=str)
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_text(item) for item in value)
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
 
 
 def _filename_part(value: str) -> str:
