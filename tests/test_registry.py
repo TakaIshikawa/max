@@ -260,6 +260,7 @@ def test_list_adapters_returns_strings():
     assert "github_discussion_comments" in names
     assert "open_vsx_download_trends" in names
     assert "stackoverflow_tag_trends" in names
+    assert "pypi_maintainer_activity" in names
 
 
 def test_get_adapter_class_returns_registered_class():
@@ -276,7 +277,7 @@ def test_get_adapter_class_returns_registered_class():
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,pypi_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -287,6 +288,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "npm_download_trends",
         "npm_dependents",
         "npm_maintainer_activity",
+        "pypi_maintainer_activity",
         "rss_feed",
         "crates_io",
         "crates_dependents",
@@ -348,6 +350,14 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["npm_maintainer_activity"].required_keys == []
     assert "maintainer" in metadata["npm_maintainer_activity"].description
+    assert metadata["pypi_maintainer_activity"].config_keys == [
+        "packages",
+        "pypi_api_url",
+        "max_releases",
+        "timeout",
+    ]
+    assert metadata["pypi_maintainer_activity"].required_keys == []
+    assert "PyPI package maintainer" in metadata["pypi_maintainer_activity"].description
     assert metadata["rss_feed"].config_keys == ["feeds", "tags", "max_age_days"]
     assert metadata["rss_feed"].required_keys == ["feeds"]
     assert "RSS" in metadata["rss_feed"].description
