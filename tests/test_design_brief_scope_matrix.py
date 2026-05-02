@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -9,6 +11,7 @@ from max.analysis.design_brief_scope_matrix import (
     SCHEMA_VERSION,
     build_design_brief_scope_matrix,
     render_design_brief_scope_matrix,
+    scope_matrix_filename,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -168,6 +171,53 @@ def test_render_design_brief_scope_matrix_json_markdown_and_invalid_format(tmp_p
 
     with pytest.raises(ValueError):
         render_design_brief_scope_matrix(matrix, "yaml")
+
+
+def test_render_design_brief_scope_matrix_csv_is_structured_and_ordered(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_scope_brief(store)
+        matrix = build_design_brief_scope_matrix(store, brief_id)
+    finally:
+        store.close()
+
+    assert matrix is not None
+    rendered = render_design_brief_scope_matrix(matrix, "csv")
+    reader = csv.DictReader(io.StringIO(rendered))
+    rows = list(reader)
+
+    assert reader.fieldnames == [
+        "design_brief_id",
+        "bucket",
+        "item_id",
+        "decision",
+        "confidence",
+        "rationale",
+        "dependencies",
+        "evidence_refs",
+        "source_idea_ids",
+    ]
+    assert len(rows) == len(matrix["items"])
+    assert [row["item_id"] for row in rows] == [item["id"] for item in matrix["items"]]
+    assert [row["bucket"] for row in rows] == [
+        "must_have",
+        "should_have",
+        "could_have",
+        "wont_have_now",
+    ]
+    assert {row["item_id"] for row in rows} == {item["id"] for item in matrix["items"]}
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert rows[0]["dependencies"] == "specific_user;workflow_context;mvp_scope"
+    assert rows[0]["evidence_refs"] == "sig-scope-forum;sig-scope-funding;sig-scope-survey"
+    assert rows[0]["source_idea_ids"] == "bu-scope-lead"
+
+
+def test_scope_matrix_filename_supports_csv_extension() -> None:
+    design_brief = {"id": "dbf scope/csv"}
+
+    assert scope_matrix_filename(design_brief, "markdown") == "dbf-scope-csv-scope-matrix.md"
+    assert scope_matrix_filename(design_brief, "json") == "dbf-scope-csv-scope-matrix.json"
+    assert scope_matrix_filename(design_brief, "csv") == "dbf-scope-csv-scope-matrix.csv"
 
 
 def test_build_design_brief_scope_matrix_reports_sparse_inputs_without_misleading_scope(tmp_path) -> None:
