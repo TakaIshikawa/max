@@ -14,6 +14,7 @@ from max.analysis.design_brief_qa_test_plan import (
     build_design_brief_qa_test_plan,
     qa_test_plan_filename,
     render_design_brief_qa_test_plan,
+    render_qa_test_plan_markdown,
     render_qa_test_plan_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -107,9 +108,15 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
     assert json.loads(rendered_json) == report
 
     markdown = render_design_brief_qa_test_plan(report, fmt="markdown")
+    assert markdown == render_qa_test_plan_markdown(report)
     assert markdown.startswith("# QA Test Plan: QA Test Plan Brief")
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
+    assert "## Scope" in markdown
+    assert "## Test Scenarios" in markdown
+    assert "## Risks" in markdown
+    assert "## Environments" in markdown
+    assert "## Acceptance Evidence" in markdown
     assert "## Test Suites" in markdown
     assert "### QAS1: Unit coverage for deterministic artifact logic" in markdown
     assert "### QAS2: Integration coverage for persisted brief workflows" in markdown
@@ -120,6 +127,10 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
     assert "## Automation Candidates" in markdown
     assert "## Manual Review Checks" in markdown
     assert "## Evidence Gaps" in markdown
+    assert "support triage dashboard" in markdown
+    assert "Regression coverage may miss escalated ticket routing failures." in markdown
+    assert "Run seeded fixture tests and owner acceptance review before implementation." in markdown
+    assert "Local deterministic test run" in markdown
     assert "{'" not in markdown
     assert "[{" not in markdown
 
@@ -138,6 +149,36 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
         qa_test_plan_filename({"id": "dbf-123", "title": "QA Plan: Alpha / Beta"}, fmt="csv")
         == "dbf-123-QA-Plan-Alpha-Beta-qa-test-plan.csv"
     )
+
+
+def test_render_qa_test_plan_markdown_empty_collections_are_stable() -> None:
+    markdown = render_qa_test_plan_markdown(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "design_brief": {
+                "id": "dbf-empty",
+                "title": "Empty QA Plan",
+                "source_idea_ids": [],
+            },
+            "summary": {},
+            "qa_context": {},
+            "test_suites": [],
+            "critical_paths": [],
+            "test_data_needs": [],
+            "automation_candidates": [],
+            "manual_review_checks": [],
+            "evidence_references": [],
+            "evidence_gaps": [],
+        }
+    )
+
+    assert markdown.startswith("# QA Test Plan: Empty QA Plan")
+    assert "## Scope" in markdown
+    assert "## Test Scenarios\n\n- None" in markdown
+    assert "## Risks\n\n- None" in markdown
+    assert "## Environments\n\n- None" in markdown
+    assert "## Acceptance Evidence\n\n- Evidence references: none" in markdown
+    assert "## Evidence Gaps\n\n- None" in markdown
 
 
 def test_render_qa_test_plan_csv_headers_rows_and_list_serialization(tmp_path) -> None:

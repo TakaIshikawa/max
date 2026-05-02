@@ -49,6 +49,7 @@ from max.analysis.design_brief_qa_test_plan import (
     build_design_brief_qa_test_plan,
     qa_test_plan_filename,
     render_design_brief_qa_test_plan,
+    render_qa_test_plan_markdown,
 )
 from max.analysis.design_brief_work_breakdown import (
     build_design_brief_work_breakdown,
@@ -197,6 +198,7 @@ __all__ = [
     "render_design_brief_procurement_checklist",
     "render_design_brief_dependency_risk_map",
     "render_design_brief_qa_test_plan",
+    "render_qa_test_plan_markdown",
     "render_design_brief_investor_update",
     "render_design_brief_integration_contract",
     "render_design_brief_release_notes",

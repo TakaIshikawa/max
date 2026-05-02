@@ -110,103 +110,245 @@ def render_design_brief_qa_test_plan(report: dict[str, Any], fmt: str = "markdow
     if fmt != "markdown":
         raise ValueError(f"Unsupported QA test plan format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    return render_qa_test_plan_markdown(report)
+
+
+def render_qa_test_plan_markdown(report: dict[str, Any]) -> str:
+    """Render a QA test plan as deterministic Markdown for handoff review."""
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    context = report.get("qa_context") or {}
+    test_suites = report.get("test_suites") or []
+    critical_paths = report.get("critical_paths") or []
+    test_data_needs = report.get("test_data_needs") or []
+    automation_candidates = report.get("automation_candidates") or []
+    manual_review_checks = report.get("manual_review_checks") or []
+    evidence_refs = report.get("evidence_references") or []
+    evidence_gaps = report.get("evidence_gaps") or []
+    source_idea_ids = _string_list(brief.get("source_idea_ids"))
+
     lines = [
-        f"# QA Test Plan: {brief['title']}",
+        f"# QA Test Plan: {brief.get('title') or context.get('title') or 'Untitled design brief'}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
+        f"Schema: `{report.get('schema_version') or SCHEMA_VERSION}`",
+        f"Design brief: `{brief.get('id') or 'unknown'}`",
         f"Status: {brief.get('design_status') or 'unknown'}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
-        f"Source ideas: {_inline_list(brief.get('source_idea_ids') or [])}",
-        f"Evidence gaps: {summary['evidence_gap_count']}",
+        f"Source ideas: {_inline_list(source_idea_ids)}",
+        f"Evidence gaps: {summary.get('evidence_gap_count', len(evidence_gaps))}",
+        "",
+        "## Scope",
+        "",
+        f"- Product concept: {context.get('product_concept') or 'not specified'}",
+        f"- Primary user: {context.get('target_user') or 'not specified'}",
+        f"- Buyer: {context.get('buyer') or 'not specified'}",
+        f"- Workflow: {context.get('workflow_context') or 'not specified'}",
+        f"- Primary scope: {context.get('primary_scope') or 'not specified'}",
+        f"- Secondary scope: {context.get('secondary_scope') or 'not specified'}",
+        f"- Validation plan: {context.get('validation_plan') or 'not specified'}",
         "",
         "## QA Summary",
         "",
-        f"- Product concept: {report['qa_context']['product_concept']}",
-        f"- Primary user: {report['qa_context']['target_user']}",
-        f"- Workflow: {report['qa_context']['workflow_context']}",
-        f"- Validation plan: {report['qa_context']['validation_plan']}",
-        f"- Fallbacks used: {_inline_list(summary['fallbacks_used'])}",
+        f"- Suite count: {summary.get('suite_count', len(test_suites))}",
+        f"- Critical path count: {summary.get('critical_path_count', len(critical_paths))}",
+        f"- Test data need count: {summary.get('test_data_need_count', len(test_data_needs))}",
+        f"- Automation candidate count: {summary.get('automation_candidate_count', len(automation_candidates))}",
+        f"- Manual review check count: {summary.get('manual_review_check_count', len(manual_review_checks))}",
+        f"- Fallbacks used: {_inline_list(_string_list(summary.get('fallbacks_used')))}",
         "",
-        "## Test Suites",
+        "## Test Scenarios",
         "",
     ]
 
-    for suite in report["test_suites"]:
-        lines.extend(
-            [
-                f"### {suite['id']}: {suite['name']}",
-                "",
-                f"- Coverage type: {suite['coverage_type']}",
-                f"- Objective: {suite['objective']}",
-                f"- Owner: {suite['owner']}",
-                f"- Source ideas: {_inline_list(suite['source_idea_ids'])}",
-                "- Test cases:",
-            ]
-        )
-        for case in suite["test_cases"]:
-            lines.append(f"  - {case}")
-        lines.append("- Exit criteria:")
-        for criterion in suite["exit_criteria"]:
-            lines.append(f"  - {criterion}")
-        lines.append("")
+    if test_suites:
+        for suite in test_suites:
+            _extend_suite_markdown(lines, suite, include_priority=True)
+    else:
+        lines.extend(["- None", ""])
 
-    lines.extend(["## Critical Paths", ""])
-    for path in report["critical_paths"]:
-        lines.extend(
-            [
-                f"### {path['id']}: {path['name']}",
-                "",
-                f"- User journey: {path['user_journey']}",
-                f"- Expected outcome: {path['expected_outcome']}",
-                f"- Failure signal: {path['failure_signal']}",
-                f"- Source ideas: {_inline_list(path['source_idea_ids'])}",
-                "",
-            ]
-        )
+    lines.extend(["## Risks", ""])
+    risks = _string_list(context.get("risks"))
+    if risks:
+        lines.extend(f"- {risk}" for risk in risks)
+    else:
+        lines.append("- None")
+    if evidence_gaps:
+        lines.extend(["", "### Evidence Gaps", ""])
+        for gap in evidence_gaps:
+            _extend_gap_markdown(lines, gap)
 
-    lines.extend(["## Test Data Needs", ""])
-    for item in report["test_data_needs"]:
-        lines.extend(
-            [
-                f"- **{item['id']} {item['name']}** ({item['data_type']}): {item['need']}",
-                f"  Validation: {item['validation']}",
-            ]
-        )
-
-    lines.extend(["", "## Automation Candidates", ""])
-    for item in report["automation_candidates"]:
-        lines.extend(
-            [
-                f"- **{item['id']} {item['candidate']}** ({item['priority']}): {item['automation_type']}",
-                f"  Trigger: {item['trigger']}",
-            ]
-        )
-
-    lines.extend(["", "## Manual Review Checks", ""])
-    for item in report["manual_review_checks"]:
-        lines.extend(
-            [
-                f"- **{item['id']} {item['check']}** ({item['owner']}): {item['review_prompt']}",
-                f"  Required evidence: {item['required_evidence']}",
-            ]
-        )
-
-    lines.extend(["", "## Evidence Gaps", ""])
-    if report["evidence_gaps"]:
-        for gap in report["evidence_gaps"]:
+    lines.extend(["", "## Environments", ""])
+    environments = report.get("environments") or _default_environments(test_data_needs, source_idea_ids)
+    if environments:
+        for environment in environments:
             lines.extend(
                 [
-                    f"- **{gap['id']} {gap['field']}** ({gap['severity']}): {gap['gap']}",
-                    f"  Needed for QA: {gap['needed_for_qa']}",
+                    f"- **{environment.get('id') or environment.get('name') or 'ENV'} {environment.get('name') or 'Test environment'}**",
+                    f"  Purpose: {environment.get('purpose') or environment.get('description') or 'not specified'}",
+                    f"  Data: {environment.get('data') or environment.get('test_data') or 'not specified'}",
                 ]
             )
     else:
         lines.append("- None")
 
+    lines.extend(["", "## Acceptance Evidence", ""])
+    if evidence_refs:
+        lines.append("- Evidence references:")
+        for ref in evidence_refs:
+            lines.append(
+                f"  - {ref.get('id') or 'reference'} ({ref.get('type') or 'evidence'}): {ref.get('summary') or 'not specified'}"
+            )
+    else:
+        lines.append("- Evidence references: none")
+    if manual_review_checks:
+        lines.append("- Manual review checks:")
+        for item in manual_review_checks:
+            lines.append(
+                f"  - {item.get('id') or 'MR'} {item.get('check') or 'Review'} ({item.get('owner') or 'unassigned'}): {item.get('required_evidence') or 'not specified'}"
+            )
+    else:
+        lines.append("- Manual review checks: none")
+
+    lines.extend(
+        [
+            "",
+            "## Test Suites",
+            "",
+        ]
+    )
+    if test_suites:
+        for suite in test_suites:
+            _extend_suite_markdown(lines, suite)
+    else:
+        lines.extend(["- None", ""])
+
+    lines.extend(["## Critical Paths", ""])
+    if critical_paths:
+        for path in critical_paths:
+            lines.extend(
+                [
+                    f"### {path.get('id') or 'CP'}: {path.get('name') or 'Unnamed critical path'}",
+                    "",
+                    f"- User journey: {path.get('user_journey') or 'not specified'}",
+                    f"- Expected outcome: {path.get('expected_outcome') or 'not specified'}",
+                    f"- Failure signal: {path.get('failure_signal') or 'not specified'}",
+                    f"- Source ideas: {_inline_list(_string_list(path.get('source_idea_ids')))}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
+
+    lines.extend(["## Test Data Needs", ""])
+    if test_data_needs:
+        for item in test_data_needs:
+            lines.extend(
+                [
+                    f"- **{item.get('id') or 'TD'} {item.get('name') or 'Test data'}** ({item.get('data_type') or 'unspecified'}): {item.get('need') or 'not specified'}",
+                    f"  Validation: {item.get('validation') or 'not specified'}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Automation Candidates", ""])
+    if automation_candidates:
+        for item in automation_candidates:
+            lines.extend(
+                [
+                    f"- **{item.get('id') or 'AC'} {item.get('candidate') or 'Automation'}** ({item.get('priority') or 'unspecified'}): {item.get('automation_type') or 'not specified'}",
+                    f"  Trigger: {item.get('trigger') or 'not specified'}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Manual Review Checks", ""])
+    if manual_review_checks:
+        for item in manual_review_checks:
+            lines.extend(
+                [
+                    f"- **{item.get('id') or 'MR'} {item.get('check') or 'Review'}** ({item.get('owner') or 'unassigned'}): {item.get('review_prompt') or 'not specified'}",
+                    f"  Required evidence: {item.get('required_evidence') or 'not specified'}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Evidence Gaps", ""])
+    if evidence_gaps:
+        for gap in evidence_gaps:
+            _extend_gap_markdown(lines, gap)
+    else:
+        lines.append("- None")
+
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _extend_suite_markdown(
+    lines: list[str],
+    suite: dict[str, Any],
+    *,
+    include_priority: bool = False,
+) -> None:
+    lines.extend(
+        [
+            f"### {suite.get('id') or 'QAS'}: {suite.get('name') or 'Unnamed suite'}",
+            "",
+            f"- Coverage type: {suite.get('coverage_type') or 'unspecified'}",
+        ]
+    )
+    if include_priority:
+        lines.append(f"- Priority: {_suite_priority(suite) or 'unspecified'}")
+    lines.extend(
+        [
+            f"- Objective: {suite.get('objective') or 'not specified'}",
+            f"- Owner: {suite.get('owner') or 'unassigned'}",
+            f"- Source ideas: {_inline_list(_string_list(suite.get('source_idea_ids')))}",
+            "- Test cases:",
+        ]
+    )
+    _extend_indented_list(lines, _string_list(suite.get("test_cases")))
+    lines.append("- Exit criteria:")
+    _extend_indented_list(lines, _string_list(suite.get("exit_criteria")))
+    lines.append("")
+
+
+def _extend_indented_list(lines: list[str], values: list[str]) -> None:
+    if values:
+        lines.extend(f"  - {value}" for value in values)
+    else:
+        lines.append("  - None")
+
+
+def _extend_gap_markdown(lines: list[str], gap: dict[str, Any]) -> None:
+    lines.extend(
+        [
+            f"- **{gap.get('id') or 'EG'} {gap.get('field') or 'unknown'}** ({gap.get('severity') or 'unknown'}): {gap.get('gap') or 'not specified'}",
+            f"  Needed for QA: {gap.get('needed_for_qa') or 'not specified'}",
+        ]
+    )
+
+
+def _default_environments(
+    test_data_needs: list[dict[str, Any]],
+    source_idea_ids: list[str],
+) -> list[dict[str, str]]:
+    if not test_data_needs and not source_idea_ids:
+        return []
+    data_values = [
+        item.get("name") or item.get("id") or "test data"
+        for item in test_data_needs
+        if isinstance(item, dict)
+    ]
+    return [
+        {
+            "id": "ENV1",
+            "name": "Local deterministic test run",
+            "purpose": "Run unit, integration, acceptance, and regression checks without external services.",
+            "data": _inline_list(data_values),
+        }
+    ]
 
 
 def qa_test_plan_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
