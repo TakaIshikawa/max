@@ -88,11 +88,16 @@ def render_design_brief_competitive_alternatives(
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_csv(report)
+        return render_design_brief_competitive_alternatives_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported competitive alternatives format: {fmt}")
 
     return render_design_brief_competitive_alternatives_markdown(report)
+
+
+def render_design_brief_competitive_alternatives_csv(report: dict[str, Any]) -> str:
+    """Render a competitive alternatives matrix as deterministic CSV."""
+    return _render_csv(report)
 
 
 def render_design_brief_competitive_alternatives_markdown(report: dict[str, Any]) -> str:
