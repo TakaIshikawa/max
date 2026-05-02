@@ -97,6 +97,7 @@ from max.spec.stakeholder_handoff import (
 )
 from max.spec.support_playbook import (
     generate_support_playbook,
+    render_support_playbook_csv,
     render_support_playbook_markdown,
 )
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
@@ -146,6 +147,7 @@ __all__ = [
     "render_slo_plan_csv",
     "render_slo_plan_markdown",
     "render_smoke_test_plan_markdown",
+    "render_support_playbook_csv",
     "render_support_playbook_markdown",
     "render_threat_model_markdown",
     "render_vendor_risk_assessment_markdown",
