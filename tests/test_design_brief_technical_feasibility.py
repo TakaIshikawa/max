@@ -120,13 +120,15 @@ def test_render_design_brief_technical_feasibility_csv_has_stable_headers_and_se
     assert csv_text == repeated
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
     assert [row["section"] for row in rows] == (
-        ["architecture_assumptions"] * len(report["architecture_assumptions"])
+        ["feasibility_verdict"]
+        + ["architecture_assumptions"] * len(report["architecture_assumptions"])
         + ["integration_surface"] * len(report["integration_surface"])
         + ["data_dependencies"] * len(report["data_dependencies"])
+        + ["build_complexity"]
         + ["unknowns"] * len(report["unknowns"])
         + ["recommended_spike_plan"] * len(report["recommended_spike_plan"])
     )
-    assert len(rows) == sum(
+    assert len(rows) == 2 + sum(
         len(report[section])
         for section in (
             "architecture_assumptions",
@@ -138,6 +140,32 @@ def test_render_design_brief_technical_feasibility_csv_has_stable_headers_and_se
     )
     assert rows[0]["design_brief_id"] == "dbf-feasibility"
     assert rows[0]["design_brief_title"] == "AgentAdversarialBench"
+    assert rows[0]["item_id"] == "V1"
+    assert rows[0]["name"] == report["feasibility_verdict"]["verdict"]
+
+
+def test_render_design_brief_technical_feasibility_csv_has_representative_rows() -> None:
+    report = build_design_brief_technical_feasibility(_brief())
+
+    rows = list(
+        csv.DictReader(StringIO(render_design_brief_technical_feasibility(report, fmt="csv")))
+    )
+    rows_by_id = {row["item_id"]: row for row in rows}
+    rows_by_type = {row["type"]: row for row in rows if row["type"]}
+
+    assert rows_by_id["V1"]["section"] == "feasibility_verdict"
+    assert rows_by_id["V1"]["risk_level"] == report["feasibility_verdict"]["risk_level"]
+    assert rows_by_id["V1"]["next_action"] == report["feasibility_verdict"]["next_decision"]
+    assert rows_by_id["A1"]["confidence"] == "medium"
+    assert rows_by_id["I2"]["type"] == "ci"
+    assert rows_by_type["developer_platform"]["risk_level"] == "high"
+    assert rows_by_id["D2"]["category"] == "data_dependency"
+    assert rows_by_id["D2"]["risk_level"] == "high"
+    assert rows_by_id["C1"]["section"] == "build_complexity"
+    assert rows_by_id["C1"]["name"] == report["build_complexity"]["level"]
+    assert rows_by_id["U4"]["next_action"] == report["unknowns"][0]["resolution_path"]
+    assert rows_by_id["S1"]["category"] == "spike"
+    assert rows_by_id["S1"]["next_action"] == report["recommended_spike_plan"][0]["exit_criteria"]
 
 
 def test_render_design_brief_technical_feasibility_csv_serializes_detail_json() -> None:
@@ -148,13 +176,37 @@ def test_render_design_brief_technical_feasibility_csv_serializes_detail_json() 
     )
     rows_by_id = {row["item_id"]: row for row in rows}
 
-    assert rows_by_id["A1"]["details"] == '{"source_fields":["merged_product_concept"]}'
-    assert json.loads(rows_by_id["A1"]["details"]) == {"source_fields": ["merged_product_concept"]}
-    assert rows_by_id["D1"]["details"] == '{"source":"max.store.design_briefs"}'
-    assert rows_by_id["S1"]["details"].startswith('{"steps":["Sketch the core workflow sequence')
-    assert json.loads(rows_by_id["S1"]["details"]) == {
+    assert rows_by_id["A1"]["detail"] == '{"source_fields":["merged_product_concept"]}'
+    assert rows_by_id["A1"]["details"] == rows_by_id["A1"]["detail"]
+    assert json.loads(rows_by_id["A1"]["detail"]) == {"source_fields": ["merged_product_concept"]}
+    assert rows_by_id["D1"]["detail"] == '{"source":"max.store.design_briefs"}'
+    assert rows_by_id["C1"]["detail"].startswith('{"constraints":')
+    assert json.loads(rows_by_id["C1"]["detail"]) == {
+        "constraints": report["build_complexity"]["constraints"],
+        "drivers": report["build_complexity"]["drivers"],
+        "estimated_mvp_effort": report["build_complexity"]["estimated_mvp_effort"],
+        "score": report["build_complexity"]["score"],
+    }
+    assert rows_by_id["S1"]["detail"].startswith('{"steps":["Sketch the core workflow sequence')
+    assert json.loads(rows_by_id["S1"]["detail"]) == {
         "steps": report["recommended_spike_plan"][0]["steps"]
     }
+
+
+def test_render_design_brief_technical_feasibility_csv_escapes_values() -> None:
+    report = build_design_brief_technical_feasibility(
+        _brief(
+            title='Agent, "Adversarial"\nBench',
+            merged_product_concept='Run "quoted", comma-delimited\nfixtures through a CLI.',
+        )
+    )
+
+    csv_text = render_design_brief_technical_feasibility(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Agent, ""Adversarial""\nBench"' in csv_text
+    assert rows[0]["design_brief_title"] == 'Agent, "Adversarial"\nBench'
+    assert rows[1]["rationale"] == 'The concept centers on Run "quoted", comma-delimited\nfixtures through a CLI..'
 
 
 def test_technical_feasibility_filename_supports_csv_extension() -> None:

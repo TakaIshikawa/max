@@ -16,12 +16,18 @@ CSV_COLUMNS: tuple[str, ...] = (
     "design_brief_title",
     "section",
     "item_id",
+    "title",
     "name",
+    "category",
+    "type",
     "risk_level",
     "confidence",
+    "owner",
+    "next_action",
     "owner_or_type",
     "rationale",
     "validation_step",
+    "detail",
     "details",
 )
 
@@ -241,87 +247,155 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
     }
     rows: list[dict[str, str]] = []
 
+    verdict = report.get("feasibility_verdict", {})
+    rows.append(
+        _csv_row(
+            base,
+            section="feasibility_verdict",
+            item_id="V1",
+            title="Feasibility verdict",
+            name=verdict.get("verdict", ""),
+            category="decision",
+            type=verdict.get("verdict", ""),
+            risk_level=verdict.get("risk_level", ""),
+            rationale=verdict.get("rationale", ""),
+            next_action=verdict.get("next_decision", ""),
+            validation_step=verdict.get("next_decision", ""),
+            detail={"blocking_risks": verdict.get("blocking_risks", [])},
+        )
+    )
+
     for item in report.get("architecture_assumptions", []):
         rows.append(
-            {
-                **base,
-                "section": "architecture_assumptions",
-                "item_id": str(item.get("id", "")),
-                "name": str(item.get("assumption", "")),
-                "risk_level": "",
-                "confidence": str(item.get("confidence", "")),
-                "owner_or_type": "",
-                "rationale": str(item.get("rationale", "")),
-                "validation_step": "",
-                "details": _compact_json({"source_fields": item.get("source_fields", [])}),
-            }
+            _csv_row(
+                base,
+                section="architecture_assumptions",
+                item_id=item.get("id", ""),
+                title=item.get("assumption", ""),
+                name=item.get("assumption", ""),
+                category="architecture_assumption",
+                type="assumption",
+                confidence=item.get("confidence", ""),
+                rationale=item.get("rationale", ""),
+                detail={"source_fields": item.get("source_fields", [])},
+            )
         )
 
     for item in report.get("integration_surface", []):
         rows.append(
-            {
-                **base,
-                "section": "integration_surface",
-                "item_id": str(item.get("id", "")),
-                "name": str(item.get("name", "")),
-                "risk_level": str(item.get("risk_level", "")),
-                "confidence": "",
-                "owner_or_type": str(item.get("type", "")),
-                "rationale": str(item.get("rationale", "")),
-                "validation_step": str(item.get("validation_step", "")),
-                "details": "",
-            }
+            _csv_row(
+                base,
+                section="integration_surface",
+                item_id=item.get("id", ""),
+                title=item.get("name", ""),
+                name=item.get("name", ""),
+                category="integration",
+                type=item.get("type", ""),
+                risk_level=item.get("risk_level", ""),
+                owner_or_type=item.get("type", ""),
+                rationale=item.get("rationale", ""),
+                next_action=item.get("validation_step", ""),
+                validation_step=item.get("validation_step", ""),
+            )
         )
 
     for item in report.get("data_dependencies", []):
         rows.append(
-            {
-                **base,
-                "section": "data_dependencies",
-                "item_id": str(item.get("id", "")),
-                "name": str(item.get("name", "")),
-                "risk_level": str(item.get("risk_level", "")),
-                "confidence": "",
-                "owner_or_type": str(item.get("criticality", "")),
-                "rationale": str(item.get("rationale", "")),
-                "validation_step": str(item.get("validation_step", "")),
-                "details": _compact_json({"source": item.get("source", "")}),
-            }
+            _csv_row(
+                base,
+                section="data_dependencies",
+                item_id=item.get("id", ""),
+                title=item.get("name", ""),
+                name=item.get("name", ""),
+                category="data_dependency",
+                type=item.get("criticality", ""),
+                risk_level=item.get("risk_level", ""),
+                owner_or_type=item.get("criticality", ""),
+                rationale=item.get("rationale", ""),
+                next_action=item.get("validation_step", ""),
+                validation_step=item.get("validation_step", ""),
+                detail={"source": item.get("source", "")},
+            )
         )
+
+    complexity = report.get("build_complexity", {})
+    rows.append(
+        _csv_row(
+            base,
+            section="build_complexity",
+            item_id="C1",
+            title="Build complexity",
+            name=complexity.get("level", ""),
+            category="complexity",
+            type=complexity.get("estimated_mvp_effort", ""),
+            risk_level=complexity.get("level", ""),
+            owner_or_type=complexity.get("estimated_mvp_effort", ""),
+            rationale="; ".join(str(driver) for driver in complexity.get("drivers", [])),
+            detail={
+                "constraints": complexity.get("constraints", []),
+                "drivers": complexity.get("drivers", []),
+                "estimated_mvp_effort": complexity.get("estimated_mvp_effort", ""),
+                "score": complexity.get("score", ""),
+            },
+        )
+    )
 
     for item in report.get("unknowns", []):
         rows.append(
-            {
-                **base,
-                "section": "unknowns",
-                "item_id": str(item.get("id", "")),
-                "name": str(item.get("unknown", "")),
-                "risk_level": "",
-                "confidence": "",
-                "owner_or_type": "",
-                "rationale": str(item.get("impact", "")),
-                "validation_step": str(item.get("resolution_path", "")),
-                "details": "",
-            }
+            _csv_row(
+                base,
+                section="unknowns",
+                item_id=item.get("id", ""),
+                title=item.get("unknown", ""),
+                name=item.get("unknown", ""),
+                category="unknown",
+                type=item.get("impact", ""),
+                rationale=item.get("impact", ""),
+                next_action=item.get("resolution_path", ""),
+                validation_step=item.get("resolution_path", ""),
+            )
         )
 
     for item in report.get("recommended_spike_plan", []):
         rows.append(
-            {
-                **base,
-                "section": "recommended_spike_plan",
-                "item_id": str(item.get("id", "")),
-                "name": str(item.get("title", "")),
-                "risk_level": "",
-                "confidence": "",
-                "owner_or_type": str(item.get("duration", "")),
-                "rationale": str(item.get("goal", "")),
-                "validation_step": str(item.get("exit_criteria", "")),
-                "details": _compact_json({"steps": item.get("steps", [])}),
-            }
+            _csv_row(
+                base,
+                section="recommended_spike_plan",
+                item_id=item.get("id", ""),
+                title=item.get("title", ""),
+                name=item.get("title", ""),
+                category="spike",
+                type=item.get("duration", ""),
+                owner_or_type=item.get("duration", ""),
+                rationale=item.get("goal", ""),
+                next_action=item.get("exit_criteria", ""),
+                validation_step=item.get("exit_criteria", ""),
+                detail={"steps": item.get("steps", [])},
+            )
         )
 
     return rows
+
+
+def _csv_row(base: dict[str, str], **values: Any) -> dict[str, str]:
+    row: dict[str, Any] = {**base, **values}
+    detail = _csv_detail(row.get("detail"))
+    if detail:
+        row["detail"] = detail
+        row.setdefault("details", detail)
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_detail(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    return _compact_json(value)
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value)
 
 
 def _compact_json(value: Any) -> str:
