@@ -2,6 +2,12 @@
 
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.acceptance_criteria import generate_acceptance_criteria
+from max.spec.api_contract_test_plan import (
+    KIND as API_CONTRACT_TEST_PLAN_KIND,
+    SCHEMA_VERSION as API_CONTRACT_TEST_PLAN_SCHEMA_VERSION,
+    generate_api_contract_test_plan,
+    render_api_contract_test_plan_markdown,
+)
 from max.spec.adr import (
     generate_architecture_decision_record,
     render_architecture_decision_record_markdown,
@@ -92,7 +98,10 @@ from max.spec.threat_model import generate_threat_model, render_threat_model_mar
 
 __all__ = [
     "evaluate_spec_readiness",
+    "API_CONTRACT_TEST_PLAN_KIND",
+    "API_CONTRACT_TEST_PLAN_SCHEMA_VERSION",
     "generate_acceptance_criteria",
+    "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
     "generate_compliance_checklist",
     "generate_cost_estimate",
@@ -128,6 +137,7 @@ __all__ = [
     "render_support_playbook_markdown",
     "render_threat_model_markdown",
     "render_architecture_decision_record_markdown",
+    "render_api_contract_test_plan_markdown",
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
