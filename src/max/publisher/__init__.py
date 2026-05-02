@@ -101,6 +101,13 @@ from max.publisher.bitbucket_issues import (
     BitbucketIssuePublishResult,
     BitbucketIssuesPublisher,
 )
+from max.publisher.bitbucket_issue_comments import (
+    BitbucketIssueCommentPayload,
+    BitbucketIssueCommentPublisher,
+    BitbucketIssueCommentPublishError,
+    BitbucketIssueCommentPublishResult,
+    BitbucketIssueCommentsPublisher,
+)
 from max.publisher.bitbucket_snippets import (
     BitbucketSnippetPayload,
     BitbucketSnippetPublisher,
@@ -405,6 +412,11 @@ __all__ = [
     "BitbucketIssuePublishError",
     "BitbucketIssuePublishResult",
     "BitbucketIssuesPublisher",
+    "BitbucketIssueCommentPayload",
+    "BitbucketIssueCommentPublisher",
+    "BitbucketIssueCommentPublishError",
+    "BitbucketIssueCommentPublishResult",
+    "BitbucketIssueCommentsPublisher",
     "BitbucketSnippetPayload",
     "BitbucketSnippetPublisher",
     "BitbucketSnippetPublishError",

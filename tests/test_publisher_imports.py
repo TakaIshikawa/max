@@ -58,6 +58,11 @@ from max.publisher import (
     ServiceNowIncidentPublishError,
     ServiceNowIncidentPublishResult,
     ServiceNowIncidentsPublisher,
+    BitbucketIssueCommentPayload,
+    BitbucketIssueCommentPublisher,
+    BitbucketIssueCommentPublishError,
+    BitbucketIssueCommentPublishResult,
+    BitbucketIssueCommentsPublisher,
 )
 from max.publisher.github_pull_request_review_comments import (
     GitHubPullRequestReviewCommentPublisher as ModuleGitHubPullRequestReviewCommentPublisher,
@@ -91,6 +96,9 @@ from max.publisher.opsgenie_alerts import (
 )
 from max.publisher.servicenow_incidents import (
     ServiceNowIncidentPublisher as ModuleServiceNowIncidentPublisher,
+)
+from max.publisher.bitbucket_issue_comments import (
+    BitbucketIssueCommentPublisher as ModuleBitbucketIssueCommentPublisher,
 )
 
 
@@ -183,3 +191,11 @@ def test_telegram_webhook_publisher_exports() -> None:
     assert TelegramWebhookPayload
     assert TelegramWebhookPublishError
     assert TelegramWebhookPublishResult
+
+
+def test_bitbucket_issue_comment_publisher_exports() -> None:
+    assert BitbucketIssueCommentPublisher is ModuleBitbucketIssueCommentPublisher
+    assert BitbucketIssueCommentsPublisher is BitbucketIssueCommentPublisher
+    assert BitbucketIssueCommentPayload
+    assert BitbucketIssueCommentPublishError
+    assert BitbucketIssueCommentPublishResult
