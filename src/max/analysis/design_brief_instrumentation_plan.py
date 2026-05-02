@@ -2,11 +2,32 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "max.design_brief.instrumentation_plan.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_type",
+    "item_id",
+    "name",
+    "event_name",
+    "category",
+    "description",
+    "owner",
+    "priority",
+    "trigger",
+    "properties",
+    "metric_linkage",
+    "source_fields",
+    "privacy_notes",
+)
 
 _PRIVACY_TERMS = (
     "approval",
@@ -84,9 +105,11 @@ def render_design_brief_instrumentation_plan(
     *,
     fmt: str = "markdown",
 ) -> str:
-    """Render an instrumentation plan as Markdown or JSON."""
+    """Render an instrumentation plan as Markdown, CSV, or JSON."""
     if fmt == "json":
         return json.dumps(plan, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(plan)
     if fmt != "markdown":
         raise ValueError(f"Unsupported instrumentation plan format: {fmt}")
 
@@ -173,9 +196,159 @@ def write_design_brief_instrumentation_plan(
 
 
 def instrumentation_plan_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(_clean(design_brief.get("id")) or "design-brief")
     return f"{brief_id}-instrumentation-plan.{extension}"
+
+
+def _render_csv(plan: dict[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(_csv_rows(plan))
+    return output.getvalue()
+
+
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for event in plan.get("events") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="events",
+                item_type="event",
+                item_id=event.get("id"),
+                name=event.get("name"),
+                event_name=event.get("name"),
+                category=event.get("category"),
+                owner="product analytics",
+                priority=_event_priority(event.get("category")),
+                trigger=event.get("trigger"),
+                properties=event.get("required_properties"),
+                metric_linkage=_event_metric_linkage(event.get("category")),
+                source_fields=event.get("source_fields"),
+                privacy_notes=event.get("privacy_notes"),
+            )
+        )
+
+    for index, step in enumerate(plan.get("activation_funnel_steps") or [], start=1):
+        rows.append(
+            _csv_row(
+                plan,
+                section="activation_funnel",
+                item_type="metric",
+                item_id=f"AF{index}",
+                name=step.get("step"),
+                event_name=step.get("event_name"),
+                category="activation",
+                description=step.get("description"),
+                owner="product analytics",
+                priority="high",
+                properties=step.get("required_properties"),
+                metric_linkage="activation funnel",
+                source_fields=step.get("source_fields"),
+            )
+        )
+
+    for index, checkpoint in enumerate(plan.get("retention_checkpoints") or [], start=1):
+        rows.append(
+            _csv_row(
+                plan,
+                section="retention_checkpoints",
+                item_type="metric",
+                item_id=f"RC{index}",
+                name=checkpoint.get("checkpoint"),
+                event_name=checkpoint.get("event_name"),
+                category="retention",
+                description=checkpoint.get("description"),
+                owner="product analytics",
+                priority="medium",
+                properties={"window": checkpoint.get("window")},
+                metric_linkage="retention checkpoint",
+                source_fields=checkpoint.get("source_fields"),
+            )
+        )
+
+    for alert in plan.get("guardrail_alerts") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="guardrail_alerts",
+                item_type="alert",
+                item_id=alert.get("id"),
+                name=alert.get("name"),
+                event_name=alert.get("event_name"),
+                category="guardrail",
+                description=alert.get("response"),
+                owner="risk owner",
+                priority=alert.get("severity"),
+                trigger=alert.get("condition"),
+                properties={"severity": alert.get("severity")},
+                metric_linkage="risk guardrail",
+                source_fields=alert.get("source_fields"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: Any,
+    item_type: Any,
+    item_id: Any = "",
+    name: Any = "",
+    event_name: Any = "",
+    category: Any = "",
+    description: Any = "",
+    owner: Any = "",
+    priority: Any = "",
+    trigger: Any = "",
+    properties: Any = "",
+    metric_linkage: Any = "",
+    source_fields: Any = "",
+    privacy_notes: Any = "",
+) -> dict[str, str]:
+    brief = plan.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "section": section,
+        "item_type": item_type,
+        "item_id": item_id,
+        "name": name,
+        "event_name": event_name,
+        "category": category,
+        "description": description,
+        "owner": owner,
+        "priority": priority,
+        "trigger": trigger,
+        "properties": properties,
+        "metric_linkage": metric_linkage,
+        "source_fields": source_fields,
+        "privacy_notes": privacy_notes,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _event_priority(category: Any) -> str:
+    category_text = _clean(category)
+    if category_text in {"activation", "value", "guardrail"}:
+        return "high"
+    if category_text == "retention":
+        return "medium"
+    return ""
+
+
+def _event_metric_linkage(category: Any) -> str:
+    return {
+        "activation": "activation funnel",
+        "value": "success metric",
+        "retention": "retention checkpoint",
+        "guardrail": "risk guardrail",
+    }.get(_clean(category), "")
 
 
 def _events(
@@ -298,7 +471,12 @@ def _activation_funnel_steps(
             "event_name": "first_value_reached",
             "description": _clean(design_brief.get("success_metric"))
             or "Target users reach the first measurable value outcome.",
-            "required_properties": ["brief_id", "account_id", "value_claim", "time_to_value_minutes"],
+            "required_properties": [
+                "brief_id",
+                "account_id",
+                "value_claim",
+                "time_to_value_minutes",
+            ],
             "source_fields": ["success_metric", "value_proposition"],
         },
     ]
@@ -459,6 +637,24 @@ def _clean(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split())
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        parts = []
+        for key, item in sorted(value.items(), key=lambda pair: _clean(pair[0])):
+            key_text = _clean(key)
+            item_text = _csv_text(item)
+            if key_text and item_text:
+                parts.append(f"{key_text}: {item_text}")
+        return "; ".join(parts)
+    if isinstance(value, set):
+        return "; ".join(sorted(text for item in value if (text := _csv_text(item))))
+    if isinstance(value, list | tuple):
+        return "; ".join(text for item in value if (text := _csv_text(item)))
+    return _clean(value)
 
 
 def _inline_code(values: list[str]) -> str:

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_instrumentation_plan import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_instrumentation_plan,
     instrumentation_plan_filename,
@@ -55,9 +58,13 @@ def test_build_design_brief_instrumentation_plan_includes_funnels_checkpoints_an
         checkpoint["event_name"] == "retention_checkpoint_met"
         for checkpoint in plan["retention_checkpoints"]
     )
-    assert any(alert["event_name"] == "guardrail_alert_triggered" for alert in plan["guardrail_alerts"])
+    assert any(
+        alert["event_name"] == "guardrail_alert_triggered" for alert in plan["guardrail_alerts"]
+    )
     assert any(alert["severity"] == "high" for alert in plan["guardrail_alerts"])
-    assert any("security approval" in alert["condition"].lower() for alert in plan["guardrail_alerts"])
+    assert any(
+        "security approval" in alert["condition"].lower() for alert in plan["guardrail_alerts"]
+    )
 
 
 def test_privacy_sensitive_terms_create_explicit_privacy_notes() -> None:
@@ -72,9 +79,7 @@ def test_privacy_sensitive_terms_create_explicit_privacy_notes() -> None:
     assert any("Privacy-sensitive terms detected" in note for note in plan["privacy_notes"])
     assert any("pii" in note.lower() for note in plan["privacy_notes"])
     assert any(
-        "Hash or tokenize" in note
-        for event in plan["events"]
-        for note in event["privacy_notes"]
+        "Hash or tokenize" in note for event in plan["events"] for note in event["privacy_notes"]
     )
 
 
@@ -103,10 +108,109 @@ def test_sparse_design_brief_reports_missing_inputs_and_fallbacks() -> None:
     assert any("primary MVP action" in event["trigger"] for event in plan["events"])
 
 
+def test_render_design_brief_instrumentation_plan_csv_populated_rows_are_deterministic() -> None:
+    plan = build_design_brief_instrumentation_plan(_brief())
+
+    csv_text = render_design_brief_instrumentation_plan(plan, fmt="csv")
+    repeated = render_design_brief_instrumentation_plan(plan, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.endswith("\n")
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == (
+        len(plan["events"])
+        + len(plan["activation_funnel_steps"])
+        + len(plan["retention_checkpoints"])
+        + len(plan["guardrail_alerts"])
+    )
+
+    event_row = next(row for row in rows if row["name"] == "activation_started")
+    assert event_row["design_brief_id"] == "dbf-instrument-001"
+    assert event_row["item_type"] == "event"
+    assert event_row["event_name"] == "activation_started"
+    assert event_row["owner"] == "product analytics"
+    assert event_row["priority"] == "high"
+    assert event_row["trigger"] == "A qualified actor starts release governance review."
+    assert (
+        event_row["properties"]
+        == "brief_id; account_id; actor_role; occurred_at; workflow_context; entry_point"
+    )
+    assert event_row["metric_linkage"] == "activation funnel"
+    assert event_row["source_fields"] == "workflow_context; specific_user"
+    assert "No raw user content or customer text." in event_row["privacy_notes"]
+    assert (
+        "Hash or tokenize actor and account identifiers before export."
+        in event_row["privacy_notes"]
+    )
+    assert (
+        "Store validation evidence references, not interview notes." in event_row["privacy_notes"]
+    )
+
+    assert any(
+        row["section"] == "activation_funnel"
+        and row["item_type"] == "metric"
+        and row["event_name"] == "first_value_reached"
+        for row in rows
+    )
+    alert_row = next(row for row in rows if row["section"] == "guardrail_alerts")
+    assert alert_row["item_type"] == "alert"
+    assert alert_row["owner"] == "risk owner"
+    assert alert_row["priority"] == "high"
+    assert alert_row["metric_linkage"] == "risk guardrail"
+    assert "source_fields" in alert_row
+    assert alert_row["source_fields"] == "risks"
+
+
+def test_render_design_brief_instrumentation_plan_csv_serializes_nested_properties() -> None:
+    plan = build_design_brief_instrumentation_plan(_brief())
+    plan["events"][0]["required_properties"].append(
+        {
+            "rollout": {
+                "stage": "pilot",
+                "thresholds": ["warn", "block"],
+            }
+        }
+    )
+    plan["events"][0]["source_fields"].append({"evidence": ["signals", "insights"]})
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_instrumentation_plan(plan, fmt="csv")))
+    )
+
+    event_row = next(row for row in rows if row["name"] == "activation_started")
+    assert "rollout: stage: pilot; thresholds: warn; block" in event_row["properties"]
+    assert event_row["source_fields"] == (
+        "workflow_context; specific_user; evidence: signals; insights"
+    )
+
+
+def test_render_design_brief_instrumentation_plan_csv_sparse_output_uses_fallback_rows() -> None:
+    plan = build_design_brief_instrumentation_plan({"id": "dbf-sparse", "title": "Sparse Brief"})
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_instrumentation_plan(plan, fmt="csv")))
+    )
+
+    assert rows
+    assert any(
+        row["item_type"] == "event"
+        and row["event_name"] == "mvp_scope_item_completed"
+        and "primary MVP action" in row["trigger"]
+        for row in rows
+    )
+    alert_row = next(row for row in rows if row["section"] == "guardrail_alerts")
+    assert alert_row["name"] == "uncaptured_risk_discovered"
+    assert alert_row["priority"] == "medium"
+    assert alert_row["source_fields"] == "risks"
+
+
 def test_render_design_brief_instrumentation_plan_markdown_json_and_invalid_format() -> None:
     plan = build_design_brief_instrumentation_plan(_brief())
 
     markdown = render_design_brief_instrumentation_plan(plan, fmt="markdown")
+    json_text = render_design_brief_instrumentation_plan(plan, fmt="json")
+    render_design_brief_instrumentation_plan(plan, fmt="csv")
     assert markdown.startswith("# Instrumentation Plan: Instrumentation Plan Brief")
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert "Design brief: `dbf-instrument-001`" in markdown
@@ -120,9 +224,11 @@ def test_render_design_brief_instrumentation_plan_markdown_json_and_invalid_form
     assert "## Privacy Notes" in markdown
     assert "## Missing Inputs" in markdown
     assert "- None" in markdown
+    assert render_design_brief_instrumentation_plan(plan, fmt="markdown") == markdown
 
-    parsed = json.loads(render_design_brief_instrumentation_plan(plan, fmt="json"))
+    parsed = json.loads(json_text)
     assert parsed["schema_version"] == SCHEMA_VERSION
+    assert render_design_brief_instrumentation_plan(plan, fmt="json") == json_text
 
     with pytest.raises(ValueError, match="Unsupported instrumentation plan format: yaml"):
         render_design_brief_instrumentation_plan(plan, fmt="yaml")
@@ -141,6 +247,10 @@ def test_write_design_brief_instrumentation_plan_and_filename(tmp_path) -> None:
     assert (
         instrumentation_plan_filename({"id": "dbf-instrument-001"}, fmt="json")
         == "dbf-instrument-001-instrumentation-plan.json"
+    )
+    assert (
+        instrumentation_plan_filename({"id": "dbf-instrument-001"}, fmt="csv")
+        == "dbf-instrument-001-instrumentation-plan.csv"
     )
 
 
@@ -163,7 +273,10 @@ def _brief(**overrides: object) -> dict[str, object]:
         "mvp_scope": ["JSON instrumentation plan", "Markdown instrumentation plan"],
         "validation_plan": "Interview platform engineers and engineering buyers before implementation.",
         "success_metric": "4 of 6 interviewees confirm the release governance workflow is urgent.",
-        "risks": ["Security approval may block rollout.", "Analytics gaps may hide failed reviews."],
+        "risks": [
+            "Security approval may block rollout.",
+            "Analytics gaps may hide failed reviews.",
+        ],
         "first_10_customers": "platform teams shipping production agents",
         "evidence_counts": {"signals": 2, "insights": 1, "source_ideas": 2},
     }
