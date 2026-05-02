@@ -144,6 +144,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "artifact_hub": "max.sources.artifact_hub:ArtifactHubAdapter",
     "homebrew_formulae": "max.sources.homebrew_formulae:HomebrewFormulaeAdapter",
+    "home_assistant_integrations": (
+        "max.sources.home_assistant_integrations:HomeAssistantIntegrationsAdapter"
+    ),
     "mcp_registry": "max.sources.mcp_registry:McpRegistryAdapter",
     "mcp_protocol_roadmap": (
         "max.sources.mcp_protocol_roadmap:McpProtocolRoadmapAdapter"
@@ -1016,6 +1019,21 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches Homebrew formula and cask package popularity and update signals.",
+    ),
+    "home_assistant_integrations": AdapterMetadata(
+        name="home_assistant_integrations",
+        config_keys=[
+            "integrations_url",
+            "integrations",
+            "domains",
+            "categories",
+            "max_age_days",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches Home Assistant integration catalog metadata, including domain, "
+            "quality scale, IoT class, and integration type signals."
+        ),
     ),
     "mcp_registry": AdapterMetadata(
         name="mcp_registry",

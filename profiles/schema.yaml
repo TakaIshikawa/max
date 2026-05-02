@@ -336,6 +336,7 @@ properties:
             - hackernews_showhn
             - hackernews_whoishiring
             - hexpm
+            - home_assistant_integrations
             - homebrew_formulae
             - huggingface
             - ietf_datatracker
