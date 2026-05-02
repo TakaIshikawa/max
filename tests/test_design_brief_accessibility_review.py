@@ -141,9 +141,17 @@ def test_csv_rendering_includes_stable_accessibility_rows(tmp_path) -> None:
     assert first_risk_row["design_brief_title"] == "Accessible Support Triage Brief"
     assert first_risk_row["review_gate"] == "accessibility_review_required"
     assert first_risk_row["row_type"] == "accessibility_risk"
+    assert first_risk_row["area"] == "risk"
+    assert first_risk_row["criterion"] == first_risk["title"]
     assert first_risk_row["item_title"] == first_risk["title"]
     assert first_risk_row["owner"] == first_risk["owner"]
+    assert first_risk_row["status"] == ""
     assert first_risk_row["severity"] == first_risk["severity"]
+    assert first_risk_row["impact"] == first_risk["description"]
+    assert first_risk_row["recommendation"] == (
+        f"{first_risk['owner']} to resolve or explicitly accept before accessibility_review_required."
+    )
+    assert first_risk_row["evidence"] == "bu-a11y-lead; bu-a11y-support; visual; motor; 2.1.1; 2.4.3; 2.4.7"
     assert first_risk_row["wcag_refs"] == "; ".join(first_risk["wcag_refs"])
     assert first_risk_row["source_idea_ids"] == "bu-a11y-lead; bu-a11y-support"
 
@@ -180,7 +188,10 @@ def test_csv_rendering_escapes_commas_quotes_and_newlines() -> None:
     assert rows[0]["design_brief_title"] == 'CSV, Accessibility "Review"'
     assert rows[0]["design_brief_domain"] == "support,ops"
     assert rows[0]["review_gate"] == "needs,review"
+    assert rows[0]["area"] == "risk"
+    assert rows[0]["criterion"] == 'Comma, quote "risk"'
     assert rows[0]["item_title"] == 'Comma, quote "risk"'
+    assert rows[0]["impact"] == 'First line, with comma\nSecond "quoted" line'
     assert rows[0]["description_or_check"] == 'First line, with comma\nSecond "quoted" line'
     assert '"First line, with comma\nSecond ""quoted"" line"' in csv_text
 
@@ -203,6 +214,7 @@ def test_csv_rendering_handles_sparse_and_empty_reports() -> None:
             **{column: "" for column in CSV_COLUMNS},
             "design_brief_id": "dbf-sparse",
             "row_type": "validation_task",
+            "area": "validation",
             "item_id": "AVT1",
         }
     ]
