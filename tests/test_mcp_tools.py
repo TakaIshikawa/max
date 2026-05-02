@@ -28,6 +28,7 @@ from max.server.mcp_tools import (
     get_cost_anomalies,
     get_design_brief,
     get_design_brief_competitive_landscape,
+    get_design_brief_evidence_quality_scorecard,
     get_design_brief_markdown,
     get_design_brief_market_sizing,
     get_design_brief_onboarding_plan,
@@ -62,6 +63,7 @@ from max.server.mcp_tools import (
     design_brief_executive_memo_detail,
     design_brief_risk_register_detail,
     design_brief_competitive_landscape_detail,
+    design_brief_evidence_quality_scorecard_detail,
     design_brief_market_sizing_detail,
     design_brief_onboarding_plan_detail,
     design_brief_validation_plan_detail,
@@ -1569,6 +1571,13 @@ def test_signal_freshness_resource_registered(monkeypatch):
     assert (
         FakeMCP.latest.resources["design-brief-competitive-landscapes://{brief_id}"]
         == "design_brief_competitive_landscape_detail"
+    )
+    assert "get_design_brief_evidence_quality_scorecard" in FakeMCP.latest.tools
+    assert (
+        FakeMCP.latest.resources[
+            "design-brief-evidence-quality-scorecards://{brief_id}"
+        ]
+        == "design_brief_evidence_quality_scorecard_detail"
     )
     assert "get_design_brief_launch_checklist" in FakeMCP.latest.tools
     assert (
