@@ -1273,8 +1273,8 @@ def get_design_brief_markdown(brief_id: str) -> dict:
 def get_design_brief_validation_plan(brief_id: str, format: str = "json") -> dict:
     """Get a deterministic validation plan for a persisted design brief.
 
-    Set format to "json" for a structured payload or "markdown" for rendered
-    handoff text.
+    Set format to "json" for a structured payload, "markdown" for rendered
+    handoff text, or "csv" for execution rows.
 
     Raises:
         ResourceNotFoundError: If the design brief does not exist.
@@ -1284,11 +1284,11 @@ def get_design_brief_validation_plan(brief_id: str, format: str = "json") -> dic
 
     try:
         fmt = format.strip().lower()
-        if fmt not in {"json", "markdown"}:
+        if fmt not in {"json", "markdown", "csv"}:
             raise ValidationError(
                 f"Unsupported validation plan format: {format}",
                 field="format",
-                expected="json or markdown",
+                expected="json, markdown, or csv",
                 actual=format,
             )
 
@@ -1305,6 +1305,8 @@ def get_design_brief_validation_plan(brief_id: str, format: str = "json") -> dic
         rendered = render_validation_plan(plan, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        if fmt == "csv":
+            return {"id": brief_id, "format": "csv", "csv": rendered}
         return json.loads(rendered)
     except MCPToolError as e:
         return e.to_dict()
