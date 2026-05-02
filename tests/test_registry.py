@@ -256,12 +256,13 @@ def test_list_adapters_returns_strings():
     assert "deno_registry" in names
     assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
+    assert "github_discussion_comments" in names
 
 
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,agent_failure_dataset,clinical_trials,open_vsx,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -292,6 +293,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "huggingface",
         "awesome_lists",
         "github_pull_requests",
+        "github_discussion_comments",
         "gitlab_merge_requests",
         "stackoverflow_survey",
         "agent_failure_dataset",
@@ -495,6 +497,18 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["agent_failure_dataset"].required_keys == []
     assert "failure_data" in metadata["agent_failure_dataset"].description
+    assert metadata["github_discussion_comments"].config_keys == [
+        "repositories",
+        "discussion_numbers",
+        "labels",
+        "github_token",
+        "token",
+        "token_env",
+        "api_url",
+        "max_comments_per_discussion",
+    ]
+    assert metadata["github_discussion_comments"].required_keys == []
+    assert "GitHub Discussions" in metadata["github_discussion_comments"].description
     assert metadata["clinical_trials"].config_keys == [
         "terms",
         "conditions",

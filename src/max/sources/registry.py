@@ -83,6 +83,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "agent_failure_dataset": "max.sources.agent_failure_dataset:AgentFailureDatasetAdapter",
     "github_discussions": "max.sources.github_discussions:GitHubDiscussionsAdapter",
+    "github_discussion_comments": (
+        "max.sources.github_discussion_comments:GitHubDiscussionCommentsAdapter"
+    ),
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "gitlab_merge_requests": "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter",
     "gitlab_epics": "max.sources.gitlab_epics:GitLabEpicsAdapter",
@@ -591,6 +594,21 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches GitHub Discussions threads from configured repositories.",
+    ),
+    "github_discussion_comments": AdapterMetadata(
+        name="github_discussion_comments",
+        config_keys=[
+            "repositories",
+            "discussion_numbers",
+            "labels",
+            "github_token",
+            "token",
+            "token_env",
+            "api_url",
+            "max_comments_per_discussion",
+        ],
+        required_keys=[],
+        description="Fetches comments from configured GitHub Discussions.",
     ),
     "gitlab_issues": AdapterMetadata(
         name="gitlab_issues",
