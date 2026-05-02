@@ -2,12 +2,34 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.compliance_checklist.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "section_id",
+    "section",
+    "item_id",
+    "obligation_control",
+    "applicability",
+    "required_evidence",
+    "owner",
+    "verification",
+    "status_or_priority",
+    "evidence_references",
+    "source_idea_ids",
+    "source_fields",
+    "rationale",
+)
 
 
 SECTION_CONFIGS: tuple[dict[str, Any], ...] = (
@@ -110,9 +132,11 @@ def render_design_brief_compliance_checklist(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a compliance checklist as Markdown or JSON."""
+    """Render a compliance checklist as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported compliance checklist format: {fmt}")
 
@@ -164,11 +188,70 @@ def render_design_brief_compliance_checklist(
 
 
 def compliance_checklist_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-compliance-checklist.{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for item in _csv_items(report):
+        writer.writerow(_csv_row(report, item))
+    return output.getvalue()
+
+
+def _csv_items(report: dict[str, Any]) -> list[dict[str, Any]]:
+    items = report.get("checklist_items")
+    if isinstance(items, list):
+        return items
+
+    rows: list[dict[str, Any]] = []
+    for section in report.get("sections", []) or []:
+        for item in section.get("items", []) or []:
+            rows.append(
+                {
+                    **item,
+                    "section_id": section.get("id", ""),
+                    "section_title": section.get("title", ""),
+                    "section_owner_role": section.get("owner_role", ""),
+                }
+            )
+    return rows
+
+
+def _csv_row(report: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    evidence_references = [
+        ref.get("id")
+        for ref in item.get("evidence_references", []) or []
+        if isinstance(ref, dict) and ref.get("id")
+    ]
+    required = item.get("required")
+    applicability = "required" if required is True else "optional" if required is False else ""
+    row = {
+        "schema_version": _csv_text(report.get("schema_version")),
+        "kind": _csv_text(report.get("kind")),
+        "design_brief_id": _csv_text(brief.get("id")),
+        "design_brief_title": _csv_text(brief.get("title")),
+        "section_id": _csv_text(item.get("section_id")),
+        "section": _csv_text(item.get("section_title")),
+        "item_id": _csv_text(item.get("id")),
+        "obligation_control": _csv_text(item.get("task")),
+        "applicability": applicability,
+        "required_evidence": _csv_text(item.get("exit_criteria")),
+        "owner": _csv_text(item.get("owner")),
+        "verification": "owner_review",
+        "status_or_priority": _csv_text(item.get("status") or item.get("priority")),
+        "evidence_references": _csv_list(evidence_references),
+        "source_idea_ids": _csv_list(item.get("source_idea_ids")),
+        "source_fields": _csv_list(item.get("source_fields")),
+        "rationale": _csv_text(item.get("rationale")),
+    }
+    return {column: row[column] for column in CSV_COLUMNS}
 
 
 def _sections(
@@ -584,6 +667,20 @@ def _compact(value: Any) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _csv_list(values: Any) -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values
+    return ";".join(_csv_text(value) for value in values if _csv_text(value))
 
 
 def _filename_part(value: str) -> str:

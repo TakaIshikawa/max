@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_compliance_checklist import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_compliance_checklist,
     compliance_checklist_filename,
@@ -86,6 +89,72 @@ def test_render_design_brief_compliance_checklist_markdown_json_and_invalid_form
         render_design_brief_compliance_checklist(checklist, fmt="yaml")
 
 
+def test_render_design_brief_compliance_checklist_csv_headers_and_rows(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_compliance_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    csv_text = render_design_brief_compliance_checklist(checklist, fmt="csv")
+    repeated = render_design_brief_compliance_checklist(checklist, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == len(checklist["checklist_items"])
+
+    first = rows[0]
+    assert first["schema_version"] == SCHEMA_VERSION
+    assert first["kind"] == "max.design_brief.compliance_checklist"
+    assert first["design_brief_id"] == brief_id
+    assert first["design_brief_title"] == "Compliance Checklist Brief"
+    assert first["section_id"] == "security"
+    assert first["section"] == "Security"
+    assert first["item_id"] == "DBCC1"
+    assert first["obligation_control"].startswith("Review authentication")
+    assert first["applicability"] == "required"
+    assert first["required_evidence"] == (
+        "Access boundaries, secrets handling, and privileged actions are documented."
+    )
+    assert first["owner"] == "security_owner"
+    assert first["verification"] == "owner_review"
+    assert first["status_or_priority"] == "pending"
+    assert "sig-security" in first["evidence_references"].split(";")
+    assert first["source_idea_ids"] == "bu-compliance-lead"
+    assert first["source_fields"] == "tech_approach;suggested_stack"
+    assert "FastAPI route" in first["rationale"]
+
+
+def test_render_design_brief_compliance_checklist_csv_escapes_special_characters(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        checklist = build_design_brief_compliance_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert checklist is not None
+    checklist["checklist_items"][0]["task"] = 'Confirm "privacy", security\nwith owner'
+    checklist["checklist_items"][0]["exit_criteria"] = 'Evidence line one\nLine "two", with comma'
+
+    csv_text = render_design_brief_compliance_checklist(checklist, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["obligation_control"] == 'Confirm "privacy", security\nwith owner'
+    assert rows[0]["required_evidence"] == 'Evidence line one\nLine "two", with comma'
+
+
+def test_render_design_brief_compliance_checklist_csv_sparse_report_header_only() -> None:
+    assert render_design_brief_compliance_checklist({}, fmt="csv") == ",".join(CSV_COLUMNS) + "\n"
+    assert (
+        render_design_brief_compliance_checklist({"checklist_items": []}, fmt="csv")
+        == ",".join(CSV_COLUMNS) + "\n"
+    )
+
+
 def test_build_design_brief_compliance_checklist_missing_brief_returns_none(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "missing_compliance_checklist.db"), wal_mode=True)
     try:
@@ -103,6 +172,13 @@ def test_compliance_checklist_filename_uses_brief_id_and_title() -> None:
             fmt="markdown",
         )
         == "dbf-test001-Compliance-Checklist-API-Brief-compliance-checklist.md"
+    )
+    assert (
+        compliance_checklist_filename(
+            {"id": "dbf-test001", "title": "Compliance Checklist API Brief"},
+            fmt="csv",
+        )
+        == "dbf-test001-Compliance-Checklist-API-Brief-compliance-checklist.csv"
     )
 
 
