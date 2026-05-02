@@ -596,6 +596,7 @@ from max.server.schemas import (
     SignalImportResponse,
     SignalImportRowResult,
     SecurityReviewResponse,
+    SloPlanResponse,
     ShortcutStoryPublishRequest,
     ShortcutStoryPublishResponse,
     SlackPublishRequest,
@@ -644,6 +645,7 @@ from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import generate_release_readiness_gate
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import generate_security_review, render_security_review_markdown
+from max.spec.slo_plan import generate_slo_plan, render_slo_plan_markdown
 from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 from max.analysis.review_gate import build_review_gate_decision
@@ -5884,6 +5886,48 @@ def _threat_model_markdown_response(idea_id: str, threat_model: dict[str, Any]) 
     filename = f"{_download_filename_part(idea_id)}-threat-model.md"
     return Response(
         content=render_threat_model_markdown(threat_model),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/ideas/{idea_id}/slo-plan", response_model=SloPlanResponse)
+def get_idea_slo_plan(
+    idea_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> SloPlanResponse | Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    plan = generate_slo_plan(unit, evaluation, tact_spec)
+    if format == "markdown":
+        return _slo_plan_markdown_response(idea_id, plan)
+    return SloPlanResponse.model_validate(plan)
+
+
+@router.get("/ideas/{idea_id}/slo-plan.md", response_model=None)
+def get_idea_slo_plan_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    plan = generate_slo_plan(unit, evaluation, tact_spec)
+    return _slo_plan_markdown_response(idea_id, plan)
+
+
+def _slo_plan_markdown_response(idea_id: str, plan: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(idea_id)}-slo-plan.md"
+    return Response(
+        content=render_slo_plan_markdown(plan),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

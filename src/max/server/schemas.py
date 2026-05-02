@@ -1795,6 +1795,20 @@ class ThreatModelResponse(BaseModel):
     review_gate: dict[str, Any]
 
 
+class SloPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    objectives: list[dict[str, Any]]
+    alerts: list[dict[str, Any]]
+    error_budget_policy: dict[str, Any]
+    validation_steps: list[dict[str, Any]]
+    gaps: list[dict[str, Any]]
+    next_actions: list[dict[str, Any]]
+
+
 class ReleaseReadinessGateBlockerResponse(BaseModel):
     id: str
     dimension_id: str
