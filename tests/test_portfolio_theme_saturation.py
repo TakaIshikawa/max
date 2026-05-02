@@ -18,6 +18,16 @@ from max.types.buildable_unit import BuildableCategory, BuildableUnit
 
 
 GENERATED_AT = "2026-04-30T00:00:00+00:00"
+CSV_HEADER = (
+    "theme_bucket_id,domain_coverage,theme,category,item_count,source_idea_count,"
+    "buildable_unit_count,design_brief_count,evidence_count,evidence_concentration,"
+    "recent_validation_count,readiness_high_count,readiness_medium_count,"
+    "readiness_low_count,saturation_score,saturation_level,flags,"
+    "representative_idea_ids,representative_idea_titles,"
+    "representative_design_brief_ids,representative_design_brief_titles,"
+    "source_idea_ids,recent_validation_idea_ids,recommended_action_priorities,"
+    "recommended_actions,recommended_action_rationales"
+)
 
 
 def test_theme_saturation_ranks_crowded_theme_and_flags_validation_gap(store: Store) -> None:
@@ -91,32 +101,44 @@ def test_theme_saturation_csv_renderer_includes_bucket_rows_and_clean_ids(
     )
 
     csv_text = render_portfolio_theme_saturation(report, fmt="csv")
-    assert csv_text.startswith(
-        "theme_bucket_id,domain_coverage,theme,item_count,source_idea_count,"
-    )
+    assert csv_text.splitlines()[0] == CSV_HEADER
     rows = list(csv.DictReader(StringIO(csv_text)))
+    assert [row["theme"] for row in rows] == ["agent-security", "cli_tool"]
 
     cli_row = next(row for row in rows if row["theme"] == "cli_tool")
     assert cli_row["theme_bucket_id"] == "devtools:cli_tool"
     assert cli_row["domain_coverage"] == "devtools"
+    assert cli_row["category"] == "cli_tool"
     assert cli_row["item_count"] == "3"
     assert cli_row["source_idea_count"] == "3"
     assert cli_row["buildable_unit_count"] == "3"
     assert cli_row["design_brief_count"] == "0"
     assert cli_row["evidence_count"] == "3"
     assert cli_row["recent_validation_count"] == "0"
+    assert cli_row["readiness_high_count"] == "3"
+    assert cli_row["readiness_medium_count"] == "0"
+    assert cli_row["readiness_low_count"] == "0"
+    assert cli_row["saturation_level"] == "high"
     assert cli_row["flags"] == "crowded;missing_recent_validation"
     assert cli_row["representative_idea_ids"] == "bu-sec-1;bu-sec-2;bu-sec-3"
+    assert cli_row["representative_idea_titles"] == (
+        "Protocol test runner;Protocol fuzz harness;Protocol release gate"
+    )
     assert cli_row["representative_design_brief_ids"] == ""
+    assert cli_row["representative_design_brief_titles"] == ""
     assert cli_row["source_idea_ids"] == "bu-sec-1;bu-sec-2;bu-sec-3"
-    assert "Pause new ideas in devtools / cli_tool" in cli_row["recommendations"]
+    assert cli_row["recommended_action_priorities"] == "high;medium"
+    assert "Pause new ideas in devtools / cli_tool" in cli_row["recommended_actions"]
+    assert "highest saturation score" in cli_row["recommended_action_rationales"]
     assert "[" not in cli_row["representative_idea_ids"]
     assert "'" not in cli_row["representative_idea_ids"]
 
     brief_row = next(row for row in rows if row["theme"] == "agent-security")
+    assert brief_row["category"] == "design_brief"
     assert brief_row["design_brief_count"] == "1"
     assert brief_row["representative_idea_ids"] == ""
     assert brief_row["representative_design_brief_ids"]
+    assert brief_row["representative_design_brief_titles"] == "Security Validation Suite"
     assert "[" not in brief_row["representative_design_brief_ids"]
     assert "'" not in brief_row["representative_design_brief_ids"]
 
@@ -205,13 +227,24 @@ def test_theme_saturation_csv_renderer_returns_header_for_empty_bucket_report(
     csv_text = render_portfolio_theme_saturation(report, fmt="csv")
 
     assert list(csv.DictReader(StringIO(csv_text))) == []
-    assert csv_text == (
-        "theme_bucket_id,domain_coverage,theme,item_count,source_idea_count,"
-        "buildable_unit_count,design_brief_count,evidence_count,evidence_concentration,"
-        "recent_validation_count,saturation_score,flags,representative_idea_ids,"
-        "representative_design_brief_ids,source_idea_ids,recent_validation_idea_ids,"
-        "recommendations\n"
+    assert csv_text == CSV_HEADER + "\n"
+
+
+def test_theme_saturation_csv_renderer_escapes_representative_titles(store: Store) -> None:
+    store.insert_buildable_unit(
+        _unit(
+            "bu-quoted-1",
+            'Risk "Radar", Export',
+            theme=BuildableCategory.APPLICATION,
+        )
     )
+
+    report = build_portfolio_theme_saturation_report(store, generated_at=GENERATED_AT)
+
+    csv_text = render_portfolio_theme_saturation(report, fmt="csv")
+    assert '"Risk ""Radar"", Export"' in csv_text
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    assert rows[0]["representative_idea_titles"] == 'Risk "Radar", Export'
 
 
 def test_theme_saturation_renderer_rejects_unsupported_format(store: Store) -> None:
