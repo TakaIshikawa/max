@@ -6,7 +6,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from max.sources.go_packages import GoPackagesAdapter, PKG_GO_DEV_SEARCH, _DEFAULT_QUERIES
+from max.sources.go_packages import (
+    GoPackagesAdapter,
+    PKG_GO_DEV_BASE,
+    PKG_GO_DEV_SEARCH,
+    _DEFAULT_QUERIES,
+)
 from max.types.signal import SignalSourceType
 
 
@@ -39,6 +44,14 @@ MOCK_SEARCH = {
     ]
 }
 
+MOCK_PACKAGE = {
+    "module_path": "github.com/stretchr/testify",
+    "synopsis": "A toolkit with common assertions and mocks.",
+    "imported_by_count": 35_000,
+    "version": "v1.10.0",
+    "licenses": ["MIT"],
+}
+
 
 def test_go_packages_adapter_properties() -> None:
     adapter = GoPackagesAdapter()
@@ -46,15 +59,17 @@ def test_go_packages_adapter_properties() -> None:
     assert adapter.name == "go_packages"
     assert adapter.source_type == SignalSourceType.REGISTRY.value
     assert adapter.queries == _DEFAULT_QUERIES
+    assert adapter.package_names == []
     assert adapter.max_results == 10
     assert adapter.min_imported_by == 0
     assert adapter.include_stdlib is False
 
 
-def test_go_packages_adapter_custom_config_and_watchlist() -> None:
+def test_go_packages_adapter_custom_config_watchlist_and_packages() -> None:
     adapter = GoPackagesAdapter(
         config={
             "queries": ["testing"],
+            "package_names": ["github.com/stretchr/testify"],
             "watchlist_terms": ["observability"],
             "max_results": 5,
             "min_imported_by": 100,
@@ -63,9 +78,43 @@ def test_go_packages_adapter_custom_config_and_watchlist() -> None:
     )
 
     assert adapter.queries == ["testing", "observability"]
+    assert adapter.package_names == ["github.com/stretchr/testify", "observability"]
     assert adapter.max_results == 5
     assert adapter.min_imported_by == 100
     assert adapter.include_stdlib is True
+
+
+@pytest.mark.asyncio
+async def test_go_packages_fetches_exact_package_metadata() -> None:
+    adapter = GoPackagesAdapter(
+        config={
+            "package_names": ["github.com/stretchr/testify"],
+            "queries": [],
+        }
+    )
+
+    with patch("max.sources.go_packages.fetch_with_retry") as mock_fetch:
+        mock_fetch.return_value = MagicMock(
+            headers={"content-type": "application/json"},
+            json=lambda: MOCK_PACKAGE,
+        )
+
+        signals = await adapter.fetch(limit=10)
+
+    assert len(signals) == 1
+    assert mock_fetch.call_args.args[0] == f"{PKG_GO_DEV_BASE}/github.com/stretchr/testify"
+
+    signal = signals[0]
+    assert signal.source_type == SignalSourceType.REGISTRY
+    assert signal.source_adapter == "go_packages"
+    assert signal.title == "github.com/stretchr/testify@v1.10.0"
+    assert signal.url == "https://pkg.go.dev/github.com/stretchr/testify"
+    assert signal.tags == ["go", "golang", "MIT", "package-popularity"]
+    assert signal.metadata["package_ecosystem"] == "go"
+    assert signal.metadata["module_path"] == "github.com/stretchr/testify"
+    assert signal.metadata["package_name"] == "github.com/stretchr/testify"
+    assert signal.metadata["lookup_type"] == "package"
+    assert signal.metadata["search_query"] is None
 
 
 @pytest.mark.asyncio
@@ -101,6 +150,7 @@ async def test_go_packages_fetch_emits_normalized_signals() -> None:
     assert first.metadata["package_url"] == "https://pkg.go.dev/github.com/stretchr/testify"
     assert first.metadata["search_query"] == "testing"
     assert first.metadata["query"] == "testing"
+    assert first.metadata["lookup_type"] == "search"
 
 
 @pytest.mark.asyncio
@@ -178,3 +228,30 @@ async def test_go_packages_signal_ids_are_deterministic() -> None:
         second = await adapter.fetch(limit=10)
 
     assert [signal.id for signal in first] == [signal.id for signal in second]
+
+
+@pytest.mark.asyncio
+async def test_go_packages_dedupes_exact_packages_and_search_results() -> None:
+    adapter = GoPackagesAdapter(
+        config={
+            "package_names": ["github.com/stretchr/testify"],
+            "queries": ["testing"],
+            "include_stdlib": True,
+        }
+    )
+
+    def response_for(url: str, *_args, **_kwargs):
+        if url == PKG_GO_DEV_SEARCH:
+            return MagicMock(headers={"content-type": "application/json"}, json=lambda: MOCK_SEARCH)
+        return MagicMock(headers={"content-type": "application/json"}, json=lambda: MOCK_PACKAGE)
+
+    with patch("max.sources.go_packages.fetch_with_retry", side_effect=response_for):
+        signals = await adapter.fetch(limit=10)
+
+    assert [signal.metadata["module_path"] for signal in signals] == [
+        "github.com/stretchr/testify",
+        "golang.org/x/sync",
+        "net/http",
+        "example.com/tiny",
+    ]
+    assert signals[0].metadata["lookup_type"] == "package"
