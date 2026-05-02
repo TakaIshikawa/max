@@ -104,6 +104,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
     "stackexchange": "max.sources.stackexchange:StackExchangeAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
+    "stackoverflow_tag_trends": (
+        "max.sources.stackoverflow_tag_trends:StackOverflowTagTrendsAdapter"
+    ),
     "stackoverflow_survey": "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter",
     "jetbrains_survey": "max.sources.jetbrains_survey:JetBrainsSurveyAdapter",
     "jetbrains_marketplace": (
@@ -777,6 +780,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["tags", "min_score", "unanswered_only"],
         required_keys=[],
         description="Fetches Stack Overflow questions for configured tags and score filters.",
+    ),
+    "stackoverflow_tag_trends": AdapterMetadata(
+        name="stackoverflow_tag_trends",
+        config_keys=["tags", "site", "pagesize", "fromdate", "todate", "timeout"],
+        required_keys=[],
+        description="Fetches Stack Overflow tag question counts and recent activity snapshots.",
     ),
     "stackoverflow_survey": AdapterMetadata(
         name="stackoverflow_survey",
