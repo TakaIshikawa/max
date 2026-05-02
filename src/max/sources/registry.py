@@ -154,6 +154,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.packagist_download_trends:PackagistDownloadTrendsAdapter"
     ),
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "dockerhub_image_trends": (
+        "max.sources.dockerhub_image_trends:DockerHubImageTrendsAdapter"
+    ),
     "dockerhub_tag_velocity": (
         "max.sources.dockerhub_tag_velocity:DockerHubTagVelocityAdapter"
     ),
@@ -1062,6 +1065,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["repositories", "queries", "include_tags"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "dockerhub_image_trends": AdapterMetadata(
+        name="dockerhub_image_trends",
+        config_keys=["repositories", "repository_names", "images", "api_url", "timeout"],
+        required_keys=[],
+        description="Fetches Docker Hub repository pull, star, and last-updated image trend metadata.",
     ),
     "dockerhub_tag_velocity": AdapterMetadata(
         name="dockerhub_tag_velocity",
