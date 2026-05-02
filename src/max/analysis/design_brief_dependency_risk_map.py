@@ -24,16 +24,28 @@ RISK_CATEGORIES: tuple[str, ...] = (
 )
 
 CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
     "design_brief_id",
+    "design_brief_title",
+    "design_status",
+    "readiness_score",
+    "row_type",
+    "item_order",
     "dependency_id",
     "dependency_name",
+    "impacted_area",
     "category",
-    "owner",
     "risk_level",
-    "impacted_workstreams",
-    "evidence_ids",
+    "blocker_status",
     "mitigation",
+    "owner",
+    "due_date",
+    "timing",
     "next_action",
+    "evidence_refs",
+    "source_idea_ids",
+    "source_fields",
 )
 
 _VENDOR_KEYWORDS: tuple[tuple[str, str], ...] = (
@@ -182,29 +194,104 @@ def _render_csv(report: dict[str, Any]) -> str:
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
-    for risk in report["dependency_risks"]:
-        writer.writerow(_csv_row(report, risk))
+    for row in _csv_rows(report):
+        writer.writerow(row)
     return output.getvalue()
 
 
-def _csv_row(report: dict[str, Any], risk: dict[str, Any]) -> dict[str, str]:
-    return {
-        "design_brief_id": str(report["design_brief"]["id"]),
-        "dependency_id": str(risk["id"]),
-        "dependency_name": str(risk["dependency_name"]),
-        "category": str(risk["risk_category"]),
-        "owner": str(risk["owner"]),
-        "risk_level": str(risk["severity"]),
-        "impacted_workstreams": _csv_list(risk.get("source_fields", [])),
-        "evidence_ids": _csv_list([risk.get("evidence_reference_id")]),
-        "mitigation": str(risk["mitigation"]),
-        "next_action": _next_action(risk),
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    risk_items = report.get("dependency_risks") or []
+    edge_items = [
+        *(report.get("risk_edges") or []),
+        *(report.get("dependency_edges") or []),
+        *(report.get("dependencies") or []),
+    ]
+
+    for order, risk in enumerate(risk_items, start=1):
+        if isinstance(risk, dict):
+            rows.append(_csv_row(report, risk, row_type="dependency_risk", item_order=order))
+
+    for order, edge in enumerate(edge_items, start=1):
+        if isinstance(edge, dict):
+            rows.append(_csv_row(report, edge, row_type="risk_edge", item_order=order))
+
+    return rows
+
+
+def _csv_row(
+    report: dict[str, Any],
+    item: dict[str, Any],
+    *,
+    row_type: str,
+    item_order: int,
+) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    values = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
+        "row_type": row_type,
+        "item_order": item_order,
+        "dependency_id": item.get("id") or item.get("dependency_id"),
+        "dependency_name": item.get("dependency_name") or item.get("name"),
+        "impacted_area": _impacted_area(item),
+        "category": item.get("risk_category") or item.get("category"),
+        "risk_level": item.get("severity") or item.get("risk_level"),
+        "blocker_status": _blocker_status(item),
+        "mitigation": item.get("mitigation") or item.get("mitigation_plan"),
+        "owner": item.get("owner"),
+        "due_date": item.get("due_date"),
+        "timing": item.get("timing") or item.get("timing_field"),
+        "next_action": item.get("next_action") or _next_action(item),
+        "evidence_refs": _evidence_refs(item),
+        "source_idea_ids": item.get("source_idea_ids") or brief.get("source_idea_ids"),
+        "source_fields": item.get("source_fields"),
     }
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _impacted_area(item: dict[str, Any]) -> Any:
+    return (
+        item.get("impacted_area")
+        or item.get("impacted_areas")
+        or item.get("impacted_workstream")
+        or item.get("impacted_workstreams")
+        or item.get("source_fields")
+    )
+
+
+def _blocker_status(item: dict[str, Any]) -> str:
+    if item.get("blocker_status") is not None:
+        return str(item["blocker_status"])
+    for key in ("is_blocker", "blocked", "blocker"):
+        if item.get(key) is True:
+            return "blocked"
+        if item.get(key) is False:
+            return "not_blocked"
+    if str(item.get("severity") or item.get("risk_level") or "").lower() == "high":
+        return "at_risk"
+    return "not_blocked"
+
+
+def _evidence_refs(item: dict[str, Any]) -> Any:
+    refs = (
+        item.get("evidence_refs")
+        or item.get("evidence_ids")
+        or item.get("evidence_reference_ids")
+        or item.get("evidence_references")
+    )
+    if refs:
+        return refs
+    return item.get("evidence_reference_id")
 
 
 def _next_action(risk: dict[str, Any]) -> str:
-    owner = str(risk["owner"])
-    dependency = str(risk["dependency_name"])
+    owner = str(risk.get("owner") or "Owner")
+    dependency = str(risk.get("dependency_name") or risk.get("name") or "dependency")
     return f"{owner} to validate dependency assumptions for {dependency}."
 
 
@@ -592,8 +679,14 @@ def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "none"
 
 
-def _csv_list(values: list[Any]) -> str:
-    return "; ".join(str(value) for value in values if value)
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, set):
+        return "; ".join(_csv_text(item) for item in sorted(value, key=str) if _csv_text(item))
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return str(value)
 
 
 def _filename_part(value: str) -> str:
