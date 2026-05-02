@@ -7,6 +7,7 @@ import logging
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import quote
@@ -15,6 +16,7 @@ import httpx
 import yaml
 
 from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
+from max.sources.errors import SourceParseError
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -28,12 +30,35 @@ _DEFAULT_AREAS: list[str] = []
 _DEFAULT_STAGES: list[str] = []
 _ARCHIVED_STATUSES = {"archived", "deferred", "deprecated", "rejected", "replaced", "withdrawn"}
 _SUMMARY_HEADINGS = ("summary", "motivation", "goals", "non-goals")
+_INDEX_CONTAINER_KEYS = ("keps", "items", "results", "data", "enhancements")
+_INDEX_TITLE_KEYS = ("title", "name", "kep", "enhancement")
+_INDEX_NUMBER_KEYS = ("kep_number", "kep-number", "number", "id", "kep")
+_INDEX_SIG_KEYS = ("sig", "owning_sig", "owning-sig", "area", "owning SIG")
+_INDEX_STAGE_KEYS = ("stage", "latest_stage", "latest-stage")
+_INDEX_STATUS_KEYS = ("status", "state")
+_INDEX_URL_KEYS = ("url", "link", "kep_url", "kep-url")
+_INDEX_SUMMARY_KEYS = ("summary", "description", "content", "motivation")
 
 
 class KubernetesKepsAdapter(SourceAdapter):
     """Discover public Kubernetes Enhancement Proposals from kubernetes/enhancements."""
 
-    config_keys = ["areas", "stages", "max_results", "github_token", "token", "token_env", "include_archived"]
+    config_keys = [
+        "index_url",
+        "local_path",
+        "content",
+        "areas",
+        "sigs",
+        "stages",
+        "statuses",
+        "keywords",
+        "max_results",
+        "max_items",
+        "github_token",
+        "token",
+        "token_env",
+        "include_archived",
+    ]
     required_keys: list[str] = []
     description = "Fetches Kubernetes Enhancement Proposal roadmap metadata from GitHub."
 
@@ -47,15 +72,22 @@ class KubernetesKepsAdapter(SourceAdapter):
 
     @property
     def areas(self) -> list[str]:
-        return [_normalize_filter(value) for value in self._config.get("areas", _DEFAULT_AREAS)]
+        configured = _string_list(self._config.get("areas")) + _string_list(self._config.get("sigs"))
+        return [_normalize_filter(value) for value in (configured or _DEFAULT_AREAS)]
 
     @property
     def stages(self) -> list[str]:
-        return [_normalize_filter(value) for value in self._config.get("stages", _DEFAULT_STAGES)]
+        configured = _string_list(self._config.get("stages")) + _string_list(self._config.get("statuses"))
+        return [_normalize_filter(value) for value in (configured or _DEFAULT_STAGES)]
+
+    @property
+    def keywords(self) -> list[str]:
+        return [_normalize_filter(value) for value in _string_list(self._config.get("keywords"))]
 
     @property
     def max_results(self) -> int:
-        return max(_int_or_none(self._config.get("max_results")) or 50, 1)
+        value = self._config.get("max_items", self._config.get("max_results"))
+        return max(_int_or_none(value) or 50, 1)
 
     @property
     def include_archived(self) -> bool:
@@ -73,8 +105,14 @@ class KubernetesKepsAdapter(SourceAdapter):
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         effective_limit = min(max(limit, 1), self.max_results)
+
+        index_text = await self._load_index_text()
+        if index_text is not None:
+            return self._signals_from_index(index_text, effective_limit)
+
         signals: list[Signal] = []
         seen_paths: set[str] = set()
+        seen_ids: set[str] = set()
 
         headers = {
             "Accept": "application/vnd.github+json",
@@ -105,10 +143,60 @@ class KubernetesKepsAdapter(SourceAdapter):
                 )
                 if signal is None or not self._passes_filters(signal):
                     continue
+                if signal.id in seen_ids:
+                    continue
 
+                seen_ids.add(signal.id)
                 signals.append(signal)
 
         return signals[:effective_limit]
+
+    async def _load_index_text(self) -> str | None:
+        content = self._config.get("content")
+        if isinstance(content, str):
+            return content
+
+        local_path = self._config.get("local_path")
+        if local_path:
+            try:
+                return Path(str(local_path)).read_text(encoding="utf-8-sig")
+            except OSError as e:
+                logger.warning("%s: failed to read Kubernetes KEP index %s: %s", self.name, local_path, e)
+                return None
+
+        index_url = self._config.get("index_url")
+        if not index_url:
+            return None
+
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            try:
+                response = await fetch_with_retry(str(index_url), client, adapter_name=self.name)
+            except AdapterFetchError as e:
+                logger.warning("%s: failed to fetch Kubernetes KEP index %s: %s", self.name, index_url, e)
+                return None
+            except httpx.RequestError as e:
+                logger.warning("%s: failed to fetch Kubernetes KEP index %s: %s", self.name, index_url, e)
+                return None
+        return response.text
+
+    def _signals_from_index(self, text: str, effective_limit: int) -> list[Signal]:
+        try:
+            items = _parse_kep_index(text)
+        except SourceParseError as e:
+            logger.warning("%s: skipping malformed Kubernetes KEP index: %s", self.name, e)
+            return []
+
+        signals: list[Signal] = []
+        seen: set[str] = set()
+        for item in items:
+            if len(signals) >= effective_limit:
+                break
+            signal = _build_signal_from_item(item, adapter_name=self.name)
+            if signal is None or signal.id in seen or not self._passes_filters(signal):
+                continue
+            seen.add(signal.id)
+            signals.append(signal)
+        return signals
 
     async def _fetch_tree(self, client: httpx.AsyncClient) -> list[dict[str, Any]]:
         try:
@@ -151,7 +239,95 @@ class KubernetesKepsAdapter(SourceAdapter):
             return False
         if not self.include_archived and status in _ARCHIVED_STATUSES:
             return False
+        if self.keywords:
+            haystack = " ".join(
+                str(value or "")
+                for value in (
+                    signal.title,
+                    signal.content,
+                    signal.metadata.get("summary"),
+                    signal.metadata.get("area"),
+                    signal.metadata.get("stage"),
+                    signal.metadata.get("status"),
+                )
+            ).lower()
+            matched = [keyword for keyword in self.keywords if keyword in haystack]
+            if not matched:
+                return False
+            signal.metadata["matched_keywords"] = matched
         return True
+
+
+def _parse_kep_index(text: str) -> list[dict[str, Any]]:
+    stripped = text.lstrip()
+    if not stripped:
+        return []
+    if stripped.startswith(("{", "[")):
+        return _extract_index_items(_parse_yaml_index(stripped))
+    if stripped.startswith("- "):
+        return _extract_index_items(_parse_yaml_index(stripped))
+    return _parse_markdown_table_index(text)
+
+
+def _parse_yaml_index(text: str) -> Any:
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise SourceParseError("Malformed Kubernetes KEP index", adapter_name="kubernetes_keps") from exc
+
+
+def _extract_index_items(data: Any) -> list[dict[str, Any]]:
+    if isinstance(data, list):
+        candidates = data
+    elif isinstance(data, dict):
+        container = next((data.get(key) for key in _INDEX_CONTAINER_KEYS if key in data), data)
+        if isinstance(container, dict):
+            candidates = [
+                {"kep_number": number, **value} if isinstance(value, dict) else value
+                for number, value in container.items()
+            ]
+        elif isinstance(container, list):
+            candidates = container
+        else:
+            candidates = []
+    else:
+        candidates = []
+
+    return [_normalize_index_item(item) for item in candidates if isinstance(item, dict)]
+
+
+def _parse_markdown_table_index(text: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    headers: list[str] | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or not stripped.endswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if headers is None:
+            headers = [_normalize_header(cell) for cell in cells]
+            continue
+        if all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+            continue
+        if len(cells) != len(headers):
+            continue
+        rows.append(_normalize_index_item(dict(zip(headers, cells, strict=True))))
+    return rows
+
+
+def _normalize_index_item(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    return {
+        "kep_number": _first_string(item, _INDEX_NUMBER_KEYS) or _kep_number_from_text(" ".join(map(str, item.values()))),
+        "title": _clean_markdown(_first_string(item, _INDEX_TITLE_KEYS) or ""),
+        "area": _first_string(item, _INDEX_SIG_KEYS),
+        "stage": _first_string(item, _INDEX_STAGE_KEYS),
+        "status": _first_string(item, _INDEX_STATUS_KEYS),
+        "url": _extract_markdown_url(_first_string(item, _INDEX_URL_KEYS) or "")
+        or _extract_markdown_url(_first_string(item, _INDEX_TITLE_KEYS) or ""),
+        "summary": _clean_markdown(_first_string(item, _INDEX_SUMMARY_KEYS) or ""),
+        "raw_metadata": row,
+    }
 
 
 def _kep_directories(tree: list[dict[str, Any]]) -> list[str]:
@@ -165,6 +341,48 @@ def _kep_directories(tree: list[dict[str, Any]]) -> list[str]:
         if path.endswith("/kep.yaml") or path.endswith("/README.md"):
             dirs.add(str(PurePosixPath(path).parent))
     return sorted(dirs)
+
+
+def _build_signal_from_item(item: dict[str, Any], *, adapter_name: str) -> Signal | None:
+    kep_number = _string_or_none(item.get("kep_number"))
+    title = _string_or_none(item.get("title"))
+    if not kep_number or not title:
+        return None
+
+    area = _string_or_none(item.get("area"))
+    stage = _string_or_none(item.get("stage"))
+    status = _string_or_none(item.get("status")) or stage
+    summary = _string_or_none(item.get("summary")) or title
+    url = _string_or_none(item.get("url")) or f"{REPO_WEB_BASE}/keps/{kep_number}"
+    published_at = _parse_dt(_string_or_none(item.get("last_updated") or item.get("updated") or item.get("created")))
+
+    signal_metadata = {
+        "repository": "kubernetes/enhancements",
+        "kep_number": kep_number,
+        "area": area,
+        "stage": stage,
+        "status": status,
+        "owning_sig": area,
+        "summary": summary,
+        "summary_sections": {"summary": summary} if summary else {},
+        "signal_kind": "kubernetes_enhancement_proposal",
+        "signal_role": "solution",
+        "raw_metadata": item.get("raw_metadata", item),
+    }
+
+    return Signal(
+        id=_signal_id("", kep_number),
+        source_type=SignalSourceType.ROADMAP,
+        source_adapter=adapter_name,
+        title=_format_title(kep_number, title),
+        content=summary[:4000],
+        url=url,
+        author=area,
+        published_at=published_at,
+        tags=_build_tags(area=area, stage=stage, status=status, owning_sig=area),
+        credibility=0.75 if status and status.lower() in {"implemented", "implementable"} else 0.65,
+        metadata=signal_metadata,
+    )
 
 
 def _build_signal(
@@ -209,7 +427,7 @@ def _build_signal(
         "summary": summary,
         "summary_sections": summary_sections,
         "signal_kind": "kubernetes_enhancement_proposal",
-        "signal_role": "market",
+        "signal_role": "solution",
         "raw_metadata": metadata,
     }
 
@@ -321,6 +539,34 @@ def _build_tags(
     return deduped[:10]
 
 
+def _normalize_header(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+
+
+def _first_string(row: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    normalized = {_normalize_header(str(key)): value for key, value in row.items()}
+    for key in keys:
+        value = normalized.get(_normalize_header(key))
+        if value is not None:
+            return _string_or_none(value)
+    return None
+
+
+def _extract_markdown_url(value: str) -> str | None:
+    match = re.search(r"\[[^\]]+\]\((https?://[^)]+)\)", value)
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"https?://\S+", value)
+    if match:
+        return match.group(0).rstrip(").,")
+    return None
+
+
+def _kep_number_from_text(value: str) -> str | None:
+    match = re.search(r"\b(?:KEP[-\s]*)?(\d{1,5})\b", value, flags=re.IGNORECASE)
+    return match.group(1) if match else None
+
+
 def _signal_id(path: str, kep_number: str | None) -> str:
     key = kep_number or path
     digest = hashlib.sha1(key.strip().lower().encode()).hexdigest()[:12]
@@ -357,3 +603,13 @@ def _int_or_none(value: object) -> int | None:
         return int(str(value).strip())
     except (TypeError, ValueError):
         return None
+
+
+def _string_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if str(item).strip()]
+    return [str(value)]

@@ -1257,9 +1257,16 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "kubernetes_keps": AdapterMetadata(
         name="kubernetes_keps",
         config_keys=[
+            "index_url",
+            "local_path",
+            "content",
             "areas",
+            "sigs",
             "stages",
+            "statuses",
+            "keywords",
             "max_results",
+            "max_items",
             "github_token",
             "token",
             "token_env",
