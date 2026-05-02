@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Any, Iterable
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.stakeholder_map.v1"
+
+CSV_COLUMNS = (
+    "stakeholder_role",
+    "stakeholder_name",
+    "influence",
+    "evidence_reference_ids",
+    "objections",
+    "recommended_engagement_action",
+    "inference_status",
+    "confidence_level",
+    "confidence_score",
+)
 
 
 ROLE_CONFIGS: tuple[dict[str, Any], ...] = (
@@ -161,9 +175,11 @@ def build_design_brief_stakeholder_map(
 
 
 def render_design_brief_stakeholder_map(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a stakeholder map as Markdown or JSON."""
+    """Render a stakeholder map as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported stakeholder map format: {fmt}")
 
@@ -220,11 +236,33 @@ def render_design_brief_stakeholder_map(report: dict[str, Any], fmt: str = "mark
 
 
 def stakeholder_map_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-stakeholder-map.{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for stakeholder in report.get("stakeholders", []):
+        confidence = stakeholder.get("confidence") or {}
+        writer.writerow(
+            {
+                "stakeholder_role": stakeholder.get("role_name") or stakeholder.get("role", ""),
+                "stakeholder_name": stakeholder.get("persona", ""),
+                "influence": stakeholder.get("decision_power", ""),
+                "evidence_reference_ids": _csv_list(stakeholder.get("evidence_reference_ids")),
+                "objections": _csv_list(stakeholder.get("assumptions")),
+                "recommended_engagement_action": _csv_list(stakeholder.get("responsibilities")),
+                "inference_status": stakeholder.get("inference_status", ""),
+                "confidence_level": confidence.get("level", ""),
+                "confidence_score": confidence.get("score", ""),
+            }
+        )
+    return output.getvalue()
 
 
 def _stakeholders(
@@ -627,6 +665,10 @@ def _clean(value: Any) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none"
+
+
+def _csv_list(value: Any) -> str:
+    return "; ".join(_string_list(value))
 
 
 def _filename_part(value: str) -> str:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -103,6 +105,60 @@ def test_render_design_brief_stakeholder_map_markdown_json_and_invalid_format(tm
         render_design_brief_stakeholder_map(report, fmt="yaml")
 
 
+def test_render_design_brief_stakeholder_map_csv_populated_report(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_stakeholder_map(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_output = render_design_brief_stakeholder_map(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_output))
+
+    assert reader.fieldnames == [
+        "stakeholder_role",
+        "stakeholder_name",
+        "influence",
+        "evidence_reference_ids",
+        "objections",
+        "recommended_engagement_action",
+        "inference_status",
+        "confidence_level",
+        "confidence_score",
+    ]
+    rows = list(reader)
+    assert len(rows) == len(report["stakeholders"])
+
+    buyer = rows[0]
+    buyer_report = report["stakeholders"][0]
+    assert buyer["stakeholder_role"] == "Buyer"
+    assert buyer["stakeholder_name"] == "VP of Engineering"
+    assert buyer["influence"] == "high"
+    assert buyer["evidence_reference_ids"] == "sig-budget"
+    assert buyer["recommended_engagement_action"] == "; ".join(buyer_report["responsibilities"])
+    assert buyer["inference_status"] == buyer_report["inference_status"]
+    assert buyer["confidence_level"] == buyer_report["confidence"]["level"]
+    assert buyer["confidence_score"] == str(buyer_report["confidence"]["score"])
+
+    approver = next(row for row in rows if row["stakeholder_role"] == "Approver")
+    assert "sig-approval" in approver["evidence_reference_ids"]
+    assert "named approvers need validation" in approver["objections"]
+
+
+def test_render_design_brief_stakeholder_map_csv_sparse_report_has_header_only() -> None:
+    report = {
+        "stakeholders": [],
+    }
+
+    csv_output = render_design_brief_stakeholder_map(report, fmt="csv")
+    assert csv_output == (
+        "stakeholder_role,stakeholder_name,influence,evidence_reference_ids,objections,"
+        "recommended_engagement_action,inference_status,confidence_level,confidence_score\n"
+    )
+    assert list(csv.DictReader(io.StringIO(csv_output))) == []
+
+
 def test_build_design_brief_stakeholder_map_missing_brief_returns_none(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "missing_stakeholder_map.db"), wal_mode=True)
     try:
@@ -127,6 +183,13 @@ def test_stakeholder_map_filename_uses_brief_id_and_title() -> None:
             fmt="json",
         )
         == "dbf-test001-Stakeholder-Map-API-Brief-stakeholder-map.json"
+    )
+    assert (
+        stakeholder_map_filename(
+            {"id": "dbf-test001", "title": "Stakeholder Map API Brief"},
+            fmt="csv",
+        )
+        == "dbf-test001-Stakeholder-Map-API-Brief-stakeholder-map.csv"
     )
 
 
