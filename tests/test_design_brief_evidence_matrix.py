@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -15,6 +17,12 @@ from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
 from max.types.insight import Insight, InsightCategory
 from max.types.signal import Signal, SignalSourceType
+
+
+CSV_HEADER = (
+    "design_brief_id,design_brief_title,claim_id,claim,evidence_id,source_type,"
+    "source_title,strength,confidence,contradiction_flag,notes\n"
+)
 
 
 def _signal(signal_id: str, adapter: str, role: str, *, source_type=SignalSourceType.FORUM) -> Signal:
@@ -243,3 +251,85 @@ def test_render_design_brief_evidence_matrix_json_markdown_and_invalid_format(tm
 
     with pytest.raises(ValueError, match="Unsupported evidence matrix format: yaml"):
         render_design_brief_evidence_matrix(matrix, fmt="yaml")
+
+
+def test_render_design_brief_evidence_matrix_csv_has_stable_header(tmp_path) -> None:
+    store, brief = _seed_matrix_brief(tmp_path)
+    try:
+        matrix = build_design_brief_evidence_matrix(store, brief)
+    finally:
+        store.close()
+
+    rendered = render_design_brief_evidence_matrix(matrix, fmt="csv")
+
+    assert rendered.startswith(CSV_HEADER)
+
+
+def test_render_design_brief_evidence_matrix_csv_has_one_row_per_claim_evidence_link(
+    tmp_path,
+) -> None:
+    store, brief = _seed_matrix_brief(tmp_path)
+    try:
+        matrix = build_design_brief_evidence_matrix(store, brief)
+    finally:
+        store.close()
+
+    rows = list(csv.DictReader(StringIO(render_design_brief_evidence_matrix(matrix, fmt="csv"))))
+
+    problem_rows = [row for row in rows if row["claim_id"] == "problem"]
+    assert [row["evidence_id"] for row in problem_rows] == [
+        "sig-problem",
+        "ins-gap",
+        "bu-lead",
+        "bu-support",
+    ]
+    assert problem_rows[0]["source_type"] == "forum"
+    assert problem_rows[0]["source_title"] == "Problem signal"
+    assert problem_rows[0]["strength"] == "moderate"
+    assert problem_rows[0]["confidence"] == "0.8"
+    assert json.loads(problem_rows[0]["notes"]) == {
+        "signal_role": "problem",
+        "source_adapter": "hackernews",
+        "tags": ["problem"],
+    }
+    assert any(row["claim_id"] == "risks" and row["evidence_id"] == "sig-risk" for row in rows)
+
+
+def test_render_design_brief_evidence_matrix_csv_surfaces_contradictions() -> None:
+    matrix = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {"id": "db-1", "title": "Brief"},
+        "rows": [
+            {
+                "claim_area": "problem",
+                "claim": "Teams need release evidence.",
+                "evidence_strength": "weak",
+                "supporting_evidence": [
+                    {
+                        "id": "sig-counter",
+                        "source_type": "forum",
+                        "source_title": "Counter signal",
+                        "confidence": 0.7,
+                        "contradiction_flag": True,
+                        "notes": ["mentions successful manual reviews"],
+                    }
+                ],
+            }
+        ],
+    }
+
+    rows = list(csv.DictReader(StringIO(render_design_brief_evidence_matrix(matrix, fmt="csv"))))
+
+    assert rows[0]["contradiction_flag"] == "True"
+    assert rows[0]["evidence_id"] == "sig-counter"
+    assert rows[0]["notes"] == '["mentions successful manual reviews"]'
+
+
+def test_render_design_brief_evidence_matrix_csv_empty_matrix_is_header_only() -> None:
+    matrix = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {"id": "db-empty", "title": "Empty Brief"},
+        "rows": [],
+    }
+
+    assert render_design_brief_evidence_matrix(matrix, fmt="csv") == CSV_HEADER
