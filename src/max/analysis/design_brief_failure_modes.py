@@ -14,14 +14,21 @@ if TYPE_CHECKING:
 KIND = "max.design_brief.failure_modes"
 SCHEMA_VERSION = "max.design_brief.failure_modes.v1"
 CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
     "rank",
+    "title",
     "failure_mode",
-    "trigger",
-    "impact",
+    "cause",
+    "effect",
+    "severity",
     "likelihood",
+    "detectability",
+    "risk_priority_number",
+    "severity_label",
+    "detection_method",
     "mitigation",
-    "owner_next_action",
-    "evidence_source_references",
+    "owner_role",
+    "source_references",
 )
 
 _CRITICAL_TERMS = (
@@ -205,6 +212,7 @@ def _render_csv(report: dict[str, Any]) -> str:
 
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    design_brief_id = (report.get("design_brief") or {}).get("id")
     modes = sorted(
         report.get("failure_modes") or [],
         key=lambda mode: (
@@ -214,18 +222,23 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
         ),
     )
     for index, mode in enumerate(modes, start=1):
-        owner = _csv_text(mode.get("owner_role"))
-        next_action = _csv_text(mode.get("detection_method"))
         rows.append(
             _csv_row(
+                design_brief_id=design_brief_id,
                 rank=mode.get("rank") or index,
+                title=mode.get("title"),
                 failure_mode=mode.get("failure_mode"),
-                trigger=mode.get("cause"),
-                impact=mode.get("effect"),
+                cause=mode.get("cause"),
+                effect=mode.get("effect"),
+                severity=mode.get("severity"),
                 likelihood=mode.get("likelihood"),
+                detectability=mode.get("detectability"),
+                risk_priority_number=mode.get("risk_priority_number"),
+                severity_label=mode.get("severity_label"),
+                detection_method=mode.get("detection_method"),
                 mitigation=mode.get("mitigation"),
-                owner_next_action=_csv_join([owner, next_action]),
-                evidence_source_references=_reference_text(mode.get("source_references") or []),
+                owner_role=mode.get("owner_role"),
+                source_references=_reference_text(mode.get("source_references") or []),
             )
         )
     return rows
@@ -233,10 +246,6 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _csv_row(**values: Any) -> dict[str, Any]:
     return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
-
-
-def _csv_join(values: list[Any], *, separator: str = "; ") -> str:
-    return separator.join(text for value in values if (text := _csv_text(value)))
 
 
 def _csv_text(value: Any) -> str:
