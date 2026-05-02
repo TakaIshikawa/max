@@ -21,6 +21,13 @@ from max.publisher.github_issue_labels import (
     GitHubIssueLabelPublishResult,
     GitHubIssueLabelsPublisher,
 )
+from max.publisher.github_repository_topics import (
+    GitHubRepositoryTopicPayload,
+    GitHubRepositoryTopicPublisher,
+    GitHubRepositoryTopicPublishError,
+    GitHubRepositoryTopicPublishResult,
+    GitHubRepositoryTopicsPublisher,
+)
 from max.publisher.github_pull_request_review_comments import (
     GitHubPullRequestReviewCommentPayload,
     GitHubPullRequestReviewCommentPublisher,
@@ -382,6 +389,11 @@ __all__ = [
     "GitHubIssueLabelPublishError",
     "GitHubIssueLabelPublishResult",
     "GitHubIssueLabelsPublisher",
+    "GitHubRepositoryTopicPayload",
+    "GitHubRepositoryTopicPublisher",
+    "GitHubRepositoryTopicPublishError",
+    "GitHubRepositoryTopicPublishResult",
+    "GitHubRepositoryTopicsPublisher",
     "GitHubPullRequestReviewCommentPayload",
     "GitHubPullRequestReviewCommentPublisher",
     "GitHubPullRequestReviewCommentPublishError",
