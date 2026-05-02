@@ -9741,10 +9741,13 @@ def _design_brief_instrumentation_plan_rendered_response(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    media_type = "application/json" if fmt == "json" else "text/markdown"
+    media_type = {
+        "csv": "text/csv; charset=utf-8",
+        "json": "application/json",
+    }.get(fmt, "text/markdown")
     headers: dict[str, str] = {}
-    if fmt == "markdown":
-        filename = instrumentation_plan_filename(plan["design_brief"], fmt="markdown")
+    if fmt in {"csv", "markdown"}:
+        filename = instrumentation_plan_filename(plan["design_brief"], fmt=fmt)
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return Response(content=content, media_type=media_type, headers=headers)
 

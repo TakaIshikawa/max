@@ -2402,8 +2402,8 @@ def get_design_brief_sales_battlecard(brief_id: str, format: str = "json") -> di
 def get_design_brief_instrumentation_plan(brief_id: str, format: str = "json") -> dict:
     """Get the instrumentation plan for a persisted design brief.
 
-    Set format to "json" for a structured payload or "markdown" for rendered
-    instrumentation handoff text.
+    Set format to "json" for a structured payload, "markdown" for rendered
+    instrumentation handoff text, or "csv" for spreadsheet import rows.
 
     Raises:
         ResourceNotFoundError: If the design brief does not exist.
@@ -2411,11 +2411,11 @@ def get_design_brief_instrumentation_plan(brief_id: str, format: str = "json") -
     """
     try:
         fmt = format.strip().lower()
-        if fmt not in {"json", "markdown"}:
+        if fmt not in {"json", "markdown", "csv"}:
             raise ValidationError(
                 f"Unsupported instrumentation plan format: {format}",
                 field="format",
-                expected="json or markdown",
+                expected="json, markdown, or csv",
                 actual=format,
             )
 
@@ -2432,6 +2432,8 @@ def get_design_brief_instrumentation_plan(brief_id: str, format: str = "json") -
         rendered = render_design_brief_instrumentation_plan(plan, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        if fmt == "csv":
+            return {"id": brief_id, "format": "csv", "csv": rendered}
         return json.loads(rendered)
     except MCPToolError as e:
         return e.to_dict()
