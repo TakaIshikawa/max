@@ -247,6 +247,7 @@ def test_list_adapters_returns_strings():
     assert "npm_download_trends" in names
     assert "npm_dependents" in names
     assert "npm_maintainer_activity" in names
+    assert "npm_security_advisories" in names
     assert "crates_download_trends" in names
     assert "crates_dependents" in names
     assert "hexpm" in names
@@ -274,10 +275,22 @@ def test_get_adapter_class_returns_registered_class():
     assert cls is OpenVsxDownloadTrendsAdapter
 
 
+def test_get_adapter_creates_npm_security_advisories_adapter():
+    from max.sources.npm_security_advisories import NpmSecurityAdvisoriesAdapter
+
+    with patch("max.config.MAX_ADAPTERS", "npm_security_advisories"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        adapter = get_adapter("npm_security_advisories")
+
+    assert isinstance(adapter, NpmSecurityAdvisoriesAdapter)
+    assert adapter.name == "npm_security_advisories"
+
+
 def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions():
     with patch(
         "max.config.MAX_ADAPTERS",
-        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,pypi_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry",
+        "hackernews,npm_download_trends,npm_dependents,npm_maintainer_activity,npm_security_advisories,pypi_maintainer_activity,rss_feed,crates_io,crates_dependents,crates_download_trends,hexpm,maven_central,rubygems,rubygems_download_trends,packagist_download_trends,pubdev,deno_registry,dockerhub,dockerhub_tag_velocity,mcp_registry,stackshare,bluesky,mastodon,huggingface,awesome_lists,github_pull_requests,github_discussion_comments,gitlab_merge_requests,stackoverflow_survey,stackoverflow_tag_trends,agent_failure_dataset,clinical_trials,open_vsx,open_vsx_download_trends,terraform_registry",
     ), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
         reload_registry()
@@ -288,6 +301,7 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
         "npm_download_trends",
         "npm_dependents",
         "npm_maintainer_activity",
+        "npm_security_advisories",
         "pypi_maintainer_activity",
         "rss_feed",
         "crates_io",
@@ -350,6 +364,16 @@ def test_get_adapter_metadata_reports_config_keys_required_keys_and_descriptions
     ]
     assert metadata["npm_maintainer_activity"].required_keys == []
     assert "maintainer" in metadata["npm_maintainer_activity"].description
+    assert metadata["npm_security_advisories"].config_keys == [
+        "package_names",
+        "packages",
+        "severities",
+        "advisory_url",
+        "max_results",
+        "timeout",
+    ]
+    assert metadata["npm_security_advisories"].required_keys == []
+    assert "security advisories" in metadata["npm_security_advisories"].description
     assert metadata["pypi_maintainer_activity"].config_keys == [
         "packages",
         "pypi_api_url",

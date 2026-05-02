@@ -43,6 +43,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "npm_maintainer_activity": (
         "max.sources.npm_maintainer_activity:NpmMaintainerActivityAdapter"
     ),
+    "npm_security_advisories": (
+        "max.sources.npm_security_advisories:NpmSecurityAdvisoriesAdapter"
+    ),
     "npm_download_trends": (
         "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
     ),
@@ -240,6 +243,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Fetches npm package maintainer, publisher, repository, release freshness, "
             "and package health metadata."
         ),
+    ),
+    "npm_security_advisories": AdapterMetadata(
+        name="npm_security_advisories",
+        config_keys=[
+            "package_names",
+            "packages",
+            "severities",
+            "advisory_url",
+            "max_results",
+            "timeout",
+        ],
+        required_keys=[],
+        description="Fetches npm security advisories as package ecosystem risk signals.",
     ),
     "npm_download_trends": AdapterMetadata(
         name="npm_download_trends",
