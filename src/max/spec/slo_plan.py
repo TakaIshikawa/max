@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,26 @@ from max.types.evaluation import UtilityEvaluation
 
 
 SLO_PLAN_SCHEMA_VERSION = "max-slo-plan/v1"
+SLO_PLAN_CSV_COLUMNS = (
+    "section",
+    "type",
+    "idea_id",
+    "title",
+    "launch_tier",
+    "item_id",
+    "objective_id",
+    "name",
+    "severity",
+    "target",
+    "indicator",
+    "measurement_window",
+    "owner",
+    "condition",
+    "policy",
+    "action",
+    "evidence_refs",
+    "source_refs",
+)
 
 _DIMENSION_NAMES = (
     "pain_severity",
@@ -108,6 +130,16 @@ def render_slo_plan_markdown(plan: dict[str, Any], output_format: str = "markdow
         ]
     )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_slo_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a generated SLO plan as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=SLO_PLAN_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(plan):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _summary(
@@ -577,6 +609,118 @@ def _render_action(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    policy = plan.get("error_budget_policy") if isinstance(plan.get("error_budget_policy"), dict) else {}
+    rows: list[dict[str, str]] = []
+
+    for objective in plan.get("objectives") or []:
+        if not isinstance(objective, dict):
+            continue
+        context = {
+            "section": "objectives",
+            "idea_id": plan.get("idea_id"),
+            "title": summary.get("title"),
+            "launch_tier": summary.get("launch_tier"),
+            "item_id": objective.get("id"),
+            "objective_id": objective.get("id"),
+            "name": objective.get("type"),
+            "target": objective.get("target"),
+            "measurement_window": objective.get("window"),
+            "owner": objective.get("owner"),
+            "evidence_refs": objective.get("evidence_refs"),
+            "source_refs": objective.get("derived_from"),
+        }
+        rows.append(
+            _csv_row(
+                **context,
+                type="service_objective",
+                policy=objective.get("description"),
+            )
+        )
+        rows.append(
+            _csv_row(
+                **context,
+                type="indicator",
+                indicator=objective.get("measurement"),
+            )
+        )
+
+    for alert in plan.get("alerts") or []:
+        if not isinstance(alert, dict):
+            continue
+        rows.append(
+            _csv_row(
+                section="alerts",
+                type="alert_policy",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                launch_tier=summary.get("launch_tier"),
+                item_id=alert.get("id"),
+                objective_id=alert.get("objective_ids"),
+                name=alert.get("name"),
+                severity=alert.get("severity"),
+                owner=alert.get("owner"),
+                condition=alert.get("condition"),
+                action=alert.get("recommended_response"),
+                source_refs=alert.get("objective_ids"),
+            )
+        )
+
+    if policy:
+        rows.append(
+            _csv_row(
+                section="error_budget",
+                type="policy",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                launch_tier=summary.get("launch_tier"),
+                item_id=policy.get("id"),
+                objective_id=policy.get("budget_source_objective_id"),
+                measurement_window=policy.get("measurement_window"),
+                policy=policy.get("policy"),
+                action=policy.get("change_policy"),
+                source_refs=policy.get("budget_source_objective_id"),
+            )
+        )
+        for index, action in enumerate(policy.get("burn_rate_actions") or [], start=1):
+            rows.append(
+                _csv_row(
+                    section="error_budget",
+                    type="burn_rate_action",
+                    idea_id=plan.get("idea_id"),
+                    title=summary.get("title"),
+                    launch_tier=summary.get("launch_tier"),
+                    item_id=f"{policy.get('id') or 'EBP'}-BRA{index}",
+                    objective_id=policy.get("budget_source_objective_id"),
+                    measurement_window=policy.get("measurement_window"),
+                    action=action,
+                    source_refs=policy.get("budget_source_objective_id"),
+                )
+            )
+        rows.append(
+            _csv_row(
+                section="operations",
+                type="review_cadence",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                launch_tier=summary.get("launch_tier"),
+                item_id=f"{policy.get('id') or 'EBP'}-CADENCE",
+                objective_id=policy.get("budget_source_objective_id"),
+                measurement_window=policy.get("measurement_window"),
+                policy=policy.get("exception_policy"),
+                action=policy.get("change_policy"),
+                source_refs=policy.get("budget_source_objective_id"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in SLO_PLAN_CSV_COLUMNS}
+
+
 def _section(title: str, body: list[str]) -> list[str]:
     return [f"## {title}", "", *body, ""]
 
@@ -669,3 +813,19 @@ def _text(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    return _compact(value)
