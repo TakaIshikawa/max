@@ -5,6 +5,13 @@ from max.analysis.persona_interview_guide import (
 from max.analysis.portfolio_theme_saturation import (
     build_portfolio_theme_saturation_report,
 )
+from max.analysis.profile_evidence_diversity import (
+    build_profile_evidence_diversity,
+    build_profile_evidence_diversity_report,
+    render_profile_evidence_diversity,
+    render_profile_evidence_diversity_markdown,
+    render_profile_evidence_diversity_report,
+)
 from max.analysis.portfolio_cannibalization import (
     build_portfolio_cannibalization_from_records,
     build_portfolio_cannibalization_report,
@@ -141,6 +148,8 @@ __all__ = [
     "build_portfolio_regulatory_exposure_from_records",
     "build_portfolio_regulatory_exposure_report",
     "build_portfolio_theme_saturation_report",
+    "build_profile_evidence_diversity",
+    "build_profile_evidence_diversity_report",
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
     "churn_risk_report_filename",
@@ -179,6 +188,9 @@ __all__ = [
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",
+    "render_profile_evidence_diversity",
+    "render_profile_evidence_diversity_markdown",
+    "render_profile_evidence_diversity_report",
     "renewal_expansion_plan_filename",
     "write_design_brief_renewal_expansion_plan",
     "work_breakdown_filename",
