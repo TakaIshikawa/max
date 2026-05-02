@@ -242,6 +242,7 @@ except ImportError:  # pragma: no cover - pydantic is a required runtime depende
 
 if TYPE_CHECKING:
     from max.server.scheduler import Scheduler
+    from max.types.buildable_unit import BuildableUnit
 
 
 # Module-level store factory — overridable for testing
@@ -732,6 +733,120 @@ def get_spec_release_readiness_gate(idea_id: str) -> dict:
             return _release_readiness_gate_mcp_payload(gate)
     except MCPToolError as e:
         return e.to_dict()
+
+
+def get_spec_rollback_plan(tact_spec: dict) -> dict:
+    """Generate a rollback plan from a TactSpec-compatible payload.
+
+    The payload may be either a direct TactSpec dictionary or
+    {"tact_spec": {...}}, matching the API request shape used by neighboring
+    spec artifact endpoints.
+    """
+    import max.spec as spec
+
+    try:
+        normalized_tact_spec = _extract_tact_spec_payload(tact_spec)
+        unit = _buildable_unit_from_tact_spec(normalized_tact_spec)
+        plan = spec.generate_rollback_plan(unit, None, normalized_tact_spec)
+        if not isinstance(plan, dict):
+            raise ValidationError(
+                "Invalid rollback plan result",
+                details={"reason": "generator returned a non-object payload"},
+            )
+        steps = plan.get("reversible_migration_steps")
+        if not isinstance(steps, list):
+            raise ValidationError(
+                "Invalid rollback plan result",
+                details={"field": "reversible_migration_steps", "expected": "list"},
+            )
+        return {
+            **plan,
+            "rollback_steps": steps,
+        }
+    except MCPToolError as e:
+        return e.to_dict()
+    except PydanticValidationError as e:
+        return ValidationError(
+            "Invalid TactSpec payload",
+            details={"errors": e.errors()},
+        ).to_dict()
+
+
+def _extract_tact_spec_payload(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        raise ValidationError(
+            "Invalid TactSpec payload",
+            details={"field": "tact_spec", "expected": "object"},
+        )
+    if "tact_spec" in payload:
+        tact_spec = payload.get("tact_spec")
+        if not isinstance(tact_spec, dict) or not tact_spec:
+            raise ValidationError(
+                "Invalid TactSpec payload",
+                details={"field": "tact_spec", "expected": "non-empty object"},
+            )
+        return tact_spec
+    if not payload:
+        raise ValidationError(
+            "Invalid TactSpec payload",
+            details={"field": "tact_spec", "expected": "non-empty object"},
+        )
+    return payload
+
+
+def _buildable_unit_from_tact_spec(tact_spec: dict) -> "BuildableUnit":
+    from max.types.buildable_unit import BuildableUnit
+
+    source = tact_spec.get("source") if isinstance(tact_spec.get("source"), dict) else {}
+    project = tact_spec.get("project") if isinstance(tact_spec.get("project"), dict) else {}
+    solution = tact_spec.get("solution") if isinstance(tact_spec.get("solution"), dict) else {}
+    execution = tact_spec.get("execution") if isinstance(tact_spec.get("execution"), dict) else {}
+    evidence = tact_spec.get("evidence") if isinstance(tact_spec.get("evidence"), dict) else {}
+
+    title = _mcp_text(project.get("title")) or _mcp_text(source.get("idea_id")) or "TactSpec project"
+    summary = _mcp_text(project.get("summary")) or title
+    approach = (
+        _mcp_text(solution.get("approach"))
+        or _mcp_text(solution.get("technical_approach"))
+        or summary
+    )
+
+    return BuildableUnit(
+        id=_mcp_text(source.get("idea_id")) or "tact-spec",
+        title=title,
+        one_liner=summary,
+        category=_mcp_text(source.get("category")) or "application",
+        problem=_mcp_text(project.get("workflow_context")) or summary,
+        solution=approach,
+        target_users=_mcp_text(project.get("target_users")) or "both",
+        value_proposition=_mcp_text(project.get("value_proposition")) or summary,
+        specific_user=_mcp_text(project.get("specific_user")),
+        buyer=_mcp_text(project.get("buyer")),
+        workflow_context=_mcp_text(project.get("workflow_context")),
+        validation_plan=_mcp_text(execution.get("validation_plan")),
+        first_10_customers=_mcp_text(execution.get("first_10_customers")),
+        domain_risks=_string_list(execution.get("risks")),
+        evidence_rationale=_mcp_text(evidence.get("rationale")),
+        inspiring_insights=_string_list(evidence.get("insight_ids")),
+        evidence_signals=_string_list(evidence.get("signal_ids")),
+        source_idea_ids=_string_list(evidence.get("source_idea_ids")),
+        tech_approach=_mcp_text(solution.get("technical_approach")),
+        suggested_stack=solution.get("suggested_stack")
+        if isinstance(solution.get("suggested_stack"), dict)
+        else {},
+        domain=_mcp_text(source.get("domain")),
+        status=_mcp_text(source.get("status")) or "draft",
+    )
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [_mcp_text(item) for item in value if _mcp_text(item)]
+
+
+def _mcp_text(value: object) -> str:
+    return str(value).strip() if value is not None else ""
 
 
 def _release_readiness_gate_mcp_payload(gate: object) -> dict:
@@ -4992,6 +5107,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_spec_preview)
     mcp.tool(get_spec_readiness)
     mcp.tool(get_spec_release_readiness_gate)
+    mcp.tool(get_spec_rollback_plan)
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
     mcp.tool(get_blast_radius)
