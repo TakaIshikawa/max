@@ -99,6 +99,10 @@ from max.spec.support_playbook import (
     render_support_playbook_markdown,
 )
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
+from max.spec.vendor_risk_assessment import (
+    generate_vendor_risk_assessment,
+    render_vendor_risk_assessment_markdown,
+)
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -134,6 +138,7 @@ __all__ = [
     "generate_support_playbook",
     "generate_risk_register",
     "generate_threat_model",
+    "generate_vendor_risk_assessment",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
     "render_security_review_markdown",
@@ -141,6 +146,7 @@ __all__ = [
     "render_smoke_test_plan_markdown",
     "render_support_playbook_markdown",
     "render_threat_model_markdown",
+    "render_vendor_risk_assessment_markdown",
     "render_architecture_decision_record_markdown",
     "render_api_contract_test_plan_markdown",
     "render_compliance_checklist_json",
