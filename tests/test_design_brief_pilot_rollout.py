@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_pilot_rollout import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_pilot_rollout,
     render_design_brief_pilot_rollout,
@@ -125,6 +128,97 @@ def test_render_design_brief_pilot_rollout_markdown_is_deterministic(tmp_path) -
     assert json.loads(rendered_json) == report
     with pytest.raises(ValueError):
         render_design_brief_pilot_rollout(report, fmt="yaml")
+
+
+def test_render_design_brief_pilot_rollout_csv_headers_sections_and_order(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_pilot_rollout(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_pilot_rollout(report, fmt="csv")
+    repeated = render_design_brief_pilot_rollout(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == 4 + 4 + 4 + 5 + 4
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert {row["design_brief_title"] for row in rows} == {"Pilot Rollout Brief"}
+    assert [row["section"] for row in rows] == [
+        *(["rollout_phases"] * 4),
+        *(["success_thresholds"] * 4),
+        *(["stop_conditions"] * 4),
+        *(["operator_tasks"] * 5),
+        *(["customer_touchpoints"] * 4),
+    ]
+    assert [row["item_id"] for row in rows[:4]] == [
+        "phase-1",
+        "phase-2",
+        "phase-3",
+        "phase-4",
+    ]
+    assert rows[0]["name"] == "Pilot Prep"
+    assert rows[0]["owner"] == "Product lead"
+    assert rows[0]["target_or_duration"] == "3-5 business days"
+    assert rows[4]["name"] == "Workflow completion"
+    assert rows[8]["item_id"] == "stop-1"
+    assert rows[12]["item_id"] == "operator-task-1"
+    assert rows[17]["item_id"] == "touchpoint-1"
+
+
+def test_render_design_brief_pilot_rollout_csv_includes_gaps_and_json_details(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path, sparse=True)
+    try:
+        report = build_design_brief_pilot_rollout(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_pilot_rollout(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+    gap_rows = [row for row in rows if row["section"] == "evidence_gaps"]
+
+    assert len(gap_rows) == len(report["evidence_gaps"])
+    assert [row["item_id"] for row in gap_rows] == [
+        "evidence-gap-specific_user",
+        "evidence-gap-buyer",
+        "evidence-gap-workflow_context",
+        "evidence-gap-validation_plan",
+        "evidence-gap-mvp_scope",
+        "evidence-gap-risks",
+        "evidence-gap-source_evidence",
+    ]
+    assert {row["design_brief_id"] for row in gap_rows} == {brief_id}
+    assert gap_rows[0]["evidence"] == "Specific pilot user is not defined."
+    assert gap_rows[0]["action"] == "Name the user role that will perform the pilot workflow."
+
+    phase_details = json.loads(rows[0]["details"])
+    task_details = json.loads(
+        next(row for row in rows if row["item_id"] == "operator-task-1")["details"]
+    )
+    gap_details = json.loads(gap_rows[0]["details"])
+
+    assert phase_details == {
+        "exit_criteria": "Pilot cohort, entry criteria, stop conditions, and evidence capture plan are approved.",
+        "goal": "Confirm cohort, scope, success metrics, and risk owners before any customer exposure.",
+    }
+    assert task_details == {
+        "cadence": "weekly",
+        "output": "Decision log with owner and date.",
+    }
+    assert gap_details == {
+        "action": "Name the user role that will perform the pilot workflow.",
+        "field": "specific_user",
+        "gap": "Specific pilot user is not defined.",
+    }
+    assert rows[0]["details"] == json.dumps(
+        phase_details, sort_keys=True, separators=(",", ":")
+    )
 
 
 def test_build_design_brief_pilot_rollout_missing_brief_returns_none(tmp_path) -> None:
