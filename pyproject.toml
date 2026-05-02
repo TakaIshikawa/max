@@ -49,6 +49,7 @@ pypi_download_trends = "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapt
 pypi_classifiers = "max.sources.pypi_classifiers:PyPIClassifiersAdapter"
 pypi_releases = "max.sources.pypi_releases:PyPIReleasesAdapter"
 pubdev = "max.sources.pubdev:PubDevAdapter"
+deno_registry = "max.sources.deno_registry:DenoRegistryAdapter"
 github_issues = "max.sources.github_issues:GitHubIssuesAdapter"
 github_pull_requests = "max.sources.github_pull_requests:GitHubPullRequestsAdapter"
 github_actions = "max.sources.github_actions:GitHubActionsAdapter"
