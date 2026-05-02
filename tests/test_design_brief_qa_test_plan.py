@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_qa_test_plan import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     TEST_SUITE_TYPES,
     build_design_brief_qa_test_plan,
     qa_test_plan_filename,
     render_design_brief_qa_test_plan,
+    render_qa_test_plan_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -130,6 +134,109 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
         qa_test_plan_filename({"id": "dbf-123", "title": "QA Plan: Alpha / Beta"}, fmt="json")
         == "dbf-123-QA-Plan-Alpha-Beta-qa-test-plan.json"
     )
+    assert (
+        qa_test_plan_filename({"id": "dbf-123", "title": "QA Plan: Alpha / Beta"}, fmt="csv")
+        == "dbf-123-QA-Plan-Alpha-Beta-qa-test-plan.csv"
+    )
+
+
+def test_render_qa_test_plan_csv_headers_rows_and_list_serialization(tmp_path) -> None:
+    store, brief_id = _store_with_rich_brief(tmp_path)
+    try:
+        report = build_design_brief_qa_test_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_output = render_qa_test_plan_csv(report)
+    repeated = render_design_brief_qa_test_plan(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_output))
+    rows = list(reader)
+
+    assert csv_output == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_output.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == sum(len(suite["test_cases"]) for suite in report["test_suites"]) + len(
+        report["critical_paths"]
+    )
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["area"] == "Unit coverage for deterministic artifact logic"
+    assert rows[0]["scenario_name"] == (
+        "Build pure-function tests for support triage dashboard decisions, defaults, and validation branches."
+    )
+    assert rows[0]["priority"] == "high"
+    assert rows[0]["test_type"] == "unit"
+    assert rows[0]["owner"] == "Implementation engineer"
+    assert rows[0]["expected_result"] == (
+        "Unit tests pass locally and in CI without network or LLM calls.; "
+        "All suite assumptions are linked to brief fields or source idea evidence."
+    )
+    assert rows[0]["evidence_source_references"] == (
+        "bu-qa-lead; bu-qa-support; design_brief.why_this_now; "
+        "design_brief.synthesis_rationale; design_brief.validation_plan; sig-qa-1; "
+        "ins-qa-1; sig-qa-2"
+    )
+    assert [row["scenario_name"] for row in rows[-3:]] == [
+        "Primary user completes first value workflow",
+        "Owner reviews handoff evidence",
+        "Sparse or missing data stays actionable",
+    ]
+    assert rows[-1]["area"] == "Critical Path"
+
+
+def test_render_qa_test_plan_csv_empty_plan_has_header_only() -> None:
+    csv_output = render_qa_test_plan_csv(
+        {"design_brief": {"id": "dbf-empty"}, "test_suites": [], "critical_paths": []}
+    )
+
+    assert csv_output == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(io.StringIO(csv_output))) == []
+
+
+def test_render_qa_test_plan_csv_escapes_commas_newlines_and_optional_fields() -> None:
+    report = {
+        "design_brief": {"id": "dbf-special"},
+        "test_suites": [
+            {
+                "id": "QAS1",
+                "coverage_type": "integration",
+                "name": 'Payments, "review"\nflow',
+                "objective": "Seed account,\nthen run checkout.",
+                "owner": 'QA, "Ops"',
+                "test_cases": ['Confirm buyer can approve,\nreject, and retry "checkout".'],
+                "exit_criteria": ["Approval captured,\nwith receipt", 'Retry explains "why"'],
+                "source_idea_ids": ["bu-2", "bu-1"],
+            },
+            {
+                "id": "QAS2",
+                "coverage_type": "exploratory",
+                "name": "Optional fields",
+                "test_cases": ["Exercise missing optional metadata."],
+            },
+        ],
+        "critical_paths": [],
+        "evidence_references": [
+            {"id": 'sig, "alpha"'},
+            {"id": "ins\nbeta"},
+        ],
+    }
+
+    csv_output = render_qa_test_plan_csv(report)
+    reader = csv.DictReader(io.StringIO(csv_output))
+    rows = list(reader)
+
+    assert rows[0]["area"] == 'Payments, "review"\nflow'
+    assert rows[0]["scenario_name"] == 'Confirm buyer can approve,\nreject, and retry "checkout".'
+    assert rows[0]["preconditions"] == "Seed account,\nthen run checkout."
+    assert rows[0]["expected_result"] == 'Approval captured,\nwith receipt; Retry explains "why"'
+    assert rows[0]["owner"] == 'QA, "Ops"'
+    assert rows[0]["evidence_source_references"] == 'bu-2; bu-1; sig, "alpha"; ins beta'
+    assert rows[1]["priority"] == ""
+    assert rows[1]["preconditions"] == ""
+    assert rows[1]["owner"] == ""
+    assert '"Payments, ""review""\nflow"' in csv_output
+    assert '"Confirm buyer can approve,\nreject, and retry ""checkout""."' in csv_output
+    assert '"Approval captured,\nwith receipt; Retry explains ""why"""' in csv_output
 
 
 def test_build_design_brief_qa_test_plan_missing_brief_returns_none(tmp_path) -> None:
