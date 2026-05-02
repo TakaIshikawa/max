@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -18,6 +20,20 @@ from max.analysis.design_brief_event_dictionary import (
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
 from max.types.buildable_unit import BuildableUnit
+
+
+CSV_COLUMNS = [
+    "design_brief_id",
+    "design_brief_title",
+    "event_name",
+    "event_type",
+    "description",
+    "trigger",
+    "actor",
+    "properties",
+    "success_metric",
+    "source_idea_ids",
+]
 
 
 def test_build_design_brief_event_dictionary_structured_output(tmp_path) -> None:
@@ -150,6 +166,89 @@ def test_render_design_brief_event_dictionary_markdown_and_json(tmp_path) -> Non
     assert "`design_brief_risk_guardrail_triggered`" in markdown
     assert "## Property Contracts" in markdown
     assert "### `workflow_context`" in markdown
+
+
+def test_render_design_brief_event_dictionary_csv_populated_output(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_event_dictionary(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_event_dictionary(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert reader.fieldnames == CSV_COLUMNS
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert csv_text == render_design_brief_event_dictionary(report, fmt="csv")
+    assert len(rows) == len(report["events"])
+    assert [row["event_name"] for row in rows] == [
+        event["event_name"] for event in report["events"]
+    ]
+
+    first = rows[0]
+    assert first["design_brief_id"] == brief_id
+    assert first["design_brief_title"] == "Event Dictionary Brief"
+    assert first["event_name"] == "design_brief_workflow_started"
+    assert first["event_type"] == "activation"
+    assert first["description"] == report["event_groups"][0]["description"]
+    assert first["trigger"] == report["events"][0]["trigger"]
+    assert first["actor"] == "platform engineer"
+    assert first["success_metric"] == "activation_rate"
+    assert json.loads(first["properties"]) == report["events"][0]["properties"]
+    assert json.loads(first["source_idea_ids"]) == [
+        "bu-event-dictionary-lead",
+        "bu-event-dictionary-support",
+    ]
+
+
+def test_render_design_brief_event_dictionary_csv_header_only_without_events(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_event_dictionary(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    empty_report = json.loads(json.dumps(report))
+    empty_report["events"] = []
+    empty_report["event_groups"] = []
+
+    csv_text = render_design_brief_event_dictionary(empty_report, fmt="csv")
+
+    assert list(csv.DictReader(io.StringIO(csv_text))) == []
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+
+
+def test_render_design_brief_event_dictionary_csv_serializes_nested_properties(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_event_dictionary(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    nested_report = json.loads(json.dumps(report))
+    nested_report["events"] = [nested_report["events"][0]]
+    nested_report["events"][0]["properties"] = [
+        {"name": "workflow_context", "required": True, "type": "string"},
+        {"allowed_values": ["pilot", "paid"], "name": "conversion_stage", "type": "string"},
+    ]
+    nested_report["events"][0]["source_idea_ids"] = ["z-source", "a-source"]
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_event_dictionary(nested_report, fmt="csv")))
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["properties"] == (
+        '[{"name":"workflow_context","required":true,"type":"string"},'
+        '{"allowed_values":["pilot","paid"],"name":"conversion_stage","type":"string"}]'
+    )
+    assert json.loads(rows[0]["properties"]) == nested_report["events"][0]["properties"]
+    assert rows[0]["source_idea_ids"] == '["z-source","a-source"]'
 
 
 def test_sparse_design_brief_event_dictionary_uses_fallback_context(tmp_path) -> None:

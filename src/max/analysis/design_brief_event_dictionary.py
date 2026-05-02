@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Any
 
@@ -19,6 +21,19 @@ CATEGORIES: tuple[str, ...] = (
 )
 
 PROPERTY_LIMIT = 8
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "event_name",
+    "event_type",
+    "description",
+    "trigger",
+    "actor",
+    "properties",
+    "success_metric",
+    "source_idea_ids",
+)
 
 _PROPERTY_PRIVACY_NOTES: tuple[tuple[str, str], ...] = (
     ("user", "Use an opaque stable user id; do not send names, emails, or profile text."),
@@ -84,9 +99,11 @@ def build_design_brief_event_dictionary(
 
 
 def render_design_brief_event_dictionary(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render the event dictionary as JSON or Markdown."""
+    """Render the event dictionary as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported event dictionary format: {fmt}")
 
@@ -144,6 +161,36 @@ def render_design_brief_event_dictionary(report: dict[str, Any], fmt: str = "jso
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    brief = report["design_brief"]
+    group_descriptions = {
+        group["category"]: group.get("description", "")
+        for group in report.get("event_groups", [])
+    }
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for event in report.get("events", []):
+        writer.writerow(
+            {
+                "design_brief_id": brief["id"],
+                "design_brief_title": brief["title"],
+                "event_name": event["event_name"],
+                "event_type": event["category"],
+                "description": event.get(
+                    "description",
+                    group_descriptions.get(event["category"], ""),
+                ),
+                "trigger": event["trigger"],
+                "actor": event["actor"],
+                "properties": _json_cell(event["properties"]),
+                "success_metric": event["linked_metric"],
+                "source_idea_ids": _json_cell(event["source_idea_ids"]),
+            }
+        )
+    return output.getvalue()
 
 
 def event_dictionary_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
@@ -577,6 +624,10 @@ def _inline_code(values: list[str]) -> str:
 
 def _inline_text(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "any bounded string"
+
+
+def _json_cell(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def _escape_table(value: str) -> str:
