@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis import build_design_brief_accessibility_review as exported_build
 from max.analysis import render_design_brief_accessibility_review as exported_render
 from max.analysis.design_brief_accessibility_review import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     accessibility_review_filename,
@@ -103,10 +106,113 @@ def test_render_design_brief_accessibility_review_json_and_markdown_match_conten
         render_design_brief_accessibility_review(report, "yaml")
 
 
+def test_csv_rendering_includes_stable_accessibility_rows(tmp_path) -> None:
+    store, brief_id = _store_with_accessibility_brief(tmp_path)
+    try:
+        report = build_design_brief_accessibility_review(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_accessibility_review(report, fmt="csv")
+    repeated = render_design_brief_accessibility_review(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert len(rows) == sum(
+        len(report[key])
+        for key in (
+            "affected_user_groups",
+            "accessibility_risks",
+            "wcag_oriented_checks",
+            "inclusive_design_opportunities",
+            "validation_tasks",
+        )
+    )
+    assert [row["row_type"] for row in rows[:4]] == ["affected_user_group"] * 4
+    assert [row["item_id"] for row in rows[:4]] == ["visual", "motor", "cognitive", "hearing"]
+
+    first_risk = report["accessibility_risks"][0]
+    first_risk_row = next(row for row in rows if row["item_id"] == first_risk["id"])
+    assert first_risk_row["design_brief_id"] == brief_id
+    assert first_risk_row["design_brief_title"] == "Accessible Support Triage Brief"
+    assert first_risk_row["review_gate"] == "accessibility_review_required"
+    assert first_risk_row["row_type"] == "accessibility_risk"
+    assert first_risk_row["item_title"] == first_risk["title"]
+    assert first_risk_row["owner"] == first_risk["owner"]
+    assert first_risk_row["severity"] == first_risk["severity"]
+    assert first_risk_row["wcag_refs"] == "; ".join(first_risk["wcag_refs"])
+    assert first_risk_row["source_idea_ids"] == "bu-a11y-lead; bu-a11y-support"
+
+
+def test_csv_rendering_escapes_commas_quotes_and_newlines() -> None:
+    report = {
+        "design_brief": {
+            "id": "dbf-csv",
+            "title": "CSV, Accessibility \"Review\"",
+            "domain": "support,ops",
+            "theme": "quoted",
+            "readiness_score": 42.5,
+            "design_status": "draft",
+        },
+        "summary": {"review_gate": "needs,review"},
+        "accessibility_risks": [
+            {
+                "id": "AR1",
+                "title": "Comma, quote \"risk\"",
+                "owner": "Design owner",
+                "severity": "high",
+                "description": "First line, with comma\nSecond \"quoted\" line",
+                "affected_user_group_ids": ["visual", "cognitive"],
+                "wcag_refs": ["1.3.1", "2.1.1"],
+                "source_idea_ids": ["bu-1"],
+            }
+        ],
+    }
+
+    csv_text = render_design_brief_accessibility_review(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 1
+    assert rows[0]["design_brief_title"] == 'CSV, Accessibility "Review"'
+    assert rows[0]["design_brief_domain"] == "support,ops"
+    assert rows[0]["review_gate"] == "needs,review"
+    assert rows[0]["item_title"] == 'Comma, quote "risk"'
+    assert rows[0]["description_or_check"] == 'First line, with comma\nSecond "quoted" line'
+    assert '"First line, with comma\nSecond ""quoted"" line"' in csv_text
+
+
+def test_csv_rendering_handles_sparse_and_empty_reports() -> None:
+    header_only = render_design_brief_accessibility_review({}, fmt="csv")
+
+    assert header_only == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(StringIO(header_only))) == []
+
+    sparse = {
+        "design_brief": {"id": "dbf-sparse"},
+        "summary": {},
+        "validation_tasks": [{"id": "AVT1"}],
+    }
+    rows = list(csv.DictReader(StringIO(render_design_brief_accessibility_review(sparse, fmt="csv"))))
+
+    assert rows == [
+        {
+            **{column: "" for column in CSV_COLUMNS},
+            "design_brief_id": "dbf-sparse",
+            "row_type": "validation_task",
+            "item_id": "AVT1",
+        }
+    ]
+
+
 def test_accessibility_review_filename() -> None:
     brief = {"id": "dbf-123", "title": "A11y Review: Alpha / Beta"}
     assert accessibility_review_filename(brief) == "dbf-123-A11y-Review-Alpha-Beta-accessibility-review.json"
     assert accessibility_review_filename(brief, fmt="markdown") == "dbf-123-A11y-Review-Alpha-Beta-accessibility-review.md"
+    assert accessibility_review_filename(brief, fmt="csv") == "dbf-123-A11y-Review-Alpha-Beta-accessibility-review.csv"
 
 
 def test_build_design_brief_accessibility_review_missing_brief_returns_none(tmp_path) -> None:
