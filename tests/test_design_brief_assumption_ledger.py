@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -113,6 +115,68 @@ def test_render_design_brief_assumption_ledger_markdown_json_and_invalid_format(
         render_design_brief_assumption_ledger(ledger, fmt="yaml")
 
 
+def test_render_design_brief_assumption_ledger_csv_has_stable_rows_and_json_evidence() -> None:
+    ledger = build_design_brief_assumption_ledger(_brief())
+
+    csv_text = render_design_brief_assumption_ledger(ledger, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert reader.fieldnames == [
+        "design_brief_id",
+        "design_brief_title",
+        "group_id",
+        "group_title",
+        "assumption_id",
+        "statement",
+        "confidence_level",
+        "confidence_score",
+        "owner_hint",
+        "validation_action",
+        "evidence_links",
+    ]
+    assert len(rows) == ledger["summary"]["assumption_count"]
+    assert rows[0]["design_brief_id"] == "dbf-ledger-001"
+    assert rows[0]["design_brief_title"] == "Assumption Ledger Brief"
+    assert rows[0]["group_id"] == "desirability"
+    assert rows[0]["group_title"] == "Desirability"
+    assert rows[0]["assumption_id"] == "dba-desirability-01"
+    assert rows[0]["statement"]
+    assert rows[0]["confidence_level"] in {"low", "medium", "high"}
+    assert rows[0]["confidence_score"] == f"{float(rows[0]['confidence_score']):.2f}"
+    assert rows[0]["owner_hint"]
+    assert rows[0]["validation_action"]
+
+    evidence_links = json.loads(rows[0]["evidence_links"])
+    assert evidence_links
+    assert evidence_links == sorted(evidence_links, key=lambda item: (item["kind"], item["id"]))
+    assert json.dumps(evidence_links, sort_keys=True, separators=(",", ":")) == rows[0][
+        "evidence_links"
+    ]
+    assert {row["assumption_id"] for row in rows} == {
+        assumption["id"]
+        for group in ledger["assumption_groups"]
+        for assumption in group["assumptions"]
+    }
+
+
+def test_render_design_brief_assumption_ledger_csv_serializes_empty_evidence() -> None:
+    ledger = build_design_brief_assumption_ledger(
+        {
+            "id": "dbf-sparse",
+            "title": "Sparse Brief",
+        }
+    )
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_assumption_ledger(ledger, fmt="csv")))
+    )
+
+    assert rows
+    assert {row["evidence_links"] for row in rows} == {"[]"}
+    assert all(json.loads(row["evidence_links"]) == [] for row in rows)
+
+
 def test_write_design_brief_assumption_ledger_and_filename(tmp_path) -> None:
     ledger = build_design_brief_assumption_ledger(_brief())
     path = tmp_path / assumption_ledger_filename(_brief(), fmt="markdown")
@@ -126,6 +190,10 @@ def test_write_design_brief_assumption_ledger_and_filename(tmp_path) -> None:
     assert (
         assumption_ledger_filename({"id": "dbf-ledger-001"}, fmt="json")
         == "dbf-ledger-001-assumption-ledger.json"
+    )
+    assert (
+        assumption_ledger_filename({"id": "dbf-ledger-001"}, fmt="csv")
+        == "dbf-ledger-001-assumption-ledger.csv"
     )
 
 

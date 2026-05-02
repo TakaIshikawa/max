@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "max.design_brief.assumption_ledger.v1"
+
+CSV_HEADERS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "group_id",
+    "group_title",
+    "assumption_id",
+    "statement",
+    "confidence_level",
+    "confidence_score",
+    "owner_hint",
+    "validation_action",
+    "evidence_links",
+)
 
 GROUPS: tuple[dict[str, Any], ...] = (
     {
@@ -84,9 +100,11 @@ def render_design_brief_assumption_ledger(
     *,
     fmt: str = "markdown",
 ) -> str:
-    """Render an assumption ledger as Markdown or JSON."""
+    """Render an assumption ledger as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(ledger, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(ledger)
     if fmt != "markdown":
         raise ValueError(f"Unsupported assumption ledger format: {fmt}")
 
@@ -140,9 +158,38 @@ def write_design_brief_assumption_ledger(
 
 
 def assumption_ledger_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(_clean(design_brief.get("id")) or "design-brief")
     return f"{brief_id}-assumption-ledger.{extension}"
+
+
+def _render_csv(ledger: dict[str, Any]) -> str:
+    brief = ledger["design_brief"]
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_HEADERS, lineterminator="\n")
+    writer.writeheader()
+    for group in ledger["assumption_groups"]:
+        for assumption in group["assumptions"]:
+            writer.writerow(
+                {
+                    "design_brief_id": brief["id"],
+                    "design_brief_title": brief["title"],
+                    "group_id": group["id"],
+                    "group_title": group["title"],
+                    "assumption_id": assumption["id"],
+                    "statement": assumption["statement"],
+                    "confidence_level": assumption["confidence_level"],
+                    "confidence_score": f"{assumption['confidence_score']:.2f}",
+                    "owner_hint": assumption["owner_hint"],
+                    "validation_action": assumption["validation_action"],
+                    "evidence_links": json.dumps(
+                        assumption["evidence_links"],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                }
+            )
+    return output.getvalue()
 
 
 def _assumption_group(
