@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.spec import generate_slo_plan as exported_generate
+from max.spec import render_slo_plan_csv as exported_render_csv
 from max.spec import render_slo_plan_markdown as exported_render
 from max.spec.generator import generate_spec_preview
 from max.spec.slo_plan import (
+    SLO_PLAN_CSV_COLUMNS,
     SLO_PLAN_SCHEMA_VERSION,
     generate_slo_plan,
+    render_slo_plan_csv,
     render_slo_plan_markdown,
 )
 from max.types.buildable_unit import BuildableCategory, BuildableUnit
@@ -138,9 +143,74 @@ def test_render_slo_plan_markdown_rejects_unsupported_format(sample_unit) -> Non
         render_slo_plan_markdown(plan, output_format="json")
 
 
+def test_render_slo_plan_csv_is_parseable_with_stable_operational_rows(
+    sample_unit,
+    sample_evaluation,
+) -> None:
+    plan = generate_slo_plan(sample_unit, sample_evaluation)
+
+    first = render_slo_plan_csv(plan)
+    second = render_slo_plan_csv(plan)
+    reader = csv.DictReader(io.StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert reader.fieldnames == list(SLO_PLAN_CSV_COLUMNS)
+    assert first.splitlines()[0] == ",".join(SLO_PLAN_CSV_COLUMNS)
+
+    objective_row = next(
+        row
+        for row in rows
+        if row["section"] == "objectives"
+        and row["type"] == "service_objective"
+        and row["item_id"] == "SLO1"
+    )
+    assert objective_row["idea_id"] == "bu-test001"
+    assert objective_row["title"] == "MCP Test Framework"
+    assert objective_row["launch_tier"] == "production_candidate"
+    assert objective_row["name"] == "availability"
+    assert objective_row["target"] == "99.5%"
+    assert objective_row["measurement_window"] == "rolling 7 days during pilot, rolling 30 days after launch"
+    assert objective_row["owner"] == "on_call_owner"
+    assert "signal:sig-test001" in objective_row["evidence_refs"]
+
+    indicator_row = next(
+        row
+        for row in rows
+        if row["section"] == "objectives" and row["type"] == "indicator" and row["item_id"] == "SLO2"
+    )
+    assert indicator_row["objective_id"] == "SLO2"
+    assert indicator_row["name"] == "latency"
+    assert indicator_row["target"] == "p95 <= 1500 ms"
+    assert indicator_row["indicator"] == "p95(workflow_response_time_ms)"
+    assert indicator_row["source_refs"] == "unit.tech_approach; unit.suggested_stack"
+
+    alert_row = next(row for row in rows if row["section"] == "alerts" and row["item_id"] == "AL1")
+    assert alert_row["type"] == "alert_policy"
+    assert alert_row["name"] == "availability_burn"
+    assert alert_row["severity"] == "critical"
+    assert alert_row["objective_id"] == "SLO1"
+    assert "burns faster than 2x expected rate" in alert_row["condition"]
+    assert alert_row["owner"] == "on_call_owner"
+
+    policy_row = next(row for row in rows if row["section"] == "error_budget" and row["type"] == "policy")
+    assert policy_row["item_id"] == "EBP1"
+    assert policy_row["objective_id"] == "SLO1"
+    assert policy_row["measurement_window"] == "monthly after launch; weekly during pilot"
+    assert "0.5% monthly unavailability budget" in policy_row["policy"]
+
+    cadence_row = next(row for row in rows if row["section"] == "operations" and row["type"] == "review_cadence")
+    assert cadence_row["item_id"] == "EBP1-CADENCE"
+    assert cadence_row["measurement_window"] == "monthly after launch; weekly during pilot"
+    assert "Non-critical launches wait" in cadence_row["action"]
+
+
 def test_slo_plan_is_importable_from_spec_package(sample_unit, sample_evaluation) -> None:
     plan = exported_generate(sample_unit, sample_evaluation)
     markdown = exported_render(plan)
+    csv_text = exported_render_csv(plan)
 
     assert plan["schema_version"] == SLO_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# MCP Test Framework SLO Plan")
+    assert csv_text.startswith(",".join(SLO_PLAN_CSV_COLUMNS))
