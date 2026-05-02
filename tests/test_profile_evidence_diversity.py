@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from datetime import datetime, timezone
+from io import StringIO
 
 import pytest
 
 from max.analysis import build_profile_evidence_diversity_report as exported_build_report
+from max.analysis import render_profile_evidence_diversity_csv as exported_render_csv
 from max.analysis import render_profile_evidence_diversity_markdown as exported_render_markdown
 from max.analysis.profile_evidence_diversity import (
+    PROFILE_EVIDENCE_DIVERSITY_CSV_COLUMNS,
     build_profile_evidence_diversity_report,
+    render_profile_evidence_diversity_csv,
     render_profile_evidence_diversity_markdown,
     render_profile_evidence_diversity_report,
 )
@@ -201,3 +206,147 @@ def test_profile_evidence_diversity_json_renderer_and_validation() -> None:
         render_profile_evidence_diversity_report(report, fmt="yaml")
     with pytest.raises(ValueError, match="source_concentration_threshold"):
         build_profile_evidence_diversity_report(_profile(), [], source_concentration_threshold=0)
+
+
+def test_profile_evidence_diversity_csv_renderer_has_stable_columns_and_rows() -> None:
+    report = build_profile_evidence_diversity_report(
+        _profile(),
+        [
+            _signal("sig-1", adapter="hackernews"),
+            _signal("sig-2", adapter="hackernews", title="Agent testing gaps"),
+            _signal(
+                "sig-3",
+                adapter="reddit",
+                title="Workflow automation feedback",
+                tags=["workflow automation"],
+                metadata={"category": "workflow automation"},
+            ),
+        ],
+        now=datetime(2026, 4, 30, tzinfo=timezone.utc),
+    )
+
+    csv_text = render_profile_evidence_diversity_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == render_profile_evidence_diversity_csv(report)
+    assert csv_text.splitlines()[0] == ",".join(PROFILE_EVIDENCE_DIVERSITY_CSV_COLUMNS)
+    assert rows[0] == {
+        "schema_version": "max.profile.evidence_diversity.v1",
+        "kind": "max.profile.evidence_diversity",
+        "generated_at": "2026-04-30T00:00:00+00:00",
+        "profile": "diversity",
+        "domain": "developer-tools",
+        "section": "profile",
+        "item": "summary",
+        "source": "",
+        "source_count": "2",
+        "source_share": "0.6667",
+        "category": "",
+        "category_count": "2",
+        "category_share": "0.6667",
+        "term": "",
+        "term_count": "",
+        "term_sources": "",
+        "warning_type": "",
+        "warning_severity": "",
+        "warning_value": "",
+        "warning_count": "3",
+        "warning_share": "",
+        "warning_threshold": "",
+        "warning_message": "",
+        "recommendation": "",
+    }
+    assert {
+        (row["section"], row["source"], row["source_count"], row["source_share"])
+        for row in rows
+    } >= {
+        ("source_mix", "hackernews", "2", "0.6667"),
+        ("source_mix", "reddit", "1", "0.3333"),
+        ("underused_source", "github_issues", "0", "0.0"),
+    }
+    assert {
+        (row["section"], row["category"], row["category_count"], row["category_share"])
+        for row in rows
+    } >= {
+        ("category_coverage", "agent testing", "2", "0.6667"),
+        ("category_coverage", "workflow automation", "1", "0.3333"),
+    }
+    assert any(
+        row["section"] == "repeated_term_coverage"
+        and row["term"] == "agent testing"
+        and row["term_sources"] == "hackernews, reddit"
+        and row["term_count"] == "3"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "warning"
+        and row["warning_type"] == "source_concentration"
+        and row["recommendation"]
+        for row in rows
+    )
+    assert any(
+        row["section"] == "recommendation"
+        and "underused enabled sources" in row["recommendation"]
+        for row in rows
+    )
+    assert render_profile_evidence_diversity_report(report, fmt="csv") == csv_text
+    assert exported_render_csv(report) == csv_text
+
+
+def test_profile_evidence_diversity_csv_renderer_escapes_special_values() -> None:
+    report = build_profile_evidence_diversity_report(
+        _profile(),
+        [
+            {
+                "source_adapter": 'forum, "alpha"',
+                "source_type": "forum",
+                "title": 'Security, automation "request"',
+                "content": "Workflow automation\nneeds imports",
+                "tags": ["security, automation"],
+                "metadata": {"category": 'security, "automation"\ntriage'},
+            }
+        ],
+        now=datetime(2026, 4, 30, tzinfo=timezone.utc),
+    )
+
+    csv_text = render_profile_evidence_diversity_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"forum, ""alpha"""' in csv_text
+    assert '"security, ""automation""\ntriage"' in csv_text
+    assert any(
+        row["section"] == "source_mix" and row["source"] == 'forum, "alpha"'
+        for row in rows
+    )
+    assert any(
+        row["section"] == "category_coverage"
+        and row["category"] == 'security, "automation"\ntriage'
+        for row in rows
+    )
+
+
+def test_profile_evidence_diversity_empty_csv_renderer_includes_empty_sections() -> None:
+    report = build_profile_evidence_diversity_report(
+        _profile(),
+        [],
+        now=datetime(2026, 4, 30, tzinfo=timezone.utc),
+    )
+
+    rows = list(csv.DictReader(StringIO(render_profile_evidence_diversity_csv(report))))
+
+    assert [row["section"] for row in rows[:4]] == [
+        "profile",
+        "source_mix",
+        "category_coverage",
+        "repeated_term_coverage",
+    ]
+    assert rows[1]["item"] == "none"
+    assert rows[1]["recommendation"] == "No source evidence is available."
+    assert rows[2]["item"] == "none"
+    assert rows[2]["recommendation"] == "No category evidence is available."
+    assert any(row["section"] == "warning" and row["warning_type"] == "no_evidence" for row in rows)
+    assert any(
+        row["section"] == "recommendation"
+        and "`hackernews`, `reddit`, `github_issues`" in row["recommendation"]
+        for row in rows
+    )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from collections import Counter
@@ -29,6 +31,33 @@ _TERM_PARAM_KEYS = (
     "tags",
     "topics",
     "watchlist_terms",
+)
+
+PROFILE_EVIDENCE_DIVERSITY_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "generated_at",
+    "profile",
+    "domain",
+    "section",
+    "item",
+    "source",
+    "source_count",
+    "source_share",
+    "category",
+    "category_count",
+    "category_share",
+    "term",
+    "term_count",
+    "term_sources",
+    "warning_type",
+    "warning_severity",
+    "warning_value",
+    "warning_count",
+    "warning_share",
+    "warning_threshold",
+    "warning_message",
+    "recommendation",
 )
 
 
@@ -143,10 +172,12 @@ def render_profile_evidence_diversity_report(
     *,
     fmt: str = "markdown",
 ) -> str:
-    """Render a profile evidence diversity report as Markdown or JSON."""
+    """Render a profile evidence diversity report as Markdown, JSON, or CSV."""
 
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_profile_evidence_diversity_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported profile evidence diversity report format: {fmt}")
     return render_profile_evidence_diversity_markdown(report)
@@ -232,6 +263,176 @@ def render_profile_evidence_diversity_markdown(report: Mapping[str, Any]) -> str
         lines.append("- Keep the current source mix and monitor concentration after the next run.")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_profile_evidence_diversity_csv(report: Mapping[str, Any]) -> str:
+    """Render a deterministic CSV profile evidence diversity report."""
+
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=PROFILE_EVIDENCE_DIVERSITY_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _profile_evidence_diversity_csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _profile_evidence_diversity_csv_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    summary = report["summary"]
+    rows.append(
+        _csv_row(
+            report,
+            section="profile",
+            item="summary",
+            source_count=summary["unique_source_count"],
+            category_count=summary["unique_category_count"],
+            warning_count=summary["warning_count"],
+            source_share=summary["top_source_share"],
+            category_share=summary["top_category_share"],
+        )
+    )
+
+    source_rows = report.get("source_diversity") or []
+    if source_rows:
+        for source_row in source_rows:
+            rows.append(
+                _csv_row(
+                    report,
+                    section="source_mix",
+                    item=source_row["source"],
+                    source=source_row["source"],
+                    source_count=source_row["count"],
+                    source_share=source_row["share"],
+                )
+            )
+    else:
+        rows.append(
+            _csv_row(
+                report,
+                section="source_mix",
+                item="none",
+                recommendation="No source evidence is available.",
+            )
+        )
+
+    category_rows = report.get("category_diversity") or []
+    if category_rows:
+        for category_row in category_rows:
+            rows.append(
+                _csv_row(
+                    report,
+                    section="category_coverage",
+                    item=category_row["category"],
+                    category=category_row["category"],
+                    category_count=category_row["count"],
+                    category_share=category_row["share"],
+                )
+            )
+    else:
+        rows.append(
+            _csv_row(
+                report,
+                section="category_coverage",
+                item="none",
+                recommendation="No category evidence is available.",
+            )
+        )
+
+    repeated_terms = report.get("repeated_query_topic_terms") or []
+    if repeated_terms:
+        for term_row in repeated_terms:
+            rows.append(
+                _csv_row(
+                    report,
+                    section="repeated_term_coverage",
+                    item=term_row["term"],
+                    term=term_row["term"],
+                    term_count=term_row["count"],
+                    term_sources=", ".join(term_row.get("sources") or []),
+                )
+            )
+    else:
+        rows.append(
+            _csv_row(
+                report,
+                section="repeated_term_coverage",
+                item="none",
+                recommendation="No repeated configured query or topic terms were found.",
+            )
+        )
+
+    for warning in report.get("concentration_warnings") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="warning",
+                item=warning["type"],
+                warning_type=warning["type"],
+                warning_severity=warning["severity"],
+                warning_value=warning["value"],
+                warning_count=warning.get("count", ""),
+                warning_share=warning.get("share", ""),
+                warning_threshold=warning.get("threshold", ""),
+                warning_message=warning["message"],
+                recommendation=warning["recommendation"],
+            )
+        )
+
+    for source_row in report.get("underused_sources") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="underused_source",
+                item=source_row["source"],
+                source=source_row["source"],
+                source_count=source_row["count"],
+                source_share=source_row["share"],
+                recommendation=source_row["recommendation"],
+            )
+        )
+
+    adjustments = report.get("recommended_source_mix_adjustments") or []
+    if adjustments:
+        for index, adjustment in enumerate(adjustments, start=1):
+            rows.append(
+                _csv_row(
+                    report,
+                    section="recommendation",
+                    item=str(index),
+                    recommendation=adjustment,
+                )
+            )
+    else:
+        rows.append(
+            _csv_row(
+                report,
+                section="recommendation",
+                item="1",
+                recommendation="Keep the current source mix and monitor concentration after the next run.",
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: Mapping[str, Any], **values: Any) -> dict[str, Any]:
+    profile = report["profile"]
+    row = {column: "" for column in PROFILE_EVIDENCE_DIVERSITY_CSV_COLUMNS}
+    row.update(
+        {
+            "schema_version": report["schema_version"],
+            "kind": report["kind"],
+            "generated_at": report["generated_at"],
+            "profile": profile["name"],
+            "domain": profile["domain"],
+        }
+    )
+    row.update(values)
+    return row
 
 
 def _source_adapter(signal: Any) -> str:
