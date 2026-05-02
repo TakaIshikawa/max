@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,30 @@ SCHEMA_VERSION = "max.pipeline_run_handoff_digest.v1"
 APPROVED_OUTCOMES = {"approved", "published"}
 REJECTED_OUTCOMES = {"rejected", "abandoned"}
 POSITIVE_RECOMMENDATIONS = {"strong_yes", "yes"}
+CSV_COLUMNS = (
+    "section",
+    "ordinal",
+    "key",
+    "value",
+    "run_id",
+    "status",
+    "profile",
+    "domain",
+    "started_at",
+    "completed_at",
+    "source_adapter",
+    "idea_id",
+    "title",
+    "category",
+    "score",
+    "recommendation",
+    "feedback_outcome",
+    "approval_score",
+    "publication_attempt_count",
+    "latest_publication_status",
+    "evidence_signal_count",
+    "message",
+)
 
 
 @dataclass(frozen=True)
@@ -101,9 +127,11 @@ def build_pipeline_run_handoff_digest(
 
 
 def render_pipeline_run_handoff_digest(digest: Mapping[str, Any], *, fmt: str = "markdown") -> str:
-    """Render a pipeline run handoff digest as Markdown or JSON."""
+    """Render a pipeline run handoff digest as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(digest, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(digest)
     if fmt != "markdown":
         raise ValueError(f"Unsupported pipeline run handoff digest format: {fmt}")
 
@@ -189,6 +217,165 @@ def render_pipeline_run_handoff_digest(digest: Mapping[str, Any], *, fmt: str = 
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _render_csv(digest: Mapping[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+
+    run = _mapping(digest.get("run"))
+    common = {
+        "run_id": run.get("id") or "",
+        "status": run.get("status") or "",
+        "profile": run.get("profile") or "",
+        "domain": run.get("domain") or "",
+        "started_at": run.get("started_at") or "",
+        "completed_at": run.get("completed_at") or "",
+    }
+
+    def write_row(section: str, ordinal: int, **values: Any) -> None:
+        row = {column: "" for column in CSV_COLUMNS}
+        row.update(common)
+        row.update({"section": section, "ordinal": ordinal})
+        row.update(values)
+        writer.writerow(row)
+
+    metadata = (
+        ("schema_version", digest.get("schema_version") or ""),
+        ("kind", digest.get("kind") or ""),
+        ("run_id", run.get("id") or ""),
+        ("status", run.get("status") or ""),
+        ("profile", run.get("profile") or ""),
+        ("domain", run.get("domain") or ""),
+        ("started_at", run.get("started_at") or ""),
+        ("completed_at", run.get("completed_at") or ""),
+    )
+    for ordinal, (key, value) in enumerate(metadata, start=1):
+        write_row("metadata", ordinal, key=key, value=value)
+
+    for ordinal, (key, value) in enumerate(_mapping(digest.get("summary")).items(), start=1):
+        write_row("summary", ordinal, key=key, value=value)
+
+    for ordinal, key in enumerate(
+        (
+            "signals_fetched",
+            "signals_new",
+            "insights_generated",
+            "clusters_found",
+            "gaps_detected",
+            "ideas_generated",
+            "ideas_evaluated",
+            "avg_idea_score",
+        ),
+        start=1,
+    ):
+        write_row(
+            "stage_counts",
+            ordinal,
+            key=key,
+            value=_mapping(digest.get("stage_counts")).get(key, 0),
+        )
+
+    budget = _mapping(digest.get("budget"))
+    for ordinal, key in enumerate(
+        ("model", "input_tokens", "output_tokens", "total_tokens", "estimated_cost_usd"),
+        start=1,
+    ):
+        write_row("budget", ordinal, key=key, value=budget.get(key, 0 if key != "model" else ""))
+
+    budget_stages = budget.get("stages")
+    if isinstance(budget_stages, list):
+        for offset, stage in enumerate(budget_stages, start=1):
+            stage_map = _mapping(stage)
+            write_row(
+                "budget_stage",
+                offset,
+                key=str(stage_map.get("stage") or "unknown"),
+                value=stage_map.get("total_tokens", ""),
+                message=(
+                    "input_tokens={input_tokens}; output_tokens={output_tokens}; "
+                    "estimated_cost_usd={estimated_cost_usd}"
+                ).format(
+                    input_tokens=stage_map.get("input_tokens", 0),
+                    output_tokens=stage_map.get("output_tokens", 0),
+                    estimated_cost_usd=stage_map.get("estimated_cost_usd", 0.0),
+                ),
+            )
+
+    source_mix = digest.get("source_mix")
+    if isinstance(source_mix, list) and source_mix:
+        for ordinal, source in enumerate(source_mix, start=1):
+            source_map = _mapping(source)
+            write_row(
+                "source_mix",
+                ordinal,
+                key=str(source_map.get("source_adapter") or "unknown"),
+                source_adapter=source_map.get("source_adapter") or "unknown",
+                value=source_map.get("idea_count", 0),
+                evidence_signal_count=source_map.get("evidence_signal_count", 0),
+            )
+    else:
+        write_row(
+            "source_mix",
+            1,
+            key="none",
+            value=0,
+            source_adapter="none",
+            evidence_signal_count=0,
+            message="No source mix is available.",
+        )
+
+    top_ideas = digest.get("top_recommended_ideas")
+    if isinstance(top_ideas, list) and top_ideas:
+        for ordinal, idea in enumerate(top_ideas, start=1):
+            idea_map = _mapping(idea)
+            write_row(
+                "top_recommended_ideas",
+                ordinal,
+                key=str(idea_map.get("id") or ""),
+                value=idea_map.get("score", 0.0),
+                idea_id=idea_map.get("id") or "",
+                title=idea_map.get("title") or "",
+                category=idea_map.get("category") or "",
+                score=idea_map.get("score", 0.0),
+                recommendation=idea_map.get("recommendation") or "unevaluated",
+                feedback_outcome=idea_map.get("feedback_outcome") or "none",
+                approval_score=idea_map.get("approval_score") or "",
+                publication_attempt_count=idea_map.get("publication_attempt_count", 0),
+                latest_publication_status=idea_map.get("latest_publication_status") or "",
+                evidence_signal_count=idea_map.get("evidence_signal_count", 0),
+                message=idea_map.get("one_liner") or "",
+            )
+    else:
+        write_row(
+            "top_recommended_ideas",
+            1,
+            key="none",
+            value=0,
+            score=0.0,
+            recommendation="none",
+            feedback_outcome="none",
+            publication_attempt_count=0,
+            evidence_signal_count=0,
+            message="No top recommended ideas are available.",
+        )
+
+    warnings = _string_list(digest.get("warnings"))
+    if warnings:
+        for ordinal, warning in enumerate(warnings, start=1):
+            write_row("warnings", ordinal, key="warning", value=warning, message=warning)
+    else:
+        write_row("warnings", 1, key="none", value="", message="None")
+
+    next_actions = _string_list(digest.get("next_actions"))
+    if next_actions:
+        for ordinal, action in enumerate(next_actions, start=1):
+            write_row("next_actions", ordinal, key="action", value=action, message=action)
+    else:
+        write_row("next_actions", 1, key="none", value="", message="None")
+
+    return output.getvalue()
+
+
 def write_pipeline_run_handoff_digest(
     path: Path,
     digest: Mapping[str, Any],
@@ -203,7 +390,7 @@ def write_pipeline_run_handoff_digest(
 def pipeline_run_handoff_digest_filename(run: Mapping[str, Any] | str, *, fmt: str = "markdown") -> str:
     """Return a stable filename for a pipeline run handoff digest."""
     run_id = run if isinstance(run, str) else str(run.get("id") or "pipeline-run")
-    extension = "json" if fmt == "json" else "md"
+    extension = "json" if fmt == "json" else "csv" if fmt == "csv" else "md"
     return f"{_filename_part(run_id)}-handoff-digest.{extension}"
 
 
