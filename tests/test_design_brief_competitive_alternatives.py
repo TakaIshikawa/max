@@ -19,6 +19,7 @@ from max.analysis.design_brief_competitive_alternatives import (
     build_design_brief_competitive_alternatives,
     competitive_alternatives_filename,
     render_design_brief_competitive_alternatives,
+    render_design_brief_competitive_alternatives_markdown,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -100,22 +101,88 @@ def test_render_competitive_alternatives_markdown_json_and_invalid_format(tmp_pa
 
     assert report is not None
     markdown = render_design_brief_competitive_alternatives(report)
+    direct_markdown = render_design_brief_competitive_alternatives_markdown(report)
     assert markdown.startswith("# Competitive Alternatives Matrix: Renewal Risk Brief")
+    assert markdown == direct_markdown
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Kind: `{KIND}`" in markdown
-    assert "## Alternatives Matrix" in markdown
-    assert "## Direct Competitors" in markdown
-    assert "## Indirect Alternatives" in markdown
-    assert "## Current Workarounds" in markdown
+    assert "## Alternatives" in markdown
+    assert "### DC1: RenewalAI Watchtower" in markdown
+    assert "### DC2: renewal-health-scorecard" in markdown
+    assert "### IA1: Status quo workflow" in markdown
+    assert "### WA1: manual spreadsheets and Slack deal reviews" in markdown
+    assert "- Positioning response: Narrow the wedge to sales operations manager" in markdown
+    assert "- Switching cost: high if the incumbent is already approved" in markdown
+    assert "- Evidence: `pa-" in markdown
+    assert "`, `bu-renewal-lead`" in markdown
+    assert "## Positioning Gaps" in markdown
+    assert "**Differentiator proof is not yet decisive**" in markdown
+    assert "## Switching Costs" in markdown
+    assert "**Workflow migration** (medium)" in markdown
     assert "## Differentiators" in markdown
-    assert "## Evidence Gaps" in markdown
-    assert "| Type | Alternative | Substitution risk | Switching friction | Differentiation response | Evidence |" in markdown
+    assert "Against: `DC1`, `DC2`, `IA1`" in markdown
+    assert "## Evidence" in markdown
+    assert "[product_hunt] RenewalAI Watchtower (score 0.910)" in markdown
+    assert "Source ideas: `bu-renewal-lead`, `bu-renewal-support`" in markdown
 
     parsed = json.loads(render_design_brief_competitive_alternatives(report, fmt="json"))
     assert parsed == report
 
     with pytest.raises(ValueError, match="Unsupported competitive alternatives format: yaml"):
         render_design_brief_competitive_alternatives(report, fmt="yaml")
+
+
+def test_render_competitive_alternatives_markdown_order_is_stable(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_alternatives(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    first = render_design_brief_competitive_alternatives_markdown(report)
+    second = render_design_brief_competitive_alternatives_markdown(report)
+
+    assert first == second
+    assert first.index("### DC1: RenewalAI Watchtower") < first.index(
+        "### DC2: renewal-health-scorecard"
+    )
+    assert first.index("### DC2: renewal-health-scorecard") < first.index(
+        "### IA1: Status quo workflow"
+    )
+    assert first.index("### IA3: Internal build") < first.index(
+        "### WA1: manual spreadsheets and Slack deal reviews"
+    )
+    assert first.index("## Positioning Gaps") < first.index("## Switching Costs")
+    assert first.index("## Switching Costs") < first.index("## Differentiators")
+    assert first.index("## Differentiators") < first.index("## Evidence")
+
+
+def test_render_competitive_alternatives_markdown_empty_sections(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_alternatives(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["direct_competitors"] = []
+    report["indirect_alternatives"] = []
+    report["workaround_entries"] = []
+    report["switching_friction_entries"] = []
+    report["differentiator_entries"] = []
+    report["evidence_gap_entries"] = []
+    report["signals"]["prior_art"] = []
+
+    markdown = render_design_brief_competitive_alternatives_markdown(report)
+
+    assert "- No competitive alternatives are available." in markdown
+    assert "- No positioning gaps are available." in markdown
+    assert "- No switching cost factors are available." in markdown
+    assert "- No differentiators are available." in markdown
+    assert "- No stored prior-art evidence is linked to this report." in markdown
 
 
 def test_render_competitive_alternatives_csv_headers_order_and_escaping(tmp_path) -> None:

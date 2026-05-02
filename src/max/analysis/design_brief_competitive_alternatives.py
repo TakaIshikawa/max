@@ -92,6 +92,11 @@ def render_design_brief_competitive_alternatives(
     if fmt != "markdown":
         raise ValueError(f"Unsupported competitive alternatives format: {fmt}")
 
+    return render_design_brief_competitive_alternatives_markdown(report)
+
+
+def render_design_brief_competitive_alternatives_markdown(report: dict[str, Any]) -> str:
+    """Render a competitive alternatives matrix as a concise Markdown review artifact."""
     brief = report["design_brief"]
     summary = report["summary"]
     lines = [
@@ -105,69 +110,140 @@ def render_design_brief_competitive_alternatives(
         f"Indirect alternatives: {summary['indirect_alternative_count']}",
         f"Evidence gaps: {summary['evidence_gap_count']}",
         "",
-        "## Alternatives Matrix",
+        "## Alternatives",
         "",
-        "| Type | Alternative | Substitution risk | Switching friction | Differentiation response | Evidence |",
-        "| --- | --- | --- | --- | --- | --- |",
     ]
-    for row in report["matrix_rows"]:
-        lines.append(
-            "| "
-            + " | ".join(
-                _table_cell(row[key])
-                for key in (
-                    "type",
-                    "alternative",
-                    "substitution_risk",
-                    "switching_friction",
-                    "differentiation_response",
-                    "evidence",
-                )
+
+    alternatives = _markdown_alternatives(report)
+    if alternatives:
+        for alternative in alternatives:
+            lines.extend(
+                [
+                    f"### {alternative['id']}: {alternative['name']}",
+                    "",
+                    f"- Type: {alternative['type']}",
+                    f"- Substitution risk: {alternative['substitution_risk']}",
+                    f"- Why it matters: {alternative['why_it_matters']}",
+                    f"- Positioning response: {alternative['positioning_response']}",
+                    f"- Switching cost: {alternative['switching_cost']}",
+                    f"- Evidence: {_inline_ids(alternative['source_reference_ids'])}",
+                    "",
+                ]
             )
-            + " |"
-        )
+    else:
+        lines.extend(["- No competitive alternatives are available.", ""])
 
-    lines.extend(["", "## Direct Competitors", ""])
-    for competitor in report["direct_competitors"]:
-        lines.extend(
-            [
-                f"- **{competitor['name']}** ({competitor['substitution_risk']}): {competitor['overlap_summary']}",
-                f"  Differentiation response: {competitor['differentiation_response']}",
-                f"  Source references: {_inline_ids(competitor['source_reference_ids'])}",
-            ]
-        )
+    lines.extend(["## Positioning Gaps", ""])
+    if report.get("evidence_gap_entries"):
+        for gap in report["evidence_gap_entries"]:
+            lines.append(f"- **{gap['gap']}**: {gap['resolution']} ({gap['owner']})")
+    else:
+        lines.append("- No positioning gaps are available.")
 
-    lines.extend(["", "## Indirect Alternatives", ""])
-    for alternative in report["indirect_alternatives"]:
-        lines.extend(
-            [
-                f"- **{alternative['name']}** ({alternative['substitution_risk']}): {alternative['why_users_choose_it']}",
-                f"  Switching friction: {alternative['switching_friction']}",
-                f"  Source references: {_inline_ids(alternative['source_reference_ids'])}",
-            ]
-        )
-
-    lines.extend(["", "## Current Workarounds", ""])
-    for workaround in report["workaround_entries"]:
-        lines.append(
-            f"- **{workaround['behavior']}**: {workaround['user_job']} "
-            f"({workaround['switching_friction']})"
-        )
+    lines.extend(["", "## Switching Costs", ""])
+    if report.get("switching_friction_entries"):
+        for friction in report["switching_friction_entries"]:
+            lines.append(
+                f"- **{friction['factor']}** ({friction['level']}): {friction['description']}"
+            )
+    else:
+        lines.append("- No switching cost factors are available.")
 
     lines.extend(["", "## Differentiators", ""])
-    for differentiator in report["differentiator_entries"]:
+    if report.get("differentiator_entries"):
+        for differentiator in report["differentiator_entries"]:
+            lines.extend(
+                [
+                    f"- **{differentiator['claim']}**: {differentiator['rationale']}",
+                    f"  Proof needed: {differentiator['proof_needed']}",
+                    f"  Against: {_inline_ids(differentiator['against'])}",
+                    f"  Evidence: {_inline_ids(differentiator['source_reference_ids'])}",
+                ]
+            )
+    else:
+        lines.append("- No differentiators are available.")
+
+    lines.extend(["", "## Evidence", ""])
+    prior_art = report.get("signals", {}).get("prior_art", [])
+    if prior_art:
+        for record in prior_art:
+            evidence_line = (
+                f"- `{record['id']}` [{record['source']}] {record['title']} "
+                f"(score {float(record['relevance_score']):.3f})"
+            )
+            if record.get("url"):
+                evidence_line += f" - {record['url']}"
+            lines.append(evidence_line)
+    else:
+        lines.append("- No stored prior-art evidence is linked to this report.")
+
+    if report.get("design_brief", {}).get("source_idea_ids"):
         lines.extend(
             [
-                f"- **{differentiator['claim']}**: {differentiator['rationale']}",
-                f"  Proof needed: {differentiator['proof_needed']}",
+                "",
+                f"Source ideas: {_inline_ids(report['design_brief']['source_idea_ids'])}",
             ]
         )
 
-    lines.extend(["", "## Evidence Gaps", ""])
-    for gap in report["evidence_gap_entries"]:
-        lines.append(f"- **{gap['gap']}**: {gap['resolution']} ({gap['owner']})")
-
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _markdown_alternatives(report: dict[str, Any]) -> list[dict[str, Any]]:
+    alternatives: list[dict[str, Any]] = []
+    for competitor in report.get("direct_competitors", []):
+        alternatives.append(
+            {
+                "id": competitor.get("id") or f"A{len(alternatives) + 1}",
+                "name": competitor.get("name") or "Unnamed direct competitor",
+                "type": "Direct competitor",
+                "substitution_risk": competitor.get("substitution_risk") or "unknown",
+                "why_it_matters": competitor.get("overlap_summary") or "No overlap summary available.",
+                "positioning_response": competitor.get("differentiation_response")
+                or "No positioning response available.",
+                "switching_cost": competitor.get("switching_friction")
+                or "No switching cost factor available.",
+                "source_reference_ids": _string_list(competitor.get("source_reference_ids")),
+            }
+        )
+    for alternative in report.get("indirect_alternatives", []):
+        alternatives.append(
+            {
+                "id": alternative.get("id") or f"A{len(alternatives) + 1}",
+                "name": alternative.get("name") or "Unnamed indirect alternative",
+                "type": "Indirect alternative",
+                "substitution_risk": alternative.get("substitution_risk") or "unknown",
+                "why_it_matters": alternative.get("why_users_choose_it")
+                or alternative.get("behavior")
+                or "No usage rationale available.",
+                "positioning_response": alternative.get("differentiation_response")
+                or "No positioning response available.",
+                "switching_cost": alternative.get("switching_friction")
+                or "No switching cost factor available.",
+                "source_reference_ids": _string_list(alternative.get("source_reference_ids")),
+            }
+        )
+    for workaround in report.get("workaround_entries", []):
+        alternatives.append(
+            {
+                "id": workaround.get("id") or f"A{len(alternatives) + 1}",
+                "name": workaround.get("behavior") or "Unnamed current workaround",
+                "type": "Current workaround",
+                "substitution_risk": "medium",
+                "why_it_matters": workaround.get("user_job") or "No workaround job available.",
+                "positioning_response": _workaround_positioning_response(report),
+                "switching_cost": workaround.get("switching_friction")
+                or "No switching cost factor available.",
+                "source_reference_ids": _string_list(workaround.get("source_reference_ids")),
+            }
+        )
+    return alternatives
+
+
+def _workaround_positioning_response(report: dict[str, Any]) -> str:
+    differentiators = report.get("differentiator_entries", [])
+    if differentiators:
+        return str(differentiators[0].get("claim") or "No positioning response available.")
+    return "No positioning response available."
 
 
 def competitive_alternatives_filename(
@@ -949,7 +1025,3 @@ def _filename_part(value: str) -> str:
 
 def _inline_ids(ids: list[str]) -> str:
     return ", ".join(f"`{item}`" for item in ids if item) or "`design_brief`"
-
-
-def _table_cell(value: Any) -> str:
-    return _compact(str(value)).replace("|", "\\|")
