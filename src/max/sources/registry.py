@@ -86,6 +86,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_discussion_comments": (
         "max.sources.github_discussion_comments:GitHubDiscussionCommentsAdapter"
     ),
+    "github_repository_topics": (
+        "max.sources.github_repository_topics:GitHubRepositoryTopicsAdapter"
+    ),
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "gitlab_merge_requests": "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter",
     "gitlab_epics": "max.sources.gitlab_epics:GitLabEpicsAdapter",
@@ -609,6 +612,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches comments from configured GitHub Discussions.",
+    ),
+    "github_repository_topics": AdapterMetadata(
+        name="github_repository_topics",
+        config_keys=[
+            "repositories",
+            "github_token",
+            "token",
+            "token_env",
+            "api_url",
+            "per_page",
+            "timeout",
+        ],
+        required_keys=[],
+        description="Fetches topic metadata for configured GitHub repositories.",
     ),
     "gitlab_issues": AdapterMetadata(
         name="gitlab_issues",
