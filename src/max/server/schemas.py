@@ -603,6 +603,17 @@ class SpecBundleBatchRequest(BaseModel):
     format: Literal["json", "markdown"] = "json"
 
 
+class ReleaseReadinessGateRequest(BaseModel):
+    tact_spec: dict[str, Any] = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_wrapped_or_direct_tact_spec(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "tact_spec" not in data:
+            return {"tact_spec": data}
+        return data
+
+
 class PipelineRunRequest(BaseModel):
     profile: str | None = None
     signal_limit: int = Field(default=30, ge=1, le=500)
@@ -1762,6 +1773,45 @@ class ThreatModelResponse(BaseModel):
     mitigations: list[dict[str, Any]]
     residual_risks: list[dict[str, Any]]
     review_gate: dict[str, Any]
+
+
+class ReleaseReadinessGateBlockerResponse(BaseModel):
+    id: str
+    dimension_id: str
+    severity: Literal["critical", "high", "medium", "low"]
+    description: str
+    missing_evidence: list[str]
+    owner: str
+
+
+class ReleaseReadinessGateWarningResponse(BaseModel):
+    id: str
+    severity: Literal["high", "medium", "low"]
+    dimension_id: str | None = None
+    message: str
+    recommendation: str
+
+
+class ReleaseReadinessGateNextActionResponse(BaseModel):
+    id: str
+    owner: str
+    action: str
+    status: Literal["required", "recommended"]
+    blocked_by_dimensions: list[str] = Field(default_factory=list)
+
+
+class ReleaseReadinessGateResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    readiness_status: Literal["go", "no-go"]
+    recommendation: str | None = None
+    summary: dict[str, Any]
+    readiness_dimensions: list[dict[str, Any]]
+    blockers: list[ReleaseReadinessGateBlockerResponse]
+    warnings: list[ReleaseReadinessGateWarningResponse]
+    recommended_next_actions: list[ReleaseReadinessGateNextActionResponse]
+    required_signoffs: list[dict[str, Any]]
 
 
 class SpecBundleArtifactsResponse(BaseModel):

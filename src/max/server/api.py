@@ -581,6 +581,8 @@ from max.server.schemas import (
     ProfileValidationResponse,
     ProfileValidationResultResponse,
     ReviewQueueItemResponse,
+    ReleaseReadinessGateRequest,
+    ReleaseReadinessGateResponse,
     ReviewGateResponse,
     ReviewThresholdRecommendationResponse,
     ReviewThresholdsResponse,
@@ -637,6 +639,7 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
 from max.spec.readiness import evaluate_spec_readiness
+from max.spec.release_readiness_gate import generate_release_readiness_gate
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import generate_security_review, render_security_review_markdown
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
@@ -5881,6 +5884,81 @@ def _threat_model_markdown_response(idea_id: str, threat_model: dict[str, Any]) 
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/spec/release-readiness-gate", response_model=ReleaseReadinessGateResponse)
+@router.post("/ideas/spec-release-readiness-gate", response_model=ReleaseReadinessGateResponse)
+def generate_spec_release_readiness_gate(
+    body: ReleaseReadinessGateRequest,
+) -> ReleaseReadinessGateResponse:
+    gate = generate_release_readiness_gate(body.tact_spec)
+    response = {
+        **gate,
+        "readiness_status": gate["summary"]["decision"],
+        "recommendation": gate["summary"].get("recommendation"),
+        "warnings": _release_readiness_warnings(gate),
+        "recommended_next_actions": _release_readiness_next_actions(gate),
+    }
+    return ReleaseReadinessGateResponse.model_validate(response)
+
+
+def _release_readiness_warnings(gate: dict[str, Any]) -> list[dict[str, Any]]:
+    warnings: list[dict[str, Any]] = []
+    for dimension in gate.get("readiness_dimensions") or []:
+        if dimension.get("status") != "ready":
+            continue
+        missing = dimension.get("missing_evidence") or []
+        if missing:
+            warnings.append(
+                {
+                    "id": f"WRN{len(warnings) + 1}",
+                    "severity": "low",
+                    "dimension_id": dimension.get("id"),
+                    "message": (
+                        f"{dimension.get('label') or dimension.get('id')} is ready but has "
+                        f"non-blocking evidence gaps: {', '.join(str(item) for item in missing)}."
+                    ),
+                    "recommendation": "Review the evidence gaps before final launch signoff.",
+                }
+            )
+    if not warnings and gate.get("summary", {}).get("decision") == "go":
+        warnings.append(
+            {
+                "id": "WRN1",
+                "severity": "low",
+                "dimension_id": None,
+                "message": "No release blockers were detected by the deterministic readiness gate.",
+                "recommendation": "Record owner signoffs before publication.",
+            }
+        )
+    return warnings
+
+
+def _release_readiness_next_actions(gate: dict[str, Any]) -> list[dict[str, Any]]:
+    actions = [
+        {
+            "id": f"NA{index}",
+            "owner": blocker.get("owner") or "launch_owner",
+            "action": blocker.get("description") or "Resolve release readiness blocker.",
+            "status": "required",
+            "blocked_by_dimensions": (
+                [blocker.get("dimension_id")] if blocker.get("dimension_id") else []
+            ),
+        }
+        for index, blocker in enumerate(gate.get("blockers") or [], start=1)
+    ]
+    if actions:
+        return actions
+
+    return [
+        {
+            "id": "NA1",
+            "owner": "launch_owner",
+            "action": "Record final go/no-go decision with all required owner signoffs.",
+            "status": "recommended",
+            "blocked_by_dimensions": [],
+        }
+    ]
 
 
 @router.get("/ideas/{idea_id}/spec-bundle", response_model=SpecBundleResponse)
