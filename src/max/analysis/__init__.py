@@ -104,6 +104,12 @@ from max.analysis.design_brief_conversion_risk import (
     conversion_risk_filename,
     render_design_brief_conversion_risk,
 )
+from max.analysis.design_brief_renewal_expansion_plan import (
+    build_design_brief_renewal_expansion_plan,
+    render_design_brief_renewal_expansion_plan,
+    renewal_expansion_plan_filename,
+    write_design_brief_renewal_expansion_plan,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -125,6 +131,7 @@ __all__ = [
     "build_design_brief_onboarding_checklist",
     "build_design_brief_raci_matrix",
     "build_design_brief_privacy_impact_assessment",
+    "build_design_brief_renewal_expansion_plan",
     "build_design_brief_work_breakdown",
     "build_portfolio_cannibalization_from_records",
     "build_portfolio_cannibalization_report",
@@ -164,6 +171,7 @@ __all__ = [
     "render_design_brief_kill_criteria",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
+    "render_design_brief_renewal_expansion_plan",
     "render_design_brief_work_breakdown",
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
@@ -171,5 +179,7 @@ __all__ = [
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",
+    "renewal_expansion_plan_filename",
+    "write_design_brief_renewal_expansion_plan",
     "work_breakdown_filename",
 ]
