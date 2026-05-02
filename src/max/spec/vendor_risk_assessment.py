@@ -418,10 +418,19 @@ def _risk(
         "category": category,
         "title": title,
         "severity": severity,
+        "likelihood": _risk_likelihood(severity, category),
         "description": description,
         "evidence": _dedupe_strings(evidence),
         "mitigations": mitigations,
     }
+
+
+def _risk_likelihood(severity: str, category: str) -> str:
+    if category in {"missing_vendor_inventory", "sensitive_vendor_transfer"}:
+        return "high"
+    if severity == "high" or category in {"contract_evidence_gap", "vendor_outage_gap"}:
+        return "medium"
+    return "low"
 
 
 def _mitigations(
