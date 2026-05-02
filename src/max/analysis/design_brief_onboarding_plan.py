@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from typing import TYPE_CHECKING, Any
@@ -10,6 +12,32 @@ if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.onboarding_plan.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "item_name",
+    "owner",
+    "metric",
+    "target",
+    "responsibility",
+    "risk",
+    "mitigation",
+    "asset",
+    "evidence_reference_ids",
+    "source_idea_ids",
+)
+
+CSV_SECTIONS: tuple[str, ...] = (
+    "onboarding_phases",
+    "success_criteria",
+    "owner_hints",
+    "risks",
+    "required_assets",
+    "evidence_references",
+)
 
 
 def build_design_brief_onboarding_plan(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -73,9 +101,11 @@ def build_design_brief_onboarding_plan(store: Store, brief_id: str) -> dict[str,
 
 
 def render_design_brief_onboarding_plan(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render an onboarding plan as Markdown or JSON."""
+    """Render an onboarding plan as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return render_onboarding_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported onboarding plan format: {fmt}")
 
@@ -160,6 +190,141 @@ def render_design_brief_onboarding_plan(report: dict[str, Any], fmt: str = "mark
         lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_onboarding_plan_csv(report: dict[str, Any]) -> str:
+    """Render onboarding plan sections as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for section in CSV_SECTIONS:
+        section_rows = _csv_section_rows(report, section)
+        if section_rows:
+            rows.extend(section_rows)
+        else:
+            rows.append(_csv_row(report, section=section))
+    return rows
+
+
+def _csv_section_rows(report: dict[str, Any], section: str) -> list[dict[str, str]]:
+    if section == "onboarding_phases":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=phase.get("id"),
+                item_name=phase.get("name"),
+                owner=phase.get("owner"),
+                target=phase.get("goal"),
+                responsibility=_csv_join(
+                    [
+                        _csv_join(phase.get("actions")),
+                        phase.get("exit_criteria"),
+                    ]
+                ),
+                evidence_reference_ids=phase.get("evidence_reference_ids"),
+                source_idea_ids=phase.get("source_idea_ids"),
+            )
+            for phase in report.get("onboarding_phases", [])
+        ]
+    if section == "success_criteria":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=f"SC{index}",
+                item_name=criterion.get("metric"),
+                metric=criterion.get("metric"),
+                target=criterion.get("target"),
+                responsibility=criterion.get("evidence"),
+            )
+            for index, criterion in enumerate(report.get("success_criteria", []), start=1)
+        ]
+    if section == "owner_hints":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=f"OH{index}",
+                item_name=hint.get("owner"),
+                owner=hint.get("owner"),
+                target=hint.get("handoff_signal"),
+                responsibility=hint.get("responsibility"),
+            )
+            for index, hint in enumerate(report.get("owner_hints", []), start=1)
+        ]
+    if section == "risks":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=risk.get("id"),
+                item_name=risk.get("name"),
+                owner=risk.get("owner"),
+                target=risk.get("impact"),
+                risk=risk.get("risk"),
+                mitigation=risk.get("mitigation"),
+                source_idea_ids=risk.get("source_idea_ids"),
+            )
+            for risk in report.get("risks", [])
+        ]
+    if section == "required_assets":
+        return [
+            _csv_row(
+                report,
+                section=section,
+                item_id=asset.get("id"),
+                item_name=asset.get("name"),
+                owner=asset.get("owner"),
+                target=asset.get("ready_when"),
+                responsibility=asset.get("purpose"),
+                asset=asset.get("name"),
+                source_idea_ids=asset.get("source_idea_ids"),
+            )
+            for asset in report.get("required_assets", [])
+        ]
+    return [
+        _csv_row(
+            report,
+            section=section,
+            item_id=reference.get("id"),
+            item_name=reference.get("description"),
+            responsibility=reference.get("field"),
+            evidence_reference_ids=[reference.get("id")],
+            source_idea_ids=[reference.get("source_idea_id")],
+        )
+        for reference in report.get("evidence_references", [])
+    ]
+
+
+def _csv_row(report: dict[str, Any], *, section: str, **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "design_brief_id": _csv_cell(brief.get("id")),
+        "design_brief_title": _csv_cell(brief.get("title")),
+        "section": section,
+        "item_id": "",
+        "item_name": "",
+        "owner": "",
+        "metric": "",
+        "target": "",
+        "responsibility": "",
+        "risk": "",
+        "mitigation": "",
+        "asset": "",
+        "evidence_reference_ids": "",
+        "source_idea_ids": "",
+    }
+    for key, value in values.items():
+        row[key] = _csv_cell(value)
+    return row
 
 
 def _onboarding_context(
@@ -520,6 +685,18 @@ def _inline_ids(values: list[str]) -> str:
 
 def _inline_list(values: list[str]) -> str:
     return "; ".join(values) if values else "none"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return _csv_join(value)
+    return _compact(value)
+
+
+def _csv_join(values: Any) -> str:
+    return "; ".join(_string_list(values))
 
 
 def _first_text(*values: Any) -> str:

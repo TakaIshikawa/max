@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_onboarding_plan import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_onboarding_plan,
     render_design_brief_onboarding_plan,
@@ -100,6 +103,121 @@ def test_render_design_brief_onboarding_plan_markdown_and_json(tmp_path) -> None
     assert json.loads(rendered_json) == report
     with pytest.raises(ValueError):
         render_design_brief_onboarding_plan(report, fmt="yaml")
+
+
+def test_render_design_brief_onboarding_plan_csv_sections_and_ordering(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_onboarding_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_onboarding_plan(report, fmt="csv")
+    repeated = render_design_brief_onboarding_plan(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == [
+        *(["onboarding_phases"] * 4),
+        *(["success_criteria"] * 4),
+        *(["owner_hints"] * 4),
+        "risks",
+        *(["required_assets"] * 4),
+        *(["evidence_references"] * 2),
+    ]
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "design_brief_title": "Onboarding Plan Brief",
+        "section": "onboarding_phases",
+        "item_id": "phase-1",
+        "item_name": "Account Readiness",
+        "owner": "Customer success lead",
+        "metric": "",
+        "target": (
+            "Confirm customer success director and customer operations manager are ready "
+            "to start approved pilot onboarding."
+        ),
+        "responsibility": (
+            "Confirm sponsor, participating users, kickoff date, and success definition.; "
+            "Map the customer's current workaround: manual kickoff notes.; "
+            "Review scope boundary for Onboarding plan JSON.; "
+            "Sponsor, users, baseline workflow, and first-value target are recorded before setup starts."
+        ),
+        "risk": "",
+        "mitigation": "",
+        "asset": "",
+        "evidence_reference_ids": (
+            "sig-bu-onboarding-plan-lead-1; ins-bu-onboarding-plan-lead-2"
+        ),
+        "source_idea_ids": "bu-onboarding-plan-lead",
+    }
+    assert [row["item_id"] for row in rows if row["section"] == "success_criteria"] == [
+        "SC1",
+        "SC2",
+        "SC3",
+        "SC4",
+    ]
+    assert rows[-1]["section"] == "evidence_references"
+    assert rows[-1]["source_idea_ids"] == "bu-onboarding-plan-lead"
+
+
+def test_render_design_brief_onboarding_plan_csv_escapes_special_characters(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_onboarding_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["onboarding_phases"][0]["name"] = 'Account "readiness", scoped'
+    report["onboarding_phases"][0]["actions"] = ['Confirm "sponsor", owner', "Capture line\nbreak"]
+    report["risks"][0]["risk"] = "Privacy, approval\ncan block setup."
+
+    csv_text = render_design_brief_onboarding_plan(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["item_name"] == 'Account "readiness", scoped'
+    assert rows[0]["responsibility"].startswith('Confirm "sponsor", owner; Capture line break;')
+    assert rows[12]["risk"] == "Privacy, approval can block setup."
+    assert '"Account ""readiness"", scoped"' in csv_text
+
+
+def test_render_design_brief_onboarding_plan_csv_empty_sections_are_summary_safe(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_onboarding_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    sparse_report = {
+        **report,
+        "onboarding_phases": [],
+        "success_criteria": [],
+        "owner_hints": [],
+        "risks": [],
+        "required_assets": [],
+        "evidence_references": [],
+    }
+
+    csv_text = render_design_brief_onboarding_plan(sparse_report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert [row["section"] for row in rows] == [
+        "onboarding_phases",
+        "success_criteria",
+        "owner_hints",
+        "risks",
+        "required_assets",
+        "evidence_references",
+    ]
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert all(row["item_id"] == "" for row in rows)
+    assert all(row["source_idea_ids"] == "" for row in rows)
 
 
 def test_build_design_brief_onboarding_plan_missing_brief_returns_none(tmp_path) -> None:
