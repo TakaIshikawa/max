@@ -271,3 +271,19 @@ def test_hexpm_download_trends_metadata_and_registry_loading():
     assert "packages" in metadata.config_keys
     assert "period" in metadata.config_keys
     assert "api_base_url" in metadata.config_keys
+
+
+def test_home_assistant_integrations_metadata_and_registry_loading():
+    """Home Assistant integrations adapter is exposed through the registry."""
+    from max.sources.home_assistant_integrations import HomeAssistantIntegrationsAdapter
+    from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters
+
+    adapter = get_adapter("home_assistant_integrations")
+    metadata = get_adapter_metadata()["home_assistant_integrations"]
+
+    assert "home_assistant_integrations" in list_adapters()
+    assert isinstance(adapter, HomeAssistantIntegrationsAdapter)
+    assert metadata.name == "home_assistant_integrations"
+    assert "integrations" in metadata.config_keys
+    assert "categories" in metadata.config_keys
+    assert "max_age_days" in metadata.config_keys
