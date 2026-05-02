@@ -121,6 +121,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "jetbrains_marketplace": (
         "max.sources.jetbrains_marketplace:JetBrainsMarketplaceAdapter"
     ),
+    "eclipse_marketplace": "max.sources.eclipse_marketplace:EclipseMarketplaceAdapter",
     "discourse": "max.sources.discourse:DiscourseAdapter",
     "arxiv": "max.sources.arxiv:ArxivAdapter",
     "openalex": "max.sources.openalex:OpenAlexAdapter",
@@ -879,6 +880,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         description=(
             "Searches JetBrains Marketplace for IDE plugin adoption, vendor, "
             "download, rating, tag, and update signals."
+        ),
+    ),
+    "eclipse_marketplace": AdapterMetadata(
+        name="eclipse_marketplace",
+        config_keys=[
+            "queries",
+            "sections",
+            "categories",
+            "taxonomy_terms",
+            "max_pages",
+            "max_items",
+            "max_results",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Searches Eclipse Marketplace for IDE plugin install, favorite, "
+            "rating, category, owner, and update signals."
         ),
     ),
     "discourse": AdapterMetadata(

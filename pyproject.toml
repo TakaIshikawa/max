@@ -88,6 +88,7 @@ stackoverflow_tag_trends = "max.sources.stackoverflow_tag_trends:StackOverflowTa
 stackoverflow_survey = "max.sources.stackoverflow_survey:StackOverflowSurveyAdapter"
 jetbrains_survey = "max.sources.jetbrains_survey:JetBrainsSurveyAdapter"
 jetbrains_marketplace = "max.sources.jetbrains_marketplace:JetBrainsMarketplaceAdapter"
+eclipse_marketplace = "max.sources.eclipse_marketplace:EclipseMarketplaceAdapter"
 discourse = "max.sources.discourse:DiscourseAdapter"
 arxiv = "max.sources.arxiv:ArxivAdapter"
 openalex = "max.sources.openalex:OpenAlexAdapter"
