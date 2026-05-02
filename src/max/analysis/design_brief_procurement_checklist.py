@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -9,6 +11,22 @@ if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.procurement_checklist.v1"
+
+CSV_COLUMNS = (
+    "design_brief_id",
+    "section_id",
+    "section_title",
+    "item_id",
+    "category",
+    "task",
+    "owner",
+    "evidence",
+    "blocker",
+    "status",
+    "source_fields",
+    "source_idea_ids",
+    "rationale",
+)
 
 
 SECTION_CONFIGS: tuple[dict[str, Any], ...] = (
@@ -154,9 +172,11 @@ def render_design_brief_procurement_checklist(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a procurement checklist as Markdown or deterministic JSON."""
+    """Render a procurement checklist as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_procurement_checklist_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported procurement checklist format: {fmt}")
 
@@ -220,11 +240,62 @@ def render_design_brief_procurement_checklist(
 
 
 def procurement_checklist_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-procurement-checklist.{extension}"
     )
+
+
+def render_procurement_checklist_csv(report: dict[str, Any]) -> str:
+    """Render checklist items as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+
+    for item in _csv_checklist_items(report):
+        writer.writerow(_csv_row(report, item))
+
+    return output.getvalue()
+
+
+def _csv_checklist_items(report: dict[str, Any]) -> list[dict[str, Any]]:
+    items = report.get("checklist_items")
+    if isinstance(items, list):
+        return list(items)
+
+    flattened: list[dict[str, Any]] = []
+    for section in report.get("sections", []):
+        for item in section.get("items", []):
+            flattened.append(
+                {
+                    **item,
+                    "section_id": item.get("section_id") or section.get("id", ""),
+                    "section_title": item.get("section_title") or section.get("title", ""),
+                    "section_owner_role": item.get("section_owner_role") or section.get("owner_role", ""),
+                }
+            )
+    return flattened
+
+
+def _csv_row(report: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    section_title = _csv_cell(item.get("section_title"))
+    return {
+        "design_brief_id": _csv_cell(brief.get("id")),
+        "section_id": _csv_cell(item.get("section_id")),
+        "section_title": section_title,
+        "item_id": _csv_cell(item.get("id") or item.get("item_id")),
+        "category": _csv_cell(item.get("category") or section_title),
+        "task": _csv_cell(item.get("task")),
+        "owner": _csv_cell(item.get("owner") or item.get("owner_role") or item.get("section_owner_role")),
+        "evidence": _csv_cell(item.get("evidence") or item.get("completion_evidence")),
+        "blocker": _csv_cell(item.get("blocker") or item.get("blockers")),
+        "status": _csv_cell(item.get("status") or item.get("inference_status") or item.get("state")),
+        "source_fields": _csv_cell(item.get("source_fields")),
+        "source_idea_ids": _csv_cell(item.get("source_idea_ids")),
+        "rationale": _csv_cell(item.get("rationale")),
+    }
 
 
 def _procurement_context(
@@ -743,6 +814,20 @@ def _compact(value: Any) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {_csv_cell(item)}" for key, item in value.items())
+    if isinstance(value, set):
+        return "; ".join(_csv_cell(item) for item in sorted(value, key=str))
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_cell(item) for item in value)
+    return str(value)
 
 
 def _filename_part(value: str) -> str:
