@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_work_breakdown import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_work_breakdown,
     render_design_brief_work_breakdown,
+    render_design_brief_work_breakdown_csv,
     work_breakdown_filename,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -82,12 +86,19 @@ def test_rich_source_ideas_drive_execution_context_and_traceability(tmp_path) ->
     assert report["work_context"]["workflow_context"] == "autonomous implementation handoff"
     assert report["work_context"]["primary_scope"] == "work breakdown JSON artifact"
     assert any(
-        "autonomous implementation handoff" in task["description"]
-        for task in report["tasks"]
+        "autonomous implementation handoff" in task["description"] for task in report["tasks"]
     )
-    assert all(task["source_idea_ids"] == ["bu-wb-lead", "bu-wb-support"] for task in report["tasks"])
-    assert all(check["source_idea_ids"] == ["bu-wb-lead", "bu-wb-support"] for check in report["acceptance_checks"])
-    assert any("Sequencing can hide dependency risks" in risk["risk"] for risk in report["sequencing_risks"])
+    assert all(
+        task["source_idea_ids"] == ["bu-wb-lead", "bu-wb-support"] for task in report["tasks"]
+    )
+    assert all(
+        check["source_idea_ids"] == ["bu-wb-lead", "bu-wb-support"]
+        for check in report["acceptance_checks"]
+    )
+    assert any(
+        "Sequencing can hide dependency risks" in risk["risk"]
+        for risk in report["sequencing_risks"]
+    )
     assert report["gaps"] == []
 
 
@@ -168,6 +179,103 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
         work_breakdown_filename({"id": "dbf-123", "title": "Build Plan: Alpha / Beta"}, fmt="json")
         == "dbf-123-Build-Plan-Alpha-Beta-work-breakdown.json"
     )
+    assert (
+        work_breakdown_filename({"id": "dbf-123", "title": "Build Plan: Alpha / Beta"}, fmt="csv")
+        == "dbf-123-Build-Plan-Alpha-Beta-work-breakdown.csv"
+    )
+
+
+def test_render_design_brief_work_breakdown_csv_rows_order_and_lists(tmp_path) -> None:
+    store, brief_id = _store_with_rich_brief(tmp_path)
+    try:
+        report = build_design_brief_work_breakdown(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_work_breakdown(report, fmt="csv")
+    repeated = render_design_brief_work_breakdown(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text == render_design_brief_work_breakdown_csv(report)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["task_id"] for row in rows] == [
+        "WBT1",
+        "WBT2",
+        "WBT3",
+        "WBT4",
+        "WBT5",
+        "WBT6",
+        "WBT7",
+        "WBT8",
+    ]
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "design_brief_title": "Work Breakdown Brief",
+        "implementation_gate": "ready_for_execution_planning",
+        "phase": "WBE1",
+        "workstream": "Execution Foundation",
+        "task_id": "WBT1",
+        "task_title": "Resolve build contract",
+        "description": "Confirm MVP scope, non-goals, source assumptions, and open gaps.",
+        "owner_role": "Product owner",
+        "dependencies": "",
+        "acceptance_check_ids": "WBAC1; WBAC2",
+        "estimate_size": "",
+        "readiness_status": "planned",
+        "evidence_reference_ids": "mvp_scope; merged_product_concept; source_idea_ids",
+        "source_idea_ids": "bu-wb-lead; bu-wb-support",
+        "source_fields": "mvp_scope; merged_product_concept; source_idea_ids",
+    }
+    assert rows[4]["task_id"] == "WBT5"
+    assert rows[4]["dependencies"] == "WBT3; WBT4"
+    assert rows[4]["acceptance_check_ids"] == "WBAC3; WBAC4; WBAC5"
+
+
+def test_render_design_brief_work_breakdown_csv_escapes_special_values() -> None:
+    report = {
+        "design_brief": {"id": "dbf-csv", "title": "CSV, Work Breakdown"},
+        "summary": {"implementation_gate": "ready"},
+        "epics": [{"id": "E1", "title": "Discovery, Planning"}],
+        "tasks": [
+            {
+                "id": "T1",
+                "epic_id": "E1",
+                "title": 'Confirm comma, quote "handling", and newline\nsupport.',
+                "description": "Keep CSV parseable for Sheets, Excel, and trackers.",
+                "owner": "Product owner",
+                "depends_on": ["T0"],
+                "acceptance_check_ids": ["AC1"],
+                "estimate": "M",
+                "status": "planned",
+                "evidence_reference_ids": ["sig-csv", "brief:lineage"],
+                "source_idea_ids": ["bu-csv"],
+                "source_fields": ["validation_plan", "risks"],
+            }
+        ],
+    }
+
+    csv_text = render_design_brief_work_breakdown(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"CSV, Work Breakdown"' in csv_text
+    assert 'quote ""handling""' in csv_text
+    assert rows[0]["design_brief_title"] == "CSV, Work Breakdown"
+    assert rows[0]["workstream"] == "Discovery, Planning"
+    assert rows[0]["task_title"] == 'Confirm comma, quote "handling", and newline\nsupport.'
+    assert rows[0]["dependencies"] == "T0"
+    assert rows[0]["evidence_reference_ids"] == "sig-csv; brief:lineage"
+    assert rows[0]["source_fields"] == "validation_plan; risks"
+
+
+def test_render_design_brief_work_breakdown_csv_empty_report_header_only() -> None:
+    csv_text = render_design_brief_work_breakdown({"tasks": []}, fmt="csv")
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    assert csv.DictReader(StringIO(csv_text)).fieldnames == list(CSV_COLUMNS)
 
 
 def test_build_design_brief_work_breakdown_missing_brief_returns_none(tmp_path) -> None:
