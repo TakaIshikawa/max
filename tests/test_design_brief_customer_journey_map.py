@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_customer_journey_map import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_customer_journey_map,
+    customer_journey_map_filename,
     render_design_brief_customer_journey_map,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -60,7 +64,10 @@ def test_build_design_brief_customer_journey_map_translates_persisted_brief(tmp_
         <= set(stage)
         for stage in report["journey_stages"]
     )
-    assert all(stage["source_idea_ids"] == ["bu-journey-lead", "bu-journey-support"] for stage in report["journey_stages"])
+    assert all(
+        stage["source_idea_ids"] == ["bu-journey-lead", "bu-journey-support"]
+        for stage in report["journey_stages"]
+    )
     assert report["journey_stages"][0]["owner"] == "Product marketing owner"
     assert "design_brief.why_this_now" in report["journey_stages"][0]["evidence_reference_ids"]
     assert any("Privacy approval" in point for point in report["journey_stages"][2]["friction_points"])
@@ -186,6 +193,83 @@ def test_render_design_brief_customer_journey_map_markdown_json_and_invalid_form
 
     with pytest.raises(ValueError, match="Unsupported customer journey map format: yaml"):
         render_design_brief_customer_journey_map(report, fmt="yaml")
+
+
+def test_render_design_brief_customer_journey_map_csv_rows_and_filename(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_customer_journey_map(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_customer_journey_map(report, fmt="csv")
+    repeated = render_design_brief_customer_journey_map(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == len(report["journey_stages"]) == 5
+    assert [row["sequence"] for row in rows] == ["1", "2", "3", "4", "5"]
+    assert [row["stage_id"] for row in rows] == ["JM1", "JM2", "JM3", "JM4", "JM5"]
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["design_brief_title"] == "Customer Journey Map Brief"
+    assert rows[0]["readiness_score"] == "88.0"
+    assert rows[0]["name"] == "Problem Awareness"
+    assert rows[0]["owner"] == "Product marketing owner"
+    assert "problem narrative" in rows[0]["touchpoints"].split(";")
+    assert "Target user can restate the problem in their own words." in rows[0][
+        "success_signals"
+    ].split(";")
+    assert rows[0]["evidence_reference_ids"].split(";")[0] == "design_brief.why_this_now"
+    assert rows[0]["source_idea_ids"] == "bu-journey-lead;bu-journey-support"
+    assert customer_journey_map_filename(report["design_brief"], fmt="csv").endswith(".csv")
+
+
+def test_render_design_brief_customer_journey_map_csv_sorts_by_sequence() -> None:
+    report = {
+        "design_brief": {
+            "id": "dbf-journey-csv",
+            "title": "Journey CSV",
+            "readiness_score": 72.5,
+            "source_idea_ids": ["fallback-source"],
+        },
+        "journey_stages": [
+            {
+                "id": "JM2",
+                "sequence": 2,
+                "name": "Second",
+                "owner": "Owner B",
+                "user_goals": ["second goal"],
+                "touchpoints": ["second touchpoint"],
+                "friction_points": ["second friction"],
+                "success_signals": ["second signal"],
+                "evidence_reference_ids": ["evidence-2"],
+                "source_idea_ids": ["source-2"],
+            },
+            {
+                "id": "JM1",
+                "sequence": 1,
+                "name": "First",
+                "owner": "Owner A",
+                "user_goals": ["first goal"],
+                "touchpoints": ["first touchpoint"],
+                "friction_points": ["first friction"],
+                "success_signals": ["first signal"],
+                "evidence_reference_ids": ["evidence-1"],
+                "source_idea_ids": [],
+            },
+        ],
+    }
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_customer_journey_map(report, fmt="csv")))
+    )
+
+    assert [(row["sequence"], row["stage_id"], row["source_idea_ids"]) for row in rows] == [
+        ("1", "JM1", "fallback-source"),
+        ("2", "JM2", "source-2"),
+    ]
 
 
 def test_build_design_brief_customer_journey_map_missing_brief_returns_none(tmp_path) -> None:
