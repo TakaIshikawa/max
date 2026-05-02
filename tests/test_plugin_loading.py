@@ -241,3 +241,19 @@ def test_openssf_scorecard_metadata_and_registry_loading():
     assert "token" in metadata.config_keys
     assert "token_env" in metadata.config_keys
     assert "local_path" in metadata.config_keys
+
+
+def test_hexpm_download_trends_metadata_and_registry_loading():
+    """Hex.pm download trends adapter is exposed through the registry."""
+    from max.sources.hexpm_download_trends import HexPmDownloadTrendsAdapter
+    from max.sources.registry import get_adapter, get_adapter_metadata, list_adapters
+
+    adapter = get_adapter("hexpm_download_trends")
+    metadata = get_adapter_metadata()["hexpm_download_trends"]
+
+    assert "hexpm_download_trends" in list_adapters()
+    assert isinstance(adapter, HexPmDownloadTrendsAdapter)
+    assert metadata.name == "hexpm_download_trends"
+    assert "packages" in metadata.config_keys
+    assert "period" in metadata.config_keys
+    assert "api_base_url" in metadata.config_keys
