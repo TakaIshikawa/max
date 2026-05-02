@@ -53,6 +53,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "funding_rounds": "max.sources.funding_rounds:FundingRoundsAdapter",
     "opencollective": "max.sources.opencollective:OpenCollectiveAdapter",
     "pypi_registry": "max.sources.pypi_registry:PyPIRegistryAdapter",
+    "wordpress_plugins": "max.sources.wordpress_plugins:WordPressPluginsAdapter",
     "python_peps": "max.sources.python_peps:PythonPepsAdapter",
     "pypi_download_trends": (
         "max.sources.pypi_download_trends:PyPIDownloadTrendsAdapter"
@@ -310,6 +311,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["keywords"],
         required_keys=[],
         description="Fetches PyPI package signals matching configured keywords.",
+    ),
+    "wordpress_plugins": AdapterMetadata(
+        name="wordpress_plugins",
+        config_keys=["queries", "watchlist_terms", "api_url"],
+        required_keys=[],
+        description="Searches the WordPress.org plugin directory for configured query terms.",
     ),
     "python_peps": AdapterMetadata(
         name="python_peps",
