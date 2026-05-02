@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_buyer_faq import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_buyer_faq,
     render_design_brief_buyer_faq,
@@ -126,6 +129,93 @@ def test_render_design_brief_buyer_faq_json_is_deterministic_and_preserves_refs(
     assert refs["sig-faq-security"]["source_type"] == "security"
     with pytest.raises(ValueError):
         render_design_brief_buyer_faq(report, fmt="yaml")
+
+
+def test_render_design_brief_buyer_faq_csv_has_stable_header_and_rows(tmp_path) -> None:
+    store = Store(str(tmp_path / "buyer_faq_csv.db"))
+    try:
+        brief_id = _seed_supported_brief(store)
+        report = build_design_brief_buyer_faq(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_buyer_faq(report, fmt="csv")
+    repeated = render_design_brief_buyer_faq(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == len(report["questions"])
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["design_brief_title"] == "Buyer FAQ Brief"
+    assert rows[0]["buyer"] == "VP of Sales"
+    assert rows[0]["specific_user"] == "solution engineer"
+    assert rows[0]["workflow_context"] == "buyer discovery handoff"
+    assert rows[0]["question_id"] == "FAQ1"
+    assert rows[0]["category"] == "problem_fit"
+    assert rows[0]["question"] == report["questions"][0]["question"]
+    assert rows[0]["answer"] == report["questions"][0]["answer"]
+    assert rows[0]["confidence"] == str(report["questions"][0]["confidence"])
+    assert "sig-faq-problem" in rows[0]["evidence_ref_ids"]
+    assert "bu-faq-lead" in rows[0]["evidence_source_idea_ids"]
+    assert rows[0]["source_idea_ids"] == "bu-faq-lead"
+    assert rows[0]["missing_inputs"] == ""
+
+
+def test_render_design_brief_buyer_faq_csv_escapes_special_values(tmp_path) -> None:
+    store = Store(str(tmp_path / "buyer_faq_csv_escape.db"))
+    try:
+        brief_id = _seed_supported_brief(store)
+        report = build_design_brief_buyer_faq(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["design_brief"]["title"] = 'Buyer FAQ, "Enterprise"\nPilot'
+    report["summary"]["buyer"] = 'VP, "Sales"'
+    report["questions"] = [dict(report["questions"][0])]
+    report["questions"][0].update(
+        {
+            "question": 'Can buyers trust "FAQ", export?\nAlways?',
+            "answer": 'Yes, when evidence is current,\nand objections are quoted "clearly".',
+        }
+    )
+
+    csv_text = render_design_brief_buyer_faq(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 1
+    assert rows[0]["design_brief_title"] == 'Buyer FAQ, "Enterprise"\nPilot'
+    assert rows[0]["buyer"] == 'VP, "Sales"'
+    assert rows[0]["question"] == 'Can buyers trust "FAQ", export?\nAlways?'
+    assert rows[0]["answer"] == 'Yes, when evidence is current,\nand objections are quoted "clearly".'
+    assert '"Buyer FAQ, ""Enterprise""\nPilot"' in csv_text
+    assert '"Can buyers trust ""FAQ"", export?\nAlways?"' in csv_text
+
+
+def test_render_design_brief_buyer_faq_csv_empty_questions_is_header_only() -> None:
+    csv_text = render_design_brief_buyer_faq({"questions": []}, fmt="csv")
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    reader = csv.DictReader(StringIO(csv_text))
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert list(reader) == []
+
+
+def test_render_design_brief_buyer_faq_unsupported_format_raises(tmp_path) -> None:
+    store = Store(str(tmp_path / "buyer_faq_format.db"))
+    try:
+        brief_id = _seed_supported_brief(store)
+        report = build_design_brief_buyer_faq(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    with pytest.raises(ValueError):
+        render_design_brief_buyer_faq(report, fmt="xml")
 
 
 def test_build_design_brief_buyer_faq_missing_brief_returns_none(tmp_path) -> None:
