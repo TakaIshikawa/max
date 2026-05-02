@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_executive_memo import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_executive_memo,
     render_design_brief_executive_memo,
@@ -124,6 +127,12 @@ def test_build_design_brief_executive_memo_is_deterministic_for_persisted_brief(
     assert memo["evidence_highlights"]
     assert memo["market_size_confidence"]["level"] in {"medium", "high"}
     assert memo["top_risks"][0]["title"] == "Owner alignment may be unclear"
+    assert memo["decisions_needed"]
+    assert [milestone["title"] for milestone in memo["milestones"]] == [
+        "Build memo composer",
+        "Expose API export",
+    ]
+    assert memo["next_actions"][0]["title"] == "Validation next step"
     assert memo["validation_next_step"]["action"]
     assert memo["owner_ask"].startswith("Assign an owner")
 
@@ -147,6 +156,83 @@ def test_render_design_brief_executive_memo_json_markdown_and_invalid_format(tmp
     assert "## Risks" in markdown
     assert "## Validation Next Step" in markdown
     assert "Owner alignment may be unclear" in markdown
+
+    with pytest.raises(ValueError):
+        render_design_brief_executive_memo(memo, fmt="yaml")
+
+
+def test_render_design_brief_executive_memo_csv_headers_rows_and_nested_cells(tmp_path) -> None:
+    store = Store(db_path=str(tmp_path / "executive_memo_csv.db"), wal_mode=True)
+    try:
+        brief_id = _seed_design_brief(store)
+        memo = build_design_brief_executive_memo(store, brief_id)
+    finally:
+        store.close()
+
+    assert memo is not None
+    csv_text = render_design_brief_executive_memo(memo, fmt="csv")
+    repeated = render_design_brief_executive_memo(memo, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+
+    sections = {row["section"] for row in rows}
+    assert {
+        "summary",
+        "evidence",
+        "risks",
+        "decisions_needed",
+        "milestones",
+        "next_actions",
+    } <= sections
+
+    summary = rows[0]
+    assert summary["design_brief_id"] == brief_id
+    assert summary["design_brief_title"] == "Executive Memo Brief"
+    assert summary["section"] == "summary"
+    assert summary["item_id"] == "recommendation"
+    assert summary["recommendation"] == "approve-validation"
+    assert json.loads(summary["source_idea_ids"]) == ["bu-memo-lead"]
+
+    evidence = next(row for row in rows if row["section"] == "evidence")
+    evidence_detail = json.loads(evidence["detail"])
+    assert evidence["priority"] in {"strong", "moderate", "weak"}
+    assert "claim" in evidence_detail
+    assert set(evidence_detail["supporting_signal_ids"]) <= {
+        "sig-memo-forum",
+        "sig-memo-funding",
+        "sig-memo-survey",
+    }
+    assert evidence_detail["supporting_signal_ids"]
+    assert json.loads(evidence["source_idea_ids"]) == ["bu-memo-lead"]
+
+    risk = next(row for row in rows if row["section"] == "risks")
+    risk_detail = json.loads(risk["detail"])
+    assert risk["item_title"] == "Owner alignment may be unclear"
+    assert risk["severity"]
+    assert risk["priority"]
+    assert risk_detail["validation_action"]
+
+    decision = next(
+        row for row in rows if row["section"] == "decisions_needed" and row["item_id"] == "DEC1"
+    )
+    assert decision["owner"] == "business owner"
+    assert decision["recommendation"] == "approve-validation"
+
+    milestone = next(
+        row for row in rows if row["section"] == "milestones" and row["item_id"] == "M1"
+    )
+    assert milestone["item_title"] == "Build memo composer"
+    assert milestone["recommendation"] == "track"
+
+    action = next(
+        row for row in rows if row["section"] == "next_actions" and row["item_id"] == "ACT1"
+    )
+    assert action["owner"] == "assigned owner"
+    assert action["detail"]
 
     with pytest.raises(ValueError):
         render_design_brief_executive_memo(memo, fmt="yaml")
