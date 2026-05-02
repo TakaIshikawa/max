@@ -221,6 +221,20 @@ def test_github_actions_metadata_and_registry_loading():
     assert "workflow_names" in metadata.config_keys
     assert "conclusions" in metadata.config_keys
     assert "max_age_days" in metadata.config_keys
+
+
+def test_github_repository_topics_metadata_and_registry_loading():
+    """GitHub repository topics adapter is exposed through the registry with metadata."""
+    from max.sources.github_repository_topics import GitHubRepositoryTopicsAdapter
+    from max.sources.registry import get_adapter, get_adapter_metadata
+
+    adapter = get_adapter("github_repository_topics")
+    metadata = get_adapter_metadata()["github_repository_topics"]
+
+    assert isinstance(adapter, GitHubRepositoryTopicsAdapter)
+    assert metadata.name == "github_repository_topics"
+    assert "repositories" in metadata.config_keys
+    assert "token" in metadata.config_keys
     assert "token_env" in metadata.config_keys
 
 
