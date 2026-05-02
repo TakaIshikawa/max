@@ -2,14 +2,44 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from datetime import datetime, timezone
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.roadmap.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "generated_at",
+    "design_brief_id",
+    "design_brief_title",
+    "design_brief_domain",
+    "design_brief_theme",
+    "readiness_score",
+    "design_status",
+    "lead_idea_id",
+    "design_brief_source_idea_ids",
+    "row_type",
+    "phase_order",
+    "phase_id",
+    "phase_title",
+    "phase_goal",
+    "milestone_order",
+    "milestone_id",
+    "milestone_title",
+    "owner_role",
+    "rationale",
+    "dependency_ids",
+    "exit_criteria",
+    "risk_references",
+    "source_idea_ids",
+    "source_fields",
+)
 
 PHASES: tuple[dict[str, str], ...] = (
     {
@@ -92,6 +122,8 @@ def render_design_brief_roadmap(roadmap: dict[str, Any], fmt: str = "json") -> s
     """Render a roadmap for MCP consumers."""
     if fmt == "json":
         return json.dumps(roadmap, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(roadmap)
     if fmt != "markdown":
         raise ValueError(f"Unsupported roadmap format: {fmt}")
 
@@ -122,6 +154,150 @@ def render_design_brief_roadmap(roadmap: dict[str, Any], fmt: str = "json") -> s
                 ]
             )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(roadmap: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(roadmap):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(roadmap: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    phases = [phase for phase in roadmap.get("phases", []) if isinstance(phase, dict)]
+    if not phases:
+        return rows
+
+    items_by_phase = _items_by_phase(roadmap)
+    for phase_order, phase in enumerate(phases, start=1):
+        phase_items = _phase_items(phase, items_by_phase)
+        rows.append(_csv_row(roadmap, phase, phase_order, row_type="phase", items=phase_items))
+        for milestone_order, item in enumerate(phase_items, start=1):
+            rows.append(
+                _csv_row(
+                    roadmap,
+                    phase,
+                    phase_order,
+                    row_type="milestone",
+                    item=item,
+                    milestone_order=milestone_order,
+                )
+            )
+    return rows
+
+
+def _items_by_phase(roadmap: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    items_by_phase: dict[str, list[dict[str, Any]]] = {}
+    for item in roadmap.get("items", []) or []:
+        if isinstance(item, dict):
+            items_by_phase.setdefault(str(item.get("phase", "")), []).append(item)
+    return items_by_phase
+
+
+def _phase_items(phase: dict[str, Any], items_by_phase: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    phase_items = [item for item in phase.get("items", []) or [] if isinstance(item, dict)]
+    if phase_items:
+        return phase_items
+    return items_by_phase.get(str(phase.get("id", "")), [])
+
+
+def _csv_row(
+    roadmap: dict[str, Any],
+    phase: dict[str, Any],
+    phase_order: int,
+    *,
+    row_type: str,
+    item: dict[str, Any] | None = None,
+    items: list[dict[str, Any]] | None = None,
+    milestone_order: int | None = None,
+) -> dict[str, str]:
+    brief = roadmap.get("design_brief", {})
+    values: dict[str, Any] = {
+        "schema_version": roadmap.get("schema_version", ""),
+        "generated_at": (roadmap.get("source") or {}).get("generated_at", ""),
+        "design_brief_id": brief.get("id", ""),
+        "design_brief_title": brief.get("title", ""),
+        "design_brief_domain": brief.get("domain", ""),
+        "design_brief_theme": brief.get("theme", ""),
+        "readiness_score": brief.get("readiness_score", ""),
+        "design_status": brief.get("design_status", ""),
+        "lead_idea_id": brief.get("lead_idea_id", ""),
+        "design_brief_source_idea_ids": brief.get("source_idea_ids", []),
+        "row_type": row_type,
+        "phase_order": phase_order,
+        "phase_id": phase.get("id", ""),
+        "phase_title": phase.get("title", ""),
+        "phase_goal": phase.get("goal", ""),
+        "milestone_order": milestone_order or "",
+        "milestone_id": item.get("id", "") if item else "",
+        "milestone_title": item.get("title", "") if item else "",
+        "owner_role": item.get("owner_role", "") if item else "",
+        "rationale": item.get("rationale", "") if item else "",
+        "dependency_ids": item.get("dependency_ids", []) if item else [],
+        "exit_criteria": item.get("exit_criteria", "") if item else "",
+        "risk_references": _risk_references(item=item, items=items),
+        "source_idea_ids": item.get("source_idea_ids", []) if item else _phase_source_idea_ids(items or []),
+        "source_fields": item.get("source_fields", []) if item else _phase_source_fields(items or []),
+    }
+    return {column: _csv_cell(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _risk_references(
+    *,
+    item: dict[str, Any] | None = None,
+    items: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    if item is not None:
+        return _item_risk_references(item)
+
+    risks: list[str] = []
+    for phase_item in items or []:
+        risks.extend(_item_risk_references(phase_item))
+    return _dedupe_strings(risks)
+
+
+def _item_risk_references(item: dict[str, Any]) -> list[str]:
+    source_fields = set(_string_list(item.get("source_fields")))
+    if "risks" in source_fields or "domain_risks" in source_fields:
+        return _string_list(item.get("rationale"))
+    return []
+
+
+def _phase_source_idea_ids(items: list[dict[str, Any]]) -> list[str]:
+    source_ids: list[str] = []
+    for item in items:
+        source_ids.extend(_string_list(item.get("source_idea_ids")))
+    return list(dict.fromkeys(source_ids))
+
+
+def _phase_source_fields(items: list[dict[str, Any]]) -> list[str]:
+    source_fields: list[str] = []
+    for item in items:
+        source_fields.extend(_string_list(item.get("source_fields")))
+    return list(dict.fromkeys(source_fields))
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return json.dumps([_csv_nested(item) for item in value], sort_keys=True, separators=(",", ":"))
+    if isinstance(value, dict):
+        return json.dumps(_csv_nested(value), sort_keys=True, separators=(",", ":"))
+    return str(value)
+
+
+def _csv_nested(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _csv_nested(nested) for key, nested in sorted(value.items(), key=lambda pair: str(pair[0]))}
+    if isinstance(value, (list, tuple)):
+        return [_csv_nested(item) for item in value]
+    if value is None:
+        return ""
+    return str(value)
 
 
 def _build_items(
