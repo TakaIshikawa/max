@@ -17,6 +17,10 @@ from max.spec.compliance_checklist import (
     render_compliance_checklist_markdown,
 )
 from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
+from max.spec.customer_onboarding_plan import (
+    generate_customer_onboarding_plan,
+    render_customer_onboarding_plan_markdown,
+)
 from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_markdown,
@@ -92,6 +96,7 @@ __all__ = [
     "generate_architecture_decision_record",
     "generate_compliance_checklist",
     "generate_cost_estimate",
+    "generate_customer_onboarding_plan",
     "generate_data_classification",
     "generate_data_retention_schedule",
     "generate_dependency_inventory",
@@ -126,6 +131,7 @@ __all__ = [
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
+    "render_customer_onboarding_plan_markdown",
     "render_data_classification_markdown",
     "render_data_retention_schedule_markdown",
     "render_dependency_inventory_markdown",
