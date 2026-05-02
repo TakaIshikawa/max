@@ -60,6 +60,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "pypi_classifiers": "max.sources.pypi_classifiers:PyPIClassifiersAdapter",
     "pypi_releases": "max.sources.pypi_releases:PyPIReleasesAdapter",
     "pubdev": "max.sources.pubdev:PubDevAdapter",
+    "deno_registry": "max.sources.deno_registry:DenoRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
     "github_pull_requests": "max.sources.github_pull_requests:GitHubPullRequestsAdapter",
     "github_actions": "max.sources.github_actions:GitHubActionsAdapter",
@@ -358,6 +359,20 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["packages", "max_results", "max_items", "base_url"],
         required_keys=[],
         description="Fetches Pub.dev Dart and Flutter package metadata and score trend signals.",
+    ),
+    "deno_registry": AdapterMetadata(
+        name="deno_registry",
+        config_keys=[
+            "queries",
+            "categories",
+            "package_names",
+            "packages",
+            "max_results",
+            "api_base_url",
+            "registry_base_url",
+        ],
+        required_keys=[],
+        description="Searches the Deno JSR package registry for TypeScript module signals.",
     ),
     "github_issues": AdapterMetadata(
         name="github_issues",
