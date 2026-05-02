@@ -52,6 +52,7 @@ from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.incident_response_plan import (
     generate_incident_response_plan,
+    render_incident_response_plan_csv,
     render_incident_response_plan_markdown,
 )
 from max.spec.launch_checklist import generate_launch_checklist
@@ -165,6 +166,7 @@ __all__ = [
     "render_deployment_topology_markdown",
     "render_disaster_recovery_plan_markdown",
     "render_incident_response_plan_markdown",
+    "render_incident_response_plan_csv",
     "render_migration_checklist_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
