@@ -21,12 +21,18 @@ CSV_COLUMNS: tuple[str, ...] = (
     "readiness_score",
     "review_gate",
     "row_type",
+    "area",
+    "criterion",
     "item_id",
     "item_title",
     "owner",
+    "status",
     "severity",
     "priority",
     "principle",
+    "impact",
+    "recommendation",
+    "evidence",
     "description_or_check",
     "affected_user_group_ids",
     "wcag_refs",
@@ -320,9 +326,15 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             _csv_row(
                 report,
                 row_type="affected_user_group",
+                area="affected_user_group",
+                criterion=group.get("name"),
                 item_id=group.get("id"),
                 item_title=group.get("name"),
                 owner=group.get("owner"),
+                status=group.get("status"),
+                impact=group.get("relevance"),
+                recommendation=group.get("access_needs"),
+                evidence=group.get("source_idea_ids"),
                 description_or_check=group.get("relevance"),
                 affected_user_group_ids=[group.get("id")],
                 access_needs=group.get("access_needs"),
@@ -334,10 +346,20 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             _csv_row(
                 report,
                 row_type="accessibility_risk",
+                area="risk",
+                criterion=risk.get("title"),
                 item_id=risk.get("id"),
                 item_title=risk.get("title"),
                 owner=risk.get("owner"),
+                status=risk.get("status"),
                 severity=risk.get("severity"),
+                impact=risk.get("description"),
+                recommendation=_risk_recommendation(report, risk),
+                evidence=_csv_evidence(
+                    risk.get("source_idea_ids"),
+                    risk.get("affected_user_group_ids"),
+                    risk.get("wcag_refs"),
+                ),
                 description_or_check=risk.get("description"),
                 affected_user_group_ids=risk.get("affected_user_group_ids"),
                 wcag_refs=risk.get("wcag_refs"),
@@ -349,10 +371,20 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             _csv_row(
                 report,
                 row_type="wcag_oriented_check",
+                area=check.get("principle"),
+                criterion=check.get("check"),
                 item_id=check.get("id"),
                 item_title=check.get("check"),
                 owner=check.get("owner"),
+                status=check.get("status"),
                 principle=check.get("principle"),
+                impact=check.get("risk_ids"),
+                recommendation=check.get("validation_method"),
+                evidence=_csv_evidence(
+                    check.get("source_idea_ids"),
+                    check.get("wcag_refs"),
+                    check.get("risk_ids"),
+                ),
                 description_or_check=check.get("check"),
                 wcag_refs=check.get("wcag_refs"),
                 risk_ids=check.get("risk_ids"),
@@ -365,9 +397,18 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             _csv_row(
                 report,
                 row_type="inclusive_design_opportunity",
+                area="inclusive_design",
+                criterion=opportunity.get("title"),
                 item_id=opportunity.get("id"),
                 item_title=opportunity.get("title"),
                 owner=opportunity.get("owner"),
+                status=opportunity.get("status"),
+                impact=opportunity.get("expected_benefit"),
+                recommendation=opportunity.get("opportunity"),
+                evidence=_csv_evidence(
+                    opportunity.get("source_idea_ids"),
+                    opportunity.get("affected_user_group_ids"),
+                ),
                 description_or_check=opportunity.get("opportunity"),
                 affected_user_group_ids=opportunity.get("affected_user_group_ids"),
                 source_idea_ids=opportunity.get("source_idea_ids"),
@@ -378,10 +419,20 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             _csv_row(
                 report,
                 row_type="validation_task",
+                area="validation",
+                criterion=task.get("task"),
                 item_id=task.get("id"),
                 item_title=task.get("task"),
                 owner=task.get("owner"),
+                status=task.get("status"),
                 priority=task.get("priority"),
+                impact=task.get("acceptance_criteria"),
+                recommendation=task.get("method"),
+                evidence=_csv_evidence(
+                    task.get("source_idea_ids"),
+                    task.get("risk_ids"),
+                    task.get("wcag_check_ids"),
+                ),
                 description_or_check=task.get("method"),
                 risk_ids=task.get("risk_ids"),
                 wcag_check_ids=task.get("wcag_check_ids"),
@@ -406,6 +457,20 @@ def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
         **values,
     }
     return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _risk_recommendation(report: dict[str, Any], risk: dict[str, Any]) -> str:
+    gate = (report.get("summary") or {}).get("review_gate")
+    owner = risk.get("owner")
+    if gate and owner:
+        return f"{owner} to resolve or explicitly accept before {gate}."
+    if owner:
+        return f"{owner} to resolve or explicitly accept."
+    return ""
+
+
+def _csv_evidence(*values: Any) -> str:
+    return _csv_join(values)
 
 
 def _csv_join(values: Any, *, separator: str = "; ") -> str:
