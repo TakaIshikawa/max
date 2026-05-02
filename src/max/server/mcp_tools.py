@@ -156,6 +156,10 @@ from max.analysis.design_brief_technical_feasibility import (
     build_design_brief_technical_feasibility,
     render_design_brief_technical_feasibility,
 )
+from max.analysis.design_brief_unit_economics import (
+    build_design_brief_unit_economics,
+    render_design_brief_unit_economics,
+)
 from max.analysis.design_brief_success_metrics import (
     build_design_brief_success_metrics,
     render_design_brief_success_metrics,
@@ -1959,6 +1963,43 @@ def get_design_brief_pricing_strategy(brief_id: str, format: str = "json") -> di
                 )
 
         rendered = render_design_brief_pricing_strategy(strategy, fmt=fmt)
+        if fmt == "markdown":
+            return {"id": brief_id, "format": "markdown", "markdown": rendered}
+        return json.loads(rendered)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_unit_economics(brief_id: str, format: str = "json") -> dict:
+    """Get the unit economics report for a persisted design brief.
+
+    Set format to "json" for a structured payload or "markdown" for rendered
+    economics handoff text.
+
+    Raises:
+        ResourceNotFoundError: If the design brief does not exist.
+        ValidationError: If the requested format is unsupported.
+    """
+    try:
+        fmt = format.strip().lower()
+        if fmt not in {"json", "markdown"}:
+            raise ValidationError(
+                f"Unsupported unit economics format: {format}",
+                field="format",
+                expected="json or markdown",
+                actual=format,
+            )
+
+        with _get_store() as store:
+            report = build_design_brief_unit_economics(store, brief_id)
+            if not report:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render_design_brief_unit_economics(report, fmt=fmt)
         if fmt == "markdown":
             return {"id": brief_id, "format": "markdown", "markdown": rendered}
         return json.loads(rendered)
@@ -4641,6 +4682,11 @@ def design_brief_pricing_strategy_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_pricing_strategy(brief_id), indent=2)
 
 
+def design_brief_unit_economics_detail(brief_id: str) -> str:
+    """Get the unit economics report for a specific design brief."""
+    return json.dumps(get_design_brief_unit_economics(brief_id), indent=2)
+
+
 def design_brief_buyer_faq_detail(brief_id: str) -> str:
     """Get the buyer FAQ for a specific design brief."""
     return json.dumps(get_design_brief_buyer_faq(brief_id), indent=2)
@@ -4848,6 +4894,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_okrs)
     mcp.tool(get_design_brief_support_playbook)
     mcp.tool(get_design_brief_pricing_strategy)
+    mcp.tool(get_design_brief_unit_economics)
     mcp.tool(get_design_brief_buyer_faq)
     mcp.tool(get_design_brief_sales_battlecard)
     mcp.tool(get_design_brief_instrumentation_plan)
@@ -4956,6 +5003,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-pricing-strategies://{brief_id}")(
         design_brief_pricing_strategy_detail
+    )
+    mcp.resource("design-brief-unit-economics://{brief_id}")(
+        design_brief_unit_economics_detail
     )
     mcp.resource("design-briefs://{brief_id}/buyer-faq")(design_brief_buyer_faq_detail)
     mcp.resource("design-briefs://{brief_id}/sales-battlecard")(
