@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.stakeholder_handoff import generate_stakeholder_handoff
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
@@ -71,7 +72,8 @@ def generate_spec_preview(
         "evaluation": _evaluation_payload(evaluation),
     }
     spec["artifacts"] = {
-        "stakeholder_handoff": generate_stakeholder_handoff(unit, evaluation, spec)
+        "stakeholder_handoff": generate_stakeholder_handoff(unit, evaluation, spec),
+        "smoke_test_plan": generate_smoke_test_plan(spec),
     }
     return spec
 
