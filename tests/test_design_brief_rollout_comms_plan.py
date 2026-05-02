@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_rollout_comms_plan import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_rollout_comms_plan,
@@ -83,6 +86,93 @@ def test_render_design_brief_rollout_comms_plan_markdown_and_json(tmp_path) -> N
     assert "## Readiness Warnings" in markdown
 
 
+def test_render_design_brief_rollout_comms_plan_csv_rows_and_order(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_rollout_comms_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_rollout_comms_plan(report, fmt="csv")
+    repeated = render_design_brief_rollout_comms_plan(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == (
+        ["target_audiences"] * len(report["target_audiences"])
+        + ["launch_phases"] * len(report["launch_phases"])
+        + ["channel_message_matrix"] * len(report["channel_message_matrix"])
+        + ["internal_enablement_notes"] * len(report["internal_enablement_notes"])
+        + ["customer_facing_announcement_drafts"]
+        * len(report["customer_facing_announcement_drafts"])
+        + ["risk_faq_hooks"] * len(report["risk_faq_hooks"])
+    )
+    assert [row["item_id"] for row in rows[:4]] == [
+        "internal_product_engineering",
+        "internal_sales_success_support",
+        "pilot_customers",
+        "external_market",
+    ]
+    assert [row["item_id"] for row in rows[4:9]] == [
+        "prep",
+        "internal_enablement",
+        "controlled_launch",
+        "broad_announcement",
+        "post_launch_followup",
+    ]
+
+    matrix_row = next(row for row in rows if row["item_id"] == "RCM3")
+    assert matrix_row["design_brief_id"] == brief_id
+    assert matrix_row["design_brief_title"] == "Rollout Comms Brief"
+    assert matrix_row["audience"] == "Pilot customers"
+    assert matrix_row["channel"] == "email"
+    assert matrix_row["timing"] == "Controlled customer launch"
+    assert matrix_row["owner"] == "Customer success lead"
+    assert matrix_row["message"] == report["channel_message_matrix"][2]["message"]
+    assert matrix_row["call_to_action"] == "Join the controlled rollout and share first-use feedback."
+
+
+def test_render_design_brief_rollout_comms_plan_csv_compact_details(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_rollout_comms_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_rollout_comms_plan(report, fmt="csv")))
+    )
+
+    audience_row = rows[0]
+    matrix_row = next(row for row in rows if row["item_id"] == "RCM1")
+    draft_row = next(row for row in rows if row["item_id"] == "CFA1")
+
+    assert audience_row["channel"] == '["launch brief","engineering sync"]'
+    assert json.loads(audience_row["details"]) == {
+        "need": "Understand scope, owner handoffs, validation gates, and rollback triggers.",
+        "source_idea_ids": ["bu-rollout-lead", "bu-rollout-support"],
+        "type": "internal",
+    }
+    assert audience_row["details"] == (
+        '{"need":"Understand scope, owner handoffs, validation gates, and rollback triggers.",'
+        '"source_idea_ids":["bu-rollout-lead","bu-rollout-support"],"type":"internal"}'
+    )
+    assert json.loads(matrix_row["details"])["source_fields"] == [
+        "mvp_scope",
+        "workflow_context",
+        "merged_product_concept",
+    ]
+    assert draft_row["details"] == json.dumps(
+        json.loads(draft_row["details"]), sort_keys=True, separators=(",", ":")
+    )
+    assert brief_id
+
+
 def test_rollout_comms_plan_weak_readiness_warnings(tmp_path) -> None:
     store, brief_id = _store_with_sparse_brief(tmp_path)
     try:
@@ -110,6 +200,10 @@ def test_rollout_comms_plan_filename_generation() -> None:
     assert (
         rollout_comms_plan_filename(design_brief, fmt="json")
         == "dbf-123-Rollout-Comms-Plan-Alpha-rollout-comms-plan.json"
+    )
+    assert (
+        rollout_comms_plan_filename(design_brief, fmt="csv")
+        == "dbf-123-Rollout-Comms-Plan-Alpha-rollout-comms-plan.csv"
     )
 
 
