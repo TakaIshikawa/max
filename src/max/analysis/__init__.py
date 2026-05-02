@@ -9,6 +9,7 @@ from max.analysis.profile_evidence_diversity import (
     build_profile_evidence_diversity,
     build_profile_evidence_diversity_report,
     render_profile_evidence_diversity,
+    render_profile_evidence_diversity_csv,
     render_profile_evidence_diversity_markdown,
     render_profile_evidence_diversity_report,
 )
@@ -189,6 +190,7 @@ __all__ = [
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",
     "render_profile_evidence_diversity",
+    "render_profile_evidence_diversity_csv",
     "render_profile_evidence_diversity_markdown",
     "render_profile_evidence_diversity_report",
     "renewal_expansion_plan_filename",
