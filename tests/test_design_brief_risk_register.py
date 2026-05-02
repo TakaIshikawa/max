@@ -130,7 +130,7 @@ def test_build_design_brief_risk_register_missing_brief_returns_none(tmp_path) -
         store.close()
 
 
-def test_render_design_brief_risk_register_json_and_markdown(tmp_path) -> None:
+def test_render_design_brief_risk_register_json_round_trips_pretty_and_deterministic(tmp_path) -> None:
     store = Store(str(tmp_path / "max.db"))
     try:
         brief_id = _seed_brief(store)
@@ -139,14 +139,66 @@ def test_render_design_brief_risk_register_json_and_markdown(tmp_path) -> None:
         store.close()
 
     assert register is not None
-    parsed = json.loads(render_design_brief_risk_register(register, "json"))
+    rendered = render_design_brief_risk_register(register, "json")
+    parsed = json.loads(rendered)
+
+    assert rendered.endswith("\n")
+    assert rendered.startswith('{\n  "design_brief":')
+    assert parsed == register
     assert parsed["schema_version"] == SCHEMA_VERSION
+    assert parsed["design_brief"]["id"] == brief_id
+    assert [risk["id"] for risk in parsed["risks"]] == [
+        "dbrr-001-compliance-privacy-review-is-required-for-custo",
+        "dbrr-002-dependency-dependency-risk-from-external-api-ch",
+        "dbrr-003-dependency-framework-adapters-may-change-quickl",
+        "dbrr-004-market-buyer-willingness-to-adopt-the-workf",
+        "dbrr-005-evidence-uneven-source-evidence",
+    ]
+
+
+def test_render_design_brief_risk_register_json_preserves_kind_when_present(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        register = build_design_brief_risk_register(store, brief_id)
+    finally:
+        store.close()
+
+    assert register is not None
+    report_with_kind = {"kind": "max.design_brief.risk_register", **register}
+    parsed = json.loads(render_design_brief_risk_register(report_with_kind, "json"))
+
+    assert parsed["kind"] == "max.design_brief.risk_register"
+    assert parsed["schema_version"] == SCHEMA_VERSION
+
+
+def test_render_design_brief_risk_register_markdown_unchanged(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        _brief_id = _seed_brief(store)
+        register = build_design_brief_risk_register(store, _brief_id)
+    finally:
+        store.close()
+
+    assert register is not None
 
     markdown = render_design_brief_risk_register(register, "markdown")
     assert markdown.startswith("# Risk Register: Risk Register Brief")
     assert "Schema: `max.design_brief.risk_register.v1`" in markdown
+    assert "Risks: 5" in markdown
+    assert "## 1. Privacy review is required for customer workflow data" in markdown
     assert "Validation action:" in markdown
 
+
+def test_render_design_brief_risk_register_unsupported_format_raises(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        register = build_design_brief_risk_register(store, brief_id)
+    finally:
+        store.close()
+
+    assert register is not None
     with pytest.raises(ValueError):
         render_design_brief_risk_register(register, "yaml")
 
