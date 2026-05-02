@@ -141,6 +141,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
+    "nuget_package_activity": (
+        "max.sources.nuget_package_activity:NuGetPackageActivityAdapter"
+    ),
     "maven_central": "max.sources.maven_central:MavenCentralAdapter",
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
     "rubygems_maintainer_activity": (
@@ -1012,6 +1015,25 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "package_names", "include_prerelease"],
         required_keys=[],
         description="Fetches NuGet package metadata and recent version activity for configured packages and search terms.",
+    ),
+    "nuget_package_activity": AdapterMetadata(
+        name="nuget_package_activity",
+        config_keys=[
+            "packages",
+            "package_names",
+            "queries",
+            "search_terms",
+            "include_prerelease",
+            "max_results_per_query",
+            "search_url",
+            "registration_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches NuGet package release, download, tag, and project metadata "
+            "as .NET ecosystem activity signals."
+        ),
     ),
     "maven_central": AdapterMetadata(
         name="maven_central",
