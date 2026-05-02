@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,6 +13,16 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.failure_modes"
 SCHEMA_VERSION = "max.design_brief.failure_modes.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "rank",
+    "failure_mode",
+    "trigger",
+    "impact",
+    "likelihood",
+    "mitigation",
+    "owner_next_action",
+    "evidence_source_references",
+)
 
 _CRITICAL_TERMS = (
     "compliance",
@@ -104,9 +116,11 @@ def build_design_brief_failure_modes(store: Store, brief_id: str) -> dict[str, A
 
 
 def render_design_brief_failure_modes(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render failure modes as JSON or Markdown."""
+    """Render failure modes as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported failure modes format: {fmt}")
 
@@ -174,10 +188,59 @@ def render_design_brief_failure_modes(report: dict[str, Any], fmt: str = "json")
 
 def failure_modes_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a failure modes export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "failure-modes"))
     return f"{brief_id}-{title}-failure-modes.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    modes = sorted(
+        report.get("failure_modes") or [],
+        key=lambda mode: (
+            -int(mode.get("risk_priority_number") or 0),
+            -int(mode.get("severity") or 0),
+            str(mode.get("id") or ""),
+        ),
+    )
+    for index, mode in enumerate(modes, start=1):
+        owner = _csv_text(mode.get("owner_role"))
+        next_action = _csv_text(mode.get("detection_method"))
+        rows.append(
+            _csv_row(
+                rank=mode.get("rank") or index,
+                failure_mode=mode.get("failure_mode"),
+                trigger=mode.get("cause"),
+                impact=mode.get("effect"),
+                likelihood=mode.get("likelihood"),
+                mitigation=mode.get("mitigation"),
+                owner_next_action=_csv_join([owner, next_action]),
+                evidence_source_references=_reference_text(mode.get("source_references") or []),
+            )
+        )
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, Any]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: list[Any], *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    return "" if value is None else str(value)
 
 
 def _failure_modes(
