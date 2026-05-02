@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 from max.analysis.design_brief_competitive_landscape import (
@@ -14,6 +16,25 @@ from max.analysis.design_brief_risk_register import build_design_brief_risk_regi
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.buyer_faq.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "design_status",
+    "readiness_score",
+    "buyer",
+    "specific_user",
+    "workflow_context",
+    "question_id",
+    "category",
+    "question",
+    "answer",
+    "confidence",
+    "evidence_ref_ids",
+    "evidence_source_idea_ids",
+    "source_idea_ids",
+    "missing_inputs",
+)
 
 CONCERN_AREAS: tuple[tuple[str, str], ...] = (
     ("problem_fit", "Problem Fit"),
@@ -104,9 +125,11 @@ def build_design_brief_buyer_faq(store: Store, brief_id: str) -> dict[str, Any] 
 
 
 def render_design_brief_buyer_faq(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a buyer FAQ as Markdown or deterministic JSON."""
+    """Render a buyer FAQ as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported buyer FAQ format: {fmt}")
 
@@ -143,6 +166,65 @@ def render_design_brief_buyer_faq(report: dict[str, Any], fmt: str = "markdown")
                 ]
             )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    source_idea_ids = _csv_join(brief.get("source_idea_ids") or [])
+    missing_inputs = _csv_join(item.get("input") for item in report.get("missing_inputs") or [])
+
+    rows: list[dict[str, Any]] = []
+    for item in report.get("questions") or []:
+        evidence_refs = item.get("evidence_refs") or []
+        evidence_ref_ids = [ref.get("id") for ref in evidence_refs]
+        source_ref_ids = [
+            ref.get("id")
+            for ref in evidence_refs
+            if ref.get("type") == "source_idea" or ref.get("source_type") == "buildable_unit"
+        ]
+        rows.append(
+            _csv_row(
+                design_brief_id=brief.get("id"),
+                design_brief_title=brief.get("title"),
+                design_status=brief.get("design_status"),
+                readiness_score=brief.get("readiness_score"),
+                buyer=summary.get("buyer"),
+                specific_user=summary.get("specific_user"),
+                workflow_context=summary.get("workflow_context"),
+                question_id=item.get("id"),
+                category=item.get("area"),
+                question=item.get("question"),
+                answer=item.get("answer"),
+                confidence=item.get("confidence"),
+                evidence_ref_ids=_csv_join(evidence_ref_ids),
+                evidence_source_idea_ids=_csv_join(source_ref_ids),
+                source_idea_ids=source_idea_ids,
+                missing_inputs=missing_inputs,
+            )
+        )
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    return "" if value is None else str(value)
 
 
 def _questions(
