@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
 import json
 
 import pytest
 
 from max.analysis.design_brief_prd import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_prd,
     render_design_brief_prd,
@@ -155,3 +158,121 @@ def test_render_design_brief_prd_json_and_markdown(tmp_path) -> None:
 
     with pytest.raises(ValueError):
         render_design_brief_prd(prd, "yaml")
+
+
+def test_render_design_brief_prd_csv_includes_metadata_sections_and_traceability(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        prd = build_design_brief_prd(store, brief_id)
+    finally:
+        store.close()
+
+    assert prd is not None
+    rendered = render_design_brief_prd(prd, "csv")
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert rows
+    assert rows[0]["schema_version"] == SCHEMA_VERSION
+    assert rows[0]["design_brief_title"] == "PRD Export Brief"
+    assert rows[0]["domain"] == "developer-tools"
+    assert rows[0]["theme"] == "handoff-export"
+    assert rows[0]["readiness_score"] == "86.0"
+
+    problem_row = next(row for row in rows if row["section_key"] == "problem")
+    assert problem_row["item_type"] == "section"
+    assert problem_row["item_id"] == "problem"
+    assert problem_row["priority"] == "high"
+    assert problem_row["source_idea_ids"] == "bu-prd-lead; bu-prd-support"
+    assert problem_row["evidence_ids"] == "sig-prd-handoff; ins-prd-1"
+
+    mvp_rows = [row for row in rows if row["section_key"] == "mvp_scope"]
+    assert [row["item_id"] for row in mvp_rows] == ["mvp_scope:1", "mvp_scope:2"]
+    assert [row["description"] for row in mvp_rows] == [
+        "Structured PRD endpoint",
+        "Markdown PRD export",
+    ]
+
+    evidence_rows = [row for row in rows if row["section_key"] == "evidence_links"]
+    assert {row["item_title"] for row in evidence_rows} >= {"sig-prd-handoff", "ins-prd-1"}
+    assert any("https://example.com/prd-handoff" in row["detail"] for row in evidence_rows)
+
+
+def test_render_design_brief_prd_csv_is_deterministic(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        prd = build_design_brief_prd(store, brief_id)
+    finally:
+        store.close()
+
+    assert prd is not None
+    assert render_design_brief_prd(prd, "csv") == render_design_brief_prd(prd, "csv")
+
+
+def test_render_design_brief_prd_csv_escapes_special_characters(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        prd = build_design_brief_prd(store, brief_id)
+    finally:
+        store.close()
+
+    assert prd is not None
+    prd["sections"]["problem"]["content"] = 'Problem has "quoted", comma\nand newline'
+    rendered = render_design_brief_prd(prd, "csv")
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert '"Problem has ""quoted"", comma\nand newline"' in rendered
+    problem_row = next(row for row in rows if row["section_key"] == "problem")
+    assert problem_row["description"] == 'Problem has "quoted", comma\nand newline'
+
+
+def test_render_design_brief_prd_csv_empty_sections_writes_header_only() -> None:
+    prd = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {
+            "id": "dbf-empty",
+            "title": "Empty PRD",
+            "domain": "",
+            "theme": "",
+            "readiness_score": 0.0,
+            "design_status": "",
+            "lead_idea_id": "",
+            "source_idea_ids": [],
+        },
+        "sections": {
+            "mvp_scope": {
+                "heading": "MVP Scope",
+                "content": [],
+                "source_fields": ["mvp_scope"],
+                "source_idea_ids": [],
+            },
+            "problem": {
+                "heading": "Problem",
+                "content": "",
+                "source_fields": ["problem"],
+                "source_idea_ids": [],
+            },
+        },
+        "source_ideas": [],
+    }
+
+    rendered = render_design_brief_prd(prd, "csv")
+
+    assert rendered == ",".join(CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(StringIO(rendered))) == []
+
+
+def test_render_design_brief_prd_csv_rejects_invalid_format(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        prd = build_design_brief_prd(store, brief_id)
+    finally:
+        store.close()
+
+    assert prd is not None
+    with pytest.raises(ValueError):
+        render_design_brief_prd(prd, "xml")
