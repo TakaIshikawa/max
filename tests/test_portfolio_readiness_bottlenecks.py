@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
+import pytest
 from max.analysis import build_portfolio_readiness_bottlenecks as exported_build
 from max.analysis import render_portfolio_readiness_bottlenecks as exported_render
 from max.analysis.portfolio_readiness_bottlenecks import (
@@ -151,6 +154,64 @@ def test_readiness_bottlenecks_status_filter_and_exports(store: Store) -> None:
     assert exported_render(report) == render_portfolio_readiness_bottlenecks(report)
 
 
+def test_readiness_bottlenecks_csv_renderer_includes_stable_check_rows(
+    store: Store,
+) -> None:
+    for unit in [
+        _unit(
+            "bu-a",
+            "A",
+            status="approved",
+            quality=8.1,
+            evidence=[],
+            validation_plan="",
+            tech="React UI.",
+            stack={"frontend": "react"},
+            buyer="platform leader",
+            specific_user="release manager",
+        ),
+        _unit(
+            "bu-b",
+            "B",
+            status="approved",
+            quality=8.2,
+            evidence=[],
+            validation_plan="",
+            tech="React UI.",
+            stack={"frontend": "react"},
+            buyer="platform leader",
+            specific_user="release manager",
+        ),
+    ]:
+        store.insert_buildable_unit(unit)
+
+    report = build_portfolio_readiness_bottlenecks(store)
+
+    csv_text = render_portfolio_readiness_bottlenecks(report, fmt="csv")
+    assert csv_text.startswith(
+        "bottleneck_id,check_id,category,title,severity,affected_count,"
+        "portfolio_share,affected_idea_ids,failed_check_ids,recommendation,owner,action\n"
+    )
+    assert csv_text == render_portfolio_readiness_bottlenecks(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    evidence_row = next(
+        row
+        for row in rows
+        if row["bottleneck_id"] == "readiness:evidence_gaps"
+        and row["check_id"] == "readiness_evidence_gaps:evidence_ids"
+    )
+    assert evidence_row["severity"] == "high"
+    assert evidence_row["affected_count"] == "2"
+    assert evidence_row["affected_idea_ids"] == "bu-a;bu-b"
+    assert evidence_row["failed_check_ids"] == (
+        "readiness_evidence_gaps:evidence_ids;"
+        "readiness_evidence_gaps:evidence_rationale"
+    )
+    assert "Attach source evidence" in evidence_row["recommendation"]
+    assert evidence_row["action"] == evidence_row["recommendation"]
+
+
 def test_readiness_bottlenecks_sparse_portfolio_is_low_confidence(store: Store) -> None:
     store.insert_buildable_unit(
         _unit(
@@ -186,6 +247,25 @@ def test_readiness_bottlenecks_empty_and_markdown_json(store: Store) -> None:
     assert "Items analyzed: 0" in markdown
     assert "No portfolio items matched the selected filters." in markdown
     assert json.loads(rendered_json)["kind"] == "max.portfolio_readiness_bottlenecks"
+
+
+def test_readiness_bottlenecks_empty_csv_returns_header(store: Store) -> None:
+    report = build_portfolio_readiness_bottlenecks(store, status="approved")
+
+    csv_text = render_portfolio_readiness_bottlenecks(report, fmt="csv")
+
+    assert list(csv.DictReader(StringIO(csv_text))) == []
+    assert csv_text == (
+        "bottleneck_id,check_id,category,title,severity,affected_count,"
+        "portfolio_share,affected_idea_ids,failed_check_ids,recommendation,owner,action\n"
+    )
+
+
+def test_readiness_bottlenecks_renderer_rejects_unsupported_format(store: Store) -> None:
+    report = build_portfolio_readiness_bottlenecks(store)
+
+    with pytest.raises(ValueError, match="Unsupported portfolio readiness bottlenecks format"):
+        render_portfolio_readiness_bottlenecks(report, fmt="xml")
 
 
 def test_readiness_bottlenecks_sorting_is_deterministic(store: Store) -> None:

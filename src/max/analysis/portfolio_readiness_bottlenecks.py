@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from collections.abc import Iterable, Mapping
@@ -16,6 +18,20 @@ KIND = "max.portfolio_readiness_bottlenecks"
 DEFAULT_LIMIT = 10_000
 REPRESENTATIVE_LIMIT = 5
 LOW_READINESS_THRESHOLD = 70.0
+_CSV_COLUMNS = (
+    "bottleneck_id",
+    "check_id",
+    "category",
+    "title",
+    "severity",
+    "affected_count",
+    "portfolio_share",
+    "affected_idea_ids",
+    "failed_check_ids",
+    "recommendation",
+    "owner",
+    "action",
+)
 
 
 def build_portfolio_readiness_bottlenecks(
@@ -38,10 +54,12 @@ def render_portfolio_readiness_bottlenecks(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render readiness bottlenecks as Markdown or deterministic JSON."""
+    """Render readiness bottlenecks as Markdown, deterministic JSON, or CSV."""
 
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported portfolio readiness bottlenecks format: {fmt}")
     return _render_markdown(report)
@@ -474,6 +492,63 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _render_csv(report: Mapping[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for bucket in report.get("bottlenecks", []):
+        for row in _csv_rows_for_bucket(bucket):
+            writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows_for_bucket(bucket: Mapping[str, Any]) -> list[dict[str, Any]]:
+    evidence_fields = list(bucket.get("evidence_fields") or [])
+    failed_check_ids = _csv_join(
+        _check_id(bucket, evidence) for evidence in evidence_fields
+    )
+    recommendation = _first(bucket.get("recommended_next_actions"))
+    base = {
+        "bottleneck_id": bucket.get("id", ""),
+        "category": bucket.get("category", ""),
+        "title": bucket.get("title", ""),
+        "severity": bucket.get("severity", ""),
+        "portfolio_share": bucket.get("portfolio_share", 0.0),
+        "failed_check_ids": failed_check_ids,
+        "recommendation": recommendation,
+        "owner": bucket.get("owner", ""),
+        "action": bucket.get("action", recommendation),
+    }
+    if not evidence_fields:
+        return [
+            {
+                **base,
+                "check_id": bucket.get("id", ""),
+                "affected_count": bucket.get("count", 0),
+                "affected_idea_ids": _csv_join(bucket.get("affected_item_ids")),
+            }
+        ]
+    rows = []
+    for evidence in evidence_fields:
+        affected_ids = sorted(evidence.get("item_ids") or [])
+        rows.append(
+            {
+                **base,
+                "check_id": _check_id(bucket, evidence),
+                "affected_count": len(affected_ids),
+                "affected_idea_ids": _csv_join(affected_ids),
+            }
+        )
+    return rows
+
+
+def _check_id(bucket: Mapping[str, Any], evidence: Mapping[str, Any]) -> str:
+    parts = [bucket.get("id", ""), evidence.get("field", "")]
+    if evidence.get("dependency"):
+        parts.append(evidence["dependency"])
+    return ":".join(_clean(part).replace(":", "_") for part in parts if _clean(part))
+
+
 def _technical_uncertainty(record: Mapping[str, Any]) -> bool:
     text = " ".join(
         [
@@ -589,6 +664,27 @@ def _theme_value(value: Any) -> str:
 
 def _inline_list(values: Iterable[Any]) -> str:
     return ", ".join(_clean(value) for value in values if _clean(value))
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values
+    try:
+        items = list(values)
+    except TypeError:
+        return _clean(values)
+    return separator.join(_clean(item) for item in items if _clean(item))
+
+
+def _first(values: Any) -> str:
+    if isinstance(values, str):
+        return values
+    try:
+        return _clean(next(iter(values)))
+    except (StopIteration, TypeError):
+        return ""
 
 
 def _dedupe(values: Iterable[Any]) -> list[str]:
