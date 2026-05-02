@@ -153,6 +153,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.rubygems_download_trends:RubyGemsDownloadTrendsAdapter"
     ),
     "packagist": "max.sources.packagist:PackagistAdapter",
+    "packagist_maintainer_activity": (
+        "max.sources.packagist_maintainer_activity:PackagistMaintainerActivityAdapter"
+    ),
     "packagist_download_trends": (
         "max.sources.packagist_download_trends:PackagistDownloadTrendsAdapter"
     ),
@@ -1076,6 +1079,22 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "include_maintenance", "active_release_days"],
         required_keys=[],
         description="Searches Packagist for PHP packages and release maintenance signals.",
+    ),
+    "packagist_maintainer_activity": AdapterMetadata(
+        name="packagist_maintainer_activity",
+        config_keys=[
+            "packages",
+            "package_names",
+            "max_items",
+            "max_results",
+            "base_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches Packagist package maintainer, author, release freshness, "
+            "download, license, and repository metadata."
+        ),
     ),
     "packagist_download_trends": AdapterMetadata(
         name="packagist_download_trends",
