@@ -43,7 +43,7 @@ def test_get_design_brief_data_room_index_json(seeded_data_room_index_brief_id) 
     assert result["schema_version"] == SCHEMA_VERSION
     assert result["kind"] == "max.design_brief.data_room_index"
     assert result["design_brief"]["id"] == seeded_data_room_index_brief_id
-    assert result["summary"]["available_formats"] == ["json", "markdown"]
+    assert result["summary"]["available_formats"] == ["json", "markdown", "csv"]
     assert result["summary"]["section_count"] == len(result["sections"])
     assert result["summary"]["artifact_count"] == len(result["artifacts"])
     assert result["sections"][0]["key"] == "core"

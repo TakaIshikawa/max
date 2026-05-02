@@ -58,7 +58,7 @@ def test_get_design_brief_data_room_index_returns_stable_json_payload(
     assert data["source"]["id"] == brief_id
     assert data["design_brief"]["id"] == brief_id
     assert data["design_brief"]["title"] == "Bundle Export Brief"
-    assert data["summary"]["available_formats"] == ["json", "markdown"]
+    assert data["summary"]["available_formats"] == ["json", "markdown", "csv"]
     assert data["summary"]["artifact_count"] == len(data["artifacts"])
     assert {artifact["key"] for artifact in data["artifacts"]} >= {
         "design_brief",
