@@ -2,13 +2,40 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.prd.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "design_brief_id",
+    "design_brief_title",
+    "domain",
+    "theme",
+    "readiness_score",
+    "design_status",
+    "lead_idea_id",
+    "section_key",
+    "section_heading",
+    "item_type",
+    "item_id",
+    "item_title",
+    "description",
+    "detail",
+    "owner",
+    "audience",
+    "priority",
+    "status",
+    "source_fields",
+    "source_idea_ids",
+    "evidence_ids",
+)
 
 
 def build_design_brief_prd(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -129,9 +156,11 @@ def build_design_brief_prd(store: Store, brief_id: str) -> dict[str, Any] | None
 
 
 def render_design_brief_prd(prd: dict[str, Any], fmt: str = "json") -> str:
-    """Render the design brief PRD as JSON or Markdown."""
+    """Render the design brief PRD as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(prd, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(prd)
     if fmt != "markdown":
         raise ValueError(f"Unsupported PRD format: {fmt}")
 
@@ -168,6 +197,166 @@ def render_design_brief_prd(prd: dict[str, Any], fmt: str = "json") -> str:
         lines.extend(["", f"Source ideas: {source_ids}", ""])
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(prd: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(prd):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(prd: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for section_key, section in prd.get("sections", {}).items():
+        content = section.get("content")
+        if isinstance(content, list):
+            for index, item in enumerate(content, start=1):
+                rows.append(
+                    _csv_row(
+                        prd,
+                        section_key=section_key,
+                        section_heading=section.get("heading"),
+                        item_type="section_item",
+                        item_id=f"{section_key}:{index}",
+                        item_title=_csv_item_title(section_key, item),
+                        description=item,
+                        detail=_csv_section_detail(section_key, item),
+                        owner=_csv_section_owner(section_key),
+                        audience=_csv_section_audience(section_key, item),
+                        priority=_csv_section_priority(section_key),
+                        status=_csv_section_status(prd, section_key),
+                        source_fields=section.get("source_fields"),
+                        source_idea_ids=section.get("source_idea_ids"),
+                        evidence_ids=_evidence_ids_for_section(prd, section),
+                    )
+                )
+        elif _csv_cell(content):
+            rows.append(
+                _csv_row(
+                    prd,
+                    section_key=section_key,
+                    section_heading=section.get("heading"),
+                    item_type="section",
+                    item_id=section_key,
+                    item_title=section.get("heading"),
+                    description=content,
+                    detail=_csv_section_detail(section_key, content),
+                    owner=_csv_section_owner(section_key),
+                    audience=_csv_section_audience(section_key, content),
+                    priority=_csv_section_priority(section_key),
+                    status=_csv_section_status(prd, section_key),
+                    source_fields=section.get("source_fields"),
+                    source_idea_ids=section.get("source_idea_ids"),
+                    evidence_ids=_evidence_ids_for_section(prd, section),
+                )
+            )
+    return rows
+
+
+def _csv_row(prd: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = prd.get("design_brief", {})
+    row = {
+        "schema_version": prd.get("schema_version"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "domain": brief.get("domain"),
+        "theme": brief.get("theme"),
+        "readiness_score": brief.get("readiness_score"),
+        "design_status": brief.get("design_status"),
+        "lead_idea_id": brief.get("lead_idea_id"),
+        "section_key": "",
+        "section_heading": "",
+        "item_type": "",
+        "item_id": "",
+        "item_title": "",
+        "description": "",
+        "detail": "",
+        "owner": "",
+        "audience": "",
+        "priority": "",
+        "status": "",
+        "source_fields": "",
+        "source_idea_ids": "",
+        "evidence_ids": "",
+    }
+    row.update(values)
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_item_title(section_key: str, item: Any) -> str:
+    text = _csv_cell(item)
+    if section_key == "evidence_links":
+        return text.split(":", 1)[0].strip()
+    return text
+
+
+def _csv_section_detail(section_key: str, item: Any) -> str:
+    if section_key == "evidence_links":
+        text = _csv_cell(item)
+        return text.split(":", 1)[1].strip() if ":" in text else text
+    return ""
+
+
+def _csv_section_owner(section_key: str) -> str:
+    return {
+        "proposed_workflow": "Product and engineering",
+        "mvp_scope": "Product lead",
+        "dependencies": "Engineering lead",
+        "risks": "Product lead",
+        "success_metrics": "Product lead",
+    }.get(section_key, "")
+
+
+def _csv_section_audience(section_key: str, item: Any) -> str:
+    if section_key in {"user_buyer", "title"}:
+        return _csv_cell(item)
+    return ""
+
+
+def _csv_section_priority(section_key: str) -> str:
+    return "high" if section_key in {"problem", "mvp_scope", "risks"} else ""
+
+
+def _csv_section_status(prd: dict[str, Any], section_key: str) -> str:
+    if section_key == "title":
+        return _csv_cell(prd.get("design_brief", {}).get("design_status"))
+    return ""
+
+
+def _evidence_ids_for_section(prd: dict[str, Any], section: dict[str, Any]) -> list[str]:
+    section_source_ids = set(_string_list(section.get("source_idea_ids")))
+    ids: list[str] = []
+    for idea in prd.get("source_ideas", []):
+        if not isinstance(idea, dict) or idea.get("missing"):
+            continue
+        if section_source_ids and idea.get("id") not in section_source_ids:
+            continue
+        ids.extend(_string_list(idea.get("evidence_signals")))
+        ids.extend(_string_list(idea.get("inspiring_insights")))
+    return _dedupe_strings(ids)
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return _csv_join(value)
+    if isinstance(value, tuple):
+        return _csv_join(list(value))
+    if isinstance(value, dict):
+        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+    return str(value).strip()
+
+
+def _csv_join(values: Any) -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values.strip()
+    return "; ".join(text for value in values if (text := _csv_cell(value)))
 
 
 def _section(
