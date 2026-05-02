@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from collections import defaultdict
 from itertools import combinations
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
@@ -13,6 +15,38 @@ from max.types.buildable_unit import BuildableUnit
 
 
 SCHEMA_VERSION = "max.unit_dependency_map.v1"
+
+CSV_COLUMNS = [
+    "schema_version",
+    "kind",
+    "section",
+    "row_order",
+    "metric_name",
+    "metric_value",
+    "build_order",
+    "unit_id",
+    "title",
+    "category",
+    "status",
+    "target_user",
+    "evidence_signal_ids",
+    "stack_components",
+    "prerequisite_terms",
+    "source",
+    "target",
+    "direction",
+    "confidence",
+    "reason_types",
+    "reason_descriptions",
+    "shared_signals",
+    "shared_dependencies",
+    "matched_phrases",
+    "cluster_id",
+    "cluster_type",
+    "cluster_label",
+    "cluster_reason",
+    "unit_ids",
+]
 
 
 def build_unit_dependency_map(
@@ -74,8 +108,10 @@ def render_unit_dependency_map(report: dict[str, Any], fmt: str = "markdown") ->
 
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True)
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
-        raise ValueError("fmt must be 'markdown' or 'json'")
+        raise ValueError("fmt must be 'markdown', 'json', or 'csv'")
 
     summary = report.get("summary", {})
     lines = [
@@ -130,6 +166,147 @@ def render_unit_dependency_map(report: dict[str, Any], fmt: str = "markdown") ->
         lines.extend(["", "## Isolated Units", "- " + ", ".join(isolated)])
 
     return "\n".join(lines) + "\n"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for metric_name, metric_value in (report.get("summary") or {}).items():
+        rows.append(
+            _csv_row(
+                report,
+                "summary",
+                metric_name=metric_name,
+                metric_value=metric_value,
+            )
+        )
+
+    for node in report.get("nodes") or []:
+        if not isinstance(node, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                "nodes",
+                unit_id=node.get("id"),
+                title=node.get("title"),
+                category=node.get("category"),
+                status=node.get("status"),
+                target_user=node.get("target_user"),
+                evidence_signal_ids=node.get("evidence_signal_ids"),
+                stack_components=node.get("stack_components"),
+                prerequisite_terms=node.get("prerequisite_terms"),
+            )
+        )
+
+    for edge in report.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        reasons = [reason for reason in edge.get("reasons", []) if isinstance(reason, dict)]
+        rows.append(
+            _csv_row(
+                report,
+                "edges",
+                source=edge.get("source"),
+                target=edge.get("target"),
+                direction=edge.get("direction"),
+                confidence=edge.get("confidence"),
+                reason_types=[reason.get("type", "") for reason in reasons],
+                reason_descriptions=[reason.get("description", "") for reason in reasons],
+                shared_signals=_shared_reason_values(reasons, "shared_evidence"),
+                shared_dependencies=_shared_reason_values(reasons, "shared_stack"),
+                matched_phrases=[
+                    reason.get("matched_phrase")
+                    for reason in reasons
+                    if reason.get("matched_phrase")
+                ],
+            )
+        )
+
+    for cluster in report.get("clusters") or []:
+        if not isinstance(cluster, dict):
+            continue
+        rows.append(
+            _csv_row(
+                report,
+                "clusters",
+                cluster_id=cluster.get("id"),
+                cluster_type=cluster.get("type"),
+                cluster_label=cluster.get("label"),
+                cluster_reason=cluster.get("reason"),
+                unit_ids=cluster.get("unit_ids"),
+            )
+        )
+
+    for unit_id in report.get("isolated_units") or []:
+        rows.append(_csv_row(report, "isolated_units", unit_id=unit_id))
+
+    for index, unit_id in enumerate(report.get("recommended_build_order") or [], start=1):
+        rows.append(
+            _csv_row(
+                report,
+                "recommended_build_order",
+                build_order=index,
+                unit_id=unit_id,
+            )
+        )
+
+    return [
+        {**row, "row_order": str(index)}
+        for index, row in enumerate(rows, start=1)
+    ]
+
+
+def _csv_row(report: dict[str, Any], section: str, **values: Any) -> dict[str, str]:
+    base: dict[str, Any] = {
+        "schema_version": report.get("schema_version", ""),
+        "kind": report.get("kind", ""),
+        "section": section,
+    }
+    base.update(values)
+    return {column: _csv_cell(base.get(column)) for column in CSV_COLUMNS}
+
+
+def _shared_reason_values(reasons: list[dict[str, Any]], reason_type: str) -> list[str]:
+    values: list[str] = []
+    for reason in reasons:
+        if reason.get("type") != reason_type:
+            continue
+        shared = reason.get("shared_values")
+        if isinstance(shared, list | tuple | set):
+            values.extend(str(item) for item in shared)
+        elif shared:
+            values.append(str(shared))
+    return values
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return json.dumps([_csv_nested(item) for item in value], sort_keys=True, separators=(",", ":"))
+    if isinstance(value, dict):
+        return json.dumps(_csv_nested(value), sort_keys=True, separators=(",", ":"))
+    return str(value)
+
+
+def _csv_nested(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _csv_nested(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+    if isinstance(value, list | tuple | set):
+        return [_csv_nested(item) for item in value]
+    if value is None:
+        return ""
+    return str(value)
 
 
 def _node(unit: BuildableUnit, features: dict[str, Any]) -> dict[str, Any]:

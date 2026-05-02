@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
+import json
+
 import pytest
 
 from max.analysis.unit_dependency_map import (
+    CSV_COLUMNS,
     build_unit_dependency_map,
     render_unit_dependency_map,
 )
@@ -170,3 +175,135 @@ def test_render_unit_dependency_map_markdown_summarizes_clusters_and_edges(store
     assert "shared_evidence" in markdown
     assert "prerequisite_wording" in markdown
     assert "bu-foundation -> bu-review" in markdown
+
+
+def test_render_unit_dependency_map_csv_headers_sections_and_report_order(
+    store: Store,
+) -> None:
+    store.insert_buildable_unit(
+        _unit(
+            "bu-foundation",
+            "Evidence Ingestion Foundation",
+            "Teams need a shared foundation before review automation.",
+            "Create reusable ingestion APIs.",
+            evidence=["sig-shared", "sig-foundation"],
+            tech_approach="Python FastAPI service",
+        )
+    )
+    store.insert_buildable_unit(
+        _unit(
+            "bu-review",
+            "Review Automation Console",
+            "Console depends on Evidence Ingestion Foundation.",
+            "Build review automation after the foundation.",
+            evidence=["sig-shared", "sig-review"],
+            tech_approach="Python FastAPI service",
+        )
+    )
+    store.insert_buildable_unit(
+        _unit(
+            "bu-payroll",
+            "Payroll Export Cleaner",
+            "Payroll analysts need cleaner exports.",
+            "Normalize payroll spreadsheets.",
+            target_users="finance teams",
+            specific_user="payroll analyst",
+            evidence=["sig-payroll"],
+            stack={"language": "typescript", "runtime": "node"},
+        )
+    )
+
+    report = build_unit_dependency_map(store)
+    csv_text = render_unit_dependency_map(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text.endswith("\n")
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows[:4]] == ["summary"] * 4
+    assert [row["metric_name"] for row in rows[:4]] == list(report["summary"])
+
+    node_rows = [row for row in rows if row["section"] == "nodes"]
+    assert [row["unit_id"] for row in node_rows] == [node["id"] for node in report["nodes"]]
+
+    edge_rows = [row for row in rows if row["section"] == "edges"]
+    assert [(row["source"], row["target"]) for row in edge_rows] == [
+        (edge["source"], edge["target"]) for edge in report["edges"]
+    ]
+
+    cluster_rows = [row for row in rows if row["section"] == "clusters"]
+    assert [row["cluster_id"] for row in cluster_rows] == [
+        cluster["id"] for cluster in report["clusters"]
+    ]
+
+    isolated_rows = [row for row in rows if row["section"] == "isolated_units"]
+    assert [row["unit_id"] for row in isolated_rows] == report["isolated_units"]
+
+    order_rows = [row for row in rows if row["section"] == "recommended_build_order"]
+    assert [row["unit_id"] for row in order_rows] == report["recommended_build_order"]
+    assert [row["build_order"] for row in order_rows] == ["1", "2", "3"]
+    assert [row["row_order"] for row in rows] == [str(index) for index in range(1, len(rows) + 1)]
+
+
+def test_render_unit_dependency_map_csv_serializes_lists_edge_details_and_quotes(
+    store: Store,
+) -> None:
+    store.insert_buildable_unit(
+        _unit(
+            "bu-foundation",
+            'Evidence, "Ingestion"\nFoundation',
+            "Create foundation for review automation.",
+            "Build shared evidence APIs.",
+            evidence=["sig-shared"],
+            tech_approach='Python FastAPI "service"',
+        )
+    )
+    store.insert_buildable_unit(
+        _unit(
+            "bu-review",
+            "Review Automation Console",
+            "Console depends on Evidence Ingestion Foundation.",
+            "Build after the foundation.",
+            evidence=["sig-shared"],
+            tech_approach='Python FastAPI "service"',
+        )
+    )
+
+    report = build_unit_dependency_map(store)
+    csv_text = render_unit_dependency_map(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert '"Evidence, ""Ingestion""\nFoundation"' in csv_text
+
+    node_row = next(row for row in rows if row["section"] == "nodes" and row["unit_id"] == "bu-foundation")
+    assert json.loads(node_row["evidence_signal_ids"]) == ["sig-shared"]
+    assert "fastapi" in json.loads(node_row["stack_components"])
+
+    edge_row = next(row for row in rows if row["section"] == "edges")
+    assert edge_row["direction"] == "prerequisite"
+    assert 0.0 < float(edge_row["confidence"]) <= 1.0
+    assert json.loads(edge_row["reason_types"]) == [
+        reason["type"] for reason in report["edges"][0]["reasons"]
+    ]
+    assert json.loads(edge_row["reason_descriptions"]) == [
+        reason["description"] for reason in report["edges"][0]["reasons"]
+    ]
+    assert json.loads(edge_row["shared_signals"]) == ["sig-shared"]
+    assert "fastapi" in json.loads(edge_row["shared_dependencies"])
+    assert json.loads(edge_row["matched_phrases"]) == ["depends on"]
+
+    cluster_row = next(row for row in rows if row["section"] == "clusters")
+    assert json.loads(cluster_row["unit_ids"]) == report["clusters"][0]["unit_ids"]
+
+
+def test_render_unit_dependency_map_json_markdown_and_unsupported_formats(
+    store: Store,
+) -> None:
+    store.insert_buildable_unit(
+        _unit("bu-a", "Alpha", "Shared user problem", "Build alpha", evidence=["sig-1"])
+    )
+    report = build_unit_dependency_map(store)
+
+    assert json.loads(render_unit_dependency_map(report, fmt="json")) == report
+    assert render_unit_dependency_map(report).startswith("# Buildable Unit Dependency Map")
+    with pytest.raises(ValueError):
+        render_unit_dependency_map(report, fmt="yaml")
