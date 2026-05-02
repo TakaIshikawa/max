@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -8,10 +10,12 @@ from max.analysis import (
     build_design_brief_market_entry_risk_report as exported_build_market_entry_risk_report,
 )
 from max.analysis.design_brief_market_entry_risk import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_market_entry_risk_report,
     market_entry_risk_report_filename,
+    render_market_entry_risk_csv,
     render_design_brief_market_entry_risk_report,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -110,8 +114,99 @@ def test_render_market_entry_risk_report_markdown_json_and_invalid_format(tmp_pa
     assert "## Open Questions" in markdown
 
     assert json.loads(render_design_brief_market_entry_risk_report(report, "json")) == report
+    assert render_design_brief_market_entry_risk_report(report, "csv") == render_market_entry_risk_csv(report)
     with pytest.raises(ValueError, match="Unsupported market entry risk report format: yaml"):
         render_design_brief_market_entry_risk_report(report, "yaml")
+
+
+def test_render_market_entry_risk_report_csv_structured_rows_and_order(tmp_path) -> None:
+    store, brief_id = _store_with_market_entry_brief(tmp_path, "high")
+    try:
+        report = build_design_brief_market_entry_risk_report(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_output = render_market_entry_risk_csv(report)
+    repeated = render_design_brief_market_entry_risk_report(report, "csv")
+    reader = csv.DictReader(io.StringIO(csv_output))
+    rows = list(reader)
+
+    assert csv_output == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_output.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [(row["section"], row["item_id"]) for row in rows[:6]] == [
+        ("risk", "adoption_friction"),
+        ("risk", "incumbent_competition"),
+        ("risk", "channel_access"),
+        ("risk", "switching_costs"),
+        ("risk", "compliance_constraints"),
+        ("risk", "timing_sensitivity"),
+    ]
+
+    risk_rows = {row["item_id"]: row for row in rows if row["section"] == "risk"}
+    assert risk_rows["channel_access"]["design_brief_id"] == brief_id
+    assert risk_rows["channel_access"]["risk_type"] == "channel_access"
+    assert risk_rows["channel_access"]["severity"] == "high"
+    assert risk_rows["channel_access"]["likelihood"] == "high"
+    assert risk_rows["channel_access"]["impact"] == "55"
+    assert risk_rows["channel_access"]["source_idea_ids"] == "bu-market-entry-high"
+    assert "enterprise approval or procurement access constraints" in risk_rows["channel_access"]["details"]
+    assert "Define the first reachable segment" in risk_rows["channel_access"]["mitigation"]
+
+    mitigation_rows = [row for row in rows if row["section"] == "mitigation"]
+    assert [(row["item_id"], row["risk_type"], row["owner"]) for row in mitigation_rows] == [
+        ("MR1", "incumbent_competition", "Product Marketing"),
+        ("MR2", "channel_access", "Go-to-Market"),
+        ("MR3", "switching_costs", "Solutions"),
+        ("MR4", "compliance_constraints", "Legal/Security"),
+    ]
+
+    assert any(
+        row["section"] == "entry_assumption"
+        and row["risk_type"] == "buyer"
+        and row["details"] == "buyer: enterprise IT director"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "evidence_reference"
+        and row["risk_type"] == "prior_art"
+        and row["source_idea_ids"] == "bu-market-entry-high"
+        and "Enterprise Workflow Suite" in row["details"]
+        for row in rows
+    )
+    assert any(
+        row["section"] == "readiness_warning"
+        and row["risk_type"] == "readiness_score"
+        and row["severity"] == "medium"
+        for row in rows
+    )
+    assert [row["item_id"] for row in rows if row["section"] == "next_action"] == [
+        "NA1",
+        "NA2",
+        "NA3",
+        "NA4",
+    ]
+
+
+def test_render_market_entry_risk_report_csv_escapes_special_values(tmp_path) -> None:
+    store, brief_id = _store_with_market_entry_brief(tmp_path, "low")
+    try:
+        report = build_design_brief_market_entry_risk_report(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["risks"][0]["evidence"] = ['Buyer said "yes",\nthen requested legal review.']
+    report["risks"][0]["mitigation"] = 'Run a "fast follow", then document tradeoffs.'
+
+    csv_output = render_market_entry_risk_csv(report)
+    rows = list(csv.DictReader(io.StringIO(csv_output)))
+
+    assert '"Adoption Friction; Buyer said ""yes"",\nthen requested legal review."' in csv_output
+    assert '"Run a ""fast follow"", then document tradeoffs."' in csv_output
+    assert rows[0]["details"] == 'Adoption Friction; Buyer said "yes",\nthen requested legal review.'
+    assert rows[0]["mitigation"] == 'Run a "fast follow", then document tradeoffs.'
 
 
 def test_market_entry_risk_report_filename() -> None:
@@ -123,6 +218,10 @@ def test_market_entry_risk_report_filename() -> None:
     assert (
         market_entry_risk_report_filename(brief, fmt="json")
         == "dbf-entry-Market-Entry-API-market-entry-risk.json"
+    )
+    assert (
+        market_entry_risk_report_filename(brief, fmt="csv")
+        == "dbf-entry-Market-Entry-API-market-entry-risk.csv"
     )
 
 

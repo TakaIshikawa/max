@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,6 +13,20 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.market_entry_risk"
 SCHEMA_VERSION = "max.design_brief.market_entry_risk.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "section",
+    "item_id",
+    "risk_type",
+    "severity",
+    "likelihood",
+    "impact",
+    "mitigation",
+    "owner",
+    "source_idea_ids",
+    "details",
+)
 
 _VALIDATED_STATUSES = {"approved", "validated", "ready", "launched", "active"}
 _WEAK_STATUSES = {"draft", "candidate", "proposed", "backlog", "new"}
@@ -157,9 +173,11 @@ def render_design_brief_market_entry_risk_report(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a market-entry risk report as Markdown or deterministic JSON."""
+    """Render a market-entry risk report as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_market_entry_risk_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported market entry risk report format: {fmt}")
 
@@ -221,12 +239,247 @@ def market_entry_risk_report_filename(
     *,
     fmt: str = "markdown",
 ) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"{_filename_part(str(design_brief.get('title') or 'market-entry-risk'))}-"
         f"market-entry-risk.{extension}"
     )
+
+
+def render_market_entry_risk_csv(report: dict[str, Any]) -> str:
+    """Render market-entry risks and action registers as deterministic CSV text."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for risk in report.get("risks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="risk",
+                item_id=risk.get("id") or risk.get("category"),
+                risk_type=risk.get("category"),
+                severity=risk.get("severity"),
+                likelihood=_risk_likelihood(risk.get("score")),
+                impact=risk.get("score"),
+                mitigation=risk.get("mitigation"),
+                source_idea_ids=_source_idea_ids_for_csv(report),
+                details=_csv_join([risk.get("title"), risk.get("evidence"), risk.get("open_question")]),
+            )
+        )
+
+    for item in report.get("mitigation_plan") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="mitigation",
+                item_id=item.get("id"),
+                risk_type=item.get("addresses"),
+                severity=_severity_for_risk(report, item.get("addresses")),
+                likelihood=_risk_likelihood(_score_for_risk(report, item.get("addresses"))),
+                impact=_score_for_risk(report, item.get("addresses")),
+                mitigation=item.get("action"),
+                owner=item.get("owner_role"),
+                source_idea_ids=_source_idea_ids_for_csv(report),
+                details=f"Addresses {item.get('addresses') or 'market-entry risk'}",
+            )
+        )
+
+    context = report.get("market_context") or {}
+    for index, field in enumerate(
+        (
+            "buyer",
+            "target_user",
+            "workflow_context",
+            "value_proposition",
+            "current_workaround",
+            "first_customers",
+            "validation_plan",
+            "why_now",
+        ),
+        start=1,
+    ):
+        rows.append(
+            _csv_row(
+                report,
+                section="entry_assumption",
+                item_id=f"EA{index}",
+                risk_type=field,
+                severity="medium" if field in set(context.get("fallbacks_used") or []) else "",
+                source_idea_ids=context.get("source_idea_ids") or _source_idea_ids_for_csv(report),
+                details=f"{field}: {_csv_text(context.get(field)) or 'not specified'}",
+            )
+        )
+
+    for index, reference in enumerate(_evidence_references(report), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                section="evidence_reference",
+                item_id=reference.get("id") or f"ER{index}",
+                risk_type=reference.get("type"),
+                impact=reference.get("impact"),
+                source_idea_ids=reference.get("source_idea_ids"),
+                details=reference.get("details"),
+            )
+        )
+
+    for index, warning in enumerate(_readiness_warnings(report), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                section="readiness_warning",
+                item_id=f"RW{index}",
+                risk_type=warning.get("risk_type"),
+                severity=warning.get("severity"),
+                source_idea_ids=_source_idea_ids_for_csv(report),
+                details=warning.get("details"),
+            )
+        )
+
+    for index, item in enumerate(report.get("mitigation_plan") or [], start=1):
+        rows.append(
+            _csv_row(
+                report,
+                section="next_action",
+                item_id=f"NA{index}",
+                risk_type=item.get("addresses"),
+                severity=_severity_for_risk(report, item.get("addresses")),
+                mitigation=item.get("action"),
+                owner=item.get("owner_role"),
+                source_idea_ids=_source_idea_ids_for_csv(report),
+                details=f"Prioritize {item.get('addresses') or 'market-entry'} mitigation before launch planning.",
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _evidence_references(report: dict[str, Any]) -> list[dict[str, Any]]:
+    signals = report.get("signals") or {}
+    references: list[dict[str, Any]] = []
+    for item in signals.get("prior_art") or []:
+        references.append(
+            {
+                "id": item.get("id"),
+                "type": "prior_art",
+                "impact": item.get("relevance_score"),
+                "source_idea_ids": [item.get("source_idea_id")],
+                "details": _csv_join(
+                    [
+                        item.get("source"),
+                        item.get("title"),
+                        item.get("url"),
+                        item.get("description"),
+                    ]
+                ),
+            }
+        )
+    for idea in signals.get("source_ideas") or []:
+        references.append(
+            {
+                "id": idea.get("id"),
+                "type": "source_idea",
+                "source_idea_ids": [idea.get("id")],
+                "details": _csv_join(
+                    [
+                        idea.get("title"),
+                        idea.get("role"),
+                        idea.get("status"),
+                        idea.get("evidence_signals"),
+                        idea.get("inspiring_insights"),
+                    ]
+                ),
+            }
+        )
+    return references
+
+
+def _readiness_warnings(report: dict[str, Any]) -> list[dict[str, str]]:
+    warnings: list[dict[str, str]] = []
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    readiness_score = float(brief.get("readiness_score") or 0.0)
+    if readiness_score < 50:
+        warnings.append(
+            {
+                "risk_type": "readiness_score",
+                "severity": "high" if readiness_score < 30 else "medium",
+                "details": f"Readiness score is {readiness_score:.1f}/100.",
+            }
+        )
+    for fallback in summary.get("fallbacks_used") or []:
+        warnings.append(
+            {
+                "risk_type": "fallback_assumption",
+                "severity": "medium",
+                "details": f"{fallback} required a market-entry assumption.",
+            }
+        )
+    for question in report.get("open_questions") or []:
+        warnings.append(
+            {
+                "risk_type": question.get("category", ""),
+                "severity": _severity_for_risk(report, question.get("category")),
+                "details": question.get("question", ""),
+            }
+        )
+    return warnings
+
+
+def _source_idea_ids_for_csv(report: dict[str, Any]) -> list[str]:
+    brief = report.get("design_brief") or {}
+    return _string_list(brief.get("source_idea_ids"))
+
+
+def _severity_for_risk(report: dict[str, Any], category: Any) -> str:
+    risk = _find_risk(report, category)
+    return _csv_text(risk.get("severity")) if risk else ""
+
+
+def _score_for_risk(report: dict[str, Any], category: Any) -> Any:
+    risk = _find_risk(report, category)
+    return risk.get("score") if risk else ""
+
+
+def _find_risk(report: dict[str, Any], category: Any) -> dict[str, Any] | None:
+    category_text = _csv_text(category)
+    return next(
+        (
+            risk
+            for risk in report.get("risks") or []
+            if _csv_text(risk.get("category")) == category_text or _csv_text(risk.get("id")) == category_text
+        ),
+        None,
+    )
+
+
+def _risk_likelihood(score: Any) -> str:
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return ""
+    if value >= 55:
+        return "high"
+    if value >= 30:
+        return "medium"
+    return "low"
 
 
 def _market_context(
@@ -715,6 +968,33 @@ def _is_fallback(context: dict[str, Any], field: str) -> bool:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) or "none"
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in _csv_values(values) if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, list | tuple | set):
+        return _csv_join(value)
+    return str(value)
+
+
+def _csv_values(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [f"{key}: {item}" for key, item in sorted(value.items())]
+    if isinstance(value, list | tuple | set):
+        values: list[Any] = []
+        for item in value:
+            values.extend(_csv_values(item))
+        return values
+    return [value]
 
 
 def _filename_part(value: str) -> str:
