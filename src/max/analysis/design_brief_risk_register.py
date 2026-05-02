@@ -77,7 +77,7 @@ def build_design_brief_risk_register(store: Store, brief_id: str) -> dict[str, A
 def render_design_brief_risk_register(register: dict[str, Any], fmt: str = "json") -> str:
     """Render the risk register for MCP consumers."""
     if fmt == "json":
-        return json.dumps(register, indent=2)
+        return json.dumps(register, indent=2, sort_keys=True) + "\n"
     if fmt != "markdown":
         raise ValueError(f"Unsupported risk register format: {fmt}")
 
