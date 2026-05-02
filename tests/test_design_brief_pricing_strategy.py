@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_pricing_strategy import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_pricing_strategy,
+    pricing_strategy_filename,
     render_design_brief_pricing_strategy,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -175,6 +179,55 @@ def test_render_design_brief_pricing_strategy_json_markdown_and_invalid_format(t
 
     with pytest.raises(ValueError):
         render_design_brief_pricing_strategy(report, "yaml")
+
+
+def test_render_design_brief_pricing_strategy_csv_rows_and_filename(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_pricing_brief(store)
+        report = build_design_brief_pricing_strategy(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_pricing_strategy(report, "csv")
+    repeated = render_design_brief_pricing_strategy(report, "csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["section"] for row in rows[:3]] == ["tier", "tier", "tier"]
+    assert [row["package"] for row in rows[:3]] == ["Starter", "Team", "Business"]
+    assert rows[0]["monthly_min_usd"] == "99"
+    assert rows[0]["monthly_max_usd"] == "199"
+    assert "Up to 100 runs/month" in rows[0]["detail"]
+    assert "Release workflow report" in rows[0]["rationale"]
+    assert any(row["section"] == "assumption" and row["item_id"] == "assumption-value-metric" for row in rows)
+    assert any(row["section"] == "risk" and row["name"] == "Budget may sit outside platform teams." for row in rows)
+    assert any(row["section"] == "experiment" and row["source"] == "validation_questions" for row in rows)
+    assert pricing_strategy_filename(report["design_brief"], fmt="csv").endswith(".csv")
+
+
+def test_render_design_brief_pricing_strategy_csv_missing_optional_sections(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_pricing_brief(store)
+        report = build_design_brief_pricing_strategy(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report.pop("key_assumptions")
+    report.pop("risks")
+    report.pop("recommended_experiments")
+
+    csv_text = render_design_brief_pricing_strategy(report, "csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == ["tier", "tier", "tier"]
 
 
 def test_build_design_brief_pricing_strategy_missing_brief_returns_none(tmp_path) -> None:

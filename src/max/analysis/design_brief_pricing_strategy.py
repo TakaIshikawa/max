@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from collections import Counter
+from io import StringIO
 from typing import Any, Iterable
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.pricing_strategy.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "section",
+    "item_id",
+    "name",
+    "package",
+    "monthly_min_usd",
+    "monthly_max_usd",
+    "detail",
+    "rationale",
+    "source",
+)
 
 
 def build_design_brief_pricing_strategy(
@@ -29,6 +42,8 @@ def build_design_brief_pricing_strategy(
     price_bands = _price_bands(design_brief, market_signals, evaluations, competitive_hints)
     packages = _packages(design_brief, source_ideas, price_bands, value_metric)
     confidence = _confidence(design_brief, evidence, evaluations, competitive_hints)
+    validation_questions = _validation_questions(design_brief, value_metric, price_bands)
+    objections = _objections(design_brief, market_signals, competitive_hints)
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -66,8 +81,11 @@ def build_design_brief_pricing_strategy(
         "price_bands": price_bands,
         "value_metric": value_metric,
         "free_trial_usage_limits": _free_trial_usage_limits(value_metric, confidence),
-        "objections": _objections(design_brief, market_signals, competitive_hints),
-        "validation_questions": _validation_questions(design_brief, value_metric, price_bands),
+        "objections": objections,
+        "validation_questions": validation_questions,
+        "key_assumptions": _key_assumptions(design_brief, value_metric, price_bands, objections),
+        "risks": _pricing_risks(design_brief, market_signals, competitive_hints),
+        "recommended_experiments": _recommended_experiments(validation_questions),
         "confidence": confidence,
         "evidence_references": evidence,
         "source_ideas": source_ideas,
@@ -75,9 +93,11 @@ def build_design_brief_pricing_strategy(
 
 
 def render_design_brief_pricing_strategy(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render a pricing strategy as JSON or Markdown."""
+    """Render a pricing strategy as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported pricing strategy format: {fmt}")
 
@@ -156,8 +176,91 @@ def render_design_brief_pricing_strategy(report: dict[str, Any], fmt: str = "jso
 
 
 def pricing_strategy_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return f"{_filename_part(str(design_brief['id']))}-pricing-strategy.{extension}"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    band_by_package = {
+        str(band.get("package") or ""): band for band in report.get("price_bands", []) if band
+    }
+    for index, package in enumerate(report.get("packages") or [], start=1):
+        name = str(package.get("name") or "")
+        band = band_by_package.get(name, {})
+        rows.append(
+            _csv_row(
+                section="tier",
+                item_id=f"tier-{index}",
+                name=name,
+                package=name,
+                monthly_min_usd=band.get("monthly_min_usd", ""),
+                monthly_max_usd=band.get("monthly_max_usd", ""),
+                detail=_csv_join(
+                    [
+                        package.get("target_customer"),
+                        package.get("included_limits"),
+                        package.get("upgrade_trigger"),
+                    ]
+                ),
+                rationale=_csv_join([package.get("value_anchor"), band.get("rationale")]),
+                source="packages",
+            )
+        )
+
+    for index, assumption in enumerate(report.get("key_assumptions") or [], start=1):
+        rows.append(
+            _csv_row(
+                section="assumption",
+                item_id=str(assumption.get("id") or f"assumption-{index}"),
+                name=str(assumption.get("name") or assumption.get("theme") or ""),
+                detail=str(assumption.get("assumption") or assumption.get("detail") or ""),
+                rationale=str(assumption.get("rationale") or ""),
+                source=str(assumption.get("source") or "key_assumptions"),
+            )
+        )
+
+    for index, risk in enumerate(report.get("risks") or [], start=1):
+        rows.append(
+            _csv_row(
+                section="risk",
+                item_id=str(risk.get("id") or f"risk-{index}"),
+                name=str(risk.get("risk") or risk.get("theme") or ""),
+                detail=str(risk.get("mitigation") or risk.get("detail") or ""),
+                rationale=str(risk.get("rationale") or ""),
+                source=str(risk.get("source") or "risks"),
+            )
+        )
+
+    for index, experiment in enumerate(report.get("recommended_experiments") or [], start=1):
+        rows.append(
+            _csv_row(
+                section="experiment",
+                item_id=str(experiment.get("id") or f"experiment-{index}"),
+                name=str(experiment.get("name") or experiment.get("question") or ""),
+                detail=str(experiment.get("experiment") or experiment.get("detail") or ""),
+                rationale=str(experiment.get("success_metric") or experiment.get("rationale") or ""),
+                source=str(experiment.get("source") or "recommended_experiments"),
+            )
+        )
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, Any]:
+    return {column: values.get(column, "") for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Iterable[Any], *, separator: str = "; ") -> str:
+    return separator.join(clean for value in values if (clean := _clean(value)))
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
@@ -449,6 +552,98 @@ def _validation_questions(
         "Which trial limit creates urgency without blocking a fair proof of value?",
         "What procurement, security, or stakeholder review is required before the Business package can close?",
         "Which customer segment shows the least price sensitivity during discovery calls?",
+    ]
+
+
+def _key_assumptions(
+    design_brief: dict[str, Any],
+    value_metric: dict[str, str],
+    price_bands: list[dict[str, Any]],
+    objections: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    team_band = price_bands[1] if len(price_bands) > 1 else {}
+    assumptions = [
+        {
+            "id": "assumption-value-metric",
+            "name": "Value metric fit",
+            "assumption": f"Customers will accept {value_metric['metric']} as the primary expansion metric.",
+            "rationale": value_metric["rationale"],
+            "source": "value_metric",
+        },
+        {
+            "id": "assumption-team-band",
+            "name": "Team package willingness to pay",
+            "assumption": (
+                f"{design_brief.get('buyer') or 'The buyer'} will consider "
+                f"${team_band.get('monthly_min_usd', '')}-${team_band.get('monthly_max_usd', '')}/month "
+                "after a credible pilot."
+            ),
+            "rationale": str(team_band.get("rationale") or ""),
+            "source": "price_bands",
+        },
+    ]
+    for index, objection in enumerate(objections[:2], start=1):
+        assumptions.append(
+            {
+                "id": f"assumption-objection-{index}",
+                "name": objection["theme"],
+                "assumption": objection["response"],
+                "rationale": "Buyer objection handling depends on this assumption being true in discovery.",
+                "source": "objections",
+            }
+        )
+    return assumptions
+
+
+def _pricing_risks(
+    design_brief: dict[str, Any],
+    market_signals: dict[str, Any],
+    competitive_hints: dict[str, Any],
+) -> list[dict[str, str]]:
+    risks = [
+        {
+            "id": f"risk-{index}",
+            "risk": risk,
+            "mitigation": "Validate this risk during paid pilot discovery before locking package terms.",
+            "rationale": "Persisted design brief risk.",
+            "source": "design_brief.risks",
+        }
+        for index, risk in enumerate(_string_list(design_brief.get("risks")), start=1)
+    ]
+    if market_signals.get("funding", 0) == 0:
+        risks.append(
+            {
+                "id": "risk-budget-signal",
+                "risk": "No linked funding or explicit budget evidence.",
+                "mitigation": "Ask buyers to name the budget owner and pilot approval threshold.",
+                "rationale": "Pricing confidence is lower without budget evidence.",
+                "source": "market_signals",
+            }
+        )
+    if competitive_hints.get("density") == "high":
+        risks.append(
+            {
+                "id": "risk-competitive-density",
+                "risk": "High competitive density may compress willingness to pay.",
+                "mitigation": "Anchor packaging around brief-specific workflow outcomes and proof points.",
+                "rationale": "Multiple alternatives increase substitution pressure.",
+                "source": "competitive_landscape_hints",
+            }
+        )
+    return risks
+
+
+def _recommended_experiments(validation_questions: list[str]) -> list[dict[str, str]]:
+    return [
+        {
+            "id": f"experiment-{index}",
+            "name": "Validate pricing question",
+            "question": question,
+            "experiment": "Run structured buyer discovery or paid pilot follow-up against this question.",
+            "success_metric": "Decision-quality evidence captured from at least three qualified buyers.",
+            "source": "validation_questions",
+        }
+        for index, question in enumerate(validation_questions, start=1)
     ]
 
 
