@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Any
 
@@ -86,9 +88,11 @@ def build_design_brief_scope_matrix(store: Store, brief_id: str) -> dict[str, An
 
 
 def render_design_brief_scope_matrix(matrix: dict[str, Any], fmt: str = "json") -> str:
-    """Render a scope decision matrix as JSON or Markdown."""
+    """Render a scope decision matrix as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(matrix, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(matrix)
     if fmt != "markdown":
         raise ValueError(f"Unsupported scope matrix format: {fmt}")
 
@@ -134,9 +138,49 @@ def render_design_brief_scope_matrix(matrix: dict[str, Any], fmt: str = "json") 
 
 def scope_matrix_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a scope matrix export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = "json" if fmt == "json" else "csv" if fmt == "csv" else "md"
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     return f"{brief_id}-scope-matrix.{extension}"
+
+
+def _render_csv(matrix: dict[str, Any]) -> str:
+    output = io.StringIO()
+    fieldnames = [
+        "design_brief_id",
+        "bucket",
+        "item_id",
+        "decision",
+        "confidence",
+        "rationale",
+        "dependencies",
+        "evidence_refs",
+        "source_idea_ids",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+
+    brief_id = str(matrix["design_brief"]["id"])
+    bucket_order = {bucket: index for index, (bucket, _label) in enumerate(_BUCKETS)}
+    ordered_items = sorted(
+        enumerate(matrix["items"]),
+        key=lambda item: (bucket_order.get(str(item[1].get("bucket")), len(bucket_order)), item[0]),
+    )
+    for _index, item in ordered_items:
+        writer.writerow(
+            {
+                "design_brief_id": brief_id,
+                "bucket": item["bucket"],
+                "item_id": item["id"],
+                "decision": item["decision"],
+                "confidence": item["confidence"],
+                "rationale": item["rationale"],
+                "dependencies": _csv_list(item["dependencies"]),
+                "evidence_refs": _csv_list(item["evidence_refs"]),
+                "source_idea_ids": _csv_list(item["source_idea_ids"]),
+            }
+        )
+
+    return output.getvalue()
 
 
 def _scope_buckets(
@@ -462,6 +506,10 @@ def _inline_list(values: list[str]) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "None"
+
+
+def _csv_list(values: list[str]) -> str:
+    return ";".join(values)
 
 
 def _filename_part(value: str) -> str:
