@@ -72,6 +72,11 @@ from max.analysis.design_brief_kpi_tree import (
     generate_design_brief_kpi_tree,
     render_design_brief_kpi_tree_markdown,
 )
+from max.analysis.design_brief_kill_criteria import (
+    build_design_brief_kill_criteria,
+    kill_criteria_filename,
+    render_design_brief_kill_criteria,
+)
 from max.analysis.design_brief_legal_review_checklist import (
     generate_design_brief_legal_review_checklist,
     render_design_brief_legal_review_checklist_markdown,
@@ -109,6 +114,7 @@ __all__ = [
     "build_design_brief_dependency_risk_map",
     "build_design_brief_qa_test_plan",
     "build_design_brief_investor_update",
+    "build_design_brief_kill_criteria",
     "build_design_brief_release_notes",
     "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
@@ -132,6 +138,7 @@ __all__ = [
     "generate_persona_interview_guide",
     "dependency_risk_map_filename",
     "investor_update_filename",
+    "kill_criteria_filename",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
     "qa_test_plan_filename",
@@ -148,6 +155,7 @@ __all__ = [
     "render_design_brief_sales_enablement_checklist",
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
+    "render_design_brief_kill_criteria",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_work_breakdown",
