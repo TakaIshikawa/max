@@ -114,6 +114,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.crates_download_trends:CratesDownloadTrendsAdapter"
     ),
     "hexpm": "max.sources.hexpm:HexPmAdapter",
+    "hexpm_download_trends": (
+        "max.sources.hexpm_download_trends:HexPmDownloadTrendsAdapter"
+    ),
     "lobsters": "max.sources.lobsters:LobstersAdapter",
     "nuget": "max.sources.nuget:NuGetAdapter",
     "maven_central": "max.sources.maven_central:MavenCentralAdapter",
@@ -850,6 +853,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["packages", "max_results", "api_base_url"],
         required_keys=[],
         description="Fetches Hex.pm BEAM package metadata and download adoption signals.",
+    ),
+    "hexpm_download_trends": AdapterMetadata(
+        name="hexpm_download_trends",
+        config_keys=[
+            "packages",
+            "period",
+            "max_items",
+            "max_results",
+            "min_downloads",
+            "api_base_url",
+        ],
+        required_keys=[],
+        description="Fetches Hex.pm package download totals as market adoption signals.",
     ),
     "lobsters": AdapterMetadata(
         name="lobsters",
