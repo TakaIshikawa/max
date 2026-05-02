@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from max.spec.stakeholder_handoff import generate_stakeholder_handoff
 from max.types.buildable_unit import BuildableUnit
 from max.types.evaluation import UtilityEvaluation
 
@@ -16,7 +17,7 @@ def generate_spec_preview(
     evaluation: UtilityEvaluation | None = None,
 ) -> dict[str, Any]:
     """Map a buildable unit and optional evaluation into a serializable spec."""
-    return {
+    spec = {
         "schema_version": SPEC_PREVIEW_SCHEMA_VERSION,
         "kind": "tact.project_spec",
         "source": {
@@ -69,6 +70,10 @@ def generate_spec_preview(
         },
         "evaluation": _evaluation_payload(evaluation),
     }
+    spec["artifacts"] = {
+        "stakeholder_handoff": generate_stakeholder_handoff(unit, evaluation, spec)
+    }
+    return spec
 
 
 def _mvp_scope(unit: BuildableUnit) -> list[str]:

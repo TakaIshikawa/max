@@ -72,6 +72,10 @@ from max.spec.security_review import (
     render_security_review_markdown,
 )
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_markdown
+from max.spec.stakeholder_handoff import (
+    generate_stakeholder_handoff,
+    render_stakeholder_handoff_markdown,
+)
 from max.spec.support_playbook import (
     generate_support_playbook,
     render_support_playbook_markdown,
@@ -102,6 +106,7 @@ __all__ = [
     "generate_spec_bundle",
     "generate_security_review",
     "generate_slo_plan",
+    "generate_stakeholder_handoff",
     "generate_support_playbook",
     "generate_risk_register",
     "generate_threat_model",
@@ -129,4 +134,5 @@ __all__ = [
     "render_spec_bundle_yaml",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
+    "render_stakeholder_handoff_markdown",
 ]
