@@ -735,6 +735,33 @@ def get_spec_release_readiness_gate(idea_id: str) -> dict:
         return e.to_dict()
 
 
+def get_spec_incident_response_plan(idea_id: str) -> dict:
+    """Generate the TactSpec incident response plan for an idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+        ValidationError: If the incident response generator returns invalid data.
+    """
+    from max.spec.generator import generate_spec_preview
+    import max.spec.incident_response_plan as incident_response_plan
+
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(idea_id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {idea_id}",
+                    resource_type="buildable_unit",
+                    resource_id=idea_id,
+                )
+
+            tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
+            plan = incident_response_plan.generate_incident_response_plan(tact_spec)
+            return _incident_response_plan_mcp_payload(plan)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
 def get_spec_rollback_plan(tact_spec: dict) -> dict:
     """Generate a rollback plan from a TactSpec-compatible payload.
 
@@ -946,6 +973,54 @@ def _release_readiness_gate_mcp_payload(gate: object) -> dict:
         "warnings": warnings,
         "recommended_next_actions": recommended_next_actions,
     }
+
+
+def _incident_response_plan_mcp_payload(plan: object) -> dict:
+    if not isinstance(plan, dict):
+        raise ValidationError(
+            "Invalid incident response plan result",
+            details={"reason": "generator returned a non-object payload"},
+        )
+
+    summary = plan.get("summary")
+    source = plan.get("source")
+    if not isinstance(source, dict):
+        raise ValidationError(
+            "Invalid incident response plan result",
+            details={"field": "source", "expected": "object"},
+        )
+    if not isinstance(summary, dict):
+        raise ValidationError(
+            "Invalid incident response plan result",
+            details={"field": "summary", "expected": "object"},
+        )
+
+    list_fields = [
+        "severity_levels",
+        "incident_classes",
+        "escalation_roles",
+        "triage_steps",
+        "containment_actions",
+        "communication_checkpoints",
+        "postmortem_requirements",
+        "evidence_references",
+        "gaps",
+    ]
+    for field in list_fields:
+        if not isinstance(plan.get(field), list):
+            raise ValidationError(
+                "Invalid incident response plan result",
+                details={"field": field, "expected": "list"},
+            )
+
+    context = plan.get("incident_context")
+    if not isinstance(context, dict):
+        raise ValidationError(
+            "Invalid incident response plan result",
+            details={"field": "incident_context", "expected": "object"},
+        )
+
+    return plan
 
 
 def get_implementation_plan(id: str) -> dict:
@@ -5107,6 +5182,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_spec_preview)
     mcp.tool(get_spec_readiness)
     mcp.tool(get_spec_release_readiness_gate)
+    mcp.tool(get_spec_incident_response_plan)
     mcp.tool(get_spec_rollback_plan)
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
