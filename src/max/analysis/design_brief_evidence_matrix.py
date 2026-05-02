@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from datetime import datetime, timezone
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.evidence_matrix.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "claim_id",
+    "claim",
+    "evidence_id",
+    "source_type",
+    "source_title",
+    "strength",
+    "confidence",
+    "contradiction_flag",
+    "notes",
+)
 
 CLAIM_AREAS = (
     "problem",
@@ -124,9 +139,11 @@ def build_design_brief_evidence_matrix(
 
 
 def render_design_brief_evidence_matrix(matrix: dict[str, Any], fmt: str = "json") -> str:
-    """Render an evidence matrix as JSON or Markdown."""
+    """Render an evidence matrix as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(matrix, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(matrix)
     if fmt != "markdown":
         raise ValueError(f"Unsupported evidence matrix format: {fmt}")
 
@@ -208,6 +225,13 @@ def _build_row(
             for idea in source_ideas
             if _has_any_value(idea, config["idea_fields"])
         ],
+        "supporting_evidence": _supporting_evidence(
+            supporting_signal_ids,
+            linked_insight_ids,
+            source_ideas,
+            config["idea_fields"],
+            evidence,
+        ),
         "evidence_strength": _evidence_strength(
             supporting_signal_ids,
             supporting_source_adapters,
@@ -218,6 +242,125 @@ def _build_row(
         "gaps": gaps,
         "validation_actions": list(config["validation_actions"]),
     }
+
+
+def _render_csv(matrix: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(matrix):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(matrix: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for claim_row in matrix.get("rows") or []:
+        if not isinstance(claim_row, dict):
+            continue
+        for evidence in _claim_evidence_items(claim_row):
+            rows.append(_csv_row(matrix, claim_row, evidence))
+    return rows
+
+
+def _csv_row(
+    matrix: dict[str, Any],
+    claim_row: dict[str, Any],
+    evidence: dict[str, Any],
+) -> dict[str, str]:
+    brief = matrix.get("design_brief") or {}
+    values = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "claim_id": claim_row.get("claim_area") or claim_row.get("claim_id"),
+        "claim": claim_row.get("claim"),
+        "evidence_id": evidence.get("id") or evidence.get("evidence_id"),
+        "source_type": _source_type_text(evidence.get("source_type") or evidence.get("type")),
+        "source_title": evidence.get("source_title") or evidence.get("title"),
+        "strength": evidence.get("strength") or claim_row.get("evidence_strength"),
+        "confidence": evidence.get("confidence"),
+        "contradiction_flag": _contradiction_flag(evidence),
+        "notes": evidence.get("notes") or evidence.get("note") or evidence.get("summary"),
+    }
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _claim_evidence_items(claim_row: dict[str, Any]) -> list[dict[str, Any]]:
+    evidence = claim_row.get("supporting_evidence")
+    if isinstance(evidence, list):
+        return [item for item in evidence if isinstance(item, dict)]
+
+    items: list[dict[str, Any]] = []
+    for signal_id in _string_list(claim_row.get("supporting_signal_ids")):
+        items.append({"id": signal_id, "source_type": "signal"})
+    for insight_id in _string_list(claim_row.get("supporting_insight_ids")):
+        items.append({"id": insight_id, "source_type": "insight"})
+    for idea_id in _string_list(claim_row.get("supporting_source_idea_ids")):
+        items.append({"id": idea_id, "source_type": "source_idea"})
+    return items
+
+
+def _supporting_evidence(
+    signal_ids: list[str],
+    insight_ids: list[str],
+    source_ideas: list[dict[str, Any]],
+    idea_fields: tuple[str, ...],
+    evidence: dict[str, Any],
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for signal_id in signal_ids:
+        signal = evidence["signals"].get(signal_id)
+        if not signal:
+            continue
+        metadata = getattr(signal, "metadata", {}) or {}
+        items.append(
+            {
+                "id": signal_id,
+                "source_type": _source_type_text(getattr(signal, "source_type", "")),
+                "source_title": getattr(signal, "title", ""),
+                "confidence": getattr(signal, "credibility", ""),
+                "contradiction_flag": _contradiction_flag(metadata),
+                "notes": {
+                    "source_adapter": getattr(signal, "source_adapter", ""),
+                    "signal_role": getattr(signal, "signal_role", ""),
+                    "tags": getattr(signal, "tags", []),
+                },
+            }
+        )
+    for insight_id in insight_ids:
+        insight = evidence["insights"].get(insight_id)
+        if not insight:
+            continue
+        items.append(
+            {
+                "id": insight_id,
+                "source_type": "insight",
+                "source_title": getattr(insight, "title", ""),
+                "confidence": getattr(insight, "confidence", ""),
+                "contradiction_flag": False,
+                "notes": {
+                    "category": _source_type_text(getattr(insight, "category", "")),
+                    "evidence": _string_list(getattr(insight, "evidence", [])),
+                },
+            }
+        )
+    for idea in source_ideas:
+        if not _has_any_value(idea, idea_fields):
+            continue
+        items.append(
+            {
+                "id": idea.get("id"),
+                "source_type": "source_idea",
+                "source_title": idea.get("title"),
+                "confidence": idea.get("quality_score"),
+                "contradiction_flag": False,
+                "notes": {
+                    "role": idea.get("role"),
+                    "fields": [field for field in idea_fields if _has_value(idea.get(field))],
+                },
+            }
+        )
+    return items
 
 
 def _supporting_signal_ids(config: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
@@ -404,3 +547,31 @@ def _first_text(*values: Any) -> str:
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
+
+
+def _source_type_text(value: Any) -> str:
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value or "")
+
+
+def _contradiction_flag(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key in (
+            "contradiction_flag",
+            "contradictory",
+            "contradiction",
+            "contradicts",
+            "contradictory_evidence",
+        ):
+            if bool(value.get(key)):
+                return True
+    return bool(getattr(value, "contradiction_flag", False))
