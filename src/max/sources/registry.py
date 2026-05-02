@@ -140,6 +140,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "nuget": "max.sources.nuget:NuGetAdapter",
     "maven_central": "max.sources.maven_central:MavenCentralAdapter",
     "rubygems": "max.sources.rubygems:RubyGemsAdapter",
+    "rubygems_maintainer_activity": (
+        "max.sources.rubygems_maintainer_activity:RubyGemsMaintainerActivityAdapter"
+    ),
     "rubygems_download_trends": (
         "max.sources.rubygems_download_trends:RubyGemsDownloadTrendsAdapter"
     ),
@@ -996,6 +999,23 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["queries", "max_pages"],
         required_keys=[],
         description="Searches RubyGems for Ruby packages matching configured query terms.",
+    ),
+    "rubygems_maintainer_activity": AdapterMetadata(
+        name="rubygems_maintainer_activity",
+        config_keys=[
+            "gems",
+            "packages",
+            "package_names",
+            "max_items",
+            "max_results",
+            "rubygems_api_url",
+            "timeout",
+        ],
+        required_keys=[],
+        description=(
+            "Fetches RubyGems package maintainer, owner, release freshness, "
+            "license, download, and project link metadata."
+        ),
     ),
     "rubygems_download_trends": AdapterMetadata(
         name="rubygems_download_trends",
