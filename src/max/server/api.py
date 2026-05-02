@@ -614,6 +614,7 @@ from max.server.schemas import (
     StatsResponse,
     TeamsPublishRequest,
     TeamsPublishResponse,
+    ThreatModelResponse,
     TrelloCardPublishRequest,
     TrelloCardPublishResponse,
     ValidationExperimentCreate,
@@ -638,6 +639,7 @@ from max.spec.launch_checklist import generate_launch_checklist, render_launch_c
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import generate_security_review, render_security_review_markdown
+from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
@@ -5834,6 +5836,48 @@ def _security_review_markdown_response(idea_id: str, review: dict[str, Any]) -> 
     filename = f"{_download_filename_part(idea_id)}-security-review.md"
     return Response(
         content=render_security_review_markdown(review),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/ideas/{idea_id}/threat-model", response_model=ThreatModelResponse)
+def get_idea_threat_model(
+    idea_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> ThreatModelResponse | Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    threat_model = generate_threat_model(unit, evaluation, tact_spec)
+    if format == "markdown":
+        return _threat_model_markdown_response(idea_id, threat_model)
+    return ThreatModelResponse.model_validate(threat_model)
+
+
+@router.get("/ideas/{idea_id}/threat-model.md", response_model=None)
+def get_idea_threat_model_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    evaluation = store.get_evaluation(idea_id)
+    tact_spec = generate_spec_preview(unit, evaluation)
+    threat_model = generate_threat_model(unit, evaluation, tact_spec)
+    return _threat_model_markdown_response(idea_id, threat_model)
+
+
+def _threat_model_markdown_response(idea_id: str, threat_model: dict[str, Any]) -> Response:
+    filename = f"{_download_filename_part(idea_id)}-threat-model.md"
+    return Response(
+        content=render_threat_model_markdown(threat_model),
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
