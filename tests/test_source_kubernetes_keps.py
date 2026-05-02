@@ -6,12 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from max.sources.base import AdapterFetchError
 from max.sources.kubernetes_keps import (
     RAW_BASE,
     TREE_URL,
     KubernetesKepsAdapter,
     _extract_summary_sections,
     _kep_directories,
+    _parse_kep_index,
 )
 from max.types.signal import SignalSourceType
 
@@ -83,6 +85,17 @@ KEP_9999_README = """
 Archived storage roadmap item.
 """
 
+KEP_INDEX = """
+| KEP | Title | SIG | Stage | Status | Summary | URL |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1234 | [Server Side Apply](https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1234-server-side-apply) | sig-api-machinery | beta | implementable | Structured field ownership for API objects. | https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1234-server-side-apply |
+| 5678 | Node Swap Support | sig-node | alpha | provisional | Controlled swap use for node memory management. | https://github.com/kubernetes/enhancements/tree/master/keps/sig-node/5678-node-swap |
+| 5678 | Duplicate Node Swap | sig-node | alpha | provisional | Duplicate row should be skipped. | https://example.test/duplicate |
+| 9999 | Old Storage Feature | sig-storage | stable | withdrawn | Archived storage roadmap item. | https://github.com/kubernetes/enhancements/tree/master/keps/sig-storage/9999-old-feature |
+|  | Sparse row | sig-empty | beta | implementable | Missing KEP id. | https://example.test/sparse |
+| 2468 |  | sig-empty | beta | implementable | Missing title. | https://example.test/no-title |
+"""
+
 
 def _response(*, payload: dict | None = None, text: str = "") -> MagicMock:
     response = MagicMock()
@@ -123,6 +136,17 @@ def test_extract_summary_sections_from_markdown() -> None:
     assert sections["motivation"] == "Controllers and humans need safer coordination."
 
 
+def test_parse_kep_index_accepts_markdown_table_rows() -> None:
+    items = _parse_kep_index(KEP_INDEX)
+
+    assert [item["kep_number"] for item in items[:3]] == ["1234", "5678", "5678"]
+    assert items[0]["title"] == "Server Side Apply"
+    assert items[0]["area"] == "sig-api-machinery"
+    assert items[0]["stage"] == "beta"
+    assert items[0]["status"] == "implementable"
+    assert items[0]["url"].endswith("1234-server-side-apply")
+
+
 @pytest.mark.asyncio
 async def test_kubernetes_keps_fetch_emits_normalized_signals() -> None:
     adapter = KubernetesKepsAdapter(config={"max_results": 10})
@@ -156,11 +180,66 @@ async def test_kubernetes_keps_fetch_emits_normalized_signals() -> None:
     assert first.metadata["stage"] == "beta"
     assert first.metadata["status"] == "implementable"
     assert first.metadata["owning_sig"] == "sig-api-machinery"
+    assert first.metadata["signal_role"] == "solution"
     assert first.metadata["summary"] == first.content
     assert first.metadata["summary_sections"]["motivation"] == (
         "Controllers and humans need safer coordination."
     )
     assert "standards" in first.tags
+
+
+@pytest.mark.asyncio
+async def test_kubernetes_keps_index_filters_sparse_duplicates_keywords_and_max_items() -> None:
+    adapter = KubernetesKepsAdapter(
+        config={
+            "content": KEP_INDEX,
+            "sigs": ["sig-node", "sig-api-machinery"],
+            "statuses": ["alpha", "implementable"],
+            "keywords": ["swap", "ownership"],
+            "max_items": 5,
+        }
+    )
+
+    signals = await adapter.fetch(limit=10)
+
+    assert [signal.metadata["kep_number"] for signal in signals] == ["1234", "5678"]
+    assert [signal.title for signal in signals] == [
+        "KEP-1234: Server Side Apply",
+        "KEP-5678: Node Swap Support",
+    ]
+    assert len({signal.id for signal in signals}) == 2
+    assert signals[0].metadata["matched_keywords"] == ["ownership"]
+    assert signals[1].metadata["matched_keywords"] == ["swap"]
+    assert all(signal.metadata["signal_role"] == "solution" for signal in signals)
+
+
+@pytest.mark.asyncio
+async def test_kubernetes_keps_fetches_configured_index_url() -> None:
+    adapter = KubernetesKepsAdapter(config={"index_url": "https://example.test/kep-index.md"})
+
+    with patch(
+        "max.sources.kubernetes_keps.fetch_with_retry",
+        return_value=_response(text=KEP_INDEX),
+    ) as mock_fetch:
+        signals = await adapter.fetch(limit=10)
+
+    assert [signal.metadata["kep_number"] for signal in signals] == ["1234", "5678"]
+    assert mock_fetch.call_args.args[0] == "https://example.test/kep-index.md"
+    assert mock_fetch.call_args.kwargs["adapter_name"] == "kubernetes_keps"
+
+
+@pytest.mark.asyncio
+async def test_kubernetes_keps_index_fetch_errors_are_logged_and_skipped(caplog) -> None:
+    adapter = KubernetesKepsAdapter(config={"index_url": "https://example.test/missing.md"})
+
+    with patch(
+        "max.sources.kubernetes_keps.fetch_with_retry",
+        side_effect=AdapterFetchError("kubernetes_keps", 500, "https://example.test/missing.md"),
+    ), caplog.at_level("WARNING"):
+        signals = await adapter.fetch(limit=10)
+
+    assert signals == []
+    assert "failed to fetch Kubernetes KEP index" in caplog.text
 
 
 @pytest.mark.asyncio
