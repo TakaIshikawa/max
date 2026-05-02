@@ -707,6 +707,132 @@ def get_spec_readiness(id: str) -> dict:
         return e.to_dict()
 
 
+def get_spec_release_readiness_gate(idea_id: str) -> dict:
+    """Generate the TactSpec release readiness gate for an idea.
+
+    Raises:
+        ResourceNotFoundError: If the idea does not exist.
+        ValidationError: If the release readiness generator returns invalid data.
+    """
+    from max.spec.generator import generate_spec_preview
+    import max.spec.release_readiness_gate as release_readiness_gate
+
+    try:
+        with _get_store() as store:
+            unit = store.get_buildable_unit(idea_id)
+            if not unit:
+                raise ResourceNotFoundError(
+                    f"Idea not found: {idea_id}",
+                    resource_type="buildable_unit",
+                    resource_id=idea_id,
+                )
+
+            tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
+            gate = release_readiness_gate.generate_release_readiness_gate(tact_spec)
+            return _release_readiness_gate_mcp_payload(gate)
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def _release_readiness_gate_mcp_payload(gate: object) -> dict:
+    if not isinstance(gate, dict):
+        raise ValidationError(
+            "Invalid release readiness gate result",
+            details={"reason": "generator returned a non-object payload"},
+        )
+
+    summary = gate.get("summary")
+    blockers = gate.get("blockers")
+    dimensions = gate.get("readiness_dimensions")
+    signoffs = gate.get("required_signoffs")
+    if not isinstance(summary, dict):
+        raise ValidationError(
+            "Invalid release readiness gate result",
+            details={"field": "summary", "expected": "object"},
+        )
+    if not isinstance(blockers, list):
+        raise ValidationError(
+            "Invalid release readiness gate result",
+            details={"field": "blockers", "expected": "list"},
+        )
+    if not isinstance(dimensions, list):
+        raise ValidationError(
+            "Invalid release readiness gate result",
+            details={"field": "readiness_dimensions", "expected": "list"},
+        )
+    if not isinstance(signoffs, list):
+        raise ValidationError(
+            "Invalid release readiness gate result",
+            details={"field": "required_signoffs", "expected": "list"},
+        )
+
+    blocker_dimension_ids = {
+        blocker.get("dimension_id")
+        for blocker in blockers
+        if isinstance(blocker, dict) and blocker.get("dimension_id")
+    }
+    warnings = [
+        {
+            "dimension_id": dimension.get("id"),
+            "title": dimension.get("title") or dimension.get("label"),
+            "status": dimension.get("status"),
+            "missing_evidence": dimension.get("missing_evidence", []),
+            "remediation": dimension.get("remediation"),
+        }
+        for dimension in dimensions
+        if isinstance(dimension, dict)
+        and dimension.get("status") != "ready"
+        and dimension.get("id") not in blocker_dimension_ids
+    ]
+
+    recommended_next_actions: list[dict] = []
+    seen_actions: set[tuple[str, str | None]] = set()
+    for blocker in blockers:
+        if not isinstance(blocker, dict):
+            continue
+        action = blocker.get("remediation") or blocker.get("description")
+        dimension_id = blocker.get("dimension_id")
+        if not action or ("blocker", dimension_id) in seen_actions:
+            continue
+        seen_actions.add(("blocker", dimension_id))
+        recommended_next_actions.append(
+            {
+                "type": "resolve_blocker",
+                "dimension_id": dimension_id,
+                "title": blocker.get("title") or blocker.get("id"),
+                "action": action,
+            }
+        )
+    for signoff in signoffs:
+        if not isinstance(signoff, dict) or signoff.get("status") != "blocked":
+            continue
+        role = signoff.get("role")
+        if ("signoff", role) in seen_actions:
+            continue
+        seen_actions.add(("signoff", role))
+        recommended_next_actions.append(
+            {
+                "type": "complete_signoff",
+                "role": role,
+                "action": signoff.get("required_action") or f"Complete {role} signoff.",
+            }
+        )
+
+    return {
+        **gate,
+        "readiness_status": {
+            "status": "ready" if summary.get("go") is True else "blocked",
+            "decision": summary.get("decision"),
+            "go": summary.get("go"),
+            "ready_dimension_count": summary.get("ready_dimension_count"),
+            "blocker_count": summary.get("blocker_count"),
+        },
+        "blocking_checks": blockers,
+        "warnings": warnings,
+        "recommended_next_actions": recommended_next_actions,
+    }
+
+
 def get_implementation_plan(id: str) -> dict:
     """Generate an implementation handoff plan for an evaluated idea.
 
@@ -4525,6 +4651,11 @@ def spec_preview_detail(idea_id: str) -> str:
     return json.dumps(get_spec_preview(idea_id), indent=2)
 
 
+def spec_release_readiness_gate_detail(idea_id: str) -> str:
+    """Get TactSpec release readiness gate details for a specific idea."""
+    return json.dumps(get_spec_release_readiness_gate(idea_id), indent=2)
+
+
 def acceptance_criteria_detail(idea_id: str) -> str:
     """Get acceptance criteria details for a specific idea."""
     return json.dumps(get_acceptance_criteria(idea_id), indent=2)
@@ -4860,6 +4991,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_idea)
     mcp.tool(get_spec_preview)
     mcp.tool(get_spec_readiness)
+    mcp.tool(get_spec_release_readiness_gate)
     mcp.tool(get_implementation_plan)
     mcp.tool(get_acceptance_criteria)
     mcp.tool(get_blast_radius)
@@ -4951,6 +5083,9 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("ideas://{idea_id}/evidence-pack")(evidence_pack_detail)
     mcp.resource("ideas://{idea_id}/evidence-chain")(evidence_chain_detail)
     mcp.resource("ideas://{idea_id}/spec-preview")(spec_preview_detail)
+    mcp.resource("ideas://{idea_id}/spec-release-readiness-gate")(
+        spec_release_readiness_gate_detail
+    )
     mcp.resource("ideas://{idea_id}/acceptance-criteria")(acceptance_criteria_detail)
     mcp.resource("ideas://{idea_id}/blast-radius")(blast_radius_detail)
     mcp.resource("ideas://{idea_id}/customer-discovery-script")(customer_discovery_script_detail)
