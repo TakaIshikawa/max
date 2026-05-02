@@ -161,6 +161,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.packagist_download_trends:PackagistDownloadTrendsAdapter"
     ),
     "dockerhub": "max.sources.dockerhub:DockerHubAdapter",
+    "docker_hub": "max.sources.docker_hub:DockerHubAdapter",
     "dockerhub_image_trends": (
         "max.sources.dockerhub_image_trends:DockerHubImageTrendsAdapter"
     ),
@@ -1123,9 +1124,15 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "dockerhub": AdapterMetadata(
         name="dockerhub",
-        config_keys=["repositories", "queries", "include_tags"],
+        config_keys=["repositories", "queries", "include_tags", "timeout"],
         required_keys=[],
         description="Fetches Docker Hub container image popularity and update signals for configured repositories and search terms.",
+    ),
+    "docker_hub": AdapterMetadata(
+        name="docker_hub",
+        config_keys=["repositories", "queries", "include_tags", "timeout"],
+        required_keys=[],
+        description="Fetches Docker Hub repository activity, popularity, and freshness signals for configured repositories and search terms.",
     ),
     "dockerhub_image_trends": AdapterMetadata(
         name="dockerhub_image_trends",

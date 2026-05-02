@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 from datetime import datetime, timezone
@@ -45,11 +46,15 @@ class DockerHubAdapter(SourceAdapter):
     def include_tags(self) -> bool:
         return bool(self._config.get("include_tags", True))
 
+    @property
+    def timeout(self) -> float:
+        return float(_int_or_none(self._config.get("timeout")) or 30)
+
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         signals: list[Signal] = []
         seen_repositories: set[str] = set()
 
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             for repository_ref in self.repositories:
                 if len(signals) >= limit:
                     break
@@ -80,7 +85,7 @@ class DockerHubAdapter(SourceAdapter):
                 if data is None:
                     continue
 
-                for result in data.get("results", []):
+                for result in _response_results(data):
                     if len(signals) >= limit:
                         break
 
@@ -183,7 +188,7 @@ class DockerHubAdapter(SourceAdapter):
 
         tag_names: list[str] = []
         newest: datetime | None = None
-        for tag in data.get("results", []):
+        for tag in _response_results(data):
             name = _string_or_none(tag.get("name"))
             if name:
                 tag_names.append(name)
@@ -210,9 +215,14 @@ class DockerHubAdapter(SourceAdapter):
                 params=params,
                 headers={"User-Agent": "max-dockerhub-adapter/0.1"},
             )
-            return resp.json()
+            payload = resp.json()
+            if isinstance(payload, dict):
+                return payload
+            logger.warning("%s: malformed Docker Hub response for %s", self.name, context)
         except AdapterFetchError as e:
             logger.warning("%s: failed to fetch Docker Hub data for %s: %s", self.name, context, e)
+        except (httpx.RequestError, httpx.TimeoutException) as e:
+            logger.warning("%s: request failed for Docker Hub data for %s: %s", self.name, context, e)
         except ValueError as e:
             logger.warning("%s: failed to parse JSON response for %s: %s", self.name, context, e)
         return None
@@ -268,6 +278,7 @@ def _repository_to_signal(
     }
 
     return Signal(
+        id=_signal_id(adapter_name, full_name),
         source_type=SignalSourceType.REGISTRY,
         source_adapter=adapter_name,
         title=full_name,
@@ -314,6 +325,13 @@ def _repository_id_from_search_result(result: dict) -> tuple[str, str] | None:
         return (namespace or "library", repo_name)
 
     return None
+
+
+def _response_results(data: dict) -> list[dict]:
+    results = data.get("results")
+    if not isinstance(results, list):
+        return []
+    return [result for result in results if isinstance(result, dict)]
 
 
 def _repository_full_name(repository_data: dict, repo_id: tuple[str, str]) -> str:
@@ -426,3 +444,8 @@ def _dedupe(values: list[str]) -> list[str]:
         seen.add(normalized)
         deduped.append(normalized)
     return deduped
+
+
+def _signal_id(adapter_name: str, repository_name: str) -> str:
+    digest = hashlib.sha1(repository_name.strip().lower().encode()).hexdigest()[:12]
+    return f"{adapter_name}:{digest}"
