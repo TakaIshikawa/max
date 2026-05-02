@@ -101,6 +101,13 @@ from max.publisher.gitlab_snippets import (
     GitLabSnippetPublishResult,
     GitLabSnippetsPublisher,
 )
+from max.publisher.gitlab_releases import (
+    GitLabReleasePayload,
+    GitLabReleasePublisher,
+    GitLabReleasePublishError,
+    GitLabReleasePublishResult,
+    GitLabReleasesPublisher,
+)
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPayload,
     GitLabMergeRequestCommentPublisher,
