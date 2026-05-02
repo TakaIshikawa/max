@@ -1057,7 +1057,13 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "go_packages": AdapterMetadata(
         name="go_packages",
-        config_keys=["queries", "max_results", "min_imported_by", "include_stdlib"],
+        config_keys=[
+            "queries",
+            "package_names",
+            "max_results",
+            "min_imported_by",
+            "include_stdlib",
+        ],
         required_keys=[],
         description="Searches pkg.go.dev for Go package and module discovery signals.",
     ),
