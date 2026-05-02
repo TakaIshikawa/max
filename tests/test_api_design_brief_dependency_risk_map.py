@@ -131,8 +131,103 @@ def test_get_design_brief_dependency_risk_map_markdown_download(
     assert "### DBDR1: Salesforce, Slack, OAuth or SSO provider" in resp.text
 
 
+def test_get_design_brief_dependency_risk_map_markdown_format_query(
+    client: TestClient,
+    seeded_brief_id: str,
+) -> None:
+    resp = client.get(
+        f"/api/v1/design-briefs/{seeded_brief_id}/dependency-risk-map?format=markdown"
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/markdown")
+    assert resp.text.startswith("# Dependency Risk Map: Dependency Risk Brief")
+
+
+def test_get_design_brief_dependency_risk_map_empty_inputs(
+    client: TestClient,
+    db_path: str,
+) -> None:
+    brief_id = _seed_sparse_brief(db_path)
+
+    resp = client.get(f"/api/v1/design-briefs/{brief_id}/dependency-risk-map")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["summary"]["risk_count"] == 5
+    assert data["dependency_risks"][0]["dependency_name"] == "External API or vendor service"
+    assert data["dependency_risks"][0]["severity"] == "medium"
+    assert data["dependency_context"]["detected_vendors"] == []
+    assert data["dependency_context"]["fallbacks_used"] == [
+        "specific_user",
+        "buyer",
+        "workflow_context",
+    ]
+
+
+def test_get_design_brief_dependency_risk_map_invalid_format_returns_validation_error(
+    client: TestClient,
+    seeded_brief_id: str,
+) -> None:
+    resp = client.get(
+        f"/api/v1/design-briefs/{seeded_brief_id}/dependency-risk-map?format=yaml"
+    )
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"]
+
+
 def test_get_design_brief_dependency_risk_map_not_found(client: TestClient) -> None:
     resp = client.get("/api/v1/design-briefs/dbf-missing/dependency-risk-map")
 
     assert resp.status_code == 404
     assert resp.json() == {"detail": "Design brief not found: dbf-missing"}
+
+
+def _seed_sparse_brief(db_path: str) -> str:
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        unit = BuildableUnit(
+            id="bu-api-dependency-risk-sparse",
+            title="Sparse Dependency Risk API Idea",
+            one_liner="Map handoff dependencies.",
+            category=BuildableCategory.APPLICATION,
+            ideation_mode=IdeationMode.DIRECT,
+            problem="",
+            solution="",
+            value_proposition="",
+            specific_user="",
+            buyer="",
+            workflow_context="",
+            current_workaround="",
+            why_now="",
+            validation_plan="",
+            first_10_customers="",
+            domain_risks=[],
+            tech_approach="",
+            suggested_stack={},
+            domain="",
+            status="approved",
+        )
+        store.insert_buildable_unit(unit)
+        return store.insert_design_brief(
+            ProjectBrief(
+                title="Sparse Dependency Risk Brief",
+                domain="",
+                theme="",
+                lead=Candidate(unit=unit),
+                supporting=[],
+                source_idea_ids=[unit.id],
+                readiness_score=0.0,
+                why_this_now="",
+                merged_product_concept="",
+                synthesis_rationale="",
+                mvp_scope=[],
+                first_milestones=[],
+                validation_plan="",
+                risks=[],
+                design_status="draft",
+            )
+        )
+    finally:
+        store.close()
