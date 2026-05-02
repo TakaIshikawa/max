@@ -10,6 +10,7 @@ from max.analysis.design_brief_partner_integration_checklist import (
     KIND,
     SCHEMA_VERSION,
     build_design_brief_partner_integration_checklist,
+    partner_integration_checklist_filename,
     render_design_brief_partner_integration_checklist,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -167,6 +168,9 @@ def test_render_design_brief_partner_integration_checklist_markdown_json_and_inv
     assert json.loads(rendered_json) == report
 
     markdown = render_design_brief_partner_integration_checklist(report, fmt="markdown")
+    default_markdown = render_design_brief_partner_integration_checklist(report)
+    assert markdown == default_markdown
+    assert markdown == render_design_brief_partner_integration_checklist(report, fmt="markdown")
     assert markdown.startswith("# Partner Integration Checklist: Partner Integration Brief")
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
@@ -180,9 +184,61 @@ def test_render_design_brief_partner_integration_checklist_markdown_json_and_inv
     assert "## Open Questions" in markdown
     assert "## Evidence References" in markdown
     assert "## Readiness Warnings" in markdown
+    assert "### Salesforce CRM" in markdown
+    assert markdown.index("### Salesforce CRM") < markdown.index("### Slack")
+    assert "- Required fields: record_id; user_id; workflow_state; owner; timestamp" in markdown
+    assert "- **sig-partner** (evidence_signal): Evidence signal linked to source idea bu-partner-lead." in markdown
+    assert "{'" not in markdown
+    assert "[{" not in markdown
 
     with pytest.raises(ValueError, match="Unsupported partner integration checklist format: yaml"):
         render_design_brief_partner_integration_checklist(report, fmt="yaml")
+
+
+def test_render_design_brief_partner_integration_checklist_minimal_report() -> None:
+    markdown = render_design_brief_partner_integration_checklist(
+        {
+            "design_brief": {
+                "id": "dbf-minimal",
+                "title": "Minimal Partner Brief",
+            },
+            "summary": {},
+        }
+    )
+
+    assert markdown.startswith("# Partner Integration Checklist: Minimal Partner Brief")
+    assert "Design brief: `dbf-minimal`" in markdown
+    assert "- Goal: Confirm partner and system readiness for Minimal Partner Brief." in markdown
+    assert "- Target user: TBD target user" in markdown
+    assert "- Buyer: TBD buyer owner" in markdown
+    assert "## Integration Targets" in markdown
+    assert "No partner systems identified yet" in markdown
+    assert "## Data Contracts" in markdown
+    assert "Capture producer, consumer, payload, required fields" in markdown
+    assert "## Auth and Security Checks" in markdown
+    assert "credential ownership" in markdown
+    assert "## Operational Readiness" in markdown
+    assert "Prepare sandbox access" in markdown
+    assert "| TBD partner system | TBD owner | medium | Assign owner and confirm handoff criteria. |" in markdown
+    assert "### 1. Confirm partner scope and owner" in markdown
+    assert "## Open Questions" in markdown
+    assert "## Evidence References" in markdown
+    assert "## Readiness Warnings" in markdown
+
+
+def test_partner_integration_checklist_filename_uses_brief_id_and_title() -> None:
+    assert (
+        partner_integration_checklist_filename(
+            {"id": "dbf-123", "title": "Partner Systems: Alpha / Beta"}
+        )
+        == "dbf-123-Partner-Systems-Alpha-Beta-partner-integration-checklist.md"
+    )
+    assert (
+        partner_integration_checklist_filename(
+            {"id": "dbf-123", "title": "Partner Systems: Alpha / Beta"}, fmt="json"
+        )
+        == "dbf-123-Partner-Systems-Alpha-Beta-partner-integration-checklist.json"
+    )
 
 
 def test_build_design_brief_partner_integration_checklist_missing_brief_returns_none(tmp_path) -> None:
