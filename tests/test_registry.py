@@ -260,6 +260,7 @@ def test_list_adapters_returns_strings():
     assert "dockerhub_tag_velocity" in names
     assert "clinical_trials" in names
     assert "github_discussion_comments" in names
+    assert "github_workflow_templates" in names
     assert "open_vsx_download_trends" in names
     assert "stackoverflow_tag_trends" in names
     assert "pypi_maintainer_activity" in names
