@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,6 +12,31 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.accessibility_review"
 SCHEMA_VERSION = "max.design_brief.accessibility_review.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "design_brief_domain",
+    "design_brief_theme",
+    "design_status",
+    "readiness_score",
+    "review_gate",
+    "row_type",
+    "item_id",
+    "item_title",
+    "owner",
+    "severity",
+    "priority",
+    "principle",
+    "description_or_check",
+    "affected_user_group_ids",
+    "wcag_refs",
+    "risk_ids",
+    "wcag_check_ids",
+    "access_needs",
+    "validation_method",
+    "acceptance_criteria",
+    "source_idea_ids",
+)
 
 _USER_GROUP_CONFIGS: tuple[dict[str, Any], ...] = (
     {
@@ -159,9 +186,11 @@ def build_design_brief_accessibility_review(store: Store, brief_id: str) -> dict
 
 
 def render_design_brief_accessibility_review(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render an accessibility review as deterministic JSON or Markdown."""
+    """Render an accessibility review as deterministic JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported accessibility review format: {fmt}")
 
@@ -268,11 +297,140 @@ def render_design_brief_accessibility_review(report: dict[str, Any], fmt: str = 
 
 def accessibility_review_filename(design_brief: dict[str, Any], *, fmt: str = "json") -> str:
     """Return a stable filename for an accessibility review export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief['title']))}-accessibility-review.{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for group in report.get("affected_user_groups") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="affected_user_group",
+                item_id=group.get("id"),
+                item_title=group.get("name"),
+                owner=group.get("owner"),
+                description_or_check=group.get("relevance"),
+                affected_user_group_ids=[group.get("id")],
+                access_needs=group.get("access_needs"),
+                source_idea_ids=group.get("source_idea_ids"),
+            )
+        )
+    for risk in report.get("accessibility_risks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="accessibility_risk",
+                item_id=risk.get("id"),
+                item_title=risk.get("title"),
+                owner=risk.get("owner"),
+                severity=risk.get("severity"),
+                description_or_check=risk.get("description"),
+                affected_user_group_ids=risk.get("affected_user_group_ids"),
+                wcag_refs=risk.get("wcag_refs"),
+                source_idea_ids=risk.get("source_idea_ids"),
+            )
+        )
+    for check in report.get("wcag_oriented_checks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="wcag_oriented_check",
+                item_id=check.get("id"),
+                item_title=check.get("check"),
+                owner=check.get("owner"),
+                principle=check.get("principle"),
+                description_or_check=check.get("check"),
+                wcag_refs=check.get("wcag_refs"),
+                risk_ids=check.get("risk_ids"),
+                validation_method=check.get("validation_method"),
+                source_idea_ids=check.get("source_idea_ids"),
+            )
+        )
+    for opportunity in report.get("inclusive_design_opportunities") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="inclusive_design_opportunity",
+                item_id=opportunity.get("id"),
+                item_title=opportunity.get("title"),
+                owner=opportunity.get("owner"),
+                description_or_check=opportunity.get("opportunity"),
+                affected_user_group_ids=opportunity.get("affected_user_group_ids"),
+                source_idea_ids=opportunity.get("source_idea_ids"),
+            )
+        )
+    for task in report.get("validation_tasks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="validation_task",
+                item_id=task.get("id"),
+                item_title=task.get("task"),
+                owner=task.get("owner"),
+                priority=task.get("priority"),
+                description_or_check=task.get("method"),
+                risk_ids=task.get("risk_ids"),
+                wcag_check_ids=task.get("wcag_check_ids"),
+                acceptance_criteria=task.get("acceptance_criteria"),
+                source_idea_ids=task.get("source_idea_ids"),
+            )
+        )
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "design_brief_domain": brief.get("domain"),
+        "design_brief_theme": brief.get("theme"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
+        "review_gate": summary.get("review_gate"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in _csv_values(values) if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return _csv_join(value)
+    return str(value)
+
+
+def _csv_values(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [f"{key}: {item}" for key, item in sorted(value.items())]
+    if isinstance(value, list | tuple | set):
+        values: list[Any] = []
+        for item in value:
+            values.extend(_csv_values(item))
+        return values
+    return [value]
 
 
 def _accessibility_context(design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
