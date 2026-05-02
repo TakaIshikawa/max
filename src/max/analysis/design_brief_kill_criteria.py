@@ -72,17 +72,14 @@ _CONTRADICTION_TERMS = {
 }
 
 CSV_COLUMNS: tuple[str, ...] = (
-    "design_brief_id",
-    "design_brief_title",
-    "criterion_type",
-    "criterion_id",
-    "category",
-    "label",
-    "status",
+    "gate",
+    "metric",
     "threshold",
-    "evidence_backed_reason",
-    "action",
-    "source_reference_ids",
+    "measurement_source",
+    "review_cadence",
+    "owner",
+    "consequence",
+    "rationale",
 )
 
 
@@ -176,7 +173,7 @@ def render_design_brief_kill_criteria(
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_csv(report)
+        return render_design_brief_kill_criteria_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported kill criteria format: {fmt}")
 
@@ -222,6 +219,21 @@ def kill_criteria_filename(design_brief: BuildableUnit | dict[str, Any], *, fmt:
     brief_id = _get_field(design_brief, "id") or "design-brief"
     title = _get_field(design_brief, "title") or "kill-criteria"
     return f"{_filename_part(str(brief_id))}-{_filename_part(str(title))}-kill-criteria.{extension}"
+
+
+def render_design_brief_kill_criteria_csv(report: dict[str, Any]) -> str:
+    """Render kill criteria gates as deterministic CSV rows."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for gate, group_name in (
+        ("stop", "stop_triggers"),
+        ("pivot", "pivot_triggers"),
+        ("continue", "continue_signals"),
+    ):
+        for criterion in report.get(group_name, []):
+            writer.writerow(_csv_row(gate, criterion))
+    return output.getvalue()
 
 
 def _stop_criteria(unit: BuildableUnit, metrics: dict[str, Any]) -> list[KillCriterion]:
@@ -662,37 +674,44 @@ def _render_criteria(lines: list[str], criteria: list[dict[str, Any]]) -> None:
         )
 
 
-def _render_csv(report: dict[str, Any]) -> str:
-    brief = report["design_brief"]
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
-    writer.writeheader()
-    for criterion_type, group_name in (
-        ("stop", "stop_triggers"),
-        ("pivot", "pivot_triggers"),
-        ("continue", "continue_signals"),
-    ):
-        for criterion in report[group_name]:
-            writer.writerow(
-                {
-                    "design_brief_id": brief["id"],
-                    "design_brief_title": brief["title"],
-                    "criterion_type": criterion_type,
-                    "criterion_id": criterion["id"],
-                    "category": criterion["category"],
-                    "label": criterion["label"],
-                    "status": criterion["status"],
-                    "threshold": criterion["threshold"],
-                    "evidence_backed_reason": criterion["evidence_backed_reason"],
-                    "action": criterion["action"],
-                    "source_reference_ids": json.dumps(
-                        criterion["source_reference_ids"],
-                        sort_keys=True,
-                        separators=(",", ":"),
-                    ),
-                }
-            )
-    return output.getvalue()
+def _csv_row(gate: str, criterion: dict[str, Any]) -> dict[str, str]:
+    refs = criterion.get("source_reference_ids") or []
+    measurement_source = json.dumps(refs, sort_keys=True, separators=(",", ":")) if refs else ""
+    row = {
+        "gate": gate,
+        "metric": criterion.get("label"),
+        "threshold": criterion.get("threshold"),
+        "measurement_source": measurement_source,
+        "review_cadence": _review_cadence(gate),
+        "owner": _gate_owner(gate),
+        "consequence": criterion.get("action"),
+        "rationale": criterion.get("evidence_backed_reason"),
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _review_cadence(gate: str) -> str:
+    return {
+        "stop": "Before scope expansion",
+        "pivot": "Next validation pass",
+        "continue": "Every validation review",
+    }.get(gate, "")
+
+
+def _gate_owner(gate: str) -> str:
+    return {
+        "stop": "product owner",
+        "pivot": "research owner",
+        "continue": "product owner",
+    }.get(gate, "")
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, dict)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _term_hits(text: str, terms: set[str]) -> list[str]:

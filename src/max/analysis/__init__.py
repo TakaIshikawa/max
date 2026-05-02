@@ -99,6 +99,7 @@ from max.analysis.design_brief_kill_criteria import (
     build_design_brief_kill_criteria,
     kill_criteria_filename,
     render_design_brief_kill_criteria,
+    render_design_brief_kill_criteria_csv,
 )
 from max.analysis.design_brief_legal_review_checklist import (
     generate_design_brief_legal_review_checklist,
@@ -212,6 +213,7 @@ __all__ = [
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_kill_criteria",
+    "render_design_brief_kill_criteria_csv",
     "render_design_brief_market_entry_risk_report",
     "render_design_brief_legal_review_checklist",
     "render_design_brief_legal_review_checklist_csv",
