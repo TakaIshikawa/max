@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_failure_modes import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_failure_modes,
@@ -130,6 +133,74 @@ def test_markdown_renderer_sorts_highest_risk_modes_first(tmp_path) -> None:
     assert rendered_rpns[0] == report["failure_modes"][0]["risk_priority_number"]
 
 
+def test_csv_renderer_has_stable_headers_and_deterministic_order(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_failure_modes(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["failure_modes"] = list(reversed(report["failure_modes"]))
+
+    csv_text = render_design_brief_failure_modes(report, fmt="csv")
+    repeated = render_design_brief_failure_modes(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == report["summary"]["failure_mode_count"]
+    assert [int(row["rank"]) for row in rows] == list(range(1, len(rows) + 1))
+    assert rows[0]["failure_mode"] == report["failure_modes"][-1]["failure_mode"]
+    assert rows[0]["trigger"]
+    assert rows[0]["impact"]
+    assert rows[0]["likelihood"]
+    assert rows[0]["mitigation"]
+    assert rows[0]["owner_next_action"].startswith(report["failure_modes"][-1]["owner_role"])
+    assert report["failure_modes"][-1]["detection_method"] in rows[0]["owner_next_action"]
+    assert rows[0]["evidence_source_references"]
+
+
+def test_csv_renderer_escapes_commas_quotes_and_newlines(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_failure_modes(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["failure_modes"] = [dict(report["failure_modes"][0])]
+    report["failure_modes"][0].update(
+        {
+            "failure_mode": 'Buyer says "no", then stalls\nuntil legal review.',
+            "cause": "Procurement, security, and champion incentives conflict.",
+            "effect": "Launch slips\nand pilot evidence goes stale.",
+            "mitigation": 'Add a "stop or continue" launch gate, with owner signoff.',
+        }
+    )
+
+    csv_text = render_design_brief_failure_modes(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert len(rows) == 1
+    assert rows[0]["failure_mode"] == 'Buyer says "no", then stalls\nuntil legal review.'
+    assert rows[0]["trigger"] == "Procurement, security, and champion incentives conflict."
+    assert rows[0]["impact"] == "Launch slips\nand pilot evidence goes stale."
+    assert rows[0]["mitigation"] == 'Add a "stop or continue" launch gate, with owner signoff.'
+    assert '"Buyer says ""no"", then stalls' in csv_text
+
+
+def test_csv_renderer_empty_report_is_header_only() -> None:
+    csv_text = render_design_brief_failure_modes({"failure_modes": []}, fmt="csv")
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    reader = csv.DictReader(StringIO(csv_text))
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert list(reader) == []
+
+
 def test_sparse_design_brief_returns_assumption_failure_modes(tmp_path) -> None:
     store, brief_id = _store_with_sparse_brief(tmp_path)
     try:
@@ -173,6 +244,10 @@ def test_failure_modes_missing_brief_invalid_format_and_filename(tmp_path) -> No
     assert (
         failure_modes_filename(design_brief, fmt="json")
         == "dbf-123-Failure-Modes-Alpha-Beta-failure-modes.json"
+    )
+    assert (
+        failure_modes_filename(design_brief, fmt="csv")
+        == "dbf-123-Failure-Modes-Alpha-Beta-failure-modes.csv"
     )
 
 
