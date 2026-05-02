@@ -2,9 +2,23 @@
 
 from __future__ import annotations
 
+import csv
+import json
+from io import StringIO
 from typing import Any, Mapping
 
 SCHEMA_VERSION = "max.design_brief.legal_review_checklist.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "checklist_category",
+    "item",
+    "owner_reviewer",
+    "jurisdiction_or_policy_area",
+    "severity_priority",
+    "required_action",
+    "status",
+    "due_date",
+    "evidence_source_references",
+)
 
 _SECTION_CONFIGS: tuple[dict[str, Any], ...] = (
     {
@@ -102,6 +116,17 @@ def generate_design_brief_legal_review_checklist(brief: Mapping[str, Any]) -> di
     }
 
 
+def render_design_brief_legal_review_checklist(report: Mapping[str, Any], *, fmt: str = "json") -> str:
+    """Render a legal review checklist artifact as JSON, Markdown, or CSV."""
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "markdown":
+        return render_design_brief_legal_review_checklist_markdown(report)
+    if fmt == "csv":
+        return render_design_brief_legal_review_checklist_csv(report)
+    raise ValueError(f"Unsupported legal review checklist format: {fmt}")
+
+
 def render_design_brief_legal_review_checklist_markdown(report: Mapping[str, Any]) -> str:
     """Render a legal review checklist artifact as stable Markdown."""
     summary = report["summary"]
@@ -157,12 +182,48 @@ def render_design_brief_legal_review_checklist_markdown(report: Mapping[str, Any
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_legal_review_checklist_csv(report: Mapping[str, Any]) -> str:
+    """Render a legal review checklist artifact as one CSV row per checklist item."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def legal_review_checklist_filename(design_brief: Mapping[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(_clean(design_brief.get('id')) or 'design-brief')}-"
         f"{_filename_part(_clean(design_brief.get('title')) or 'Untitled-Design-Brief')}-legal-review-checklist.{extension}"
     )
+
+
+def _csv_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for section in report.get("sections") or []:
+        for item in section.get("items") or []:
+            rows.append(_csv_row(section, item))
+    return rows
+
+
+def _csv_row(section: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, str]:
+    row = {
+        "checklist_category": section.get("id"),
+        "item": item.get("id"),
+        "owner_reviewer": item.get("owner") or section.get("owner"),
+        "jurisdiction_or_policy_area": item.get("jurisdiction")
+        or item.get("policy_area")
+        or section.get("title")
+        or section.get("id"),
+        "severity_priority": item.get("severity") or item.get("priority") or section.get("priority"),
+        "required_action": item.get("task"),
+        "status": item.get("status"),
+        "due_date": item.get("due_date") or item.get("due_at") or item.get("target_date"),
+        "evidence_source_references": item.get("evidence_reference_ids") or item.get("source_fields"),
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
 
 
 def _sections(
@@ -474,6 +535,20 @@ def _inline_refs(values: list[str]) -> str:
 
 def _inline_list(values: list[str]) -> str:
     return ", ".join(values) if values else "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return _csv_join(value)
+    if isinstance(value, dict):
+        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+    return str(value)
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
 
 
 def _filename_part(value: str) -> str:
