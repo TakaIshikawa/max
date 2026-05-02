@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -236,9 +238,128 @@ def test_digest_can_render_markdown_and_json(store: Store, tmp_path) -> None:
     path = tmp_path / pipeline_run_handoff_digest_filename("run-handoff-001")
     write_pipeline_run_handoff_digest(path, digest)
     assert path.name == "run-handoff-001-handoff-digest.md"
+    assert pipeline_run_handoff_digest_filename("run-handoff-001", fmt="csv").endswith(".csv")
     assert path.read_text(encoding="utf-8").startswith(
         "# Pipeline Run Handoff Digest: run-handoff-001"
     )
+
+
+def test_digest_can_render_csv_with_stable_sections_and_quoting(store: Store) -> None:
+    _seed_handoff_run(store)
+    digest = build_pipeline_run_handoff_digest(store, run_id="run-handoff-001")
+    digest["source_mix"][0]["source_adapter"] = 'github, "issues"'
+    digest["top_recommended_ideas"][0]["title"] = 'Agent, "Run"\nHandoff'
+
+    csv_text = render_pipeline_run_handoff_digest(digest, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text.endswith("\n")
+    assert list(rows[0].keys()) == [
+        "section",
+        "ordinal",
+        "key",
+        "value",
+        "run_id",
+        "status",
+        "profile",
+        "domain",
+        "started_at",
+        "completed_at",
+        "source_adapter",
+        "idea_id",
+        "title",
+        "category",
+        "score",
+        "recommendation",
+        "feedback_outcome",
+        "approval_score",
+        "publication_attempt_count",
+        "latest_publication_status",
+        "evidence_signal_count",
+        "message",
+    ]
+    assert [row["section"] for row in rows[:8]] == ["metadata"] * 8
+    assert rows[0]["key"] == "schema_version"
+    assert rows[0]["value"] == SCHEMA_VERSION
+    assert rows[2]["key"] == "run_id"
+    assert rows[2]["value"] == "run-handoff-001"
+
+    sections = [row["section"] for row in rows]
+    assert sections.index("summary") < sections.index("stage_counts")
+    assert sections.index("stage_counts") < sections.index("budget")
+    assert sections.index("budget") < sections.index("budget_stage")
+    assert sections.index("budget_stage") < sections.index("source_mix")
+    assert sections.index("source_mix") < sections.index("top_recommended_ideas")
+    assert sections.index("top_recommended_ideas") < sections.index("warnings")
+    assert sections.index("warnings") < sections.index("next_actions")
+
+    assert any(
+        row["section"] == "summary"
+        and row["key"] == "approved_or_published_count"
+        and row["value"] == "1"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "stage_counts"
+        and row["key"] == "signals_fetched"
+        and row["value"] == "16"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "budget" and row["key"] == "total_tokens" and row["value"] == "1750"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "source_mix"
+        and row["source_adapter"] == 'github, "issues"'
+        and row["value"] == "2"
+        and row["evidence_signal_count"] == "2"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "top_recommended_ideas"
+        and row["idea_id"] == "bu-handoff-top"
+        and row["title"] == 'Agent, "Run"\nHandoff'
+        and row["feedback_outcome"] == "approved"
+        and row["publication_attempt_count"] == "1"
+        for row in rows
+    )
+    assert '"github, ""issues"""' in csv_text
+    assert '"Agent, ""Run""\nHandoff"' in csv_text
+
+
+def test_digest_csv_empty_source_mix_and_top_ideas_use_placeholders() -> None:
+    digest = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.pipeline_run_handoff_digest",
+        "run": {"id": "run-empty", "status": "completed"},
+        "summary": {"idea_count": 0},
+        "stage_counts": {},
+        "budget": {},
+        "source_mix": [],
+        "top_recommended_ideas": [],
+        "warnings": [],
+        "next_actions": [],
+    }
+
+    rows = list(csv.DictReader(StringIO(render_pipeline_run_handoff_digest(digest, fmt="csv"))))
+
+    source_row = next(row for row in rows if row["section"] == "source_mix")
+    assert source_row["key"] == "none"
+    assert source_row["source_adapter"] == "none"
+    assert source_row["value"] == "0"
+    assert source_row["message"] == "No source mix is available."
+
+    idea_row = next(row for row in rows if row["section"] == "top_recommended_ideas")
+    assert idea_row["key"] == "none"
+    assert idea_row["score"] == "0.0"
+    assert idea_row["recommendation"] == "none"
+    assert idea_row["message"] == "No top recommended ideas are available."
+
+    warning_row = next(row for row in rows if row["section"] == "warnings")
+    action_row = next(row for row in rows if row["section"] == "next_actions")
+    assert warning_row["key"] == "none"
+    assert action_row["key"] == "none"
 
 
 def test_digest_builder_is_read_only(store: Store) -> None:
