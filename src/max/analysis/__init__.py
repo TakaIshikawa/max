@@ -95,6 +95,9 @@ from max.analysis.design_brief_kill_criteria import (
 )
 from max.analysis.design_brief_legal_review_checklist import (
     generate_design_brief_legal_review_checklist,
+    legal_review_checklist_filename,
+    render_design_brief_legal_review_checklist,
+    render_design_brief_legal_review_checklist_csv,
     render_design_brief_legal_review_checklist_markdown,
 )
 from max.analysis.design_brief_privacy_impact_assessment import (
@@ -181,6 +184,7 @@ __all__ = [
     "dependency_risk_map_filename",
     "investor_update_filename",
     "kill_criteria_filename",
+    "legal_review_checklist_filename",
     "market_entry_risk_report_filename",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
@@ -201,6 +205,8 @@ __all__ = [
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_kill_criteria",
     "render_design_brief_market_entry_risk_report",
+    "render_design_brief_legal_review_checklist",
+    "render_design_brief_legal_review_checklist_csv",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_renewal_expansion_plan",
