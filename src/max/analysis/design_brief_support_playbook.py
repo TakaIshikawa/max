@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.support_playbook.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "name",
+    "owner",
+    "severity",
+    "trigger_or_threshold",
+    "action",
+    "details",
+)
 
 
 def build_design_brief_support_playbook(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -75,9 +89,11 @@ def build_design_brief_support_playbook(store: Store, brief_id: str) -> dict[str
 
 
 def render_design_brief_support_playbook(playbook: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render the support playbook as Markdown or JSON."""
+    """Render the support playbook as Markdown, JSON, or CSV."""
     if fmt == "json":
         return json.dumps(playbook, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(playbook)
     if fmt != "markdown":
         raise ValueError(f"Unsupported support playbook format: {fmt}")
 
@@ -180,6 +196,134 @@ def render_design_brief_support_playbook(playbook: dict[str, Any], fmt: str = "m
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(playbook: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(playbook):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in playbook.get("onboarding_checks") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="onboarding",
+                item_id=item.get("id"),
+                name=item.get("check"),
+                owner=item.get("owner"),
+                trigger_or_threshold=item.get("pass_signal"),
+                action=item.get("failure_action"),
+                details={"source_idea_ids": item.get("source_idea_ids") or []},
+            )
+        )
+
+    for item in playbook.get("support_scenarios") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="scenarios",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                trigger_or_threshold=item.get("trigger"),
+                action=item.get("first_response"),
+                details={
+                    "likely_cause": item.get("likely_cause"),
+                    "resolution_target": item.get("resolution_target"),
+                    "source_idea_ids": item.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for item in playbook.get("troubleshooting_flows") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="troubleshooting",
+                item_id=item.get("scenario_id"),
+                name=f"Troubleshooting flow for {item.get('scenario_id') or ''}".strip(),
+                trigger_or_threshold=item.get("stop_condition"),
+                details={
+                    "steps": item.get("steps") or [],
+                    "source_idea_ids": item.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for item in playbook.get("escalation_criteria") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="escalation",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                owner=item.get("owner"),
+                severity=item.get("severity"),
+                trigger_or_threshold=item.get("escalate_when"),
+                action=item.get("path"),
+                details={
+                    "sla": item.get("sla"),
+                    "source_idea_ids": item.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for item in playbook.get("response_snippets") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="snippets",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                trigger_or_threshold=item.get("channel"),
+                action=item.get("body"),
+                details={"source_idea_ids": item.get("source_idea_ids") or []},
+            )
+        )
+
+    for item in playbook.get("monitoring_signals") or []:
+        rows.append(
+            _csv_row(
+                playbook,
+                section="monitoring",
+                item_id=item.get("id"),
+                name=item.get("signal"),
+                owner=item.get("owner"),
+                trigger_or_threshold=item.get("threshold"),
+                action=item.get("action"),
+                details={"source_idea_ids": item.get("source_idea_ids") or []},
+            )
+        )
+
+    return rows
+
+
+def _csv_row(playbook: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = playbook.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, set):
+        value = sorted(value, key=str)
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _support_context(

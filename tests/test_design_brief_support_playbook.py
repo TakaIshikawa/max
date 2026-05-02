@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_support_playbook import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_support_playbook,
     render_design_brief_support_playbook,
@@ -117,6 +120,119 @@ def test_render_design_brief_support_playbook_markdown_and_json(tmp_path) -> Non
     assert json.loads(rendered_json) == playbook
     with pytest.raises(ValueError):
         render_design_brief_support_playbook(playbook, fmt="yaml")
+
+
+def test_render_design_brief_support_playbook_csv_is_parseable_and_deterministic(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        playbook = build_design_brief_support_playbook(store, brief_id)
+    finally:
+        store.close()
+
+    assert playbook is not None
+    csv_text = render_design_brief_support_playbook(playbook, fmt="csv")
+    repeated = render_design_brief_support_playbook(playbook, fmt="csv")
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == 23
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "design_brief_title": "Support Playbook Brief",
+        "section": "onboarding",
+        "item_id": "OC1",
+        "name": "Confirm support engineer can enter pilot support intake.",
+        "owner": "Support owner",
+        "severity": "",
+        "trigger_or_threshold": (
+            "Customer can name the trigger, input, and expected output before first use."
+        ),
+        "action": "Schedule guided setup and record the missing workflow precondition.",
+        "details": '{"source_idea_ids":["bu-support-playbook-lead"]}',
+    }
+
+
+def test_render_design_brief_support_playbook_csv_covers_operational_sections(
+    tmp_path,
+) -> None:
+    store, _brief_id = _store_with_brief(tmp_path)
+    try:
+        playbook = build_design_brief_support_playbook(store, _brief_id)
+    finally:
+        store.close()
+
+    assert playbook is not None
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_support_playbook(playbook, "csv")))
+    )
+
+    assert [row["section"] for row in rows] == [
+        *["onboarding"] * 4,
+        *["scenarios"] * 4,
+        *["troubleshooting"] * 4,
+        *["escalation"] * 3,
+        *["snippets"] * 3,
+        *["monitoring"] * 5,
+    ]
+    assert [row["item_id"] for row in rows if row["section"] == "troubleshooting"] == [
+        "SS1",
+        "SS2",
+        "SS3",
+        "SS4",
+    ]
+    assert rows[14]["severity"] == "elevated"
+    assert rows[-1]["section"] == "monitoring"
+    assert rows[-1]["owner"] == "Risk owner"
+
+
+def test_render_design_brief_support_playbook_csv_uses_compact_json_details(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        playbook = build_design_brief_support_playbook(store, brief_id)
+    finally:
+        store.close()
+
+    assert playbook is not None
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_support_playbook(playbook, "csv")))
+    )
+    flow = next(
+        row for row in rows if row["section"] == "troubleshooting" and row["item_id"] == "SS4"
+    )
+    details = json.loads(flow["details"])
+
+    assert flow["details"] == json.dumps(details, sort_keys=True, separators=(",", ":"))
+    assert '":' in flow["details"]
+    assert '": ' not in flow["details"]
+    assert '", "' not in flow["details"]
+    assert details["source_idea_ids"] == ["bu-support-playbook-lead"]
+    assert details["steps"] == playbook["troubleshooting_flows"][3]["steps"]
+
+
+def test_render_design_brief_support_playbook_csv_does_not_change_json_or_markdown(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        playbook = build_design_brief_support_playbook(store, brief_id)
+    finally:
+        store.close()
+
+    assert playbook is not None
+    markdown = render_design_brief_support_playbook(playbook)
+    rendered_json = render_design_brief_support_playbook(playbook, fmt="json")
+
+    render_design_brief_support_playbook(playbook, fmt="csv")
+
+    assert render_design_brief_support_playbook(playbook) == markdown
+    assert render_design_brief_support_playbook(playbook, fmt="json") == rendered_json
 
 
 def test_build_design_brief_support_playbook_missing_brief_returns_none(tmp_path) -> None:
