@@ -48,6 +48,10 @@ from max.analysis.design_brief_investor_update import (
     investor_update_filename,
     render_design_brief_investor_update,
 )
+from max.analysis.design_brief_integration_contract import (
+    build_design_brief_integration_contract,
+    render_design_brief_integration_contract,
+)
 from max.analysis.design_brief_release_notes import (
     build_design_brief_release_notes,
     release_notes_filename,
@@ -114,6 +118,7 @@ __all__ = [
     "build_design_brief_dependency_risk_map",
     "build_design_brief_qa_test_plan",
     "build_design_brief_investor_update",
+    "build_design_brief_integration_contract",
     "build_design_brief_kill_criteria",
     "build_design_brief_release_notes",
     "build_design_brief_sales_enablement_checklist",
@@ -151,6 +156,7 @@ __all__ = [
     "render_design_brief_dependency_risk_map",
     "render_design_brief_qa_test_plan",
     "render_design_brief_investor_update",
+    "render_design_brief_integration_contract",
     "render_design_brief_release_notes",
     "render_design_brief_sales_enablement_checklist",
     "render_design_brief_raci_matrix",
