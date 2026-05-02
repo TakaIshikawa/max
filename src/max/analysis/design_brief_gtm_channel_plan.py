@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections import Counter
 from typing import Any
@@ -18,6 +20,26 @@ _REQUIRED_FIELDS: tuple[tuple[str, str], ...] = (
     ("validation_plan", "Validation plan is needed to define channel exit criteria."),
     ("risks", "Risks are needed to set launch guardrails."),
     ("source_idea_ids", "Source ideas are needed for traceable channel evidence."),
+)
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "priority",
+    "channel",
+    "type",
+    "audience",
+    "owner",
+    "confidence",
+    "rationale",
+    "call_to_action",
+    "evidence_refs",
+    "tactic_names",
+    "tactic_descriptions",
+    "tactic_owners",
+    "success_metric",
+    "sequencing_phase",
+    "risk_refs",
+    "mitigation_refs",
 )
 
 
@@ -89,9 +111,11 @@ def build_design_brief_gtm_channel_plan(
 
 
 def render_design_brief_gtm_channel_plan(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render the GTM channel plan as JSON or Markdown."""
+    """Render the GTM channel plan as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_gtm_channel_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported GTM channel plan format: {fmt}")
 
@@ -163,9 +187,92 @@ def render_design_brief_gtm_channel_plan(report: dict[str, Any], fmt: str = "jso
 
 def gtm_channel_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a GTM channel plan export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     return f"{brief_id}-gtm-channel-plan.{extension}"
+
+
+def render_gtm_channel_plan_csv(report: dict[str, Any]) -> str:
+    """Render channel recommendations as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    brief = report.get("design_brief") or {}
+    design_brief_id = _csv_cell(brief.get("id"))
+    phases_by_channel = _sequencing_phases_by_channel(report.get("sequencing", []))
+    recommendations = sorted(
+        report.get("channel_recommendations", []),
+        key=lambda item: (int(item.get("priority") or 0), _csv_cell(item.get("id"))),
+    )
+    risks_by_channel = _risks_by_channel(
+        report.get("risks", []),
+        [_csv_cell(recommendation.get("channel")) for recommendation in recommendations],
+    )
+
+    rows: list[dict[str, str]] = []
+    for recommendation in recommendations:
+        channel = _csv_cell(recommendation.get("channel"))
+        tactics = recommendation.get("tactics") or []
+        tactic_names = [tactic.get("name") for tactic in tactics if isinstance(tactic, dict)]
+        tactic_descriptions = [
+            tactic.get("description") for tactic in tactics if isinstance(tactic, dict)
+        ]
+        tactic_owners = [tactic.get("owner") for tactic in tactics if isinstance(tactic, dict)]
+        channel_risks = risks_by_channel.get(channel, [])
+        rows.append(
+            {
+                "design_brief_id": design_brief_id,
+                "priority": _csv_cell(recommendation.get("priority")),
+                "channel": channel,
+                "type": _csv_cell(recommendation.get("type")),
+                "audience": _csv_cell(recommendation.get("audience")),
+                "owner": _csv_cell(recommendation.get("owner")),
+                "confidence": _csv_cell(recommendation.get("confidence")),
+                "rationale": _csv_cell(recommendation.get("rationale")),
+                "call_to_action": _csv_cell(recommendation.get("call_to_action")),
+                "evidence_refs": _csv_cell(recommendation.get("evidence_refs")),
+                "tactic_names": _csv_cell(tactic_names),
+                "tactic_descriptions": _csv_cell(tactic_descriptions),
+                "tactic_owners": _csv_cell(tactic_owners),
+                "success_metric": _csv_cell(recommendation.get("success_metric") or {}),
+                "sequencing_phase": _csv_cell(phases_by_channel.get(channel, [])),
+                "risk_refs": _csv_cell([risk.get("id") for risk in channel_risks]),
+                "mitigation_refs": _csv_cell([risk.get("mitigation") for risk in channel_risks]),
+            }
+        )
+    return rows
+
+
+def _sequencing_phases_by_channel(sequencing: list[dict[str, Any]]) -> dict[str, list[str]]:
+    phases_by_channel: dict[str, list[str]] = {}
+    for phase in sequencing:
+        phase_name = _csv_cell(phase.get("phase"))
+        if not phase_name:
+            continue
+        for channel in _string_list(phase.get("channels")):
+            phases_by_channel.setdefault(channel, []).append(phase_name)
+    return phases_by_channel
+
+
+def _risks_by_channel(
+    risks: list[dict[str, Any]],
+    channels: list[str],
+) -> dict[str, list[dict[str, Any]]]:
+    risks_by_channel: dict[str, list[dict[str, Any]]] = {}
+    for risk in risks:
+        if not isinstance(risk, dict):
+            continue
+        mitigation = _csv_cell(risk.get("mitigation"))
+        for channel in channels:
+            if channel and channel in mitigation:
+                risks_by_channel.setdefault(channel, []).append(risk)
+    return risks_by_channel
 
 
 def _ranked_recommendations(
@@ -594,6 +701,18 @@ def _overall_confidence(recommendations: list[dict[str, Any]], missing_inputs: l
 
 def _inline_ids(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "None"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        cleaned = [_csv_cell(item) for item in value]
+        return json.dumps([item for item in cleaned if item], sort_keys=True, separators=(",", ":"))
+    if isinstance(value, dict):
+        cleaned = {str(key): _csv_cell(item) for key, item in sorted(value.items())}
+        return json.dumps(cleaned, sort_keys=True, separators=(",", ":"))
+    return str(value).strip()
 
 
 def _filename_part(value: str) -> str:
