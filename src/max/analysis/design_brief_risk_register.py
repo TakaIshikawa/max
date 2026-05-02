@@ -2,13 +2,33 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.risk_register.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "risk_id",
+    "category",
+    "title",
+    "description",
+    "likelihood",
+    "impact",
+    "severity",
+    "score",
+    "mitigation",
+    "owner",
+    "trigger",
+    "status",
+    "evidence",
+    "next_action",
+    "source_idea_ids",
+    "source_fields",
+)
 
 RISK_CATEGORIES = (
     "market",
@@ -78,6 +98,8 @@ def render_design_brief_risk_register(register: dict[str, Any], fmt: str = "json
     """Render the risk register for MCP consumers."""
     if fmt == "json":
         return json.dumps(register, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(register)
     if fmt != "markdown":
         raise ValueError(f"Unsupported risk register format: {fmt}")
 
@@ -106,6 +128,67 @@ def render_design_brief_risk_register(register: dict[str, Any], fmt: str = "json
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(register: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(register):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(register: dict[str, Any]) -> list[dict[str, str]]:
+    return [_csv_row(risk) for risk in register.get("risks") or []]
+
+
+def _csv_row(risk: dict[str, Any]) -> dict[str, str]:
+    evidence = risk.get("evidence")
+    if evidence is None:
+        evidence = risk.get("evidence_context")
+    if evidence is None:
+        evidence = {
+            "source_idea_ids": risk.get("source_idea_ids") or [],
+            "source_fields": risk.get("source_fields") or [],
+        }
+
+    values = {
+        "risk_id": risk.get("id") or risk.get("risk_id"),
+        "category": risk.get("category"),
+        "title": risk.get("title"),
+        "description": risk.get("description"),
+        "likelihood": risk.get("likelihood"),
+        "impact": risk.get("impact"),
+        "severity": risk.get("severity"),
+        "score": _first_present(risk.get("score"), risk.get("risk_score"), risk.get("priority")),
+        "mitigation": risk.get("mitigation"),
+        "owner": risk.get("owner") or risk.get("owner_role"),
+        "trigger": risk.get("trigger"),
+        "status": risk.get("status"),
+        "evidence": evidence,
+        "next_action": _first_present(risk.get("next_action"), risk.get("validation_action")),
+        "source_idea_ids": risk.get("source_idea_ids"),
+        "source_fields": risk.get("source_fields"),
+    }
+    return {column: _csv_cell(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, set):
+        value = sorted(value, key=str)
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def _first_present(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 def _brief_risks(design_brief: dict[str, Any]) -> list[dict[str, Any]]:
