@@ -75,6 +75,10 @@ from max.spec.privacy_impact_assessment import (
     render_privacy_impact_assessment_markdown,
 )
 from max.spec.readiness import evaluate_spec_readiness
+from max.spec.release_readiness_gate import (
+    generate_release_readiness_gate,
+    render_release_readiness_gate_markdown,
+)
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import (
@@ -120,6 +124,7 @@ __all__ = [
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
     "generate_privacy_impact_assessment",
+    "generate_release_readiness_gate",
     "generate_rollback_plan",
     "generate_spec_bundle",
     "generate_security_review",
@@ -153,6 +158,7 @@ __all__ = [
     "render_operational_runbook_markdown",
     "render_post_launch_monitoring_plan_markdown",
     "render_privacy_impact_assessment_markdown",
+    "render_release_readiness_gate_markdown",
     "render_spec_bundle_yaml",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
