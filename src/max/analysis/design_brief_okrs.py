@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import csv
 import re
+from io import StringIO
 from typing import Any
 
 SCHEMA_VERSION = "max.design_brief.okrs.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "generated_at",
+    "design_brief_id",
+    "design_brief_title",
+    "domain",
+    "theme",
+    "readiness_score",
+    "design_status",
+    "lead_idea_id",
+    "source_idea_ids",
+    "report_confidence_level",
+    "report_confidence_score",
+    "report_risk_level",
+    "validation_required",
+    "objective_id",
+    "objective",
+    "owner_hint",
+    "objective_confidence",
+    "objective_risk_level",
+    "key_result_id",
+    "key_result_metric",
+    "key_result_target",
+    "evidence_source",
+)
 
 _HIGH_RISK_KEYWORDS = (
     "compliance",
@@ -117,6 +145,71 @@ def render_design_brief_okrs_markdown(report: dict[str, Any]) -> str:
         lines.append("- No explicit risks were provided.")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_design_brief_okrs(report: dict[str, Any], *, fmt: str = "markdown") -> str:
+    """Render a design brief OKR report as Markdown or CSV."""
+    if fmt == "csv":
+        return render_design_brief_okrs_csv(report)
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported design brief OKRs format: {fmt}")
+    return render_design_brief_okrs_markdown(report)
+
+
+def render_design_brief_okrs_csv(report: dict[str, Any]) -> str:
+    """Render a design brief OKR report as one CSV row per key result."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    brief = report.get("design_brief") or {}
+    source = report.get("source") or {}
+    confidence = report.get("confidence") or {}
+    risk_summary = report.get("risk_summary") or {}
+    summary = report.get("summary") or {}
+    base = {
+        "schema_version": report.get("schema_version"),
+        "generated_at": source.get("generated_at"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "domain": brief.get("domain"),
+        "theme": brief.get("theme"),
+        "readiness_score": brief.get("readiness_score"),
+        "design_status": brief.get("design_status"),
+        "lead_idea_id": brief.get("lead_idea_id"),
+        "source_idea_ids": _csv_join(brief.get("source_idea_ids") or []),
+        "report_confidence_level": confidence.get("level"),
+        "report_confidence_score": confidence.get("score"),
+        "report_risk_level": risk_summary.get("level"),
+        "validation_required": summary.get("validation_required"),
+    }
+
+    rows: list[dict[str, str]] = []
+    for objective in report.get("objectives") or []:
+        objective_base = {
+            **base,
+            "objective_id": objective.get("id"),
+            "objective": objective.get("objective"),
+            "owner_hint": objective.get("owner_hint"),
+            "objective_confidence": objective.get("confidence"),
+            "objective_risk_level": objective.get("risk_level"),
+        }
+        for key_result in objective.get("key_results") or []:
+            rows.append(
+                _csv_row(
+                    **objective_base,
+                    key_result_id=key_result.get("id"),
+                    key_result_metric=key_result.get("metric"),
+                    key_result_target=key_result.get("target"),
+                    evidence_source=key_result.get("evidence_source"),
+                )
+            )
+    return rows
 
 
 def _objectives(
@@ -529,3 +622,19 @@ def _has_high_risk_text(design_brief: dict[str, Any]) -> bool:
 
 def _yes_no(value: bool) -> str:
     return "yes" if value else "no"
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)

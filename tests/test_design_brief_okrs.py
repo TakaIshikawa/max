@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
+import pytest
+
 from max.analysis.design_brief_okrs import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_okrs,
+    render_design_brief_okrs,
+    render_design_brief_okrs_csv,
     render_design_brief_okrs_markdown,
 )
 
@@ -131,3 +139,56 @@ def test_render_design_brief_okrs_markdown_uses_stable_headings_and_bullets() ->
     assert "- Key results:" in markdown
     assert "  - **KR1**:" in markdown
     assert "## Risk Annotations" in markdown
+
+
+def test_render_design_brief_okrs_csv_has_stable_header_rows_and_values() -> None:
+    report = build_design_brief_okrs(_brief())
+
+    csv_text = render_design_brief_okrs_csv(report)
+    repeated = render_design_brief_okrs(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert len(rows) == report["summary"]["key_result_count"] == 9
+    assert [(row["objective_id"], row["key_result_id"]) for row in rows[:4]] == [
+        ("O1", "KR1"),
+        ("O1", "KR2"),
+        ("O1", "KR3"),
+        ("O2", "KR1"),
+    ]
+    assert rows[0]["schema_version"] == SCHEMA_VERSION
+    assert rows[0]["generated_at"] == "2026-04-22T00:00:00+00:00"
+    assert rows[0]["design_brief_id"] == "dbf-okrs"
+    assert rows[0]["design_brief_title"] == "AgentAdversarialBench"
+    assert rows[0]["report_confidence_level"] == "high"
+    assert rows[0]["report_risk_level"] == "low"
+    assert rows[0]["validation_required"] == "false"
+    assert rows[0]["objective"] == "Validate demand for AgentAdversarialBench"
+    assert rows[0]["owner_hint"] == "Product lead with engineering manager"
+    assert rows[0]["objective_confidence"] == "high"
+    assert rows[0]["objective_risk_level"] == "low"
+    assert rows[0]["key_result_metric"] == "Interview at least 5 platform engineer"
+    assert rows[0]["key_result_target"] == "5 completed interviews"
+    assert rows[0]["evidence_source"] == "Customer discovery notes"
+
+
+def test_render_design_brief_okrs_csv_quotes_special_values() -> None:
+    report = build_design_brief_okrs(_brief(title='AgentAdversarialBench, "Enterprise"'))
+    report["objectives"][0]["key_results"][0]["metric"] = 'Interview platform engineers,\nincluding "skeptics"'
+
+    csv_text = render_design_brief_okrs_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"AgentAdversarialBench, ""Enterprise"""' in csv_text
+    assert '"Interview platform engineers,\nincluding ""skeptics"""' in csv_text
+    assert rows[0]["design_brief_title"] == 'AgentAdversarialBench, "Enterprise"'
+    assert rows[0]["key_result_metric"] == 'Interview platform engineers,\nincluding "skeptics"'
+
+
+def test_render_design_brief_okrs_format_switch_rejects_unsupported_formats() -> None:
+    report = build_design_brief_okrs(_brief())
+
+    assert render_design_brief_okrs(report, fmt="markdown") == render_design_brief_okrs_markdown(report)
+    with pytest.raises(ValueError, match="Unsupported design brief OKRs format: yaml"):
+        render_design_brief_okrs(report, fmt="yaml")
