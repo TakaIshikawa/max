@@ -2,13 +2,37 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.outreach_pack.v1"
+
+OUTREACH_PACK_CSV_COLUMNS: tuple[str, ...] = (
+    "section",
+    "type",
+    "order",
+    "id",
+    "title_name",
+    "channel_stage",
+    "body_detail",
+    "cta",
+    "evidence_source_idea_ids",
+    "design_brief_id",
+    "design_brief_title",
+    "design_brief_domain",
+    "design_brief_theme",
+    "design_status",
+    "readiness_score",
+    "buyer",
+    "specific_user",
+    "workflow_context",
+    "value_proposition",
+)
 
 
 def build_design_brief_outreach_pack(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -72,9 +96,11 @@ def build_design_brief_outreach_pack(store: Store, brief_id: str) -> dict[str, A
 
 
 def render_design_brief_outreach_pack(pack: dict[str, Any], fmt: str = "json") -> str:
-    """Render the outreach pack as JSON or Markdown."""
+    """Render the outreach pack as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(pack, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(pack)
     if fmt != "markdown":
         raise ValueError(f"Unsupported outreach pack format: {fmt}")
 
@@ -185,6 +211,173 @@ def write_design_brief_outreach_pack(path: Path, pack: dict[str, Any], fmt: str 
     """Write a rendered outreach pack to disk."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render_design_brief_outreach_pack(pack, fmt=fmt), encoding="utf-8")
+
+
+def _render_csv(pack: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=OUTREACH_PACK_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(pack):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(pack: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for order, segment in enumerate(pack.get("target_segments") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="target_segments",
+                row_type="segment",
+                order=order,
+                item_id=segment.get("id"),
+                title_name=segment.get("name"),
+                body_detail=_csv_join(
+                    [
+                        f"Buyer: {_csv_text(segment.get('buyer'))}",
+                        f"User: {_csv_text(segment.get('user'))}",
+                        f"Workflow: {_csv_text(segment.get('workflow_context'))}",
+                        f"Recruiting angle: {_csv_text(segment.get('recruiting_angle'))}",
+                        f"Inclusion signal: {_csv_text(segment.get('inclusion_signal'))}",
+                        f"Exclusion signal: {_csv_text(segment.get('exclusion_signal'))}",
+                    ],
+                    separator=" | ",
+                ),
+                evidence_source_idea_ids=segment.get("source_idea_ids"),
+            )
+        )
+
+    for order, hypothesis in enumerate(pack.get("outreach_hypotheses") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="outreach_hypotheses",
+                row_type="hypothesis",
+                order=order,
+                item_id=hypothesis.get("id"),
+                title_name=hypothesis.get("hypothesis"),
+                body_detail=_csv_join(
+                    [
+                        f"Rationale: {_csv_text(hypothesis.get('rationale'))}",
+                        f"Evidence to capture: {_csv_text(hypothesis.get('evidence_to_capture'))}",
+                        f"Success signal: {_csv_text(hypothesis.get('success_signal'))}",
+                    ],
+                    separator=" | ",
+                ),
+                evidence_source_idea_ids=hypothesis.get("source_idea_ids"),
+            )
+        )
+
+    for order, template in enumerate(pack.get("templates") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="templates",
+                row_type="template",
+                order=order,
+                item_id=template.get("id"),
+                title_name=template.get("name"),
+                channel_stage=template.get("channel"),
+                body_detail=_csv_join(
+                    [
+                        f"Subject: {_csv_text(template.get('subject'))}",
+                        template.get("body"),
+                    ],
+                    separator=" | ",
+                ),
+                cta=template.get("call_to_action"),
+                evidence_source_idea_ids=template.get("source_idea_ids"),
+            )
+        )
+
+    for order, objection in enumerate(pack.get("objection_handling") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="objection_handling",
+                row_type="objection",
+                order=order,
+                item_id=objection.get("id"),
+                title_name=objection.get("objection"),
+                body_detail=_csv_join(
+                    [
+                        f"Response: {_csv_text(objection.get('response'))}",
+                        f"Proof to offer: {_csv_text(objection.get('proof_to_offer'))}",
+                        f"Escalation: {_csv_text(objection.get('escalation'))}",
+                    ],
+                    separator=" | ",
+                ),
+                evidence_source_idea_ids=objection.get("source_idea_ids"),
+            )
+        )
+
+    for order, question in enumerate(pack.get("qualification_questions") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="qualification_questions",
+                row_type="qualification_question",
+                order=order,
+                item_id=question.get("id"),
+                title_name=question.get("question"),
+                channel_stage=question.get("stage"),
+                body_detail=question.get("question"),
+                evidence_source_idea_ids=question.get("source_idea_ids"),
+            )
+        )
+
+    for order, artifact in enumerate(pack.get("follow_up_artifacts") or [], start=1):
+        rows.append(
+            _csv_row(
+                pack,
+                section="follow_up_artifacts",
+                row_type="follow_up_artifact",
+                order=order,
+                item_id=artifact.get("id"),
+                title_name=artifact.get("name"),
+                channel_stage=artifact.get("timing"),
+                body_detail=_csv_join(
+                    [
+                        f"Purpose: {_csv_text(artifact.get('purpose'))}",
+                        f"Owner: {_csv_text(artifact.get('owner'))}",
+                        f"Content: {_csv_text(artifact.get('content'))}",
+                    ],
+                    separator=" | ",
+                ),
+                evidence_source_idea_ids=artifact.get("source_idea_ids"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(pack: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = pack.get("design_brief") or {}
+    summary = pack.get("summary") or {}
+    row = {
+        "section": values.get("section"),
+        "type": values.get("row_type"),
+        "order": values.get("order"),
+        "id": values.get("item_id"),
+        "title_name": values.get("title_name"),
+        "channel_stage": values.get("channel_stage"),
+        "body_detail": values.get("body_detail"),
+        "cta": values.get("cta"),
+        "evidence_source_idea_ids": values.get("evidence_source_idea_ids"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "design_brief_domain": brief.get("domain"),
+        "design_brief_theme": brief.get("theme"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
+        "buyer": summary.get("buyer"),
+        "specific_user": summary.get("specific_user"),
+        "workflow_context": summary.get("workflow_context"),
+        "value_proposition": summary.get("value_proposition"),
+    }
+    return {column: _csv_text(row.get(column)) for column in OUTREACH_PACK_CSV_COLUMNS}
 
 
 def _audience_context(
@@ -565,3 +758,19 @@ def _compact(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split())
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return _csv_join(value)
+    if isinstance(value, tuple):
+        return _csv_join(value)
+    if isinstance(value, dict):
+        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+    return _compact(value)
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
