@@ -90,6 +90,11 @@ from max.analysis.design_brief_churn_risk_report import (
     churn_risk_report_filename,
     render_design_brief_churn_risk_report,
 )
+from max.analysis.design_brief_conversion_risk import (
+    build_design_brief_conversion_risk,
+    conversion_risk_filename,
+    render_design_brief_conversion_risk,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -99,6 +104,7 @@ __all__ = [
     "accessibility_review_filename",
     "build_design_brief_accessibility_review",
     "build_design_brief_churn_risk_report",
+    "build_design_brief_conversion_risk",
     "build_design_brief_procurement_checklist",
     "build_design_brief_dependency_risk_map",
     "build_design_brief_qa_test_plan",
@@ -120,6 +126,7 @@ __all__ = [
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
     "churn_risk_report_filename",
+    "conversion_risk_filename",
     "generate_design_brief_kpi_tree",
     "generate_design_brief_legal_review_checklist",
     "generate_persona_interview_guide",
@@ -146,6 +153,7 @@ __all__ = [
     "render_design_brief_work_breakdown",
     "render_design_brief_accessibility_review",
     "render_design_brief_churn_risk_report",
+    "render_design_brief_conversion_risk",
     "render_portfolio_dependency_overlap",
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",
