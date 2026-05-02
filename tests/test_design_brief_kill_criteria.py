@@ -10,6 +10,7 @@ from max.analysis import (
     build_design_brief_kill_criteria,
     kill_criteria_filename,
     render_design_brief_kill_criteria,
+    render_design_brief_kill_criteria_csv,
 )
 from max.analysis.design_brief_kill_criteria import KIND, SCHEMA_VERSION
 from max.types.buildable_unit import BuildableUnit
@@ -17,17 +18,14 @@ from max.types.evaluation import DimensionScore, UtilityEvaluation
 
 
 CSV_COLUMNS = [
-    "design_brief_id",
-    "design_brief_title",
-    "criterion_type",
-    "criterion_id",
-    "category",
-    "label",
-    "status",
+    "gate",
+    "metric",
     "threshold",
-    "evidence_backed_reason",
-    "action",
-    "source_reference_ids",
+    "measurement_source",
+    "review_cadence",
+    "owner",
+    "consequence",
+    "rationale",
 ]
 
 
@@ -181,36 +179,45 @@ def test_csv_renderer_has_stable_headers_and_rows_across_criterion_groups() -> N
     report["pivot_triggers"] = pivot_report["pivot_triggers"]
 
     csv_text = render_design_brief_kill_criteria(report, fmt="csv")
+    helper_csv_text = render_design_brief_kill_criteria_csv(report)
     reader = csv.DictReader(io.StringIO(csv_text))
     rows = list(reader)
 
     assert reader.fieldnames == CSV_COLUMNS
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert helper_csv_text == csv_text
     assert csv_text == render_design_brief_kill_criteria(report, fmt="csv")
     assert len(rows) == (
         len(report["stop_triggers"])
         + len(report["pivot_triggers"])
         + len(report["continue_signals"])
     )
-    assert [row["criterion_type"] for row in rows] == (
+    assert [row["gate"] for row in rows] == (
         ["stop"] * len(report["stop_triggers"])
         + ["pivot"] * len(report["pivot_triggers"])
         + ["continue"] * len(report["continue_signals"])
     )
-    assert [row["criterion_id"] for row in rows[:3]] == ["DBKC-S1", "DBKC-S3", "DBKC-S4"]
-    pivot_row = next(row for row in rows if row["criterion_id"] == "DBKC-P1")
-    continue_row = next(row for row in rows if row["criterion_id"] == "DBKC-C2")
-    assert pivot_row["design_brief_id"] == "bu-kill-strong"
-    assert pivot_row["design_brief_title"] == "Agent Evidence Gate"
-    assert pivot_row["category"] == "pivot"
-    assert pivot_row["label"] == "Contradictory demand evidence"
-    assert pivot_row["status"] == "active"
-    assert pivot_row["threshold"]
-    assert pivot_row["evidence_backed_reason"]
-    assert pivot_row["action"]
-    assert pivot_row["source_reference_ids"] == '["sig-negative"]'
-    assert json.loads(pivot_row["source_reference_ids"]) == ["sig-negative"]
-    assert json.loads(continue_row["source_reference_ids"]) == [
+    assert [row["metric"] for row in rows[:3]] == [
+        "No evidence attached",
+        "Low severity without proof",
+        "Missing target user",
+    ]
+    pivot_row = next(row for row in rows if row["metric"] == "Contradictory demand evidence")
+    continue_row = next(row for row in rows if row["metric"] == "Diverse evidence base")
+    assert pivot_row["threshold"] == (
+        "Pivot when evidence includes rejection, weak demand, or contradiction signals."
+    )
+    assert pivot_row["measurement_source"] == '["sig-negative"]'
+    assert pivot_row["review_cadence"] == "Next validation pass"
+    assert pivot_row["owner"] == "research owner"
+    assert pivot_row["consequence"] == (
+        "Narrow the segment or switch to the workflow where evidence remains positive."
+    )
+    assert pivot_row["rationale"] == (
+        "1 evidence reference(s) contain negative or contradictory demand signals."
+    )
+    assert json.loads(pivot_row["measurement_source"]) == ["sig-negative"]
+    assert json.loads(continue_row["measurement_source"]) == [
         "ins-kill-1",
         "sig-kill-1",
         "sig-kill-2",
@@ -235,16 +242,79 @@ def test_csv_renderer_returns_header_for_empty_criterion_groups() -> None:
     assert csv_text == ",".join(CSV_COLUMNS) + "\n"
 
 
+def test_csv_renderer_formats_thresholds_and_empty_optional_values() -> None:
+    report = {
+        "stop_triggers": [
+            {
+                "id": "manual",
+                "category": "stop",
+                "label": "Numeric threshold",
+                "status": "active",
+                "threshold": 7.5,
+                "source_reference_ids": [],
+            }
+        ],
+        "pivot_triggers": [],
+        "continue_signals": [],
+    }
+
+    rows = list(csv.DictReader(io.StringIO(render_design_brief_kill_criteria_csv(report))))
+
+    assert rows == [
+        {
+            "gate": "stop",
+            "metric": "Numeric threshold",
+            "threshold": "7.5",
+            "measurement_source": "",
+            "review_cadence": "Before scope expansion",
+            "owner": "product owner",
+            "consequence": "",
+            "rationale": "",
+        }
+    ]
+
+
+def test_csv_renderer_escapes_special_characters() -> None:
+    report = {
+        "stop_triggers": [
+            {
+                "id": "escape",
+                "category": "stop",
+                "label": 'Quote "metric", with comma',
+                "status": "active",
+                "threshold": "Stop when threshold has, comma",
+                "evidence_backed_reason": "First line\nSecond line",
+                "source_reference_ids": ["sig,1", 'sig"2'],
+                "action": 'Tell owner "pause", then review.',
+            }
+        ],
+        "pivot_triggers": [],
+        "continue_signals": [],
+    }
+
+    csv_text = render_design_brief_kill_criteria_csv(report)
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["metric"] == 'Quote "metric", with comma'
+    assert rows[0]["threshold"] == "Stop when threshold has, comma"
+    assert rows[0]["rationale"] == "First line\nSecond line"
+    assert rows[0]["consequence"] == 'Tell owner "pause", then review.'
+    assert json.loads(rows[0]["measurement_source"]) == ["sig,1", 'sig"2']
+    assert '"Quote ""metric"", with comma"' in csv_text
+
+
 def test_helpers_are_importable_from_max_analysis() -> None:
     from max.analysis import (  # noqa: PLC0415
         build_design_brief_kill_criteria as imported_build,
         kill_criteria_filename as imported_filename,
         render_design_brief_kill_criteria as imported_render,
+        render_design_brief_kill_criteria_csv as imported_csv_render,
     )
 
     assert imported_build is build_design_brief_kill_criteria
     assert imported_filename is kill_criteria_filename
     assert imported_render is render_design_brief_kill_criteria
+    assert imported_csv_render is render_design_brief_kill_criteria_csv
 
 
 def _sparse_unit() -> BuildableUnit:
