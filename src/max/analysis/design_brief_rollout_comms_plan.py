@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Any
 
@@ -9,6 +11,20 @@ from max.store.db import Store
 
 KIND = "max.design_brief.rollout_comms_plan"
 SCHEMA_VERSION = "max.design_brief.rollout_comms_plan.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "audience",
+    "channel",
+    "timing",
+    "owner",
+    "message",
+    "call_to_action",
+    "details",
+)
 
 
 def build_design_brief_rollout_comms_plan(
@@ -80,9 +96,11 @@ def build_design_brief_rollout_comms_plan(
 
 
 def render_design_brief_rollout_comms_plan(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render the rollout communications plan as JSON or Markdown."""
+    """Render the rollout communications plan as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return render_design_brief_rollout_comms_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported rollout communications plan format: {fmt}")
 
@@ -213,10 +231,160 @@ def render_design_brief_rollout_comms_plan(report: dict[str, Any], fmt: str = "j
 
 def rollout_comms_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a rollout communications plan export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "rollout-comms-plan"))
     return f"{brief_id}-{title}-rollout-comms-plan.{extension}"
+
+
+def render_design_brief_rollout_comms_plan_csv(report: dict[str, Any]) -> str:
+    """Render rollout communication items as deterministic CSV rows."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for audience in report.get("target_audiences") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="target_audiences",
+                item_id=audience.get("id"),
+                audience=audience.get("name"),
+                channel=audience.get("preferred_channels"),
+                message=audience.get("message_angle"),
+                details={
+                    "type": audience.get("type"),
+                    "need": audience.get("need"),
+                    "source_idea_ids": audience.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for phase in report.get("launch_phases") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="launch_phases",
+                item_id=phase.get("id"),
+                timing=phase.get("timing"),
+                owner=phase.get("owner"),
+                message=phase.get("objective"),
+                call_to_action=phase.get("exit_criteria"),
+                details={
+                    "sequence": phase.get("sequence"),
+                    "name": phase.get("name"),
+                    "source_idea_ids": phase.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for item in report.get("channel_message_matrix") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="channel_message_matrix",
+                item_id=item.get("id"),
+                audience=item.get("audience"),
+                channel=item.get("channel"),
+                timing=item.get("phase"),
+                owner=item.get("owner"),
+                message=item.get("message"),
+                call_to_action=item.get("call_to_action"),
+                details={
+                    "phase_id": item.get("phase_id"),
+                    "audience_id": item.get("audience_id"),
+                    "source_fields": item.get("source_fields") or [],
+                    "source_idea_ids": item.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for note in report.get("internal_enablement_notes") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="internal_enablement_notes",
+                item_id=note.get("id"),
+                channel="enablement note",
+                owner=note.get("owner"),
+                message=note.get("detail"),
+                details={
+                    "topic": note.get("topic"),
+                    "source_fields": note.get("source_fields") or [],
+                    "source_idea_ids": note.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for draft in report.get("customer_facing_announcement_drafts") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="customer_facing_announcement_drafts",
+                item_id=draft.get("id"),
+                audience=draft.get("audience"),
+                channel=draft.get("channel"),
+                message=draft.get("body"),
+                call_to_action=draft.get("call_to_action"),
+                details={
+                    "name": draft.get("name"),
+                    "headline": draft.get("headline"),
+                    "source_fields": draft.get("source_fields") or [],
+                    "source_idea_ids": draft.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for hook in report.get("risk_faq_hooks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="risk_faq_hooks",
+                item_id=hook.get("id"),
+                channel="FAQ",
+                message=hook.get("question"),
+                call_to_action=hook.get("answer_hook"),
+                details={
+                    "source": hook.get("source"),
+                    "source_idea_ids": hook.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: dict[str, Any], *, section: str, **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "section": section,
+        "item_id": values.get("item_id"),
+        "audience": values.get("audience"),
+        "channel": values.get("channel"),
+        "timing": values.get("timing"),
+        "owner": values.get("owner"),
+        "message": values.get("message"),
+        "call_to_action": values.get("call_to_action"),
+        "details": values.get("details"),
+    }
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _rollout_context(
