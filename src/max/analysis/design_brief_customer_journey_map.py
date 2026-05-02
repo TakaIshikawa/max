@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 KIND = "max.design_brief.customer_journey_map"
 SCHEMA_VERSION = "max.design_brief.customer_journey_map.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "readiness_score",
+    "sequence",
+    "stage_id",
+    "name",
+    "owner",
+    "user_goals",
+    "touchpoints",
+    "friction_points",
+    "success_signals",
+    "evidence_reference_ids",
+    "source_idea_ids",
+)
 
 
 def build_design_brief_customer_journey_map(
@@ -76,9 +93,11 @@ def build_design_brief_customer_journey_map(
 def render_design_brief_customer_journey_map(
     report: dict[str, Any], fmt: str = "json"
 ) -> str:
-    """Render a customer journey map as JSON or Markdown."""
+    """Render a customer journey map as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported customer journey map format: {fmt}")
 
@@ -151,6 +170,55 @@ def render_design_brief_customer_journey_map(
         lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(_csv_rows(report))
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    stages = [stage for stage in report.get("journey_stages") or [] if isinstance(stage, dict)]
+    return [_csv_row(report, stage) for stage in sorted(stages, key=_stage_sequence)]
+
+
+def _stage_sequence(stage: dict[str, Any]) -> tuple[int, str]:
+    try:
+        sequence = int(stage.get("sequence") or 0)
+    except (TypeError, ValueError):
+        sequence = 0
+    return (sequence, str(stage.get("id") or ""))
+
+
+def _csv_row(report: dict[str, Any], stage: dict[str, Any]) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "readiness_score": brief.get("readiness_score"),
+        "sequence": stage.get("sequence"),
+        "stage_id": stage.get("id"),
+        "name": stage.get("name"),
+        "owner": stage.get("owner"),
+        "user_goals": stage.get("user_goals"),
+        "touchpoints": stage.get("touchpoints"),
+        "friction_points": stage.get("friction_points"),
+        "success_signals": stage.get("success_signals"),
+        "evidence_reference_ids": stage.get("evidence_reference_ids"),
+        "source_idea_ids": stage.get("source_idea_ids") or brief.get("source_idea_ids"),
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ";".join(_csv_text(item) for item in value if _csv_text(item))
+    return str(value)
 
 
 def _journey_context(
