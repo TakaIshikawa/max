@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
@@ -17,6 +20,25 @@ DEFAULT_LIMIT = 10_000
 DEFAULT_RECENT_VALIDATION_DAYS = 90
 DEFAULT_CROWDED_COUNT = 3
 DEFAULT_THIN_EVIDENCE_COUNT = 2
+_CSV_COLUMNS = (
+    "theme_bucket_id",
+    "domain_coverage",
+    "theme",
+    "item_count",
+    "source_idea_count",
+    "buildable_unit_count",
+    "design_brief_count",
+    "evidence_count",
+    "evidence_concentration",
+    "recent_validation_count",
+    "saturation_score",
+    "flags",
+    "representative_idea_ids",
+    "representative_design_brief_ids",
+    "source_idea_ids",
+    "recent_validation_idea_ids",
+    "recommendations",
+)
 
 
 def build_portfolio_theme_saturation_report(
@@ -124,6 +146,122 @@ def build_portfolio_theme_saturation_from_records(
         "theme_buckets": buckets,
         "saturation_flags": flags,
         "recommendations": _recommendations(buckets, total_records, min_count),
+    }
+
+
+def render_portfolio_theme_saturation(
+    report: Mapping[str, Any],
+    fmt: str = "markdown",
+) -> str:
+    """Render a theme saturation report as Markdown, deterministic JSON, or CSV."""
+
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_portfolio_theme_saturation_csv(report)
+    if fmt != "markdown":
+        raise ValueError(f"Unsupported portfolio theme saturation format: {fmt}")
+    return render_portfolio_theme_saturation_markdown(report)
+
+
+def render_portfolio_theme_saturation_markdown(report: Mapping[str, Any]) -> str:
+    """Render a deterministic Markdown summary of portfolio theme saturation."""
+
+    summary = report["summary"]
+    filters = report.get("filters", {})
+    lines = [
+        "# Portfolio Theme Saturation",
+        "",
+        f"Schema: `{report['schema_version']}`",
+        f"Generated at: {report['generated_at']}",
+        f"Items analyzed: {summary['total_items']}",
+        f"Buildable units: {summary['buildable_unit_count']}",
+        f"Design briefs: {summary['design_brief_count']}",
+        f"Theme buckets: {summary['theme_bucket_count']}",
+        f"Domain filter: {_inline_list(filters.get('domain') or []) or 'all'}",
+        "",
+        "## Theme Buckets",
+        "",
+    ]
+
+    buckets = list(report.get("theme_buckets", []))
+    if not buckets:
+        if summary["total_items"] == 0:
+            lines.append("- No portfolio items matched the selected filters.")
+        else:
+            min_count = filters.get("min_count", 1)
+            lines.append(f"- No theme appeared in at least {min_count} item(s).")
+    else:
+        for bucket in buckets:
+            lines.extend(
+                [
+                    f"### {bucket['domain']} / {bucket['theme']}",
+                    "",
+                    f"- Items: {bucket['item_count']}",
+                    f"- Source ideas: {bucket['source_idea_count']}",
+                    f"- Evidence count: {bucket['evidence_count']}",
+                    f"- Recent validations: {bucket['recent_validation_count']}",
+                    f"- Saturation score: {bucket['saturation_score']:.3f}",
+                    f"- Flags: {_inline_list(bucket.get('flags') or []) or 'none'}",
+                    f"- Representative items: {_inline_list(_representative_ids(bucket)) or 'none'}",
+                    "",
+                ]
+            )
+
+    lines.extend(["## Recommendations", ""])
+    for recommendation in report.get("recommendations", []):
+        lines.append(
+            f"- **{recommendation['priority']}**: {recommendation['action']} "
+            f"({recommendation['rationale']})"
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_portfolio_theme_saturation_csv(report: Mapping[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for bucket in report.get("theme_buckets", []):
+        writer.writerow(_portfolio_theme_saturation_csv_row(report, bucket))
+    return output.getvalue()
+
+
+def _portfolio_theme_saturation_csv_row(
+    report: Mapping[str, Any],
+    bucket: Mapping[str, Any],
+) -> dict[str, Any]:
+    representative_items = list(bucket.get("representative_items") or [])
+    representative_idea_ids = [
+        item.get("id", "")
+        for item in representative_items
+        if item.get("source_type") == "buildable_unit"
+    ]
+    representative_design_brief_ids = [
+        item.get("id", "")
+        for item in representative_items
+        if item.get("source_type") == "design_brief"
+    ]
+    return {
+        "theme_bucket_id": bucket.get("id", ""),
+        "domain_coverage": bucket.get("domain", ""),
+        "theme": bucket.get("theme", ""),
+        "item_count": bucket.get("item_count", 0),
+        "source_idea_count": bucket.get("source_idea_count", 0),
+        "buildable_unit_count": bucket.get("buildable_unit_count", 0),
+        "design_brief_count": bucket.get("design_brief_count", 0),
+        "evidence_count": bucket.get("evidence_count", 0),
+        "evidence_concentration": bucket.get("evidence_concentration", 0.0),
+        "recent_validation_count": bucket.get("recent_validation_count", 0),
+        "saturation_score": bucket.get("saturation_score", 0.0),
+        "flags": _csv_join(bucket.get("flags")),
+        "representative_idea_ids": _csv_join(representative_idea_ids),
+        "representative_design_brief_ids": _csv_join(representative_design_brief_ids),
+        "source_idea_ids": _csv_join(sorted(bucket.get("source_idea_ids") or [])),
+        "recent_validation_idea_ids": _csv_join(
+            sorted(bucket.get("recent_validation_idea_ids") or [])
+        ),
+        "recommendations": _csv_join(_bucket_recommendations(report, bucket), separator=" | "),
     }
 
 
@@ -498,6 +636,42 @@ def _theme_value(value: Any) -> str:
 
 def _bucket_id(domain: str, theme: str) -> str:
     return f"{domain}:{theme}".lower().replace(" ", "-")
+
+
+def _bucket_recommendations(
+    report: Mapping[str, Any],
+    bucket: Mapping[str, Any],
+) -> list[str]:
+    needle = f"{bucket.get('domain', '')} / {bucket.get('theme', '')}"
+    return [
+        _clean(recommendation.get("action"))
+        for recommendation in report.get("recommendations", [])
+        if isinstance(recommendation, Mapping) and needle in _clean(recommendation.get("action"))
+    ]
+
+
+def _representative_ids(bucket: Mapping[str, Any]) -> list[str]:
+    return [
+        _clean(item.get("id"))
+        for item in bucket.get("representative_items", [])
+        if isinstance(item, Mapping) and _clean(item.get("id"))
+    ]
+
+
+def _inline_list(values: Iterable[Any]) -> str:
+    return ", ".join(_clean(value) for value in values if _clean(value))
+
+
+def _csv_join(values: Any, *, separator: str = ";") -> str:
+    if values is None:
+        return ""
+    if isinstance(values, str):
+        return values
+    try:
+        items = list(values)
+    except TypeError:
+        return _clean(values)
+    return separator.join(_clean(item) for item in items if _clean(item))
 
 
 def _matches_filter(value: str, allowed: set[str] | None) -> bool:

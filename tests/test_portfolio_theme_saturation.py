@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
+import pytest
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.analysis.portfolio_theme_saturation import (
     SCHEMA_VERSION,
     build_portfolio_theme_saturation_report,
+    render_portfolio_theme_saturation,
 )
 from max.store.db import Store
 from max.types.buildable_unit import BuildableCategory, BuildableUnit
@@ -59,6 +63,62 @@ def test_theme_saturation_ranks_crowded_theme_and_flags_validation_gap(store: St
     assert report["saturation_flags"]["crowded"][0]["theme"] == "cli_tool"
     assert any("Pause new ideas" in item["action"] for item in report["recommendations"])
     assert json.loads(json.dumps(report))["summary"]["total_items"] == 5
+
+
+def test_theme_saturation_csv_renderer_includes_bucket_rows_and_clean_ids(
+    store: Store,
+) -> None:
+    for unit in [
+        _unit("bu-sec-1", "Protocol test runner", theme=BuildableCategory.CLI_TOOL, quality=8.1),
+        _unit("bu-sec-2", "Protocol fuzz harness", theme=BuildableCategory.CLI_TOOL, quality=7.9),
+        _unit("bu-sec-3", "Protocol release gate", theme=BuildableCategory.CLI_TOOL, quality=7.5),
+    ]:
+        store.insert_buildable_unit(unit)
+    store.insert_design_brief(
+        _brief(
+            "Security Validation Suite",
+            "agent-security",
+            _stored_unit(store, "bu-sec-1"),
+            [_stored_unit(store, "bu-sec-2")],
+            readiness=88.0,
+        )
+    )
+
+    report = build_portfolio_theme_saturation_report(
+        store,
+        crowded_count=3,
+        generated_at=GENERATED_AT,
+    )
+
+    csv_text = render_portfolio_theme_saturation(report, fmt="csv")
+    assert csv_text.startswith(
+        "theme_bucket_id,domain_coverage,theme,item_count,source_idea_count,"
+    )
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    cli_row = next(row for row in rows if row["theme"] == "cli_tool")
+    assert cli_row["theme_bucket_id"] == "devtools:cli_tool"
+    assert cli_row["domain_coverage"] == "devtools"
+    assert cli_row["item_count"] == "3"
+    assert cli_row["source_idea_count"] == "3"
+    assert cli_row["buildable_unit_count"] == "3"
+    assert cli_row["design_brief_count"] == "0"
+    assert cli_row["evidence_count"] == "3"
+    assert cli_row["recent_validation_count"] == "0"
+    assert cli_row["flags"] == "crowded;missing_recent_validation"
+    assert cli_row["representative_idea_ids"] == "bu-sec-1;bu-sec-2;bu-sec-3"
+    assert cli_row["representative_design_brief_ids"] == ""
+    assert cli_row["source_idea_ids"] == "bu-sec-1;bu-sec-2;bu-sec-3"
+    assert "Pause new ideas in devtools / cli_tool" in cli_row["recommendations"]
+    assert "[" not in cli_row["representative_idea_ids"]
+    assert "'" not in cli_row["representative_idea_ids"]
+
+    brief_row = next(row for row in rows if row["theme"] == "agent-security")
+    assert brief_row["design_brief_count"] == "1"
+    assert brief_row["representative_idea_ids"] == ""
+    assert brief_row["representative_design_brief_ids"]
+    assert "[" not in brief_row["representative_design_brief_ids"]
+    assert "'" not in brief_row["representative_design_brief_ids"]
 
 
 def test_theme_saturation_filters_domain_and_recommends_underrepresented_theme(
@@ -127,6 +187,38 @@ def test_theme_saturation_sparse_portfolio_returns_actionable_recommendations(
         "missing_recent_validation": [],
     }
     assert "Lower min_count below 2" in report["recommendations"][0]["action"]
+
+
+def test_theme_saturation_csv_renderer_returns_header_for_empty_bucket_report(
+    store: Store,
+) -> None:
+    store.insert_buildable_unit(
+        _unit("bu-sparse-1", "One sparse idea", evidence=[], theme=BuildableCategory.LIBRARY)
+    )
+
+    report = build_portfolio_theme_saturation_report(
+        store,
+        min_count=2,
+        generated_at=GENERATED_AT,
+    )
+
+    csv_text = render_portfolio_theme_saturation(report, fmt="csv")
+
+    assert list(csv.DictReader(StringIO(csv_text))) == []
+    assert csv_text == (
+        "theme_bucket_id,domain_coverage,theme,item_count,source_idea_count,"
+        "buildable_unit_count,design_brief_count,evidence_count,evidence_concentration,"
+        "recent_validation_count,saturation_score,flags,representative_idea_ids,"
+        "representative_design_brief_ids,source_idea_ids,recent_validation_idea_ids,"
+        "recommendations\n"
+    )
+
+
+def test_theme_saturation_renderer_rejects_unsupported_format(store: Store) -> None:
+    report = build_portfolio_theme_saturation_report(store, generated_at=GENERATED_AT)
+
+    with pytest.raises(ValueError, match="Unsupported portfolio theme saturation format"):
+        render_portfolio_theme_saturation(report, fmt="xml")
 
 
 def _unit(
