@@ -116,6 +116,11 @@ from max.analysis.design_brief_conversion_risk import (
     conversion_risk_filename,
     render_design_brief_conversion_risk,
 )
+from max.analysis.design_brief_market_entry_risk import (
+    build_design_brief_market_entry_risk_report,
+    market_entry_risk_report_filename,
+    render_design_brief_market_entry_risk_report,
+)
 from max.analysis.design_brief_competitive_alternatives import (
     build_buildable_unit_competitive_alternatives,
     build_design_brief_competitive_alternatives,
@@ -146,6 +151,7 @@ __all__ = [
     "build_design_brief_investor_update",
     "build_design_brief_integration_contract",
     "build_design_brief_kill_criteria",
+    "build_design_brief_market_entry_risk_report",
     "build_design_brief_release_notes",
     "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
@@ -174,6 +180,7 @@ __all__ = [
     "dependency_risk_map_filename",
     "investor_update_filename",
     "kill_criteria_filename",
+    "market_entry_risk_report_filename",
     "onboarding_checklist_filename",
     "procurement_checklist_filename",
     "qa_test_plan_filename",
@@ -192,6 +199,7 @@ __all__ = [
     "render_design_brief_raci_matrix",
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_kill_criteria",
+    "render_design_brief_market_entry_risk_report",
     "render_design_brief_legal_review_checklist_markdown",
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_renewal_expansion_plan",
