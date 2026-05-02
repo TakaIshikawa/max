@@ -86,6 +86,11 @@ from max.analysis.design_brief_raci_matrix import (
     raci_matrix_filename,
     render_design_brief_raci_matrix,
 )
+from max.analysis.design_brief_partner_integration_checklist import (
+    build_design_brief_partner_integration_checklist,
+    partner_integration_checklist_filename,
+    render_design_brief_partner_integration_checklist,
+)
 from max.analysis.design_brief_kpi_tree import (
     generate_design_brief_kpi_tree,
     render_design_brief_kpi_tree_markdown,

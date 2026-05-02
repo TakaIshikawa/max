@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.store.db import Store
 
 KIND = "max.design_brief.partner_integration_checklist"
 SCHEMA_VERSION = "max.design_brief.partner_integration_checklist.v1"
@@ -98,7 +99,7 @@ def build_design_brief_partner_integration_checklist(
 
 
 def render_design_brief_partner_integration_checklist(
-    report: dict[str, Any], fmt: str = "json"
+    report: dict[str, Any], fmt: str = "markdown"
 ) -> str:
     """Render a partner integration checklist as JSON or Markdown."""
     if fmt == "json":
@@ -106,87 +107,121 @@ def render_design_brief_partner_integration_checklist(
     if fmt != "markdown":
         raise ValueError(f"Unsupported partner integration checklist format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    title = _first_text(brief.get("title"), "Untitled design brief")
+    brief_id = _first_text(brief.get("id"), "design-brief")
     lines = [
-        f"# Partner Integration Checklist: {brief['title']}",
+        f"# Partner Integration Checklist: {title}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
+        f"Schema: `{report.get('schema_version') or SCHEMA_VERSION}`",
+        f"Design brief: `{brief_id}`",
         f"Status: {brief.get('design_status') or 'unknown'}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
         f"Source ideas: {', '.join(brief.get('source_idea_ids') or []) or 'design brief'}",
         "",
         "## Integration Context",
         "",
-        f"- Goal: {summary['integration_goal']}",
-        f"- Target user: {summary['target_user']}",
-        f"- Buyer: {summary['buyer']}",
-        f"- Workflow: {summary['workflow_context']}",
-        f"- Primary scope: {summary['primary_scope']}",
-        f"- Fallbacks used: {', '.join(summary['fallbacks_used']) or 'none'}",
+        f"- Goal: {_first_text(summary.get('integration_goal'), f'Confirm partner and system readiness for {title}.')}",
+        f"- Target user: {_first_text(summary.get('target_user'), 'TBD target user')}",
+        f"- Buyer: {_first_text(summary.get('buyer'), 'TBD buyer owner')}",
+        f"- Workflow: {_first_text(summary.get('workflow_context'), 'TBD integration workflow')}",
+        f"- Primary scope: {_first_text(summary.get('primary_scope'), 'TBD integration scope')}",
+        f"- Fallbacks used: {', '.join(_string_list(summary.get('fallbacks_used'))) or 'none'}",
         "",
         "## Integration Targets",
         "",
     ]
 
-    for target in report["integration_targets"]:
+    targets = list(report.get("integration_targets") or [])
+    if not targets:
         lines.extend(
             [
-                f"### {target['name']}",
+                "- No partner systems identified yet. Name the owned application and external system of record before implementation handoff.",
                 "",
-                f"- Type: {target['type']}",
-                f"- Owner: {target['owner']}",
-                f"- Priority: {target['priority']}",
-                f"- Reason: {target['reason']}",
-                f"- Validation action: {target['validation_action']}",
-                f"- Source references: {_inline_ids(target['source_reference_ids'])}",
+            ]
+        )
+    for target in targets:
+        lines.extend(
+            [
+                f"### {_first_text(target.get('name'), target.get('id'), 'Unnamed system')}",
+                "",
+                f"- Type: {_first_text(target.get('type'), 'unspecified')}",
+                f"- Owner: {_first_text(target.get('owner'), 'TBD owner')}",
+                f"- Priority: {_first_text(target.get('priority'), 'medium')}",
+                f"- Reason: {_first_text(target.get('reason'), 'Confirm why this partner system is in scope.')}",
+                f"- Validation action: {_first_text(target.get('validation_action'), 'Validate one sample handoff end to end.')}",
+                f"- Source references: {_inline_ids(_string_list(target.get('source_reference_ids')))}",
                 "",
             ]
         )
 
     lines.extend(["## Data Contracts", ""])
-    for contract in report["data_contracts"]:
+    data_contracts = list(report.get("data_contracts") or [])
+    if not data_contracts:
         lines.extend(
             [
-                f"### {contract['id']}: {contract['name']}",
+                "- No data contracts defined yet. Capture producer, consumer, payload, required fields, and replay expectations.",
                 "",
-                f"- Owner: {contract['owner']}",
-                f"- Priority: {contract['priority']}",
-                f"- Producer: {contract['producer']}",
-                f"- Consumer: {contract['consumer']}",
-                f"- Payload: {contract['payload']}",
-                f"- Required fields: {_inline_list(contract['required_fields'])}",
-                f"- Validation action: {contract['validation_action']}",
-                f"- Source references: {_inline_ids(contract['source_reference_ids'])}",
+            ]
+        )
+    for contract in data_contracts:
+        lines.extend(
+            [
+                f"### {_first_text(contract.get('id'), 'DC-TBD')}: {_first_text(contract.get('name'), 'Data-sharing contract')}",
+                "",
+                f"- Owner: {_first_text(contract.get('owner'), 'TBD owner')}",
+                f"- Priority: {_first_text(contract.get('priority'), 'medium')}",
+                f"- Producer: {_first_text(contract.get('producer'), title)}",
+                f"- Consumer: {_first_text(contract.get('consumer'), 'Partner system')}",
+                f"- Payload: {_first_text(contract.get('payload'), 'Workflow handoff payload')}",
+                f"- Required fields: {_inline_list(_string_list(contract.get('required_fields')))}",
+                f"- Validation action: {_first_text(contract.get('validation_action'), 'Replay success and failure responses.')}",
+                f"- Source references: {_inline_ids(_string_list(contract.get('source_reference_ids')))}",
                 "",
             ]
         )
 
     lines.extend(["## Auth and Security Checks", ""])
-    for check in report["auth_and_security_checks"]:
+    security_checks = list(report.get("auth_and_security_checks") or [])
+    if not security_checks:
         lines.extend(
             [
-                f"### {check['id']}: {check['check']}",
+                "- Confirm credential ownership, auth mode, token rotation, least-privilege access, audit logging, and deletion paths.",
                 "",
-                f"- Owner: {check['owner']}",
-                f"- Priority: {check['priority']}",
-                f"- Validation action: {check['validation_action']}",
-                f"- Source references: {_inline_ids(check['source_reference_ids'])}",
+            ]
+        )
+    for check in security_checks:
+        lines.extend(
+            [
+                f"### {_first_text(check.get('id'), 'SEC-TBD')}: {_first_text(check.get('check'), 'Credential and data-sharing review')}",
+                "",
+                f"- Owner: {_first_text(check.get('owner'), 'Security owner')}",
+                f"- Priority: {_first_text(check.get('priority'), 'high')}",
+                f"- Validation action: {_first_text(check.get('validation_action'), 'Approve auth, access, and audit expectations before build starts.')}",
+                f"- Source references: {_inline_ids(_string_list(check.get('source_reference_ids')))}",
                 "",
             ]
         )
 
     lines.extend(["## Operational Readiness", ""])
-    for item in report["operational_readiness"]:
+    operational_items = list(report.get("operational_readiness") or [])
+    if not operational_items:
         lines.extend(
             [
-                f"### {item['id']}: {item['check']}",
+                "- Prepare sandbox access, fixtures, monitoring, support routing, rollback notes, and validation ownership.",
                 "",
-                f"- Owner: {item['owner']}",
-                f"- Priority: {item['priority']}",
-                f"- Validation action: {item['validation_action']}",
-                f"- Source references: {_inline_ids(item['source_reference_ids'])}",
+            ]
+        )
+    for item in operational_items:
+        lines.extend(
+            [
+                f"### {_first_text(item.get('id'), 'OPS-TBD')}: {_first_text(item.get('check'), 'Operational handoff readiness')}",
+                "",
+                f"- Owner: {_first_text(item.get('owner'), 'Operations owner')}",
+                f"- Priority: {_first_text(item.get('priority'), 'medium')}",
+                f"- Validation action: {_first_text(item.get('validation_action'), 'Run a dry run and document support escalation paths.')}",
+                f"- Source references: {_inline_ids(_string_list(item.get('source_reference_ids')))}",
                 "",
             ]
         )
@@ -199,53 +234,90 @@ def render_design_brief_partner_integration_checklist(
             "| --- | --- | --- | --- |",
         ]
     )
-    for row in report["partner_owner_matrix"]:
+    owner_rows = list(report.get("partner_owner_matrix") or [])
+    if not owner_rows:
+        lines.append("| TBD partner system | TBD owner | medium | Assign owner and confirm handoff criteria. |")
+    for row in owner_rows:
         lines.append(
-            f"| {row['partner']} | {row['owner']} | {row['priority']} | {row['handoff']} |"
+            "| "
+            f"{_first_text(row.get('partner'), 'TBD partner system')} | "
+            f"{_first_text(row.get('owner'), 'TBD owner')} | "
+            f"{_first_text(row.get('priority'), 'medium')} | "
+            f"{_first_text(row.get('handoff'), 'Assign owner and confirm handoff criteria.')} |"
         )
 
     lines.extend(["", "## Sequencing", ""])
-    for item in report["sequencing"]:
+    sequencing = list(report.get("sequencing") or [])
+    if not sequencing:
         lines.extend(
             [
-                f"### {item['sequence']}. {item['phase']}",
+                "### 1. Confirm partner scope and owner",
                 "",
-                f"- Target: {item['target']}",
-                f"- Owner: {item['owner']}",
-                f"- Priority: {item['priority']}",
-                f"- Validation action: {item['validation_action']}",
-                f"- Source references: {_inline_ids(item['source_reference_ids'])}",
+                "- Target: TBD partner system",
+                "- Owner: Product lead",
+                "- Priority: high",
+                "- Validation action: Name the partner owner, data contract, credential owner, dry-run path, and support handoff.",
+                "- Source references: none",
+                "",
+            ]
+        )
+    for item in sequencing:
+        lines.extend(
+            [
+                f"### {int(item.get('sequence') or 0)}. {_first_text(item.get('phase'), 'Integration validation step')}",
+                "",
+                f"- Target: {_first_text(item.get('target'), 'TBD partner system')}",
+                f"- Owner: {_first_text(item.get('owner'), 'TBD owner')}",
+                f"- Priority: {_first_text(item.get('priority'), 'medium')}",
+                f"- Validation action: {_first_text(item.get('validation_action'), 'Validate the handoff before launch.')}",
+                f"- Source references: {_inline_ids(_string_list(item.get('source_reference_ids')))}",
                 "",
             ]
         )
 
     lines.extend(["## Open Questions", ""])
-    if report["open_questions"]:
-        for question in report["open_questions"]:
+    if report.get("open_questions"):
+        for question in report.get("open_questions") or []:
             lines.extend(
                 [
-                    f"- **{question['id']}** ({question['owner']}): {question['question']}",
-                    f"  Validation action: {question['validation_action']}",
+                    f"- **{_first_text(question.get('id'), 'OQ-TBD')}** ({_first_text(question.get('owner'), 'TBD owner')}): {_first_text(question.get('question'), 'What partner decision must be resolved before handoff?')}",
+                    f"  Validation action: {_first_text(question.get('validation_action'), 'Record the decision and owner.')}",
                 ]
             )
     else:
         lines.append("- None")
 
     lines.extend(["", "## Evidence References", ""])
-    if report["evidence_references"]:
-        for reference in report["evidence_references"]:
-            lines.append(f"- **{reference['id']}** ({reference['type']}): {reference['summary']}")
+    if report.get("evidence_references"):
+        for reference in report.get("evidence_references") or []:
+            lines.append(
+                f"- **{_first_text(reference.get('id'), 'evidence-tbd')}** ({_first_text(reference.get('type'), 'reference')}): {_first_text(reference.get('summary'), 'No summary provided.')}"
+            )
     else:
         lines.append("- None")
 
     lines.extend(["", "## Readiness Warnings", ""])
-    if report["readiness_warnings"]:
-        for warning in report["readiness_warnings"]:
-            lines.append(f"- **{warning['severity']}**: {warning['warning']}")
+    if report.get("readiness_warnings"):
+        for warning in report.get("readiness_warnings") or []:
+            lines.append(
+                f"- **{_first_text(warning.get('severity'), 'medium')}**: {_first_text(warning.get('warning'), 'Partner integration readiness needs review.')}"
+            )
     else:
         lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def partner_integration_checklist_filename(
+    design_brief: dict[str, Any], *, fmt: str = "markdown"
+) -> str:
+    """Return a stable filename for a partner integration checklist export."""
+    extension = "json" if fmt == "json" else "md"
+    return (
+        f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
+        f"{_filename_part(str(design_brief.get('title') or 'partner-integration-checklist'))}-"
+        f"partner-integration-checklist.{extension}"
+    )
 
 
 def _integration_context(
@@ -933,3 +1005,9 @@ def _compact(value: Any) -> str:
     if value is None:
         return ""
     return " ".join(str(value).split())
+
+
+def _filename_part(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in value)
+    parts = [part for part in cleaned.replace("_", "-").split("-") if part]
+    return "-".join(parts) or "design-brief"
