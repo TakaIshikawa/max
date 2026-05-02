@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.data_room_index.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "artifact_key",
+    "artifact_title",
+    "description",
+    "json_url",
+    "markdown_url",
+    "available_formats",
+)
 
 ARTIFACTS: tuple[dict[str, Any], ...] = (
     {
@@ -127,7 +141,7 @@ def build_design_brief_data_room_index(store: Store, brief_id: str) -> dict[str,
         "summary": {
             "artifact_count": len(artifacts),
             "section_count": len(sections),
-            "available_formats": ["json", "markdown"],
+            "available_formats": ["json", "markdown", "csv"],
         },
         "sections": sections,
         "artifacts": artifacts,
@@ -135,9 +149,11 @@ def build_design_brief_data_room_index(store: Store, brief_id: str) -> dict[str,
 
 
 def render_design_brief_data_room_index(index: dict[str, Any], *, fmt: str = "markdown") -> str:
-    """Render a data-room index as Markdown or deterministic JSON."""
+    """Render a data-room index as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(index, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(index)
     if fmt != "markdown":
         raise ValueError(f"Unsupported data room index format: {fmt}")
 
@@ -176,7 +192,7 @@ def render_design_brief_data_room_index(index: dict[str, Any], *, fmt: str = "ma
 
 
 def data_room_index_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-data-room-index.{extension}"
 
 
@@ -193,6 +209,31 @@ def _artifact_entry(artifact: dict[str, Any], brief_id: str) -> dict[str, Any]:
             "json": json_url,
             "markdown": markdown_url,
         },
+    }
+
+
+def _render_csv(index: dict[str, Any]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for artifact in index.get("artifacts") or []:
+        writer.writerow(_csv_row(index, artifact))
+    return output.getvalue()
+
+
+def _csv_row(index: dict[str, Any], artifact: dict[str, Any]) -> dict[str, str]:
+    brief = index.get("design_brief") or {}
+    urls = artifact.get("urls") or {}
+    return {
+        "design_brief_id": str(brief.get("id") or ""),
+        "design_brief_title": str(brief.get("title") or ""),
+        "section": str(artifact.get("section") or ""),
+        "artifact_key": str(artifact.get("key") or ""),
+        "artifact_title": str(artifact.get("title") or ""),
+        "description": str(artifact.get("description") or ""),
+        "json_url": str(urls.get("json") or ""),
+        "markdown_url": str(urls.get("markdown") or ""),
+        "available_formats": "; ".join(_string_list(artifact.get("formats"))),
     }
 
 
