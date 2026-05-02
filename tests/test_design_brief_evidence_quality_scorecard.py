@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
 import json
 from datetime import datetime, timezone
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_evidence_quality_scorecard import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_evidence_quality_scorecard,
@@ -282,3 +285,140 @@ def test_render_design_brief_evidence_quality_scorecard_json_markdown_and_invali
 
     with pytest.raises(ValueError):
         render_design_brief_evidence_quality_scorecard(scorecard, fmt="html")
+
+
+def test_render_design_brief_evidence_quality_scorecard_csv_populated_scorecard(tmp_path) -> None:
+    store, brief = _seed_high_quality_brief(tmp_path)
+    try:
+        scorecard = build_design_brief_evidence_quality_scorecard(
+            store,
+            brief,
+            generated_at="2026-05-01T00:00:00+00:00",
+        )
+    finally:
+        store.close()
+
+    csv_text = render_design_brief_evidence_quality_scorecard(scorecard, fmt="csv")
+    repeated_csv = render_design_brief_evidence_quality_scorecard(scorecard, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    rows_by_dimension = {row["dimension"]: row for row in rows}
+
+    assert csv_text == repeated_csv
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["dimension"] for row in rows] == [
+        "evidence_volume",
+        "source_diversity",
+        "recency",
+        "role_balance",
+        "contradiction_risk",
+        "traceability",
+    ]
+    assert rows_by_dimension["evidence_volume"]["score"] == str(
+        scorecard["dimension_scores"][0]["score"]
+    )
+    assert rows_by_dimension["evidence_volume"]["rating"] == "strong"
+    assert rows_by_dimension["evidence_volume"]["evidence_count"] == "8"
+    assert rows_by_dimension["evidence_volume"]["source_ids"] == (
+        "signal:sig-market;signal:sig-problem;signal:sig-risk;signal:sig-solution;"
+        "signal:sig-validation;signal:sig-workflow;source_idea:bu-lead;source_idea:bu-support"
+    )
+    assert rows_by_dimension["evidence_volume"]["signal_ids"] == (
+        "sig-market;sig-problem;sig-risk;sig-solution;sig-validation;sig-workflow"
+    )
+    assert rows_by_dimension["evidence_volume"]["source_idea_ids"] == "bu-lead;bu-support"
+    assert rows_by_dimension["evidence_volume"]["recommendation"] == scorecard["summary"]["recommendation"]
+    assert rows_by_dimension["traceability"]["evidence_refs"]
+
+
+def test_render_design_brief_evidence_quality_scorecard_csv_missing_evidence_sections() -> None:
+    scorecard = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "design_brief": {"id": "dbf-missing", "title": "Missing Evidence"},
+        "summary": {
+            "overall_score": 45,
+            "band": "blocked",
+            "confidence": "low",
+            "recommendation": "Gather evidence before build execution.",
+        },
+        "dimension_scores": [
+            {
+                "id": "evidence_volume",
+                "label": "Evidence Volume",
+                "score": 35,
+                "weight": 0.22,
+                "summary": "No evidence refs.",
+            }
+        ],
+        "blockers": ["Insufficient persisted evidence volume for build execution."],
+        "warnings": ["Evidence volume is below the preferred threshold."],
+        "recommended_next_evidence_actions": [
+            "Add at least three credible signals tied to the lead and supporting source ideas."
+        ],
+    }
+
+    rows = list(
+        csv.DictReader(
+            StringIO(render_design_brief_evidence_quality_scorecard(scorecard, fmt="csv"))
+        )
+    )
+
+    assert rows == [
+        {
+            "schema_version": SCHEMA_VERSION,
+            "kind": KIND,
+            "design_brief_id": "dbf-missing",
+            "design_brief_title": "Missing Evidence",
+            "dimension": "evidence_volume",
+            "score": "35",
+            "rating": "poor",
+            "weight": "0.22",
+            "evidence_count": "0",
+            "source_ids": "",
+            "signal_ids": "",
+            "source_idea_ids": "",
+            "evidence_refs": "",
+            "concerns": (
+                "Evidence volume is below the preferred threshold.;"
+                "Insufficient persisted evidence volume for build execution."
+            ),
+            "summary": "No evidence refs.",
+            "recommendation": (
+                "Add at least three credible signals tied to the lead and supporting source ideas."
+            ),
+        }
+    ]
+
+
+def test_render_design_brief_evidence_quality_scorecard_csv_escapes_commas_and_newlines() -> None:
+    scorecard = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "design_brief": {"id": "dbf-escape", "title": "Comma, Newline Brief"},
+        "summary": {
+            "recommendation": "Proceed, but watch\nfreshness.",
+        },
+        "dimension_scores": [
+            {
+                "id": "recency",
+                "label": "Recency",
+                "score": 72,
+                "weight": 0.14,
+                "summary": "Fresh enough, with one caveat\nReview again.",
+                "evidence_refs": ["signal:sig,comma", "source_idea:bu-newline"],
+            }
+        ],
+        "blockers": [],
+        "warnings": ["Evidence is stale or lacks reliable timestamps."],
+        "recommended_next_evidence_actions": [],
+    }
+
+    csv_text = render_design_brief_evidence_quality_scorecard(scorecard, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Comma, Newline Brief"' in csv_text
+    assert '"Fresh enough, with one caveat\nReview again."' in csv_text
+    assert rows[0]["design_brief_title"] == "Comma, Newline Brief"
+    assert rows[0]["summary"] == "Fresh enough, with one caveat\nReview again."
+    assert rows[0]["recommendation"] == "Proceed, but watch\nfreshness."
+    assert rows[0]["source_ids"] == "signal:sig,comma;source_idea:bu-newline"

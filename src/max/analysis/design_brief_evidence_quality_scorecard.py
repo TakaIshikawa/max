@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from collections import Counter
 from datetime import datetime, timezone
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 from max.analysis.design_brief_evidence_matrix import (
@@ -28,6 +30,25 @@ DIMENSION_WEIGHTS: dict[str, float] = {
     "contradiction_risk": 0.14,
     "traceability": 0.16,
 }
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "dimension",
+    "score",
+    "rating",
+    "weight",
+    "evidence_count",
+    "source_ids",
+    "signal_ids",
+    "source_idea_ids",
+    "evidence_refs",
+    "concerns",
+    "summary",
+    "recommendation",
+)
 
 ROLE_GROUPS: dict[str, set[str]] = {
     "problem": {"problem", "pain", "gap"},
@@ -126,10 +147,12 @@ def render_design_brief_evidence_quality_scorecard(
     scorecard: dict[str, Any],
     fmt: str = "json",
 ) -> str:
-    """Render an evidence quality scorecard as JSON or Markdown."""
+    """Render an evidence quality scorecard as JSON, CSV, or Markdown."""
 
     if fmt == "json":
         return json.dumps(scorecard, indent=2) + "\n"
+    if fmt == "csv":
+        return _render_csv(scorecard)
     if fmt != "markdown":
         raise ValueError(f"Unsupported evidence quality scorecard format: {fmt}")
 
@@ -184,6 +207,114 @@ def render_design_brief_evidence_quality_scorecard(
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_csv(scorecard: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(scorecard):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(scorecard: dict[str, Any]) -> list[dict[str, Any]]:
+    brief = scorecard.get("design_brief", {})
+    summary = scorecard.get("summary", {})
+    actions_by_dimension = _actions_by_dimension(scorecard.get("recommended_next_evidence_actions", []))
+    concerns_by_dimension = _concerns_by_dimension(scorecard)
+
+    rows: list[dict[str, Any]] = []
+    for dimension in scorecard.get("dimension_scores", []):
+        dimension_id = str(dimension.get("id", ""))
+        evidence_refs = _string_list(dimension.get("evidence_refs"))
+        rows.append(
+            {
+                "schema_version": scorecard.get("schema_version", ""),
+                "kind": scorecard.get("kind", KIND),
+                "design_brief_id": brief.get("id", ""),
+                "design_brief_title": brief.get("title", ""),
+                "dimension": dimension_id,
+                "score": dimension.get("score", ""),
+                "rating": _dimension_rating(dimension.get("score")),
+                "weight": dimension.get("weight", ""),
+                "evidence_count": len(evidence_refs),
+                "source_ids": _csv_list(evidence_refs),
+                "signal_ids": _csv_list(_ids_with_prefix(evidence_refs, "signal:")),
+                "source_idea_ids": _csv_list(_ids_with_prefix(evidence_refs, "source_idea:")),
+                "evidence_refs": _csv_list(evidence_refs),
+                "concerns": _csv_list(concerns_by_dimension.get(dimension_id, [])),
+                "summary": dimension.get("summary", ""),
+                "recommendation": actions_by_dimension.get(dimension_id, summary.get("recommendation", "")),
+            }
+        )
+    return rows
+
+
+def _actions_by_dimension(actions: list[str]) -> dict[str, str]:
+    mapping = {
+        "evidence_volume": "credible signals",
+        "source_diversity": "independent adapter",
+        "recency": "90 days",
+        "role_balance": "buyer, workflow, risk, and validation",
+        "contradiction_risk": "contradictory evidence",
+        "traceability": "Link each major claim",
+    }
+    results: dict[str, str] = {}
+    for action in actions:
+        for dimension_id, marker in mapping.items():
+            if marker.lower() in action.lower():
+                results[dimension_id] = action
+                break
+    return results
+
+
+def _concerns_by_dimension(scorecard: dict[str, Any]) -> dict[str, list[str]]:
+    warning_map = {
+        "source_diversity": "Evidence is concentrated in too few source adapters or source types.",
+        "recency": "Evidence is stale or lacks reliable timestamps.",
+        "role_balance": "Evidence does not cover enough buyer, workflow, risk, and validation roles.",
+        "evidence_volume": "Evidence volume is below the preferred threshold.",
+        "traceability": "Traceability is weaker than preferred for execution handoff.",
+        "contradiction_risk": "Some records contain possible contradiction markers.",
+    }
+    blocker_map = {
+        "evidence_volume": "Insufficient persisted evidence volume for build execution.",
+        "traceability": "Brief cannot be traced to enough source ideas, insights, or signals.",
+        "contradiction_risk": "Contradictory or invalidating evidence must be resolved.",
+    }
+    warnings = set(_string_list(scorecard.get("warnings")))
+    blockers = set(_string_list(scorecard.get("blockers")))
+    concerns: dict[str, list[str]] = {}
+    for dimension_id, warning in warning_map.items():
+        if warning in warnings:
+            concerns.setdefault(dimension_id, []).append(warning)
+    for dimension_id, blocker in blocker_map.items():
+        if blocker in blockers:
+            concerns.setdefault(dimension_id, []).append(blocker)
+    return concerns
+
+
+def _dimension_rating(score: Any) -> str:
+    try:
+        numeric_score = float(score)
+    except (TypeError, ValueError):
+        return ""
+    if numeric_score >= 85:
+        return "strong"
+    if numeric_score >= 70:
+        return "adequate"
+    if numeric_score >= 50:
+        return "weak"
+    return "poor"
+
+
+def _ids_with_prefix(values: list[str], prefix: str) -> list[str]:
+    return [value.removeprefix(prefix) for value in values if value.startswith(prefix)]
+
+
+def _csv_list(values: list[str]) -> str:
+    return ";".join(str(value) for value in values)
 
 
 def _score_evidence_volume(context: dict[str, Any]) -> dict[str, Any]:
