@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,6 +13,15 @@ if TYPE_CHECKING:
 
 SCHEMA_VERSION = "max.design_brief.competitive_alternatives_matrix.v1"
 KIND = "max.design_brief.competitive_alternatives_matrix"
+CSV_COLUMNS: tuple[str, ...] = (
+    "competitor_alternative_name",
+    "target_segment",
+    "differentiators",
+    "weaknesses",
+    "switching_triggers",
+    "evidence_references",
+    "recommended_positioning",
+)
 
 
 def build_design_brief_competitive_alternatives(
@@ -73,9 +84,11 @@ def render_design_brief_competitive_alternatives(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a competitive alternatives matrix as Markdown or deterministic JSON."""
+    """Render a competitive alternatives matrix as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported competitive alternatives format: {fmt}")
 
@@ -162,11 +175,76 @@ def competitive_alternatives_filename(
     *,
     fmt: str = "markdown",
 ) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"competitive-alternatives.{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in report.get("matrix_rows", []):
+        writer.writerow(_csv_row(report, row))
+    return output.getvalue()
+
+
+def _csv_row(report: dict[str, Any], row: dict[str, Any]) -> dict[str, str]:
+    target_segment = str(report.get("summary", {}).get("target_user") or "")
+    alternative = str(row.get("alternative") or "")
+    substitution_risk = str(row.get("substitution_risk") or "")
+    switching_friction = str(row.get("switching_friction") or "")
+    differentiators = str(row.get("differentiation_response") or "")
+    return {
+        "competitor_alternative_name": alternative,
+        "target_segment": target_segment,
+        "differentiators": differentiators,
+        "weaknesses": _csv_sentence(
+            "Substitution risk",
+            substitution_risk,
+            "Switching friction",
+            switching_friction,
+        ),
+        "switching_triggers": _switching_triggers(report),
+        "evidence_references": str(row.get("evidence") or ""),
+        "recommended_positioning": _recommended_positioning(
+            target_segment,
+            alternative,
+            differentiators,
+        ),
+    }
+
+
+def _csv_sentence(first_label: str, first_value: str, second_label: str, second_value: str) -> str:
+    parts = []
+    if first_value:
+        parts.append(f"{first_label}: {first_value}")
+    if second_value:
+        parts.append(f"{second_label}: {second_value}")
+    return "; ".join(parts)
+
+
+def _switching_triggers(report: dict[str, Any]) -> str:
+    context = report.get("competitive_context", {})
+    triggers = [
+        context.get("value_proposition"),
+        context.get("current_workaround"),
+        *[
+            entry.get("description")
+            for entry in report.get("switching_friction_entries", [])
+        ],
+    ]
+    return "; ".join(_string_list(triggers))
+
+
+def _recommended_positioning(target_segment: str, alternative: str, differentiators: str) -> str:
+    if target_segment and alternative and differentiators:
+        return f"Position for {target_segment} against {alternative}: {differentiators}"
+    if alternative and differentiators:
+        return f"Position against {alternative}: {differentiators}"
+    return differentiators
 
 
 def _build_report(

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
@@ -10,6 +12,7 @@ from max.analysis import (
     build_design_brief_competitive_alternatives as exported_build_competitive_alternatives,
 )
 from max.analysis.design_brief_competitive_alternatives import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_buildable_unit_competitive_alternatives,
@@ -115,6 +118,67 @@ def test_render_competitive_alternatives_markdown_json_and_invalid_format(tmp_pa
         render_design_brief_competitive_alternatives(report, fmt="yaml")
 
 
+def test_render_competitive_alternatives_csv_headers_order_and_escaping(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_alternatives(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["matrix_rows"][0]["alternative"] = 'RenewalAI, "Watchtower"\nEnterprise'
+    report["matrix_rows"][0]["differentiation_response"] = (
+        'Lead with buyer proof, "workflow" fit,\nand governance readiness.'
+    )
+    report["matrix_rows"][0]["evidence"] = 'pa-1, "bu-renewal-lead"'
+
+    csv_text = render_design_brief_competitive_alternatives(report, fmt="csv")
+    repeated = render_design_brief_competitive_alternatives(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert len(rows) == len(report["matrix_rows"])
+    assert [row["competitor_alternative_name"] for row in rows[:3]] == [
+        'RenewalAI, "Watchtower"\nEnterprise',
+        "renewal-health-scorecard",
+        "Status quo workflow",
+    ]
+    assert rows[0]["target_segment"] == "sales operations manager"
+    assert rows[0]["differentiators"] == (
+        'Lead with buyer proof, "workflow" fit,\nand governance readiness.'
+    )
+    assert rows[0]["weaknesses"].startswith("Substitution risk: high; Switching friction:")
+    assert rows[0]["evidence_references"] == 'pa-1, "bu-renewal-lead"'
+    assert rows[0]["recommended_positioning"].startswith(
+        'Position for sales operations manager against RenewalAI, "Watchtower"\nEnterprise:'
+    )
+    assert '"RenewalAI, ""Watchtower""\nEnterprise"' in csv_text
+    assert '"Lead with buyer proof, ""workflow"" fit,\nand governance readiness."' in csv_text
+    assert '"pa-1, ""bu-renewal-lead"""' in csv_text
+
+
+def test_render_competitive_alternatives_csv_empty_matrix_exports_header_only(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_alternatives(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["matrix_rows"] = []
+
+    csv_text = render_design_brief_competitive_alternatives(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert list(reader) == []
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+
+
 def test_buildable_unit_competitive_alternatives_entry_point(tmp_path) -> None:
     store = Store(str(tmp_path / "max.db"))
     try:
@@ -161,6 +225,10 @@ def test_competitive_alternatives_filename_uses_brief_id() -> None:
     assert (
         competitive_alternatives_filename(brief, fmt="json")
         == "dbf-test001-competitive-alternatives.json"
+    )
+    assert (
+        competitive_alternatives_filename(brief, fmt="csv")
+        == "dbf-test001-competitive-alternatives.csv"
     )
 
 
