@@ -8,6 +8,9 @@ from collections.abc import Mapping
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
+from max.sources.base import snapshot_circuit_breakers
+from max.sources.registry import get_adapter
+
 if TYPE_CHECKING:
     from max.store.db import Store
 
@@ -23,18 +26,37 @@ _BAND_ORDER = {
     "healthy": 3,
 }
 _CSV_COLUMNS = [
-    "adapter",
+    "adapter_name",
+    "source_type",
+    "successes",
+    "failures",
+    "failure_rate",
+    "circuit_breaker_state",
+    "latest_error",
+    "recommendation",
+    "priority",
+    "severity",
     "reliability_band",
     "reliability_score",
     "run_count",
-    "success_count",
-    "failure_count",
+    "success_rate",
     "average_fetched_signals",
     "average_duration_ms",
     "combined_hit_rate",
     "latest_status",
-    "last_error",
 ]
+_CSV_PRIORITY_BY_BAND = {
+    "failing": "p0",
+    "low_yield": "p1",
+    "watch": "p2",
+    "healthy": "p3",
+}
+_CSV_SEVERITY_BY_BAND = {
+    "failing": "critical",
+    "low_yield": "high",
+    "watch": "medium",
+    "healthy": "low",
+}
 
 
 def build_source_adapter_reliability_digest(
@@ -144,23 +166,107 @@ def _render_csv(report: dict[str, Any]) -> str:
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
-    for row in report["adapters"]:
-        writer.writerow(
-            {
-                "adapter": row["adapter"],
-                "reliability_band": row["reliability_band"],
-                "reliability_score": row["reliability_score"],
-                "run_count": row["run_count"],
-                "success_count": row["success_count"],
-                "failure_count": row["failure_count"],
-                "average_fetched_signals": row["average_fetched_signals"],
-                "average_duration_ms": row["average_duration_ms"],
-                "combined_hit_rate": row["utilization"]["combined_hit_rate"],
-                "latest_status": row["latest_status"],
-                "last_error": row["last_error"] or "",
-            }
-        )
+    circuit_states = _csv_circuit_breaker_states()
+    rows = sorted(
+        report.get("adapters", []),
+        key=lambda row: (
+            _BAND_ORDER.get(str(row.get("reliability_band")), len(_BAND_ORDER)),
+            _csv_float(row.get("reliability_score")),
+            str(row.get("adapter") or ""),
+        ),
+    )
+    for row in rows:
+        writer.writerow(_csv_adapter_row(row, circuit_states))
     return output.getvalue()
+
+
+def _csv_adapter_row(row: Mapping[str, Any], circuit_states: Mapping[str, str]) -> dict[str, Any]:
+    adapter = str(row.get("adapter") or "")
+    reliability_band = str(row.get("reliability_band") or "")
+    run_count = _nonnegative_int(row.get("run_count"))
+    failures = _nonnegative_int(row.get("failure_count"))
+    failure_rate = round(failures / run_count, 3) if run_count else 0.0
+    return {
+        "adapter_name": adapter,
+        "source_type": _csv_source_type(row, adapter),
+        "successes": _nonnegative_int(row.get("success_count")),
+        "failures": failures,
+        "failure_rate": failure_rate,
+        "circuit_breaker_state": _csv_circuit_breaker_state(row, adapter, circuit_states),
+        "latest_error": row.get("last_error") or row.get("latest_error") or "",
+        "recommendation": _csv_recommendation(row),
+        "priority": row.get("priority") or _CSV_PRIORITY_BY_BAND.get(reliability_band, ""),
+        "severity": row.get("severity") or _CSV_SEVERITY_BY_BAND.get(reliability_band, ""),
+        "reliability_band": reliability_band,
+        "reliability_score": row.get("reliability_score", ""),
+        "run_count": run_count,
+        "success_rate": row.get("success_rate", ""),
+        "average_fetched_signals": row.get("average_fetched_signals", ""),
+        "average_duration_ms": row.get("average_duration_ms", ""),
+        "combined_hit_rate": _csv_combined_hit_rate(row),
+        "latest_status": row.get("latest_status", ""),
+    }
+
+
+def _csv_circuit_breaker_states() -> dict[str, str]:
+    return {
+        snapshot.adapter_name: snapshot.state
+        for snapshot in snapshot_circuit_breakers()
+    }
+
+
+def _csv_circuit_breaker_state(
+    row: Mapping[str, Any],
+    adapter: str,
+    circuit_states: Mapping[str, str],
+) -> str:
+    direct = row.get("circuit_breaker_state")
+    if direct:
+        return str(direct)
+    circuit_breaker = row.get("circuit_breaker")
+    if isinstance(circuit_breaker, Mapping) and circuit_breaker.get("state"):
+        return str(circuit_breaker["state"])
+    return circuit_states.get(adapter, "")
+
+
+def _csv_combined_hit_rate(row: Mapping[str, Any]) -> Any:
+    utilization = row.get("utilization")
+    if isinstance(utilization, Mapping):
+        return utilization.get("combined_hit_rate", "")
+    return row.get("combined_hit_rate", "")
+
+
+def _csv_float(value: Any) -> float:
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, int | float):
+        return float(value)
+    return 0.0
+
+
+def _csv_recommendation(row: Mapping[str, Any]) -> str:
+    recommendation = row.get("recommendation")
+    if recommendation:
+        return str(recommendation)
+    recommendations = row.get("recommendations")
+    if not isinstance(recommendations, list):
+        return ""
+    return " | ".join(str(item) for item in recommendations if item)
+
+
+def _csv_source_type(row: Mapping[str, Any], adapter: str) -> str:
+    source_type = row.get("source_type")
+    if source_type:
+        return str(source_type)
+    if not adapter:
+        return ""
+    try:
+        adapter_source_type = get_adapter(adapter).source_type
+    except Exception:
+        return "unknown"
+    if hasattr(adapter_source_type, "value"):
+        return str(adapter_source_type.value)
+    return str(adapter_source_type)
 
 
 def _adapter_rollups(runs: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

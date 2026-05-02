@@ -117,29 +117,81 @@ def test_render_source_adapter_reliability_digest_csv_headers_and_ordering(
     rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
 
     assert rendered_csv.splitlines()[0] == (
-        "adapter,reliability_band,reliability_score,run_count,success_count,"
-        "failure_count,average_fetched_signals,average_duration_ms,combined_hit_rate,"
-        "latest_status,last_error"
+        "adapter_name,source_type,successes,failures,failure_rate,circuit_breaker_state,"
+        "latest_error,recommendation,priority,severity,reliability_band,reliability_score,"
+        "run_count,success_rate,average_fetched_signals,average_duration_ms,combined_hit_rate,"
+        "latest_status"
     )
     rows = list(csv.DictReader(StringIO(rendered_csv)))
-    assert [row["adapter"] for row in rows] == [
+    assert [row["adapter_name"] for row in rows] == [
         "broken_adapter",
         "low_yield_adapter",
         "healthy_adapter",
     ]
-    assert rows[0] == {
-        "adapter": "broken_adapter",
+    assert rows[0]["source_type"] == "unknown"
+    assert rows[0]["successes"] == "0"
+    assert rows[0]["failures"] == "3"
+    assert rows[0]["failure_rate"] == "1.0"
+    assert rows[0]["latest_error"] == "HTTP 500"
+    assert rows[0]["priority"] == "p0"
+    assert rows[0]["severity"] == "critical"
+    assert rows[0]["recommendation"].startswith("Repair `broken_adapter`")
+    assert rows[0] | {"recommendation": ""} == {
+        "adapter_name": "broken_adapter",
+        "source_type": "unknown",
+        "successes": "0",
+        "failures": "3",
+        "failure_rate": "1.0",
+        "circuit_breaker_state": "",
+        "latest_error": "HTTP 500",
+        "recommendation": "",
+        "priority": "p0",
+        "severity": "critical",
         "reliability_band": "failing",
         "reliability_score": "0.0",
         "run_count": "3",
-        "success_count": "0",
-        "failure_count": "3",
+        "success_rate": "0.0",
         "average_fetched_signals": "0.0",
         "average_duration_ms": "500.0",
         "combined_hit_rate": "0.0",
         "latest_status": "error",
-        "last_error": "HTTP 500",
     }
+
+
+def test_render_source_adapter_reliability_digest_csv_empty_digest_has_header_only(
+    store: Store,
+) -> None:
+    report = build_source_adapter_reliability_digest(store)
+
+    rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
+
+    assert rendered_csv.splitlines() == [
+        (
+            "adapter_name,source_type,successes,failures,failure_rate,circuit_breaker_state,"
+            "latest_error,recommendation,priority,severity,reliability_band,reliability_score,"
+            "run_count,success_rate,average_fetched_signals,average_duration_ms,combined_hit_rate,"
+            "latest_status"
+        )
+    ]
+    assert list(csv.DictReader(StringIO(rendered_csv))) == []
+
+
+def test_render_source_adapter_reliability_digest_csv_sorts_rows_deterministically(
+    store: Store,
+) -> None:
+    _seed_runs(store)
+    _seed_signals_and_utilization(store)
+    report = build_source_adapter_reliability_digest(store, limit=10, min_runs=1)
+    report["adapters"] = list(reversed(report["adapters"]))
+
+    rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
+
+    rows = list(csv.DictReader(StringIO(rendered_csv)))
+    assert [row["adapter_name"] for row in rows] == [
+        "broken_adapter",
+        "low_yield_adapter",
+        "healthy_adapter",
+    ]
 
 
 def test_render_source_adapter_reliability_digest_csv_escapes_values(
@@ -149,14 +201,20 @@ def test_render_source_adapter_reliability_digest_csv_escapes_values(
     report = build_source_adapter_reliability_digest(store, limit=10, min_runs=1)
     report["adapters"][0]["adapter"] = 'broken, "quoted" adapter'
     report["adapters"][0]["last_error"] = 'HTTP 500, "retry later"'
+    report["adapters"][0]["recommendations"] = ['Repair "quoted", adapter']
+    report["adapters"][0]["source_type"] = "forum"
+    report["adapters"][0]["circuit_breaker_state"] = "open"
 
     rendered_csv = render_source_adapter_reliability_digest(report, fmt="csv")
 
     assert '"broken, ""quoted"" adapter"' in rendered_csv
     assert '"HTTP 500, ""retry later"""' in rendered_csv
+    assert '"Repair ""quoted"", adapter"' in rendered_csv
     rows = list(csv.DictReader(StringIO(rendered_csv)))
-    assert rows[0]["adapter"] == 'broken, "quoted" adapter'
-    assert rows[0]["last_error"] == 'HTTP 500, "retry later"'
+    assert rows[0]["adapter_name"] == 'broken, "quoted" adapter'
+    assert rows[0]["source_type"] == "forum"
+    assert rows[0]["circuit_breaker_state"] == "open"
+    assert rows[0]["latest_error"] == 'HTTP 500, "retry later"'
 
 
 def test_source_adapter_reliability_digest_validates_arguments(store: Store) -> None:
