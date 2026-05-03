@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,28 @@ from max.types.evaluation import UtilityEvaluation
 
 
 STAKEHOLDER_HANDOFF_SCHEMA_VERSION = "max-stakeholder-handoff/v1"
+STAKEHOLDER_HANDOFF_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "title",
+    "section",
+    "row_type",
+    "item_id",
+    "label",
+    "role",
+    "owner",
+    "timing",
+    "decision_criteria",
+    "evidence_ids",
+    "source_references",
+    "recommendation",
+    "overall_score",
+    "source_status",
+    "evaluation_available",
+    "tact_spec_schema_version",
+    "details",
+)
 
 
 def generate_stakeholder_handoff(
@@ -98,6 +122,20 @@ def render_stakeholder_handoff_markdown(handoff: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_stakeholder_handoff_csv(handoff: dict[str, Any]) -> str:
+    """Render a generated stakeholder handoff as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=STAKEHOLDER_HANDOFF_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(handoff or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _summary(
@@ -568,6 +606,150 @@ def _dedupe_risks(risks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
+def _csv_rows(handoff: dict[str, Any]) -> list[dict[str, str]]:
+    summary = handoff.get("summary") if isinstance(handoff.get("summary"), dict) else {}
+    rows = [
+        _csv_row(
+            handoff,
+            section="summary",
+            row_type="summary",
+            item_id="SUMMARY",
+            label=summary.get("title"),
+            role=summary.get("target_user"),
+            owner=summary.get("buyer"),
+            timing=summary.get("workflow_context"),
+            decision_criteria=summary.get("validation_plan"),
+            source_references=[
+                "summary.target_user",
+                "summary.buyer",
+                "summary.validation_plan",
+            ],
+            details={
+                "one_liner": summary.get("one_liner"),
+                "primary_scope": summary.get("primary_scope"),
+                "technical_approach": summary.get("technical_approach"),
+            },
+        )
+    ]
+    for role in handoff.get("owner_roles") or []:
+        rows.append(
+            _csv_row(
+                handoff,
+                section="owner_roles",
+                row_type="owner_role",
+                item_id=role.get("id"),
+                label=role.get("role"),
+                role=role.get("role"),
+                owner=role.get("suggested_owner"),
+                decision_criteria=role.get("responsibility"),
+                source_references=role.get("references"),
+            )
+        )
+    for checkpoint in handoff.get("decision_checkpoints") or []:
+        rows.append(
+            _csv_row(
+                handoff,
+                section="decision_checkpoints",
+                row_type="decision_checkpoint",
+                item_id=checkpoint.get("id"),
+                label=checkpoint.get("name"),
+                role=checkpoint.get("owner_role"),
+                owner=checkpoint.get("owner_role"),
+                timing=checkpoint.get("timing"),
+                decision_criteria=checkpoint.get("decision_needed"),
+                source_references=checkpoint.get("references"),
+            )
+        )
+    for evidence in handoff.get("evidence_references") or []:
+        rows.append(
+            _csv_row(
+                handoff,
+                section="evidence_references",
+                row_type="evidence_reference",
+                item_id=evidence.get("id"),
+                label=evidence.get("reference_id"),
+                evidence_ids=[evidence.get("id")],
+                source_references=[evidence.get("reference_id")],
+                decision_criteria=evidence.get("description"),
+                details={"type": evidence.get("type")},
+            )
+        )
+    for question in handoff.get("launch_readiness_questions") or []:
+        rows.append(
+            _csv_row(
+                handoff,
+                section="launch_readiness_questions",
+                row_type="launch_readiness_question",
+                item_id=question.get("id"),
+                label=question.get("question"),
+                role=question.get("owner_role"),
+                owner=question.get("owner_role"),
+                decision_criteria=question.get("question"),
+                source_references=question.get("references"),
+            )
+        )
+    for risk in handoff.get("unresolved_risks") or []:
+        rows.append(
+            _csv_row(
+                handoff,
+                section="unresolved_risks",
+                row_type="risk",
+                item_id=risk.get("id"),
+                label=risk.get("category"),
+                role=risk.get("owner_role"),
+                owner=risk.get("owner_role"),
+                decision_criteria=risk.get("description"),
+                source_references=risk.get("references"),
+                details={
+                    "severity": risk.get("severity"),
+                    "status": risk.get("status"),
+                },
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    handoff: dict[str, Any],
+    *,
+    section: str,
+    row_type: str,
+    item_id: Any = "",
+    label: Any = "",
+    role: Any = "",
+    owner: Any = "",
+    timing: Any = "",
+    decision_criteria: Any = "",
+    evidence_ids: Any = None,
+    source_references: Any = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    summary = handoff.get("summary") if isinstance(handoff.get("summary"), dict) else {}
+    source = handoff.get("source") if isinstance(handoff.get("source"), dict) else {}
+    return {
+        "schema_version": _csv_text(handoff.get("schema_version")),
+        "kind": _csv_text(handoff.get("kind")),
+        "idea_id": _csv_text(handoff.get("idea_id")),
+        "title": _csv_text(summary.get("title")),
+        "section": section,
+        "row_type": row_type,
+        "item_id": _csv_text(item_id),
+        "label": _csv_text(label),
+        "role": _csv_text(role),
+        "owner": _csv_text(owner),
+        "timing": _csv_text(timing),
+        "decision_criteria": _csv_text(decision_criteria),
+        "evidence_ids": _csv_join(evidence_ids),
+        "source_references": _csv_join(source_references),
+        "recommendation": _csv_text(summary.get("recommendation")),
+        "overall_score": _csv_text(summary.get("overall_score")),
+        "source_status": _csv_text(source.get("status")),
+        "evaluation_available": _csv_text(source.get("evaluation_available")),
+        "tact_spec_schema_version": _csv_text(source.get("tact_spec_schema_version")),
+        "details": _csv_details(details),
+    }
+
+
 def _first_string(value: Any) -> str:
     for item in _list_strings(value):
         return item
@@ -595,3 +777,29 @@ def _text(value: Any) -> str:
     if isinstance(value, float):
         return f"{value:.1f}"
     return str(value)
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        return f"{value:.1f}"
+    return _compact(value)
+
+
+def _csv_join(values: Any) -> str:
+    if isinstance(values, list):
+        return " | ".join(_csv_text(value) for value in values if _csv_text(value))
+    return _csv_text(values)
+
+
+def _csv_details(details: dict[str, Any] | None) -> str:
+    if not details:
+        return ""
+    return "; ".join(
+        f"{key}={_csv_join(value)}"
+        for key, value in sorted(details.items())
+        if _csv_join(value)
+    )
