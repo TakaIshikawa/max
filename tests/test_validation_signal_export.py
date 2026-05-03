@@ -114,6 +114,69 @@ def test_validation_experiment_signal_ignores_scalar_evidence_url_values() -> No
     assert "Evidence URLs:" not in signal.content
 
 
+def test_validation_experiment_signal_handles_tuple_evidence_urls() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment((" https://example.com/notes ", "https://example.com/results")),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == [
+        "https://example.com/notes",
+        "https://example.com/results",
+    ]
+
+
+def test_validation_experiment_signal_handles_set_evidence_urls() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment({"https://example.com/notes", "https://example.com/results"}),
+        _make_unit(),
+    )
+
+    # Sets are unordered, so check both URLs are present
+    assert len(signal.metadata["evidence_urls"]) == 2
+    assert "https://example.com/notes" in signal.metadata["evidence_urls"]
+    assert "https://example.com/results" in signal.metadata["evidence_urls"]
+
+
+def test_validation_experiment_signal_ignores_dict_evidence_urls() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment({"url": "https://example.com/notes"}),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == []
+    assert "Evidence URLs:" not in signal.content
+
+
+def test_validation_experiment_signal_ignores_bytes_evidence_urls() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment(b"https://example.com/notes"),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == []
+    assert "Evidence URLs:" not in signal.content
+
+
+def test_validation_experiment_signal_ignores_none_evidence_urls() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment(None),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == []
+    assert "Evidence URLs:" not in signal.content
+
+
+def test_validation_experiment_signal_handles_mixed_iterable_with_non_strings() -> None:
+    signal = validation_experiment_signal(
+        _make_experiment(["https://example.com/notes", 42, None, b"bytes", {"key": "val"}]),
+        _make_unit(),
+    )
+
+    assert signal.metadata["evidence_urls"] == ["https://example.com/notes"]
+
+
 def test_store_finds_exported_signal_by_validation_experiment_metadata(store: Store) -> None:
     idea = _make_unit()
     store.insert_buildable_unit(idea)
