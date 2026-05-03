@@ -14,15 +14,15 @@ SCHEMA_VERSION = "max.design_brief.rollout_comms_plan.v1"
 
 CSV_COLUMNS: tuple[str, ...] = (
     "design_brief_id",
-    "design_brief_title",
     "section",
     "item_id",
     "audience",
+    "phase",
     "channel",
-    "timing",
     "owner",
     "message",
     "call_to_action",
+    "severity",
     "details",
 )
 
@@ -425,7 +425,7 @@ def render_design_brief_rollout_comms_plan_csv(report: dict[str, Any]) -> str:
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
-    for audience in report.get("target_audiences") or []:
+    for audience in _list_of_dicts(report.get("target_audiences")):
         rows.append(
             _csv_row(
                 report,
@@ -442,33 +442,34 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
-    for phase in report.get("launch_phases") or []:
+    for phase in _list_of_dicts(report.get("launch_phases")):
         rows.append(
             _csv_row(
                 report,
                 section="launch_phases",
                 item_id=phase.get("id"),
-                timing=phase.get("timing"),
+                phase=phase.get("name"),
                 owner=phase.get("owner"),
                 message=phase.get("objective"),
                 call_to_action=phase.get("exit_criteria"),
                 details={
                     "sequence": phase.get("sequence"),
                     "name": phase.get("name"),
+                    "timing": phase.get("timing"),
                     "source_idea_ids": phase.get("source_idea_ids") or [],
                 },
             )
         )
 
-    for item in report.get("channel_message_matrix") or []:
+    for item in _list_of_dicts(report.get("channel_message_matrix")):
         rows.append(
             _csv_row(
                 report,
                 section="channel_message_matrix",
                 item_id=item.get("id"),
                 audience=item.get("audience"),
+                phase=item.get("phase"),
                 channel=item.get("channel"),
-                timing=item.get("phase"),
                 owner=item.get("owner"),
                 message=item.get("message"),
                 call_to_action=item.get("call_to_action"),
@@ -481,7 +482,7 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
-    for note in report.get("internal_enablement_notes") or []:
+    for note in _list_of_dicts(report.get("internal_enablement_notes")):
         rows.append(
             _csv_row(
                 report,
@@ -498,7 +499,7 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
-    for draft in report.get("customer_facing_announcement_drafts") or []:
+    for draft in _list_of_dicts(report.get("customer_facing_announcement_drafts")):
         rows.append(
             _csv_row(
                 report,
@@ -517,7 +518,7 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
-    for hook in report.get("risk_faq_hooks") or []:
+    for hook in _list_of_dicts(report.get("risk_faq_hooks")):
         rows.append(
             _csv_row(
                 report,
@@ -533,6 +534,35 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
+    for item in _list_of_dicts(report.get("evidence_references")):
+        rows.append(
+            _csv_row(
+                report,
+                section="evidence_references",
+                item_id=item.get("id"),
+                message=item.get("summary"),
+                details={
+                    "type": item.get("type"),
+                    "source_idea_ids": item.get("source_idea_ids") or [],
+                },
+            )
+        )
+
+    for warning in _list_of_dicts(report.get("readiness_warnings")):
+        rows.append(
+            _csv_row(
+                report,
+                section="readiness_warnings",
+                item_id=warning.get("id"),
+                message=warning.get("warning"),
+                call_to_action=warning.get("recommended_action"),
+                severity=warning.get("severity"),
+                details={
+                    "recommended_action": warning.get("recommended_action"),
+                },
+            )
+        )
+
     return rows
 
 
@@ -540,15 +570,15 @@ def _csv_row(report: dict[str, Any], *, section: str, **values: Any) -> dict[str
     brief = report.get("design_brief") or {}
     row = {
         "design_brief_id": brief.get("id"),
-        "design_brief_title": brief.get("title"),
         "section": section,
         "item_id": values.get("item_id"),
         "audience": values.get("audience"),
+        "phase": values.get("phase"),
         "channel": values.get("channel"),
-        "timing": values.get("timing"),
         "owner": values.get("owner"),
         "message": values.get("message"),
         "call_to_action": values.get("call_to_action"),
+        "severity": values.get("severity"),
         "details": values.get("details"),
     }
     return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
