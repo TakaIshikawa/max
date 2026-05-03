@@ -219,6 +219,135 @@ def test_render_vendor_risk_assessment_csv_includes_representative_rows() -> Non
     assert "blocked when vendor inventory is missing" in gate["context"]
 
 
+def test_render_vendor_risk_assessment_csv_flattens_optional_vendor_workflow_fields() -> None:
+    assessment = {
+        "schema_version": VENDOR_RISK_ASSESSMENT_SCHEMA_VERSION,
+        "kind": KIND,
+        "source": {"idea_id": "bu-tabular-vra"},
+        "summary": {"title": "Vendor CSV Console"},
+        "vendors": [
+            {
+                "id": "VEND01",
+                "name": "Acme AI",
+                "category": "ai_provider",
+                "risk_level": "high",
+                "owner": "privacy_owner",
+                "source_fields": ["solution.suggested_stack.ai"],
+                "data_exposure": ["customer notes", "prompt metadata"],
+                "mitigation": "Restrict prompts to approved fields.",
+                "compliance_context": "DPA and SOC 2 required.",
+                "renewal_date": "2026-11-15",
+                "next_review_date": "2026-08-15",
+                "fallback_strategy": "Route cases to manual review queue.",
+            },
+            {
+                "id": "VEND02",
+                "name": "LedgerCloud",
+                "category": "payments",
+                "risk_level": "medium",
+                "business_owner": "finance_owner",
+                "data_exchanged": ["invoice totals"],
+                "review_date": "2026-07-01",
+            },
+        ],
+        "external_services": [
+            {
+                "id": "SVC01",
+                "name": "Webhook relay",
+                "category": "integration",
+                "owner": "engineering_owner",
+                "data_exposure": "signed callbacks",
+            }
+        ],
+        "risk_findings": [
+            {
+                "id": "FIND01",
+                "title": "Prompt retention is unclear",
+                "category": "data_retention",
+                "severity": "high",
+                "owner": "ai_owner",
+                "description": "Provider terms must be confirmed.",
+                "mitigation": "Attach retention evidence before launch.",
+                "compliance_context": "GDPR processor review.",
+            },
+            {
+                "id": "FIND02",
+                "title": "Fallback ownership is split",
+                "category": "operational_resilience",
+                "severity": "medium",
+                "owner": "operations_owner",
+                "mitigations": ["Name an on-call owner.", "Document manual queue handoff."],
+            },
+        ],
+        "review_owners": [{"owner": "legal_owner", "responsibility": "Approve DPA."}],
+        "compliance_notes": [{"framework": "SOC 2", "note": "Map vendor report controls."}],
+        "data_exposure": [{"data": "customer notes", "classification": "confidential"}],
+        "fallback_strategies": ["Switch intake to spreadsheet export."],
+    }
+
+    rows = list(csv.DictReader(StringIO(render_vendor_risk_assessment_csv(assessment))))
+
+    acme = next(row for row in rows if row["section"] == "vendors" and row["item_id"] == "VEND01")
+    assert acme["owner"] == "privacy_owner"
+    assert "Restrict prompts to approved fields." in acme["details"]
+    assert "DPA and SOC 2 required." in acme["context"]
+    assert "customer notes" in acme["context"]
+    assert "renewal_date=2026-11-15" in acme["context"]
+    assert "Route cases to manual review queue." in acme["context"]
+
+    finding = next(row for row in rows if row["item_id"] == "FIND01")
+    assert finding["section"] == "risks"
+    assert finding["owner"] == "ai_owner"
+    assert finding["details"] == "Attach retention evidence before launch."
+    assert "GDPR processor review." in finding["context"]
+
+    sections = {row["section"] for row in rows}
+    assert "external_services" in sections
+    assert "review_owners" in sections
+    assert "compliance_notes" in sections
+    assert "data_exposure" in sections
+    assert "renewal_review_dates" in sections
+    assert "fallback_strategies" in sections
+
+
+def test_render_vendor_risk_assessment_csv_quotes_special_characters() -> None:
+    assessment = {
+        "schema_version": VENDOR_RISK_ASSESSMENT_SCHEMA_VERSION,
+        "kind": KIND,
+        "source": {"idea_id": "bu-quoted"},
+        "summary": {"title": 'Quoted, "Risk" Export'},
+        "vendors": [
+            {
+                "id": "VEND01",
+                "name": 'ACME, "AI"',
+                "category": "ai_provider",
+                "risk_level": "high",
+                "owner": "legal_owner",
+                "data_exposure": ["line one\nline two", "customer, invoice"],
+                "mitigation": 'Require "no training" terms, DPA, and audit rights.',
+            }
+        ],
+    }
+
+    csv_text = render_vendor_risk_assessment_csv(assessment)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Quoted, ""Risk"" Export"' in csv_text
+    assert '"ACME, ""AI"""' in csv_text
+    assert rows[0]["title"] == 'Quoted, "Risk" Export'
+    assert rows[0]["item_name"] == 'ACME, "AI"'
+    assert "line one line two" in rows[0]["context"]
+    assert 'Require "no training" terms, DPA, and audit rights.' in rows[0]["details"]
+
+
+def test_render_vendor_risk_assessment_csv_handles_minimal_assessment_dicts() -> None:
+    csv_text = render_vendor_risk_assessment_csv({})
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert rows == []
+    assert csv_text == ",".join(VENDOR_RISK_ASSESSMENT_CSV_COLUMNS) + "\n"
+
+
 def test_vendor_risk_assessment_is_json_stable() -> None:
     first = generate_vendor_risk_assessment(_rich_spec())
     second = generate_vendor_risk_assessment(_rich_spec())
