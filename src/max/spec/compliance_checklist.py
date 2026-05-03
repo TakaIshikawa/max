@@ -2,11 +2,40 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 
 COMPLIANCE_CHECKLIST_SCHEMA_VERSION = "max-compliance-checklist/v1"
+
+COMPLIANCE_CHECKLIST_CSV_COLUMNS = [
+    "schema_version",
+    "kind",
+    "source_idea_id",
+    "source_status",
+    "source_type",
+    "tact_spec_schema_version",
+    "title",
+    "domain",
+    "domain_risk_level",
+    "detected_data_terms",
+    "detected_integrations",
+    "section_id",
+    "section_title",
+    "item_id",
+    "category",
+    "blocking",
+    "owner",
+    "status",
+    "requirement",
+    "rationale",
+    "evidence_needed",
+    "remediation_guidance",
+    "source_fields",
+    "empty_state_guidance",
+]
 
 _CATEGORY_TITLES = {
     "privacy": "Privacy and Personal Data",
@@ -111,6 +140,20 @@ def generate_compliance_checklist(tact_spec: dict[str, Any]) -> dict[str, Any]:
 def render_compliance_checklist_json(checklist: dict[str, Any]) -> str:
     """Render a generated compliance checklist as deterministic JSON."""
     return json.dumps(checklist, indent=2) + "\n"
+
+
+def render_compliance_checklist_csv(checklist: dict[str, Any]) -> str:
+    """Render a generated compliance checklist as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=COMPLIANCE_CHECKLIST_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(checklist or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def render_compliance_checklist_markdown(checklist: dict[str, Any]) -> str:
@@ -435,6 +478,121 @@ def _render_section(section: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _csv_rows(checklist: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen_item_ids: set[str] = set()
+
+    for section in _csv_sections(checklist):
+        for item in _csv_section_items(section):
+            item_id = _csv_text(item.get("id"))
+            if item_id:
+                seen_item_ids.add(item_id)
+            rows.append(_csv_row(checklist, section, item))
+
+    section_by_id = {
+        _csv_text(section.get("id")): section
+        for section in _csv_sections(checklist)
+        if _csv_text(section.get("id"))
+    }
+    for item in _csv_items(checklist.get("checklist_items")):
+        item_id = _csv_text(item.get("id"))
+        if item_id in seen_item_ids:
+            continue
+        section_id = _csv_text(item.get("category"))
+        section = section_by_id.get(section_id) or {
+            "id": section_id,
+            "title": item.get("category_title") or _CATEGORY_TITLES.get(section_id, section_id),
+        }
+        rows.append(_csv_row(checklist, section, item))
+
+    if rows:
+        return sorted(rows, key=_csv_row_sort_key)
+
+    return [_csv_row(checklist, {}, {})]
+
+
+def _csv_sections(checklist: dict[str, Any]) -> list[dict[str, Any]]:
+    sections = _csv_items(checklist.get("sections"))
+    return sorted(sections, key=_csv_section_sort_key)
+
+
+def _csv_section_items(section: dict[str, Any]) -> list[dict[str, Any]]:
+    return sorted(_csv_items(section.get("items")), key=_csv_item_sort_key)
+
+
+def _csv_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_row(
+    checklist: dict[str, Any],
+    section: dict[str, Any],
+    item: dict[str, Any],
+) -> dict[str, str]:
+    source = checklist.get("source") if isinstance(checklist.get("source"), dict) else {}
+    summary = checklist.get("summary") if isinstance(checklist.get("summary"), dict) else {}
+    context = (
+        checklist.get("compliance_context")
+        if isinstance(checklist.get("compliance_context"), dict)
+        else {}
+    )
+    category = item.get("category") or section.get("id")
+    values = {
+        "schema_version": checklist.get("schema_version"),
+        "kind": checklist.get("kind"),
+        "source_idea_id": source.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_type": source.get("type"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "domain": context.get("domain") or source.get("domain"),
+        "domain_risk_level": summary.get("domain_risk_level") or context.get("domain_risk_level"),
+        "detected_data_terms": context.get("detected_data_terms"),
+        "detected_integrations": context.get("detected_integrations"),
+        "section_id": section.get("id"),
+        "section_title": section.get("title"),
+        "item_id": item.get("id"),
+        "category": category,
+        "blocking": item.get("blocking"),
+        "owner": item.get("owner"),
+        "status": item.get("status"),
+        "requirement": item.get("title"),
+        "rationale": item.get("rationale"),
+        "evidence_needed": item.get("evidence_needed"),
+        "remediation_guidance": item.get("remediation_guidance"),
+        "source_fields": item.get("source_fields") or item.get("evidence_needed"),
+        "empty_state_guidance": checklist.get("empty_state_guidance"),
+    }
+    return {column: _csv_text(values.get(column)) for column in COMPLIANCE_CHECKLIST_CSV_COLUMNS}
+
+
+def _csv_section_sort_key(section: dict[str, Any]) -> tuple[int, str]:
+    section_id = _csv_text(section.get("id"))
+    try:
+        priority = _CATEGORY_ORDER.index(section_id)
+    except ValueError:
+        priority = len(_CATEGORY_ORDER)
+    return priority, section_id or _csv_text(section.get("title"))
+
+
+def _csv_item_sort_key(item: dict[str, Any]) -> tuple[int, str]:
+    category = _csv_text(item.get("category"))
+    try:
+        priority = _CATEGORY_ORDER.index(category)
+    except ValueError:
+        priority = len(_CATEGORY_ORDER)
+    return priority, _csv_text(item.get("id")) or _csv_text(item.get("title"))
+
+
+def _csv_row_sort_key(row: dict[str, str]) -> tuple[int, str, str]:
+    section_id = row.get("section_id", "")
+    try:
+        priority = _CATEGORY_ORDER.index(section_id)
+    except ValueError:
+        priority = len(_CATEGORY_ORDER)
+    return priority, section_id, row.get("item_id", "")
+
+
 def _detected_integrations(text: str, stack: Any) -> list[str]:
     detected = [_INTEGRATION_LABELS[term] for term in sorted(_INTEGRATION_LABELS) if term in text]
     if isinstance(stack, dict):
@@ -531,4 +689,21 @@ def _compact(value: Any) -> str:
 def _text(value: Any) -> str:
     if value is None:
         return ""
+    return _compact(value)
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        values = sorted(value, key=_csv_text) if isinstance(value, set) else value
+        return "; ".join(_csv_text(item) for item in values if _csv_text(item))
     return _compact(value)

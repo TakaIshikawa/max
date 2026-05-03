@@ -23,6 +23,7 @@ from max.spec.bundle import (
 )
 from max.spec.compliance_checklist import (
     generate_compliance_checklist,
+    render_compliance_checklist_csv,
     render_compliance_checklist_json,
     render_compliance_checklist_markdown,
 )
@@ -193,6 +194,7 @@ __all__ = [
     "render_architecture_decision_record_csv",
     "render_api_contract_test_plan_markdown",
     "render_compliance_checklist_json",
+    "render_compliance_checklist_csv",
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
     "render_cost_estimate_csv",
