@@ -16,6 +16,7 @@ from max.analysis.design_brief_one_pager import (
     SCHEMA_VERSION,
     build_design_brief_one_pager,
     render_design_brief_one_pager,
+    render_design_brief_one_pager_csv,
 )
 from max.types.buildable_unit import BuildableUnit
 from max.types.signal import Signal, SignalSourceType
@@ -183,8 +184,10 @@ def test_render_design_brief_one_pager_csv_has_decision_and_risk_rows(
     assert one_pager is not None
 
     csv_text = render_design_brief_one_pager(one_pager, fmt="csv")
+    direct = render_design_brief_one_pager_csv(one_pager)
     rows = list(csv.DictReader(StringIO(csv_text)))
 
+    assert csv_text == direct
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
     assert [row["row_type"] for row in rows[:6]] == ["decision_field"] * 6
     assert [row["field"] for row in rows[:6]] == [

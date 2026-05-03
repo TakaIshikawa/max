@@ -16,6 +16,7 @@ from max.analysis.design_brief_failure_modes import (
     build_design_brief_failure_modes,
     failure_modes_filename,
     render_design_brief_failure_modes,
+    render_design_brief_failure_modes_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -145,10 +146,12 @@ def test_csv_renderer_has_stable_headers_and_deterministic_order(tmp_path) -> No
 
     csv_text = render_design_brief_failure_modes(report, fmt="csv")
     repeated = render_design_brief_failure_modes(report, fmt="csv")
+    direct = render_design_brief_failure_modes_csv(report)
     reader = csv.DictReader(StringIO(csv_text))
     rows = list(reader)
 
     assert csv_text == repeated
+    assert csv_text == direct
     assert reader.fieldnames == list(CSV_COLUMNS)
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
     assert len(rows) == report["summary"]["failure_mode_count"]
@@ -208,6 +211,12 @@ def test_csv_renderer_empty_report_is_header_only() -> None:
     reader = csv.DictReader(StringIO(csv_text))
     assert reader.fieldnames == list(CSV_COLUMNS)
     assert list(reader) == []
+
+
+def test_csv_renderer_handles_missing_optional_collections() -> None:
+    csv_text = render_design_brief_failure_modes_csv({})
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
 
 
 def test_sparse_design_brief_returns_assumption_failure_modes(tmp_path) -> None:
