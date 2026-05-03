@@ -2,11 +2,36 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 SCHEMA_VERSION = "max-api-contract-test-plan/v1"
 KIND = "max.api_contract_test_plan"
+API_CONTRACT_TEST_PLAN_CSV_COLUMNS = (
+    "section",
+    "row_type",
+    "item_id",
+    "contract_type",
+    "surface_id",
+    "surface_name",
+    "method",
+    "category",
+    "priority",
+    "status",
+    "name",
+    "description",
+    "scenario",
+    "expected_behavior",
+    "fixture",
+    "source",
+    "source_fields",
+    "evidence_id",
+    "evidence_type",
+    "evidence_summary",
+    "evidence_reference_ids",
+)
 
 _ENDPOINT_KEYS = ("endpoints", "routes", "apis", "api_endpoints")
 _INTEGRATION_KEYS = ("integrations", "external_services", "dependencies", "webhooks")
@@ -106,6 +131,20 @@ def render_api_contract_test_plan_markdown(report: dict[str, Any]) -> str:
     )
     _extend_traceability(lines, report.get("traceability") or {})
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_api_contract_test_plan_csv(report: dict[str, Any]) -> str:
+    """Render an API contract test plan as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=API_CONTRACT_TEST_PLAN_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _contract_surfaces(
@@ -605,6 +644,141 @@ def _render_evidence(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in _dict_items(report.get("contract_surfaces")):
+        rows.append(
+            _csv_row(
+                section="contract_surfaces",
+                row_type="surface",
+                item_id=item.get("id"),
+                surface_id=item.get("id"),
+                surface_name=item.get("name"),
+                method=item.get("method"),
+                category=item.get("category"),
+                name=item.get("name"),
+                description=item.get("description"),
+                source=item.get("source"),
+                source_fields=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(report.get("test_cases")):
+        rows.append(
+            _csv_row(
+                section="test_cases",
+                row_type="test_case",
+                item_id=item.get("id"),
+                contract_type=item.get("contract_type"),
+                surface_id=item.get("surface_id"),
+                surface_name=item.get("surface_name"),
+                priority=item.get("priority") or _case_priority(item.get("contract_type")),
+                status=item.get("status"),
+                scenario=item.get("scenario"),
+                expected_behavior=item.get("expected_result"),
+                fixture=item.get("fixture"),
+                source_fields=item.get("derived_from"),
+                evidence_reference_ids=item.get("evidence_reference_ids"),
+            )
+        )
+
+    for item in _dict_items(report.get("compatibility_checks")):
+        rows.append(
+            _csv_row(
+                section="compatibility_checks",
+                row_type="compatibility_check",
+                item_id=item.get("id"),
+                priority=item.get("priority") or "medium",
+                status=item.get("status"),
+                name=item.get("name"),
+                description=item.get("description"),
+                expected_behavior=item.get("description"),
+                source_fields=item.get("derived_from"),
+            )
+        )
+
+    traceability = report.get("traceability") if isinstance(report.get("traceability"), dict) else {}
+    for item in _dict_items(traceability.get("evidence_references")):
+        rows.append(
+            _csv_row(
+                section="evidence_references",
+                row_type="evidence",
+                item_id=item.get("id"),
+                name=item.get("id"),
+                evidence_id=item.get("id"),
+                evidence_type=item.get("type"),
+                evidence_summary=item.get("summary"),
+                evidence_reference_ids=[item.get("id")],
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    *,
+    section: Any,
+    row_type: Any,
+    item_id: Any = None,
+    contract_type: Any = None,
+    surface_id: Any = None,
+    surface_name: Any = None,
+    method: Any = None,
+    category: Any = None,
+    priority: Any = None,
+    status: Any = None,
+    name: Any = None,
+    description: Any = None,
+    scenario: Any = None,
+    expected_behavior: Any = None,
+    fixture: Any = None,
+    source: Any = None,
+    source_fields: Any = None,
+    evidence_id: Any = None,
+    evidence_type: Any = None,
+    evidence_summary: Any = None,
+    evidence_reference_ids: Any = None,
+) -> dict[str, str]:
+    values = {
+        "section": section,
+        "row_type": row_type,
+        "item_id": item_id,
+        "contract_type": contract_type,
+        "surface_id": surface_id,
+        "surface_name": surface_name,
+        "method": method,
+        "category": category,
+        "priority": priority,
+        "status": status,
+        "name": name,
+        "description": description,
+        "scenario": scenario,
+        "expected_behavior": expected_behavior,
+        "fixture": fixture,
+        "source": source,
+        "source_fields": source_fields,
+        "evidence_id": evidence_id,
+        "evidence_type": evidence_type,
+        "evidence_summary": evidence_summary,
+        "evidence_reference_ids": evidence_reference_ids,
+    }
+    return {
+        column: _csv_text(values.get(column)) for column in API_CONTRACT_TEST_PLAN_CSV_COLUMNS
+    }
+
+
+def _case_priority(contract_type: Any) -> str:
+    priorities = {
+        "provider": "high",
+        "consumer": "high",
+        "schema_validation": "high",
+        "auth_error": "high",
+        "acceptance_trace": "medium",
+    }
+    return priorities.get(_compact(contract_type), "medium")
+
+
 def _surface_name(value: Any, fallback: str) -> str:
     if isinstance(value, dict):
         for key in ("name", "path", "route", "endpoint", "resource", "service", "id", "title"):
@@ -696,6 +870,26 @@ def _list(value: Any) -> list[Any]:
     if isinstance(value, set):
         return sorted(value)
     return [value]
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in _list(value) if _csv_text(item))
+    return _compact(value)
 
 
 def _compact(value: Any) -> str:
