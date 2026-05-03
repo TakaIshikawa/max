@@ -56,6 +56,7 @@ from max.analysis.design_brief_work_breakdown import (
     build_design_brief_work_breakdown,
     render_design_brief_work_breakdown,
     render_design_brief_work_breakdown_csv,
+    render_design_brief_work_breakdown_json,
     work_breakdown_filename,
 )
 from max.analysis.design_brief_investor_update import (
@@ -238,6 +239,7 @@ __all__ = [
     "render_renewal_expansion_plan_csv",
     "render_design_brief_work_breakdown",
     "render_design_brief_work_breakdown_csv",
+    "render_design_brief_work_breakdown_json",
     "render_design_brief_accessibility_review",
     "render_design_brief_accessibility_review_markdown",
     "render_design_brief_churn_risk_report",

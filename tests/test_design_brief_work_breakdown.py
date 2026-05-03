@@ -13,6 +13,7 @@ from max.analysis.design_brief_work_breakdown import (
     build_design_brief_work_breakdown,
     render_design_brief_work_breakdown,
     render_design_brief_work_breakdown_csv,
+    render_design_brief_work_breakdown_json,
     work_breakdown_filename,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -150,6 +151,7 @@ def test_markdown_json_invalid_format_and_filename(tmp_path) -> None:
     rendered_json = render_design_brief_work_breakdown(report, fmt="json")
     assert json.loads(rendered_json) == report
     assert rendered_json == render_design_brief_work_breakdown(report, fmt="json")
+    assert rendered_json == render_design_brief_work_breakdown_json(report)
 
     markdown = render_design_brief_work_breakdown(report, fmt="markdown")
     assert markdown.startswith("# Work Breakdown: Work Breakdown Brief")
@@ -276,6 +278,135 @@ def test_render_design_brief_work_breakdown_csv_empty_report_header_only() -> No
 
     assert csv_text == ",".join(CSV_COLUMNS) + "\n"
     assert csv.DictReader(StringIO(csv_text)).fieldnames == list(CSV_COLUMNS)
+
+
+def test_render_design_brief_work_breakdown_json_preserves_nested_work_items() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "phases": [
+            {
+                "id": "P1",
+                "title": "Foundation",
+                "owner": "Product owner",
+                "tasks": [
+                    {
+                        "id": "T1",
+                        "title": "Define contract",
+                        "role": "Implementation engineer",
+                        "dependencies": [],
+                        "estimate": {"size": "M", "points": 3},
+                        "acceptance_criteria": [
+                            "Scope is approved.",
+                            "Non-goals are explicit.",
+                        ],
+                        "evidence": [
+                            {"id": "EV1", "field": "mvp_scope"},
+                            {"id": "EV2", "field": "validation_plan"},
+                        ],
+                        "subtasks": [
+                            {
+                                "id": "ST1",
+                                "title": "Inventory assumptions",
+                                "owner": "Product owner",
+                                "dependencies": ["T0"],
+                                "estimate_size": "S",
+                                "acceptance_criteria": ["Assumptions are source-linked."],
+                                "evidence_reference_ids": {"sig-2", "sig-1"},
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+    rendered = render_design_brief_work_breakdown_json(report)
+    parsed = json.loads(rendered)
+    task = parsed["phases"][0]["tasks"][0]
+    subtask = task["subtasks"][0]
+
+    assert parsed["phases"][0]["id"] == "P1"
+    assert task["role"] == "Implementation engineer"
+    assert task["dependencies"] == []
+    assert task["estimate"] == {"points": 3, "size": "M"}
+    assert task["acceptance_criteria"] == [
+        "Scope is approved.",
+        "Non-goals are explicit.",
+    ]
+    assert task["evidence"] == [
+        {"field": "mvp_scope", "id": "EV1"},
+        {"field": "validation_plan", "id": "EV2"},
+    ]
+    assert subtask["owner"] == "Product owner"
+    assert subtask["dependencies"] == ["T0"]
+    assert subtask["estimate_size"] == "S"
+    assert subtask["acceptance_criteria"] == ["Assumptions are source-linked."]
+    assert subtask["evidence_reference_ids"] == ["sig-1", "sig-2"]
+
+
+def test_render_design_brief_work_breakdown_json_preserves_dependency_fields() -> None:
+    report = {
+        "tasks": [
+            {
+                "id": "T1",
+                "owner_role": "QA engineer",
+                "depends_on": ["T0"],
+                "acceptance_check_ids": ["AC1"],
+                "evidence_references": ["EV1"],
+            }
+        ],
+        "dependencies": [
+            {
+                "id": "D1",
+                "from_task_id": "T0",
+                "to_task_id": "T1",
+                "type": "finish_to_start",
+                "rationale": "Implementation follows contract approval.",
+                "risk_if_skipped": "Scope can drift.",
+            }
+        ],
+    }
+
+    parsed = json.loads(render_design_brief_work_breakdown(report, fmt="json"))
+
+    assert parsed["tasks"][0]["owner_role"] == "QA engineer"
+    assert parsed["tasks"][0]["depends_on"] == ["T0"]
+    assert parsed["tasks"][0]["acceptance_check_ids"] == ["AC1"]
+    assert parsed["tasks"][0]["evidence_references"] == ["EV1"]
+    assert parsed["dependencies"] == report["dependencies"]
+
+
+def test_render_design_brief_work_breakdown_json_is_deterministic_for_unordered_values() -> None:
+    report = {
+        "tasks": [
+            {
+                "id": "T1",
+                "source_fields": {"validation_plan", "mvp_scope", "risks"},
+                "evidence_reference_ids": {"EV2", "EV1"},
+            }
+        ]
+    }
+
+    first = render_design_brief_work_breakdown_json(report)
+    second = render_design_brief_work_breakdown_json(report)
+
+    assert first == second
+    assert json.loads(first)["tasks"][0]["source_fields"] == [
+        "mvp_scope",
+        "risks",
+        "validation_plan",
+    ]
+    assert json.loads(first)["tasks"][0]["evidence_reference_ids"] == ["EV1", "EV2"]
+
+
+def test_render_design_brief_work_breakdown_json_empty_plan() -> None:
+    report = {"phases": [], "tasks": [], "dependencies": []}
+
+    rendered = render_design_brief_work_breakdown_json(report)
+
+    assert json.loads(rendered) == report
+    assert rendered == '{\n  "dependencies": [],\n  "phases": [],\n  "tasks": []\n}\n'
 
 
 def test_build_design_brief_work_breakdown_missing_brief_returns_none(tmp_path) -> None:
