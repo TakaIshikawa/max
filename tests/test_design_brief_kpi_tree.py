@@ -6,6 +6,7 @@ from max.analysis.design_brief_kpi_tree import (
     SCHEMA_VERSION,
     generate_design_brief_kpi_tree,
     render_design_brief_kpi_tree_markdown,
+    render_kpi_tree_markdown,
 )
 
 
@@ -107,6 +108,98 @@ def test_render_design_brief_kpi_tree_markdown_includes_hierarchy_owners_cadence
     assert "## Measurement Plan" in markdown
     assert "### Instrumentation Events" in markdown
     assert "### Evidence References" in markdown
+
+
+def test_render_kpi_tree_markdown_preserves_nested_metric_hierarchy_and_empty_children() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "brief_id": "dbf-nested",
+        "title": "Nested KPI Tree",
+        "north_star_metric": {
+            "id": "NS1",
+            "metric": "Retained activation",
+            "definition": "Qualified users activate and return.",
+            "target": "60% retained activation.",
+            "owner": "Product lead",
+            "cadence": "Weekly",
+            "children": ["S1"],
+            "source_reference_ids": ["brief:validation_plan"],
+        },
+        "supporting_metrics": [
+            {
+                "id": "S1",
+                "parent_id": "NS1",
+                "metric": "Activated teams",
+                "definition": "Qualified teams activate.",
+                "target": "10 teams.",
+                "owner": "Growth lead",
+                "cadence": "Weekly",
+                "source_reference_ids": ["brief:validation_plan"],
+                "children": [
+                    {
+                        "id": "S1a",
+                        "parent_id": "S1",
+                        "metric": "Invite accepted",
+                        "definition": "A user accepts an invite.",
+                        "target": "80% invite acceptance.",
+                        "owner": "Lifecycle lead",
+                        "cadence": "Daily",
+                        "source_reference_ids": ["event:invite_accepted"],
+                        "children": [],
+                    }
+                ],
+            }
+        ],
+        "leading_indicators": [],
+        "guardrail_metrics": [],
+        "measurement_plan": {
+            "owner": "Product ops",
+            "cadence": "Weekly",
+            "review_ritual": "Review tree.",
+            "primary_data_source": "Analytics",
+            "instrumentation_events": [],
+            "instrumentation_gaps": ["Add invite_accepted event properties."],
+            "source_reference_ids": ["brief:validation_plan", "event:invite_accepted"],
+            "evidence_references": [
+                {"id": "brief:validation_plan", "type": "validation_plan", "summary": "Pilot with nested teams."},
+                {"id": "event:invite_accepted", "type": "instrumentation", "summary": "Invite funnel event."},
+            ],
+        },
+    }
+
+    markdown = render_kpi_tree_markdown(report)
+
+    assert "**S1 Activated teams** (parent: `NS1`)" in markdown
+    assert "  - **S1a Invite accepted** (parent: `S1`)" in markdown
+    assert "    Children: None" in markdown
+    assert "### Input Metrics\n\n- None" in markdown
+    assert "### Guardrail Metrics\n\n- None" in markdown
+    assert "- Add invite_accepted event properties." in markdown
+    assert "**event:invite_accepted** (instrumentation): Invite funnel event." in markdown
+
+
+def test_render_kpi_tree_markdown_order_is_deterministic_for_generated_reports() -> None:
+    report = generate_design_brief_kpi_tree(_brief())
+
+    first = render_kpi_tree_markdown(report)
+    second = render_kpi_tree_markdown(report)
+
+    assert first == second
+    assert first.index("**O1 Validated demand**") < first.index("**O2 First value reached**")
+    assert first.index("**O2 First value reached**") < first.index("**O3 Repeat workflow intent**")
+    assert first.index("**I1 Qualified setup starts**") < first.index("**I2 Milestone acceptance**")
+
+
+def test_render_kpi_tree_markdown_handles_empty_tree_predictably() -> None:
+    markdown = render_kpi_tree_markdown({})
+
+    assert markdown.startswith("# KPI Tree: Untitled KPI Tree")
+    assert "- **Metric**: Untitled metric" in markdown
+    assert "- **Children**: None" in markdown
+    assert "### Outcome Metrics\n\n- None" in markdown
+    assert "### Input Metrics\n\n- None" in markdown
+    assert "### Instrumentation Events\n\n- None" in markdown
+    assert "### Evidence References\n\n- None" in markdown
 
 
 def test_design_brief_kpi_tree_is_importable_from_analysis_package() -> None:

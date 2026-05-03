@@ -51,61 +51,90 @@ def generate_design_brief_kpi_tree(brief: Mapping[str, Any]) -> dict[str, Any]:
 
 def render_design_brief_kpi_tree_markdown(report: Mapping[str, Any]) -> str:
     """Render a KPI tree artifact as stable Markdown."""
-    north_star = report["north_star_metric"]
-    measurement_plan = report["measurement_plan"]
+    return render_kpi_tree_markdown(report)
+
+
+def render_kpi_tree_markdown(report: Mapping[str, Any]) -> str:
+    """Render a KPI tree artifact as stable Markdown."""
+    north_star = _mapping(report.get("north_star_metric") or report.get("north_star"))
+    measurement_plan = _mapping(report.get("measurement_plan"))
+    title = _clean(report.get("title")) or "Untitled KPI Tree"
+    schema_version = _clean(report.get("schema_version")) or SCHEMA_VERSION
+    brief_id = _clean(report.get("brief_id")) or _clean(report.get("id")) or "unknown-design-brief"
+    outcome_metrics = _metric_list(report.get("outcome_metrics") or report.get("supporting_metrics"))
+    input_metrics = _metric_list(report.get("input_metrics") or report.get("leading_indicators"))
+    guardrail_metrics = _metric_list(report.get("guardrail_metrics") or report.get("guardrails"))
+
     lines = [
-        f"# KPI Tree: {report['title']}",
+        f"# KPI Tree: {title}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{report['brief_id']}`",
+        f"Schema: `{schema_version}`",
+        f"Design brief: `{brief_id}`",
         "",
         "## North-Star Metric",
         "",
-        f"- **Metric**: {north_star['metric']}",
-        f"- **Definition**: {north_star['definition']}",
-        f"- **Target**: {north_star['target']}",
-        f"- **Owner**: {north_star['owner']}",
-        f"- **Cadence**: {north_star['cadence']}",
-        f"- **Evidence/source ideas**: {_inline_refs(north_star['source_reference_ids'])}",
+        f"- **Metric**: {_metric_name(north_star)}",
+        f"- **Definition**: {_metric_text(north_star, 'definition')}",
+        f"- **Target**: {_metric_text(north_star, 'target')}",
+        f"- **Owner**: {_metric_text(north_star, 'owner')}",
+        f"- **Cadence**: {_metric_text(north_star, 'cadence')}",
+        f"- **Children**: {_inline_children(north_star.get('children'))}",
+        f"- **Evidence/source ideas**: {_inline_refs(_string_list(north_star.get('source_reference_ids')))}",
         "",
         "## Metric Hierarchy",
+        "",
+        "Supporting metrics are listed as outcome metrics; leading indicators are listed as input metrics.",
         "",
         "### Outcome Metrics",
         "",
     ]
-    _append_metrics(lines, report["outcome_metrics"])
+    _append_metrics(lines, outcome_metrics)
     lines.extend(["", "### Input Metrics", ""])
-    _append_metrics(lines, report["input_metrics"])
+    _append_metrics(lines, input_metrics)
     lines.extend(["", "### Guardrail Metrics", ""])
-    _append_metrics(lines, report["guardrail_metrics"])
+    _append_metrics(lines, guardrail_metrics)
 
     lines.extend(
         [
             "",
             "## Measurement Plan",
             "",
-            f"- Owner: {measurement_plan['owner']}",
-            f"- Cadence: {measurement_plan['cadence']}",
-            f"- Review ritual: {measurement_plan['review_ritual']}",
-            f"- Primary data source: {measurement_plan['primary_data_source']}",
-            f"- Evidence/source ideas: {_inline_refs(measurement_plan['source_reference_ids'])}",
+            f"- Owner: {_metric_text(measurement_plan, 'owner')}",
+            f"- Cadence: {_metric_text(measurement_plan, 'cadence')}",
+            f"- Review ritual: {_metric_text(measurement_plan, 'review_ritual')}",
+            f"- Primary data source: {_metric_text(measurement_plan, 'primary_data_source')}",
+            f"- Evidence/source ideas: {_inline_refs(_source_reference_ids(report, measurement_plan))}",
             "",
             "### Instrumentation Events",
             "",
         ]
     )
-    for event in measurement_plan["instrumentation_events"]:
-        lines.append(f"- **{event['event']}** ({event['owner']}, {event['cadence']}): {event['description']}")
+    _append_instrumentation_events(lines, _metric_list(measurement_plan.get("instrumentation_events")))
+
+    lines.extend(["", "### Instrumentation Gaps", ""])
+    instrumentation_gaps = _instrumentation_gaps(report, measurement_plan)
+    if instrumentation_gaps:
+        lines.extend(f"- {gap}" for gap in instrumentation_gaps)
+    else:
+        lines.append("- None")
 
     lines.extend(["", "### Open Measurement Questions", ""])
-    if measurement_plan["open_questions"]:
-        lines.extend(f"- {question}" for question in measurement_plan["open_questions"])
+    open_questions = _string_list(measurement_plan.get("open_questions"))
+    if open_questions:
+        lines.extend(f"- {question}" for question in open_questions)
     else:
         lines.append("- None")
 
     lines.extend(["", "### Evidence References", ""])
-    for reference in measurement_plan["evidence_references"]:
-        lines.append(f"- **{reference['id']}** ({reference['type']}): {reference['summary']}")
+    evidence_references = _metric_list(report.get("evidence_references") or measurement_plan.get("evidence_references"))
+    if evidence_references:
+        for reference in evidence_references:
+            lines.append(
+                f"- **{_metric_text(reference, 'id')}** ({_metric_text(reference, 'type')}): "
+                f"{_metric_text(reference, 'summary')}"
+            )
+    else:
+        lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -426,18 +455,27 @@ def _evidence_counts(brief: Mapping[str, Any]) -> dict[str, int]:
     }
 
 
-def _append_metrics(lines: list[str], metrics: list[dict[str, Any]]) -> None:
+def _append_metrics(lines: list[str], metrics: list[dict[str, Any]], *, level: int = 0) -> None:
+    if not metrics:
+        lines.append("- None")
+        return
+
     for item in metrics:
+        indent = "  " * level
         lines.extend(
             [
-                f"- **{item['id']} {item['metric']}** (parent: `{item['parent_id']}`)",
-                f"  Definition: {item['definition']}",
-                f"  Target: {item['target']}",
-                f"  Owner: {item['owner']}",
-                f"  Cadence: {item['cadence']}",
-                f"  Evidence/source ideas: {_inline_refs(item['source_reference_ids'])}",
+                f"{indent}- **{_metric_label(item)}** (parent: `{_metric_text(item, 'parent_id')}`)",
+                f"{indent}  Definition: {_metric_text(item, 'definition')}",
+                f"{indent}  Target: {_metric_text(item, 'target')}",
+                f"{indent}  Owner: {_metric_text(item, 'owner')}",
+                f"{indent}  Cadence: {_metric_text(item, 'cadence')}",
+                f"{indent}  Children: {_inline_children(item.get('children'))}",
+                f"{indent}  Evidence/source ideas: {_inline_refs(_string_list(item.get('source_reference_ids')))}",
             ]
         )
+        children = _metric_list(item.get("children"))
+        if children:
+            _append_metrics(lines, children, level=level + 1)
 
 
 def _owner_hint(brief: Mapping[str, Any], *, default: str) -> str:
@@ -513,3 +551,96 @@ def _short_text(value: str) -> str:
 
 def _inline_refs(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "`brief:fallback`"
+
+
+def _append_instrumentation_events(lines: list[str], events: list[dict[str, Any]]) -> None:
+    if not events:
+        lines.append("- None")
+        return
+
+    for event in events:
+        lines.append(
+            f"- **{_metric_text(event, 'event') or _metric_text(event, 'id')}** "
+            f"({_metric_text(event, 'owner')}, {_metric_text(event, 'cadence')}): "
+            f"{_metric_text(event, 'description')}"
+        )
+
+
+def _instrumentation_gaps(report: Mapping[str, Any], measurement_plan: Mapping[str, Any]) -> list[str]:
+    gaps = _gap_list(report.get("instrumentation_gaps"))
+    if gaps:
+        return gaps
+    gaps = _gap_list(measurement_plan.get("instrumentation_gaps"))
+    if gaps:
+        return gaps
+    return _string_list(measurement_plan.get("open_questions"))
+
+
+def _source_reference_ids(report: Mapping[str, Any], measurement_plan: Mapping[str, Any]) -> list[str]:
+    source_ids = _string_list(measurement_plan.get("source_reference_ids") or report.get("source_reference_ids"))
+    if source_ids:
+        return source_ids
+    references = _metric_list(report.get("evidence_references") or measurement_plan.get("evidence_references"))
+    return [_metric_text(reference, "id") for reference in references if _metric_text(reference, "id")]
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _metric_list(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [dict(item) for item in value if isinstance(item, Mapping)]
+
+
+def _gap_list(value: Any) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return _string_list(value)
+
+    gaps: list[str] = []
+    for item in value:
+        if isinstance(item, Mapping):
+            text = (
+                _clean(item.get("description"))
+                or _clean(item.get("summary"))
+                or _clean(item.get("message"))
+                or _clean(item.get("id"))
+            )
+            if text:
+                gaps.append(text)
+        else:
+            text = _clean(item)
+            if text:
+                gaps.append(text)
+    return gaps
+
+
+def _metric_label(metric: Mapping[str, Any]) -> str:
+    metric_id = _metric_text(metric, "id")
+    metric_name = _metric_name(metric)
+    return f"{metric_id} {metric_name}".strip()
+
+
+def _metric_name(metric: Mapping[str, Any]) -> str:
+    return _clean(metric.get("metric")) or _clean(metric.get("name")) or "Untitled metric"
+
+
+def _metric_text(metric: Mapping[str, Any], key: str) -> str:
+    return _clean(metric.get(key)) or "Not specified"
+
+
+def _inline_children(value: Any) -> str:
+    if not isinstance(value, list | tuple):
+        return "None"
+
+    child_labels: list[str] = []
+    for child in value:
+        if isinstance(child, Mapping):
+            child_id = _clean(child.get("id"))
+            child_labels.append(f"`{child_id}`" if child_id else _metric_name(child))
+        else:
+            child_id = _clean(child)
+            if child_id:
+                child_labels.append(f"`{child_id}`")
+    return ", ".join(child_labels) if child_labels else "None"
