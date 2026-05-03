@@ -706,6 +706,164 @@ def _csv_rows(handoff: dict[str, Any]) -> list[dict[str, str]]:
                 },
             )
         )
+    rows.extend(_generic_csv_rows(handoff))
+    return rows
+
+
+def _generic_csv_rows(handoff: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "stakeholder_groups",
+            "stakeholder_group",
+            ("stakeholder_groups", "stakeholders"),
+            label_keys=("stakeholder", "group", "name", "role", "audience"),
+            role_keys=("role", "stakeholder_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "cadence"),
+            criteria_keys=("responsibility", "description", "summary"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "responsibilities",
+            "responsibility",
+            ("responsibilities",),
+            label_keys=("responsibility", "name", "title", "description"),
+            role_keys=("stakeholder", "role", "owner_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "cadence"),
+            criteria_keys=("responsibility", "description", "acceptance"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "artifacts",
+            "artifact",
+            ("artifacts",),
+            label_keys=("artifact", "title", "name", "key"),
+            role_keys=("role", "owner_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "cadence"),
+            criteria_keys=("description", "purpose", "status"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "decisions",
+            "decision",
+            ("decisions",),
+            label_keys=("decision", "name", "title"),
+            role_keys=("role", "owner_role", "decider"),
+            owner_keys=("owner", "decider", "assigned_to"),
+            timing_keys=("timing", "due", "deadline"),
+            criteria_keys=("decision", "criteria", "decision_criteria", "description"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "open_questions",
+            "open_question",
+            ("open_questions", "questions"),
+            label_keys=("question", "name", "title"),
+            role_keys=("role", "owner_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "due", "deadline"),
+            criteria_keys=("question", "description"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "success_criteria",
+            "success_criterion",
+            ("success_criteria", "success_metrics"),
+            label_keys=("criterion", "metric", "name", "title", "description"),
+            role_keys=("role", "owner_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "cadence"),
+            criteria_keys=("criterion", "target", "description", "measurement"),
+        )
+    )
+    rows.extend(
+        _generic_section_rows(
+            handoff,
+            "follow_up_actions",
+            "follow_up_action",
+            ("follow_up_actions", "followups", "actions"),
+            label_keys=("action", "follow_up_action", "name", "title", "description"),
+            role_keys=("role", "owner_role"),
+            owner_keys=("owner", "suggested_owner", "assigned_to"),
+            timing_keys=("timing", "due", "deadline"),
+            criteria_keys=("action", "follow_up_action", "description"),
+        )
+    )
+    return rows
+
+
+def _generic_section_rows(
+    handoff: dict[str, Any],
+    section: str,
+    row_type: str,
+    keys: tuple[str, ...],
+    *,
+    label_keys: tuple[str, ...],
+    role_keys: tuple[str, ...],
+    owner_keys: tuple[str, ...],
+    timing_keys: tuple[str, ...],
+    criteria_keys: tuple[str, ...],
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for key in keys:
+        for index, item in enumerate(_dict_items(handoff.get(key)), start=1):
+            item_id = _first_value(item, ("id", "item_id", "key")) or f"{row_type.upper()}{index}"
+            evidence_ids = _first_value(
+                item, ("evidence_ids", "evidence_reference_ids", "evidence_references")
+            )
+            source_references = _first_value(
+                item, ("source_references", "references", "reference_ids")
+            )
+            rows.append(
+                _csv_row(
+                    handoff,
+                    section=section,
+                    row_type=row_type,
+                    item_id=item_id,
+                    label=_first_value(item, label_keys),
+                    role=_first_value(item, role_keys),
+                    owner=_first_value(item, owner_keys),
+                    timing=_first_value(item, timing_keys),
+                    decision_criteria=_first_value(item, criteria_keys),
+                    evidence_ids=evidence_ids,
+                    source_references=source_references,
+                    details=_remaining_details(
+                        item,
+                        {
+                            "id",
+                            "item_id",
+                            "key",
+                            *label_keys,
+                            *role_keys,
+                            *owner_keys,
+                            *timing_keys,
+                            *criteria_keys,
+                            "evidence_ids",
+                            "evidence_reference_ids",
+                            "evidence_references",
+                            "source_references",
+                            "references",
+                            "reference_ids",
+                        },
+                    ),
+                )
+            )
+        if rows and any(row["section"] == section for row in rows):
+            break
     return rows
 
 
@@ -747,6 +905,33 @@ def _csv_row(
         "evaluation_available": _csv_text(source.get("evaluation_available")),
         "tact_spec_schema_version": _csv_text(source.get("tact_spec_schema_version")),
         "details": _csv_details(details),
+    }
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, dict):
+        return [value]
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _first_value(item: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = item.get(key)
+        if isinstance(value, list):
+            if _csv_join(value):
+                return value
+        elif _csv_text(value):
+            return value
+    return ""
+
+
+def _remaining_details(item: dict[str, Any], used_keys: set[str]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in item.items()
+        if key not in used_keys and _csv_text(value)
     }
 
 
