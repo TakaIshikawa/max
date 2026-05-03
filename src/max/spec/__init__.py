@@ -1,7 +1,10 @@
 """Tact-compatible spec preview generation."""
 
 from max.spec.experiment_card import generate_experiment_card
-from max.spec.acceptance_criteria import generate_acceptance_criteria
+from max.spec.acceptance_criteria import (
+    generate_acceptance_criteria,
+    render_acceptance_criteria_markdown,
+)
 from max.spec.api_contract_test_plan import (
     KIND as API_CONTRACT_TEST_PLAN_KIND,
     SCHEMA_VERSION as API_CONTRACT_TEST_PLAN_SCHEMA_VERSION,
@@ -118,6 +121,7 @@ __all__ = [
     "API_CONTRACT_TEST_PLAN_KIND",
     "API_CONTRACT_TEST_PLAN_SCHEMA_VERSION",
     "generate_acceptance_criteria",
+    "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
     "generate_compliance_checklist",
