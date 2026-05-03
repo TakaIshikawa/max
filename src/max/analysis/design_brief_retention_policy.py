@@ -68,55 +68,154 @@ def render_design_brief_retention_policy(
     if fmt != "markdown":
         raise ValueError(f"Unsupported retention policy format: {fmt}")
 
-    brief = policy["design_brief"]
+    return _render_design_brief_retention_policy_markdown(policy)
+
+
+def _render_design_brief_retention_policy_markdown(policy: dict[str, Any]) -> str:
+    brief = _dict_value(policy.get("design_brief"))
+    summary = _dict_value(policy.get("summary"))
+    source = _dict_value(policy.get("source"))
+    data_classes = _list_of_dicts(policy.get("data_classes"))
+    retention_rules = _list_of_dicts(policy.get("retention_rules"))
+    deletion_controls = _list_of_dicts(policy.get("deletion_controls"))
+    access_controls = _list_of_dicts(policy.get("access_controls"))
+    audit_requirements = _string_list(policy.get("audit_requirements"))
+    open_questions = _string_list(policy.get("open_questions"))
+    recommended_next_actions = _string_list(policy.get("recommended_next_actions"))
+
     lines = [
-        f"# Retention Policy: {brief['title']}",
+        f"# Retention Policy: {_text(brief.get('title'), 'Untitled design brief')}",
         "",
-        f"Schema: `{policy['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
-        f"Scope: {policy['summary']['policy_scope']}",
+        f"Schema: `{_text(policy.get('schema_version'), 'unknown')}`",
+        f"Design brief: `{_text(brief.get('id') or source.get('id'), 'unknown')}`",
+        f"Status: {_text(brief.get('design_status'), 'unknown')}",
+        f"Generated at: {_text(source.get('generated_at'), 'unknown')}",
         "",
-        "## Data Classes",
+        "## Policy Summary",
         "",
+        f"- Scope: {_text(summary.get('policy_scope'), 'Not specified')}",
+        f"- Data categories: {_text(summary.get('data_class_count'), str(len(data_classes)))}",
+        f"- Retention windows: {_text(summary.get('retention_rule_count'), str(len(retention_rules)))}",
+        f"- Disposal actions: {_text(summary.get('deletion_control_count'), str(len(deletion_controls)))}",
+        "- Compliance rationale: Keep enough context for handoff traceability while avoiding indefinite retention.",
+        f"- Review cadence: {_review_cadence(policy)}",
+        "",
+        "## Data Categories",
+        "",
+        "| Category | Sensitivity | Description | Source Fields |",
+        "| --- | --- | --- | --- |",
     ]
-    for item in policy["data_classes"]:
-        lines.extend(
-            [
-                f"### {item['name']}",
-                "",
-                item["description"],
-                "",
-                f"- Sensitivity: `{item['sensitivity']}`",
-                f"- Source fields: {', '.join(f'`{field}`' for field in item['source_fields'])}",
-                "",
-            ]
-        )
 
-    lines.extend(["## Retention Rules", ""])
-    for rule in policy["retention_rules"]:
-        lines.extend(
-            [
-                f"- **{rule['id']}** keeps `{rule['data_class_id']}` for {rule['retention_period']}.",
-                f"  Deletion trigger: {rule['deletion_trigger']}",
-                f"  Owner: {rule['owner']}",
-                f"  Rationale: {rule['rationale']}",
-            ]
-        )
+    if data_classes:
+        for item in data_classes:
+            lines.append(
+                "| {name} | {sensitivity} | {description} | {source_fields} |".format(
+                    name=_table_cell(item.get("name"), _text(item.get("id"), "Unknown category")),
+                    sensitivity=_table_cell(item.get("sensitivity"), "unknown"),
+                    description=_table_cell(item.get("description")),
+                    source_fields=_table_cell(_join_code(item.get("source_fields"), "none")),
+                )
+            )
+    else:
+        lines.append("| None | unknown | Not specified | none |")
 
-    lines.extend(["", "## Deletion Controls", ""])
+    lines.extend(["", "## Data Classes", "", "See Data Categories."])
+
     lines.extend(
-        f"- **{control['id']}**: {control['control']} ({control['verification']})"
-        for control in policy["deletion_controls"]
+        [
+            "",
+            "## Retention Windows",
+            "",
+            "| Rule | Data Category | Retention Window | Trigger | Owner | Compliance Rationale |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
     )
+    if retention_rules:
+        for rule in retention_rules:
+            lines.append(
+                "| {rule_id} | {data_class} | {period} | {trigger} | {owner} | {rationale} |".format(
+                    rule_id=_table_cell(rule.get("id"), "Unnumbered"),
+                    data_class=_table_cell(rule.get("data_class_id")),
+                    period=_table_cell(rule.get("retention_period")),
+                    trigger=_table_cell(rule.get("deletion_trigger")),
+                    owner=_table_cell(rule.get("owner"), "Unassigned"),
+                    rationale=_table_cell(rule.get("rationale")),
+                )
+            )
+    else:
+        lines.append("| None | Not specified | Not specified | Not specified | Unassigned | Not specified |")
 
+    lines.extend(["", "## Retention Rules", "", "See Retention Windows."])
+
+    lines.extend(
+        [
+            "",
+            "## Disposal Actions",
+            "",
+            "| Control | Action | Verification |",
+            "| --- | --- | --- |",
+        ]
+    )
+    if deletion_controls:
+        for control in deletion_controls:
+            lines.append(
+                "| {control_id} | {action} | {verification} |".format(
+                    control_id=_table_cell(control.get("id"), "Unnumbered"),
+                    action=_table_cell(control.get("control")),
+                    verification=_table_cell(control.get("verification")),
+                )
+            )
+    else:
+        lines.append("| None | Not specified | Not specified |")
+
+    lines.extend(["", "## Deletion Controls", "", "See Disposal Actions."])
+
+    lines.extend(["", "## Compliance Rationale", ""])
+    rationales = _unique_text(rule.get("rationale") for rule in retention_rules)
+    if rationales:
+        lines.extend(f"- {rationale}" for rationale in rationales)
+    else:
+        lines.append("- Not specified")
     lines.extend(["", "## Audit Requirements", ""])
-    lines.extend(f"- {item}" for item in policy["audit_requirements"])
+    if audit_requirements:
+        lines.extend(f"- {item}" for item in audit_requirements)
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Owners And Review Cadence", ""])
+    lines.extend(
+        [
+            "| Area | Owner | Review Cadence |",
+            "| --- | --- | --- |",
+        ]
+    )
+    owner_rows = _owner_rows(retention_rules, access_controls, policy)
+    if owner_rows:
+        lines.extend(
+            f"| {_table_cell(area)} | {_table_cell(owner, 'Unassigned')} | {_table_cell(cadence)} |"
+            for area, owner, cadence in owner_rows
+        )
+    else:
+        lines.append("| Policy | Unassigned | Not specified |")
+
+    lines.extend(["", "## Evidence And Source References", ""])
+    references = _source_references(policy)
+    if references:
+        lines.extend(f"- {reference}" for reference in references)
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Open Questions", ""])
-    lines.extend(f"- {item}" for item in policy["open_questions"])
+    if open_questions:
+        lines.extend(f"- {item}" for item in open_questions)
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Recommended Next Actions", ""])
-    lines.extend(f"- {item}" for item in policy["recommended_next_actions"])
+    if recommended_next_actions:
+        lines.extend(f"- {item}" for item in recommended_next_actions)
+    else:
+        lines.append("- None")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -323,6 +422,113 @@ def _string_list(value: Any) -> list[str]:
 
 def _clean(value: Any) -> str:
     return str(value).strip() if value is not None else ""
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _text(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return _compact(value) or default
+    if isinstance(value, (dict, list)):
+        if not value:
+            return default
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value) or default
+
+
+def _compact(value: Any) -> str:
+    return " ".join(str(value).split())
+
+
+def _join_code(value: Any, default: str) -> str:
+    items = _string_list(value)
+    return ", ".join(f"`{item}`" for item in items) or default
+
+
+def _table_cell(value: Any, default: str = "Not specified") -> str:
+    return _text(value, default).replace("|", "\\|").replace("\n", " ")
+
+
+def _review_cadence(policy: dict[str, Any]) -> str:
+    summary = _dict_value(policy.get("summary"))
+    cadence = _text(summary.get("review_cadence"))
+    if cadence:
+        return cadence
+    if any(
+        item.get("data_class_id") == "sensitive_operational_data"
+        for item in _list_of_dicts(policy.get("retention_rules"))
+    ):
+        return "Monthly during validation, then quarterly after archival"
+    return "Quarterly during validation, then before archival or policy extension"
+
+
+def _owner_rows(
+    retention_rules: list[dict[str, Any]],
+    access_controls: list[dict[str, Any]],
+    policy: dict[str, Any],
+) -> list[tuple[str, str, str]]:
+    rows: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    cadence = _review_cadence(policy)
+    for rule in retention_rules:
+        row = (
+            f"{_text(rule.get('id'), 'Retention rule')} {_text(rule.get('data_class_id'), 'data category')}",
+            _text(rule.get("owner"), "Unassigned"),
+            cadence,
+        )
+        if row not in seen:
+            seen.add(row)
+            rows.append(row)
+    for control in access_controls:
+        row = (
+            f"Access control {_text(control.get('id'), '')}".strip(),
+            _text(control.get("owner"), "Unassigned"),
+            cadence,
+        )
+        if row not in seen:
+            seen.add(row)
+            rows.append(row)
+    return rows
+
+
+def _source_references(policy: dict[str, Any]) -> list[str]:
+    references: list[str] = []
+    source = _dict_value(policy.get("source"))
+    brief = _dict_value(policy.get("design_brief"))
+    if _text(source.get("id")):
+        references.append(
+            f"Source {_text(source.get('entity_type'), 'entity')}: `{_text(source.get('id'))}`"
+        )
+    source_idea_ids = _string_list(brief.get("source_idea_ids"))
+    if source_idea_ids:
+        references.append(f"Source ideas: {_join_code(source_idea_ids, 'none')}")
+    for evidence in _list_of_dicts(policy.get("evidence_references")):
+        evidence_id = _text(evidence.get("id"), "unknown")
+        evidence_type = _text(evidence.get("type"), "evidence")
+        summary = _text(evidence.get("summary"), "No summary provided")
+        references.append(f"**{evidence_id}** ({evidence_type}): {summary}")
+    return _unique_text(references)
+
+
+def _unique_text(values: Any) -> list[str]:
+    items: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = _text(value)
+        if text and text not in seen:
+            seen.add(text)
+            items.append(text)
+    return items
 
 
 def _filename_part(value: str) -> str:
