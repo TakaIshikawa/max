@@ -141,7 +141,9 @@ def test_render_design_brief_technical_feasibility_csv_has_stable_headers_and_se
     assert rows[0]["design_brief_id"] == "dbf-feasibility"
     assert rows[0]["design_brief_title"] == "AgentAdversarialBench"
     assert rows[0]["item_id"] == "V1"
+    assert rows[0]["dimension"] == "technical_feasibility"
     assert rows[0]["name"] == report["feasibility_verdict"]["verdict"]
+    assert rows[0]["recommendation"] == report["feasibility_verdict"]["next_decision"]
 
 
 def test_render_design_brief_technical_feasibility_csv_has_representative_rows() -> None:
@@ -155,16 +157,22 @@ def test_render_design_brief_technical_feasibility_csv_has_representative_rows()
 
     assert rows_by_id["V1"]["section"] == "feasibility_verdict"
     assert rows_by_id["V1"]["risk_level"] == report["feasibility_verdict"]["risk_level"]
+    assert rows_by_id["V1"]["risk"] == "; ".join(report["feasibility_verdict"]["blocking_risks"])
     assert rows_by_id["V1"]["next_action"] == report["feasibility_verdict"]["next_decision"]
     assert rows_by_id["A1"]["confidence"] == "medium"
+    assert rows_by_id["A1"]["dimension"] == "architecture"
     assert rows_by_id["I2"]["type"] == "ci"
+    assert rows_by_id["I2"]["dependency"] == rows_by_id["I2"]["name"]
     assert rows_by_type["developer_platform"]["risk_level"] == "high"
     assert rows_by_id["D2"]["category"] == "data_dependency"
+    assert rows_by_id["D2"]["dependency"] == report["data_dependencies"][1]["source"]
     assert rows_by_id["D2"]["risk_level"] == "high"
     assert rows_by_id["C1"]["section"] == "build_complexity"
     assert rows_by_id["C1"]["name"] == report["build_complexity"]["level"]
+    assert rows_by_id["C1"]["constraint"] == "; ".join(report["build_complexity"]["constraints"])
     assert rows_by_id["U4"]["next_action"] == report["unknowns"][0]["resolution_path"]
     assert rows_by_id["S1"]["category"] == "spike"
+    assert rows_by_id["S1"]["dimension"] == "validation_action"
     assert rows_by_id["S1"]["next_action"] == report["recommended_spike_plan"][0]["exit_criteria"]
 
 
@@ -207,6 +215,17 @@ def test_render_design_brief_technical_feasibility_csv_escapes_values() -> None:
     assert '"Agent, ""Adversarial""\nBench"' in csv_text
     assert rows[0]["design_brief_title"] == 'Agent, "Adversarial"\nBench'
     assert rows[1]["rationale"] == 'The concept centers on Run "quoted", comma-delimited\nfixtures through a CLI..'
+
+
+def test_render_design_brief_technical_feasibility_csv_does_not_change_json_or_markdown() -> None:
+    report = build_design_brief_technical_feasibility(_brief())
+    markdown_before = render_design_brief_technical_feasibility(report, fmt="markdown")
+    json_before = render_design_brief_technical_feasibility(report, fmt="json")
+
+    render_design_brief_technical_feasibility(report, fmt="csv")
+
+    assert render_design_brief_technical_feasibility(report, fmt="markdown") == markdown_before
+    assert render_design_brief_technical_feasibility(report, fmt="json") == json_before
 
 
 def test_technical_feasibility_filename_supports_csv_extension() -> None:
