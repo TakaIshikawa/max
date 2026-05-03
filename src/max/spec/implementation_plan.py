@@ -70,6 +70,56 @@ def generate_implementation_plan(
     }
 
 
+def render_implementation_plan_markdown(plan: dict[str, Any]) -> str:
+    """Render a generated implementation plan as deterministic Markdown."""
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    source = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+    title = _text(summary.get("title")) or _text(plan.get("idea_id")) or "Untitled Idea"
+
+    lines = [
+        f"# Implementation Plan: {title}",
+        "",
+        f"- Schema version: {_text(plan.get('schema_version')) or 'none'}",
+        f"- Idea ID: {_text(plan.get('idea_id')) or _text(source.get('idea_id')) or 'none'}",
+        f"- Source status: {_text(source.get('status')) or 'none'}",
+        f"- Source domain: {_text(source.get('domain')) or 'none'}",
+        f"- Spec preview schema: {_text(source.get('spec_preview_schema_version')) or 'none'}",
+        f"- Spec kind: {_text(source.get('spec_kind')) or 'none'}",
+        f"- One-liner: {_text(summary.get('one_liner')) or 'none'}",
+        f"- Workflow context: {_text(summary.get('workflow_context')) or 'none'}",
+        f"- Target user: {_text(summary.get('target_user')) or 'none'}",
+        f"- Recommendation: {_text(summary.get('recommendation')) or 'none'}",
+        f"- Overall score: {_text(summary.get('overall_score')) or 'none'}",
+        f"- Readiness status: {_text(summary.get('readiness_status')) or 'none'}",
+        f"- Readiness score: {_text(summary.get('readiness_score')) or 'none'}",
+        "",
+    ]
+
+    _extend_section(lines, "Milestones", _dict_items(plan.get("milestones")), _render_milestone)
+    _extend_section(
+        lines,
+        "Expected Files and Modules",
+        _dict_items(plan.get("expected_files_modules")),
+        _render_expected_file,
+    )
+    _extend_section(
+        lines,
+        "Validation Steps",
+        _dict_items(plan.get("validation_steps")),
+        _render_validation_step,
+    )
+    _extend_section(lines, "Risks", _dict_items(plan.get("risks")), _render_risk)
+    _extend_section(
+        lines,
+        "Open Questions",
+        _list_items(plan.get("open_questions")),
+        _render_bullet_item,
+    )
+    _render_agent_handoff(lines, plan.get("agent_handoff"))
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _milestones(
     unit: BuildableUnit,
     preview: dict[str, Any],
@@ -393,3 +443,147 @@ def _compact(value: Any) -> str:
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "implementation"
+
+
+def _render_milestone(item: dict[str, Any]) -> list[str]:
+    lines = [
+        f"### {_text(item.get('id')) or 'M'}: {_text(item.get('title')) or 'Untitled milestone'}",
+        f"- Goal: {_text(item.get('goal')) or 'not specified'}",
+    ]
+    lines.extend(_render_optional_owner_timeline(item))
+    lines.append(f"- Expected files/modules: {_join_code(item.get('expected_files_modules'))}")
+
+    validation = [_text(step) for step in _list_items(item.get("validation")) if _text(step)]
+    lines.append("- Validation:")
+    lines.extend(_indented_bullets(validation))
+
+    tasks = _dict_items(item.get("tasks"))
+    if tasks:
+        lines.extend(["", "#### Tasks", ""])
+        for task in tasks:
+            lines.extend(_render_task(task))
+            lines.append("")
+        while lines and lines[-1] == "":
+            lines.pop()
+    return lines
+
+
+def _render_task(item: dict[str, Any]) -> list[str]:
+    lines = [
+        f"##### {_text(item.get('id')) or 'T'}",
+        f"- Description: {_text(item.get('description')) or 'not specified'}",
+        f"- Acceptance: {_text(item.get('acceptance')) or 'not specified'}",
+        f"- Depends on: {_join_code(item.get('depends_on'))}",
+        f"- Expected files/modules: {_join_code(item.get('expected_files_modules'))}",
+    ]
+    lines.extend(_render_optional_owner_timeline(item))
+    return lines
+
+
+def _render_expected_file(item: dict[str, Any]) -> list[str]:
+    path = _text(item.get("path")) or "unspecified"
+    lines = [
+        f"### `{path}`",
+        f"- Role: {_text(item.get('role')) or 'none'}",
+        f"- Reason: {_text(item.get('reason')) or 'not specified'}",
+    ]
+    lines.extend(_render_optional_owner_timeline(item))
+    return lines
+
+
+def _render_validation_step(item: dict[str, Any]) -> list[str]:
+    lines = [
+        f"### {_text(item.get('id')) or 'V'}",
+        f"- Description: {_text(item.get('description')) or 'not specified'}",
+        f"- Evidence: {_text(item.get('evidence')) or 'not specified'}",
+    ]
+    lines.extend(_render_optional_owner_timeline(item))
+    return lines
+
+
+def _render_risk(item: dict[str, Any]) -> list[str]:
+    title = _text(item.get("id")) or _text(item.get("source")) or "risk"
+    lines = [
+        f"### {title}",
+        f"- Source: {_text(item.get('source')) or 'none'}",
+        f"- Description: {_text(item.get('description')) or 'not specified'}",
+        f"- Mitigation: {_text(item.get('mitigation')) or 'not specified'}",
+    ]
+    lines.extend(_render_optional_owner_timeline(item))
+    return lines
+
+
+def _render_bullet_item(item: Any) -> list[str]:
+    return [f"- {_text(item) or 'not specified'}"]
+
+
+def _render_agent_handoff(lines: list[str], handoff: Any) -> None:
+    lines.extend(["## Agent Handoff", ""])
+    if not isinstance(handoff, dict):
+        lines.extend(["None.", ""])
+        return
+
+    start_here = [_text(item) for item in _list_items(handoff.get("start_here")) if _text(item)]
+    definition_of_done = [
+        _text(item) for item in _list_items(handoff.get("definition_of_done")) if _text(item)
+    ]
+    lines.extend(["### Start Here", ""])
+    lines.extend(_indented_bullets(start_here, empty="None."))
+    lines.extend(["", "### Definition of Done", ""])
+    lines.extend(_indented_bullets(definition_of_done, empty="None."))
+    lines.append("")
+
+
+def _extend_section(lines: list[str], title: str, items: list[Any], renderer) -> None:
+    lines.extend([f"## {title}", ""])
+    if not items:
+        lines.extend(["None.", ""])
+        return
+    for item in items:
+        lines.extend(renderer(item))
+        lines.append("")
+
+
+def _render_optional_owner_timeline(item: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for key, label in (
+        ("owner", "Owner"),
+        ("suggested_owner", "Suggested owner"),
+        ("timeline", "Timeline"),
+        ("start_date", "Start date"),
+        ("due_date", "Due date"),
+        ("target_date", "Target date"),
+    ):
+        value = _text(item.get(key))
+        if value:
+            lines.append(f"- {label}: {value}")
+    return lines
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value or [] if isinstance(item, dict)]
+
+
+def _list_items(value: Any) -> list[Any]:
+    if not isinstance(value, list):
+        return []
+    return value
+
+
+def _join_code(value: Any) -> str:
+    items = [_text(item) for item in _list_items(value) if _text(item)]
+    if not items:
+        return "none"
+    return ", ".join(f"`{item}`" for item in items)
+
+
+def _indented_bullets(items: list[str], empty: str = "None.") -> list[str]:
+    if not items:
+        return [f"  - {empty}"]
+    return [f"  - {item}" for item in items]
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()

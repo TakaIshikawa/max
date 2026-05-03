@@ -53,7 +53,10 @@ from max.spec.disaster_recovery_plan import (
     render_disaster_recovery_plan_markdown,
 )
 from max.spec.generator import generate_spec_preview
-from max.spec.implementation_plan import generate_implementation_plan
+from max.spec.implementation_plan import (
+    generate_implementation_plan,
+    render_implementation_plan_markdown,
+)
 from max.spec.incident_response_plan import (
     generate_incident_response_plan,
     render_incident_response_plan_csv,
@@ -134,6 +137,7 @@ __all__ = [
     "generate_disaster_recovery_plan",
     "generate_experiment_card",
     "generate_implementation_plan",
+    "render_implementation_plan_markdown",
     "generate_incident_response_plan",
     "generate_launch_checklist",
     "generate_migration_checklist",
