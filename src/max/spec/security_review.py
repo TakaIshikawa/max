@@ -2,10 +2,55 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 SECURITY_REVIEW_SCHEMA_VERSION = "max-security-review/v1"
+
+SECURITY_REVIEW_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_idea_id",
+    "source_status",
+    "source_domain",
+    "source_category",
+    "tact_spec_schema_version",
+    "title",
+    "workflow_context",
+    "target_user",
+    "buyer",
+    "stack",
+    "recommendation",
+    "overall_score",
+    "finding_count",
+    "high_or_critical_finding_count",
+    "recommended_control_count",
+    "open_question_count",
+    "context_detected_dependencies",
+    "context_mentions_authentication",
+    "context_mentions_authorization",
+    "context_mentions_secret_handling",
+    "context_mentions_data_retention",
+    "context_mentions_audit_logging",
+    "context_mentions_abuse_cases",
+    "item_id",
+    "name",
+    "category",
+    "category_title",
+    "severity",
+    "status",
+    "owner",
+    "description",
+    "recommendation_text",
+    "evidence",
+    "derived_from",
+    "related_controls",
+    "related_questions",
+    "disposition",
+    "question",
+)
 
 _CATEGORY_TITLES = {
     "authentication": "Authentication",
@@ -104,6 +149,20 @@ def render_security_review_markdown(review: dict[str, Any]) -> str:
     _extend_section(lines, "Open Questions", review.get("open_questions") or [], _render_question)
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_security_review_csv(review: dict[str, Any]) -> str:
+    """Render a generated security review as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=SECURITY_REVIEW_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(review):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _security_context(
@@ -596,6 +655,175 @@ def _render_question(item: dict[str, Any]) -> list[str]:
         f"- Disposition: {_text(item.get('disposition'))}",
         f"- Question: {_text(item.get('question'))}",
     ]
+
+
+def _csv_rows(review: dict[str, Any]) -> list[dict[str, str]]:
+    rows = [
+        _csv_row(
+            review,
+            section="summary",
+            type_="summary",
+            item_id="summary",
+            status=(review.get("summary") or {}).get("recommendation")
+            if isinstance(review.get("summary"), dict)
+            else None,
+            description=(review.get("summary") or {}).get("workflow_context")
+            if isinstance(review.get("summary"), dict)
+            else None,
+        )
+    ]
+    open_questions_by_category = _ids_by_category(_dict_items(review.get("open_questions")))
+    controls_by_category = _ids_by_category(_dict_items(review.get("recommended_controls")))
+
+    for finding in _dict_items(review.get("findings")):
+        rows.append(
+            _csv_row(
+                review,
+                section="findings",
+                type_="finding",
+                item_id=finding.get("id"),
+                name=finding.get("title"),
+                category=finding.get("category"),
+                category_title=finding.get("category_title"),
+                severity=finding.get("severity"),
+                status=finding.get("status"),
+                description=finding.get("description"),
+                evidence=finding.get("evidence"),
+                related_controls=finding.get("recommended_control_ids"),
+                related_questions=finding.get("open_question_ids"),
+            )
+        )
+
+    for control in _dict_items(review.get("recommended_controls")):
+        category = _text(control.get("category"))
+        rows.append(
+            _csv_row(
+                review,
+                section="recommended_controls",
+                type_="recommended_control",
+                item_id=control.get("id"),
+                name=control.get("title"),
+                category=control.get("category"),
+                category_title=control.get("category_title"),
+                status=control.get("status"),
+                owner=control.get("owner"),
+                recommendation_text=control.get("recommendation"),
+                derived_from=control.get("derived_from"),
+                related_controls=[control.get("id")] if control.get("id") else [],
+                related_questions=open_questions_by_category.get(category, []),
+            )
+        )
+
+    for question in _dict_items(review.get("open_questions")):
+        category = _text(question.get("category"))
+        rows.append(
+            _csv_row(
+                review,
+                section="open_questions",
+                type_="open_question",
+                item_id=question.get("id"),
+                name=question.get("category_title"),
+                category=question.get("category"),
+                category_title=question.get("category_title"),
+                disposition=question.get("disposition"),
+                question=question.get("question"),
+                related_controls=controls_by_category.get(category, []),
+                related_questions=[question.get("id")] if question.get("id") else [],
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    review: dict[str, Any],
+    *,
+    section: Any,
+    type_: Any,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    category_title: Any = None,
+    severity: Any = None,
+    status: Any = None,
+    owner: Any = None,
+    description: Any = None,
+    recommendation_text: Any = None,
+    evidence: Any = None,
+    derived_from: Any = None,
+    related_controls: Any = None,
+    related_questions: Any = None,
+    disposition: Any = None,
+    question: Any = None,
+) -> dict[str, str]:
+    source = review.get("source") if isinstance(review.get("source"), dict) else {}
+    summary = review.get("summary") if isinstance(review.get("summary"), dict) else {}
+    context = (
+        review.get("security_context") if isinstance(review.get("security_context"), dict) else {}
+    )
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_domain": source.get("domain"),
+        "source_category": source.get("category"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "workflow_context": summary.get("workflow_context"),
+        "target_user": summary.get("target_user"),
+        "buyer": summary.get("buyer"),
+        "stack": summary.get("stack"),
+        "recommendation": summary.get("recommendation"),
+        "overall_score": summary.get("overall_score"),
+        "finding_count": summary.get("finding_count"),
+        "high_or_critical_finding_count": summary.get("high_or_critical_finding_count"),
+        "recommended_control_count": summary.get("recommended_control_count"),
+        "open_question_count": summary.get("open_question_count"),
+        "context_detected_dependencies": context.get("detected_dependencies"),
+        "context_mentions_authentication": context.get("mentions_authentication"),
+        "context_mentions_authorization": context.get("mentions_authorization"),
+        "context_mentions_secret_handling": context.get("mentions_secret_handling"),
+        "context_mentions_data_retention": context.get("mentions_data_retention"),
+        "context_mentions_audit_logging": context.get("mentions_audit_logging"),
+        "context_mentions_abuse_cases": context.get("mentions_abuse_cases"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "category_title": category_title,
+        "severity": severity,
+        "status": status,
+        "owner": owner,
+        "description": description,
+        "recommendation_text": recommendation_text,
+        "evidence": evidence,
+        "derived_from": derived_from,
+        "related_controls": related_controls,
+        "related_questions": related_questions,
+        "disposition": disposition,
+        "question": question,
+    }
+    return {column: _csv_text(values.get(column)) for column in SECURITY_REVIEW_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return str(value).strip()
 
 
 def _inline_list(items: list[Any]) -> str:
