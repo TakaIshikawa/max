@@ -147,7 +147,7 @@ def test_render_design_brief_executive_memo_json_markdown_and_invalid_format(tmp
 
     assert memo is not None
     parsed = json.loads(render_design_brief_executive_memo(memo, fmt="json"))
-    assert parsed["schema_version"] == SCHEMA_VERSION
+    assert parsed == memo
 
     markdown = render_design_brief_executive_memo(memo, fmt="markdown")
     assert markdown.startswith("# Executive Memo: Executive Memo Brief")
@@ -161,7 +161,7 @@ def test_render_design_brief_executive_memo_json_markdown_and_invalid_format(tmp
         render_design_brief_executive_memo(memo, fmt="yaml")
 
 
-def test_render_design_brief_executive_memo_csv_headers_rows_and_nested_cells(tmp_path) -> None:
+def test_render_design_brief_executive_memo_csv_headers_and_sectioned_rows(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "executive_memo_csv.db"), wal_mode=True)
     try:
         brief_id = _seed_design_brief(store)
@@ -181,61 +181,131 @@ def test_render_design_brief_executive_memo_csv_headers_rows_and_nested_cells(tm
 
     sections = {row["section"] for row in rows}
     assert {
-        "summary",
+        "decision",
+        "target_segment",
+        "problem",
+        "proposed_product",
         "evidence",
-        "risks",
-        "decisions_needed",
-        "milestones",
-        "next_actions",
+        "risk",
+        "validation_next_step",
+        "owner_ask",
+        "artifact_ref",
     } <= sections
 
     summary = rows[0]
     assert summary["design_brief_id"] == brief_id
     assert summary["design_brief_title"] == "Executive Memo Brief"
-    assert summary["section"] == "summary"
-    assert summary["item_id"] == "recommendation"
+    assert summary["section"] == "decision"
+    assert summary["field"] == "summary"
     assert summary["recommendation"] == "approve-validation"
-    assert json.loads(summary["source_idea_ids"]) == ["bu-memo-lead"]
+    assert summary["score"] == "86.00"
+
+    confidence = next(
+        row for row in rows if row["section"] == "decision" and row["field"] == "market_confidence"
+    )
+    assert confidence["score"].count(".") == 1
+    assert len(confidence["score"].split(".")[1]) == 2
+
+    assert (
+        next(row for row in rows if row["section"] == "target_segment" and row["field"] == "buyer")[
+            "value"
+        ]
+        == "VP product"
+    )
+    assert next(row for row in rows if row["section"] == "problem")["value"] == (
+        "Decision-makers need a compact approval artifact."
+    )
+    assert (
+        "executive memo export"
+        in next(row for row in rows if row["section"] == "proposed_product")["value"]
+    )
 
     evidence = next(row for row in rows if row["section"] == "evidence")
-    evidence_detail = json.loads(evidence["detail"])
-    assert evidence["priority"] in {"strong", "moderate", "weak"}
-    assert "claim" in evidence_detail
-    assert set(evidence_detail["supporting_signal_ids"]) <= {
-        "sig-memo-forum",
-        "sig-memo-funding",
-        "sig-memo-survey",
-    }
-    assert evidence_detail["supporting_signal_ids"]
-    assert json.loads(evidence["source_idea_ids"]) == ["bu-memo-lead"]
+    assert evidence["field"]
+    assert evidence["value"]
+    assert evidence["recommendation"] == evidence["value"]
+    assert evidence["score"] == ""
 
-    risk = next(row for row in rows if row["section"] == "risks")
-    risk_detail = json.loads(risk["detail"])
-    assert risk["item_title"] == "Owner alignment may be unclear"
-    assert risk["severity"]
-    assert risk["priority"]
-    assert risk_detail["validation_action"]
+    risk = next(row for row in rows if row["section"] == "risk")
+    assert risk["field"] == "Owner alignment may be unclear"
+    assert risk["risk_severity"]
+    assert risk["risk_likelihood"]
+    assert risk["mitigation"]
 
-    decision = next(
-        row for row in rows if row["section"] == "decisions_needed" and row["item_id"] == "DEC1"
+    validation = next(row for row in rows if row["section"] == "validation_next_step")
+    assert validation["recommendation"] == "approve-validation"
+    assert validation["value"]
+
+    owner_ask = next(row for row in rows if row["section"] == "owner_ask")
+    assert owner_ask["recommendation"] == "assign-owner"
+    assert owner_ask["value"].startswith("Assign an owner")
+
+    artifact = next(
+        row
+        for row in rows
+        if row["section"] == "artifact_ref" and row["field"] == "prd_schema_version"
     )
-    assert decision["owner"] == "business owner"
-    assert decision["recommendation"] == "approve-validation"
-
-    milestone = next(
-        row for row in rows if row["section"] == "milestones" and row["item_id"] == "M1"
-    )
-    assert milestone["item_title"] == "Build memo composer"
-    assert milestone["recommendation"] == "track"
-
-    action = next(
-        row for row in rows if row["section"] == "next_actions" and row["item_id"] == "ACT1"
-    )
-    assert action["owner"] == "assigned owner"
-    assert action["detail"]
+    assert artifact["artifact_schema_version"]
+    assert artifact["value"] == "prd"
 
     with pytest.raises(ValueError):
         render_design_brief_executive_memo(memo, fmt="yaml")
+
+
+def test_render_design_brief_executive_memo_csv_escapes_long_text_and_numbers() -> None:
+    long_problem = 'Line one, with comma\nLine two has "quotes" and portfolio review text.'
+    memo = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {
+            "id": "dbf,csv",
+            "title": 'Executive "Memo"\nBrief',
+            "readiness_score": 72.0,
+        },
+        "decision_summary": {
+            "recommendation": "revise-before-build",
+            "summary": 'Approve after "owner", evidence\nand risk review.',
+            "readiness_score": 72.0,
+        },
+        "target_segment": {
+            "buyer": "VP, Product",
+            "specific_user": 'Reviewer "A"',
+            "workflow_context": "portfolio\nreview",
+        },
+        "problem": long_problem,
+        "proposed_product": "A concise export for comparing memos.",
+        "market_size_confidence": {"level": "medium", "score": 0.625},
+        "evidence_highlights": [
+            {
+                "claim_area": "problem",
+                "summary": 'Problem: strong support from 2 signal(s).\nIncludes "quoted" text.',
+            }
+        ],
+        "top_risks": [
+            {
+                "title": "Adoption, unclear",
+                "description": 'Long risk text\nwith "quotes".',
+                "severity": "high",
+                "likelihood": "medium",
+                "mitigation": 'Run "pilot", then compare.',
+            }
+        ],
+        "validation_next_step": {"source": "risk_register", "action": "Run pilot."},
+        "owner_ask": 'Assign "owner", this week.',
+        "artifact_refs": {"risk_register_schema_version": "max.risk.v1"},
+    }
+
+    csv_text = render_design_brief_executive_memo(memo, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["design_brief_title"] == 'Executive "Memo"\nBrief'
+    assert rows[0]["score"] == "72.00"
+    assert next(row for row in rows if row["field"] == "market_confidence")["score"] == "0.62"
+    assert next(row for row in rows if row["section"] == "problem")["value"] == long_problem
+    assert next(row for row in rows if row["section"] == "risk")["mitigation"] == (
+        'Run "pilot", then compare.'
+    )
+    assert '"Executive ""Memo""\nBrief"' in csv_text
+    assert '"Line one, with comma\nLine two has ""quotes"" and portfolio review text."' in csv_text
 
 
 def test_build_design_brief_executive_memo_missing_brief_returns_none(tmp_path) -> None:

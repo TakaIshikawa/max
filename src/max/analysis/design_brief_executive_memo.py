@@ -20,14 +20,14 @@ CSV_COLUMNS: tuple[str, ...] = (
     "design_brief_id",
     "design_brief_title",
     "section",
-    "item_id",
-    "item_title",
-    "priority",
-    "severity",
-    "owner",
+    "field",
+    "value",
     "recommendation",
-    "detail",
-    "source_idea_ids",
+    "score",
+    "risk_severity",
+    "risk_likelihood",
+    "mitigation",
+    "artifact_schema_version",
 )
 
 
@@ -175,98 +175,98 @@ def _render_csv(memo: dict[str, Any]) -> str:
 
 
 def _csv_rows(memo: dict[str, Any]) -> list[dict[str, str]]:
-    brief = memo.get("design_brief") or {}
-    source_idea_ids = brief.get("source_idea_ids") or []
     decision = memo.get("decision_summary") or {}
-    rows = [
+    segment = memo.get("target_segment") or {}
+    market = memo.get("market_size_confidence") or {}
+    validation = memo.get("validation_next_step") or {}
+    rows: list[dict[str, str]] = [
         _csv_row(
             memo,
-            section="summary",
-            item_id="recommendation",
-            item_title="Recommendation",
-            priority=decision.get("recommendation"),
-            owner="business owner",
+            section="decision",
+            field="summary",
+            value=decision.get("summary"),
             recommendation=decision.get("recommendation"),
-            detail=decision.get("summary"),
-            source_idea_ids=source_idea_ids,
-        )
+            score=decision.get("readiness_score"),
+        ),
+        _csv_row(
+            memo,
+            section="decision",
+            field="market_confidence",
+            value=market.get("level"),
+            recommendation=decision.get("recommendation"),
+            score=market.get("score"),
+        ),
+        _csv_row(memo, section="target_segment", field="buyer", value=segment.get("buyer")),
+        _csv_row(
+            memo,
+            section="target_segment",
+            field="specific_user",
+            value=segment.get("specific_user"),
+        ),
+        _csv_row(
+            memo,
+            section="target_segment",
+            field="workflow_context",
+            value=segment.get("workflow_context"),
+        ),
+        _csv_row(memo, section="problem", field="problem", value=memo.get("problem")),
+        _csv_row(
+            memo,
+            section="proposed_product",
+            field="proposed_product",
+            value=memo.get("proposed_product"),
+        ),
     ]
     rows.extend(
         _csv_row(
             memo,
             section="evidence",
-            item_id=highlight.get("claim_area"),
-            item_title=highlight.get("claim_area"),
-            priority=highlight.get("evidence_strength"),
+            field=highlight.get("claim_area"),
+            value=highlight.get("summary"),
             recommendation=highlight.get("summary"),
-            detail={
-                "claim": highlight.get("claim"),
-                "supporting_signal_ids": highlight.get("supporting_signal_ids") or [],
-            },
-            source_idea_ids=highlight.get("supporting_source_idea_ids") or [],
         )
         for highlight in memo.get("evidence_highlights", [])
     )
     rows.extend(
         _csv_row(
             memo,
-            section="risks",
-            item_id=risk.get("id"),
-            item_title=risk.get("title"),
-            priority=risk.get("priority"),
-            severity=risk.get("severity"),
-            owner="validation owner",
+            section="risk",
+            field=risk.get("title"),
+            value=risk.get("description"),
+            risk_severity=risk.get("severity"),
+            risk_likelihood=risk.get("likelihood"),
+            mitigation=risk.get("mitigation"),
             recommendation=risk.get("mitigation"),
-            detail={
-                "description": risk.get("description"),
-                "likelihood": risk.get("likelihood"),
-                "validation_action": risk.get("validation_action"),
-            },
-            source_idea_ids=risk.get("source_idea_ids") or [],
         )
         for risk in memo.get("top_risks", [])
     )
-    rows.extend(
+    rows.append(
         _csv_row(
             memo,
-            section="decisions_needed",
-            item_id=item.get("id"),
-            item_title=item.get("title"),
-            priority=item.get("priority"),
-            owner=item.get("owner"),
-            recommendation=item.get("recommendation"),
-            detail=item.get("detail"),
-            source_idea_ids=item.get("source_idea_ids") or source_idea_ids,
+            section="validation_next_step",
+            field=validation.get("source") or "action",
+            value=validation.get("action"),
+            recommendation=decision.get("recommendation"),
         )
-        for item in memo.get("decisions_needed", [])
+    )
+    rows.append(
+        _csv_row(
+            memo,
+            section="owner_ask",
+            field="owner_ask",
+            value=memo.get("owner_ask"),
+            recommendation="assign-owner",
+        )
     )
     rows.extend(
         _csv_row(
             memo,
-            section="milestones",
-            item_id=item.get("id"),
-            item_title=item.get("title"),
-            priority=item.get("priority"),
-            owner=item.get("owner"),
-            recommendation=item.get("recommendation"),
-            detail=item.get("detail"),
-            source_idea_ids=item.get("source_idea_ids") or source_idea_ids,
+            section="artifact_ref",
+            field=str(field),
+            value=str(field).removesuffix("_schema_version"),
+            artifact_schema_version=version,
         )
-        for item in memo.get("milestones", [])
-    )
-    rows.extend(
-        _csv_row(
-            memo,
-            section="next_actions",
-            item_id=item.get("id"),
-            item_title=item.get("title"),
-            priority=item.get("priority"),
-            owner=item.get("owner"),
-            recommendation=item.get("recommendation"),
-            detail=item.get("detail"),
-            source_idea_ids=item.get("source_idea_ids") or source_idea_ids,
-        )
-        for item in memo.get("next_actions", [])
+        for field, version in sorted((memo.get("artifact_refs") or {}).items())
     )
     return rows
 
@@ -277,14 +277,14 @@ def _csv_row(memo: dict[str, Any], **values: Any) -> dict[str, str]:
         "design_brief_id": _csv_cell(brief.get("id")),
         "design_brief_title": _csv_cell(brief.get("title")),
         "section": "",
-        "item_id": "",
-        "item_title": "",
-        "priority": "",
-        "severity": "",
-        "owner": "",
+        "field": "",
+        "value": "",
         "recommendation": "",
-        "detail": "",
-        "source_idea_ids": _csv_cell(brief.get("source_idea_ids") or []),
+        "score": "",
+        "risk_severity": "",
+        "risk_likelihood": "",
+        "mitigation": "",
+        "artifact_schema_version": "",
     }
     for column in CSV_COLUMNS:
         if column in values:
@@ -295,6 +295,8 @@ def _csv_row(memo: dict[str, Any], **values: Any) -> dict[str, str]:
 def _csv_cell(value: Any) -> str:
     if value is None:
         return ""
+    if isinstance(value, float):
+        return f"{value:.2f}"
     if isinstance(value, (list, dict)):
         return json.dumps(value, sort_keys=True)
     return str(value)
