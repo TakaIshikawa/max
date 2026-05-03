@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from max.types.buildable_unit import BuildableUnit
 from max.types.signal import Signal, SignalSourceType
 
@@ -13,12 +15,16 @@ def _normalize_evidence_urls(value: object) -> list[str]:
         url = value.strip()
         return [url] if url else []
 
-    try:
-        values = iter(value)  # type: ignore[arg-type]
-    except TypeError:
+    # Explicitly reject bytes and mappings (dicts) as unsupported iterables
+    if isinstance(value, (bytes, dict)):
         return []
 
-    return [url for item in values if isinstance(item, str) and (url := item.strip())]
+    # Check if value is iterable, excluding str/bytes/dict already handled
+    if not isinstance(value, Iterable):
+        return []
+
+    # Process iterable items (list, tuple, set, etc.)
+    return [url for item in value if isinstance(item, str) and (url := item.strip())]
 
 
 def validation_experiment_signal(experiment: dict, idea: BuildableUnit) -> Signal:
