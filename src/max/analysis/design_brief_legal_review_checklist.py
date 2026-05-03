@@ -9,15 +9,13 @@ from typing import Any, Mapping
 
 SCHEMA_VERSION = "max.design_brief.legal_review_checklist.v1"
 CSV_COLUMNS: tuple[str, ...] = (
-    "checklist_category",
-    "item",
-    "owner_reviewer",
-    "jurisdiction_or_policy_area",
-    "severity_priority",
-    "required_action",
-    "status",
-    "due_date",
-    "evidence_source_references",
+    "review_area",
+    "question",
+    "risk_level",
+    "required_evidence",
+    "owner",
+    "blocker_status",
+    "notes",
 )
 
 _SECTION_CONFIGS: tuple[dict[str, Any], ...] = (
@@ -192,6 +190,11 @@ def render_design_brief_legal_review_checklist_csv(report: Mapping[str, Any]) ->
     return output.getvalue()
 
 
+def render_legal_review_checklist_csv(report: Mapping[str, Any]) -> str:
+    """Render a legal review checklist artifact as CSV."""
+    return render_design_brief_legal_review_checklist_csv(report)
+
+
 def legal_review_checklist_filename(design_brief: Mapping[str, Any], *, fmt: str = "markdown") -> str:
     extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
@@ -205,23 +208,27 @@ def _csv_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
     for section in report.get("sections") or []:
         for item in section.get("items") or []:
             rows.append(_csv_row(section, item))
+    if not rows:
+        for item in report.get("checklist_items") or []:
+            rows.append(_csv_row({}, item))
     return rows
 
 
 def _csv_row(section: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, str]:
     row = {
-        "checklist_category": section.get("id"),
-        "item": item.get("id"),
-        "owner_reviewer": item.get("owner") or section.get("owner"),
-        "jurisdiction_or_policy_area": item.get("jurisdiction")
-        or item.get("policy_area")
-        or section.get("title")
-        or section.get("id"),
-        "severity_priority": item.get("severity") or item.get("priority") or section.get("priority"),
-        "required_action": item.get("task"),
-        "status": item.get("status"),
-        "due_date": item.get("due_date") or item.get("due_at") or item.get("target_date"),
-        "evidence_source_references": item.get("evidence_reference_ids") or item.get("source_fields"),
+        "review_area": item.get("review_area") or item.get("area") or section.get("title") or section.get("id"),
+        "question": item.get("question") or item.get("task") or item.get("id"),
+        "risk_level": item.get("risk_level") or item.get("severity") or item.get("priority") or section.get("priority"),
+        "required_evidence": item.get("required_evidence")
+        or item.get("evidence")
+        or item.get("completion_criteria")
+        or item.get("evidence_reference_ids"),
+        "owner": item.get("owner") or section.get("owner"),
+        "blocker_status": item.get("blocker_status")
+        or item.get("blocker")
+        or item.get("is_blocker")
+        or item.get("status"),
+        "notes": item.get("notes") or item.get("note") or "",
     }
     return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
 

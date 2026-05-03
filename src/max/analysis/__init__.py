@@ -110,6 +110,7 @@ from max.analysis.design_brief_legal_review_checklist import (
     render_design_brief_legal_review_checklist,
     render_design_brief_legal_review_checklist_csv,
     render_design_brief_legal_review_checklist_markdown,
+    render_legal_review_checklist_csv,
 )
 from max.analysis.design_brief_privacy_impact_assessment import (
     build_design_brief_privacy_impact_assessment,
@@ -225,6 +226,7 @@ __all__ = [
     "render_design_brief_legal_review_checklist",
     "render_design_brief_legal_review_checklist_csv",
     "render_design_brief_legal_review_checklist_markdown",
+    "render_legal_review_checklist_csv",
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_renewal_expansion_plan",
     "render_design_brief_work_breakdown",
