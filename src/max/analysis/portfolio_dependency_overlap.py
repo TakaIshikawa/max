@@ -20,14 +20,14 @@ DEFAULT_LIMIT = 10_000
 DEFAULT_MIN_COUNT = 2
 DEFAULT_HIGH_OVERLAP_COUNT = 3
 _CSV_COLUMNS = (
-    "dependency_name",
-    "overlap_count",
-    "portfolio_share",
-    "concentration_risk_level",
-    "affected_item_ids",
-    "domains",
-    "source_type_counts",
-    "recommended_action",
+    "dependency",
+    "dependency_type",
+    "units",
+    "unit_count",
+    "overlap_score",
+    "risk_level",
+    "mitigation",
+    "owner",
 )
 
 
@@ -133,7 +133,7 @@ def render_portfolio_dependency_overlap(
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_portfolio_dependency_overlap_csv(report)
+        return render_portfolio_dependency_overlap_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported portfolio dependency overlap format: {fmt}")
     return render_portfolio_dependency_overlap_markdown(report)
@@ -197,24 +197,152 @@ def render_portfolio_dependency_overlap_markdown(report: Mapping[str, Any]) -> s
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_portfolio_dependency_overlap_csv(report: Mapping[str, Any]) -> str:
+def render_portfolio_dependency_overlap_csv(report: Mapping[str, Any]) -> str:
+    """Render shared dependency overlap rows as deterministic CSV."""
+
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
-    for bucket in report.get("dependency_buckets", []):
-        writer.writerow(
-            {
-                "dependency_name": bucket["dependency_name"],
-                "overlap_count": bucket["overlap_count"],
-                "portfolio_share": bucket["portfolio_share"],
-                "concentration_risk_level": bucket["concentration_risk_level"],
-                "affected_item_ids": _csv_json(bucket["affected_item_ids"]),
-                "domains": _csv_json(bucket["domains"]),
-                "source_type_counts": _csv_json(bucket["source_type_counts"]),
-                "recommended_action": bucket["recommended_action"],
-            }
-        )
+    for row in _csv_dependency_rows(report):
+        writer.writerow(row)
     return output.getvalue()
+
+
+def _render_portfolio_dependency_overlap_csv(report: Mapping[str, Any]) -> str:
+    return render_portfolio_dependency_overlap_csv(report)
+
+
+def _csv_dependency_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for finding in _overlap_findings(report):
+        dependency_entries = _dependency_entries(finding)
+        if not dependency_entries:
+            dependency_entries = [{"dependency": _dependency_name(finding)}]
+        for dependency_entry in dependency_entries:
+            if isinstance(dependency_entry, Mapping):
+                row_source = {**finding, **dependency_entry}
+            else:
+                row_source = {**finding, "dependency": dependency_entry}
+            units = _units(row_source)
+            rows.append(
+                {
+                    "dependency": _dependency_name(row_source),
+                    "dependency_type": _first_text(
+                        row_source,
+                        "dependency_type",
+                        "type",
+                        "category",
+                    ),
+                    "units": _csv_list(units),
+                    "unit_count": _csv_scalar(
+                        _first_present(
+                            row_source,
+                            "unit_count",
+                            "overlap_count",
+                            "affected_unit_count",
+                            default=len(units) if units else "",
+                        )
+                    ),
+                    "overlap_score": _csv_scalar(
+                        _first_present(
+                            row_source,
+                            "overlap_score",
+                            "portfolio_share",
+                            "score",
+                        )
+                    ),
+                    "risk_level": _first_text(
+                        row_source,
+                        "risk_level",
+                        "concentration_risk_level",
+                        "risk",
+                    ),
+                    "mitigation": _first_text(
+                        row_source,
+                        "mitigation",
+                        "recommended_action",
+                        "action",
+                    ),
+                    "owner": _first_text(row_source, "owner", "assigned_owner"),
+                }
+            )
+    return rows
+
+
+def _overlap_findings(report: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    for key in (
+        "shared_dependency_clusters",
+        "overlap_findings",
+        "dependency_buckets",
+        "clusters",
+        "findings",
+    ):
+        findings = report.get(key)
+        if isinstance(findings, list | tuple):
+            return [finding for finding in findings if isinstance(finding, Mapping)]
+    return []
+
+
+def _dependency_entries(finding: Mapping[str, Any]) -> list[Any]:
+    dependencies = finding.get("dependencies")
+    if isinstance(dependencies, list | tuple | set):
+        return sorted(dependencies, key=_stable_sort_key)
+    return []
+
+
+def _dependency_name(row: Mapping[str, Any]) -> str:
+    return _first_text(
+        row,
+        "dependency",
+        "dependency_name",
+        "name",
+        "cluster",
+        "id",
+    )
+
+
+def _units(row: Mapping[str, Any]) -> list[Any]:
+    for key in ("units", "affected_units", "affected_item_ids", "unit_ids"):
+        value = row.get(key)
+        if isinstance(value, list | tuple | set):
+            return list(value)
+        if value not in (None, ""):
+            return [value]
+    return []
+
+
+def _first_present(
+    row: Mapping[str, Any],
+    *keys: str,
+    default: Any = "",
+) -> Any:
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return default
+
+
+def _first_text(row: Mapping[str, Any], *keys: str) -> str:
+    return _csv_scalar(_first_present(row, *keys))
+
+
+def _csv_scalar(value: Any) -> str:
+    if isinstance(value, Mapping):
+        return _csv_json(value)
+    if isinstance(value, list | tuple | set):
+        return _csv_list(value)
+    return _clean(value)
+
+
+def _csv_list(values: Iterable[Any]) -> str:
+    return "; ".join(_csv_scalar(value) for value in sorted(values, key=_stable_sort_key))
+
+
+def _stable_sort_key(value: Any) -> str:
+    if isinstance(value, Mapping):
+        return _csv_json(value)
+    return _clean(value).lower()
 
 
 def _dependency_buckets(
