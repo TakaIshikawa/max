@@ -71,6 +71,7 @@ from max.spec.operational_runbook import (
 )
 from max.spec.post_launch_monitoring_plan import (
     generate_post_launch_monitoring_plan,
+    render_post_launch_monitoring_plan_csv,
     render_post_launch_monitoring_plan_markdown,
 )
 from max.spec.privacy_impact_assessment import (
@@ -174,6 +175,7 @@ __all__ = [
     "render_migration_checklist_markdown",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
+    "render_post_launch_monitoring_plan_csv",
     "render_post_launch_monitoring_plan_markdown",
     "render_privacy_impact_assessment_markdown",
     "render_release_readiness_gate_csv",

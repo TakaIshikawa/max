@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.spec.generator import generate_spec_preview
@@ -10,6 +12,25 @@ from max.types.evaluation import UtilityEvaluation
 
 
 POST_LAUNCH_MONITORING_PLAN_SCHEMA_VERSION = "max-post-launch-monitoring-plan/v1"
+POST_LAUNCH_MONITORING_PLAN_CSV_COLUMNS = (
+    "section",
+    "type",
+    "idea_id",
+    "title",
+    "item_id",
+    "phase",
+    "metric_or_signal",
+    "threshold",
+    "owner",
+    "review_cadence",
+    "escalation_path",
+    "evidence",
+    "mitigation_action",
+    "description",
+    "measurement",
+    "severity",
+    "references",
+)
 
 
 def generate_post_launch_monitoring_plan(
@@ -103,6 +124,20 @@ def render_post_launch_monitoring_plan_markdown(
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_post_launch_monitoring_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a post-launch monitoring plan as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=POST_LAUNCH_MONITORING_PLAN_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _summary(
@@ -678,6 +713,101 @@ def _render_evidence(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    rows: list[dict[str, str]] = []
+
+    for metric in plan.get("health_metrics") or []:
+        if not isinstance(metric, dict):
+            continue
+        rows.append(
+            _csv_row(
+                section="health_metrics",
+                type="metric",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                item_id=metric.get("id"),
+                phase=summary.get("launch_posture"),
+                metric_or_signal=metric.get("name"),
+                threshold=metric.get("target"),
+                owner=metric.get("owner"),
+                evidence=metric.get("evidence_reference_ids"),
+                description=metric.get("description"),
+                measurement=metric.get("measurement"),
+                references=metric.get("derived_from"),
+            )
+        )
+
+    for alert in plan.get("alert_thresholds") or []:
+        if not isinstance(alert, dict):
+            continue
+        rows.append(
+            _csv_row(
+                section="alert_thresholds",
+                type="alert",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                item_id=alert.get("id"),
+                phase="alert_response",
+                metric_or_signal=alert.get("name"),
+                threshold=alert.get("threshold"),
+                owner=alert.get("owner"),
+                escalation_path=alert.get("response"),
+                evidence=alert.get("evidence_reference_ids"),
+                severity=alert.get("severity"),
+                references=alert.get("metric_ids"),
+            )
+        )
+
+    for review in plan.get("review_cadence") or []:
+        if not isinstance(review, dict):
+            continue
+        rows.append(
+            _csv_row(
+                section="review_cadence",
+                type="review_check",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                item_id=review.get("id"),
+                phase=review.get("phase"),
+                metric_or_signal=review.get("agenda"),
+                owner=review.get("owner"),
+                review_cadence=review.get("cadence"),
+                evidence=review.get("evidence_reference_ids"),
+                references=review.get("references"),
+            )
+        )
+
+    for trigger in plan.get("rollback_triggers") or []:
+        if not isinstance(trigger, dict):
+            continue
+        rows.append(
+            _csv_row(
+                section="rollback_triggers",
+                type="rollback_trigger",
+                idea_id=plan.get("idea_id"),
+                title=summary.get("title"),
+                item_id=trigger.get("id"),
+                phase="rollback_decision",
+                metric_or_signal=trigger.get("name"),
+                threshold=trigger.get("condition"),
+                owner=trigger.get("owner"),
+                evidence=trigger.get("evidence_reference_ids"),
+                mitigation_action=trigger.get("action"),
+                references=trigger.get("references"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {
+        column: _csv_text(values.get(column))
+        for column in POST_LAUNCH_MONITORING_PLAN_CSV_COLUMNS
+    }
+
+
 def _first_string(value: Any) -> str:
     if isinstance(value, list):
         for item in value:
@@ -735,4 +865,20 @@ def _text(value: Any) -> str:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
+    return str(value).strip()
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
     return str(value).strip()
