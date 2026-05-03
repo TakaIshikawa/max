@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -18,6 +20,24 @@ DIMENSION_NAMES = (
     "competitive_density",
     "timing_fit",
     "compounding_value",
+)
+
+ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS = (
+    "idea_id",
+    "source_idea_id",
+    "adr_status",
+    "selected_option",
+    "section",
+    "item_id",
+    "title",
+    "description",
+    "owner",
+    "impact",
+    "evidence_type",
+    "evidence_id",
+    "source",
+    "recommendation",
+    "score",
 )
 
 
@@ -184,6 +204,200 @@ def render_architecture_decision_record_markdown(record: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_architecture_decision_record_csv(record: dict[str, Any]) -> str:
+    """Render a generated ADR as deterministic, filterable CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _adr_csv_rows(record or {}):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _adr_csv_rows(record: dict[str, Any]) -> list[dict[str, Any]]:
+    context = _dict(record.get("context"))
+    decision = _dict(record.get("decision"))
+    source = _dict(record.get("source"))
+    consequences = _dict(record.get("consequences"))
+    evaluation = _dict(record.get("evaluation_summary"))
+    selected_option = _selected_option(record, decision)
+
+    base = {
+        "idea_id": _compact(record.get("idea_id")),
+        "source_idea_id": _compact(source.get("idea_id") or record.get("source_idea_id")),
+        "adr_status": _compact(record.get("status")),
+        "selected_option": selected_option,
+        "owner": "",
+        "impact": "",
+        "evidence_type": "",
+        "evidence_id": "",
+        "source": _source_text(source),
+        "recommendation": _compact(evaluation.get("recommendation")),
+        "score": _compact(evaluation.get("overall_score")),
+    }
+
+    rows: list[dict[str, Any]] = []
+    if decision or context or evaluation:
+        rows.append(
+            _adr_csv_row(
+                base,
+                "decision_summary",
+                "decision.summary",
+                context.get("title") or "Architecture decision",
+                decision.get("summary"),
+                impact=record.get("status"),
+            )
+        )
+
+    context_fields = (
+        ("context.problem", "Problem", context.get("problem")),
+        ("context.target_user", "Target user", context.get("target_user")),
+        ("context.buyer", "Buyer", context.get("buyer")),
+        ("context.workflow_context", "Workflow context", context.get("workflow_context")),
+        ("context.current_workaround", "Current workaround", context.get("current_workaround")),
+        ("context.why_now", "Why now", context.get("why_now")),
+        ("context.value_proposition", "Value proposition", context.get("value_proposition")),
+    )
+    for item_id, title, description in context_fields:
+        if _compact(description):
+            rows.append(_adr_csv_row(base, "context", item_id, title, description))
+
+    for index, alternative in enumerate(record.get("considered_alternatives") or [], start=1):
+        if not isinstance(alternative, dict):
+            continue
+        rows.append(
+            _adr_csv_row(
+                base,
+                "option",
+                f"option.{index}",
+                alternative.get("name"),
+                alternative.get("description"),
+                impact=alternative.get("outcome"),
+                source=alternative.get("rationale"),
+            )
+        )
+
+    for index, link in enumerate(record.get("evidence_links") or [], start=1):
+        if not isinstance(link, dict):
+            continue
+        rows.append(
+            _adr_csv_row(
+                base,
+                "decision_driver",
+                f"evidence.{index}",
+                f"{_text(link.get('type'))}:{_text(link.get('id'))}",
+                link.get("summary"),
+                evidence_type=link.get("type"),
+                evidence_id=link.get("id"),
+            )
+        )
+
+    for dimension in evaluation.get("dimensions") or []:
+        if not isinstance(dimension, dict):
+            continue
+        rows.append(
+            _adr_csv_row(
+                base,
+                "decision_driver",
+                f"dimension.{_compact(dimension.get('name'))}",
+                dimension.get("name"),
+                dimension.get("reasoning"),
+                impact=f"confidence {_compact(dimension.get('confidence'))}",
+                score=dimension.get("value"),
+            )
+        )
+
+    for index, consequence in enumerate(consequences.get("positive") or [], start=1):
+        rows.append(
+            _adr_csv_row(
+                base,
+                "consequence",
+                f"consequence.positive.{index}",
+                "Positive consequence",
+                consequence,
+                impact="positive",
+            )
+        )
+
+    for index, risk in enumerate(consequences.get("negative") or [], start=1):
+        rows.append(
+            _adr_csv_row(
+                base,
+                "risk",
+                f"risk.{index}",
+                "Risk or negative consequence",
+                risk,
+                impact="negative",
+            )
+        )
+
+    for index, action in enumerate(consequences.get("follow_up_actions") or [], start=1):
+        rows.append(
+            _adr_csv_row(
+                base,
+                "follow_up_action",
+                f"follow_up.{index}",
+                "Follow-up action",
+                action,
+                owner="implementation owner",
+            )
+        )
+
+    return rows
+
+
+def _adr_csv_row(
+    base: dict[str, Any],
+    section: str,
+    item_id: str,
+    title: Any,
+    description: Any,
+    *,
+    owner: Any = "",
+    impact: Any = "",
+    evidence_type: Any = "",
+    evidence_id: Any = "",
+    source: Any | None = None,
+    score: Any | None = None,
+) -> dict[str, Any]:
+    row = dict(base)
+    row.update(
+        {
+            "section": section,
+            "item_id": item_id,
+            "title": _compact(title),
+            "description": _compact(description),
+            "owner": _compact(owner) or row["owner"],
+            "impact": _compact(impact),
+            "evidence_type": _compact(evidence_type),
+            "evidence_id": _compact(evidence_id),
+            "source": _compact(source) if source is not None else row["source"],
+            "score": _compact(score) if score is not None else row["score"],
+        }
+    )
+    return {column: row.get(column, "") for column in ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS}
+
+
+def _selected_option(record: dict[str, Any], decision: dict[str, Any]) -> str:
+    for alternative in record.get("considered_alternatives") or []:
+        if isinstance(alternative, dict) and _compact(alternative.get("outcome")) == "selected":
+            return _compact(alternative.get("name"))
+    return _compact(decision.get("selected_approach"))
+
+
+def _source_text(source: dict[str, Any]) -> str:
+    parts = [
+        f"system={_compact(source.get('system'))}" if _compact(source.get("system")) else "",
+        f"type={_compact(source.get('type'))}" if _compact(source.get("type")) else "",
+        f"status={_compact(source.get('idea_status'))}" if _compact(source.get("idea_status")) else "",
+    ]
+    return "; ".join(part for part in parts if part)
 
 
 def _adr_status(unit: BuildableUnit, evaluation: UtilityEvaluation | None) -> str:
@@ -390,6 +604,10 @@ def _stack_text(stack: Any) -> str:
     if isinstance(stack, dict):
         return ", ".join(f"{key}={value}" for key, value in sorted(stack.items())) or "none"
     return _text(stack)
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _compact(value: Any) -> str:
