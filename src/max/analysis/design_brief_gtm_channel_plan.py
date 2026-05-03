@@ -23,23 +23,24 @@ _REQUIRED_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
     "design_brief_id",
+    "design_brief_title",
+    "domain",
+    "theme",
+    "design_status",
+    "readiness_score",
+    "section",
+    "item_id",
+    "item_name",
     "priority",
     "channel",
-    "type",
-    "audience",
     "owner",
-    "confidence",
     "rationale",
-    "call_to_action",
-    "evidence_refs",
-    "tactic_names",
-    "tactic_descriptions",
-    "tactic_owners",
-    "success_metric",
-    "sequencing_phase",
-    "risk_refs",
-    "mitigation_refs",
+    "metric",
+    "source_idea_ids",
+    "detail",
 )
 
 
@@ -203,76 +204,217 @@ def render_gtm_channel_plan_csv(report: dict[str, Any]) -> str:
 
 
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
-    brief = report.get("design_brief") or {}
-    design_brief_id = _csv_cell(brief.get("id"))
-    phases_by_channel = _sequencing_phases_by_channel(report.get("sequencing", []))
     recommendations = sorted(
         report.get("channel_recommendations", []),
         key=lambda item: (int(item.get("priority") or 0), _csv_cell(item.get("id"))),
     )
-    risks_by_channel = _risks_by_channel(
-        report.get("risks", []),
-        [_csv_cell(recommendation.get("channel")) for recommendation in recommendations],
-    )
 
     rows: list[dict[str, str]] = []
     for recommendation in recommendations:
-        channel = _csv_cell(recommendation.get("channel"))
-        tactics = recommendation.get("tactics") or []
-        tactic_names = [tactic.get("name") for tactic in tactics if isinstance(tactic, dict)]
-        tactic_descriptions = [
-            tactic.get("description") for tactic in tactics if isinstance(tactic, dict)
-        ]
-        tactic_owners = [tactic.get("owner") for tactic in tactics if isinstance(tactic, dict)]
-        channel_risks = risks_by_channel.get(channel, [])
         rows.append(
-            {
-                "design_brief_id": design_brief_id,
-                "priority": _csv_cell(recommendation.get("priority")),
-                "channel": channel,
-                "type": _csv_cell(recommendation.get("type")),
-                "audience": _csv_cell(recommendation.get("audience")),
-                "owner": _csv_cell(recommendation.get("owner")),
-                "confidence": _csv_cell(recommendation.get("confidence")),
-                "rationale": _csv_cell(recommendation.get("rationale")),
-                "call_to_action": _csv_cell(recommendation.get("call_to_action")),
-                "evidence_refs": _csv_cell(recommendation.get("evidence_refs")),
-                "tactic_names": _csv_cell(tactic_names),
-                "tactic_descriptions": _csv_cell(tactic_descriptions),
-                "tactic_owners": _csv_cell(tactic_owners),
-                "success_metric": _csv_cell(recommendation.get("success_metric") or {}),
-                "sequencing_phase": _csv_cell(phases_by_channel.get(channel, [])),
-                "risk_refs": _csv_cell([risk.get("id") for risk in channel_risks]),
-                "mitigation_refs": _csv_cell([risk.get("mitigation") for risk in channel_risks]),
-            }
+            _csv_row(
+                report,
+                section="channel_recommendations",
+                item_id=recommendation.get("id"),
+                item_name=recommendation.get("channel"),
+                priority=recommendation.get("priority"),
+                channel=recommendation.get("channel"),
+                owner=recommendation.get("owner"),
+                rationale=recommendation.get("rationale"),
+                metric=(recommendation.get("success_metric") or {}).get("metric"),
+                source_idea_ids=recommendation.get("source_idea_ids"),
+                detail={
+                    "audience": recommendation.get("audience"),
+                    "call_to_action": recommendation.get("call_to_action"),
+                    "confidence": recommendation.get("confidence"),
+                    "evidence_refs": recommendation.get("evidence_refs") or [],
+                    "message_angle": recommendation.get("message_angle"),
+                    "motion": recommendation.get("motion"),
+                    "score": recommendation.get("score"),
+                    "source_fields": recommendation.get("source_fields") or [],
+                    "success_metric": recommendation.get("success_metric") or {},
+                    "tactics": recommendation.get("tactics") or [],
+                    "type": recommendation.get("type"),
+                },
+            )
         )
+
+    for index, experiment in enumerate(_section_items(report, "experiments"), start=1):
+        rows.append(_experiment_row(report, experiment, index))
+
+    launch_sequence = report.get("launch_sequence", report.get("sequencing", []))
+    for index, motion in enumerate(_section_items({"items": launch_sequence}, "items"), start=1):
+        channels = motion.get("channels") or []
+        rows.append(
+            _csv_row(
+                report,
+                section="launch_motions",
+                item_id=motion.get("id") or f"LM{index}",
+                item_name=motion.get("phase") or motion.get("name") or f"Launch motion {index}",
+                priority=index,
+                channel=channels,
+                owner=motion.get("owner"),
+                rationale=motion.get("goal") or motion.get("rationale"),
+                metric=motion.get("exit_criteria"),
+                source_idea_ids=motion.get("source_idea_ids"),
+                detail={
+                    "channels": channels,
+                    "exit_criteria": motion.get("exit_criteria"),
+                    "goal": motion.get("goal"),
+                    "guidance": motion.get("guidance"),
+                    "phase": motion.get("phase"),
+                },
+            )
+        )
+
+    for index, metric in enumerate(_section_items(report, "measurement_plan"), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                section="metrics",
+                item_id=metric.get("id") or f"M{index}",
+                item_name=metric.get("metric"),
+                priority=index,
+                channel=metric.get("channel"),
+                owner=metric.get("owner"),
+                rationale=metric.get("definition"),
+                metric=metric.get("metric"),
+                source_idea_ids=metric.get("source_idea_ids"),
+                detail={"definition": metric.get("definition"), "target": metric.get("target")},
+            )
+        )
+
+    for index, risk in enumerate(_section_items(report, "risks"), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                section="risks",
+                item_id=risk.get("id") or f"R{index}",
+                item_name=risk.get("risk") or f"Risk {index}",
+                priority=index,
+                channel=risk.get("channel"),
+                owner=risk.get("owner"),
+                rationale=risk.get("risk"),
+                metric=risk.get("metric"),
+                source_idea_ids=risk.get("source_idea_ids"),
+                detail={"mitigation": risk.get("mitigation")},
+            )
+        )
+
+    for index, action in enumerate(_section_items(report, "next_actions"), start=1):
+        rows.append(_next_action_row(report, action, index))
     return rows
 
 
-def _sequencing_phases_by_channel(sequencing: list[dict[str, Any]]) -> dict[str, list[str]]:
-    phases_by_channel: dict[str, list[str]] = {}
-    for phase in sequencing:
-        phase_name = _csv_cell(phase.get("phase"))
-        if not phase_name:
-            continue
-        for channel in _string_list(phase.get("channels")):
-            phases_by_channel.setdefault(channel, []).append(phase_name)
-    return phases_by_channel
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    if not values.get("source_idea_ids"):
+        values["source_idea_ids"] = brief.get("source_idea_ids") or []
+    row = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "domain": brief.get("domain"),
+        "theme": brief.get("theme"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
+        "source_idea_ids": brief.get("source_idea_ids") or [],
+        **values,
+    }
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
 
 
-def _risks_by_channel(
-    risks: list[dict[str, Any]],
-    channels: list[str],
-) -> dict[str, list[dict[str, Any]]]:
-    risks_by_channel: dict[str, list[dict[str, Any]]] = {}
-    for risk in risks:
-        if not isinstance(risk, dict):
-            continue
-        mitigation = _csv_cell(risk.get("mitigation"))
-        for channel in channels:
-            if channel and channel in mitigation:
-                risks_by_channel.setdefault(channel, []).append(risk)
-    return risks_by_channel
+def _section_items(report: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    value = report.get(key) or []
+    if isinstance(value, dict):
+        value = value.get("items") or value.get(key) or []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _experiment_row(
+    report: dict[str, Any],
+    experiment: dict[str, Any],
+    index: int,
+) -> dict[str, str]:
+    name = (
+        experiment.get("name")
+        or experiment.get("title")
+        or experiment.get("hypothesis")
+        or f"Experiment {index}"
+    )
+    detail = {
+        key: value
+        for key, value in sorted(experiment.items())
+        if key
+        not in {
+            "id",
+            "name",
+            "title",
+            "channel",
+            "owner",
+            "priority",
+            "rationale",
+            "hypothesis",
+            "metric",
+            "success_metric",
+            "source_idea_ids",
+        }
+    }
+    return _csv_row(
+        report,
+        section="experiments",
+        item_id=experiment.get("id") or f"EXP{index}",
+        item_name=name,
+        priority=experiment.get("priority") or index,
+        channel=experiment.get("channel"),
+        owner=experiment.get("owner"),
+        rationale=experiment.get("rationale") or experiment.get("hypothesis"),
+        metric=experiment.get("metric") or experiment.get("success_metric"),
+        source_idea_ids=experiment.get("source_idea_ids"),
+        detail=detail,
+    )
+
+
+def _next_action_row(report: dict[str, Any], action: dict[str, Any], index: int) -> dict[str, str]:
+    name = (
+        action.get("name")
+        or action.get("title")
+        or action.get("action")
+        or f"Next action {index}"
+    )
+    detail = {
+        key: value
+        for key, value in sorted(action.items())
+        if key
+        not in {
+            "id",
+            "name",
+            "title",
+            "action",
+            "channel",
+            "owner",
+            "priority",
+            "rationale",
+            "metric",
+            "source_idea_ids",
+        }
+    }
+    return _csv_row(
+        report,
+        section="next_actions",
+        item_id=action.get("id") or f"NA{index}",
+        item_name=name,
+        priority=action.get("priority") or index,
+        channel=action.get("channel"),
+        owner=action.get("owner"),
+        rationale=action.get("rationale") or action.get("action"),
+        metric=action.get("metric"),
+        source_idea_ids=action.get("source_idea_ids"),
+        detail=detail,
+    )
 
 
 def _ranked_recommendations(
@@ -706,13 +848,21 @@ def _inline_ids(values: list[str]) -> str:
 def _csv_cell(value: Any) -> str:
     if value is None:
         return ""
-    if isinstance(value, list):
-        cleaned = [_csv_cell(item) for item in value]
-        return json.dumps([item for item in cleaned if item], sort_keys=True, separators=(",", ":"))
-    if isinstance(value, dict):
-        cleaned = {str(key): _csv_cell(item) for key, item in sorted(value.items())}
-        return json.dumps(cleaned, sort_keys=True, separators=(",", ":"))
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(_json_safe(value), sort_keys=True, separators=(",", ":"))
     return str(value).strip()
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe(value[key]) for key in sorted(value, key=str)}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe(item) for item in sorted(value, key=str)]
+    return value
 
 
 def _filename_part(value: str) -> str:
