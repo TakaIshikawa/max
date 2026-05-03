@@ -109,7 +109,11 @@ from max.spec.support_playbook import (
     render_support_playbook_csv,
     render_support_playbook_markdown,
 )
-from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
+from max.spec.threat_model import (
+    generate_threat_model,
+    render_threat_model_csv,
+    render_threat_model_markdown,
+)
 from max.spec.vendor_risk_assessment import (
     generate_vendor_risk_assessment,
     render_vendor_risk_assessment_csv,
@@ -162,6 +166,7 @@ __all__ = [
     "render_smoke_test_plan_markdown",
     "render_support_playbook_csv",
     "render_support_playbook_markdown",
+    "render_threat_model_csv",
     "render_threat_model_markdown",
     "render_vendor_risk_assessment_csv",
     "render_vendor_risk_assessment_markdown",

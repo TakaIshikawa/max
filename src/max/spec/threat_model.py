@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import re
+from io import StringIO
 from typing import Any
 
 from max.spec.generator import generate_spec_preview
@@ -11,6 +13,29 @@ from max.types.evaluation import UtilityEvaluation
 
 
 THREAT_MODEL_SCHEMA_VERSION = "max-threat-model/v1"
+THREAT_MODEL_CSV_COLUMNS = (
+    "idea_id",
+    "title",
+    "workflow_context",
+    "stack",
+    "threat_id",
+    "asset",
+    "threat",
+    "severity",
+    "status",
+    "actor",
+    "attack_vector",
+    "likelihood",
+    "impact",
+    "mitigation",
+    "mitigation_ids",
+    "mitigation_details",
+    "detection",
+    "residual_risk",
+    "residual_risk_ids",
+    "evidence",
+    "source",
+)
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -111,6 +136,20 @@ def render_threat_model_markdown(threat_model: dict[str, Any]) -> str:
     _extend_section(lines, "Review Gate", [threat_model.get("review_gate") or {}], _render_gate)
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_threat_model_csv(threat_model: dict[str, Any]) -> str:
+    """Render threat scenarios as deterministic CSV rows for triage tools."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=THREAT_MODEL_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _threat_model_csv_rows(threat_model):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _context(
@@ -692,6 +731,100 @@ def _render_gate(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _threat_model_csv_rows(threat_model: dict[str, Any]) -> list[dict[str, str]]:
+    mitigations_by_id = _items_by_id(threat_model.get("mitigations"))
+    residuals_by_threat_id = _residuals_by_threat_id(threat_model.get("residual_risks"))
+    return [
+        _threat_model_csv_row(
+            threat_model,
+            scenario,
+            [
+                mitigations_by_id[mitigation_id]
+                for mitigation_id in _csv_list(scenario.get("mitigation_ids"))
+                if mitigation_id in mitigations_by_id
+            ],
+            residuals_by_threat_id.get(_csv_text(scenario.get("id")), []),
+        )
+        for scenario in _dict_items(threat_model.get("threat_scenarios"))
+    ]
+
+
+def _threat_model_csv_row(
+    threat_model: dict[str, Any],
+    scenario: dict[str, Any],
+    mitigations: list[dict[str, Any]],
+    residual_risks: list[dict[str, Any]],
+) -> dict[str, str]:
+    scope = threat_model.get("scope") if isinstance(threat_model.get("scope"), dict) else {}
+    evidence = scenario.get("evidence") or scenario.get("source_refs")
+    mitigation_details = [_mitigation_detail(mitigation) for mitigation in mitigations]
+    residual_risk_details = [_residual_risk_detail(residual) for residual in residual_risks]
+    values = {
+        "idea_id": threat_model.get("idea_id"),
+        "title": scope.get("title"),
+        "workflow_context": scope.get("workflow_context"),
+        "stack": scope.get("stack"),
+        "threat_id": scenario.get("id"),
+        "asset": scenario.get("affected_asset") or scenario.get("asset"),
+        "threat": scenario.get("title") or scenario.get("threat"),
+        "severity": scenario.get("severity"),
+        "status": scenario.get("status"),
+        "actor": scenario.get("actor") or scenario.get("threat_actor"),
+        "attack_vector": scenario.get("attack_vector") or scenario.get("attack_path"),
+        "likelihood": scenario.get("likelihood"),
+        "impact": scenario.get("impact"),
+        "mitigation": scenario.get("mitigation"),
+        "mitigation_ids": scenario.get("mitigation_ids"),
+        "mitigation_details": [detail for detail in mitigation_details if detail],
+        "detection": scenario.get("detection") or scenario.get("monitoring"),
+        "residual_risk": [detail for detail in residual_risk_details if detail],
+        "residual_risk_ids": [residual.get("id") for residual in residual_risks],
+        "evidence": evidence,
+        "source": evidence or scope.get("evidence"),
+    }
+    return {column: _csv_text(values.get(column)) for column in THREAT_MODEL_CSV_COLUMNS}
+
+
+def _items_by_id(value: Any) -> dict[str, dict[str, Any]]:
+    return {
+        _csv_text(item.get("id")): item
+        for item in _dict_items(value)
+        if _csv_text(item.get("id"))
+    }
+
+
+def _residuals_by_threat_id(value: Any) -> dict[str, list[dict[str, Any]]]:
+    result: dict[str, list[dict[str, Any]]] = {}
+    for residual in _dict_items(value):
+        for source_ref in _csv_list(residual.get("source_refs")):
+            source_id = _csv_text(source_ref).split(".")[-1]
+            if source_id.startswith("THR"):
+                result.setdefault(source_id, []).append(residual)
+    return result
+
+
+def _mitigation_detail(mitigation: dict[str, Any]) -> str:
+    owner = _csv_text(mitigation.get("owner"))
+    action = _csv_text(mitigation.get("action"))
+    title = _csv_text(mitigation.get("title"))
+    prefix = f"{_csv_text(mitigation.get('id'))}: {title}".strip(": ")
+    suffix = f" ({owner})" if owner else ""
+    return (f"{prefix}{suffix} - {action}" if action else f"{prefix}{suffix}").strip()
+
+
+def _residual_risk_detail(residual: dict[str, Any]) -> str:
+    severity = _csv_text(residual.get("severity"))
+    description = _csv_text(residual.get("description"))
+    source_refs = _csv_text(residual.get("source_refs"))
+    title = _csv_text(residual.get("title"))
+    label = f"{_csv_text(residual.get('id'))}: {title}".strip(": ")
+    if severity:
+        label = f"{label} [{severity}]"
+    if source_refs:
+        label = f"{label} ({source_refs})"
+    return (f"{label} - {description}" if description else label).strip()
+
+
 def _extend_section(
     lines: list[str],
     title: str,
@@ -824,6 +957,34 @@ def _stack_label(stack: Any) -> str:
     if _compact(stack):
         return _compact(stack)
     return "unspecified"
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list | tuple | set):
+        return list(value)
+    return [value]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return str(value).strip()
 
 
 def _inline_list(items: list[Any]) -> str:
