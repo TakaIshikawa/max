@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import math
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.roi_forecast.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "row_type",
+    "item_id",
+    "item_name",
+    "low_usd",
+    "high_usd",
+    "expected_months",
+    "confidence_score",
+    "confidence_level",
+    "basis",
+    "rationale",
+    "source_reference_ids",
+    "action_text",
+)
 
 
 def build_design_brief_roi_forecast(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -81,9 +102,11 @@ def build_design_brief_roi_forecast(store: Store, brief_id: str) -> dict[str, An
 
 
 def render_design_brief_roi_forecast(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render an ROI forecast as deterministic JSON or Markdown."""
+    """Render an ROI forecast as deterministic JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return _render_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported ROI forecast format: {fmt}")
 
@@ -164,12 +187,168 @@ def render_design_brief_roi_forecast(report: dict[str, Any], fmt: str = "json") 
 
 
 def roi_forecast_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"{_filename_part(str(design_brief.get('title') or 'ROI-Forecast'))}-roi-forecast."
         f"{extension}"
     )
+
+
+def _render_csv(report: dict[str, Any]) -> str:
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    source_reference_ids = _reference_ids(report)
+
+    for item in report.get("assumptions") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="assumption",
+                item_id=item.get("id"),
+                item_name=item.get("assumption"),
+                basis=item.get("basis"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+
+    cost_bands = report.get("implementation_cost_bands") or {}
+    for item in cost_bands.get("components") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="implementation_cost_component",
+                item_id=item.get("id"),
+                item_name=item.get("name"),
+                low_usd=item.get("low_usd"),
+                high_usd=item.get("high_usd"),
+                rationale=item.get("rationale"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+    if cost_bands.get("total"):
+        total = cost_bands["total"]
+        rows.append(
+            _csv_row(
+                report,
+                row_type="implementation_cost_total",
+                item_id="implementation_cost_total",
+                item_name="Implementation cost total",
+                low_usd=total.get("low_usd"),
+                high_usd=total.get("high_usd"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+
+    benefit_bands = report.get("benefit_bands") or {}
+    for item in benefit_bands.get("components") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="benefit_component",
+                item_id=item.get("id"),
+                item_name=item.get("name"),
+                low_usd=item.get("low_usd"),
+                high_usd=item.get("high_usd"),
+                rationale=item.get("rationale"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+    if benefit_bands.get("total_annual_benefit"):
+        total = benefit_bands["total_annual_benefit"]
+        rows.append(
+            _csv_row(
+                report,
+                row_type="benefit_total",
+                item_id="total_annual_benefit",
+                item_name="Annual benefit total",
+                low_usd=total.get("low_usd"),
+                high_usd=total.get("high_usd"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+
+    payback = report.get("payback_range") or {}
+    if payback:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="payback_range",
+                item_id="payback_range",
+                item_name=(
+                    f"{_csv_text(payback.get('optimistic_months'))}-"
+                    f"{_csv_text(payback.get('conservative_months'))} months"
+                ),
+                expected_months=payback.get("expected_months"),
+                basis=payback.get("basis"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+
+    confidence = report.get("confidence_level") or {}
+    if confidence:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="confidence",
+                item_id="confidence_level",
+                item_name=confidence.get("level"),
+                confidence_score=confidence.get("score"),
+                confidence_level=confidence.get("level"),
+                rationale=confidence.get("rationale"),
+                source_reference_ids=source_reference_ids,
+            )
+        )
+
+    for item in report.get("evidence_references") or []:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="evidence_reference",
+                item_id=item.get("id"),
+                item_name=item.get("type"),
+                rationale=item.get("description"),
+                source_reference_ids=[item.get("id")],
+            )
+        )
+
+    for index, action in enumerate(report.get("next_actions") or [], start=1):
+        rows.append(
+            _csv_row(
+                report,
+                row_type="next_action",
+                item_id=f"next_action_{index}",
+                item_name=f"Next action {index}",
+                source_reference_ids=source_reference_ids,
+                action_text=action,
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _reference_ids(report: dict[str, Any]) -> list[str]:
+    return [item["id"] for item in report.get("evidence_references") or [] if item.get("id")]
 
 
 def _assumptions(
@@ -665,6 +844,22 @@ def _string_list(value: Any) -> list[str]:
 
 def _clean(value: Any) -> str:
     return str(value).strip() if value is not None else ""
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(text for item in value if (text := _csv_text(item)))
+    if isinstance(value, dict):
+        return "; ".join(
+            text
+            for key, item in value.items()
+            if (text := f"{_csv_text(key)}: {_csv_text(item)}".strip(": "))
+        )
+    return str(value).strip()
 
 
 def _filename_part(value: str) -> str:
