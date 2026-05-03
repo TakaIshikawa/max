@@ -127,7 +127,7 @@ def render_design_brief_failure_modes(report: dict[str, Any], fmt: str = "json")
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_csv(report)
+        return render_design_brief_failure_modes_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported failure modes format: {fmt}")
 
@@ -201,7 +201,8 @@ def failure_modes_filename(design_brief: dict[str, Any], fmt: str = "markdown") 
     return f"{brief_id}-{title}-failure-modes.{extension}"
 
 
-def _render_csv(report: dict[str, Any]) -> str:
+def render_design_brief_failure_modes_csv(report: dict[str, Any]) -> str:
+    """Render failure modes as deterministic CSV rows."""
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()

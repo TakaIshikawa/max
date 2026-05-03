@@ -95,7 +95,7 @@ def render_design_brief_one_pager(one_pager: dict[str, Any], fmt: str = "json") 
     if fmt == "json":
         return json.dumps(one_pager, indent=2, sort_keys=True) + "\n"
     if fmt == "csv":
-        return _render_csv(one_pager)
+        return render_design_brief_one_pager_csv(one_pager)
     if fmt != "markdown":
         raise ValueError(f"Unsupported one-pager format: {fmt}")
 
@@ -132,7 +132,8 @@ def render_design_brief_one_pager(one_pager: dict[str, Any], fmt: str = "json") 
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_csv(one_pager: dict[str, Any]) -> str:
+def render_design_brief_one_pager_csv(one_pager: dict[str, Any]) -> str:
+    """Render the one-page design brief summary as deterministic CSV rows."""
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
