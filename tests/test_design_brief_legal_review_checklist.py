@@ -6,6 +6,7 @@ from io import StringIO
 
 from max.analysis import generate_design_brief_legal_review_checklist as exported_generate
 from max.analysis import render_design_brief_legal_review_checklist_markdown as exported_render
+from max.analysis import render_legal_review_checklist_csv as exported_csv_render
 from max.analysis.design_brief_legal_review_checklist import (
     CSV_COLUMNS,
     SCHEMA_VERSION,
@@ -14,6 +15,7 @@ from max.analysis.design_brief_legal_review_checklist import (
     render_design_brief_legal_review_checklist,
     render_design_brief_legal_review_checklist_csv,
     render_design_brief_legal_review_checklist_markdown,
+    render_legal_review_checklist_csv,
 )
 
 
@@ -131,49 +133,95 @@ def test_render_design_brief_legal_review_checklist_csv_is_parseable_and_ordered
     report = generate_design_brief_legal_review_checklist(_brief())
 
     csv_text = render_design_brief_legal_review_checklist(report, fmt="csv")
+    repeated = render_legal_review_checklist_csv(report)
     rows = list(csv.DictReader(StringIO(csv_text)))
 
     assert csv_text == render_design_brief_legal_review_checklist_csv(report)
     assert csv_text == render_design_brief_legal_review_checklist(report, fmt="csv")
+    assert csv_text == repeated
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert CSV_COLUMNS == (
+        "review_area",
+        "question",
+        "risk_level",
+        "required_evidence",
+        "owner",
+        "blocker_status",
+        "notes",
+    )
     assert rows[0] == {
-        "checklist_category": "privacy",
-        "item": "DBLR1",
-        "owner_reviewer": "Privacy counsel",
-        "jurisdiction_or_policy_area": "Privacy",
-        "severity_priority": "high",
-        "required_action": (
+        "review_area": "Privacy",
+        "question": (
             "Classify personal, customer, telemetry, and workflow data used by "
             "CI gate before deployment with customer workflow data."
         ),
-        "status": "pending",
-        "due_date": "",
-        "evidence_source_references": "idea:bu-legal; brief:risks; brief:evidence_counts; brief:validation_plan",
+        "risk_level": "high",
+        "required_evidence": (
+            "Data categories, collection purpose, consent or notice assumptions, retention, "
+            "deletion, and sharing boundaries are documented."
+        ),
+        "owner": "Privacy counsel",
+        "blocker_status": "pending",
+        "notes": "",
     }
-    assert {row["checklist_category"] for row in rows} >= {
-        "privacy",
-        "claims_review",
-        "oss_licensing",
-        "approvals",
+    assert [row["risk_level"] for row in rows[:4]] == ["high", "high", "high", "high"]
+    assert {row["review_area"] for row in rows} >= {
+        "Privacy",
+        "Claims Review",
+        "OSS / Licensing",
+        "Approvals",
     }
-    assert any(row["owner_reviewer"] == "Marketing counsel" for row in rows)
-    assert any("customer-facing claims" in row["required_action"] for row in rows)
-    assert all(row["status"] == "pending" for row in rows)
+    assert any(row["owner"] == "Marketing counsel" for row in rows)
+    assert any("customer-facing claims" in row["question"] for row in rows)
+    assert all(row["blocker_status"] == "pending" for row in rows)
+    assert all(row["notes"] == "" for row in rows)
 
 
-def test_render_design_brief_legal_review_checklist_csv_flattens_lists_and_due_dates() -> None:
-    report = generate_design_brief_legal_review_checklist(_brief())
-    report["sections"][0]["items"][0]["due_date"] = "2026-05-15"
-    report["sections"][0]["items"][0]["evidence_reference_ids"] = [
-        "idea:bu-legal",
-        "brief:risks",
-        "brief:validation_plan",
-    ]
+def test_render_legal_review_checklist_csv_preserves_sparse_fields_and_escapes() -> None:
+    report = {
+        "checklist_items": [
+            {
+                "review_area": "Privacy, Terms",
+                "question": "Can we use customer logs?\nWho approves?",
+                "risk_level": "critical",
+                "required_evidence": ["DPA", "retention policy"],
+                "owner": "Legal, Privacy",
+                "blocker_status": "blocked",
+                "notes": "Needs counsel, security\nand product signoff.",
+            },
+            {
+                "question": "Is a fallback review needed?",
+                "risk_level": "low",
+                "required_evidence": "",
+                "owner": "",
+                "blocker_status": "",
+            },
+        ]
+    }
 
-    rows = list(csv.DictReader(StringIO(render_design_brief_legal_review_checklist_csv(report))))
+    csv_text = render_legal_review_checklist_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
 
-    assert rows[0]["due_date"] == "2026-05-15"
-    assert rows[0]["evidence_source_references"] == "idea:bu-legal; brief:risks; brief:validation_plan"
+    assert '"Privacy, Terms"' in csv_text
+    assert '"Can we use customer logs?\nWho approves?"' in csv_text
+    assert rows[0] == {
+        "review_area": "Privacy, Terms",
+        "question": "Can we use customer logs?\nWho approves?",
+        "risk_level": "critical",
+        "required_evidence": "DPA; retention policy",
+        "owner": "Legal, Privacy",
+        "blocker_status": "blocked",
+        "notes": "Needs counsel, security\nand product signoff.",
+    }
+    assert rows[1] == {
+        "review_area": "",
+        "question": "Is a fallback review needed?",
+        "risk_level": "low",
+        "required_evidence": "",
+        "owner": "",
+        "blocker_status": "",
+        "notes": "",
+    }
 
 
 def test_render_design_brief_legal_review_checklist_keeps_markdown_and_json_formats() -> None:
@@ -201,6 +249,8 @@ def test_legal_review_checklist_filename_supports_csv() -> None:
 def test_design_brief_legal_review_checklist_is_importable_from_analysis_package() -> None:
     report = exported_generate(_brief())
     markdown = exported_render(report)
+    csv_text = exported_csv_render(report)
 
     assert report["checklist_items"][0]["id"] == "DBLR1"
     assert markdown.startswith("# Legal Review Checklist: AgentAdversarialBench")
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
