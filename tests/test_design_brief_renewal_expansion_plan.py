@@ -146,34 +146,77 @@ def test_render_renewal_expansion_plan_csv_headers_ordering_and_evidence(
     assert csv_text == repeated
     assert exported_render_csv is render_renewal_expansion_plan_csv
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
-    assert [row["expansion_opportunity"] for row in rows] == [
+    assert [row["section"] for row in rows[:4]] == [
+        "renewal_risks",
+        "expansion_opportunities",
+        "expansion_opportunities",
+        "expansion_opportunities",
+    ]
+
+    risk = rows[0]
+    assert risk["design_brief_id"] == brief_id
+    assert risk["item_id"] == "RR1"
+    assert risk["account_or_segment"] == "B2B SaaS customer success teams"
+    assert risk["opportunity_or_risk"] == "Support handoff must not create unresolved ticket backlog."
+    assert risk["priority"] == "high"
+    assert risk["action"] == (
+        "Convert this risk into an owner, monitoring signal, and customer-facing mitigation."
+    )
+    assert risk["source_idea_ids"] == "bu-renewal-lead"
+    assert json.loads(risk["details"]) == {
+        "reason": "Persisted risk item can affect adoption, renewal confidence, or account health.",
+        "source_reference_ids": ["bu-renewal-lead"],
+    }
+
+    opportunities = [row for row in rows if row["section"] == "expansion_opportunities"]
+    assert [row["opportunity_or_risk"] for row in opportunities] == [
         "Team rollout",
         "Scope expansion",
         "Segment expansion",
     ]
-    assert rows[0]["segment"] == "B2B SaaS customer success teams"
-    assert rows[0]["renewal_trigger"] == "Repeated workflow success"
-    assert rows[0]["health_signal"] == "Activation and repeat-use evidence from the initial team."
-    assert rows[0]["recommended_action"].startswith("Pre-align VP of Customer Operations")
-    assert rows[0]["owner"] == "Account owner"
-    assert rows[0]["timing"] == "after first value recap"
-    assert rows[0]["evidence"] == "bu-renewal-lead"
+    assert opportunities[0]["metric"] == "Activation and repeat-use evidence from the initial team."
+    assert opportunities[0]["source_idea_ids"] == "bu-renewal-lead"
+
+    evidence = [row for row in rows if row["section"] == "evidence_references"]
+    assert evidence[0]["item_id"] == "sig-renewal-activation"
+    assert evidence[0]["priority"] == "0.92"
+    assert evidence[0]["source_idea_ids"] == "bu-renewal-lead"
+    assert evidence[0]["details"] == (
+        '{"credibility":0.92,"description":"Pilot teams use the workflow weekly and report '
+        'renewal value.","id":"sig-renewal-activation","tags":["activation","renewal"],'
+        '"title":"Weekly activation evidence","type":"signal","url":"https://example.com/activation"}'
+    )
+
+    assert {row["section"] for row in rows} >= {
+        "account_signals",
+        "playbook_actions",
+        "stakeholder_prompts",
+        "success_metrics",
+        "evidence_references",
+        "next_steps",
+    }
+    next_steps = [row for row in rows if row["section"] == "next_steps"]
+    assert next_steps[-1]["owner"] == "Account owner"
+    assert next_steps[-1]["action"].startswith("Pre-align VP of Customer Operations")
+    assert next_steps[-1]["metric"] == "after first value recap"
     assert renewal_expansion_plan_filename(
         {"id": "dbf-renewal-001", "title": "Renewal / Expansion Plan"},
         fmt="csv",
     ).endswith(".csv")
 
 
-def test_render_renewal_expansion_plan_csv_expands_segments_and_empty_optionals() -> None:
+def test_render_renewal_expansion_plan_csv_structured_rows_and_nested_evidence() -> None:
     report = {
-        "design_brief": {"domain": "enterprise"},
+        "design_brief": {"id": "dbf-csv", "domain": "enterprise"},
         "renewal_context": {},
+        "renewal_risks": [],
         "expansion_opportunities": [
             {
                 "id": "EO1",
                 "segments": ["Mid-market", "Enterprise"],
                 "trigger": "Usage crosses threshold",
                 "opportunity": "Workflow rollout",
+                "confidence": "medium",
                 "health_signal": "Weekly active teams increase",
                 "evidence": ["sig-usage", {"source": "dashboard", "metric": "WAU"}],
             },
@@ -199,21 +242,29 @@ def test_render_renewal_expansion_plan_csv_expands_segments_and_empty_optionals(
     }
 
     rows = list(csv.DictReader(io.StringIO(render_renewal_expansion_plan_csv(report))))
+    opportunities = [row for row in rows if row["section"] == "expansion_opportunities"]
+    next_steps = [row for row in rows if row["section"] == "next_steps"]
 
-    assert [row["segment"] for row in rows] == ["Mid-market", "Enterprise", "Partner-led"]
-    assert rows[0]["recommended_action"] == "Prepare rollout plan"
-    assert rows[1]["recommended_action"] == "Prepare rollout plan"
-    assert rows[2]["recommended_action"] == "Confirm partner motion"
-    assert rows[2]["owner"] == ""
-    assert rows[2]["timing"] == ""
-    assert rows[2]["health_signal"] == ""
-    assert rows[0]["evidence"] == "sig-usage; metric: WAU; source: dashboard"
-    assert rows[2]["evidence"] == "idea-partner"
+    assert [row["account_or_segment"] for row in opportunities] == [
+        "Enterprise; Mid-market",
+        "Partner-led",
+    ]
+    assert opportunities[0]["metric"] == "Weekly active teams increase"
+    assert opportunities[0]["details"] == (
+        '{"evidence":["sig-usage",{"metric":"WAU","source":"dashboard"}],'
+        '"health_signal":"Weekly active teams increase","trigger":"Usage crosses threshold"}'
+    )
+    assert opportunities[1]["source_idea_ids"] == "idea-partner"
+    assert next_steps[0]["action"] == "Prepare rollout plan"
+    assert next_steps[0]["owner"] == "Account owner"
+    assert next_steps[0]["metric"] == "next QBR"
+    assert next_steps[1]["action"] == "Confirm partner motion"
+    assert next_steps[1]["owner"] == ""
 
 
 def test_render_renewal_expansion_plan_csv_escapes_special_values() -> None:
     report = {
-        "design_brief": {"domain": "customer-success"},
+        "design_brief": {"id": "dbf-escape", "domain": "customer-success"},
         "renewal_context": {},
         "expansion_opportunities": [
             {
@@ -237,10 +288,12 @@ def test_render_renewal_expansion_plan_csv_escapes_special_values() -> None:
 
     csv_text = render_renewal_expansion_plan_csv(report)
     rows = list(csv.DictReader(io.StringIO(csv_text)))
+    opportunity = next(row for row in rows if row["section"] == "expansion_opportunities")
+    action = next(row for row in rows if row["section"] == "next_steps")
 
-    assert rows[0]["segment"] == 'Enterprise, "Strategic"'
-    assert rows[0]["expansion_opportunity"] == "Team rollout\nPhase 2"
-    assert rows[0]["recommended_action"] == 'Send "expansion", plan'
+    assert opportunity["account_or_segment"] == 'Enterprise, "Strategic"'
+    assert opportunity["opportunity_or_risk"] == "Team rollout\nPhase 2"
+    assert action["action"] == 'Send "expansion", plan'
     assert '"Enterprise, ""Strategic"""' in csv_text
     assert '"Team rollout\nPhase 2"' in csv_text
     assert '"Send ""expansion"", plan"' in csv_text
