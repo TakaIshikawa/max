@@ -85,6 +85,7 @@ from max.analysis.design_brief_raci_matrix import (
     build_design_brief_raci_matrix,
     raci_matrix_filename,
     render_design_brief_raci_matrix,
+    render_raci_matrix_csv,
 )
 from max.analysis.design_brief_partner_integration_checklist import (
     build_design_brief_partner_integration_checklist,
@@ -211,6 +212,7 @@ __all__ = [
     "render_design_brief_release_notes",
     "render_design_brief_sales_enablement_checklist",
     "render_design_brief_raci_matrix",
+    "render_raci_matrix_csv",
     "render_design_brief_kpi_tree_markdown",
     "render_design_brief_kill_criteria",
     "render_design_brief_kill_criteria_csv",

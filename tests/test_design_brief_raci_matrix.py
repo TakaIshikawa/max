@@ -13,6 +13,7 @@ from max.analysis.design_brief_raci_matrix import (
     build_design_brief_raci_matrix,
     raci_matrix_filename,
     render_design_brief_raci_matrix,
+    render_raci_matrix_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -161,10 +162,12 @@ def test_render_design_brief_raci_matrix_csv_is_parseable_and_stable(
         "phase",
         "phase_id",
         "activity",
-        "responsible",
         "accountable",
+        "responsible",
         "consulted",
         "informed",
+        "evidence",
+        "notes",
         "ownership_status",
         "gap_ids",
         "source_fields",
@@ -178,20 +181,71 @@ def test_render_design_brief_raci_matrix_csv_is_parseable_and_stable(
     assert first["phase"] == "Alignment"
     assert first["phase_id"] == "alignment"
     assert first["activity"] == "Confirm buyer outcome and approval path."
-    assert first["responsible"] == "Product lead"
     assert first["accountable"] == "VP of Operations"
+    assert first["responsible"] == "Product lead"
     assert json.loads(first["consulted"]) == ["implementation manager", "Security/legal approver"]
     assert first["consulted"] == '["implementation manager","Security/legal approver"]'
     assert json.loads(first["informed"]) == ["Engineering lead"]
     assert json.loads(first["gap_ids"]) == []
     assert json.loads(first["source_fields"]) == ["buyer", "why_this_now", "synthesis_rationale"]
     assert json.loads(first["source_idea_ids"]) == ["bu-raci-lead", "bu-raci-support"]
+    assert first["evidence"] == first["source_summary"]
     assert "VP of Operations" in first["source_summary"]
 
     validation_risk = rows[5]
-    assert validation_risk["responsible"] == "Security/legal approver"
     assert validation_risk["accountable"] == "Product lead"
+    assert validation_risk["responsible"] == "Security/legal approver"
     assert json.loads(validation_risk["consulted"]) == ["Engineering lead", "Support/playbook owner"]
+
+
+def test_render_raci_matrix_csv_handles_sparse_roles_and_escaping() -> None:
+    matrix = {
+        "phases": [{"id": "decision", "title": 'Decision, "Gate"'}],
+        "activities": [
+            {
+                "id": "DBRACI2",
+                "phase_id": "decision",
+                "activity": 'Review "pilot", approve rollout',
+                "accountable_role": "",
+                "responsible_role": "Product lead",
+                "source_summary": 'Evidence says "wait", then review',
+                "ownership_status": "gap",
+                "gap_ids": ["gap-2"],
+                "source_fields": ["risks"],
+                "source_idea_ids": ["idea-2"],
+            },
+            {
+                "id": "DBRACI1",
+                "phase_id": "decision",
+                "activity": "Confirm operating owner",
+                "accountable_role": "Ops lead",
+                "responsible_role": "",
+                "consulted_roles": ["Finance", "Legal, Privacy"],
+                "informed_roles": ["Support", "Sales"],
+                "source_summary": "Owner named in kickoff notes",
+                "ownership_status": "assigned",
+                "gap_ids": [],
+                "source_fields": [],
+                "source_idea_ids": [],
+            },
+        ],
+    }
+
+    rendered_once = render_raci_matrix_csv(matrix)
+    rendered_twice = render_design_brief_raci_matrix(matrix, fmt="csv")
+    assert rendered_once == rendered_twice
+    assert '"Review ""pilot"", approve rollout"' in rendered_once
+    assert '"Evidence says ""wait"", then review"' in rendered_once
+
+    rows = list(csv.DictReader(io.StringIO(rendered_once)))
+    assert [row["activity_id"] for row in rows] == ["DBRACI2", "DBRACI1"]
+    assert rows[0]["consulted"] == "[]"
+    assert rows[0]["informed"] == "[]"
+    assert rows[0]["accountable"] == ""
+    assert rows[0]["notes"] == "Ownership gap: gap-2"
+    assert json.loads(rows[1]["consulted"]) == ["Finance", "Legal, Privacy"]
+    assert json.loads(rows[1]["informed"]) == ["Support", "Sales"]
+    assert rows[1]["notes"] == "assigned"
 
 
 def test_build_design_brief_raci_matrix_missing_brief_returns_none(tmp_path) -> None:
