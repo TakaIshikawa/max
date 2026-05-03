@@ -119,130 +119,276 @@ def render_design_brief_training_plan(report: dict[str, Any], fmt: str = "json")
     if fmt != "markdown":
         raise ValueError(f"Unsupported training plan format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    return _render_design_brief_training_plan_markdown(report)
+
+
+def _render_design_brief_training_plan_markdown(report: dict[str, Any]) -> str:
+    brief = _dict_value(report.get("design_brief"))
+    summary = _dict_value(report.get("summary"))
     lines = [
-        f"# Training Plan: {brief['title']}",
+        f"# Training Plan: {_text(brief.get('title'), 'Untitled design brief')}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
-        f"Status: {brief.get('design_status') or 'unknown'}",
+        f"Schema: `{_text(report.get('schema_version'), 'unknown')}`",
+        f"Design brief: `{_text(brief.get('id'), 'unknown')}`",
+        f"Status: {_text(brief.get('design_status'), 'unknown')}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
-        f"Source ideas: {', '.join(brief.get('source_idea_ids') or []) or 'design brief'}",
+        f"Source ideas: {_join_text(brief.get('source_idea_ids'), 'design brief')}",
         "",
         "## Training Summary",
         "",
-        f"- Goal: {summary['training_goal']}",
-        f"- Target user: {summary['target_user']}",
-        f"- Buyer: {summary['buyer']}",
-        f"- Workflow: {summary['workflow_context']}",
-        f"- Primary scope: {summary['primary_scope']}",
-        f"- Fallbacks used: {', '.join(summary['fallbacks_used']) or 'none'}",
+        f"- Goal: {_text(summary.get('training_goal'), 'Not specified')}",
+        f"- Target user: {_text(summary.get('target_user'), 'Not specified')}",
+        f"- Buyer: {_text(summary.get('buyer'), 'Not specified')}",
+        f"- Workflow: {_text(summary.get('workflow_context'), 'Not specified')}",
+        f"- Primary scope: {_text(summary.get('primary_scope'), 'Not specified')}",
+        f"- Fallbacks used: {_join_text(summary.get('fallbacks_used'), 'none')}",
         "",
         "## Learner Segments",
         "",
     ]
 
-    for segment in report["learner_segments"]:
-        lines.extend(
-            [
-                f"### {segment['name']}",
-                "",
-                f"- Type: {segment['type']}",
-                f"- Training need: {segment['training_need']}",
-                f"- Expected outcome: {segment['expected_outcome']}",
-                f"- Delivery mode: {segment['delivery_mode']}",
-                "",
-            ]
-        )
+    learner_segments = _list_of_dicts(report.get("learner_segments"))
+    if learner_segments:
+        for segment in learner_segments:
+            lines.extend(
+                [
+                    f"### {_text(segment.get('name'), 'Unnamed segment')}",
+                    "",
+                    f"- Type: {_text(segment.get('type'), 'unknown')}",
+                    f"- Training need: {_text(segment.get('training_need'), 'Not specified')}",
+                    f"- Expected outcome: {_text(segment.get('expected_outcome'), 'Not specified')}",
+                    f"- Delivery mode: {_text(segment.get('delivery_mode'), 'Not specified')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Learning Objectives", ""])
-    for objective in report["learning_objectives"]:
-        lines.extend(
-            [
-                f"- **{objective['id']}**: {objective['objective']}",
-                f"  Measure: {objective['measure']}",
-            ]
-        )
+    objectives = _list_of_dicts(report.get("learning_objectives"))
+    if objectives:
+        for objective in objectives:
+            lines.extend(
+                [
+                    f"- **{_text(objective.get('id'), 'objective')}**: {_text(objective.get('objective'), 'Not specified')}",
+                    f"  Measure: {_text(objective.get('measure'), 'Not specified')}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    modules = _list_of_dicts(report.get("session_outline"))
+    lines.extend(["", "## Modules", "", "| Module | Duration | Audience | Purpose | Output |", "| --- | --- | --- | --- | --- |"])
+    if modules:
+        for item in modules:
+            module = f"{_text(item.get('sequence'), '?')}. {_text(item.get('title'), 'Untitled module')}"
+            lines.append(
+                "| {module} | {duration} | {audience} | {purpose} | {output} |".format(
+                    module=_table_cell(module),
+                    duration=_table_cell(item.get("duration")),
+                    audience=_table_cell(item.get("audience")),
+                    purpose=_table_cell(item.get("purpose")),
+                    output=_table_cell(item.get("output")),
+                )
+            )
+    else:
+        lines.append("| None | Not scheduled | Not specified | Not specified | Not specified |")
 
     lines.extend(["", "## Session Outline", ""])
-    for item in report["session_outline"]:
-        lines.extend(
-            [
-                f"### {item['sequence']}. {item['title']}",
-                "",
-                f"- Duration: {item['duration']}",
-                f"- Audience: {item['audience']}",
-                f"- Purpose: {item['purpose']}",
-                f"- Output: {item['output']}",
-                "",
-            ]
-        )
+    if modules:
+        for item in modules:
+            lines.extend(
+                [
+                    f"### {_text(item.get('sequence'), '?')}. {_text(item.get('title'), 'Untitled module')}",
+                    "",
+                    f"- Duration: {_text(item.get('duration'), 'Not scheduled')}",
+                    f"- Audience: {_text(item.get('audience'), 'Not specified')}",
+                    f"- Purpose: {_text(item.get('purpose'), 'Not specified')}",
+                    f"- Output: {_text(item.get('output'), 'Not specified')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Prerequisite Setup", ""])
-    for item in report["prerequisite_setup"]:
-        lines.extend(
-            [
-                f"- **{item['id']} {item['name']}** ({item['owner']}): {item['instruction']}",
-                f"  Ready when: {item['ready_when']}",
-            ]
-        )
+    setup_items = _list_of_dicts(report.get("prerequisite_setup"))
+    if setup_items:
+        for item in setup_items:
+            lines.extend(
+                [
+                    f"- **{_text(item.get('id'), 'setup')} {_text(item.get('name'), 'Unnamed setup')}** ({_text(item.get('owner'), 'Unassigned')}): {_text(item.get('instruction'), 'Not specified')}",
+                    f"  Ready when: {_text(item.get('ready_when'), 'Not specified')}",
+                ]
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Hands-On Exercises", ""])
-    for exercise in report["hands_on_exercises"]:
-        lines.extend(
-            [
-                f"### {exercise['id']}: {exercise['title']}",
-                "",
-                f"- Learner segment: {exercise['learner_segment_id']}",
-                f"- Scenario: {exercise['scenario']}",
-                f"- Task: {exercise['task']}",
-                f"- Debrief prompt: {exercise['debrief_prompt']}",
-                "",
-            ]
-        )
+    exercises = _list_of_dicts(report.get("hands_on_exercises"))
+    if exercises:
+        for exercise in exercises:
+            lines.extend(
+                [
+                    f"### {_text(exercise.get('id'), 'exercise')}: {_text(exercise.get('title'), 'Untitled exercise')}",
+                    "",
+                    f"- Learner segment: {_text(exercise.get('learner_segment_id'), 'Not specified')}",
+                    f"- Scenario: {_text(exercise.get('scenario'), 'Not specified')}",
+                    f"- Task: {_text(exercise.get('task'), 'Not specified')}",
+                    f"- Debrief prompt: {_text(exercise.get('debrief_prompt'), 'Not specified')}",
+                    f"- Learning objectives: {_join_text(exercise.get('learning_objective_ids'), 'none')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Success Checks", ""])
-    for check in report["success_checks"]:
-        lines.extend(
-            [
-                f"- **{check['id']}**: {check['check']}",
-                f"  Passing signal: {check['passing_signal']}",
-            ]
-        )
+    checks = _list_of_dicts(report.get("success_checks"))
+    if checks:
+        for check in checks:
+            lines.extend(
+                [
+                    f"- **{_text(check.get('id'), 'check')}**: {_text(check.get('check'), 'Not specified')}",
+                    f"  Passing signal: {_text(check.get('passing_signal'), 'Not specified')}",
+                ]
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Follow-Up Materials", ""])
-    for material in report["follow_up_materials"]:
-        lines.extend(
-            [
-                f"- **{material['name']}** ({material['audience']}): {material['purpose']}",
-                f"  Owner: {material['owner']}",
-            ]
-        )
+    materials = _list_of_dicts(report.get("follow_up_materials"))
+    if materials:
+        for material in materials:
+            lines.extend(
+                [
+                    f"- **{_text(material.get('name'), 'Unnamed material')}** ({_text(material.get('audience'), 'Not specified')}): {_text(material.get('purpose'), 'Not specified')}",
+                    f"  Owner: {_text(material.get('owner'), 'Unassigned')}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Enablement Assets", "", "| Asset | Audience | Owner | Purpose |", "| --- | --- | --- | --- |"])
+    if setup_items or materials:
+        for item in setup_items:
+            lines.append(
+                "| {asset} | {audience} | {owner} | {purpose} |".format(
+                    asset=_table_cell(item.get("name")),
+                    audience="facilitators",
+                    owner=_table_cell(item.get("owner")),
+                    purpose=_table_cell(item.get("instruction")),
+                )
+            )
+        for material in materials:
+            lines.append(
+                "| {asset} | {audience} | {owner} | {purpose} |".format(
+                    asset=_table_cell(material.get("name")),
+                    audience=_table_cell(material.get("audience")),
+                    owner=_table_cell(material.get("owner")),
+                    purpose=_table_cell(material.get("purpose")),
+                )
+            )
+    else:
+        lines.append("| None | Not specified | Unassigned | Not specified |")
+
+    lines.extend(["", "## Rollout Schedule", "", "| Step | Timing | Owner | Output |", "| --- | --- | --- | --- |"])
+    if setup_items or modules or checks:
+        for item in setup_items:
+            lines.append(
+                "| {step} | Before training | {owner} | {output} |".format(
+                    step=_table_cell(item.get("name")),
+                    owner=_table_cell(item.get("owner")),
+                    output=_table_cell(item.get("ready_when")),
+                )
+            )
+        for item in modules:
+            lines.append(
+                "| {step} | {timing} | Facilitator | {output} |".format(
+                    step=_table_cell(item.get("title")),
+                    timing=_table_cell(item.get("duration")),
+                    output=_table_cell(item.get("output")),
+                )
+            )
+        for check in checks:
+            lines.append(
+                "| {step} | After exercises | Product lead | {output} |".format(
+                    step=_table_cell(check.get("id")),
+                    output=_table_cell(check.get("passing_signal")),
+                )
+            )
+    else:
+        lines.append("| None | Not scheduled | Unassigned | Not specified |")
+
+    lines.extend(
+        [
+            "",
+            "## Owners And Accountability",
+            "",
+            "| Owner | Accountability | Evidence |",
+            "| --- | --- | --- |",
+        ]
+    )
+    owner_rows = _owner_accountability_rows(setup_items, materials, report.get("next_actions"))
+    if owner_rows:
+        for owner, accountability, evidence in owner_rows:
+            lines.append(
+                f"| {_table_cell(owner)} | {_table_cell(accountability)} | {_table_cell(evidence)} |"
+            )
+    else:
+        lines.append("| Unassigned | No owner/accountability fields provided | Not specified |")
+
+    lines.extend(
+        [
+            "",
+            "## Assessment Criteria",
+            "",
+            "| Criterion | Exercise | Passing Signal |",
+            "| --- | --- | --- |",
+        ]
+    )
+    if checks:
+        for check in checks:
+            lines.append(
+                "| {criterion} | {exercise} | {signal} |".format(
+                    criterion=_table_cell(check.get("check")),
+                    exercise=_table_cell(_join_text(check.get("exercise_ids"), "none")),
+                    signal=_table_cell(check.get("passing_signal")),
+                )
+            )
+    else:
+        lines.append("| None | none | Not specified |")
 
     lines.extend(["", "## Evidence References", ""])
-    if report["evidence_references"]:
-        for item in report["evidence_references"]:
-            lines.append(f"- **{item['id']}** ({item['type']}): {item['summary']}")
+    evidence = _list_of_dicts(report.get("evidence_references"))
+    if evidence:
+        for item in evidence:
+            lines.append(
+                f"- **{_text(item.get('id'), 'reference')}** ({_text(item.get('type'), 'unknown')}): {_text(item.get('summary'), 'Not specified')}"
+            )
     else:
         lines.append("- None")
 
     lines.extend(["", "## Gaps To Resolve Before Training", ""])
-    if report["gaps_to_resolve"]:
-        for gap in report["gaps_to_resolve"]:
+    gaps = _list_of_dicts(report.get("gaps_to_resolve"))
+    if gaps:
+        for gap in gaps:
             lines.extend(
                 [
-                    f"- **{gap['id']} {gap['field']}**: {gap['gap']}",
-                    f"  Next action: {gap['next_action']}",
+                    f"- **{_text(gap.get('id'), 'gap')} {_text(gap.get('field'), 'unknown')}**: {_text(gap.get('gap'), 'Not specified')}",
+                    f"  Next action: {_text(gap.get('next_action'), 'Not specified')}",
                 ]
             )
     else:
         lines.append("- None")
 
     lines.extend(["", "## Next Actions", ""])
-    if report["next_actions"]:
-        for action in report["next_actions"]:
-            lines.append(f"- **{action['id']}** ({action['owner']}): {action['action']}")
+    next_actions = _list_of_dicts(report.get("next_actions"))
+    if next_actions:
+        for action in next_actions:
+            lines.append(
+                f"- **{_text(action.get('id'), 'action')}** ({_text(action.get('owner'), 'Unassigned')}): {_text(action.get('action'), 'Not specified')}"
+            )
     else:
         lines.append("- None")
 
@@ -265,6 +411,78 @@ def training_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") 
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "training-plan"))
     return f"{brief_id}-{title}-training-plan.{extension}"
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _text(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return _compact(value) or default
+    if isinstance(value, (dict, list)):
+        if not value:
+            return default
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value) or default
+
+
+def _join_text(value: Any, default: str) -> str:
+    if isinstance(value, list):
+        items = [_text(item) for item in value]
+        joined = ", ".join(item for item in items if item)
+        return joined or default
+    text = _text(value)
+    return text or default
+
+
+def _table_cell(value: Any) -> str:
+    return _text(value, "Not specified").replace("|", "\\|").replace("\n", " ")
+
+
+def _owner_accountability_rows(
+    setup_items: list[dict[str, Any]],
+    materials: list[dict[str, Any]],
+    next_actions: Any,
+) -> list[tuple[str, str, str]]:
+    rows: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in setup_items:
+        row = (
+            _text(item.get("owner"), "Unassigned"),
+            _text(item.get("instruction"), "Not specified"),
+            _text(item.get("ready_when"), "Not specified"),
+        )
+        if row not in seen:
+            seen.add(row)
+            rows.append(row)
+    for material in materials:
+        row = (
+            _text(material.get("owner"), "Unassigned"),
+            _text(material.get("purpose"), "Not specified"),
+            f"Asset: {_text(material.get('name'), 'Unnamed material')}",
+        )
+        if row not in seen:
+            seen.add(row)
+            rows.append(row)
+    for action in _list_of_dicts(next_actions):
+        row = (
+            _text(action.get("owner"), "Unassigned"),
+            _text(action.get("action"), "Not specified"),
+            f"Next action: {_text(action.get('id'), 'action')}",
+        )
+        if row not in seen:
+            seen.add(row)
+            rows.append(row)
+    return rows
 
 
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
