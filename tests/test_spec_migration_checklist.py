@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.spec import generate_migration_checklist as exported_generate
+from max.spec import render_migration_checklist_csv as exported_render_csv
 from max.spec import render_migration_checklist_markdown as exported_render
 from max.spec.generator import generate_spec_preview
 from max.spec.migration_checklist import (
     KIND,
     MIGRATION_CHECKLIST_SCHEMA_VERSION,
+    MIGRATION_CHECKLIST_CSV_COLUMNS,
     generate_migration_checklist,
+    render_migration_checklist_csv,
     render_migration_checklist_markdown,
 )
 from max.types.buildable_unit import BuildableCategory, BuildableUnit
@@ -183,6 +188,51 @@ def test_render_migration_checklist_markdown_has_required_sections(
     assert "[{" not in first
 
 
+def test_render_migration_checklist_csv_has_stable_header_and_representative_rows(
+    sample_unit, sample_evaluation
+) -> None:
+    checklist = generate_migration_checklist(
+        sample_unit, sample_evaluation, generate_spec_preview(sample_unit, sample_evaluation)
+    )
+
+    first = render_migration_checklist_csv(checklist)
+    second = render_migration_checklist_csv(checklist)
+    reader = csv.DictReader(io.StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert reader.fieldnames == list(MIGRATION_CHECKLIST_CSV_COLUMNS)
+    assert first.splitlines()[0] == ",".join(MIGRATION_CHECKLIST_CSV_COLUMNS)
+
+    pre_migration = next(row for row in rows if row["item_id"] == "PM02")
+    assert pre_migration["phase"] == "pre_migration"
+    assert pre_migration["item_type"] == "task"
+    assert pre_migration["idea_id"] == "bu-test001"
+    assert pre_migration["title"] == "MCP Test Framework"
+    assert pre_migration["migration_gate"] == "ready_for_migration_review"
+    assert pre_migration["owner"] == "engineering_owner"
+    assert pre_migration["status"] == "pending"
+    assert pre_migration["priority"] == "required"
+    assert pre_migration["dependency"] == "language=typescript, runtime=node"
+    assert "Pilot environment" in pre_migration["validation_evidence"]
+    assert pre_migration["evidence_refs"] == "solution.suggested_stack; solution.technical_approach"
+
+    cutover = next(row for row in rows if row["item_id"] == "CT02")
+    assert cutover["phase"] == "data_process_cutover"
+    assert cutover["checklist_item"].startswith("Run the new workflow in parallel")
+    assert "Pilot users:" in cutover["dependency"]
+    assert "Parallel run compares outputs" in cutover["validation_evidence"]
+
+    rollback = next(row for row in rows if row["item_id"] == "RB02")
+    assert rollback["phase"] == "rollback"
+    assert rollback["item_type"] == "rollback_check"
+    assert rollback["owner"] == "migration_owner"
+    assert rollback["checklist_item"].startswith("Data or process discrepancies")
+    assert "run against five open-source MCP servers" in rollback["validation_evidence"]
+    assert "Stop write propagation" in rollback["rollback_fallback_notes"]
+
+
 def test_render_migration_checklist_markdown_rejects_unsupported_format(sample_unit) -> None:
     checklist = generate_migration_checklist(sample_unit)
 
@@ -195,3 +245,4 @@ def test_migration_checklist_exports(sample_unit) -> None:
 
     assert checklist["kind"] == "max.migration_checklist"
     assert exported_render(checklist).startswith("# MCP Test Framework Migration Checklist")
+    assert exported_render_csv(checklist).startswith(",".join(MIGRATION_CHECKLIST_CSV_COLUMNS))

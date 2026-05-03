@@ -67,6 +67,7 @@ from max.spec.incident_response_plan import (
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.migration_checklist import (
     generate_migration_checklist,
+    render_migration_checklist_csv,
     render_migration_checklist_markdown,
 )
 from max.spec.observability_plan import (
@@ -200,6 +201,7 @@ __all__ = [
     "render_incident_response_plan_markdown",
     "render_incident_response_plan_csv",
     "render_migration_checklist_markdown",
+    "render_migration_checklist_csv",
     "render_observability_plan_markdown",
     "render_operational_runbook_markdown",
     "render_post_launch_monitoring_plan_csv",
