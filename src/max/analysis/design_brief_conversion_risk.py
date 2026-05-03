@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from typing import TYPE_CHECKING, Any
@@ -11,6 +13,17 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.conversion_risk"
 SCHEMA_VERSION = "max.design_brief.conversion_risk.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "funnel_stage",
+    "risk",
+    "severity",
+    "likelihood",
+    "affected_persona",
+    "mitigation",
+    "leading_indicator",
+    "owner",
+    "evidence",
+)
 
 _VALIDATED_STATUSES = {"approved", "validated", "ready", "launched", "active"}
 _WEAK_STATUSES = {"draft", "candidate", "proposed", "backlog", "new"}
@@ -95,9 +108,11 @@ def build_design_brief_conversion_risk(store: Store, brief_id: str) -> dict[str,
 
 
 def render_design_brief_conversion_risk(report: dict[str, Any], fmt: str = "markdown") -> str:
-    """Render a conversion risk report as Markdown or deterministic JSON."""
+    """Render a conversion risk report as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_conversion_risk_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported conversion risk format: {fmt}")
 
@@ -179,12 +194,121 @@ def render_design_brief_conversion_risk(report: dict[str, Any], fmt: str = "mark
 
 
 def conversion_risk_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief['id']))}-"
         f"{_filename_part(str(design_brief.get('title') or 'conversion-risk'))}-"
         f"conversion-risk.{extension}"
     )
+
+
+def render_design_brief_conversion_risk_csv(report: dict[str, Any]) -> str:
+    """Render conversion risks as deterministic CSV rows."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    summary = report.get("summary") or {}
+    context = report.get("conversion_context") or {}
+    mitigations = report.get("mitigation_actions") or []
+
+    for blocker in report.get("conversion_blockers") or []:
+        mitigation = _mitigation_for(mitigations, blocker.get("label"))
+        rows.append(
+            _csv_row(
+                funnel_stage="conversion_gate",
+                risk=_csv_join([blocker.get("label"), blocker.get("summary")], separator=": "),
+                severity=blocker.get("severity"),
+                likelihood=summary.get("risk_band"),
+                affected_persona=summary.get("target_buyer"),
+                mitigation=mitigation.get("action"),
+                leading_indicator=blocker.get("validation_step"),
+                owner=mitigation.get("owner_role"),
+                evidence=blocker.get("source_reference_ids"),
+            )
+        )
+
+    for gap in report.get("proof_gaps") or []:
+        mitigation = _mitigation_for(mitigations, gap.get("claim"))
+        rows.append(
+            _csv_row(
+                funnel_stage="proof_validation",
+                risk=_csv_join([gap.get("claim"), gap.get("gap")], separator=": "),
+                severity=_proof_gap_severity(gap, summary.get("risk_band")),
+                likelihood=summary.get("risk_band"),
+                affected_persona=summary.get("target_user"),
+                mitigation=mitigation.get("action"),
+                leading_indicator=gap.get("needed_evidence"),
+                owner=mitigation.get("owner_role"),
+                evidence=gap.get("source_reference_ids"),
+            )
+        )
+
+    for objection in report.get("buyer_objections") or []:
+        mitigation = _mitigation_for(mitigations, objection.get("objection"))
+        rows.append(
+            _csv_row(
+                funnel_stage="buyer_objection",
+                risk=objection.get("objection"),
+                severity=_objection_severity(summary.get("risk_band")),
+                likelihood=summary.get("risk_band"),
+                affected_persona=objection.get("likely_from") or context.get("buyer"),
+                mitigation=mitigation.get("action"),
+                leading_indicator=objection.get("proof_needed"),
+                owner=mitigation.get("owner_role"),
+                evidence=objection.get("source_reference_ids"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_cell(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _mitigation_for(mitigations: list[dict[str, Any]], address: Any) -> dict[str, Any]:
+    target = _csv_cell(address)
+    if not target:
+        return {}
+    for mitigation in mitigations:
+        if _csv_cell(mitigation.get("addresses")) == target:
+            return mitigation
+    return {}
+
+
+def _proof_gap_severity(gap: dict[str, Any], risk_band: Any) -> str:
+    if gap.get("id") == "PG0" or risk_band == "high":
+        return "high"
+    return "medium"
+
+
+def _objection_severity(risk_band: Any) -> str:
+    return "high" if risk_band == "high" else "medium"
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {_csv_cell(item)}" for key, item in value.items())
+    if isinstance(value, set):
+        return "; ".join(_csv_cell(item) for item in sorted(value, key=str))
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_cell(item) for item in value)
+    return str(value)
+
+
+def _csv_join(values: list[Any], *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_cell(value)))
 
 
 def _conversion_context(
