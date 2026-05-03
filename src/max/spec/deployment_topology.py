@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 from io import StringIO
 from typing import Any
@@ -186,6 +187,11 @@ def render_deployment_topology_csv(topology: dict[str, Any]) -> str:
     for row in _csv_rows(topology):
         writer.writerow(row)
     return output.getvalue()
+
+
+def render_deployment_topology_json(topology: dict[str, Any]) -> str:
+    """Render a generated deployment topology as deterministic pretty-printed JSON."""
+    return json.dumps(topology, indent=2, sort_keys=True) + "\n"
 
 
 def _runtime_components(

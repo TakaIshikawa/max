@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from max.spec import generate_deployment_topology as exported_generate
 from max.spec import render_deployment_topology_csv as exported_render_csv
+from max.spec import render_deployment_topology_json as exported_render_json
 from max.spec import render_deployment_topology_markdown as exported_render
 from max.spec.deployment_topology import (
     DEPLOYMENT_TOPOLOGY_CSV_COLUMNS,
     DEPLOYMENT_TOPOLOGY_SCHEMA_VERSION,
     generate_deployment_topology,
     render_deployment_topology_csv,
+    render_deployment_topology_json,
     render_deployment_topology_markdown,
 )
 
@@ -241,6 +244,40 @@ def test_render_deployment_topology_markdown_is_readable_and_deterministic() -> 
     assert "production" in first
 
 
+def test_render_deployment_topology_json_preserves_nested_topology_structure() -> None:
+    topology = generate_deployment_topology(_rich_tact_spec())
+
+    rendered = render_deployment_topology_json(topology)
+    parsed = json.loads(rendered)
+
+    assert parsed == topology
+    assert rendered.endswith("\n")
+    assert parsed["schema_version"] == DEPLOYMENT_TOPOLOGY_SCHEMA_VERSION
+    assert isinstance(parsed["topology"], dict)
+    assert isinstance(parsed["topology"]["runtime_components"], list)
+    assert isinstance(parsed["topology"]["network_boundaries"][0]["controls"], list)
+    assert isinstance(parsed["topology"]["deployment_sequence"][0]["dependencies"], list)
+    assert parsed["environments"][0] == {
+        "id": "ENV1",
+        "name": "local",
+        "purpose": "Developer validation with fake or sandbox credentials only.",
+        "isolation": "No production data; use fixture-backed dependencies.",
+    }
+    assert parsed["topology"]["external_services"][0]["name"] == "Datadog"
+
+
+def test_render_deployment_topology_json_is_pretty_and_deterministic() -> None:
+    topology = generate_deployment_topology(_rich_tact_spec())
+
+    first = render_deployment_topology_json(topology)
+    second = render_deployment_topology_json(topology)
+    parsed = json.loads(first)
+
+    assert first == second
+    assert first == json.dumps(topology, indent=2, sort_keys=True) + "\n"
+    assert list(parsed) == sorted(topology)
+
+
 def test_render_deployment_topology_csv_has_stable_sections_and_rows() -> None:
     topology = generate_deployment_topology(_rich_tact_spec())
 
@@ -346,7 +383,9 @@ def test_deployment_topology_is_importable_from_spec_package() -> None:
     topology = exported_generate(_rich_tact_spec())
     markdown = exported_render(topology)
     csv_text = exported_render_csv(topology)
+    json_text = exported_render_json(topology)
 
     assert topology["schema_version"] == DEPLOYMENT_TOPOLOGY_SCHEMA_VERSION
     assert markdown.startswith("# Renewal Signal Router Deployment Topology")
     assert csv_text.startswith(",".join(DEPLOYMENT_TOPOLOGY_CSV_COLUMNS))
+    assert json.loads(json_text)["kind"] == "max.deployment_topology"
