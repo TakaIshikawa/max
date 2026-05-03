@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis import (
     build_design_brief_investor_update as exported_build_investor_update,
+    render_design_brief_investor_update_csv as exported_render_investor_update_csv,
 )
 from max.analysis.design_brief_investor_update import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_investor_update,
     investor_update_filename,
     render_design_brief_investor_update,
+    render_design_brief_investor_update_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -117,6 +122,125 @@ def test_render_design_brief_investor_update_markdown_json_and_filename(tmp_path
         )
         == "dbf-investor-001-Investor-Update-Alpha-Beta-investor-update.json"
     )
+    assert (
+        investor_update_filename(
+            {"id": "dbf/investor 001", "title": "Investor Update: Alpha / Beta"},
+            fmt="csv",
+        )
+        == "dbf-investor-001-Investor-Update-Alpha-Beta-investor-update.csv"
+    )
+
+
+def test_render_design_brief_investor_update_csv_full_output_is_stable(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_investor_update(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_investor_update(report, fmt="csv")
+    repeated = render_design_brief_investor_update_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == repeated == exported_render_investor_update_csv(report)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert csv.DictReader(StringIO(csv_text)).fieldnames == list(CSV_COLUMNS)
+    assert [row["update_section"] for row in rows] == [
+        "summary",
+        "confidence",
+        *["traction_signals"] * len(report["traction_signals"]),
+        *["learnings_since_last_review"] * len(report["learnings_since_last_review"]),
+        *["top_risks"] * len(report["top_risks"]),
+        *["asks"] * len(report["asks"]),
+        *["next_milestones"] * len(report["next_milestones"]),
+        *["evidence_references"] * len(report["evidence_references"]),
+    ]
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert all(row["design_brief_title"] == "Investor Update Brief" for row in rows)
+
+    summary = rows[0]
+    assert summary["update_section"] == "summary"
+    assert summary["metric_name"] == "summary"
+    assert summary["status_or_value"] == report["summary"]["confidence_level"]
+    assert "Investor Update Brief is approved" in summary["narrative"]
+    assert summary["risks_blockers"] == str(report["summary"]["risk_count"])
+    assert summary["asks"] == str(report["summary"]["ask_count"])
+    assert "sig-investor-review" in summary["evidence_source_references"]
+    assert summary["source_idea_ids"] == "bu-investor-lead; bu-investor-support"
+
+    traction = next(row for row in rows if row["metric_name"] == "evaluation")
+    assert traction["update_section"] == "traction_signals"
+    assert traction["status_or_value"] == "high"
+    assert traction["evidence_source_references"] == "bu-investor-lead.evaluation"
+
+    risk = next(row for row in rows if row["update_section"] == "top_risks")
+    assert risk["status_or_value"] == "high"
+    assert risk["risks_blockers"] == "Revenue attribution needs validation"
+    assert "Pilot with three portfolio reviewers" in risk["narrative"]
+
+    ask = next(row for row in rows if row["update_section"] == "asks" and row["metric_name"] == "A2")
+    assert ask["status_or_value"] == "VP of Revenue Operations"
+    assert ask["asks"].startswith("Fund or unblock validation")
+
+    evidence = next(row for row in rows if row["update_section"] == "evidence_references")
+    assert evidence["metric_name"].startswith("design_brief.")
+    assert evidence["evidence_source_references"] == evidence["metric_name"]
+
+
+def test_render_design_brief_investor_update_csv_handles_missing_optional_fields() -> None:
+    report = {
+        "design_brief": {
+            "id": "dbf-partial",
+            "title": 'Partial "Investor", Update',
+        },
+        "traction_signals": [
+            {
+                "id": "quoted",
+                "signal": 'Pipeline signal includes "quotes", commas, and newline\ntext.',
+            }
+        ],
+        "top_risks": [{"id": "R1", "risk": "Budget blocker"}],
+        "asks": [{"id": "A1", "ask": "Approve next step"}],
+    }
+
+    csv_text = render_design_brief_investor_update_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Partial ""Investor"", Update"' in csv_text
+    assert rows[0]["update_section"] == "traction_signals"
+    assert rows[0]["status_or_value"] == ""
+    assert rows[0]["narrative"] == 'Pipeline signal includes "quotes", commas, and newline\ntext.'
+    assert rows[0]["evidence_source_references"] == ""
+    assert rows[1]["update_section"] == "top_risks"
+    assert rows[1]["risks_blockers"] == "Budget blocker"
+    assert rows[1]["narrative"] == ""
+    assert rows[2]["update_section"] == "asks"
+    assert rows[2]["asks"] == "Approve next step"
+    assert rows[2]["status_or_value"] == ""
+
+
+def test_render_design_brief_investor_update_csv_empty_updates_header_only() -> None:
+    report = {
+        "design_brief": {
+            "id": "dbf-empty",
+            "title": "Empty Investor Update",
+            "source_idea_ids": [],
+        },
+        "summary": {},
+        "confidence": {},
+        "traction_signals": [],
+        "learnings_since_last_review": [],
+        "top_risks": [],
+        "asks": [],
+        "next_milestones": [],
+        "evidence_references": [],
+    }
+
+    header_only = render_design_brief_investor_update(report, fmt="csv")
+
+    assert header_only == ",".join(CSV_COLUMNS) + "\n"
+    assert csv.DictReader(StringIO(header_only)).fieldnames == list(CSV_COLUMNS)
 
 
 def test_build_design_brief_investor_update_missing_brief_returns_none(tmp_path) -> None:
