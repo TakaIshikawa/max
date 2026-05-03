@@ -77,6 +77,7 @@ from max.spec.migration_checklist import (
 )
 from max.spec.observability_plan import (
     generate_observability_plan,
+    render_observability_plan_csv,
     render_observability_plan_markdown,
 )
 from max.spec.operational_runbook import (
@@ -210,6 +211,7 @@ __all__ = [
     "render_migration_checklist_markdown",
     "render_migration_checklist_csv",
     "render_observability_plan_markdown",
+    "render_observability_plan_csv",
     "render_operational_runbook_markdown",
     "render_post_launch_monitoring_plan_csv",
     "render_post_launch_monitoring_plan_markdown",

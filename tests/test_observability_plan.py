@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
 from max.spec import generate_observability_plan as exported_generate
+from max.spec import render_observability_plan_csv as exported_render_csv
 from max.spec import render_observability_plan_markdown as exported_render
 from max.spec.observability_plan import (
     OBSERVABILITY_PLAN_SCHEMA_VERSION,
+    OBSERVABILITY_PLAN_CSV_COLUMNS,
     generate_observability_plan,
+    render_observability_plan_csv,
     render_observability_plan_markdown,
 )
 
@@ -181,6 +187,62 @@ def test_render_observability_plan_markdown_is_deterministic_and_traceable() -> 
     assert "### signal:sig-ci" in first
 
 
+def test_render_observability_plan_csv_is_parseable_and_sectioned() -> None:
+    plan = generate_observability_plan(_rich_tact_spec())
+
+    csv_output = render_observability_plan_csv(plan)
+    rows = list(csv.DictReader(StringIO(csv_output)))
+
+    assert csv.DictReader(StringIO(csv_output)).fieldnames == OBSERVABILITY_PLAN_CSV_COLUMNS
+    assert rows
+    assert {row["section"] for row in rows} >= {
+        "telemetry",
+        "dashboards",
+        "alerts",
+        "ownership",
+        "instrumentation_gaps",
+        "review_cadence",
+    }
+
+    metric = next(row for row in rows if row["item_id"] == "MET1")
+    assert metric["section"] == "telemetry"
+    assert metric["type"] == "metric"
+    assert metric["name"] == "primary_workflow_success_rate"
+    assert metric["owner"] == "engineering_owner"
+    assert metric["source_idea_id"] == "bu-obs"
+    assert metric["title"] == "Agent Workflow Guard"
+    assert metric["evidence_references"] == (
+        "insight:ins-obs; signal:sig-ci; signal:sig-risk; idea:bu-source; spec:evidence_rationale"
+    )
+
+    alert = next(row for row in rows if row["item_id"] == "AL1")
+    assert alert["section"] == "alerts"
+    assert alert["type"] == "alert"
+    assert alert["name"] == "High workflow error rate"
+    assert alert["severity"] == "page"
+    assert alert["signals"] == "MET3; LOG2"
+
+    dashboard = next(row for row in rows if row["item_id"] == "DB1")
+    assert dashboard["section"] == "dashboards"
+    assert dashboard["type"] == "dashboard"
+    assert dashboard["name"] == "Service Health"
+    assert "primary_workflow_latency_p95_ms" in dashboard["panels"]
+
+    owner = next(row for row in rows if row["item_id"] == "OWN2")
+    assert owner["section"] == "ownership"
+    assert owner["suggested_owner"] == "python / typer service owner"
+
+    gap = next(row for row in rows if row["item_id"] == "RVC1")
+    assert gap["section"] == "instrumentation_gaps"
+    assert gap["status"] == "pending"
+    assert gap["signals"] == "MET1; MET2; MET3; MET4"
+
+    cadence = next(row for row in rows if row["section"] == "review_cadence")
+    assert cadence["cadence"] == (
+        "Daily during pilot, weekly before rollout expansion, and after every page alert."
+    )
+
+
 def test_observability_plan_source_and_evidence_traceability() -> None:
     plan = generate_observability_plan(_rich_tact_spec())
 
@@ -215,6 +277,8 @@ def test_observability_plan_source_and_evidence_traceability() -> None:
 def test_observability_plan_is_importable_from_spec_package() -> None:
     plan = exported_generate(_rich_tact_spec())
     markdown = exported_render(plan)
+    csv_output = exported_render_csv(plan)
 
     assert plan["schema_version"] == OBSERVABILITY_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Agent Workflow Guard Observability Plan")
+    assert csv_output.startswith("section,type,source_idea_id")

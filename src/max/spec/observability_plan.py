@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 OBSERVABILITY_PLAN_SCHEMA_VERSION = "max-observability-plan/v1"
+
+OBSERVABILITY_PLAN_CSV_COLUMNS = [
+    "section",
+    "type",
+    "source_idea_id",
+    "title",
+    "workflow_context",
+    "item_id",
+    "name",
+    "category",
+    "severity",
+    "owner",
+    "suggested_owner",
+    "cadence",
+    "field",
+    "description",
+    "definition",
+    "target",
+    "threshold",
+    "response",
+    "panels",
+    "signals",
+    "derived_from",
+    "evidence_references",
+    "status",
+]
 
 
 def generate_observability_plan(tact_spec: dict[str, Any]) -> dict[str, Any]:
@@ -109,6 +137,18 @@ def render_observability_plan_markdown(plan: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_observability_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a generated observability plan as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output, fieldnames=OBSERVABILITY_PLAN_CSV_COLUMNS, lineterminator="\n"
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _metrics(
@@ -835,6 +875,199 @@ def _render_evidence(item: dict[str, Any]) -> list[str]:
         f"- Type: {_text(item.get('type'))}",
         f"- Summary: {_text(item.get('summary'))}",
     ]
+
+
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for section, telemetry_type in (
+        ("metrics", "metric"),
+        ("events", "event"),
+        ("logs", "log"),
+        ("traces", "trace"),
+        ("slos", "slo"),
+    ):
+        for item in _dict_items(plan.get(section)):
+            rows.append(
+                _csv_row(
+                    plan,
+                    section="telemetry",
+                    type_=telemetry_type,
+                    field="definition",
+                    item_id=item.get("id"),
+                    name=item.get("name"),
+                    category=item.get("category"),
+                    owner=item.get("owner"),
+                    description=item.get("description"),
+                    definition=item.get("definition"),
+                    target=item.get("target"),
+                    derived_from=item.get("derived_from"),
+                    evidence_references=item.get("evidence_reference_ids"),
+                )
+            )
+
+    for item in _dict_items(plan.get("dashboards")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="dashboards",
+                type_="dashboard",
+                field="panels",
+                item_id=item.get("id"),
+                name=item.get("title"),
+                owner=item.get("owner"),
+                description=item.get("description"),
+                panels=item.get("panels"),
+                evidence_references=item.get("evidence_reference_ids"),
+            )
+        )
+
+    for item in _dict_items(plan.get("alerts")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="alerts",
+                type_="alert",
+                field="threshold",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                severity=item.get("severity"),
+                owner=item.get("owner"),
+                threshold=item.get("threshold"),
+                response=item.get("response"),
+                signals=item.get("signal_ids"),
+                evidence_references=item.get("evidence_reference_ids"),
+            )
+        )
+
+    for item in _dict_items(plan.get("owners")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="ownership",
+                type_="owner",
+                field="responsibility",
+                item_id=item.get("id"),
+                name=item.get("role"),
+                owner=item.get("role"),
+                suggested_owner=item.get("suggested_owner"),
+                description=item.get("responsibility"),
+            )
+        )
+
+    for item in _dict_items(plan.get("rollout_validation_checks")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="instrumentation_gaps",
+                type_="gap",
+                field="check",
+                item_id=item.get("id"),
+                name=item.get("check"),
+                owner=item.get("owner"),
+                description=item.get("check"),
+                signals=item.get("signal_ids"),
+                evidence_references=item.get("evidence_reference_ids"),
+                status=item.get("status"),
+            )
+        )
+
+    rows.append(
+        _csv_row(
+            plan,
+            section="review_cadence",
+            type_="cadence",
+            field="cadence",
+            item_id="CAD1",
+            name="Observability review cadence",
+            owner="launch_owner",
+            cadence=_review_cadence(plan),
+            description="Review telemetry, dashboards, alerts, unresolved instrumentation gaps, and launch evidence.",
+        )
+    )
+
+    return rows
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    field: Any = None,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    severity: Any = None,
+    owner: Any = None,
+    suggested_owner: Any = None,
+    cadence: Any = None,
+    description: Any = None,
+    definition: Any = None,
+    target: Any = None,
+    threshold: Any = None,
+    response: Any = None,
+    panels: Any = None,
+    signals: Any = None,
+    derived_from: Any = None,
+    evidence_references: Any = None,
+    status: Any = None,
+) -> dict[str, str]:
+    source = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "title": summary.get("title"),
+        "workflow_context": summary.get("workflow_context"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "severity": severity,
+        "owner": owner,
+        "suggested_owner": suggested_owner,
+        "cadence": cadence,
+        "field": field,
+        "description": description,
+        "definition": definition,
+        "target": target,
+        "threshold": threshold,
+        "response": response,
+        "panels": panels,
+        "signals": signals,
+        "derived_from": derived_from,
+        "evidence_references": evidence_references,
+        "status": status,
+    }
+    return {column: _csv_text(values.get(column)) for column in OBSERVABILITY_PLAN_CSV_COLUMNS}
+
+
+def _review_cadence(plan: dict[str, Any]) -> str:
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    if summary.get("risk_count"):
+        return "Daily during pilot, weekly before rollout expansion, and after every page alert."
+    return "Weekly during validation and before rollout expansion."
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _bullets(values: Any) -> list[str]:
