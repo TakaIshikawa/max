@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis import build_design_brief_integration_contract as exported_build
 from max.analysis import render_design_brief_integration_contract as exported_render
+from max.analysis import render_integration_contract_csv as exported_render_csv
 from max.analysis.design_brief_integration_contract import (
     CONTRACT_SECTION_IDS,
+    INTEGRATION_CONTRACT_CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_integration_contract,
     render_design_brief_integration_contract,
+    render_integration_contract_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -92,6 +97,7 @@ def test_render_design_brief_integration_contract_markdown_json_and_invalid_form
     assert report is not None
     rendered_json = render_design_brief_integration_contract(report, fmt="json")
     assert json.loads(rendered_json) == report
+    assert render_design_brief_integration_contract(report, fmt="csv") == render_integration_contract_csv(report)
 
     markdown = render_design_brief_integration_contract(report, fmt="markdown")
     assert markdown.startswith("# Integration Contract: Integration Contract Brief")
@@ -115,6 +121,87 @@ def test_render_design_brief_integration_contract_markdown_json_and_invalid_form
         render_design_brief_integration_contract(report, fmt="yaml")
 
 
+def test_render_integration_contract_csv_headers_rows_and_multi_integration_order(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_integration_contract(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_output = render_integration_contract_csv(report)
+    reader = csv.DictReader(io.StringIO(csv_output))
+    rows = list(reader)
+
+    assert reader.fieldnames == list(INTEGRATION_CONTRACT_CSV_COLUMNS)
+    assert csv_output.splitlines()[0] == ",".join(INTEGRATION_CONTRACT_CSV_COLUMNS)
+    assert [row["integration_name"] for row in rows] == ["Salesforce", "Slack"]
+    assert [row["provider"] for row in rows] == ["Salesforce", "Slack"]
+    assert rows[0]["owner"] == "Engineering owner"
+    assert "Customer or account record" in rows[0]["data_exchanged"]
+    assert "external_id; status; updated_at; owner_or_actor; source_system" in rows[0]["data_exchanged"]
+    assert "OAuth or SSO delegated access" in rows[0]["auth_assumptions"]
+    assert "External system unavailable or rate limited" in rows[0]["failure_modes"]
+    assert "Integration health and latency" in rows[0]["sla_expectations"]
+    assert "design_brief.merged_product_concept" in rows[0]["evidence"]
+    assert "[" not in rows[0]["data_exchanged"]
+    assert "{'" not in rows[0]["data_exchanged"]
+
+
+def test_render_integration_contract_csv_escapes_and_blanks_optional_fields() -> None:
+    report = {
+        "external_systems": [
+            {
+                "system": 'Salesforce, "Enterprise"',
+                "owner": "",
+                "evidence_reference_id": "brief,1",
+            },
+            {"system": "Slack\nConnect"},
+        ],
+        "data_contracts": [
+            {
+                "data_object": 'Account, "renewal"',
+                "required_fields": ["external_id", "status\nreason"],
+                "validation_rules": [],
+            }
+        ],
+        "auth_assumptions": [
+            {
+                "assumption": "",
+                "scope_requirement": 'Use "least privilege", rotate monthly.',
+                "authorization_check": None,
+            }
+        ],
+        "failure_handling": [
+            {
+                "failure_mode": "Rate limit",
+                "handling_requirement": "Retry,\nthen queue.",
+                "user_impact": "",
+            }
+        ],
+        "observability_hooks": [],
+    }
+
+    csv_output = render_integration_contract_csv(report)
+    rows = list(csv.DictReader(io.StringIO(csv_output)))
+
+    assert rows[0]["integration_name"] == 'Salesforce, "Enterprise"'
+    assert rows[0]["owner"] == ""
+    assert rows[0]["data_exchanged"] == (
+        'Account, "renewal"; required_fields: external_id; status\nreason'
+    )
+    assert rows[0]["auth_assumptions"] == 'Use "least privilege", rotate monthly.'
+    assert rows[0]["failure_modes"] == "Rate limit; Retry,\nthen queue."
+    assert rows[0]["sla_expectations"] == ""
+    assert rows[0]["evidence"] == "brief,1"
+    assert rows[1]["integration_name"] == "Slack\nConnect"
+    assert rows[1]["owner"] == ""
+    assert rows[1]["evidence"] == ""
+    assert '"Salesforce, ""Enterprise"""' in csv_output
+    assert '"Slack\nConnect"' in csv_output
+    assert '"Rate limit; Retry,\nthen queue."' in csv_output
+
+
 def test_design_brief_integration_contract_empty_store_returns_none(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "missing_integration_contract.db"), wal_mode=True)
     try:
@@ -134,6 +221,7 @@ def test_design_brief_integration_contract_is_importable_from_analysis_package(t
 
     assert report is not None
     assert exported_render(report).startswith("# Integration Contract: Integration Contract Brief")
+    assert exported_render_csv(report).startswith(",".join(INTEGRATION_CONTRACT_CSV_COLUMNS))
 
 
 def _store_with_brief(tmp_path, *, sparse: bool = False) -> tuple[Store, str]:

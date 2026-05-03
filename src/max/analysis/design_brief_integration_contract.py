@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -19,6 +21,17 @@ CONTRACT_SECTION_IDS: tuple[str, ...] = (
     "failure_handling",
     "observability_hooks",
     "open_questions",
+)
+
+INTEGRATION_CONTRACT_CSV_COLUMNS: tuple[str, ...] = (
+    "integration_name",
+    "provider",
+    "data_exchanged",
+    "auth_assumptions",
+    "failure_modes",
+    "sla_expectations",
+    "owner",
+    "evidence",
 )
 
 _EXTERNAL_SYSTEM_KEYWORDS: tuple[tuple[str, str], ...] = (
@@ -149,9 +162,11 @@ def render_design_brief_integration_contract(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render an integration contract as Markdown or deterministic JSON."""
+    """Render an integration contract as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_integration_contract_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported integration contract format: {fmt}")
 
@@ -189,6 +204,18 @@ def render_design_brief_integration_contract(
         lines.append(f"- **{reference['id']}** ({reference['type']}): {reference['summary']}")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_integration_contract_csv(report: dict[str, Any]) -> str:
+    """Render integration contracts as one deterministic CSV row per integration."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output, fieldnames=INTEGRATION_CONTRACT_CSV_COLUMNS, lineterminator="\n"
+    )
+    writer.writeheader()
+    for row in _integration_contract_csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _external_systems(
@@ -667,6 +694,137 @@ def _render_contract_item(item: dict[str, Any]) -> list[str]:
     lines.append(f"- Source ideas: {_inline_list(item.get('source_idea_ids') or [])}")
     lines.append("")
     return lines
+
+
+def _integration_contract_csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    systems = [item for item in report.get("external_systems") or [] if isinstance(item, dict)]
+    return [_integration_contract_csv_row(report, system) for system in systems]
+
+
+def _integration_contract_csv_row(
+    report: dict[str, Any],
+    system: dict[str, Any],
+) -> dict[str, str]:
+    row = {
+        "integration_name": _csv_text(
+            system.get("integration_name") or system.get("name") or system.get("system")
+        ),
+        "provider": _csv_text(system.get("provider") or system.get("system")),
+        "data_exchanged": _csv_text(_data_exchanged_for_csv(report)),
+        "auth_assumptions": _csv_text(_auth_assumptions_for_csv(report)),
+        "failure_modes": _csv_text(_failure_modes_for_csv(report)),
+        "sla_expectations": _csv_text(_sla_expectations_for_csv(report)),
+        "owner": _csv_text(system.get("owner")),
+        "evidence": _csv_text(_evidence_for_csv(report, system)),
+    }
+    return {column: row.get(column, "") for column in INTEGRATION_CONTRACT_CSV_COLUMNS}
+
+
+def _data_exchanged_for_csv(report: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for contract in _dict_items(report.get("data_contracts")):
+        values.extend(
+            [
+                contract.get("data_object"),
+                _csv_label("direction", contract.get("direction")),
+                _csv_label("required_fields", contract.get("required_fields")),
+                _csv_label("validation_rules", contract.get("validation_rules")),
+            ]
+        )
+    return values
+
+
+def _auth_assumptions_for_csv(report: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for assumption in _dict_items(report.get("auth_assumptions")):
+        values.extend(
+            [
+                assumption.get("assumption"),
+                assumption.get("scope_requirement"),
+                assumption.get("authorization_check"),
+                _csv_label("approval_owner", assumption.get("approval_owner")),
+            ]
+        )
+    return values
+
+
+def _failure_modes_for_csv(report: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for failure in _dict_items(report.get("failure_handling")):
+        values.extend(
+            [
+                failure.get("failure_mode"),
+                failure.get("handling_requirement"),
+                _csv_label("user_impact", failure.get("user_impact")),
+            ]
+        )
+    return values
+
+
+def _sla_expectations_for_csv(report: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for hook in _dict_items(report.get("observability_hooks")):
+        values.extend(
+            [
+                hook.get("signal"),
+                hook.get("hook"),
+                _csv_label("alert_threshold", hook.get("alert_threshold")),
+            ]
+        )
+    return values
+
+
+def _evidence_for_csv(report: dict[str, Any], system: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for item in [
+        system,
+        *_dict_items(report.get("data_contracts")),
+        *_dict_items(report.get("auth_assumptions")),
+        *_dict_items(report.get("failure_handling")),
+        *_dict_items(report.get("observability_hooks")),
+    ]:
+        values.extend(_string_list(item.get("evidence_reference_id")))
+        values.extend(_string_list(item.get("source_reference_ids")))
+    return _dedupe_strings(values)
+
+
+def _csv_label(label: str, value: Any) -> str:
+    text = _csv_text(value)
+    return f"{label}: {text}" if text else ""
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list_items(value) if isinstance(item, dict)]
+
+
+def _list_items(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, set):
+        return sorted(value, key=lambda item: _csv_text(item))
+    return [value]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            if _csv_text(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(text for item in _list_items(value) if (text := _csv_text(item)))
+    return str(value)
 
 
 def _first_with_fallback(

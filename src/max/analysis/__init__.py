@@ -65,6 +65,7 @@ from max.analysis.design_brief_investor_update import (
 from max.analysis.design_brief_integration_contract import (
     build_design_brief_integration_contract,
     render_design_brief_integration_contract,
+    render_integration_contract_csv,
 )
 from max.analysis.design_brief_release_notes import (
     build_design_brief_release_notes,
