@@ -53,6 +53,74 @@ def generate_acceptance_criteria(
     }
 
 
+def render_acceptance_criteria_markdown(criteria: dict[str, Any]) -> str:
+    """Render generated acceptance criteria as deterministic Markdown."""
+    summary = criteria.get("summary") if isinstance(criteria.get("summary"), dict) else {}
+    source = criteria.get("source") if isinstance(criteria.get("source"), dict) else {}
+    title = _text(summary.get("title")) or _text(criteria.get("idea_id")) or "Untitled Idea"
+
+    lines = [
+        f"# Acceptance Criteria: {title}",
+        "",
+        f"- Schema version: {_text(criteria.get('schema_version')) or 'none'}",
+        f"- Idea ID: {_text(criteria.get('idea_id')) or _text(source.get('idea_id')) or 'none'}",
+        f"- Source status: {_text(source.get('status')) or 'none'}",
+        f"- Source domain: {_text(source.get('domain')) or 'none'}",
+        f"- Source category: {_text(source.get('category')) or 'none'}",
+        f"- One-liner: {_text(summary.get('one_liner')) or 'none'}",
+        f"- Workflow context: {_text(summary.get('workflow_context')) or 'none'}",
+        f"- Target user: {_text(summary.get('target_user')) or 'none'}",
+        f"- Buyer: {_text(summary.get('buyer')) or 'none'}",
+        f"- Recommendation: {_text(summary.get('recommendation')) or 'none'}",
+        f"- Overall score: {_text(summary.get('overall_score')) or 'none'}",
+        f"- Evaluation available: {_text(source.get('evaluation_available')) or 'none'}",
+        (
+            "- Evidence density available: "
+            f"{_text(source.get('evidence_density_available')) or 'none'}"
+        ),
+        "",
+    ]
+
+    _extend_section(
+        lines,
+        "Functional Criteria",
+        _dict_items(criteria.get("functional_criteria")),
+        _render_criterion,
+    )
+    _extend_section(
+        lines,
+        "Non-Functional Criteria",
+        _dict_items(criteria.get("non_functional_criteria")),
+        _render_criterion,
+    )
+    _extend_section(
+        lines,
+        "Edge Cases",
+        _dict_items(criteria.get("edge_cases")),
+        _render_edge_case,
+    )
+    _extend_section(
+        lines,
+        "Out of Scope",
+        _list_items(criteria.get("out_of_scope")),
+        _render_bullet_item,
+    )
+    _extend_section(
+        lines,
+        "Evidence Links",
+        _dict_items(criteria.get("evidence_links")),
+        _render_evidence_link,
+    )
+    _extend_section(
+        lines,
+        "Review Checklist",
+        _dict_items(criteria.get("review_checklist")),
+        _render_review_item,
+    )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _functional_criteria(
     unit: BuildableUnit,
     evaluation: UtilityEvaluation | None,
@@ -251,7 +319,82 @@ def _edge_case(edge_case_id: str, condition: str, expected_behavior: str) -> dic
 
 
 def _review_item(item_id: str, item: str, evidence_required: bool) -> dict[str, Any]:
-    return {"id": item_id, "item": item, "status": "pending", "evidence_required": evidence_required}
+    return {
+        "id": item_id,
+        "item": item,
+        "status": "pending",
+        "evidence_required": evidence_required,
+    }
+
+
+def _render_criterion(item: dict[str, Any]) -> list[str]:
+    return [
+        f"### {_text(item.get('id')) or 'AC'}: {_text(item.get('title')) or 'Untitled criterion'}",
+        f"- Statement: {_text(item.get('statement')) or 'not specified'}",
+        f"- Verification: {_text(item.get('verification')) or 'not specified'}",
+        f"- Trace fields: {_join_code(item.get('trace_fields'))}",
+    ]
+
+
+def _render_edge_case(item: dict[str, Any]) -> list[str]:
+    condition = _text(item.get("condition")) or "Unspecified condition"
+    return [
+        f"### {_text(item.get('id')) or 'EC'}: {condition}",
+        f"- Expected behavior: {_text(item.get('expected_behavior')) or 'not specified'}",
+    ]
+
+
+def _render_bullet_item(item: Any) -> list[str]:
+    return [f"- {_text(item) or 'not specified'}"]
+
+
+def _render_evidence_link(item: dict[str, Any]) -> list[str]:
+    return [
+        f"### {_text(item.get('id')) or 'evidence'}",
+        f"- Type: {_text(item.get('type')) or 'none'}",
+        f"- URI: {_text(item.get('uri')) or 'none'}",
+    ]
+
+
+def _render_review_item(item: dict[str, Any]) -> list[str]:
+    return [
+        f"### {_text(item.get('id')) or 'RC'}",
+        f"- Item: {_text(item.get('item')) or 'not specified'}",
+        f"- Status: {_text(item.get('status')) or 'none'}",
+        f"- Evidence required: {_text(item.get('evidence_required')) or 'none'}",
+    ]
+
+
+def _extend_section(
+    lines: list[str],
+    title: str,
+    items: list[Any],
+    renderer,
+) -> None:
+    lines.extend([f"## {title}", ""])
+    if not items:
+        lines.extend(["None.", ""])
+        return
+    for item in items:
+        lines.extend(renderer(item))
+        lines.append("")
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value or [] if isinstance(item, dict)]
+
+
+def _list_items(value: Any) -> list[Any]:
+    if not isinstance(value, list):
+        return []
+    return value
+
+
+def _join_code(value: Any) -> str:
+    items = [_text(item) for item in value or [] if _text(item)]
+    if not items:
+        return "none"
+    return ", ".join(f"`{item}`" for item in items)
 
 
 def _composability_description(unit: BuildableUnit, evaluation: UtilityEvaluation | None) -> str:
@@ -276,3 +419,9 @@ def _evidence_description(unit: BuildableUnit, evidence_density: dict[str, Any] 
 def _compact(value: Any) -> str:
     text = " ".join(str(value or "").split())
     return text or "not specified"
+
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
