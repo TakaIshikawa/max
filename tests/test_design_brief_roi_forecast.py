@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 import json
 
 import pytest
 
 from max.analysis.design_brief_roi_forecast import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_roi_forecast,
     render_design_brief_roi_forecast,
@@ -103,6 +106,160 @@ def test_render_design_brief_roi_forecast_markdown_json_and_invalid_format(
         render_design_brief_roi_forecast(report, fmt="yaml")
 
 
+def test_render_design_brief_roi_forecast_csv_populated_rows(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_roi_forecast(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_roi_forecast(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert {row["design_brief_title"] for row in rows} == {"ROI Forecast Brief"}
+    assert [row["row_type"] for row in rows[:3]] == ["assumption"] * 3
+    assert "implementation_cost_component" in {row["row_type"] for row in rows}
+    assert "benefit_component" in {row["row_type"] for row in rows}
+    assert "payback_range" in {row["row_type"] for row in rows}
+    assert "confidence" in {row["row_type"] for row in rows}
+    assert "evidence_reference" in {row["row_type"] for row in rows}
+    assert "next_action" in {row["row_type"] for row in rows}
+
+    evidence_ids = {item["id"] for item in report["evidence_references"]}
+    cost_row = next(row for row in rows if row["item_id"] == "engineering_delivery")
+    assert cost_row["low_usd"] == str(
+        next(
+            item["low_usd"]
+            for item in report["implementation_cost_bands"]["components"]
+            if item["id"] == "engineering_delivery"
+        )
+    )
+    assert set(cost_row["source_reference_ids"].split("; ")) == evidence_ids
+
+    payback_row = next(row for row in rows if row["row_type"] == "payback_range")
+    assert payback_row["expected_months"] == str(report["payback_range"]["expected_months"])
+    assert payback_row["basis"] == report["payback_range"]["basis"]
+
+    confidence_row = next(row for row in rows if row["row_type"] == "confidence")
+    assert confidence_row["confidence_score"] == str(report["confidence_level"]["score"])
+    assert confidence_row["confidence_level"] == report["confidence_level"]["level"]
+
+
+def test_render_design_brief_roi_forecast_csv_sparse_without_evidence(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path, sparse=True)
+    try:
+        report = build_design_brief_roi_forecast(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(csv.DictReader(StringIO(render_design_brief_roi_forecast(report, fmt="csv"))))
+
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert not [row for row in rows if row["row_type"] == "evidence_reference"]
+    assert any(row["item_id"] == "A4" for row in rows)
+    assert any(row["item_id"] == "thin_evidence_discount" for row in rows)
+    assert all(row["source_reference_ids"] == "" for row in rows)
+    assert rows[-1]["row_type"] == "next_action"
+
+
+def test_render_design_brief_roi_forecast_csv_is_deterministic(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_roi_forecast(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    assert render_design_brief_roi_forecast(report, fmt="csv") == render_design_brief_roi_forecast(
+        report,
+        fmt="csv",
+    )
+
+
+def test_render_design_brief_roi_forecast_csv_numeric_formatting(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_roi_forecast(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rows = list(csv.DictReader(StringIO(render_design_brief_roi_forecast(report, fmt="csv"))))
+
+    money_rows = [
+        row
+        for row in rows
+        if row["row_type"]
+        in {
+            "implementation_cost_component",
+            "implementation_cost_total",
+            "benefit_component",
+            "benefit_total",
+        }
+    ]
+    assert money_rows
+    assert all(row["low_usd"].isdigit() for row in money_rows)
+    assert all(row["high_usd"].isdigit() for row in money_rows)
+    assert all("$" not in row["low_usd"] and "," not in row["low_usd"] for row in money_rows)
+
+    payback_row = next(row for row in rows if row["row_type"] == "payback_range")
+    assert payback_row["expected_months"].isdigit()
+
+
+def test_render_design_brief_roi_forecast_csv_escapes_special_characters() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.design_brief.roi_forecast",
+        "design_brief": {"id": "dbf,csv", "title": 'ROI "Forecast"\nBrief'},
+        "assumptions": [
+            {
+                "id": "A,1",
+                "assumption": 'Validate "buyer", workflow\nand benefit.',
+                "basis": "interview, notes",
+            }
+        ],
+        "implementation_cost_bands": {
+            "components": [
+                {
+                    "id": "cost,1",
+                    "name": 'Engineering "delivery"',
+                    "low_usd": 12000,
+                    "high_usd": 24000,
+                    "rationale": 'Scope includes export, review\nand "handoff".',
+                }
+            ],
+            "total": {"low_usd": 12000, "high_usd": 24000},
+        },
+        "benefit_bands": {
+            "components": [],
+            "total_annual_benefit": {"low_usd": 0, "high_usd": 0},
+        },
+        "payback_range": {"expected_months": 12, "basis": "Cost / benefit."},
+        "confidence_level": {
+            "level": "low",
+            "score": 42,
+            "rationale": 'Needs "more", evidence.',
+        },
+        "evidence_references": [
+            {"id": "ref,1", "type": "note", "description": 'Line one\n"line two"'}
+        ],
+        "next_actions": ['Run "pilot", then\ncompare costs.'],
+    }
+
+    csv_text = render_design_brief_roi_forecast(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert rows[0]["design_brief_title"] == 'ROI "Forecast"\nBrief'
+    assert rows[0]["item_name"] == 'Validate "buyer", workflow\nand benefit.'
+    assert rows[-1]["action_text"] == 'Run "pilot", then\ncompare costs.'
+    assert '"ROI ""Forecast""\nBrief"' in csv_text
+    assert '"Validate ""buyer"", workflow\nand benefit."' in csv_text
+
+
 def test_roi_forecast_filename_sanitizes_brief_id_and_title() -> None:
     brief = {"id": "dbf/roi 001", "title": "ROI Forecast: API Brief!"}
 
@@ -113,6 +270,10 @@ def test_roi_forecast_filename_sanitizes_brief_id_and_title() -> None:
     assert (
         roi_forecast_filename(brief, fmt="json")
         == "dbf-roi-001-ROI-Forecast-API-Brief-roi-forecast.json"
+    )
+    assert (
+        roi_forecast_filename(brief, fmt="csv")
+        == "dbf-roi-001-ROI-Forecast-API-Brief-roi-forecast.csv"
     )
 
 
