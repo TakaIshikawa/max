@@ -15,6 +15,7 @@ from max.analysis.design_brief_accessibility_review import (
     accessibility_review_filename,
     build_design_brief_accessibility_review,
     render_design_brief_accessibility_review,
+    render_design_brief_accessibility_review_markdown,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -87,9 +88,12 @@ def test_render_design_brief_accessibility_review_json_and_markdown_match_conten
     assert parsed["accessibility_risks"][0]["title"] in render_design_brief_accessibility_review(report, "markdown")
 
     markdown = render_design_brief_accessibility_review(report, "markdown")
+    assert markdown == render_design_brief_accessibility_review_markdown(report)
     assert markdown.startswith("# Accessibility Review: Accessible Support Triage Brief")
+    assert markdown.endswith("\n")
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
+    assert "Review gate: accessibility_review_required" in markdown
     assert "## Design Brief Summary" in markdown
     assert "## Affected User Groups" in markdown
     assert "## Accessibility Risks" in markdown
@@ -98,12 +102,44 @@ def test_render_design_brief_accessibility_review_json_and_markdown_match_conten
     assert "## Validation Tasks" in markdown
     assert "## Evidence References" in markdown
     assert "WCAG1 perceivable" in markdown
+    assert "2.1.1" in markdown
+    assert "Primary workflow may not be keyboard operable" in markdown
+    assert "Keyboard-only primary journey" in markdown
     assert "sig-a11y-1" in markdown
     assert "{'" not in markdown
     assert "[{" not in markdown
 
     with pytest.raises(ValueError, match="Unsupported accessibility review format: yaml"):
         render_design_brief_accessibility_review(report, "yaml")
+
+
+def test_render_design_brief_accessibility_review_markdown_handles_empty_sections() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "design_brief": {
+            "id": "dbf-empty",
+            "title": "Empty Accessibility",
+            "readiness_score": 0,
+            "source_idea_ids": [],
+        },
+        "summary": {"review_gate": "needs_accessibility_discovery"},
+    }
+
+    markdown = render_design_brief_accessibility_review(report, fmt="markdown")
+
+    assert markdown.startswith("# Accessibility Review: Empty Accessibility")
+    assert markdown.endswith("\n")
+    assert "Design brief: `dbf-empty`" in markdown
+    assert "Review gate: needs_accessibility_discovery" in markdown
+    assert "- Summary: Not specified" in markdown
+    assert "- Fallbacks used: none" in markdown
+    assert "## Affected User Groups\n\n- None" in markdown
+    assert "## Accessibility Risks\n\n- None" in markdown
+    assert "## WCAG-Oriented Checks\n\n- None" in markdown
+    assert "## Inclusive Design Opportunities\n\n- None" in markdown
+    assert "## Validation Tasks\n\n- None" in markdown
+    assert "## Evidence References\n\n- None" in markdown
 
 
 def test_csv_rendering_includes_stable_accessibility_rows(tmp_path) -> None:

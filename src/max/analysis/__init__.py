@@ -118,6 +118,7 @@ from max.analysis.design_brief_accessibility_review import (
     accessibility_review_filename,
     build_design_brief_accessibility_review,
     render_design_brief_accessibility_review,
+    render_design_brief_accessibility_review_markdown,
 )
 from max.analysis.design_brief_churn_risk_report import (
     build_design_brief_churn_risk_report,
@@ -228,6 +229,7 @@ __all__ = [
     "render_design_brief_work_breakdown",
     "render_design_brief_work_breakdown_csv",
     "render_design_brief_accessibility_review",
+    "render_design_brief_accessibility_review_markdown",
     "render_design_brief_churn_risk_report",
     "render_design_brief_competitive_alternatives",
     "render_design_brief_competitive_alternatives_markdown",
