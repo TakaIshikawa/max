@@ -245,10 +245,15 @@ def test_render_design_brief_privacy_impact_assessment_csv_has_stable_rows(tmp_p
     assert {row["section"] for row in rows} == {
         "data_categories",
         "processing_purposes",
-        "risk_areas",
+        "lawful_basis_consent_assumptions",
+        "retention",
+        "vendors_subprocessors",
+        "user_rights_impacts",
+        "residual_risks",
         "mitigations",
         "owners",
         "launch_gates",
+        "evidence_references",
     }
     assert all(row["design_brief_id"] == brief_id for row in rows)
     assert all(row["design_brief_title"] == "Care Handoff Privacy Brief" for row in rows)
@@ -259,15 +264,52 @@ def test_render_design_brief_privacy_impact_assessment_csv_has_stable_rows(tmp_p
     assert sensitive_category["section"] == "data_categories"
     assert sensitive_category["owner"] == "Privacy owner"
     assert sensitive_category["status"] == "assumed_possible_pending_privacy_review"
+    assert sensitive_category["data_handling"] == "sensitive_personal_data"
+    assert sensitive_category["evidence_references"] == "sig-privacy"
     assert sensitive_category["source_fields"] == "domain; theme; risks; domain_risks"
     assert sensitive_category["source_idea_ids"] == "bu-privacy-lead; bu-privacy-support"
     assert sensitive_category["details"] == '{"classification":"sensitive_personal_data"}'
 
     sensitive_risk = next(row for row in rows if row["title"] == "Sensitive or regulated data handling")
-    assert sensitive_risk["section"] == "risk_areas"
+    assert sensitive_risk["section"] == "residual_risks"
+    assert sensitive_risk["row_type"] == "residual_risk"
     assert sensitive_risk["severity"] == "high"
+    assert sensitive_risk["risk"] == sensitive_risk["description"]
     assert sensitive_risk["data_category_ids"] == "regulated_sensitive_data"
     assert sensitive_risk["mitigation_ids"] == "M2; M3; M6"
+
+    lawful_basis = next(
+        row
+        for row in rows
+        if row["section"] == "lawful_basis_consent_assumptions"
+        and row["item_id"] == "LB-core_workflow_delivery"
+    )
+    assert lawful_basis["owner"] == "Privacy owner"
+    assert lawful_basis["status"] == "assumption_pending_privacy_review"
+    assert lawful_basis["mitigation"] == "M2"
+    assert "customer_instructions_or_contractual_necessity" in lawful_basis["details"]
+
+    retention = next(row for row in rows if row["item_id"] == "RET-regulated_sensitive_data")
+    assert retention["section"] == "retention"
+    assert retention["owner"] == "Engineering owner"
+    assert retention["mitigation_ids"] == "M4"
+
+    vendor_review = next(row for row in rows if row["section"] == "vendors_subprocessors")
+    assert vendor_review["row_type"] == "vendor_subprocessor_review"
+    assert vendor_review["data_category_ids"] == "third_party_data"
+    assert vendor_review["mitigation"] == "M5"
+
+    user_rights = next(row for row in rows if row["section"] == "user_rights_impacts")
+    assert user_rights["row_type"] == "user_rights_impact"
+    assert user_rights["mitigation_ids"] == "M2; M4"
+
+    mitigation = next(row for row in rows if row["item_id"] == "M6")
+    assert mitigation["section"] == "mitigations"
+    assert mitigation["mitigation"] == mitigation["description"]
+
+    evidence = next(row for row in rows if row["section"] == "evidence_references")
+    assert evidence["item_id"] == "sig-privacy"
+    assert evidence["source_idea_ids"] == "bu-privacy-lead; bu-privacy-support"
 
     gate_rows = [row for row in rows if row["section"] == "launch_gates"]
     assert any(row["status"] == "blocked" and row["owner"] == "Privacy owner" for row in gate_rows)

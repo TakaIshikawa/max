@@ -17,6 +17,7 @@ CSV_COLUMNS: tuple[str, ...] = (
     "privacy_gate",
     "design_source_idea_ids",
     "section",
+    "row_type",
     "item_id",
     "title",
     "description",
@@ -24,6 +25,10 @@ CSV_COLUMNS: tuple[str, ...] = (
     "status",
     "severity",
     "priority",
+    "data_handling",
+    "risk",
+    "mitigation",
+    "evidence_references",
     "source_fields",
     "source_idea_ids",
     "data_category_ids",
@@ -366,10 +371,13 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "data_categories",
                 category,
+                row_type="data_category",
                 title=category.get("title"),
                 description=category.get("description"),
                 owner=category.get("owner"),
                 status=category.get("collection_status"),
+                data_handling=category.get("classification"),
+                evidence_references=_evidence_references(report),
                 source_fields=category.get("source_fields"),
                 source_idea_ids=category.get("source_idea_ids"),
                 details={
@@ -384,9 +392,12 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "processing_purposes",
                 purpose,
+                row_type="processing_purpose",
                 title=purpose.get("title"),
                 description=purpose.get("description"),
                 owner=purpose.get("owner"),
+                data_handling=purpose.get("purpose_limit"),
+                evidence_references=_evidence_references(report),
                 source_fields=purpose.get("source_fields"),
                 data_category_ids=purpose.get("data_category_ids"),
                 details={
@@ -395,16 +406,24 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
+    rows.extend(_csv_lawful_basis_rows(report))
+    rows.extend(_csv_retention_rows(report))
+    rows.extend(_csv_vendor_rows(report))
+    rows.extend(_csv_user_rights_rows(report))
+
     for risk in report.get("risk_areas") or []:
         rows.append(
             _csv_row(
                 report,
-                "risk_areas",
+                "residual_risks",
                 risk,
+                row_type="residual_risk",
                 title=risk.get("title"),
                 description=risk.get("description"),
                 owner=risk.get("owner"),
                 severity=risk.get("severity"),
+                risk=risk.get("description"),
+                evidence_references=_evidence_references(report),
                 source_fields=risk.get("source_fields"),
                 source_idea_ids=risk.get("source_idea_ids"),
                 data_category_ids=risk.get("data_category_ids"),
@@ -418,10 +437,13 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "mitigations",
                 mitigation,
+                row_type="mitigation",
                 title=mitigation.get("title"),
                 description=mitigation.get("action"),
                 owner=mitigation.get("owner"),
                 status=mitigation.get("status"),
+                mitigation=mitigation.get("action"),
+                evidence_references=_evidence_references(report),
                 source_fields=mitigation.get("source_fields"),
             )
         )
@@ -432,10 +454,12 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "open_questions",
                 question,
+                row_type="open_question",
                 title=question.get("question"),
                 description=question.get("question"),
                 owner=question.get("owner"),
                 priority=question.get("priority"),
+                evidence_references=_evidence_references(report),
             )
         )
 
@@ -445,6 +469,7 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "owners",
                 owner,
+                row_type="owner",
                 item_id=owner.get("role"),
                 title=owner.get("role"),
                 description=owner.get("responsibility"),
@@ -458,6 +483,7 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
                 report,
                 "launch_gates",
                 gate,
+                row_type="launch_gate",
                 title=gate.get("recommendation"),
                 description=gate.get("criteria"),
                 owner=gate.get("owner"),
@@ -465,6 +491,144 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
+    rows.extend(_csv_evidence_rows(report))
+    return rows
+
+
+def _csv_lawful_basis_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for purpose in report.get("processing_purposes") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "lawful_basis_consent_assumptions",
+                purpose,
+                row_type="lawful_basis_consent_assumption",
+                item_id=f"LB-{purpose.get('id')}",
+                title=f"Lawful basis and consent assumption: {purpose.get('title')}",
+                description="Confirm lawful basis, notice, consent, and customer instruction assumptions before pilot data flows.",
+                owner="Privacy owner",
+                status="assumption_pending_privacy_review",
+                priority="high",
+                data_handling=purpose.get("purpose_limit"),
+                mitigation="M2",
+                evidence_references=_evidence_references(report),
+                source_fields=purpose.get("source_fields"),
+                data_category_ids=purpose.get("data_category_ids"),
+                mitigation_ids=["M2"],
+                details={
+                    "lawful_basis_assumption": "customer_instructions_or_contractual_necessity_pending_privacy_review",
+                    "consent_assumption": "confirm_notice_consent_or_customer_instruction_before_processing",
+                },
+            )
+        )
+    return rows
+
+
+def _csv_retention_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for category in report.get("data_categories") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "retention",
+                category,
+                row_type="retention_control",
+                item_id=f"RET-{category.get('id')}",
+                title=f"Retention and deletion: {category.get('title')}",
+                description="Define retention duration, deletion owner, export path, and exception handling for this data category.",
+                owner="Engineering owner",
+                status="define_before_pilot",
+                priority="high" if category.get("classification") == "sensitive_personal_data" else "medium",
+                data_handling=category.get("collection_status"),
+                mitigation="M4",
+                evidence_references=_evidence_references(report),
+                source_fields=category.get("source_fields"),
+                source_idea_ids=category.get("source_idea_ids"),
+                data_category_ids=[category.get("id")],
+                mitigation_ids=["M4"],
+            )
+        )
+    return rows
+
+
+def _csv_vendor_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    context = report.get("privacy_context") or {}
+    category_ids = [category.get("id") for category in report.get("data_categories") or []]
+    has_vendor_scope = "third_party_data" in category_ids or any(
+        term in str(context.get("source_text") or "") for term in ("api", "vendor", "integration", "third-party", "adapter")
+    )
+    if not has_vendor_scope:
+        return []
+    return [
+        _csv_row(
+            report,
+            "vendors_subprocessors",
+            {"id": "VSP1"},
+            row_type="vendor_subprocessor_review",
+            title="Vendor and subprocessor review",
+            description="Identify external processors, subprocessors, APIs, transfer paths, and required data processing terms.",
+            owner="Security owner",
+            status="review_required",
+            priority="high",
+            data_handling="third_party_or_integration_data_transfer",
+            risk="External processing may expose customer, user, workflow, telemetry, or evidence data without recorded review.",
+            mitigation="M5",
+            evidence_references=_evidence_references(report),
+            source_fields=["tech_approach", "suggested_stack", "mvp_scope", "risks"],
+            source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+            data_category_ids=["third_party_data"] if "third_party_data" in category_ids else category_ids,
+            mitigation_ids=["M5"],
+        )
+    ]
+
+
+def _csv_user_rights_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    category_ids = [category.get("id") for category in report.get("data_categories") or []]
+    if not category_ids:
+        return []
+    return [
+        _csv_row(
+            report,
+            "user_rights_impacts",
+            {"id": "URI1"},
+            row_type="user_rights_impact",
+            title="Access, export, deletion, and correction impacts",
+            description="Confirm how users or customer administrators can access, export, correct, delete, or restrict in-scope data.",
+            owner="Privacy owner",
+            status="assess_before_pilot",
+            priority="high",
+            data_handling="rights_request_and_admin_workflow_impact",
+            mitigation="M2; M4",
+            evidence_references=_evidence_references(report),
+            source_fields=["workflow_context", "mvp_scope", "validation_plan"],
+            source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+            data_category_ids=category_ids,
+            mitigation_ids=["M2", "M4"],
+        )
+    ]
+
+
+def _csv_evidence_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    evidence = _evidence_references(report)
+    rows: list[dict[str, str]] = []
+    for index, reference in enumerate(evidence, 1):
+        rows.append(
+            _csv_row(
+                report,
+                "evidence_references",
+                {"id": reference},
+                row_type="evidence_reference",
+                item_id=reference,
+                title=reference,
+                description="Evidence reference used to support the privacy impact assessment.",
+                owner="Research owner",
+                status="referenced",
+                evidence_references=[reference],
+                source_idea_ids=_source_idea_ids_for_evidence(report, reference),
+                details={"sequence": index},
+            )
+        )
     return rows
 
 
@@ -485,6 +649,11 @@ def _csv_row(
     data_category_ids: Any = None,
     mitigation_ids: Any = None,
     details: dict[str, Any] | None = None,
+    row_type: Any = None,
+    data_handling: Any = None,
+    risk: Any = None,
+    mitigation: Any = None,
+    evidence_references: Any = None,
 ) -> dict[str, str]:
     brief = report.get("design_brief") or {}
     summary = report.get("summary") or {}
@@ -494,6 +663,7 @@ def _csv_row(
         "privacy_gate": summary.get("privacy_gate"),
         "design_source_idea_ids": brief.get("source_idea_ids"),
         "section": section,
+        "row_type": row_type,
         "item_id": item_id if item_id is not None else item.get("id"),
         "title": title if title is not None else item.get("title"),
         "description": description if description is not None else item.get("description"),
@@ -501,6 +671,10 @@ def _csv_row(
         "status": status if status is not None else item.get("status"),
         "severity": severity if severity is not None else item.get("severity"),
         "priority": priority if priority is not None else item.get("priority"),
+        "data_handling": data_handling,
+        "risk": risk,
+        "mitigation": mitigation,
+        "evidence_references": evidence_references,
         "source_fields": source_fields if source_fields is not None else item.get("source_fields"),
         "source_idea_ids": source_idea_ids if source_idea_ids is not None else item.get("source_idea_ids"),
         "data_category_ids": data_category_ids if data_category_ids is not None else item.get("data_category_ids"),
@@ -918,6 +1092,23 @@ def _csv_cell(value: Any) -> str:
             return ""
         return json.dumps(value, sort_keys=True, separators=(",", ":"))
     return _clean(value)
+
+
+def _evidence_references(report: dict[str, Any]) -> list[str]:
+    context = report.get("privacy_context") or {}
+    evidence = _string_list(context.get("evidence"))
+    if evidence:
+        return evidence
+    brief = report.get("design_brief") or {}
+    return _string_list(brief.get("source_idea_ids"))
+
+
+def _source_idea_ids_for_evidence(report: dict[str, Any], reference: str) -> list[str]:
+    matches = []
+    for idea in report.get("source_ideas") or []:
+        if reference in _string_list(idea.get("evidence_signals")):
+            matches.append(str(idea.get("id")))
+    return matches or _string_list((report.get("design_brief") or {}).get("source_idea_ids"))
 
 
 def _inline_ids(values: list[str]) -> str:
