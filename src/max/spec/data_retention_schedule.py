@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,31 @@ from max.types.evaluation import UtilityEvaluation
 
 
 DATA_RETENTION_SCHEDULE_SCHEMA_VERSION = "max-data-retention-schedule/v1"
+DATA_RETENTION_SCHEDULE_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "source_status",
+    "source_domain",
+    "source_category",
+    "tact_spec_schema_version",
+    "title",
+    "workflow_context",
+    "target_user",
+    "buyer",
+    "retention_gate",
+    "rule_id",
+    "data_category_id",
+    "data_category",
+    "purpose",
+    "retention_period",
+    "deletion_trigger",
+    "storage_location",
+    "owner",
+    "legal_privacy_rationale",
+    "deletion_trigger_ids",
+    "evidence_refs",
+)
 
 _CATEGORY_DEFINITIONS = (
     (
@@ -232,6 +259,20 @@ def render_data_retention_schedule_markdown(
     )
     _extend_section(lines, "Next Actions", schedule.get("next_actions") or [], _render_action)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_data_retention_schedule_csv(schedule: dict[str, Any]) -> str:
+    """Render retention rules as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=DATA_RETENTION_SCHEDULE_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(schedule or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _retention_context(
@@ -696,6 +737,102 @@ def _list(value: Any) -> list[Any]:
     if isinstance(value, tuple):
         return list(value)
     return [value]
+
+
+def _csv_rows(schedule: dict[str, Any]) -> list[dict[str, str]]:
+    categories_by_id = {
+        _text(category.get("id")): category
+        for category in _dict_items(schedule.get("data_categories"))
+        if _text(category.get("id"))
+    }
+    trigger_ids_by_rule_id: dict[str, list[str]] = {}
+    for trigger in _dict_items(schedule.get("deletion_triggers")):
+        trigger_id = _text(trigger.get("id"))
+        for rule_id in _list(trigger.get("applies_to_rule_ids")):
+            rule_key = _text(rule_id)
+            if rule_key and trigger_id:
+                trigger_ids_by_rule_id.setdefault(rule_key, []).append(trigger_id)
+
+    rows: list[dict[str, str]] = []
+    for rule in _dict_items(schedule.get("retention_rules")):
+        category = categories_by_id.get(_text(rule.get("data_category_id")), {})
+        rows.append(
+            _csv_row(
+                schedule,
+                rule_id=rule.get("id"),
+                data_category_id=rule.get("data_category_id"),
+                data_category=rule.get("data_category") or category.get("label"),
+                purpose=rule.get("purpose") or category.get("purpose"),
+                retention_period=rule.get("retention_period"),
+                deletion_trigger=rule.get("deletion_trigger"),
+                storage_location=_storage_location(rule, schedule),
+                owner=rule.get("owner") or category.get("owner"),
+                legal_privacy_rationale=rule.get("legal_privacy_rationale")
+                or category.get("legal_privacy_rationale"),
+                deletion_trigger_ids=trigger_ids_by_rule_id.get(_text(rule.get("id")), []),
+                evidence_refs=rule.get("evidence_refs") or category.get("evidence_refs"),
+            )
+        )
+    return rows
+
+
+def _csv_row(schedule: dict[str, Any], **values: Any) -> dict[str, str]:
+    source = schedule.get("source") if isinstance(schedule.get("source"), dict) else {}
+    summary = schedule.get("summary") if isinstance(schedule.get("summary"), dict) else {}
+    row = {
+        "schema_version": schedule.get("schema_version"),
+        "kind": schedule.get("kind"),
+        "idea_id": schedule.get("idea_id") or source.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_domain": source.get("domain"),
+        "source_category": source.get("category"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "workflow_context": summary.get("workflow_context"),
+        "target_user": summary.get("target_user"),
+        "buyer": summary.get("buyer"),
+        "retention_gate": summary.get("retention_gate"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in DATA_RETENTION_SCHEDULE_CSV_COLUMNS}
+
+
+def _storage_location(rule: dict[str, Any], schedule: dict[str, Any]) -> str:
+    category_id = _text(rule.get("data_category_id"))
+    context = schedule.get("retention_context") if isinstance(schedule.get("retention_context"), dict) else {}
+    if category_id == "backups_caches_and_derived_copies":
+        return "backups; caches; queues; derived stores"
+    if category_id == "third_party_transfers":
+        return "approved third-party integration systems"
+    if category_id == "exports_and_reports":
+        return "generated export and report storage"
+    if category_id == "logs_and_telemetry":
+        return "logs, audit trails, metrics, traces, and telemetry stores"
+    if category_id == "authentication_and_access":
+        return "identity, secret, and access-control stores"
+    if context.get("mentions_external_transfer"):
+        return "primary application storage and approved integration systems"
+    return "primary application storage"
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _compact(value: Any) -> str:
