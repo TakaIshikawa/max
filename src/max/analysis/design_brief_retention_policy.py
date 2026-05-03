@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.retention_policy.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "item_id",
+    "item_name",
+    "sensitivity",
+    "source_fields",
+    "data_class_id",
+    "retention_period",
+    "deletion_trigger",
+    "owner",
+    "rationale",
+    "control",
+    "verification",
+    "action",
+)
 
 
 def build_design_brief_retention_policy(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -62,13 +81,25 @@ def render_design_brief_retention_policy(
     *,
     fmt: str = "markdown",
 ) -> str:
-    """Render a retention policy as Markdown or deterministic JSON."""
+    """Render a retention policy as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(policy, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_retention_policy_csv(policy)
     if fmt != "markdown":
         raise ValueError(f"Unsupported retention policy format: {fmt}")
 
     return _render_design_brief_retention_policy_markdown(policy)
+
+
+def render_design_brief_retention_policy_csv(policy: dict[str, Any]) -> str:
+    """Render a retention policy as deterministic sectioned CSV rows."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(policy):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _render_design_brief_retention_policy_markdown(policy: dict[str, Any]) -> str:
@@ -220,8 +251,126 @@ def _render_design_brief_retention_policy_markdown(policy: dict[str, Any]) -> st
 
 
 def retention_policy_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-retention-policy.{extension}"
+
+
+def _csv_rows(policy: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for data_class in _list_of_dicts(policy.get("data_classes")):
+        rows.append(
+            _csv_row(
+                policy,
+                section="data_classes",
+                item_id=data_class.get("id"),
+                item_name=data_class.get("name"),
+                sensitivity=data_class.get("sensitivity"),
+                source_fields=data_class.get("source_fields"),
+                data_class_id=data_class.get("id"),
+                rationale=data_class.get("description"),
+            )
+        )
+
+    for rule in _list_of_dicts(policy.get("retention_rules")):
+        rows.append(
+            _csv_row(
+                policy,
+                section="retention_rules",
+                item_id=rule.get("id"),
+                item_name=rule.get("data_class_id"),
+                data_class_id=rule.get("data_class_id"),
+                retention_period=rule.get("retention_period"),
+                deletion_trigger=rule.get("deletion_trigger"),
+                owner=rule.get("owner"),
+                rationale=rule.get("rationale"),
+            )
+        )
+
+    for control in _list_of_dicts(policy.get("deletion_controls")):
+        rows.append(
+            _csv_row(
+                policy,
+                section="deletion_controls",
+                item_id=control.get("id"),
+                item_name=control.get("id"),
+                control=control.get("control"),
+                verification=control.get("verification"),
+                action=control.get("control"),
+            )
+        )
+
+    for index, requirement in enumerate(_string_list(policy.get("audit_requirements")), start=1):
+        rows.append(
+            _csv_row(
+                policy,
+                section="audit_requirements",
+                item_id=f"AR{index}",
+                item_name=f"Audit requirement {index}",
+                control=requirement,
+                verification=requirement,
+            )
+        )
+
+    for index, question in enumerate(_string_list(policy.get("open_questions")), start=1):
+        rows.append(
+            _csv_row(
+                policy,
+                section="open_questions",
+                item_id=f"OQ{index}",
+                item_name=f"Open question {index}",
+                action=question,
+            )
+        )
+
+    for index, action in enumerate(
+        _string_list(policy.get("recommended_next_actions")),
+        start=1,
+    ):
+        rows.append(
+            _csv_row(
+                policy,
+                section="recommended_next_actions",
+                item_id=f"RNA{index}",
+                item_name=f"Recommended next action {index}",
+                action=action,
+            )
+        )
+
+    return rows
+
+
+def _csv_row(policy: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = _dict_value(policy.get("design_brief"))
+    source = _dict_value(policy.get("source"))
+    row = {
+        "design_brief_id": brief.get("id") or source.get("id"),
+        "design_brief_title": brief.get("title"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return _compact(value)
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(key) or _csv_text(item)
+        )
+    if isinstance(value, set):
+        return "; ".join(
+            text
+            for item in sorted(value, key=lambda item: _csv_text(item))
+            if (text := _csv_text(item))
+        )
+    if isinstance(value, (list, tuple)):
+        return "; ".join(text for item in value if (text := _csv_text(item)))
+    return _compact(value)
 
 
 def _data_classes(design_brief: dict[str, Any]) -> list[dict[str, Any]]:
