@@ -200,101 +200,155 @@ def render_design_brief_accessibility_review(report: dict[str, Any], fmt: str = 
     if fmt != "markdown":
         raise ValueError(f"Unsupported accessibility review format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    return render_design_brief_accessibility_review_markdown(report)
+
+
+def render_design_brief_accessibility_review_markdown(report: dict[str, Any]) -> str:
+    """Render an accessibility review as stable Markdown."""
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
     lines = [
-        f"# Accessibility Review: {brief['title']}",
+        f"# Accessibility Review: {_markdown_text(brief.get('title'), 'Untitled design brief')}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Kind: `{report['kind']}`",
-        f"Design brief: `{brief['id']}`",
-        f"Status: {brief.get('design_status') or 'unknown'}",
+        f"Schema: `{_markdown_text(report.get('schema_version'), 'unknown')}`",
+        f"Kind: `{_markdown_text(report.get('kind'), 'unknown')}`",
+        f"Design brief: `{_markdown_text(brief.get('id'), 'unknown')}`",
+        f"Status: {_markdown_text(brief.get('design_status'), 'unknown')}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
-        f"Review gate: {summary['review_gate']}",
-        f"Source ideas: {_inline_list(brief.get('source_idea_ids') or [])}",
+        f"Review gate: {_markdown_text(summary.get('review_gate'), 'unknown')}",
+        f"Source ideas: {_markdown_list(brief.get('source_idea_ids'))}",
         "",
         "## Design Brief Summary",
         "",
-        f"- Summary: {brief['summary']}",
-        f"- Primary user: {brief['primary_user']}",
-        f"- Buyer: {brief['buyer']}",
-        f"- Workflow: {brief['workflow_context']}",
-        f"- Fallbacks used: {_inline_list(summary['fallbacks_used'])}",
+        f"- Summary: {_markdown_text(brief.get('summary'), 'Not specified')}",
+        f"- Primary user: {_markdown_text(brief.get('primary_user'), 'Not specified')}",
+        f"- Buyer: {_markdown_text(brief.get('buyer'), 'Not specified')}",
+        f"- Workflow: {_markdown_text(brief.get('workflow_context'), 'Not specified')}",
+        f"- Fallbacks used: {_markdown_list(summary.get('fallbacks_used'))}",
         "",
         "## Affected User Groups",
         "",
     ]
 
-    for group in report["affected_user_groups"]:
-        lines.extend(
-            [
-                f"### {group['id']}: {group['name']}",
-                "",
-                f"- Owner: {group['owner']}",
-                f"- Relevance: {group['relevance']}",
-                f"- Source ideas: {_inline_list(group['source_idea_ids'])}",
-                "- Access needs:",
-            ]
-        )
-        for need in group["access_needs"]:
-            lines.append(f"  - {need}")
-        lines.append("")
+    groups = _list_of_dicts(report.get("affected_user_groups"))
+    if groups:
+        for group in groups:
+            lines.extend(
+                [
+                    f"### {_markdown_text(group.get('id'), 'group')}: {_markdown_text(group.get('name'), 'Unnamed group')}",
+                    "",
+                    f"- Owner: {_markdown_text(group.get('owner'), 'Unassigned')}",
+                    f"- Relevance: {_markdown_text(group.get('relevance'), 'Not specified')}",
+                    f"- Source ideas: {_markdown_list(group.get('source_idea_ids'))}",
+                    "- Access needs:",
+                ]
+            )
+            needs = _string_list(group.get("access_needs"))
+            if needs:
+                for need in needs:
+                    lines.append(f"  - {need}")
+            else:
+                lines.append("  - None")
+            lines.append("")
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Accessibility Risks", ""])
-    for risk in report["accessibility_risks"]:
-        lines.extend(
-            [
-                f"### {risk['id']}: {risk['title']}",
-                "",
-                f"- Severity: {risk['severity']}",
-                f"- Owner: {risk['owner']}",
-                f"- Affected user groups: {_inline_list(risk['affected_user_group_ids'])}",
-                f"- WCAG refs: {_inline_list(risk['wcag_refs'])}",
-                f"- Evidence/source ideas: {_inline_list(risk['source_idea_ids'])}",
-                "",
-                risk["description"],
-                "",
-            ]
-        )
+    risks = _list_of_dicts(report.get("accessibility_risks"))
+    if risks:
+        for risk in risks:
+            lines.extend(
+                [
+                    f"### {_markdown_text(risk.get('id'), 'risk')}: {_markdown_text(risk.get('title'), 'Untitled risk')}",
+                    "",
+                    f"- Severity: {_markdown_text(risk.get('severity'), 'unknown')}",
+                    f"- Owner: {_markdown_text(risk.get('owner'), 'Unassigned')}",
+                    f"- Affected user groups: {_markdown_list(risk.get('affected_user_group_ids'))}",
+                    f"- WCAG refs: {_markdown_list(risk.get('wcag_refs'))}",
+                    f"- Evidence/source ideas: {_markdown_list(risk.get('source_idea_ids'))}",
+                    "",
+                    _markdown_text(risk.get("description"), "Not specified"),
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## WCAG-Oriented Checks", ""])
-    for check in report["wcag_oriented_checks"]:
-        lines.extend(
-            [
-                f"- **{check['id']} {check['principle']}** ({check['owner']}): {check['check']}",
-                f"  WCAG refs: {_inline_list(check['wcag_refs'])}",
-                f"  Validation method: {check['validation_method']}",
-                f"  Related risks: {_inline_list(check['risk_ids'])}",
-            ]
-        )
+    checks = _list_of_dicts(report.get("wcag_oriented_checks"))
+    if checks:
+        for check in checks:
+            lines.extend(
+                [
+                    (
+                        f"- **{_markdown_text(check.get('id'), 'WCAG')} "
+                        f"{_markdown_text(check.get('principle'), 'principle')}** "
+                        f"({_markdown_text(check.get('owner'), 'Unassigned')}): "
+                        f"{_markdown_text(check.get('check'), 'Not specified')}"
+                    ),
+                    f"  WCAG refs: {_markdown_list(check.get('wcag_refs'))}",
+                    f"  Validation method: {_markdown_text(check.get('validation_method'), 'Not specified')}",
+                    f"  Related risks: {_markdown_list(check.get('risk_ids'))}",
+                ]
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Inclusive Design Opportunities", ""])
-    for opportunity in report["inclusive_design_opportunities"]:
-        lines.extend(
-            [
-                f"- **{opportunity['id']} {opportunity['title']}** ({opportunity['owner']}): {opportunity['opportunity']}",
-                f"  Expected benefit: {opportunity['expected_benefit']}",
-            ]
-        )
+    opportunities = _list_of_dicts(report.get("inclusive_design_opportunities"))
+    if opportunities:
+        for opportunity in opportunities:
+            lines.extend(
+                [
+                    (
+                        f"- **{_markdown_text(opportunity.get('id'), 'opportunity')} "
+                        f"{_markdown_text(opportunity.get('title'), 'Untitled opportunity')}** "
+                        f"({_markdown_text(opportunity.get('owner'), 'Unassigned')}): "
+                        f"{_markdown_text(opportunity.get('opportunity'), 'Not specified')}"
+                    ),
+                    f"  Expected benefit: {_markdown_text(opportunity.get('expected_benefit'), 'Not specified')}",
+                ]
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Validation Tasks", ""])
-    for task in report["validation_tasks"]:
-        lines.extend(
-            [
-                f"- **{task['id']} {task['task']}** ({task['owner']}, {task['priority']}): {task['method']}",
-                f"  Acceptance criteria: {task['acceptance_criteria']}",
-                f"  Evidence/source ideas: {_inline_list(task['source_idea_ids'])}",
-            ]
-        )
+    tasks = _list_of_dicts(report.get("validation_tasks"))
+    if tasks:
+        for task in tasks:
+            lines.extend(
+                [
+                    (
+                        f"- **{_markdown_text(task.get('id'), 'task')} "
+                        f"{_markdown_text(task.get('task'), 'Untitled task')}** "
+                        f"({_markdown_text(task.get('owner'), 'Unassigned')}, "
+                        f"{_markdown_text(task.get('priority'), 'unknown')}): "
+                        f"{_markdown_text(task.get('method'), 'Not specified')}"
+                    ),
+                    f"  Acceptance criteria: {_markdown_text(task.get('acceptance_criteria'), 'Not specified')}",
+                    f"  Evidence/source ideas: {_markdown_list(task.get('source_idea_ids'))}",
+                ]
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Owners", ""])
-    for owner in report["owners"]:
-        lines.append(f"- **{owner['role']}**: {owner['responsibility']}")
+    owners = _list_of_dicts(report.get("owners"))
+    if owners:
+        for owner in owners:
+            lines.append(
+                f"- **{_markdown_text(owner.get('role'), 'Owner')}**: {_markdown_text(owner.get('responsibility'), 'Not specified')}"
+            )
+    else:
+        lines.append("- None")
 
     lines.extend(["", "## Evidence References", ""])
-    if report["evidence_references"]:
-        for ref in report["evidence_references"]:
-            lines.append(f"- **{ref['id']}** ({ref['type']}): {ref['summary']}")
+    evidence = _list_of_dicts(report.get("evidence_references"))
+    if evidence:
+        for ref in evidence:
+            lines.append(
+                f"- **{_markdown_text(ref.get('id'), 'reference')}** ({_markdown_text(ref.get('type'), 'unknown')}): {_markdown_text(ref.get('summary'), 'Not specified')}"
+            )
     else:
         lines.append("- None")
 
@@ -961,7 +1015,26 @@ def _dedupe_strings(values: list[str]) -> list[str]:
     return list(dict.fromkeys(_compact(value) for value in values if _compact(value)))
 
 
-def _inline_list(values: list[str]) -> str:
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _markdown_text(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return _compact(value) or default
+    if isinstance(value, dict | list):
+        if not value:
+            return default
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value) or default
+
+
+def _markdown_list(value: Any) -> str:
+    values = _string_list(value)
     return ", ".join(values) if values else "none"
 
 
