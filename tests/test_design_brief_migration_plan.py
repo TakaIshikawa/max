@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import json
+import csv
+from io import StringIO
 
 import pytest
 
 from max.analysis.design_brief_migration_plan import (
+    CSV_COLUMNS,
     KIND,
     PHASES,
     SCHEMA_VERSION,
     build_design_brief_migration_plan,
     migration_plan_filename,
     render_design_brief_migration_plan,
+    render_design_brief_migration_plan_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -176,6 +180,111 @@ def test_migration_plan_missing_brief_invalid_format_and_filename(tmp_path) -> N
         migration_plan_filename(design_brief, fmt="json")
         == "dbf-123-Migration-Plan-Alpha-Beta-migration-plan.json"
     )
+    assert (
+        migration_plan_filename(design_brief, fmt="csv")
+        == "dbf-123-Migration-Plan-Alpha-Beta-migration-plan.csv"
+    )
+
+
+def test_render_design_brief_migration_plan_csv_rows_order_and_traceability(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_migration_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_migration_plan(report, fmt="csv")
+    repeated = render_design_brief_migration_plan(report, fmt="csv")
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert csv_text == render_design_brief_migration_plan_csv(report)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert [row["item_id"] for row in rows[:6]] == [
+        "MP1-T1",
+        "MP1-T2",
+        "MP1-T3",
+        "MP2-T1",
+        "MP2-T2",
+        "MP2-T3",
+    ]
+    assert rows[0] == {
+        "design_brief_id": brief_id,
+        "design_brief_title": "Migration Plan Brief",
+        "phase_sequence": "1",
+        "phase_type": "preparation",
+        "phase_name": "Preparation and migration readiness",
+        "row_type": "phase_task",
+        "item_id": "MP1-T1",
+        "task": "Inventory current users, data, integrations, and decisions in manual release checklist.",
+        "dependency": "",
+        "owner": "Product owner",
+        "validation": (
+            "Pilot cohort, acceptance checks, and rollback authority are documented.; "
+            "Incumbent workflow remains available for the pilot cohort.; "
+            "Validation plan is mapped to migration gates: Run a two-team pilot and compare cycle time, support load, and rollback readiness."
+        ),
+        "rollback_note": "",
+        "timing": "phase 1",
+        "evidence_reference_ids": (
+            "design_brief.why_this_now; design_brief.synthesis_rationale; "
+            "design_brief.validation_plan; sig-migration-1; ins-migration-1; sig-migration-2"
+        ),
+        "source_idea_ids": "bu-migration-lead; bu-migration-support",
+    }
+    assert rows[3]["dependency"] == "MP1-T3"
+    assert any(row["row_type"] == "data_workflow_step" for row in rows)
+    assert any(
+        row["row_type"] == "training_touchpoint" and row["timing"] == "before broad rollout"
+        for row in rows
+    )
+    rollback_rows = [row for row in rows if row["row_type"] == "rollback_criterion"]
+    assert [row["item_id"] for row in rollback_rows] == ["RB1", "RB2", "RB3"]
+    assert rollback_rows[0]["rollback_note"].startswith("Return affected users to")
+    assert rollback_rows[0]["validation"] == "critical"
+
+
+def test_render_design_brief_migration_plan_csv_escapes_special_values() -> None:
+    report = {
+        "design_brief": {"id": "dbf-csv", "title": 'CSV, "Migration" Plan'},
+        "migration_phases": [
+            {
+                "id": "MP1",
+                "sequence": 1,
+                "phase_type": "preparation",
+                "name": "Prepare, pilot",
+                "owner": "Product owner",
+                "tasks": ['Confirm comma, quote "handling", and newline\nsupport.'],
+                "acceptance_checks": ["CSV remains parseable"],
+                "risks": [],
+                "source_idea_ids": ["bu-csv"],
+            }
+        ],
+        "evidence_references": [
+            {"id": "sig-csv", "source_idea_ids": ["bu-csv"]},
+            {"id": "brief:lineage", "source_idea_ids": []},
+        ],
+    }
+
+    csv_text = render_design_brief_migration_plan(report, fmt="csv")
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"CSV, ""Migration"" Plan"' in csv_text
+    assert 'quote ""handling""' in csv_text
+    assert rows[0]["design_brief_title"] == 'CSV, "Migration" Plan'
+    assert rows[0]["phase_name"] == "Prepare, pilot"
+    assert rows[0]["task"] == 'Confirm comma, quote "handling", and newline\nsupport.'
+    assert rows[0]["evidence_reference_ids"] == "brief:lineage; sig-csv"
+
+
+def test_render_design_brief_migration_plan_csv_empty_report_header_only() -> None:
+    csv_text = render_design_brief_migration_plan({"migration_phases": []}, fmt="csv")
+
+    assert csv_text == ",".join(CSV_COLUMNS) + "\n"
+    assert csv.DictReader(StringIO(csv_text)).fieldnames == list(CSV_COLUMNS)
 
 
 def _store_with_brief(tmp_path) -> tuple[Store, str]:

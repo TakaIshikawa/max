@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,6 +12,23 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.migration_plan"
 SCHEMA_VERSION = "max.design_brief.migration_plan.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "phase_sequence",
+    "phase_type",
+    "phase_name",
+    "row_type",
+    "item_id",
+    "task",
+    "dependency",
+    "owner",
+    "validation",
+    "rollback_note",
+    "timing",
+    "evidence_reference_ids",
+    "source_idea_ids",
+)
 
 PHASES: tuple[str, ...] = (
     "preparation",
@@ -107,9 +126,11 @@ def build_design_brief_migration_plan(store: Store, brief_id: str) -> dict[str, 
 
 
 def render_design_brief_migration_plan(report: dict[str, Any], fmt: str = "json") -> str:
-    """Render a migration plan as JSON or Markdown."""
+    """Render a migration plan as JSON, Markdown, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_migration_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported migration plan format: {fmt}")
 
@@ -235,12 +256,247 @@ def render_design_brief_migration_plan(report: dict[str, Any], fmt: str = "json"
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_migration_plan_csv(report: dict[str, Any]) -> str:
+    """Render deterministic migration plan rows for spreadsheet tracking."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def migration_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
     """Return a stable filename for a migration plan export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     brief_id = _filename_part(str(design_brief.get("id") or "design-brief"))
     title = _filename_part(str(design_brief.get("title") or "migration-plan"))
     return f"{brief_id}-{title}-migration-plan.{extension}"
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    phases = _phase_items_for_csv(report)
+    if not phases:
+        return rows
+
+    evidence = _evidence_references_by_source(report)
+    previous_phase_task_id = ""
+    for phase in phases:
+        phase_task_ids: list[str] = []
+        phase_id = _csv_text(phase.get("id")) or f"MP{_csv_text(phase.get('sequence'))}"
+        for index, task in enumerate(_csv_item_list(phase.get("tasks")), start=1):
+            item_id = f"{phase_id}-T{index}"
+            dependency = phase_task_ids[-1] if phase_task_ids else previous_phase_task_id
+            rows.append(
+                _csv_row(
+                    report,
+                    phase,
+                    "phase_task",
+                    item_id,
+                    task,
+                    dependency,
+                    phase.get("owner"),
+                    phase.get("acceptance_checks"),
+                    _phase_rollback_note(report, phase),
+                    f"phase {phase.get('sequence') or ''}".strip(),
+                    evidence,
+                )
+            )
+            phase_task_ids.append(item_id)
+        if phase_task_ids:
+            previous_phase_task_id = phase_task_ids[-1]
+
+    rows.extend(_data_workflow_csv_rows(report, phases, evidence))
+    rows.extend(_training_csv_rows(report, phases, evidence))
+    rows.extend(_rollback_csv_rows(report, phases, evidence))
+    return rows
+
+
+def _data_workflow_csv_rows(
+    report: dict[str, Any],
+    phases: list[dict[str, Any]],
+    evidence: dict[str, list[str]],
+) -> list[dict[str, str]]:
+    phase = _phase_by_type(phases, "data_workflow_migration")
+    rows: list[dict[str, str]] = []
+    for index, step in enumerate(_dict_items(report.get("data_workflow_migration_steps")), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                phase,
+                "data_workflow_step",
+                step.get("id") or f"DWM{index}",
+                step.get("migration_action") or step.get("name"),
+                f"{phase.get('id')}-T1" if phase.get("id") else "",
+                step.get("owner"),
+                step.get("validation"),
+                "",
+                "data and workflow migration",
+                evidence,
+                step.get("source_idea_ids"),
+            )
+        )
+    return rows
+
+
+def _training_csv_rows(
+    report: dict[str, Any],
+    phases: list[dict[str, Any]],
+    evidence: dict[str, list[str]],
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for index, touchpoint in enumerate(_dict_items(report.get("training_touchpoints")), start=1):
+        timing = _csv_text(touchpoint.get("timing"))
+        phase_type = "broad_rollout" if "broad" in timing.lower() else "pilot_rollout"
+        rows.append(
+            _csv_row(
+                report,
+                _phase_by_type(phases, phase_type),
+                "training_touchpoint",
+                touchpoint.get("id") or f"TR{index}",
+                touchpoint.get("content"),
+                "",
+                touchpoint.get("owner"),
+                f"Audience: {touchpoint.get('audience') or ''}".strip(),
+                "",
+                timing,
+                evidence,
+                touchpoint.get("source_idea_ids"),
+            )
+        )
+    return rows
+
+
+def _rollback_csv_rows(
+    report: dict[str, Any],
+    phases: list[dict[str, Any]],
+    evidence: dict[str, list[str]],
+) -> list[dict[str, str]]:
+    phase = _phase_by_type(phases, "rollback")
+    rows: list[dict[str, str]] = []
+    for index, criterion in enumerate(_dict_items(report.get("rollback_criteria")), start=1):
+        rows.append(
+            _csv_row(
+                report,
+                phase,
+                "rollback_criterion",
+                criterion.get("id") or f"RB{index}",
+                criterion.get("trigger"),
+                f"{phase.get('id')}-T1" if phase.get("id") else "",
+                criterion.get("owner"),
+                criterion.get("severity"),
+                criterion.get("response"),
+                "rollback trigger",
+                evidence,
+                criterion.get("source_idea_ids"),
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    report: dict[str, Any],
+    phase: dict[str, Any],
+    row_type: str,
+    item_id: Any,
+    task: Any,
+    dependency: Any,
+    owner: Any,
+    validation: Any,
+    rollback_note: Any,
+    timing: Any,
+    evidence: dict[str, list[str]],
+    source_idea_ids: Any | None = None,
+) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    source_ids = _string_list(
+        source_idea_ids if source_idea_ids is not None else phase.get("source_idea_ids")
+    )
+    values = {
+        "design_brief_id": brief.get("id") or report.get("brief_id"),
+        "design_brief_title": brief.get("title") or report.get("title"),
+        "phase_sequence": phase.get("sequence"),
+        "phase_type": phase.get("phase_type"),
+        "phase_name": phase.get("name"),
+        "row_type": row_type,
+        "item_id": item_id,
+        "task": task,
+        "dependency": dependency,
+        "owner": owner,
+        "validation": validation,
+        "rollback_note": rollback_note,
+        "timing": timing,
+        "evidence_reference_ids": _evidence_ids_for_sources(evidence, source_ids),
+        "source_idea_ids": source_ids,
+    }
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _phase_items_for_csv(report: dict[str, Any]) -> list[dict[str, Any]]:
+    phases = report.get("migration_phases") or report.get("phases") or []
+    if isinstance(phases, dict):
+        phases = phases.get("items") or phases.get("phases") or []
+    if not isinstance(phases, list):
+        return []
+    return [phase for phase in phases if isinstance(phase, dict)]
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, dict):
+        value = value.get("items") or value.get("rows") or []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _csv_item_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, set):
+        value = sorted(value, key=str)
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if str(item)]
+    return [str(value)] if str(value) else []
+
+
+def _phase_by_type(phases: list[dict[str, Any]], phase_type: str) -> dict[str, Any]:
+    return next((phase for phase in phases if phase.get("phase_type") == phase_type), {})
+
+
+def _phase_rollback_note(report: dict[str, Any], phase: dict[str, Any]) -> str:
+    if phase.get("phase_type") != "rollback":
+        return ""
+    return _csv_text(
+        [criterion.get("response") for criterion in _dict_items(report.get("rollback_criteria"))]
+    )
+
+
+def _evidence_references_by_source(report: dict[str, Any]) -> dict[str, list[str]]:
+    evidence_by_source: dict[str, list[str]] = {}
+    for item in _dict_items(report.get("evidence_references")):
+        item_id = _csv_text(item.get("id"))
+        if not item_id:
+            continue
+        source_ids = _string_list(item.get("source_idea_ids"))
+        if not source_ids:
+            evidence_by_source.setdefault("", []).append(item_id)
+        for source_id in source_ids:
+            evidence_by_source.setdefault(source_id, []).append(item_id)
+    return {
+        source_id: list(dict.fromkeys(ids))
+        for source_id, ids in sorted(evidence_by_source.items(), key=lambda item: item[0])
+    }
+
+
+def _evidence_ids_for_sources(evidence: dict[str, list[str]], source_ids: list[str]) -> list[str]:
+    ids: list[str] = []
+    ids.extend(evidence.get("", []))
+    for source_id in source_ids:
+        ids.extend(evidence.get(source_id, []))
+    return list(dict.fromkeys(ids))
 
 
 def _migration_context(
@@ -834,6 +1090,8 @@ def _string_list(value: Any) -> list[str]:
         return []
     if isinstance(value, str):
         return [_compact(value)] if _compact(value) else []
+    if isinstance(value, set):
+        return [_compact(item) for item in sorted(value, key=str) if _compact(item)]
     if isinstance(value, list | tuple | set):
         return [_compact(item) for item in value if _compact(item)]
     return [_compact(value)] if _compact(value) else []
@@ -848,6 +1106,18 @@ def _filename_part(value: str) -> str:
     while "--" in cleaned:
         cleaned = cleaned.replace("--", "-")
     return cleaned.strip("-_")
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, set):
+        value = sorted(value, key=str)
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_text(item) for item in value)
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
 
 
 def _compact(value: Any) -> str:
