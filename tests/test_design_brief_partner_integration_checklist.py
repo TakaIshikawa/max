@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_partner_integration_checklist import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_partner_integration_checklist,
@@ -195,6 +198,134 @@ def test_render_design_brief_partner_integration_checklist_markdown_json_and_inv
         render_design_brief_partner_integration_checklist(report, fmt="yaml")
 
 
+def test_render_design_brief_partner_integration_checklist_csv_populated_output(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_partner_integration_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rendered = render_design_brief_partner_integration_checklist(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert rows
+    assert set(rows[0]) == set(CSV_COLUMNS)
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert {row["design_brief_title"] for row in rows} == {"Partner Integration Brief"}
+    assert {row["section"] for row in rows} == {
+        "integration_targets",
+        "data_contracts",
+        "auth_and_security_checks",
+        "operational_readiness",
+        "partner_owner_matrix",
+        "sequencing",
+        "open_questions",
+    }
+
+    salesforce = next(
+        row
+        for row in rows
+        if row["section"] == "integration_targets" and row["target_id"] == "salesforce_crm"
+    )
+    assert salesforce["row_type"] == "target"
+    assert salesforce["target_name"] == "Salesforce CRM"
+    assert salesforce["target_type"] == "crm"
+    assert salesforce["owner"] == "CRM partner"
+    assert json.loads(salesforce["source_reference_ids"]) == [
+        "design_brief.synthesis_rationale",
+        "design_brief.validation_plan",
+        "design_brief.why_this_now",
+        "ins-partner",
+        "sig-partner",
+        "sig-support",
+    ]
+
+    contract = next(
+        row
+        for row in rows
+        if row["section"] == "data_contracts" and row["item_id"] == "DC1"
+    )
+    assert contract["row_type"] == "data_contract"
+    assert contract["producer"] == "Partner Integration Brief"
+    assert contract["consumer"] == "Salesforce CRM"
+    assert json.loads(contract["required_fields"]) == [
+        "owner",
+        "record_id",
+        "timestamp",
+        "user_id",
+        "workflow_state",
+    ]
+
+    sequence = next(
+        row
+        for row in rows
+        if row["section"] == "sequencing" and row["item_id"] == "SEQ2"
+    )
+    assert sequence["row_type"] == "sequence_item"
+    assert sequence["sequence"] == "2"
+    assert sequence["target_id"] == "salesforce_crm"
+
+
+def test_render_design_brief_partner_integration_checklist_csv_is_deterministic_and_escapes(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_partner_integration_checklist(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["design_brief"]["title"] = 'Partner, "Integration"\nBrief'
+    report["integration_targets"][0]["name"] = 'Core, "Product"\nApp'
+    report["integration_targets"][0]["reason"] = 'Line one, "quoted"\nline two'
+    report["integration_targets"][0]["source_reference_ids"] = ["z-ref", "a-ref"]
+
+    first = render_design_brief_partner_integration_checklist(report, fmt="csv")
+    second = render_design_brief_partner_integration_checklist(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(first)))
+
+    assert first == second
+    assert '"Partner, ""Integration""\nBrief"' in first
+    assert '"Core, ""Product""\nApp"' in first
+    target = next(
+        row
+        for row in rows
+        if row["section"] == "integration_targets" and row["item_id"] == "core_product"
+    )
+    assert target["design_brief_title"] == 'Partner, "Integration"\nBrief'
+    assert target["target_name"] == 'Core, "Product"\nApp'
+    assert json.loads(target["source_reference_ids"]) == ["a-ref", "z-ref"]
+    assert json.loads(target["details"]) == {"reason": 'Line one, "quoted"\nline two'}
+
+
+def test_partner_integration_checklist_csv_header_only_for_empty_sections() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": KIND,
+        "design_brief": {"id": "dbf-empty", "title": "Empty Partner Brief"},
+        "integration_targets": [],
+        "data_contracts": [],
+        "auth_and_security_checks": [],
+        "operational_readiness": [],
+        "partner_owner_matrix": [],
+        "sequencing": [],
+        "open_questions": [],
+        "readiness_warnings": [],
+    }
+
+    rendered = render_design_brief_partner_integration_checklist(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(rendered))
+
+    assert rendered == ",".join(CSV_COLUMNS) + "\n"
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert list(reader) == []
+
+
 def test_render_design_brief_partner_integration_checklist_minimal_report() -> None:
     markdown = render_design_brief_partner_integration_checklist(
         {
@@ -238,6 +369,12 @@ def test_partner_integration_checklist_filename_uses_brief_id_and_title() -> Non
             {"id": "dbf-123", "title": "Partner Systems: Alpha / Beta"}, fmt="json"
         )
         == "dbf-123-Partner-Systems-Alpha-Beta-partner-integration-checklist.json"
+    )
+    assert (
+        partner_integration_checklist_filename(
+            {"id": "dbf-123", "title": "Partner Systems: Alpha / Beta"}, fmt="csv"
+        )
+        == "dbf-123-Partner-Systems-Alpha-Beta-partner-integration-checklist.csv"
     )
 
 
