@@ -120,7 +120,7 @@ def build_design_brief_work_breakdown(store: Store, brief_id: str) -> dict[str, 
 def render_design_brief_work_breakdown(report: dict[str, Any], fmt: str = "markdown") -> str:
     """Render a design brief work breakdown as Markdown, CSV, or deterministic JSON."""
     if fmt == "json":
-        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+        return render_design_brief_work_breakdown_json(report)
     if fmt == "csv":
         return render_design_brief_work_breakdown_csv(report)
     if fmt != "markdown":
@@ -215,6 +215,11 @@ def render_design_brief_work_breakdown_csv(report: dict[str, Any]) -> str:
     for row in _csv_rows(report):
         writer.writerow(row)
     return output.getvalue()
+
+
+def render_design_brief_work_breakdown_json(report: dict[str, Any]) -> str:
+    """Render a work breakdown artifact as deterministic JSON text."""
+    return json.dumps(_stable_json_value(report), indent=2, sort_keys=True) + "\n"
 
 
 def work_breakdown_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
@@ -875,6 +880,16 @@ def _csv_text(value: Any) -> str:
     if isinstance(value, dict):
         return json.dumps(value, sort_keys=True)
     return str(value)
+
+
+def _stable_json_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _stable_json_value(value[key]) for key in sorted(value, key=str)}
+    if isinstance(value, set):
+        return [_stable_json_value(item) for item in sorted(value, key=str)]
+    if isinstance(value, (list, tuple)):
+        return [_stable_json_value(item) for item in value]
+    return value
 
 
 def _filename_part(value: str) -> str:
