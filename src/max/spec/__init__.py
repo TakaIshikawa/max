@@ -49,6 +49,7 @@ from max.spec.data_retention_schedule import (
 )
 from max.spec.dependency_inventory import (
     generate_dependency_inventory,
+    render_dependency_inventory_csv,
     render_dependency_inventory_markdown,
 )
 from max.spec.deployment_topology import (
@@ -210,6 +211,7 @@ __all__ = [
     "render_data_classification_markdown",
     "render_data_retention_schedule_csv",
     "render_data_retention_schedule_markdown",
+    "render_dependency_inventory_csv",
     "render_dependency_inventory_markdown",
     "render_deployment_topology_csv",
     "render_deployment_topology_json",
