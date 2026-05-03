@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +12,37 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.partner_integration_checklist"
 SCHEMA_VERSION = "max.design_brief.partner_integration_checklist.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
+    "design_brief_id",
+    "design_brief_title",
+    "section",
+    "row_type",
+    "item_id",
+    "item_name",
+    "target_id",
+    "target_name",
+    "target_type",
+    "sequence",
+    "owner",
+    "priority",
+    "severity",
+    "producer",
+    "consumer",
+    "payload",
+    "required_fields",
+    "check",
+    "question",
+    "warning",
+    "validation_action",
+    "handoff",
+    "recommended_action",
+    "source_idea_ids",
+    "source_reference_ids",
+    "details",
+)
 
 _KNOWN_SYSTEMS: tuple[tuple[str, str, str, str, str], ...] = (
     ("salesforce_crm", "Salesforce CRM", "crm", "CRM partner", "salesforce"),
@@ -101,9 +134,11 @@ def build_design_brief_partner_integration_checklist(
 def render_design_brief_partner_integration_checklist(
     report: dict[str, Any], fmt: str = "markdown"
 ) -> str:
-    """Render a partner integration checklist as JSON or Markdown."""
+    """Render a partner integration checklist as JSON, CSV, or Markdown."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_partner_integration_checklist_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported partner integration checklist format: {fmt}")
 
@@ -312,12 +347,230 @@ def partner_integration_checklist_filename(
     design_brief: dict[str, Any], *, fmt: str = "markdown"
 ) -> str:
     """Return a stable filename for a partner integration checklist export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"{_filename_part(str(design_brief.get('title') or 'partner-integration-checklist'))}-"
         f"partner-integration-checklist.{extension}"
     )
+
+
+def render_design_brief_partner_integration_checklist_csv(report: dict[str, Any]) -> str:
+    """Render partner integration checklist rows as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for target in report.get("integration_targets") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="integration_targets",
+                row_type="target",
+                item_id=target.get("id"),
+                item_name=target.get("name"),
+                target_id=target.get("id"),
+                target_name=target.get("name"),
+                target_type=target.get("type"),
+                owner=target.get("owner"),
+                priority=target.get("priority"),
+                validation_action=target.get("validation_action"),
+                source_idea_ids=target.get("source_idea_ids"),
+                source_reference_ids=target.get("source_reference_ids"),
+                details={"reason": target.get("reason")},
+            )
+        )
+    for contract in report.get("data_contracts") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="data_contracts",
+                row_type="data_contract",
+                item_id=contract.get("id"),
+                item_name=contract.get("name"),
+                owner=contract.get("owner"),
+                priority=contract.get("priority"),
+                producer=contract.get("producer"),
+                consumer=contract.get("consumer"),
+                payload=contract.get("payload"),
+                required_fields=contract.get("required_fields"),
+                validation_action=contract.get("validation_action"),
+                source_idea_ids=contract.get("source_idea_ids"),
+                source_reference_ids=contract.get("source_reference_ids"),
+            )
+        )
+    for check in report.get("auth_and_security_checks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="auth_and_security_checks",
+                row_type="security_check",
+                item_id=check.get("id"),
+                item_name=check.get("check"),
+                owner=check.get("owner"),
+                priority=check.get("priority"),
+                check=check.get("check"),
+                validation_action=check.get("validation_action"),
+                source_idea_ids=check.get("source_idea_ids"),
+                source_reference_ids=check.get("source_reference_ids"),
+            )
+        )
+    for item in report.get("operational_readiness") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="operational_readiness",
+                row_type="operational_check",
+                item_id=item.get("id"),
+                item_name=item.get("check"),
+                owner=item.get("owner"),
+                priority=item.get("priority"),
+                check=item.get("check"),
+                validation_action=item.get("validation_action"),
+                source_idea_ids=item.get("source_idea_ids"),
+                source_reference_ids=item.get("source_reference_ids"),
+            )
+        )
+    for row in report.get("partner_owner_matrix") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="partner_owner_matrix",
+                row_type="owner_matrix_entry",
+                item_id=row.get("target_id"),
+                item_name=row.get("partner"),
+                target_id=row.get("target_id"),
+                target_name=row.get("partner"),
+                owner=row.get("owner"),
+                priority=row.get("priority"),
+                handoff=row.get("handoff"),
+                details={"checklist_item_ids": row.get("checklist_item_ids")},
+            )
+        )
+    for item in report.get("sequencing") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="sequencing",
+                row_type="sequence_item",
+                item_id=item.get("id"),
+                item_name=item.get("phase"),
+                target_id=item.get("target_id"),
+                target_name=item.get("target"),
+                sequence=item.get("sequence"),
+                owner=item.get("owner"),
+                priority=item.get("priority"),
+                validation_action=item.get("validation_action"),
+                source_idea_ids=item.get("source_idea_ids"),
+                source_reference_ids=item.get("source_reference_ids"),
+            )
+        )
+    for question in report.get("open_questions") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="open_questions",
+                row_type="open_question",
+                item_id=question.get("id"),
+                item_name=question.get("question"),
+                owner=question.get("owner"),
+                question=question.get("question"),
+                validation_action=question.get("validation_action"),
+                source_reference_ids=question.get("source_reference_ids"),
+            )
+        )
+    for warning in report.get("readiness_warnings") or []:
+        rows.append(
+            _csv_row(
+                report,
+                section="readiness_warnings",
+                row_type="readiness_warning",
+                item_id=warning.get("id"),
+                item_name=warning.get("warning"),
+                severity=warning.get("severity"),
+                warning=warning.get("warning"),
+                recommended_action=warning.get("recommended_action"),
+            )
+        )
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "section": "",
+        "row_type": "",
+        "item_id": "",
+        "item_name": "",
+        "target_id": "",
+        "target_name": "",
+        "target_type": "",
+        "sequence": "",
+        "owner": "",
+        "priority": "",
+        "severity": "",
+        "producer": "",
+        "consumer": "",
+        "payload": "",
+        "required_fields": "",
+        "check": "",
+        "question": "",
+        "warning": "",
+        "validation_action": "",
+        "handoff": "",
+        "recommended_action": "",
+        "source_idea_ids": "",
+        "source_reference_ids": "",
+        "details": "",
+    }
+    row.update(values)
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, list | tuple | set):
+        return _stable_json(list(value))
+    if isinstance(value, dict):
+        return _stable_json(
+            {key: item for key, item in value.items() if item not in (None, "", [])}
+        )
+    return str(value)
+
+
+def _stable_json(value: Any) -> str:
+    return json.dumps(_stable_value(value), sort_keys=True, separators=(",", ":"))
+
+
+def _stable_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _stable_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, list | tuple | set):
+        return sorted(
+            (_stable_value(item) for item in value),
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+    return value
 
 
 def _integration_context(
