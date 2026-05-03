@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
 from max.spec import generate_cost_estimate as exported_generate
+from max.spec import render_cost_estimate_csv as exported_render_csv
 from max.spec import render_cost_estimate_markdown as exported_render
 from max.spec.cost_estimate import (
+    COST_ESTIMATE_CSV_COLUMNS,
     COST_ESTIMATE_SCHEMA_VERSION,
     generate_cost_estimate,
+    render_cost_estimate_csv,
     render_cost_estimate_markdown,
 )
 
@@ -242,6 +248,137 @@ def test_render_cost_estimate_markdown_is_readable_and_deterministic() -> None:
 def test_cost_estimate_is_importable_from_spec_package() -> None:
     estimate = exported_generate(_base_tact_spec())
     markdown = exported_render(estimate)
+    csv_text = exported_render_csv(estimate)
 
     assert estimate["schema_version"] == COST_ESTIMATE_SCHEMA_VERSION
     assert markdown.startswith("# Release Note Summarizer Cost Estimate")
+    assert csv_text.startswith("schema_version,kind,source_idea_id,title,")
+
+
+def test_render_cost_estimate_csv_for_generated_estimate_is_parseable_and_deterministic() -> None:
+    estimate = generate_cost_estimate(_medium_tact_spec())
+
+    first = render_cost_estimate_csv(estimate)
+    second = render_cost_estimate_csv(estimate)
+    reader = csv.DictReader(StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert reader.fieldnames == list(COST_ESTIMATE_CSV_COLUMNS)
+    assert [row["item"] for row in rows] == [
+        driver["name"] for driver in estimate["cost_drivers"]
+    ]
+    assert {row["category"] for row in rows} == {"external_service", "operational"}
+    assert all(row["schema_version"] == COST_ESTIMATE_SCHEMA_VERSION for row in rows)
+    assert all(row["kind"] == "max.cost_estimate" for row in rows)
+    assert all(row["source_idea_id"] == "bu-medium-cost" for row in rows)
+    assert all(row["title"] == "Renewal Risk Slack Digest" for row in rows)
+    assert all(row["estimate_type"] == "driver" for row in rows)
+    assert all(row["confidence"] == "medium" for row in rows)
+
+
+def test_render_cost_estimate_csv_flattens_multiple_cost_line_items() -> None:
+    estimate = {
+        "schema_version": COST_ESTIMATE_SCHEMA_VERSION,
+        "kind": "max.cost_estimate",
+        "source": {"idea_id": "bu-budget"},
+        "summary": {"title": "Budget Planner"},
+        "cost_line_items": [
+            {
+                "category": "external_service",
+                "item": "OpenAI embeddings",
+                "description": "Embedding generation for pilot records.",
+                "estimate_type": "usage_based",
+                "monthly_cost": {"low": 25, "base": 75, "high": 150},
+                "one_time_cost": 0,
+                "assumptions": ["10k records", "pilot traffic"],
+                "confidence": "medium",
+                "notes": "review after first import",
+            },
+            {
+                "category": "implementation",
+                "item": "Security review",
+                "description": "Review data handling before launch.",
+                "estimate_type": "one_time",
+                "base_monthly_cost": 0,
+                "one_time_cost": 1200,
+                "assumptions": ["standard review"],
+                "confidence": "high",
+            },
+        ],
+    }
+
+    rows = list(csv.DictReader(StringIO(render_cost_estimate_csv(estimate))))
+
+    assert [row["item"] for row in rows] == ["OpenAI embeddings", "Security review"]
+    assert rows[0]["low_monthly_cost"] == "25"
+    assert rows[0]["base_monthly_cost"] == "75"
+    assert rows[0]["high_monthly_cost"] == "150"
+    assert rows[0]["one_time_cost"] == "0"
+    assert rows[0]["assumptions"] == "10k records | pilot traffic"
+    assert rows[0]["notes"] == "review after first import"
+    assert rows[1]["base_monthly_cost"] == "0"
+    assert rows[1]["one_time_cost"] == "1200"
+    assert rows[1]["notes"] == ""
+
+
+def test_render_cost_estimate_csv_preserves_numeric_values_as_cells() -> None:
+    estimate = {
+        "schema_version": COST_ESTIMATE_SCHEMA_VERSION,
+        "kind": "max.cost_estimate",
+        "cost_line_items": [
+            {
+                "category": "cloud",
+                "item": "Postgres",
+                "estimate_type": "subscription",
+                "low_monthly_cost": 19.99,
+                "monthly_cost": 49.5,
+                "high_monthly_cost": 99,
+                "one_time_cost": 250,
+            }
+        ],
+    }
+
+    row = next(csv.DictReader(StringIO(render_cost_estimate_csv(estimate))))
+
+    assert row["low_monthly_cost"] == "19.99"
+    assert row["base_monthly_cost"] == "49.5"
+    assert row["high_monthly_cost"] == "99"
+    assert row["one_time_cost"] == "250"
+
+
+def test_render_cost_estimate_csv_escapes_commas_quotes_and_newlines() -> None:
+    estimate = {
+        "schema_version": COST_ESTIMATE_SCHEMA_VERSION,
+        "kind": "max.cost_estimate",
+        "summary": {"title": "Escaping, Budget"},
+        "cost_line_items": [
+            {
+                "category": "external,service",
+                "item": 'API "usage"',
+                "description": "Line one\nLine two, with comma",
+                "estimate_type": "usage_based",
+                "monthly_cost": {"base": 88},
+                "notes": 'vendor says "review"',
+            }
+        ],
+    }
+
+    csv_text = render_cost_estimate_csv(estimate)
+    row = next(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Escaping, Budget"' in csv_text
+    assert row["category"] == "external,service"
+    assert row["item"] == 'API "usage"'
+    assert row["description"] == "Line one Line two, with comma"
+    assert row["notes"] == 'vendor says "review"'
+
+
+def test_render_cost_estimate_csv_handles_minimal_estimates() -> None:
+    csv_text = render_cost_estimate_csv({})
+    reader = csv.DictReader(StringIO(csv_text))
+
+    assert csv_text.endswith("\n")
+    assert reader.fieldnames == list(COST_ESTIMATE_CSV_COLUMNS)
+    assert list(reader) == []

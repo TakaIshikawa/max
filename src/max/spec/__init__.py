@@ -25,7 +25,11 @@ from max.spec.compliance_checklist import (
     render_compliance_checklist_json,
     render_compliance_checklist_markdown,
 )
-from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
+from max.spec.cost_estimate import (
+    generate_cost_estimate,
+    render_cost_estimate_csv,
+    render_cost_estimate_markdown,
+)
 from max.spec.customer_onboarding_plan import (
     generate_customer_onboarding_plan,
     render_customer_onboarding_plan_csv,
@@ -186,6 +190,7 @@ __all__ = [
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",
     "render_cost_estimate_markdown",
+    "render_cost_estimate_csv",
     "render_customer_onboarding_plan_csv",
     "render_customer_onboarding_plan_markdown",
     "render_data_classification_markdown",
