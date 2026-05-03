@@ -19,10 +19,18 @@ CSV_COLUMNS: tuple[str, ...] = (
     "severity",
     "likelihood",
     "affected_persona",
-    "mitigation",
+    "evidence",
+    "recommended_experiment_or_mitigation",
     "leading_indicator",
     "owner",
-    "evidence",
+    "design_brief_id",
+    "design_brief_title",
+    "design_brief_domain",
+    "design_brief_theme",
+    "target_buyer",
+    "target_user",
+    "workflow_context",
+    "primary_value",
 )
 
 _VALIDATED_STATUSES = {"approved", "validated", "ready", "launched", "active"}
@@ -217,60 +225,106 @@ def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
     summary = report.get("summary") or {}
     context = report.get("conversion_context") or {}
     mitigations = report.get("mitigation_actions") or []
+    experiments = report.get("validation_experiments") or []
+    brief_context = _csv_brief_context(report)
 
     for blocker in report.get("conversion_blockers") or []:
-        mitigation = _mitigation_for(mitigations, blocker.get("label"))
+        mitigation, recommendation = _recommendation_for(
+            mitigations,
+            experiments,
+            blocker.get("label"),
+        )
         rows.append(
             _csv_row(
+                **brief_context,
                 funnel_stage="conversion_gate",
                 risk=_csv_join([blocker.get("label"), blocker.get("summary")], separator=": "),
                 severity=blocker.get("severity"),
                 likelihood=summary.get("risk_band"),
                 affected_persona=summary.get("target_buyer"),
-                mitigation=mitigation.get("action"),
+                evidence=blocker.get("source_reference_ids"),
+                recommended_experiment_or_mitigation=recommendation,
                 leading_indicator=blocker.get("validation_step"),
                 owner=mitigation.get("owner_role"),
-                evidence=blocker.get("source_reference_ids"),
             )
         )
 
     for gap in report.get("proof_gaps") or []:
-        mitigation = _mitigation_for(mitigations, gap.get("claim"))
+        mitigation, recommendation = _recommendation_for(
+            mitigations,
+            experiments,
+            gap.get("claim"),
+        )
         rows.append(
             _csv_row(
+                **brief_context,
                 funnel_stage="proof_validation",
                 risk=_csv_join([gap.get("claim"), gap.get("gap")], separator=": "),
                 severity=_proof_gap_severity(gap, summary.get("risk_band")),
                 likelihood=summary.get("risk_band"),
                 affected_persona=summary.get("target_user"),
-                mitigation=mitigation.get("action"),
+                evidence=gap.get("source_reference_ids"),
+                recommended_experiment_or_mitigation=recommendation,
                 leading_indicator=gap.get("needed_evidence"),
                 owner=mitigation.get("owner_role"),
-                evidence=gap.get("source_reference_ids"),
             )
         )
 
     for objection in report.get("buyer_objections") or []:
-        mitigation = _mitigation_for(mitigations, objection.get("objection"))
+        mitigation, recommendation = _recommendation_for(
+            mitigations,
+            experiments,
+            objection.get("objection"),
+        )
         rows.append(
             _csv_row(
+                **brief_context,
                 funnel_stage="buyer_objection",
                 risk=objection.get("objection"),
                 severity=_objection_severity(summary.get("risk_band")),
                 likelihood=summary.get("risk_band"),
                 affected_persona=objection.get("likely_from") or context.get("buyer"),
-                mitigation=mitigation.get("action"),
+                evidence=objection.get("source_reference_ids"),
+                recommended_experiment_or_mitigation=recommendation,
                 leading_indicator=objection.get("proof_needed"),
                 owner=mitigation.get("owner_role"),
-                evidence=objection.get("source_reference_ids"),
             )
         )
 
     return rows
 
 
+def _csv_brief_context(report: dict[str, Any]) -> dict[str, Any]:
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    context = report.get("conversion_context") or {}
+    return {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "design_brief_domain": brief.get("domain"),
+        "design_brief_theme": brief.get("theme"),
+        "target_buyer": summary.get("target_buyer") or context.get("buyer"),
+        "target_user": summary.get("target_user") or context.get("target_user"),
+        "workflow_context": summary.get("workflow_context") or context.get("workflow_context"),
+        "primary_value": summary.get("primary_value") or context.get("value_proposition"),
+    }
+
+
 def _csv_row(**values: Any) -> dict[str, str]:
     return {column: _csv_cell(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _recommendation_for(
+    mitigations: list[dict[str, Any]],
+    experiments: list[dict[str, Any]],
+    address: Any,
+) -> tuple[dict[str, Any], str]:
+    mitigation = _mitigation_for(mitigations, address)
+    if mitigation:
+        return mitigation, _csv_cell(mitigation.get("action"))
+
+    experiment = _experiment_for(experiments, address)
+    return {}, _experiment_recommendation(experiment)
 
 
 def _mitigation_for(mitigations: list[dict[str, Any]], address: Any) -> dict[str, Any]:
@@ -281,6 +335,26 @@ def _mitigation_for(mitigations: list[dict[str, Any]], address: Any) -> dict[str
         if _csv_cell(mitigation.get("addresses")) == target:
             return mitigation
     return {}
+
+
+def _experiment_for(experiments: list[dict[str, Any]], address: Any) -> dict[str, Any]:
+    target = _csv_cell(address).casefold()
+    if target:
+        for experiment in experiments:
+            searchable = " ".join(
+                _csv_cell(experiment.get(field))
+                for field in ("name", "hypothesis", "method", "success_signal", "kill_signal")
+            ).casefold()
+            if target in searchable:
+                return experiment
+    return experiments[0] if experiments else {}
+
+
+def _experiment_recommendation(experiment: dict[str, Any]) -> str:
+    if not experiment:
+        return ""
+    label = _csv_join([experiment.get("id"), experiment.get("name")], separator=" ")
+    return _csv_join([label, experiment.get("method")], separator=": ")
 
 
 def _proof_gap_severity(gap: dict[str, Any], risk_band: Any) -> str:
@@ -299,7 +373,7 @@ def _csv_cell(value: Any) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, dict):
-        return "; ".join(f"{key}: {_csv_cell(item)}" for key, item in value.items())
+        return "; ".join(f"{key}: {_csv_cell(value[key])}" for key in sorted(value, key=str))
     if isinstance(value, set):
         return "; ".join(_csv_cell(item) for item in sorted(value, key=str))
     if isinstance(value, (list, tuple)):

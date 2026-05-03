@@ -139,18 +139,34 @@ def test_render_design_brief_conversion_risk_csv_rows_headers_and_order(tmp_path
     assert rows[0]["severity"] == report["conversion_blockers"][0]["severity"]
     assert rows[0]["likelihood"] == report["summary"]["risk_band"]
     assert rows[0]["affected_persona"] == "VP of Revenue Operations"
-    assert rows[0]["mitigation"]
+    assert rows[0]["evidence"]
+    assert rows[0]["recommended_experiment_or_mitigation"]
     assert rows[0]["leading_indicator"] == report["conversion_blockers"][0]["validation_step"]
     assert rows[0]["owner"]
-    assert rows[0]["evidence"]
+    assert rows[0]["design_brief_id"] == brief_id
+    assert rows[0]["design_brief_title"] == "Conversion Risk Brief"
+    assert rows[0]["design_brief_domain"] == "sales"
+    assert rows[0]["design_brief_theme"] == "pilot-conversion"
+    assert rows[0]["target_buyer"] == "VP of Revenue Operations"
+    assert rows[0]["target_user"] == "sales operations manager"
+    assert rows[0]["workflow_context"] == "pilot handoff to paid rollout"
+    assert rows[0]["primary_value"] == "Increase paid pilot conversion with validated buyer proof."
 
 
 def test_render_design_brief_conversion_risk_csv_escapes_and_blanks_optional_fields() -> None:
     report = {
+        "design_brief": {
+            "id": "dbf-csv",
+            "title": "CSV, Conversion",
+            "domain": "growth",
+            "theme": 'paid "pilot"',
+        },
         "summary": {
             "risk_band": "high",
             "target_buyer": 'VP, "Growth"',
             "target_user": "sales\nops",
+            "workflow_context": "pilot\nhandoff",
+            "primary_value": 'Convert "more", faster',
         },
         "conversion_context": {"buyer": 'VP, "Growth"'},
         "conversion_blockers": [
@@ -183,6 +199,13 @@ def test_render_design_brief_conversion_risk_csv_escapes_and_blanks_optional_fie
             }
         ],
         "mitigation_actions": [],
+        "validation_experiments": [
+            {
+                "id": "EXP1",
+                "name": 'Budget "Proof"',
+                "method": "Run pricing,\nand approval test.",
+            }
+        ],
     }
 
     csv_output = render_design_brief_conversion_risk_csv(report)
@@ -190,14 +213,43 @@ def test_render_design_brief_conversion_risk_csv_escapes_and_blanks_optional_fie
 
     assert rows[0]["risk"] == 'Budget, Timing: Buyer said "not now"\nuntil proof exists.'
     assert rows[0]["affected_persona"] == 'VP, "Growth"'
-    assert rows[0]["mitigation"] == ""
+    assert rows[0]["recommended_experiment_or_mitigation"] == (
+        'EXP1 Budget "Proof": Run pricing,\nand approval test.'
+    )
     assert rows[0]["owner"] == ""
     assert rows[0]["leading_indicator"] == "Confirm budget,\nand legal owner."
     assert rows[0]["evidence"] == "idea,1; sig\n2"
+    assert rows[0]["design_brief_title"] == "CSV, Conversion"
+    assert rows[0]["design_brief_theme"] == 'paid "pilot"'
+    assert rows[0]["workflow_context"] == "pilot\nhandoff"
+    assert rows[0]["primary_value"] == 'Convert "more", faster'
     assert rows[1]["evidence"] == ""
     assert rows[2]["affected_persona"] == 'VP, "Growth"'
     assert '"Budget, Timing: Buyer said ""not now""' in csv_output
     assert '"Confirm budget,\nand legal owner."' in csv_output
+    assert '"EXP1 Budget ""Proof"": Run pricing,\nand approval test."' in csv_output
+
+
+def test_render_design_brief_conversion_risk_csv_sparse_and_empty_inputs(tmp_path) -> None:
+    store, brief_id = _store_with_conversion_brief(tmp_path, sparse=True)
+    try:
+        sparse_report = build_design_brief_conversion_risk(store, brief_id)
+    finally:
+        store.close()
+
+    assert sparse_report is not None
+    sparse_rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_conversion_risk_csv(sparse_report)))
+    )
+    assert sparse_rows
+    assert sparse_rows[0]["design_brief_id"] == brief_id
+    assert sparse_rows[0]["target_buyer"] == "economic buyer"
+    assert sparse_rows[0]["recommended_experiment_or_mitigation"]
+
+    empty_csv = render_design_brief_conversion_risk_csv({})
+    empty_reader = csv.DictReader(io.StringIO(empty_csv))
+    assert empty_reader.fieldnames == list(CSV_COLUMNS)
+    assert list(empty_reader) == []
 
 
 def test_build_design_brief_conversion_risk_missing_brief_returns_none(tmp_path) -> None:
