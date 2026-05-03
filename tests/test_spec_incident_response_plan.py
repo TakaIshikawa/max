@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from max.spec import generate_incident_response_plan as exported_generate
 from max.spec import render_incident_response_plan_csv as exported_render_csv
+from max.spec import render_incident_response_plan_json as exported_render_json
 from max.spec import render_incident_response_plan_markdown as exported_render
 from max.spec.incident_response_plan import (
     INCIDENT_RESPONSE_PLAN_CSV_COLUMNS,
     INCIDENT_RESPONSE_PLAN_SCHEMA_VERSION,
     generate_incident_response_plan,
     render_incident_response_plan_csv,
+    render_incident_response_plan_json,
     render_incident_response_plan_markdown,
 )
 
@@ -354,11 +357,37 @@ def test_render_incident_response_plan_csv_does_not_change_markdown_rendering() 
     assert before.startswith("# Agent Workflow Guard Incident Response Plan")
 
 
+def test_render_incident_response_plan_json_is_stable_parseable_and_complete() -> None:
+    plan = generate_incident_response_plan(_security_heavy_tact_spec())
+
+    first = render_incident_response_plan_json(plan)
+    second = render_incident_response_plan_json(plan)
+    parsed = json.loads(first)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert not first.endswith("\n\n")
+    assert first.splitlines()[1] == '  "communication_checkpoints": ['
+    assert parsed == plan
+    assert parsed["schema_version"] == INCIDENT_RESPONSE_PLAN_SCHEMA_VERSION
+    assert parsed["kind"] == "max.incident_response_plan"
+    assert parsed["source"]["idea_id"] == "bu-ir-sec"
+    assert any(item["category"] == "security_incident" for item in parsed["incident_classes"])
+    assert any(role["role"] == "security_owner" for role in parsed["escalation_roles"])
+    assert parsed["triage_steps"][0]["task"]
+    assert parsed["containment_actions"][0]["incident_class_refs"]
+    assert parsed["communication_checkpoints"][0]["message_guidance"]
+    assert parsed["postmortem_requirements"][0]["requirement"]
+    assert parsed["evidence_references"] == plan["evidence_references"]
+
+
 def test_incident_response_plan_is_importable_from_spec_package() -> None:
     plan = exported_generate(_operational_heavy_tact_spec())
     markdown = exported_render(plan)
     csv_text = exported_render_csv(plan)
+    json_text = exported_render_json(plan)
 
     assert plan["schema_version"] == INCIDENT_RESPONSE_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Agent Workflow Guard Incident Response Plan")
     assert csv_text.startswith(",".join(INCIDENT_RESPONSE_PLAN_CSV_COLUMNS))
+    assert json.loads(json_text)["kind"] == "max.incident_response_plan"

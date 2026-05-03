@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from max.spec import generate_release_readiness_gate as exported_generate
 from max.spec import render_release_readiness_gate_csv as exported_render_csv
+from max.spec import render_release_readiness_gate_json as exported_render_json
 from max.spec import render_release_readiness_gate_markdown as exported_render
 from max.spec.release_readiness_gate import (
     RELEASE_READINESS_GATE_CSV_COLUMNS,
     RELEASE_READINESS_GATE_SCHEMA_VERSION,
     generate_release_readiness_gate,
     render_release_readiness_gate_csv,
+    render_release_readiness_gate_json,
     render_release_readiness_gate_markdown,
 )
 
@@ -236,6 +239,39 @@ def test_render_release_readiness_gate_csv_includes_blocker_rows_for_no_go() -> 
     assert blocker_row["next_action"]
 
 
+def test_render_release_readiness_gate_json_is_stable_parseable_and_complete() -> None:
+    gate = generate_release_readiness_gate(_complete_tact_spec())
+
+    first = render_release_readiness_gate_json(gate)
+    second = render_release_readiness_gate_json(gate)
+    parsed = json.loads(first)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert not first.endswith("\n\n")
+    assert first.splitlines()[1] == '  "blockers": [],'
+    assert parsed == gate
+    assert parsed["schema_version"] == RELEASE_READINESS_GATE_SCHEMA_VERSION
+    assert parsed["kind"] == "max.release_readiness_gate"
+    assert parsed["source"]["idea_id"] == "bu-release-gate"
+    assert parsed["summary"]["decision"] == "go"
+    assert parsed["summary"]["go"] is True
+    assert [dimension["id"] for dimension in parsed["readiness_dimensions"]] == [
+        "scope",
+        "implementation",
+        "security",
+        "observability",
+        "rollback",
+        "support",
+        "launch_evidence",
+    ]
+    assert parsed["blockers"] == []
+    assert {signoff["role"] for signoff in parsed["required_signoffs"]} >= {
+        "product_owner",
+        "launch_owner",
+    }
+
+
 def test_release_readiness_gate_handles_missing_optional_fields() -> None:
     gate = generate_release_readiness_gate({})
     markdown = render_release_readiness_gate_markdown(gate)
@@ -253,7 +289,9 @@ def test_release_readiness_gate_is_importable_from_spec_package() -> None:
     gate = exported_generate(_complete_tact_spec())
     markdown = exported_render(gate)
     csv_text = exported_render_csv(gate)
+    json_text = exported_render_json(gate)
 
     assert gate["schema_version"] == RELEASE_READINESS_GATE_SCHEMA_VERSION
     assert markdown.startswith("# Agent Release Gate Release Readiness Gate")
     assert csv_text.startswith(",".join(RELEASE_READINESS_GATE_CSV_COLUMNS))
+    assert json.loads(json_text)["kind"] == "max.release_readiness_gate"

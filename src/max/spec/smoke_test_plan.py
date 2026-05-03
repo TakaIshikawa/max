@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from io import StringIO
 from typing import Any
 
@@ -166,6 +167,11 @@ def render_smoke_test_plan_csv(plan: dict[str, Any]) -> str:
     for row in _csv_rows(plan):
         writer.writerow(row)
     return output.getvalue()
+
+
+def render_smoke_test_plan_json(plan: dict[str, Any]) -> str:
+    """Render a generated smoke test plan as deterministic JSON."""
+    return json.dumps(plan, indent=2, sort_keys=True) + "\n"
 
 
 def _user_journey_checks(

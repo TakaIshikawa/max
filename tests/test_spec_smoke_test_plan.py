@@ -8,6 +8,7 @@ from io import StringIO
 
 from max.spec import generate_smoke_test_plan as exported_generate
 from max.spec import render_smoke_test_plan_csv as exported_render_csv
+from max.spec import render_smoke_test_plan_json as exported_render_json
 from max.spec import render_smoke_test_plan_markdown as exported_render
 from max.spec.generator import generate_spec_preview
 from max.spec.smoke_test_plan import (
@@ -15,6 +16,7 @@ from max.spec.smoke_test_plan import (
     SMOKE_TEST_PLAN_SCHEMA_VERSION,
     generate_smoke_test_plan,
     render_smoke_test_plan_csv,
+    render_smoke_test_plan_json,
     render_smoke_test_plan_markdown,
 )
 
@@ -235,6 +237,40 @@ def test_render_smoke_test_plan_csv_has_stable_header_and_generated_rows() -> No
     ]
 
 
+def test_render_smoke_test_plan_json_is_stable_parseable_and_complete() -> None:
+    plan = generate_smoke_test_plan(_minimal_tact_spec())
+
+    first = render_smoke_test_plan_json(plan)
+    second = render_smoke_test_plan_json(plan)
+    parsed = json.loads(first)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert not first.endswith("\n\n")
+    assert first.splitlines()[0] == "{"
+    assert first.splitlines()[1] == '  "data_integrity_checks": ['
+    assert parsed == plan
+    assert parsed["schema_version"] == SMOKE_TEST_PLAN_SCHEMA_VERSION
+    assert parsed["kind"] == "max.smoke_test_plan"
+    assert parsed["source"]["idea_id"] == "bu-smoke"
+    assert parsed["summary"]["title"] == "Agent Release Gate"
+    assert parsed["user_journey_checks"][0]["derived_from"] == [
+        "project.workflow_context",
+        "execution.validation_plan",
+    ]
+    assert parsed["deployment_verification_checks"][0]["evidence_reference_ids"] == [
+        "insight:ins-smoke",
+        "signal:sig-smoke",
+        "spec:evidence_rationale",
+    ]
+    assert parsed["owners"][1]["suggested_owner"] == "python service owner"
+    assert parsed["evidence_references"][0] == {
+        "id": "insight:ins-smoke",
+        "type": "insight",
+        "summary": "Source insight attached to the TactSpec preview.",
+    }
+
+
 def test_render_smoke_test_plan_csv_handles_missing_optional_fields_with_blanks() -> None:
     csv_text = render_smoke_test_plan_csv(
         {
@@ -272,10 +308,12 @@ def test_smoke_test_plan_is_importable_from_spec_package() -> None:
     plan = exported_generate(_minimal_tact_spec())
     markdown = exported_render(plan)
     csv_text = exported_render_csv(plan)
+    json_text = exported_render_json(plan)
 
     assert plan["schema_version"] == SMOKE_TEST_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Agent Release Gate Smoke Test Plan")
     assert csv_text.startswith("section,type,source_idea_id")
+    assert json.loads(json_text)["kind"] == "max.smoke_test_plan"
 
 
 def test_generate_spec_preview_embeds_smoke_test_plan_artifact(

@@ -69,6 +69,7 @@ from max.spec.implementation_plan import (
 from max.spec.incident_response_plan import (
     generate_incident_response_plan,
     render_incident_response_plan_csv,
+    render_incident_response_plan_json,
     render_incident_response_plan_markdown,
 )
 from max.spec.launch_checklist import generate_launch_checklist
@@ -99,6 +100,7 @@ from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import (
     generate_release_readiness_gate,
     render_release_readiness_gate_csv,
+    render_release_readiness_gate_json,
     render_release_readiness_gate_markdown,
 )
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
@@ -116,6 +118,7 @@ from max.spec.slo_plan import generate_slo_plan, render_slo_plan_csv, render_slo
 from max.spec.smoke_test_plan import (
     generate_smoke_test_plan,
     render_smoke_test_plan_csv,
+    render_smoke_test_plan_json,
     render_smoke_test_plan_markdown,
 )
 from max.spec.stakeholder_handoff import (
@@ -184,6 +187,7 @@ __all__ = [
     "render_slo_plan_csv",
     "render_slo_plan_markdown",
     "render_smoke_test_plan_csv",
+    "render_smoke_test_plan_json",
     "render_smoke_test_plan_markdown",
     "render_support_playbook_csv",
     "render_support_playbook_markdown",
@@ -212,6 +216,7 @@ __all__ = [
     "render_disaster_recovery_plan_csv",
     "render_incident_response_plan_markdown",
     "render_incident_response_plan_csv",
+    "render_incident_response_plan_json",
     "render_migration_checklist_markdown",
     "render_migration_checklist_csv",
     "render_observability_plan_markdown",
@@ -221,6 +226,7 @@ __all__ = [
     "render_post_launch_monitoring_plan_markdown",
     "render_privacy_impact_assessment_markdown",
     "render_release_readiness_gate_csv",
+    "render_release_readiness_gate_json",
     "render_release_readiness_gate_markdown",
     "render_spec_bundle_yaml",
     "generate_spec_preview",

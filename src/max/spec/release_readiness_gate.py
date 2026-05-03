@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from io import StringIO
 from typing import Any
 
@@ -156,6 +157,11 @@ def render_release_readiness_gate_csv(gate: dict[str, Any]) -> str:
     for row in _csv_rows(gate):
         writer.writerow(row)
     return output.getvalue()
+
+
+def render_release_readiness_gate_json(gate: dict[str, Any]) -> str:
+    """Render a generated release readiness gate as deterministic JSON."""
+    return json.dumps(gate, indent=2, sort_keys=True) + "\n"
 
 
 def _scope_dimension(project: dict[str, Any], execution: dict[str, Any]) -> dict[str, Any]:
