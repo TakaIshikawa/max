@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 from max.spec import generate_compliance_checklist as exported_generate
+from max.spec import render_compliance_checklist_csv as exported_render_csv
 from max.spec import render_compliance_checklist_json as exported_render_json
 from max.spec import render_compliance_checklist_markdown as exported_render_markdown
 from max.spec.compliance_checklist import (
+    COMPLIANCE_CHECKLIST_CSV_COLUMNS,
     COMPLIANCE_CHECKLIST_SCHEMA_VERSION,
     generate_compliance_checklist,
+    render_compliance_checklist_csv,
     render_compliance_checklist_json,
     render_compliance_checklist_markdown,
 )
@@ -136,6 +141,138 @@ def test_render_compliance_checklist_json_round_trips() -> None:
     assert rendered.endswith("\n")
 
 
+def test_render_compliance_checklist_csv_flattens_high_risk_rows_and_context() -> None:
+    checklist = generate_compliance_checklist(_regulated_tact_spec())
+
+    csv_output = render_compliance_checklist_csv(checklist)
+    rows = list(csv.DictReader(StringIO(csv_output)))
+
+    assert csv.DictReader(StringIO(csv_output)).fieldnames == COMPLIANCE_CHECKLIST_CSV_COLUMNS
+    assert [row["item_id"] for row in rows] == [f"COMP{index}" for index in range(1, 9)]
+    assert all(row["schema_version"] == COMPLIANCE_CHECKLIST_SCHEMA_VERSION for row in rows)
+    assert all(row["source_idea_id"] == "bu-compliance" for row in rows)
+    assert all(row["title"] == "Patient Intake Automation" for row in rows)
+    assert all(row["domain"] == "healthcare" for row in rows)
+    assert all(row["domain_risk_level"] == "high" for row in rows)
+
+    privacy = rows[0]
+    assert privacy["section_id"] == "privacy"
+    assert privacy["section_title"] == "Privacy and Personal Data"
+    assert privacy["category"] == "privacy"
+    assert privacy["blocking"] == "true"
+    assert privacy["owner"] == "privacy_owner"
+    assert privacy["status"] == "open"
+    assert privacy["requirement"] == "Confirm personal data classification and user notice"
+    assert "patient" in privacy["evidence_needed"]
+    assert "patient" in privacy["source_fields"]
+
+    regulatory = next(row for row in rows if row["item_id"] == "COMP4")
+    assert regulatory["blocking"] == "true"
+    assert regulatory["section_title"] == "Regulatory Review"
+    assert "HIPAA" in regulatory["evidence_needed"]
+
+    launch = next(row for row in rows if row["item_id"] == "COMP8")
+    assert launch["blocking"] == "true"
+    assert launch["empty_state_guidance"].startswith("Resolve blocking checklist items")
+
+    assert privacy["detected_data_terms"] == (
+        "account; consent; email; export; patient; PII; retention"
+    )
+    assert privacy["detected_integrations"] == "OAuth; OpenAI; Postgres; Salesforce; Slack; Teams"
+
+
+def test_render_compliance_checklist_csv_empty_state_when_no_items_exist() -> None:
+    checklist = {
+        "schema_version": COMPLIANCE_CHECKLIST_SCHEMA_VERSION,
+        "kind": "max.compliance_checklist",
+        "source": {"idea_id": "bu-empty", "status": "draft", "type": "idea"},
+        "summary": {
+            "title": "Empty Checklist",
+            "domain_risk_level": "standard",
+        },
+        "compliance_context": {
+            "domain": "internal-tools",
+            "detected_data_terms": [],
+            "detected_integrations": [],
+        },
+        "sections": [],
+        "checklist_items": [],
+        "empty_state_guidance": "No compliance items were generated.",
+    }
+
+    csv_output = render_compliance_checklist_csv(checklist)
+    rows = list(csv.DictReader(StringIO(csv_output)))
+
+    assert len(rows) == 1
+    assert rows[0]["source_idea_id"] == "bu-empty"
+    assert rows[0]["title"] == "Empty Checklist"
+    assert rows[0]["domain"] == "internal-tools"
+    assert rows[0]["item_id"] == ""
+    assert rows[0]["blocking"] == ""
+    assert rows[0]["empty_state_guidance"] == "No compliance items were generated."
+
+
+def test_render_compliance_checklist_csv_is_deterministic_for_missing_optional_fields() -> None:
+    checklist = {
+        "schema_version": COMPLIANCE_CHECKLIST_SCHEMA_VERSION,
+        "kind": "max.compliance_checklist",
+        "source": {"idea_id": "bu-minimal"},
+        "summary": {"title": "Minimal"},
+        "sections": [
+            {
+                "id": "third_party",
+                "title": "Third-Party Integrations",
+                "items": [
+                    {
+                        "id": "COMP7",
+                        "category": "third_party",
+                        "title": "Validate integrations",
+                        "blocking": False,
+                    }
+                ],
+            }
+        ],
+        "empty_state_guidance": None,
+        "unsupported": {"ignored": True},
+    }
+
+    first = render_compliance_checklist_csv(checklist)
+    second = render_compliance_checklist_csv(checklist | {"another_unsupported": ["ignored"]})
+    rows = list(csv.DictReader(StringIO(first)))
+
+    assert first == second
+    assert rows[0]["owner"] == ""
+    assert rows[0]["status"] == ""
+    assert rows[0]["blocking"] == "false"
+    assert rows[0]["evidence_needed"] == ""
+    assert rows[0]["source_fields"] == ""
+
+
+def test_render_compliance_checklist_csv_orders_scrambled_sections_and_items() -> None:
+    checklist = generate_compliance_checklist(_regulated_tact_spec())
+    checklist["sections"] = [
+        checklist["sections"][2],
+        checklist["sections"][0],
+        {
+            **checklist["sections"][1],
+            "items": [
+                {**checklist["sections"][1]["items"][0], "id": "COMP2B"},
+                checklist["sections"][1]["items"][0],
+            ],
+        },
+    ]
+    checklist["checklist_items"] = []
+
+    rows = list(csv.DictReader(StringIO(render_compliance_checklist_csv(checklist))))
+
+    assert [(row["section_id"], row["item_id"]) for row in rows] == [
+        ("privacy", "COMP1"),
+        ("security", "COMP2"),
+        ("security", "COMP2B"),
+        ("data_governance", "COMP3"),
+    ]
+
+
 def test_render_compliance_checklist_markdown_has_stable_sections_and_empty_guidance() -> None:
     checklist = generate_compliance_checklist(_regulated_tact_spec())
 
@@ -189,8 +326,10 @@ def test_sparse_spec_keeps_empty_state_guidance_and_advisory_items() -> None:
 def test_compliance_checklist_is_importable_from_spec_package() -> None:
     checklist = exported_generate(_regulated_tact_spec())
     markdown = exported_render_markdown(checklist)
+    csv_output = exported_render_csv(checklist)
     rendered_json = exported_render_json(checklist)
 
     assert checklist["schema_version"] == COMPLIANCE_CHECKLIST_SCHEMA_VERSION
     assert markdown.startswith("# Patient Intake Automation Compliance Checklist")
+    assert csv_output.startswith("schema_version,kind,source_idea_id")
     assert json.loads(rendered_json)["kind"] == "max.compliance_checklist"
