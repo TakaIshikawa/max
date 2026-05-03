@@ -15,14 +15,17 @@ if TYPE_CHECKING:
 SCHEMA_VERSION = "max.design_brief.renewal_expansion_plan.v1"
 KIND = "max.design_brief.renewal_expansion_plan"
 CSV_COLUMNS: tuple[str, ...] = (
-    "segment",
-    "renewal_trigger",
-    "expansion_opportunity",
-    "health_signal",
-    "recommended_action",
+    "design_brief_id",
+    "section",
+    "item_id",
+    "account_or_segment",
+    "opportunity_or_risk",
+    "priority",
     "owner",
-    "timing",
-    "evidence",
+    "action",
+    "metric",
+    "source_idea_ids",
+    "details",
 )
 
 _VALIDATED_STATUSES = {"approved", "validated", "ready", "launched", "active"}
@@ -262,131 +265,221 @@ def renewal_expansion_plan_filename(
 
 
 def _renewal_expansion_csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
-    opportunities = [
-        item for item in report.get("expansion_opportunities") or [] if isinstance(item, dict)
-    ]
     rows: list[dict[str, str]] = []
-    for index, opportunity in enumerate(opportunities):
-        action = _csv_action_for_opportunity(report, opportunity, index)
-        for segment in _csv_segments(report, opportunity):
-            rows.append(
-                _csv_row(
-                    segment=segment,
-                    renewal_trigger=opportunity.get("trigger"),
-                    expansion_opportunity=opportunity.get("opportunity"),
-                    health_signal=_csv_health_signal(report, opportunity, index),
-                    recommended_action=action.get("action"),
-                    owner=action.get("owner_role") or action.get("owner"),
-                    timing=action.get("timing"),
-                    evidence=_csv_evidence(report, opportunity, action, index),
-                )
+    brief = report.get("design_brief") or {}
+    context = report.get("renewal_context") or {}
+
+    for risk in _csv_dicts(report.get("renewal_risks")):
+        rows.append(
+            _csv_row(
+                report,
+                section="renewal_risks",
+                item_id=risk.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                opportunity_or_risk=risk.get("risk"),
+                priority=risk.get("severity"),
+                action=risk.get("mitigation"),
+                source_idea_ids=risk.get("source_reference_ids"),
+                details={
+                    "reason": risk.get("reason"),
+                    "source_reference_ids": risk.get("source_reference_ids"),
+                },
             )
+        )
+
+    for opportunity in _csv_dicts(report.get("expansion_opportunities")):
+        rows.append(
+            _csv_row(
+                report,
+                section="expansion_opportunities",
+                item_id=opportunity.get("id"),
+                account_or_segment=_csv_account_or_segment(report, opportunity),
+                opportunity_or_risk=opportunity.get("opportunity"),
+                priority=opportunity.get("confidence"),
+                metric=opportunity.get("proof_needed") or opportunity.get("health_signal"),
+                source_idea_ids=opportunity.get("source_reference_ids"),
+                details={
+                    "evidence": opportunity.get("evidence"),
+                    "health_signal": opportunity.get("health_signal"),
+                    "trigger": opportunity.get("trigger"),
+                    "why_it_matters": opportunity.get("why_it_matters"),
+                    "source_reference_ids": opportunity.get("source_reference_ids"),
+                },
+            )
+        )
+
+    for signal in _csv_dicts(report.get("expansion_triggers")):
+        rows.append(
+            _csv_row(
+                report,
+                section="account_signals",
+                item_id=signal.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                opportunity_or_risk=signal.get("trigger"),
+                action=signal.get("expansion_motion"),
+                metric=signal.get("signal"),
+                source_idea_ids=signal.get("source_reference_ids"),
+                details={"source_reference_ids": signal.get("source_reference_ids")},
+            )
+        )
+
+    for motion in _csv_dicts(report.get("customer_success_motions")):
+        rows.append(
+            _csv_row(
+                report,
+                section="playbook_actions",
+                item_id=motion.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                owner=motion.get("owner_role"),
+                action=motion.get("motion"),
+                metric=motion.get("success_evidence"),
+                details={"cadence": motion.get("cadence")},
+            )
+        )
+
+    for prompt in _csv_stakeholder_prompt_rows(report):
+        rows.append(prompt)
+
+    for proof in _csv_dicts(report.get("proof_points")):
+        rows.append(
+            _csv_row(
+                report,
+                section="success_metrics",
+                item_id=proof.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                opportunity_or_risk=proof.get("claim"),
+                priority=proof.get("strength"),
+                metric=proof.get("evidence"),
+                source_idea_ids=proof.get("source_reference_ids"),
+                details={"source_reference_ids": proof.get("source_reference_ids")},
+            )
+        )
+
+    for evidence in _csv_dicts(report.get("evidence_signals")):
+        rows.append(
+            _csv_row(
+                report,
+                section="evidence_references",
+                item_id=evidence.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                opportunity_or_risk=evidence.get("title"),
+                priority=evidence.get("credibility"),
+                metric=evidence.get("description"),
+                source_idea_ids=brief.get("source_idea_ids"),
+                details=evidence,
+            )
+        )
+
+    for action in _csv_dicts(report.get("next_actions")):
+        rows.append(
+            _csv_row(
+                report,
+                section="next_steps",
+                item_id=action.get("id"),
+                account_or_segment=_csv_account_or_segment(report),
+                opportunity_or_risk=action.get("addresses"),
+                owner=action.get("owner_role") or action.get("owner"),
+                action=action.get("action"),
+                metric=action.get("timing"),
+                source_idea_ids=brief.get("source_idea_ids"),
+                details={"readiness_band": context.get("readiness_band")},
+            )
+        )
     return rows
 
 
-def _csv_action_for_opportunity(
+def _csv_stakeholder_prompt_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    prompts = _csv_dicts(report.get("stakeholder_prompts"))
+    if not prompts:
+        brief = report.get("design_brief") or {}
+        prompts = [
+            {
+                "id": "SP1",
+                "stakeholder": brief.get("buyer"),
+                "prompt": "Confirm renewal value proof and expansion readiness.",
+                "metric": brief.get("workflow_context"),
+                "source_reference_ids": brief.get("source_idea_ids"),
+            }
+        ]
+    for prompt in prompts:
+        rows.append(
+            _csv_row(
+                report,
+                section="stakeholder_prompts",
+                item_id=prompt.get("id"),
+                account_or_segment=prompt.get("stakeholder") or _csv_account_or_segment(report),
+                action=prompt.get("prompt") or prompt.get("question"),
+                metric=prompt.get("metric"),
+                source_idea_ids=prompt.get("source_reference_ids"),
+                details=prompt,
+            )
+        )
+    return rows
+
+
+def _csv_account_or_segment(
     report: dict[str, Any],
-    opportunity: dict[str, Any],
-    index: int,
-) -> dict[str, Any]:
-    actions = [item for item in report.get("next_actions") or [] if isinstance(item, dict)]
-    opportunity_id = _csv_text(opportunity.get("id"))
-    for action in actions:
-        if opportunity_id and opportunity_id == _csv_text(action.get("addresses")):
-            return action
-    opportunity_name = _csv_text(opportunity.get("opportunity"))
-    for action in actions:
-        if opportunity_name and opportunity_name in _csv_text(action.get("action")):
-            return action
-    return actions[index] if index < len(actions) else {}
-
-
-def _csv_segments(report: dict[str, Any], opportunity: dict[str, Any]) -> list[str]:
-    explicit = (
-        opportunity.get("segments")
-        or opportunity.get("segment")
-        or opportunity.get("customer_segments")
-        or opportunity.get("customer_segment")
-    )
-    segments = _string_list(explicit)
-    if segments:
-        return segments
+    item: dict[str, Any] | None = None,
+) -> str:
     context = report.get("renewal_context") or {}
     brief = report.get("design_brief") or {}
-    fallback = _string_list(
-        context.get("first_customers")
-        or opportunity.get("account_segment")
+    item = item or {}
+    return _csv_text(
+        item.get("segments")
+        or item.get("segment")
+        or item.get("account_segment")
+        or item.get("customer_segments")
+        or item.get("customer_segment")
+        or context.get("first_customers")
+        or brief.get("buyer")
         or brief.get("domain")
         or brief.get("theme")
     )
-    return fallback or [""]
 
 
-def _csv_health_signal(
-    report: dict[str, Any],
-    opportunity: dict[str, Any],
-    index: int,
-) -> Any:
-    explicit = (
-        opportunity.get("health_signal")
-        or opportunity.get("health_signals")
-        or opportunity.get("signal")
-        or opportunity.get("proof_needed")
-    )
-    if explicit:
-        return explicit
-    motions = [item for item in report.get("customer_success_motions") or [] if isinstance(item, dict)]
-    if index < len(motions):
-        return motions[index].get("success_evidence")
-    return ""
+def _csv_dicts(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value or [] if isinstance(item, dict)]
 
 
-def _csv_evidence(
-    report: dict[str, Any],
-    opportunity: dict[str, Any],
-    action: dict[str, Any],
-    index: int,
-) -> str:
-    evidence = (
-        opportunity.get("evidence")
-        or opportunity.get("evidence_reference_ids")
-        or opportunity.get("evidence_refs")
-        or opportunity.get("source_reference_ids")
-        or action.get("evidence")
-    )
-    proof_points = [item for item in report.get("proof_points") or [] if isinstance(item, dict)]
-    if evidence:
-        return _csv_text(evidence)
-    if index < len(proof_points):
-        proof = proof_points[index]
-        return _csv_text(
-            {
-                "claim": proof.get("claim"),
-                "evidence": proof.get("evidence"),
-                "source_reference_ids": proof.get("source_reference_ids"),
-            }
-        )
-    return ""
-
-
-def _csv_row(**values: Any) -> dict[str, str]:
-    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {"design_brief_id": brief.get("id"), **values}
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
 
 
 def _csv_text(value: Any) -> str:
     if value is None:
         return ""
+    if isinstance(value, str):
+        return value.strip()
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
     if isinstance(value, dict):
-        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+        filtered = {key: item for key, item in value.items() if item not in (None, "", [], {})}
+        if not filtered:
+            return ""
+        return json.dumps(_stable_csv_value(filtered), sort_keys=True, separators=(",", ":"))
     if isinstance(value, (list, tuple, set)):
-        return _csv_join(value)
+        return "; ".join(_csv_text(item) for item in _stable_csv_value(value) if _csv_text(item))
     return str(value).strip()
 
 
-def _csv_join(values: Any, *, separator: str = "; ") -> str:
-    return separator.join(text for value in values if (text := _csv_text(value)))
+def _stable_csv_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _stable_csv_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            if item not in (None, "", [], {})
+        }
+    if isinstance(value, (list, tuple, set)):
+        return sorted(
+            (_stable_csv_value(item) for item in value),
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+    return value
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
