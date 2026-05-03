@@ -95,6 +95,7 @@ from max.analysis.design_brief_partner_integration_checklist import (
 from max.analysis.design_brief_kpi_tree import (
     generate_design_brief_kpi_tree,
     render_design_brief_kpi_tree_markdown,
+    render_kpi_tree_markdown,
 )
 from max.analysis.design_brief_kill_criteria import (
     build_design_brief_kill_criteria,
@@ -214,6 +215,7 @@ __all__ = [
     "render_design_brief_raci_matrix",
     "render_raci_matrix_csv",
     "render_design_brief_kpi_tree_markdown",
+    "render_kpi_tree_markdown",
     "render_design_brief_kill_criteria",
     "render_design_brief_kill_criteria_csv",
     "render_design_brief_market_entry_risk_report",
