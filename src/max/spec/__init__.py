@@ -88,6 +88,7 @@ from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import (
     generate_security_review,
+    render_security_review_csv,
     render_security_review_markdown,
 )
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_csv, render_slo_plan_markdown
@@ -148,6 +149,7 @@ __all__ = [
     "generate_vendor_risk_assessment",
     "render_rollback_plan_markdown",
     "render_risk_register_markdown",
+    "render_security_review_csv",
     "render_security_review_markdown",
     "render_slo_plan_csv",
     "render_slo_plan_markdown",
