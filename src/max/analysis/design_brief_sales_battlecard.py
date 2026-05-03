@@ -20,9 +20,26 @@ CSV_COLUMNS: tuple[str, ...] = (
     "item_order",
     "item_id",
     "item_name",
-    "item_claim",
+    "buyer",
+    "target_user",
+    "workflow_context",
+    "value_proposition",
+    "primary_pain",
+    "primary_outcome",
+    "primary_risk",
+    "one_liner",
+    "why_now",
+    "qualification_signal",
+    "disqualification_signal",
+    "objection",
     "response",
+    "proof_point",
+    "discovery_follow_up",
+    "setup",
+    "show",
     "outcome",
+    "ask",
+    "claim",
     "evidence",
     "source_idea_ids",
 )
@@ -179,7 +196,37 @@ def _render_csv(battlecard: dict[str, Any]) -> str:
 
 
 def _csv_rows(battlecard: dict[str, Any]) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
+    summary = battlecard.get("summary") or {}
+    positioning = battlecard.get("positioning") or {}
+    rows: list[dict[str, str]] = [
+        _csv_row(
+            battlecard,
+            section="sales_context",
+            type="context",
+            item_order=1,
+            item_id="sales_context",
+            item_name="Sales context",
+            buyer=summary.get("buyer"),
+            target_user=summary.get("target_user"),
+            workflow_context=summary.get("workflow_context"),
+            value_proposition=summary.get("value_proposition"),
+            primary_pain=summary.get("primary_pain"),
+            primary_outcome=summary.get("primary_outcome"),
+            primary_risk=summary.get("primary_risk"),
+        ),
+        _csv_row(
+            battlecard,
+            section="positioning",
+            type="positioning",
+            item_order=1,
+            item_id="positioning",
+            item_name="Positioning",
+            one_liner=positioning.get("one_liner"),
+            why_now=positioning.get("why_now"),
+            qualification_signal=positioning.get("qualification_signal"),
+            disqualification_signal=positioning.get("disqualification_signal"),
+        ),
+    ]
 
     for order, objection in enumerate(battlecard.get("objection_handling") or [], start=1):
         if not isinstance(objection, dict):
@@ -192,10 +239,10 @@ def _csv_rows(battlecard: dict[str, Any]) -> list[dict[str, str]]:
                 item_order=order,
                 item_id=objection.get("id"),
                 item_name=objection.get("objection"),
-                item_claim=objection.get("objection"),
+                objection=objection.get("objection"),
                 response=objection.get("response"),
-                outcome=objection.get("discovery_follow_up"),
-                evidence=objection.get("proof_point"),
+                proof_point=objection.get("proof_point"),
+                discovery_follow_up=objection.get("discovery_follow_up"),
                 source_idea_ids=objection.get("source_idea_ids"),
             )
         )
@@ -211,10 +258,10 @@ def _csv_rows(battlecard: dict[str, Any]) -> list[dict[str, str]]:
                 item_order=order,
                 item_id=beat.get("id"),
                 item_name=beat.get("name"),
-                item_claim=beat.get("setup"),
-                response=beat.get("show"),
+                setup=beat.get("setup"),
+                show=beat.get("show"),
                 outcome=beat.get("outcome"),
-                evidence=beat.get("ask"),
+                ask=beat.get("ask"),
                 source_idea_ids=beat.get("source_idea_ids"),
             )
         )
@@ -230,9 +277,35 @@ def _csv_rows(battlecard: dict[str, Any]) -> list[dict[str, str]]:
                 item_order=order,
                 item_id=proof.get("id") or f"PP{order}",
                 item_name=proof.get("claim"),
-                item_claim=proof.get("claim"),
+                claim=proof.get("claim"),
                 evidence=proof.get("evidence"),
                 source_idea_ids=proof.get("source_idea_ids"),
+            )
+        )
+
+    for order, idea in enumerate(battlecard.get("source_ideas") or [], start=1):
+        if not isinstance(idea, dict):
+            continue
+        idea_id = idea.get("id")
+        rows.append(
+            _csv_row(
+                battlecard,
+                section="source_ideas",
+                type="source_idea",
+                item_order=order,
+                item_id=idea_id,
+                item_name=_first_text(
+                    idea.get("title"),
+                    idea.get("name"),
+                    idea.get("one_liner"),
+                    idea.get("value_proposition"),
+                    idea_id,
+                ),
+                buyer=idea.get("buyer"),
+                target_user=idea.get("specific_user"),
+                workflow_context=idea.get("workflow_context"),
+                value_proposition=idea.get("value_proposition"),
+                source_idea_ids=[idea_id] if idea_id else [],
             )
         )
 
