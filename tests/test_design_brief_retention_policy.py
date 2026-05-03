@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_retention_policy import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_retention_policy,
     render_design_brief_retention_policy,
+    retention_policy_filename,
 )
 
 
@@ -120,6 +124,111 @@ def test_render_design_brief_retention_policy_json_unchanged() -> None:
 
     assert rendered == json.dumps(report, indent=2, sort_keys=True) + "\n"
     assert json.loads(rendered) == report
+
+
+def test_render_design_brief_retention_policy_csv_sections_and_rows() -> None:
+    report = _policy()
+
+    rendered = render_design_brief_retention_policy(report, fmt="csv")
+    repeated = render_design_brief_retention_policy(report, fmt="csv")
+    reader = csv.DictReader(io.StringIO(rendered))
+    rows = list(reader)
+
+    assert rendered == repeated
+    assert rendered.endswith("\n")
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == [
+        "data_classes",
+        "data_classes",
+        "data_classes",
+        "data_classes",
+        "retention_rules",
+        "retention_rules",
+        "retention_rules",
+        "retention_rules",
+        "deletion_controls",
+        "deletion_controls",
+        "deletion_controls",
+        "audit_requirements",
+        "audit_requirements",
+        "audit_requirements",
+        "open_questions",
+        "recommended_next_actions",
+        "recommended_next_actions",
+        "recommended_next_actions",
+    ]
+
+    data_class = rows[0]
+    assert data_class["design_brief_id"] == "dbf-retention"
+    assert data_class["design_brief_title"] == "Retention Test Brief"
+    assert data_class["item_id"] == "design_brief_record"
+    assert data_class["item_name"] == "Design brief record"
+    assert data_class["sensitivity"] == "internal"
+    assert data_class["source_fields"] == (
+        "title; merged_product_concept; mvp_scope; risks; validation_plan"
+    )
+
+    rule = rows[4]
+    assert rule["item_id"] == "RP1"
+    assert rule["data_class_id"] == "design_brief_record"
+    assert rule["retention_period"] == "24 months after the brief is archived"
+    assert rule["deletion_trigger"] == "brief archived, superseded, or validation stopped"
+    assert rule["owner"] == "product owner"
+    assert rule["verification"] == ""
+    assert rule["rationale"] == (
+        "Keep enough context for handoff traceability while avoiding indefinite retention."
+    )
+
+    control = rows[8]
+    assert control["item_id"] == "DC1"
+    assert control["control"] == (
+        "Delete archived brief artifacts from downstream handoff locations when retention expires."
+    )
+    assert control["verification"] == "record deletion timestamp and artifact locations"
+    assert control["action"] == control["control"]
+
+    audit = rows[11]
+    assert audit["item_id"] == "AR1"
+    assert audit["control"] == "Log who generated or downloaded the retention policy artifact."
+    assert audit["verification"] == audit["control"]
+
+    assert rows[14]["section"] == "open_questions"
+    assert rows[14]["item_id"] == "OQ1"
+    assert rows[14]["action"] == (
+        "Which legal, security, or compliance owner can approve restricted data retention?"
+    )
+    assert rows[15]["section"] == "recommended_next_actions"
+    assert rows[15]["item_id"] == "RNA1"
+    assert rows[15]["action"] == (
+        "Run a security or compliance review before collecting restricted operational data."
+    )
+
+
+def test_render_design_brief_retention_policy_csv_does_not_change_json_or_markdown() -> None:
+    report = _policy()
+    markdown = render_design_brief_retention_policy(report, fmt="markdown")
+    json_text = render_design_brief_retention_policy(report, fmt="json")
+
+    render_design_brief_retention_policy(report, fmt="csv")
+
+    assert render_design_brief_retention_policy(report, fmt="markdown") == markdown
+    assert render_design_brief_retention_policy(report, fmt="json") == json_text
+
+
+def test_retention_policy_filename_supports_csv_extension() -> None:
+    assert (
+        retention_policy_filename({"id": "dbf-retention"}, fmt="csv")
+        == "dbf-retention-retention-policy.csv"
+    )
+    assert (
+        retention_policy_filename({"id": "dbf-retention"}, fmt="json")
+        == "dbf-retention-retention-policy.json"
+    )
+    assert (
+        retention_policy_filename({"id": "dbf-retention"}, fmt="markdown")
+        == "dbf-retention-retention-policy.md"
+    )
 
 
 def test_render_design_brief_retention_policy_unsupported_format() -> None:
