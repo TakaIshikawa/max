@@ -87,6 +87,17 @@ def _stage_usage_from_mapping(
     return stages
 
 
+def _validate_stage_list(value: object) -> list[dict[str, object]]:
+    """Validate and narrow a value to a list of stage dictionaries."""
+    if not isinstance(value, list):
+        return []
+    result: list[dict[str, object]] = []
+    for item in value:
+        if isinstance(item, dict):
+            result.append(item)
+    return result
+
+
 def _merge_stage_usage(target: dict[str, dict[str, float | int]], stages: list[dict[str, object]]) -> None:
     for stage in stages:
         name = str(stage["stage"])
@@ -183,7 +194,7 @@ def build_llm_budget_usage(
         total_input += _int_value(current_usage["input_tokens"])
         total_output += _int_value(current_usage["output_tokens"])
         total_cost += float(current_usage["estimated_cost_usd"])
-        _merge_stage_usage(stage_totals, current_usage["stages"])  # type: ignore[arg-type]
+        _merge_stage_usage(stage_totals, _validate_stage_list(current_usage["stages"]))
 
     total_tokens = total_input + total_output
     token_limit = config.MAX_TOKEN_BUDGET

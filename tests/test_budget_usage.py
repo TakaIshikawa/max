@@ -73,3 +73,41 @@ def test_budget_usage_can_omit_current(tmp_path):
     assert usage["include_current"] is False
     assert usage["current"] is None
     assert usage["total_tokens"] == 15
+
+
+def test_budget_usage_includes_tracker_stages_in_totals(tmp_path):
+    """Verify current tracker stages merge into total stage aggregation."""
+    db_path = tmp_path / "budget.db"
+    store = Store(db_path=db_path, wal_mode=True)
+    try:
+        store.insert_pipeline_run("run-001", {"model": "claude-opus-4-6"})
+        store.update_pipeline_run(
+            "run-001",
+            token_usage={
+                "input": 500,
+                "output": 50,
+                "evaluate_input": 500,
+                "evaluate_output": 50,
+            },
+        )
+
+        tracker = TokenTracker(model="claude-opus-4-6")
+        tracker.record("evaluate", 200, 20)
+        tracker.record("synthesize", 300, 30)
+
+        usage = build_llm_budget_usage(store, limit=20, tracker=tracker)
+    finally:
+        store.close()
+
+    assert usage["include_current"] is True
+    assert usage["current"] is not None
+    assert len(usage["current"]["stages"]) == 2
+
+    stage_map = {s["stage"]: s for s in usage["stages"]}
+    assert "evaluate" in stage_map
+    assert "synthesize" in stage_map
+
+    assert stage_map["evaluate"]["input_tokens"] == 700
+    assert stage_map["evaluate"]["output_tokens"] == 70
+    assert stage_map["synthesize"]["input_tokens"] == 300
+    assert stage_map["synthesize"]["output_tokens"] == 30
