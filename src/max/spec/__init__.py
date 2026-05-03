@@ -88,7 +88,11 @@ from max.spec.release_readiness_gate import (
     render_release_readiness_gate_markdown,
 )
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
-from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
+from max.spec.risk_register import (
+    generate_risk_register,
+    render_risk_register_csv,
+    render_risk_register_markdown,
+)
 from max.spec.security_review import (
     generate_security_review,
     render_security_review_csv,
@@ -153,6 +157,7 @@ __all__ = [
     "generate_threat_model",
     "generate_vendor_risk_assessment",
     "render_rollback_plan_markdown",
+    "render_risk_register_csv",
     "render_risk_register_markdown",
     "render_security_review_csv",
     "render_security_review_markdown",
