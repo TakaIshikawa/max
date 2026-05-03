@@ -204,6 +204,7 @@ def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> N
     assert rows[0] == {
         "section": "recovery_objectives",
         "type": "objective",
+        "field": "objective",
         "source_idea_id": "bu-dr-rich",
         "title": "Renewal Risk Console",
         "item_id": "OBJ1",
@@ -211,6 +212,7 @@ def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> N
         "category": "",
         "severity": "",
         "owner": "",
+        "timing": "RTO: 4 hours; RPO: 15 minutes",
         "cadence": "",
         "channel": "",
         "recovery_time_objective": "4 hours",
@@ -228,7 +230,7 @@ def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> N
         "verification": "",
         "derived_from": "project.workflow_context; summary.recovery_time_objective",
     }
-    assert [row["item_id"] for row in rows if row["section"] == "critical_systems"] == [
+    assert [row["item_id"] for row in rows if row["section"] == "critical_dependencies"] == [
         "DEP1",
         "DEP2",
         "DEP3",
@@ -236,6 +238,13 @@ def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> N
         "DEP5",
         "DEP6",
     ]
+    assert any(
+        row["section"] == "critical_dependencies"
+        and row["field"] == "critical_system"
+        and row["critical_system"] == "Postgres"
+        and row["category"] == "stateful_data"
+        for row in rows
+    )
     assert [row["item_id"] for row in rows if row["section"] == "restore_sequence"] == [
         "RST1",
         "RST2",
@@ -252,6 +261,8 @@ def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> N
     assert any(
         row["section"] == "validation_drills"
         and row["item_id"] == "DRL2"
+        and row["field"] == "step"
+        and row["timing"] == "quarterly"
         and row["cadence"] == "quarterly"
         for row in rows
     )
@@ -315,6 +326,13 @@ def test_render_disaster_recovery_plan_csv_covers_scenarios_procedures_and_escap
         "SCN1",
         "SCN2",
     ]
+    assert any(
+        row["section"] == "failure_scenarios"
+        and row["field"] == "scenario"
+        and row["severity"] == "critical"
+        and row["owner"] == "technical_owner"
+        for row in rows
+    )
     assert [row["item_id"] for row in rows if row["section"] == "backup_restore_procedures"] == [
         "PRC1",
         "PRC2",
@@ -367,4 +385,4 @@ def test_disaster_recovery_plan_is_importable_from_spec_package() -> None:
 
     assert plan["schema_version"] == DISASTER_RECOVERY_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Renewal Risk Console Disaster Recovery Plan")
-    assert csv_text.startswith("section,type,source_idea_id,title")
+    assert csv_text.startswith(",".join(DISASTER_RECOVERY_PLAN_CSV_COLUMNS))

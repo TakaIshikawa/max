@@ -11,6 +11,7 @@ DISASTER_RECOVERY_PLAN_SCHEMA_VERSION = "max-disaster-recovery-plan/v1"
 DISASTER_RECOVERY_PLAN_CSV_COLUMNS = (
     "section",
     "type",
+    "field",
     "source_idea_id",
     "title",
     "item_id",
@@ -18,6 +19,7 @@ DISASTER_RECOVERY_PLAN_CSV_COLUMNS = (
     "category",
     "severity",
     "owner",
+    "timing",
     "cadence",
     "channel",
     "recovery_time_objective",
@@ -944,8 +946,9 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
         rows.append(
             _csv_row(
                 plan,
-                section="critical_systems",
-                type_="critical_system",
+                section="critical_dependencies",
+                type_="critical_dependency",
+                field="critical_system",
                 item_id=item.get("id"),
                 name=item.get("name") or item.get("system"),
                 category=item.get("role") or item.get("category"),
@@ -962,6 +965,7 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="critical_capabilities",
                 type_="critical_capability",
+                field="description",
                 item_id=item.get("id"),
                 name=item.get("name"),
                 description=item.get("description"),
@@ -975,6 +979,7 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="failure_scenarios",
                 type_="scenario",
+                field="scenario",
                 item_id=item.get("id"),
                 name=item.get("name") or item.get("title"),
                 category=item.get("category"),
@@ -1005,6 +1010,7 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="communications",
                 type_="communication",
+                field="step",
                 item_id=item.get("id"),
                 name=item.get("name"),
                 owner=item.get("owner"),
@@ -1021,6 +1027,7 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="owners",
                 type_="owner",
+                field="description",
                 item_id=item.get("id"),
                 name=item.get("role") or item.get("name"),
                 owner=item.get("owner") or item.get("role") or item.get("name"),
@@ -1035,9 +1042,11 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="validation_drills",
                 type_="validation_cadence",
+                field="step",
                 item_id=item.get("id"),
                 name=item.get("name"),
                 owner=item.get("owner"),
+                timing=item.get("cadence"),
                 cadence=item.get("cadence"),
                 step=item.get("exercise"),
                 description=item.get("exercise"),
@@ -1051,6 +1060,7 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 plan,
                 section="gaps",
                 type_="gap",
+                field="description",
                 item_id=item.get("id"),
                 name=item.get("category"),
                 category=item.get("category"),
@@ -1069,6 +1079,7 @@ def _procedure_csv_row(plan: dict[str, Any], section: str, item: dict[str, Any])
         plan,
         section=section,
         type_="procedure",
+        field="procedure",
         item_id=item.get("id"),
         name=item.get("name"),
         owner=item.get("owner"),
@@ -1085,11 +1096,13 @@ def _csv_row(
     *,
     section: str,
     type_: str,
+    field: Any = None,
     item_id: Any = None,
     name: Any = None,
     category: Any = None,
     severity: Any = None,
     owner: Any = None,
+    timing: Any = None,
     cadence: Any = None,
     channel: Any = None,
     critical_system: Any = None,
@@ -1106,6 +1119,14 @@ def _csv_row(
     values = {
         "section": section,
         "type": type_,
+        "field": field or _default_csv_field(
+            objective=objective,
+            scenario=scenario,
+            procedure=procedure,
+            step=step,
+            critical_system=critical_system,
+            description=description,
+        ),
         "source_idea_id": source.get("idea_id"),
         "title": summary.get("title"),
         "item_id": item_id,
@@ -1113,6 +1134,7 @@ def _csv_row(
         "category": category,
         "severity": severity,
         "owner": owner,
+        "timing": timing or _summary_timing(summary),
         "cadence": cadence,
         "channel": channel,
         "recovery_time_objective": summary.get("recovery_time_objective"),
@@ -1127,6 +1149,41 @@ def _csv_row(
         "derived_from": derived_from,
     }
     return {column: _csv_text(values.get(column)) for column in DISASTER_RECOVERY_PLAN_CSV_COLUMNS}
+
+
+def _default_csv_field(
+    *,
+    objective: Any = None,
+    scenario: Any = None,
+    procedure: Any = None,
+    step: Any = None,
+    critical_system: Any = None,
+    description: Any = None,
+) -> str:
+    if objective:
+        return "objective"
+    if scenario:
+        return "scenario"
+    if procedure:
+        return "procedure"
+    if step:
+        return "step"
+    if critical_system:
+        return "critical_system"
+    if description:
+        return "description"
+    return ""
+
+
+def _summary_timing(summary: dict[str, Any]) -> str:
+    rto = _compact(summary.get("recovery_time_objective"))
+    rpo = _compact(summary.get("recovery_point_objective"))
+    parts = []
+    if rto:
+        parts.append(f"RTO: {rto}")
+    if rpo:
+        parts.append(f"RPO: {rpo}")
+    return "; ".join(parts)
 
 
 def _dict_items(value: Any) -> list[dict[str, Any]]:
