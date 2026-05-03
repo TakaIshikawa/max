@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import copy
+import csv
+import io
 import json
+
+import pytest
 
 from max.analysis.portfolio_stage_distribution import (
     SCHEMA_VERSION,
     build_portfolio_stage_distribution_report,
+    render_portfolio_stage_distribution_report,
 )
 from max.types.evaluation import DimensionScore, UtilityEvaluation
 
@@ -134,6 +139,106 @@ def test_ideas_without_evaluations_are_counted_in_explicit_unevaluated_bucket() 
         "percentage": 50.0,
     }
     assert any(group["recommendation"] == "unevaluated" for group in report["groups"])
+
+
+def test_render_report_json_is_deterministic_and_round_trips() -> None:
+    report = build_portfolio_stage_distribution_report(
+        [_unit("bu-approved", status="approved")],
+        [_evaluation("bu-approved", recommendation="yes")],
+    )
+
+    rendered = render_portfolio_stage_distribution_report(report)
+
+    assert rendered == render_portfolio_stage_distribution_report(report, fmt="json")
+    assert rendered.endswith("\n")
+    assert json.loads(rendered) == report
+    assert rendered.index('"by_domain"') < rendered.index('"by_evidence_strength"')
+
+
+def test_render_report_markdown_includes_filters_summary_bottlenecks_and_buckets() -> None:
+    report = build_portfolio_stage_distribution_report(
+        [
+            _unit("bu-draft-1", status="draft", domain="developer-tools", profile="platform"),
+            _unit("bu-draft-2", status="draft", domain="developer-tools", profile="platform"),
+            _unit("bu-approved-1", status="approved", domain="developer-tools", profile="platform"),
+        ],
+        {"bu-approved-1": _evaluation("bu-approved-1", recommendation="yes")},
+        profile="platform",
+        domain="developer-tools",
+    )
+
+    markdown = render_portfolio_stage_distribution_report(report, fmt="markdown")
+
+    assert markdown.startswith("# Portfolio Stage Distribution\n")
+    assert f"Schema: `{SCHEMA_VERSION}`" in markdown
+    assert "Profile filter: platform" in markdown
+    assert "Domain filter: developer-tools" in markdown
+    assert "- Total ideas: 3" in markdown
+    assert "- Evaluated ideas: 1" in markdown
+    assert "## Bottlenecks" in markdown
+    assert "- status=draft: 2 ideas (66.7%)" in markdown
+    assert "## Recommendations" in markdown
+    assert "promote, validate, or prune" in markdown
+    assert "### Status" in markdown
+    assert "| draft | 2 | 66.7% |" in markdown
+    assert "### Recommendation" in markdown
+    assert "### Profile" in markdown
+    assert "### Domain" in markdown
+    assert "### Evidence Strength" in markdown
+
+
+def test_render_report_csv_uses_stable_header_and_row_types() -> None:
+    report = build_portfolio_stage_distribution_report(
+        [
+            _unit("bu-draft-1", status="draft"),
+            _unit("bu-draft-2", status="draft"),
+            _unit("bu-approved-1", status="approved"),
+        ],
+        {"bu-approved-1": _evaluation("bu-approved-1", recommendation="yes")},
+    )
+
+    rendered = render_portfolio_stage_distribution_report(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert rendered.splitlines()[0] == (
+        "row_type,dimension,value,status,recommendation,profile,domain,"
+        "evidence_strength,count,percentage,message"
+    )
+    assert render_portfolio_stage_distribution_report(report, fmt="csv") == rendered
+    assert {"bucket", "group", "bottleneck", "recommendation"}.issubset(
+        {row["row_type"] for row in rows}
+    )
+    assert any(
+        row["row_type"] == "bucket"
+        and row["dimension"] == "status"
+        and row["value"] == "draft"
+        and row["count"] == "2"
+        for row in rows
+    )
+    assert any(
+        row["row_type"] == "group"
+        and row["status"] == "approved"
+        and row["recommendation"] == "yes"
+        for row in rows
+    )
+    assert any(
+        row["row_type"] == "bottleneck"
+        and row["dimension"] == "status"
+        and "promote, validate, or prune" in row["message"]
+        for row in rows
+    )
+    assert any(
+        row["row_type"] == "recommendation"
+        and "promote, validate, or prune" in row["message"]
+        for row in rows
+    )
+
+
+def test_render_report_rejects_unsupported_format() -> None:
+    report = build_portfolio_stage_distribution_report([], [])
+
+    with pytest.raises(ValueError, match="Unsupported portfolio stage distribution format: yaml"):
+        render_portfolio_stage_distribution_report(report, fmt="yaml")
 
 
 def _unit(

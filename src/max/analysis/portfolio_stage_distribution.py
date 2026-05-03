@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -10,6 +13,26 @@ from typing import Any
 SCHEMA_VERSION = "max.portfolio_stage_distribution.v1"
 UNEVALUATED_RECOMMENDATION = "unevaluated"
 DEFAULT_BOTTLENECK_THRESHOLD = 0.5
+_CSV_COLUMNS = (
+    "row_type",
+    "dimension",
+    "value",
+    "status",
+    "recommendation",
+    "profile",
+    "domain",
+    "evidence_strength",
+    "count",
+    "percentage",
+    "message",
+)
+_BUCKET_SECTIONS = (
+    ("status", "Status", "by_status"),
+    ("recommendation", "Recommendation", "by_recommendation"),
+    ("profile", "Profile", "by_profile"),
+    ("domain", "Domain", "by_domain"),
+    ("evidence_strength", "Evidence Strength", "by_evidence_strength"),
+)
 
 
 def build_portfolio_stage_distribution_report(
@@ -103,6 +126,95 @@ def build_portfolio_stage_distribution(
         domain=domain,
         bottleneck_threshold=bottleneck_threshold,
     )
+
+
+def render_portfolio_stage_distribution_report(
+    report: Mapping[str, Any],
+    fmt: str = "json",
+) -> str:
+    """Render a portfolio stage distribution report as deterministic JSON, Markdown, or CSV."""
+
+    if fmt == "json":
+        return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "markdown":
+        return render_portfolio_stage_distribution_markdown(report)
+    if fmt == "csv":
+        return render_portfolio_stage_distribution_csv(report)
+    raise ValueError(f"Unsupported portfolio stage distribution format: {fmt}")
+
+
+def render_portfolio_stage_distribution_markdown(report: Mapping[str, Any]) -> str:
+    """Render a deterministic Markdown summary of portfolio stage distribution."""
+
+    summary = report.get("summary", {})
+    lines = [
+        "# Portfolio Stage Distribution",
+        "",
+        f"Schema: `{report.get('schema_version', SCHEMA_VERSION)}`",
+        f"Profile filter: {_inline_list(_filter_list(report, 'profile')) or 'all'}",
+        f"Domain filter: {_inline_list(_filter_list(report, 'domain')) or 'all'}",
+        "",
+        "## Summary",
+        "",
+        f"- Total ideas: {summary.get('total_ideas', 0)}",
+        f"- Evaluated ideas: {summary.get('evaluated_count', 0)}",
+        f"- Unevaluated ideas: {summary.get('unevaluated_count', 0)}",
+        f"- Bottlenecks: {summary.get('bottleneck_count', 0)}",
+        "",
+        "## Bottlenecks",
+        "",
+    ]
+
+    bottlenecks = list(report.get("bottlenecks", []))
+    if bottlenecks:
+        for bottleneck in bottlenecks:
+            lines.append(
+                "- "
+                f"{bottleneck.get('dimension', 'unknown')}="
+                f"{bottleneck.get('value', 'unknown')}: "
+                f"{bottleneck.get('count', 0)} ideas "
+                f"({float(bottleneck.get('percentage', 0.0)):.1f}%)"
+            )
+            message = _clean(bottleneck.get("message"))
+            if message:
+                lines.append(f"  - {message}")
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Recommendations", ""])
+    recommendations = list(report.get("recommendations", []))
+    if recommendations:
+        lines.extend(f"- {recommendation}" for recommendation in recommendations)
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Buckets", ""])
+    for dimension, title, key in _BUCKET_SECTIONS:
+        lines.extend([f"### {title}", "", "| Value | Count | Percentage |", "| --- | ---: | ---: |"])
+        rows = list(report.get(key, []))
+        if rows:
+            for row in rows:
+                lines.append(
+                    f"| {_markdown_cell(row.get(dimension, 'unspecified'))} "
+                    f"| {row.get('count', 0)} "
+                    f"| {float(row.get('percentage', 0.0)):.1f}% |"
+                )
+        else:
+            lines.append("| None | 0 | 0.0% |")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_portfolio_stage_distribution_csv(report: Mapping[str, Any]) -> str:
+    """Render bucket, group, bottleneck, and recommendation rows as deterministic CSV."""
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _idea_row(unit: Any, evaluation: Any | None) -> dict[str, Any]:
@@ -315,3 +427,111 @@ def _percentage(count: int, total: int) -> float:
     if total == 0:
         return 0.0
     return round((count / total) * 100, 1)
+
+
+def _csv_rows(report: Mapping[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for dimension, _title, key in _BUCKET_SECTIONS:
+        for bucket in report.get(key, []):
+            rows.append(
+                _csv_row(
+                    row_type="bucket",
+                    dimension=dimension,
+                    value=bucket.get(dimension, ""),
+                    count=bucket.get("count", 0),
+                    percentage=bucket.get("percentage", 0.0),
+                )
+            )
+
+    for group in report.get("groups", []):
+        rows.append(
+            _csv_row(
+                row_type="group",
+                dimension="group",
+                value=_group_value(group),
+                status=group.get("status", ""),
+                recommendation=group.get("recommendation", ""),
+                profile=group.get("profile", ""),
+                domain=group.get("domain", ""),
+                evidence_strength=group.get("evidence_strength", ""),
+                count=group.get("count", 0),
+                percentage=group.get("percentage", 0.0),
+            )
+        )
+
+    for bottleneck in report.get("bottlenecks", []):
+        rows.append(
+            _csv_row(
+                row_type="bottleneck",
+                dimension=bottleneck.get("dimension", ""),
+                value=bottleneck.get("value", ""),
+                count=bottleneck.get("count", 0),
+                percentage=bottleneck.get("percentage", 0.0),
+                message=bottleneck.get("message", ""),
+            )
+        )
+
+    for index, recommendation in enumerate(report.get("recommendations", []), start=1):
+        rows.append(
+            _csv_row(
+                row_type="recommendation",
+                dimension="recommendation",
+                value=str(index),
+                message=recommendation,
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    *,
+    row_type: str,
+    dimension: Any = "",
+    value: Any = "",
+    status: Any = "",
+    recommendation: Any = "",
+    profile: Any = "",
+    domain: Any = "",
+    evidence_strength: Any = "",
+    count: Any = "",
+    percentage: Any = "",
+    message: Any = "",
+) -> dict[str, Any]:
+    return {
+        "row_type": row_type,
+        "dimension": dimension,
+        "value": value,
+        "status": status,
+        "recommendation": recommendation,
+        "profile": profile,
+        "domain": domain,
+        "evidence_strength": evidence_strength,
+        "count": count,
+        "percentage": percentage,
+        "message": message,
+    }
+
+
+def _group_value(group: Mapping[str, Any]) -> str:
+    return "|".join(
+        _clean(group.get(key))
+        for key in ("status", "recommendation", "profile", "domain", "evidence_strength")
+    )
+
+
+def _filter_list(report: Mapping[str, Any], key: str) -> list[Any]:
+    filters = report.get("filters", {})
+    if not isinstance(filters, Mapping):
+        return []
+    value = filters.get(key)
+    if value is None:
+        return []
+    return _list(value)
+
+
+def _inline_list(values: Iterable[Any]) -> str:
+    return ", ".join(_clean(value) for value in values if _clean(value))
+
+
+def _markdown_cell(value: Any) -> str:
+    return _clean(value).replace("|", "\\|") or "unspecified"
