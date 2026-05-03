@@ -182,6 +182,8 @@ def test_render_design_brief_rollout_comms_plan_csv_rows_and_order(tmp_path) -> 
         + ["customer_facing_announcement_drafts"]
         * len(report["customer_facing_announcement_drafts"])
         + ["risk_faq_hooks"] * len(report["risk_faq_hooks"])
+        + ["evidence_references"] * len(report["evidence_references"])
+        + ["readiness_warnings"] * len(report["readiness_warnings"])
     )
     assert [row["item_id"] for row in rows[:4]] == [
         "internal_product_engineering",
@@ -199,13 +201,21 @@ def test_render_design_brief_rollout_comms_plan_csv_rows_and_order(tmp_path) -> 
 
     matrix_row = next(row for row in rows if row["item_id"] == "RCM3")
     assert matrix_row["design_brief_id"] == brief_id
-    assert matrix_row["design_brief_title"] == "Rollout Comms Brief"
     assert matrix_row["audience"] == "Pilot customers"
+    assert matrix_row["phase"] == "Controlled customer launch"
     assert matrix_row["channel"] == "email"
-    assert matrix_row["timing"] == "Controlled customer launch"
     assert matrix_row["owner"] == "Customer success lead"
     assert matrix_row["message"] == report["channel_message_matrix"][2]["message"]
     assert matrix_row["call_to_action"] == "Join the controlled rollout and share first-use feedback."
+    assert matrix_row["severity"] == ""
+
+    evidence_row = next(row for row in rows if row["item_id"] == "sig-rollout-1")
+    assert evidence_row["section"] == "evidence_references"
+    assert evidence_row["message"] == "Evidence signal linked to source idea bu-rollout-lead."
+    assert json.loads(evidence_row["details"]) == {
+        "source_idea_ids": ["bu-rollout-lead"],
+        "type": "evidence_signal",
+    }
 
 
 def test_render_design_brief_rollout_comms_plan_csv_compact_details(tmp_path) -> None:
@@ -245,6 +255,36 @@ def test_render_design_brief_rollout_comms_plan_csv_compact_details(tmp_path) ->
     assert brief_id
 
 
+def test_render_design_brief_rollout_comms_plan_csv_escapes_announcement_drafts(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_rollout_comms_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["customer_facing_announcement_drafts"][0].update(
+        {
+            "headline": 'Pilot "launch", phase 1',
+            "body": 'Line one, with comma\nLine two with "quote"',
+            "call_to_action": 'Reply "yes", then pick a window.',
+        }
+    )
+
+    csv_text = render_design_brief_rollout_comms_plan(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+    draft_row = next(row for row in rows if row["item_id"] == "CFA1")
+
+    assert draft_row["design_brief_id"] == brief_id
+    assert draft_row["section"] == "customer_facing_announcement_drafts"
+    assert draft_row["message"] == 'Line one, with comma\nLine two with "quote"'
+    assert draft_row["call_to_action"] == 'Reply "yes", then pick a window.'
+    assert json.loads(draft_row["details"])["headline"] == 'Pilot "launch", phase 1'
+    assert '"Line one, with comma\nLine two with ""quote"""' in csv_text
+
+
 def test_rollout_comms_plan_weak_readiness_warnings(tmp_path) -> None:
     store, brief_id = _store_with_sparse_brief(tmp_path)
     try:
@@ -260,6 +300,21 @@ def test_rollout_comms_plan_weak_readiness_warnings(tmp_path) -> None:
     assert any("Design status is `candidate`" in warning for warning in warnings)
     assert any("Missing buyer" in warning for warning in warnings)
     assert report["target_audiences"][2]["message_angle"].startswith("Help Sparse Rollout Brief user")
+
+    rows = list(csv.DictReader(io.StringIO(render_design_brief_rollout_comms_plan(report, "csv"))))
+    warning_rows = [row for row in rows if row["section"] == "readiness_warnings"]
+    assert [row["item_id"] for row in warning_rows] == [
+        warning["id"] for warning in report["readiness_warnings"]
+    ]
+    assert warning_rows[0]["severity"] == "high"
+    assert warning_rows[0]["message"].startswith("Readiness score is 42.0/100")
+    assert (
+        warning_rows[0]["call_to_action"]
+        == "Limit external announcement to pilot or selected-customer channels."
+    )
+    assert json.loads(warning_rows[0]["details"]) == {
+        "recommended_action": "Limit external announcement to pilot or selected-customer channels."
+    }
 
 
 def test_rollout_comms_plan_filename_generation() -> None:
