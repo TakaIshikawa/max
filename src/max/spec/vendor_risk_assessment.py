@@ -2,11 +2,30 @@
 
 from __future__ import annotations
 
+import csv
+import json
+from io import StringIO
 from typing import Any
 
 
 VENDOR_RISK_ASSESSMENT_SCHEMA_VERSION = "max-vendor-risk-assessment/v1"
 KIND = "max.spec.vendor_risk_assessment"
+VENDOR_RISK_ASSESSMENT_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "source_idea_id",
+    "title",
+    "section",
+    "item_type",
+    "item_id",
+    "item_name",
+    "category",
+    "severity_or_status",
+    "owner",
+    "evidence",
+    "context",
+    "details",
+)
 
 _KNOWN_VENDORS = {
     "aws": ("AWS", "cloud_provider"),
@@ -88,7 +107,9 @@ def generate_vendor_risk_assessment(tact_spec: dict[str, Any]) -> dict[str, Any]
             "title": context["title"],
             "workflow_context": context["workflow_context"],
             "vendor_count": len(vendors),
-            "high_risk_vendor_count": sum(1 for vendor in vendors if vendor["risk_level"] == "high"),
+            "high_risk_vendor_count": sum(
+                1 for vendor in vendors if vendor["risk_level"] == "high"
+            ),
             "risk_count": len(risks),
             "blocking_risk_count": sum(1 for risk in risks if risk["severity"] == "high"),
             "review_item_count": len(review_checklist),
@@ -137,6 +158,20 @@ def render_vendor_risk_assessment_markdown(assessment: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_vendor_risk_assessment_csv(assessment: dict[str, Any]) -> str:
+    """Render a generated vendor risk assessment as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=VENDOR_RISK_ASSESSMENT_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(assessment or {}):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def _context(spec: dict[str, Any]) -> dict[str, Any]:
     source = _dict(spec.get("source"))
     project = _dict(spec.get("project"))
@@ -166,18 +201,26 @@ def _context(spec: dict[str, Any]) -> dict[str, Any]:
         "deployment": deployment,
         "dependencies": dependencies,
         "data_classification": data_classification,
-        "title": _compact(project.get("title")) or _compact(source.get("idea_id")) or "Untitled TactSpec",
+        "title": _compact(project.get("title"))
+        or _compact(source.get("idea_id"))
+        or "Untitled TactSpec",
         "workflow_context": _compact(project.get("workflow_context")) or "primary workflow",
         "stack": solution.get("suggested_stack"),
         "integrations": spec.get("integrations"),
         "data_exchanged": data_exchanged,
         "sensitive_data": any(item in _SENSITIVE_DATA for item in data_exchanged),
-        "regulated_context": _contains_any(text, ("gdpr", "hipaa", "sox", "regulated", "patient", "payment")),
+        "regulated_context": _contains_any(
+            text, ("gdpr", "hipaa", "sox", "regulated", "patient", "payment")
+        ),
         "mentions_vendor_contract": _contains_any(
             text, ("dpa", "soc 2", "subprocessor", "sla", "baa", "vendor review")
         ),
-        "mentions_residency": _contains_any(text, ("region", "residency", "cross-border", "eu", "us-only")),
-        "mentions_failover": _contains_any(text, ("failover", "fallback", "queue", "retry", "circuit breaker")),
+        "mentions_residency": _contains_any(
+            text, ("region", "residency", "cross-border", "eu", "us-only")
+        ),
+        "mentions_failover": _contains_any(
+            text, ("failover", "fallback", "queue", "retry", "circuit breaker")
+        ),
     }
 
 
@@ -270,7 +313,10 @@ def _classify_vendor(key: str, value: Any) -> tuple[str, str]:
     for token, (label, category) in _KNOWN_VENDORS.items():
         if token in lowered:
             return label, category
-    if any(term in lowered for term in ("postgres", "redis", "mysql", "mongodb", "s3", "database", "storage")):
+    if any(
+        term in lowered
+        for term in ("postgres", "redis", "mysql", "mongodb", "s3", "database", "storage")
+    ):
         return raw, "data_platform"
     if any(term in lowered for term in ("auth", "oauth", "saml", "oidc", "sso")):
         return raw, "identity_provider"
@@ -318,14 +364,27 @@ def _vendor_review_requirements(context: dict[str, Any], category: str) -> list[
     if not context["mentions_vendor_contract"]:
         requirements.append("Record DPA, SLA, SOC 2, BAA, or equivalent evidence status.")
     if not context["mentions_failover"]:
-        requirements.append("Document retry, fallback, manual workaround, and outage communication path.")
+        requirements.append(
+            "Document retry, fallback, manual workaround, and outage communication path."
+        )
     return requirements
 
 
 def _vendor_risk_level(context: dict[str, Any], category: str) -> str:
-    if context["regulated_context"] and category in {"ai_provider", "payments", "crm", "data_platform", "cloud_provider"}:
+    if context["regulated_context"] and category in {
+        "ai_provider",
+        "payments",
+        "crm",
+        "data_platform",
+        "cloud_provider",
+    }:
         return "high"
-    if context["sensitive_data"] and category in {"ai_provider", "observability", "messaging", "communications"}:
+    if context["sensitive_data"] and category in {
+        "ai_provider",
+        "observability",
+        "messaging",
+        "communications",
+    }:
         return "high"
     if category in {"missing_inventory", "payments", "identity_provider"}:
         return "high"
@@ -371,7 +430,9 @@ def _risks(context: dict[str, Any], vendors: list[dict[str, Any]]) -> list[dict[
                 "high",
                 "One or more vendors handles sensitive data, identity, payment, AI, cloud, or missing-inventory responsibilities.",
                 ["vendors", "dependency_inventory", "deployment_topology"],
-                ["Define owner, support path, fallback, incident contact, and launch accept-or-block decision for each high-risk vendor."],
+                [
+                    "Define owner, support path, fallback, incident contact, and launch accept-or-block decision for each high-risk vendor."
+                ],
             )
         )
 
@@ -438,20 +499,40 @@ def _mitigations(
 ) -> list[dict[str, str]]:
     actions = [
         ("product_owner", "Record vendor purpose, owner, launch criticality, and customer impact."),
-        ("engineering_owner", "Limit vendor payloads to required fields and redact secrets from logs and telemetry."),
-        ("security_owner", "Review authentication scopes, secrets handling, audit logs, and incident contacts."),
-        ("operations_owner", "Define fallback, retry, rate-limit, and outage communication behavior."),
+        (
+            "engineering_owner",
+            "Limit vendor payloads to required fields and redact secrets from logs and telemetry.",
+        ),
+        (
+            "security_owner",
+            "Review authentication scopes, secrets handling, audit logs, and incident contacts.",
+        ),
+        (
+            "operations_owner",
+            "Define fallback, retry, rate-limit, and outage communication behavior.",
+        ),
     ]
     if context["sensitive_data"] or context["regulated_context"]:
         actions.append(
-            ("privacy_owner", "Confirm DPA, subprocessors, region, retention, deletion, and legal review requirements.")
+            (
+                "privacy_owner",
+                "Confirm DPA, subprocessors, region, retention, deletion, and legal review requirements.",
+            )
         )
     if any(vendor["category"] == "ai_provider" for vendor in vendors):
         actions.append(
-            ("ai_owner", "Document prompt, output, training-use, retention, evaluation, and human review controls.")
+            (
+                "ai_owner",
+                "Document prompt, output, training-use, retention, evaluation, and human review controls.",
+            )
         )
     if any(risk["severity"] == "high" for risk in risks):
-        actions.append(("release_owner", "Block release until all high-severity vendor risks have explicit accept-or-mitigate decisions."))
+        actions.append(
+            (
+                "release_owner",
+                "Block release until all high-severity vendor risks have explicit accept-or-mitigate decisions.",
+            )
+        )
     return [
         {"id": f"VRA-M{index:02d}", "owner": owner, "action": action}
         for index, (owner, action) in enumerate(_dedupe_pairs(actions), start=1)
@@ -462,21 +543,51 @@ def _review_checklist(
     context: dict[str, Any], vendors: list[dict[str, Any]], risks: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     items = [
-        _check("VRA-C01", "product_owner", "Vendor owner and purpose", "Each vendor has owner, business purpose, launch criticality, and customer impact documented."),
-        _check("VRA-C02", "security_owner", "Security assurance", "Security review covers scopes, secrets, audit logs, incident contact, and assurance evidence."),
-        _check("VRA-C03", "operations_owner", "Operational fallback", "Retries, degraded mode, manual workaround, and outage communication path are documented."),
+        _check(
+            "VRA-C01",
+            "product_owner",
+            "Vendor owner and purpose",
+            "Each vendor has owner, business purpose, launch criticality, and customer impact documented.",
+        ),
+        _check(
+            "VRA-C02",
+            "security_owner",
+            "Security assurance",
+            "Security review covers scopes, secrets, audit logs, incident contact, and assurance evidence.",
+        ),
+        _check(
+            "VRA-C03",
+            "operations_owner",
+            "Operational fallback",
+            "Retries, degraded mode, manual workaround, and outage communication path are documented.",
+        ),
     ]
     if context["sensitive_data"] or context["regulated_context"]:
         items.append(
-            _check("VRA-C04", "privacy_owner", "Privacy and legal review", "Data fields, DPA or BAA status, subprocessors, retention, deletion, and region constraints are approved.")
+            _check(
+                "VRA-C04",
+                "privacy_owner",
+                "Privacy and legal review",
+                "Data fields, DPA or BAA status, subprocessors, retention, deletion, and region constraints are approved.",
+            )
         )
     if any(risk["severity"] == "high" for risk in risks):
         items.append(
-            _check("VRA-C05", "release_owner", "Release gate signoff", "High-severity vendor risks have explicit mitigation or accepted-risk decisions.")
+            _check(
+                "VRA-C05",
+                "release_owner",
+                "Release gate signoff",
+                "High-severity vendor risks have explicit mitigation or accepted-risk decisions.",
+            )
         )
     if vendors and vendors[0]["category"] == "missing_inventory":
         items.append(
-            _check("VRA-C06", "engineering_owner", "Complete vendor inventory", "Stack, integrations, dependency inventory, and deployment topology name all external vendors.")
+            _check(
+                "VRA-C06",
+                "engineering_owner",
+                "Complete vendor inventory",
+                "Stack, integrations, dependency inventory, and deployment topology name all external vendors.",
+            )
         )
     return items
 
@@ -497,13 +608,15 @@ def _gate_decision(
     risks: list[dict[str, Any]],
     review_checklist: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    blocking_reasons = [
-        risk["title"] for risk in risks if risk["severity"] == "high"
-    ]
+    blocking_reasons = [risk["title"] for risk in risks if risk["severity"] == "high"]
     if vendors and vendors[0]["category"] == "missing_inventory":
         blocking_reasons.append("External vendor boundary is not inventoried.")
     status = "blocked" if blocking_reasons else "review_required"
-    if not blocking_reasons and context["mentions_vendor_contract"] and context["mentions_failover"]:
+    if (
+        not blocking_reasons
+        and context["mentions_vendor_contract"]
+        and context["mentions_failover"]
+    ):
         status = "approved_with_conditions"
 
     return {
@@ -605,6 +718,141 @@ def _render_gate(gate: dict[str, Any]) -> list[str]:
         *_bullets(gate.get("blocking_reasons") or [], empty="None."),
         f"- Decision rule: {_text(gate.get('decision_rule'))}",
     ]
+
+
+def _csv_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for vendor in _list(assessment.get("vendors")):
+        if not isinstance(vendor, dict):
+            continue
+        rows.append(
+            _csv_row(
+                assessment,
+                section="vendors",
+                item_type="vendor",
+                item_id=vendor.get("id"),
+                item_name=vendor.get("name"),
+                category=vendor.get("category"),
+                severity_or_status=vendor.get("risk_level"),
+                evidence=vendor.get("source_fields"),
+                context=vendor.get("data_exchanged"),
+                details=[
+                    vendor.get("operational_dependency"),
+                    vendor.get("review_requirements"),
+                ],
+            )
+        )
+
+    for risk in _list(assessment.get("risks")):
+        if not isinstance(risk, dict):
+            continue
+        rows.append(
+            _csv_row(
+                assessment,
+                section="risks",
+                item_type="risk",
+                item_id=risk.get("id"),
+                item_name=risk.get("title"),
+                category=risk.get("category"),
+                severity_or_status=risk.get("severity"),
+                evidence=risk.get("evidence"),
+                context=risk.get("description"),
+                details=risk.get("mitigations"),
+            )
+        )
+
+    for mitigation in _list(assessment.get("mitigations")):
+        if not isinstance(mitigation, dict):
+            continue
+        rows.append(
+            _csv_row(
+                assessment,
+                section="mitigations",
+                item_type="mitigation",
+                item_id=mitigation.get("id"),
+                item_name=mitigation.get("action"),
+                owner=mitigation.get("owner"),
+                context=mitigation.get("action"),
+            )
+        )
+
+    for item in _list(assessment.get("review_checklist")):
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            _csv_row(
+                assessment,
+                section="review_checklist",
+                item_type="review_checklist_item",
+                item_id=item.get("id"),
+                item_name=item.get("title"),
+                severity_or_status=item.get("status"),
+                owner=item.get("owner"),
+                context=item.get("requirement"),
+            )
+        )
+
+    gate = _dict(assessment.get("gate_decision"))
+    if gate:
+        rows.append(
+            _csv_row(
+                assessment,
+                section="gate_decision",
+                item_type="gate_decision",
+                item_id="gate_decision",
+                item_name="Gate decision",
+                severity_or_status=gate.get("status"),
+                owner=gate.get("required_reviews"),
+                evidence=gate.get("blocking_reasons"),
+                context=gate.get("decision_rule"),
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    assessment: dict[str, Any],
+    *,
+    section: str,
+    item_type: str,
+    item_id: Any = "",
+    item_name: Any = "",
+    category: Any = "",
+    severity_or_status: Any = "",
+    owner: Any = "",
+    evidence: Any = "",
+    context: Any = "",
+    details: Any = "",
+) -> dict[str, str]:
+    source = _dict(assessment.get("source"))
+    summary = _dict(assessment.get("summary"))
+    return {
+        "schema_version": _csv_cell(assessment.get("schema_version")),
+        "kind": _csv_cell(assessment.get("kind")),
+        "source_idea_id": _csv_cell(source.get("idea_id")),
+        "title": _csv_cell(summary.get("title")),
+        "section": section,
+        "item_type": item_type,
+        "item_id": _csv_cell(item_id),
+        "item_name": _csv_cell(item_name),
+        "category": _csv_cell(category),
+        "severity_or_status": _csv_cell(severity_or_status),
+        "owner": _csv_cell(owner),
+        "evidence": _csv_cell(evidence),
+        "context": _csv_cell(context),
+        "details": _csv_cell(details),
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return _compact(json.dumps(value, sort_keys=True, separators=(",", ":")))
+    if isinstance(value, list | tuple | set):
+        values = sorted(value, key=_csv_cell) if isinstance(value, set) else value
+        return " | ".join(item for item in (_csv_cell(item) for item in values) if item)
+    return _compact(value)
 
 
 def _dict(value: Any) -> dict[str, Any]:

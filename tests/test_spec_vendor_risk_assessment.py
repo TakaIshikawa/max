@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
 import json
 
 from max.spec import generate_vendor_risk_assessment as exported_generate
+from max.spec import render_vendor_risk_assessment_csv as exported_render_csv
 from max.spec import render_vendor_risk_assessment_markdown as exported_render
 from max.spec.vendor_risk_assessment import (
     KIND,
+    VENDOR_RISK_ASSESSMENT_CSV_COLUMNS,
     VENDOR_RISK_ASSESSMENT_SCHEMA_VERSION,
     generate_vendor_risk_assessment,
+    render_vendor_risk_assessment_csv,
     render_vendor_risk_assessment_markdown,
 )
 
@@ -113,7 +118,10 @@ def test_generate_vendor_risk_assessment_extracts_vendors_and_review_requirement
     assert "Salesforce" in by_name
     assert "Slack" in by_name
     assert "Datadog" in by_name
-    assert any("privacy, security, and legal review" in item for item in by_name["Slack"]["review_requirements"])
+    assert any(
+        "privacy, security, and legal review" in item
+        for item in by_name["Slack"]["review_requirements"]
+    )
 
     categories = {risk["category"] for risk in assessment["risks"]}
     assert "sensitive_vendor_transfer" in categories
@@ -132,9 +140,7 @@ def test_sparse_specs_emit_actionable_missing_input_risks() -> None:
     assert assessment["vendors"][0]["name"] == "Unspecified external vendor"
     assert assessment["vendors"][0]["risk_level"] == "high"
     assert "missing_vendor_inventory" in {risk["category"] for risk in assessment["risks"]}
-    assert "Complete vendor inventory" in {
-        item["title"] for item in assessment["review_checklist"]
-    }
+    assert "Complete vendor inventory" in {item["title"] for item in assessment["review_checklist"]}
     assert assessment["gate_decision"]["blocking_reasons"]
 
 
@@ -161,6 +167,58 @@ def test_render_vendor_risk_assessment_markdown_is_stable_and_traceable() -> Non
     assert "Status: blocked" in first
 
 
+def test_render_vendor_risk_assessment_csv_has_stable_headers_and_sections() -> None:
+    assessment = generate_vendor_risk_assessment(_rich_spec())
+
+    first = render_vendor_risk_assessment_csv(assessment)
+    second = render_vendor_risk_assessment_csv(assessment)
+    reader = csv.DictReader(StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert reader.fieldnames == list(VENDOR_RISK_ASSESSMENT_CSV_COLUMNS)
+    assert {row["section"] for row in rows} == {
+        "vendors",
+        "risks",
+        "mitigations",
+        "review_checklist",
+        "gate_decision",
+    }
+    assert all(row["source_idea_id"] == "bu-vendor-risk" for row in rows)
+    assert all(row["title"] == "Patient Follow-Up Automation" for row in rows)
+
+
+def test_render_vendor_risk_assessment_csv_includes_representative_rows() -> None:
+    assessment = generate_vendor_risk_assessment(_rich_spec())
+
+    rows = list(csv.DictReader(StringIO(render_vendor_risk_assessment_csv(assessment))))
+
+    vendor = next(
+        row for row in rows if row["section"] == "vendors" and row["item_name"] == "OpenAI"
+    )
+    assert vendor["item_type"] == "vendor"
+    assert vendor["category"] == "ai_provider"
+    assert vendor["severity_or_status"] == "high"
+    assert "patient data" in vendor["context"]
+    assert "solution.suggested_stack.ai" in vendor["evidence"]
+    assert "privacy, security, and legal review" in vendor["details"]
+
+    risk = next(row for row in rows if row["item_id"] == "VRA-R01")
+    assert risk["section"] == "risks"
+    assert risk["item_name"] == "Sensitive data may be exchanged with vendors"
+    assert risk["category"] == "sensitive_vendor_transfer"
+    assert risk["severity_or_status"] == "high"
+    assert "privacy_impact_assessment" in risk["evidence"]
+
+    gate = next(row for row in rows if row["section"] == "gate_decision")
+    assert gate["item_id"] == "gate_decision"
+    assert gate["severity_or_status"] == "blocked"
+    assert "privacy_owner" in gate["owner"]
+    assert "Sensitive data may be exchanged with vendors" in gate["evidence"]
+    assert "blocked when vendor inventory is missing" in gate["context"]
+
+
 def test_vendor_risk_assessment_is_json_stable() -> None:
     first = generate_vendor_risk_assessment(_rich_spec())
     second = generate_vendor_risk_assessment(_rich_spec())
@@ -172,6 +230,8 @@ def test_vendor_risk_assessment_is_json_stable() -> None:
 def test_vendor_risk_assessment_is_importable_from_spec_package() -> None:
     assessment = exported_generate(_rich_spec())
     markdown = exported_render(assessment)
+    csv_text = exported_render_csv(assessment)
 
     assert assessment["schema_version"] == VENDOR_RISK_ASSESSMENT_SCHEMA_VERSION
     assert markdown.startswith("# Patient Follow-Up Automation Vendor Risk Assessment")
+    assert csv_text.startswith(",".join(VENDOR_RISK_ASSESSMENT_CSV_COLUMNS))
