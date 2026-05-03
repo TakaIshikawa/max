@@ -186,6 +186,30 @@ def test_render_design_brief_gtm_channel_plan_csv_recommendations_are_stable(tmp
         store.close()
 
     assert report is not None
+    report["experiments"] = [
+        {
+            "id": "EXP-COPY",
+            "name": "Problem-led email copy test",
+            "channel": "design partner outreach",
+            "owner": "product marketing",
+            "priority": 1,
+            "hypothesis": "Problem-first copy improves qualified reply rate.",
+            "metric": "qualified_conversation_rate",
+            "variants": ["workflow pain", "business case"],
+            "source_idea_ids": ["bu-gtm-lead"],
+        }
+    ]
+    report["next_actions"] = [
+        {
+            "id": "NA-CAMPAIGN",
+            "action": "Create campaign tracker rows from the validation channels.",
+            "channel": "design partner outreach",
+            "owner": "growth lead",
+            "priority": "P0",
+            "source_idea_ids": ["bu-gtm-lead"],
+            "due_in_days": 3,
+        }
+    ]
     csv_text = render_design_brief_gtm_channel_plan(report, "csv")
     repeated = render_design_brief_gtm_channel_plan(report, "csv")
     reader = csv.DictReader(io.StringIO(csv_text))
@@ -193,26 +217,57 @@ def test_render_design_brief_gtm_channel_plan_csv_recommendations_are_stable(tmp
 
     assert csv_text == repeated
     assert reader.fieldnames == list(CSV_COLUMNS)
-    assert [row["priority"] for row in rows] == ["1", "2", "3"]
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["section"] for row in rows] == [
+        *["channel_recommendations"] * 3,
+        "experiments",
+        *["launch_motions"] * 3,
+        *["metrics"] * 3,
+        "risks",
+        "next_actions",
+    ]
     first = rows[0]
+    assert first["schema_version"] == SCHEMA_VERSION
+    assert first["kind"] == KIND
     assert first["design_brief_id"] == brief_id
+    assert first["design_brief_title"] == "Launch Workflow Copilot Brief"
+    assert first["domain"] == "developer-tools"
+    assert first["theme"] == "gtm-channel-plan"
+    assert first["design_status"] == "approved"
+    assert first["readiness_score"] == "87.0"
+    assert first["section"] == "channel_recommendations"
+    assert first["item_id"] == "GTM1"
+    assert first["item_name"] == "design partner outreach"
+    assert first["priority"] == "1"
     assert first["channel"] == "design partner outreach"
-    assert first["type"] == "acquisition"
-    assert first["audience"] == "developer tools founder"
     assert first["owner"] == "product marketing"
-    assert first["confidence"] == "high"
-    assert first["call_to_action"] == "Schedule a 30-minute workflow review."
-    assert json.loads(first["evidence_refs"]) == [
+    assert first["rationale"].startswith("Direct outreach is the fastest way")
+    assert first["metric"] == "qualified_conversation_rate"
+    assert json.loads(first["source_idea_ids"]) == ["bu-gtm-lead"]
+    detail = json.loads(first["detail"])
+    assert detail["audience"] == "developer tools founder"
+    assert detail["call_to_action"] == "Schedule a 30-minute workflow review."
+    assert detail["confidence"] == "high"
+    assert detail["evidence_refs"] == [
         "sig-gtm-forum",
         "sig-gtm-funding",
         "sig-gtm-survey",
     ]
-    assert json.loads(first["sequencing_phase"]) == ["validation"]
-    assert json.loads(first["risk_refs"]) == ["R1"]
-    assert "Validate through design partner outreach" in json.loads(first["mitigation_refs"])[0]
+    experiment = next(row for row in rows if row["section"] == "experiments")
+    assert experiment["item_id"] == "EXP-COPY"
+    assert experiment["item_name"] == "Problem-led email copy test"
+    assert experiment["metric"] == "qualified_conversation_rate"
+    assert json.loads(experiment["detail"]) == {"variants": ["workflow pain", "business case"]}
+    assert rows[-1]["section"] == "next_actions"
+    assert rows[-1]["item_id"] == "NA-CAMPAIGN"
+    assert rows[-1]["item_name"] == "Create campaign tracker rows from the validation channels."
+    assert rows[-1]["channel"] == "design partner outreach"
+    assert rows[-1]["owner"] == "growth lead"
+    assert rows[-1]["priority"] == "P0"
+    assert json.loads(rows[-1]["detail"]) == {"due_in_days": 3}
 
 
-def test_render_design_brief_gtm_channel_plan_csv_serializes_nested_tactics_and_metrics(
+def test_render_design_brief_gtm_channel_plan_csv_serializes_nested_detail_cells(
     tmp_path,
 ) -> None:
     store = Store(str(tmp_path / "max.db"))
@@ -225,21 +280,51 @@ def test_render_design_brief_gtm_channel_plan_csv_serializes_nested_tactics_and_
     assert report is not None
     rows = list(csv.DictReader(io.StringIO(render_design_brief_gtm_channel_plan(report, "csv"))))
     first = rows[0]
+    detail = json.loads(first["detail"])
 
-    assert json.loads(first["tactic_names"]) == ["warm account list", "problem-led email"]
-    assert json.loads(first["tactic_descriptions"]) == [
+    assert [tactic["name"] for tactic in detail["tactics"]] == [
+        "warm account list",
+        "problem-led email",
+    ]
+    assert [tactic["description"] for tactic in detail["tactics"]] == [
         "Identify existing relationships with developer tools founder ownership.",
         "Lead with the design partner recruiting pain and request validation.",
     ]
-    assert json.loads(first["tactic_owners"]) == [
+    assert [tactic["owner"] for tactic in detail["tactics"]] == [
         "product marketing",
         "founder or product lead",
     ]
-    assert json.loads(first["success_metric"]) == {
+    assert detail["success_metric"] == {
         "metric": "qualified_conversation_rate",
         "target": "25%+ positive replies from qualified accounts",
     }
-    assert rows[1]["risk_refs"] == "[]"
+    assert first["detail"] == json.dumps(detail, sort_keys=True, separators=(",", ":"))
+    launch = next(row for row in rows if row["section"] == "launch_motions")
+    assert launch["item_id"] == "LM1"
+    assert launch["item_name"] == "validation"
+    assert json.loads(launch["channel"]) == [
+        "design partner outreach",
+        "buyer enablement content",
+    ]
+    assert launch["metric"] == "At least three qualified conversations confirm urgency and wording."
+    metric = next(row for row in rows if row["section"] == "metrics")
+    assert metric["item_id"] == "M1"
+    assert metric["metric"] == "qualified_conversation_rate"
+    assert json.loads(metric["detail"]) == {
+        "definition": (
+            "Share of design partner outreach responses that match developer tools founder "
+            "and design partner recruiting."
+        ),
+        "target": "25%+ positive replies from qualified accounts",
+    }
+    risk = next(row for row in rows if row["section"] == "risks")
+    assert risk["item_id"] == "R1"
+    assert risk["owner"] == "product marketing"
+    assert json.loads(risk["detail"]) == {
+        "mitigation": (
+            "Validate through design partner outreach before scaling community proof loop."
+        )
+    }
 
 
 def test_render_design_brief_gtm_channel_plan_csv_escapes_special_characters(tmp_path) -> None:
@@ -257,12 +342,16 @@ def test_render_design_brief_gtm_channel_plan_csv_escapes_special_characters(tmp
     recommendation["rationale"] = 'Use "quoted", comma-led\ncopy.'
     recommendation["tactics"][0]["description"] = 'List "warm", accounts\ncarefully.'
     report["sequencing"][0]["channels"][0] = recommendation["channel"]
+    report["launch_sequence"][0]["channels"][0] = recommendation["channel"]
 
     rows = list(csv.DictReader(io.StringIO(render_design_brief_gtm_channel_plan(report, "csv"))))
+    detail = json.loads(rows[0]["detail"])
 
     assert rows[0]["channel"] == 'design, partner "alpha"\noutreach'
     assert rows[0]["rationale"] == 'Use "quoted", comma-led\ncopy.'
-    assert json.loads(rows[0]["tactic_descriptions"])[0] == 'List "warm", accounts\ncarefully.'
+    assert detail["tactics"][0]["description"] == 'List "warm", accounts\ncarefully.'
+    launch = next(row for row in rows if row["section"] == "launch_motions")
+    assert json.loads(launch["channel"])[0] == 'design, partner "alpha"\noutreach'
 
 
 def test_render_design_brief_gtm_channel_plan_csv_header_only_without_recommendations() -> None:
