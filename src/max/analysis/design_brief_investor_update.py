@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,6 +12,19 @@ if TYPE_CHECKING:
 
 KIND = "max.design_brief.investor_update"
 SCHEMA_VERSION = "max.design_brief.investor_update.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "update_section",
+    "metric_name",
+    "status_or_value",
+    "narrative",
+    "risks_blockers",
+    "asks",
+    "evidence_source_references",
+    "source_idea_ids",
+    "details",
+)
 
 
 def build_design_brief_investor_update(store: Store, brief_id: str) -> dict[str, Any] | None:
@@ -86,6 +101,8 @@ def render_design_brief_investor_update(report: dict[str, Any], fmt: str = "mark
     """Render an investor update as Markdown or deterministic JSON."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_investor_update_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported investor update format: {fmt}")
 
@@ -127,14 +144,166 @@ def render_design_brief_investor_update(report: dict[str, Any], fmt: str = "mark
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_design_brief_investor_update_csv(report: dict[str, Any]) -> str:
+    """Render investor update artifacts as deterministic CSV text."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def investor_update_filename(design_brief: dict[str, Any], *, fmt: str = "markdown") -> str:
     """Return a stable filename for an investor update export."""
-    extension = "json" if fmt == "json" else "md"
+    extension = "json" if fmt == "json" else "csv" if fmt == "csv" else "md"
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"{_filename_part(str(design_brief.get('title') or 'Investor Update'))}-"
         f"investor-update.{extension}"
     )
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    summary = report.get("summary") or {}
+    confidence = report.get("confidence") or {}
+    design_brief = report.get("design_brief") or {}
+
+    if summary:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="summary",
+                metric_name="summary",
+                status_or_value=summary.get("confidence_level"),
+                narrative=summary.get("narrative"),
+                risks_blockers=summary.get("risk_count"),
+                asks=summary.get("ask_count"),
+                evidence_source_references=_evidence_reference_ids(report),
+                source_idea_ids=design_brief.get("source_idea_ids"),
+                details={
+                    "readiness_score": summary.get("readiness_score"),
+                    "buyer": summary.get("buyer"),
+                    "traction_signal_count": summary.get("traction_signal_count"),
+                },
+            )
+        )
+
+    if confidence:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="confidence",
+                metric_name="update_confidence",
+                status_or_value=confidence.get("level"),
+                narrative=confidence.get("rationale"),
+                evidence_source_references=_evidence_reference_ids(report),
+                source_idea_ids=design_brief.get("source_idea_ids"),
+                details={"score": confidence.get("score")},
+            )
+        )
+
+    for signal in report.get("traction_signals") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="traction_signals",
+                metric_name=signal.get("id"),
+                status_or_value=signal.get("strength"),
+                narrative=signal.get("signal"),
+                evidence_source_references=signal.get("basis"),
+                source_idea_ids=signal.get("source_idea_ids"),
+            )
+        )
+
+    for learning in report.get("learnings_since_last_review") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="learnings_since_last_review",
+                metric_name=learning.get("id"),
+                status_or_value=learning.get("category"),
+                narrative=learning.get("learning"),
+                evidence_source_references=learning.get("basis"),
+            )
+        )
+
+    for risk in report.get("top_risks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="top_risks",
+                metric_name=risk.get("id"),
+                status_or_value=risk.get("priority"),
+                narrative=risk.get("mitigation"),
+                risks_blockers=risk.get("risk"),
+                source_idea_ids=risk.get("source_idea_ids"),
+                details={"category": risk.get("category")},
+            )
+        )
+
+    for ask in report.get("asks") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="asks",
+                metric_name=ask.get("id"),
+                status_or_value=ask.get("owner"),
+                narrative=ask.get("rationale"),
+                asks=ask.get("ask"),
+            )
+        )
+
+    for milestone in report.get("next_milestones") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="next_milestones",
+                metric_name=milestone.get("id"),
+                status_or_value=milestone.get("target_window"),
+                narrative=milestone.get("success_signal"),
+                asks=milestone.get("milestone"),
+                source_idea_ids=milestone.get("source_idea_ids"),
+            )
+        )
+
+    for reference in report.get("evidence_references") or []:
+        rows.append(
+            _csv_row(
+                report,
+                update_section="evidence_references",
+                metric_name=reference.get("id"),
+                status_or_value=reference.get("type"),
+                narrative=reference.get("description"),
+                evidence_source_references=reference.get("id"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    design_brief = report.get("design_brief") or {}
+    row: dict[str, Any] = {
+        "design_brief_id": design_brief.get("id"),
+        "design_brief_title": design_brief.get("title"),
+        "update_section": "",
+        "metric_name": "",
+        "status_or_value": "",
+        "narrative": "",
+        "risks_blockers": "",
+        "asks": "",
+        "evidence_source_references": "",
+        "source_idea_ids": "",
+        "details": "",
+    }
+    row.update(values)
+    return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _evidence_reference_ids(report: dict[str, Any]) -> list[str]:
+    return [str(item["id"]) for item in report.get("evidence_references") or [] if item.get("id")]
 
 
 def _summary(
@@ -642,6 +811,25 @@ def _milestone_success_signal(milestone: str) -> str:
 
 def _render_items(items: list[dict[str, Any]], field: str) -> list[str]:
     return [f"- **{item['id']}**: {item[field]}" for item in items]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_string_list(value))
+    if isinstance(value, dict):
+        filtered = {key: item for key, item in value.items() if item not in (None, "", [], {})}
+        if not filtered:
+            return ""
+        return json.dumps(filtered, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def _filename_part(value: str) -> str:

@@ -62,6 +62,7 @@ from max.analysis.design_brief_investor_update import (
     build_design_brief_investor_update,
     investor_update_filename,
     render_design_brief_investor_update,
+    render_design_brief_investor_update_csv,
 )
 from max.analysis.design_brief_integration_contract import (
     build_design_brief_integration_contract,
@@ -216,6 +217,7 @@ __all__ = [
     "render_design_brief_qa_test_plan",
     "render_qa_test_plan_markdown",
     "render_design_brief_investor_update",
+    "render_design_brief_investor_update_csv",
     "render_design_brief_integration_contract",
     "render_design_brief_release_notes",
     "render_design_brief_sales_enablement_checklist",
