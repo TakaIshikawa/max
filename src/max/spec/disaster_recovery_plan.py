@@ -2,10 +2,35 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 DISASTER_RECOVERY_PLAN_SCHEMA_VERSION = "max-disaster-recovery-plan/v1"
+DISASTER_RECOVERY_PLAN_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_idea_id",
+    "title",
+    "item_id",
+    "name",
+    "category",
+    "severity",
+    "owner",
+    "cadence",
+    "channel",
+    "recovery_time_objective",
+    "recovery_point_objective",
+    "critical_system",
+    "scenario",
+    "procedure",
+    "step",
+    "objective",
+    "description",
+    "verification",
+    "derived_from",
+)
 
 _DEPENDENCY_TERMS = {
     "Datadog": ("datadog",),
@@ -132,6 +157,18 @@ def render_disaster_recovery_plan_markdown(plan: dict[str, Any]) -> str:
     )
     _extend_section(lines, "Gaps", plan.get("gaps") or [], _render_gap)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_disaster_recovery_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a generated disaster recovery plan as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output, fieldnames=DISASTER_RECOVERY_PLAN_CSV_COLUMNS, lineterminator="\n"
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _recovery_objectives(workflow: str, rto: str, rpo: str) -> list[dict[str, Any]]:
@@ -884,6 +921,242 @@ def _render_gap(item: dict[str, Any]) -> list[str]:
         f"- Derived from: {_derived_from(item)}",
         "",
     ]
+
+
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in _dict_items(plan.get("recovery_objectives")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="recovery_objectives",
+                type_="objective",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                objective=item.get("description") or item.get("objective"),
+                description=item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("critical_systems") or plan.get("critical_dependencies")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="critical_systems",
+                type_="critical_system",
+                item_id=item.get("id"),
+                name=item.get("name") or item.get("system"),
+                category=item.get("role") or item.get("category"),
+                critical_system=item.get("name") or item.get("system"),
+                procedure=item.get("recovery_note") or item.get("procedure"),
+                description=item.get("recovery_note") or item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("critical_capabilities")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="critical_capabilities",
+                type_="critical_capability",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                description=item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("failure_scenarios") or plan.get("scenarios")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="failure_scenarios",
+                type_="scenario",
+                item_id=item.get("id"),
+                name=item.get("name") or item.get("title"),
+                category=item.get("category"),
+                severity=item.get("severity"),
+                owner=item.get("owner"),
+                critical_system=item.get("critical_system") or item.get("system"),
+                scenario=item.get("scenario") or item.get("description") or item.get("trigger"),
+                description=item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for section, items in (
+        ("backup_restore_assumptions", plan.get("backup_restore_assumptions")),
+        ("backup_strategy", plan.get("backup_strategy")),
+        ("backup_restore_procedures", plan.get("backup_restore_procedures")),
+        ("failover_steps", plan.get("failover_steps")),
+        ("restore_sequence", plan.get("restore_sequence")),
+        ("data_integrity_checks", plan.get("data_integrity_checks")),
+        ("validation_checks", plan.get("validation_checks")),
+    ):
+        for item in _dict_items(items):
+            rows.append(_procedure_csv_row(plan, section, item))
+
+    for item in _dict_items(plan.get("communications") or plan.get("communication_steps")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="communications",
+                type_="communication",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                owner=item.get("owner"),
+                channel=item.get("channel"),
+                step=item.get("message") or item.get("action") or item.get("step"),
+                description=item.get("message") or item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("owner_roles") or plan.get("owners")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="owners",
+                type_="owner",
+                item_id=item.get("id"),
+                name=item.get("role") or item.get("name"),
+                owner=item.get("owner") or item.get("role") or item.get("name"),
+                description=item.get("responsibility") or item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("validation_drills")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="validation_drills",
+                type_="validation_cadence",
+                item_id=item.get("id"),
+                name=item.get("name"),
+                owner=item.get("owner"),
+                cadence=item.get("cadence"),
+                step=item.get("exercise"),
+                description=item.get("exercise"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    for item in _dict_items(plan.get("gaps")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="gaps",
+                type_="gap",
+                item_id=item.get("id"),
+                name=item.get("category"),
+                category=item.get("category"),
+                owner=item.get("owner"),
+                description=item.get("description"),
+                derived_from=item.get("derived_from"),
+            )
+        )
+
+    return rows
+
+
+def _procedure_csv_row(plan: dict[str, Any], section: str, item: dict[str, Any]) -> dict[str, str]:
+    procedure = item.get("action") or item.get("assumption") or item.get("procedure")
+    return _csv_row(
+        plan,
+        section=section,
+        type_="procedure",
+        item_id=item.get("id"),
+        name=item.get("name"),
+        owner=item.get("owner"),
+        procedure=procedure,
+        step=procedure or item.get("step"),
+        description=item.get("description") or item.get("assumption") or item.get("action"),
+        verification=item.get("verification"),
+        derived_from=item.get("derived_from"),
+    )
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    severity: Any = None,
+    owner: Any = None,
+    cadence: Any = None,
+    channel: Any = None,
+    critical_system: Any = None,
+    scenario: Any = None,
+    procedure: Any = None,
+    step: Any = None,
+    objective: Any = None,
+    description: Any = None,
+    verification: Any = None,
+    derived_from: Any = None,
+) -> dict[str, str]:
+    source = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "title": summary.get("title"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "severity": severity,
+        "owner": owner,
+        "cadence": cadence,
+        "channel": channel,
+        "recovery_time_objective": summary.get("recovery_time_objective"),
+        "recovery_point_objective": summary.get("recovery_point_objective"),
+        "critical_system": critical_system,
+        "scenario": scenario,
+        "procedure": procedure,
+        "step": step,
+        "objective": objective,
+        "description": description,
+        "verification": verification,
+        "derived_from": derived_from,
+    }
+    return {column: _csv_text(values.get(column)) for column in DISASTER_RECOVERY_PLAN_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
+
+
+def _list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
 
 
 def _derived_from(item: dict[str, Any]) -> str:

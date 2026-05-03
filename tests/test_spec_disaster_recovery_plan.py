@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
 from max.spec import generate_disaster_recovery_plan as exported_generate
+from max.spec import render_disaster_recovery_plan_csv as exported_render_csv
 from max.spec import render_disaster_recovery_plan_markdown as exported_render
 from max.spec.disaster_recovery_plan import (
+    DISASTER_RECOVERY_PLAN_CSV_COLUMNS,
     DISASTER_RECOVERY_PLAN_SCHEMA_VERSION,
     generate_disaster_recovery_plan,
+    render_disaster_recovery_plan_csv,
     render_disaster_recovery_plan_markdown,
 )
 
@@ -187,6 +193,156 @@ def test_render_disaster_recovery_plan_markdown_is_stable_readable_and_traceable
     assert "`insight:ins-renewal-risk`" in first
 
 
+def test_render_disaster_recovery_plan_csv_has_headers_and_generated_rows() -> None:
+    plan = generate_disaster_recovery_plan(_rich_tact_spec())
+
+    csv_text = render_disaster_recovery_plan_csv(plan)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == render_disaster_recovery_plan_csv(plan)
+    assert csv_text.splitlines()[0].split(",") == list(DISASTER_RECOVERY_PLAN_CSV_COLUMNS)
+    assert rows[0] == {
+        "section": "recovery_objectives",
+        "type": "objective",
+        "source_idea_id": "bu-dr-rich",
+        "title": "Renewal Risk Console",
+        "item_id": "OBJ1",
+        "name": "Restore primary workflow",
+        "category": "",
+        "severity": "",
+        "owner": "",
+        "cadence": "",
+        "channel": "",
+        "recovery_time_objective": "4 hours",
+        "recovery_point_objective": "15 minutes",
+        "critical_system": "",
+        "scenario": "",
+        "procedure": "",
+        "step": "",
+        "objective": (
+            "Recover the Salesforce account review to Slack renewal alert path within 4 hours."
+        ),
+        "description": (
+            "Recover the Salesforce account review to Slack renewal alert path within 4 hours."
+        ),
+        "verification": "",
+        "derived_from": "project.workflow_context; summary.recovery_time_objective",
+    }
+    assert [row["item_id"] for row in rows if row["section"] == "critical_systems"] == [
+        "DEP1",
+        "DEP2",
+        "DEP3",
+        "DEP4",
+        "DEP5",
+        "DEP6",
+    ]
+    assert [row["item_id"] for row in rows if row["section"] == "restore_sequence"] == [
+        "RST1",
+        "RST2",
+        "RST3",
+        "RST4",
+        "RST5",
+    ]
+    assert any(
+        row["section"] == "communications"
+        and row["owner"] == "product_owner"
+        and row["channel"] == "customer_status_channel"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "validation_drills"
+        and row["item_id"] == "DRL2"
+        and row["cadence"] == "quarterly"
+        for row in rows
+    )
+
+
+def test_render_disaster_recovery_plan_csv_covers_scenarios_procedures_and_escaping() -> None:
+    plan = {
+        "source": {"idea_id": "idea-csv"},
+        "summary": {
+            "title": 'Payments, "Ledger"\nRestore',
+            "recovery_time_objective": "30 minutes",
+            "recovery_point_objective": "5 minutes",
+        },
+        "recovery_objectives": [
+            {"id": "OBJ1", "name": "Restore writes", "description": "Resume ledger writes."}
+        ],
+        "critical_systems": [
+            {"id": "SYS1", "name": "Postgres, primary", "role": "stateful_data"}
+        ],
+        "failure_scenarios": [
+            {
+                "id": "SCN1",
+                "name": "Database unavailable",
+                "severity": "critical",
+                "owner": "technical_owner",
+                "critical_system": "Postgres",
+                "description": 'Primary database returns "read only", then fails over.',
+            },
+            {
+                "id": "SCN2",
+                "name": "Queue backlog",
+                "severity": "high",
+                "owner": "data_owner",
+                "critical_system": "Redis",
+                "scenario": "Queued writes exceed restore window.",
+            },
+        ],
+        "backup_restore_procedures": [
+            {
+                "id": "PRC1",
+                "name": "Restore snapshot",
+                "owner": "data_owner",
+                "procedure": "Restore latest snapshot, validate counts.",
+            },
+            {
+                "id": "PRC2",
+                "name": "Replay queue",
+                "owner": "technical_owner",
+                "procedure": 'Replay "accepted" jobs\nin timestamp order.',
+            },
+        ],
+    }
+
+    csv_text = render_disaster_recovery_plan_csv(plan)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Payments, ""Ledger""\nRestore"' in csv_text
+    assert '"Postgres, primary"' in csv_text
+    assert '"Replay ""accepted"" jobs\nin timestamp order."' in csv_text
+    assert [row["item_id"] for row in rows if row["section"] == "failure_scenarios"] == [
+        "SCN1",
+        "SCN2",
+    ]
+    assert [row["item_id"] for row in rows if row["section"] == "backup_restore_procedures"] == [
+        "PRC1",
+        "PRC2",
+    ]
+    assert rows[-1]["procedure"] == 'Replay "accepted" jobs\nin timestamp order.'
+
+
+def test_render_disaster_recovery_plan_csv_handles_minimal_partial_plan() -> None:
+    csv_text = render_disaster_recovery_plan_csv({"summary": {"title": "Minimal DR"}})
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == ",".join(DISASTER_RECOVERY_PLAN_CSV_COLUMNS) + "\n"
+    assert rows == []
+
+    partial_text = render_disaster_recovery_plan_csv(
+        {
+            "summary": {"title": "Partial DR"},
+            "restore_sequence": [{"id": "RST1", "action": "Restore the service."}],
+            "validation_drills": [{"id": "DRL1", "cadence": "annually"}],
+        }
+    )
+    partial_rows = list(csv.DictReader(StringIO(partial_text)))
+
+    assert [row["section"] for row in partial_rows] == ["restore_sequence", "validation_drills"]
+    assert partial_rows[0]["step"] == "Restore the service."
+    assert partial_rows[1]["cadence"] == "annually"
+
+
 def test_generate_disaster_recovery_plan_orders_dependencies_deterministically() -> None:
     spec = _rich_tact_spec()
     spec["solution"]["suggested_stack"] = {
@@ -207,6 +363,8 @@ def test_generate_disaster_recovery_plan_orders_dependencies_deterministically()
 def test_disaster_recovery_plan_is_importable_from_spec_package() -> None:
     plan = exported_generate(_rich_tact_spec())
     markdown = exported_render(plan)
+    csv_text = exported_render_csv(plan)
 
     assert plan["schema_version"] == DISASTER_RECOVERY_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Renewal Risk Console Disaster Recovery Plan")
+    assert csv_text.startswith("section,type,source_idea_id,title")
