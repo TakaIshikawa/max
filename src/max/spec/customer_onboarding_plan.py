@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.spec.generator import generate_spec_preview
@@ -10,6 +12,27 @@ from max.types.evaluation import UtilityEvaluation
 
 
 CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION = "max-customer-onboarding-plan/v1"
+CUSTOMER_ONBOARDING_PLAN_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "title",
+    "section",
+    "row_type",
+    "row_id",
+    "name",
+    "phase",
+    "owner",
+    "timing",
+    "status",
+    "metric",
+    "risk",
+    "description",
+    "success_criteria",
+    "evidence_references",
+    "source_references",
+    "details",
+)
 
 
 def generate_customer_onboarding_plan(
@@ -141,6 +164,20 @@ def render_customer_onboarding_plan_markdown(
         ]
     )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_customer_onboarding_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a customer onboarding plan as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=CUSTOMER_ONBOARDING_PLAN_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _idea_metadata(
@@ -793,6 +830,158 @@ def _render_evidence(reference: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for segment in plan.get("onboarding_segments") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="onboarding_segments",
+                row_type="phase",
+                row_id=segment.get("id"),
+                name=segment.get("name"),
+                phase=segment.get("onboarding_motion"),
+                owner=segment.get("audience"),
+                description=segment.get("need"),
+                success_criteria=segment.get("entry_action"),
+                evidence_references=segment.get("evidence_reference_ids"),
+                source_references=segment.get("derived_from"),
+                details={"audience": segment.get("audience")},
+            )
+        )
+    for check in plan.get("first_session_checklist") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="first_session_checklist",
+                row_type="task",
+                row_id=check.get("id"),
+                name=check.get("task"),
+                phase="first_session",
+                owner=check.get("owner"),
+                timing="first_session",
+                status=check.get("status"),
+                description=check.get("task"),
+                success_criteria=check.get("done_when"),
+                evidence_references=check.get("evidence_reference_ids"),
+                source_references=check.get("derived_from"),
+            )
+        )
+    for milestone in plan.get("activation_milestones") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="activation_milestones",
+                row_type="handoff_checkpoint",
+                row_id=milestone.get("id"),
+                name=milestone.get("name"),
+                phase="activation",
+                owner=milestone.get("owner"),
+                timing=milestone.get("target_window"),
+                description=milestone.get("customer_outcome"),
+                success_criteria=milestone.get("exit_criteria"),
+                evidence_references=milestone.get("evidence_reference_ids"),
+                source_references=milestone.get("references"),
+            )
+        )
+    for asset in plan.get("enablement_assets") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="enablement_assets",
+                row_type="task",
+                row_id=asset.get("id"),
+                name=asset.get("name"),
+                phase="enablement",
+                owner=asset.get("owner"),
+                timing=asset.get("due"),
+                description=asset.get("purpose"),
+                success_criteria=asset.get("purpose"),
+                evidence_references=asset.get("evidence_reference_ids"),
+                source_references=asset.get("derived_from"),
+            )
+        )
+    for metric in plan.get("success_metrics") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="success_metrics",
+                row_type="success_metric",
+                row_id=metric.get("id"),
+                name=metric.get("name"),
+                phase=metric.get("category"),
+                owner=metric.get("owner"),
+                metric=metric.get("measurement"),
+                description=metric.get("description"),
+                success_criteria=metric.get("target"),
+                evidence_references=metric.get("evidence_reference_ids"),
+                source_references=metric.get("references"),
+            )
+        )
+    for risk in plan.get("handoff_risks") or []:
+        rows.append(
+            _csv_row(
+                plan,
+                section="handoff_risks",
+                row_type="risk",
+                row_id=risk.get("id"),
+                name=risk.get("source"),
+                phase="handoff",
+                owner=risk.get("owner"),
+                status=risk.get("severity"),
+                risk=risk.get("description"),
+                description=risk.get("description"),
+                success_criteria=risk.get("mitigation"),
+                evidence_references=risk.get("evidence_reference_ids"),
+                source_references=risk.get("derived_from"),
+            )
+        )
+    return rows
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: str,
+    row_type: str,
+    row_id: Any = "",
+    name: Any = "",
+    phase: Any = "",
+    owner: Any = "",
+    timing: Any = "",
+    status: Any = "",
+    metric: Any = "",
+    risk: Any = "",
+    description: Any = "",
+    success_criteria: Any = "",
+    evidence_references: Any = None,
+    source_references: Any = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    idea = plan.get("idea") if isinstance(plan.get("idea"), dict) else {}
+    return {
+        "schema_version": _text(plan.get("schema_version")),
+        "kind": _text(plan.get("kind")),
+        "idea_id": _text(plan.get("idea_id")),
+        "title": _text(idea.get("title")),
+        "section": section,
+        "row_type": row_type,
+        "row_id": _text(row_id),
+        "name": _text(name),
+        "phase": _text(phase),
+        "owner": _text(owner),
+        "timing": _text(timing),
+        "status": _text(status),
+        "metric": _text(metric),
+        "risk": _text(risk),
+        "description": _text(description),
+        "success_criteria": _text(success_criteria),
+        "evidence_references": _csv_join(evidence_references),
+        "source_references": _csv_join(source_references),
+        "details": _csv_details(details),
+    }
+
+
 def _first_string(value: Any) -> str:
     if isinstance(value, list):
         for item in value:
@@ -833,3 +1022,19 @@ def _text(value: Any) -> str:
 def _join(values: list[str] | None) -> str:
     items = [f"`{value}`" for value in values or [] if _compact(value)]
     return ", ".join(items) if items else "none"
+
+
+def _csv_join(values: Any) -> str:
+    if isinstance(values, list):
+        return " | ".join(_compact(value) for value in values if _compact(value))
+    return _compact(values)
+
+
+def _csv_details(details: dict[str, Any] | None) -> str:
+    if not details:
+        return ""
+    return "; ".join(
+        f"{key}={_csv_join(value)}"
+        for key, value in sorted(details.items())
+        if _csv_join(value)
+    )
