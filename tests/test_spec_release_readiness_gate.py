@@ -179,7 +179,7 @@ def test_render_release_readiness_gate_markdown_lists_dimensions_blockers_and_si
     assert "### SO6: launch_owner" in first
 
 
-def test_render_release_readiness_gate_csv_lists_summary_checks_conditions_and_actions() -> None:
+def test_render_release_readiness_gate_csv_lists_summary_and_check_rows() -> None:
     gate = generate_release_readiness_gate(_complete_tact_spec())
 
     first = render_release_readiness_gate_csv(gate)
@@ -203,38 +203,36 @@ def test_render_release_readiness_gate_csv_lists_summary_checks_conditions_and_a
     scope_row = next(row for row in rows if row["section"] == "readiness" and row["item_id"] == "scope")
     assert scope_row["type"] == "check"
     assert scope_row["dimension_id"] == "scope"
-    assert scope_row["label"] == "Scope"
+    assert scope_row["name"] == "Scope"
     assert scope_row["status"] == "ready"
     assert scope_row["required"] == "true"
     assert scope_row["owner"] == "product_owner"
     assert "project.workflow_context=release approval for generated TactSpec projects" in scope_row["evidence"]
 
-    condition_row = next(row for row in rows if row["section"] == "conditions" and row["item_id"] == "SO6")
-    assert condition_row["type"] == "signoff"
-    assert condition_row["status"] == "pending"
-    assert condition_row["owner"] == "launch_owner"
-    assert condition_row["owner_hint"] == "engineering manager"
-
-    action_row = next(
-        row
-        for row in rows
-        if row["section"] == "next_actions" and row["owner"] == "launch_owner"
+    assert [row["type"] for row in rows] == ["gate"] + ["check"] * 7
+    assert summary_row["name"] == "Agent Release Gate"
+    assert summary_row["owner"] == "launch_owner"
+    assert summary_row["blocker_risk"] == ""
+    assert summary_row["next_action"] == (
+        "Record final go/no-go decision with all required owner signoffs."
     )
-    assert action_row["type"] == "owner_follow_up"
-    assert action_row["status"] == "pending"
-    assert action_row["next_action"] == "Collect launch_owner signoff."
 
 
 def test_render_release_readiness_gate_csv_includes_blocker_rows_for_no_go() -> None:
     gate = generate_release_readiness_gate({})
     rows = list(csv.DictReader(io.StringIO(render_release_readiness_gate_csv(gate))))
 
-    blocker_row = next(row for row in rows if row["section"] == "blockers")
-    assert blocker_row["type"] == "blocker"
-    assert blocker_row["status"] == "blocked"
-    assert blocker_row["severity"] == "critical"
+    assert len(rows) == 8
+    assert rows[0]["type"] == "gate"
+    assert rows[0]["status"] == "no-go"
+    assert rows[0]["blocker_risk"]
+    assert rows[0]["next_action"] == (
+        "Resolve release blockers before recording the final go/no-go decision."
+    )
+
+    blocker_row = next(row for row in rows if row["type"] == "check" and row["status"] == "blocked")
     assert blocker_row["owner"]
-    assert blocker_row["missing_evidence"]
+    assert blocker_row["blocker_risk"]
     assert blocker_row["next_action"]
 
 
