@@ -110,75 +110,190 @@ def render_design_brief_customer_journey_map(
     if fmt != "markdown":
         raise ValueError(f"Unsupported customer journey map format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    stages = sorted(_markdown_dicts(report.get("journey_stages")), key=_stage_sequence)
+    title = _compact(brief.get("title")) or "Untitled design brief"
+    brief_id = _compact(brief.get("id")) or "unknown"
+    source_idea_ids = _csv_items(brief.get("source_idea_ids"))
     lines = [
-        f"# Customer Journey Map: {brief['title']}",
+        f"# Customer Journey Map: {title}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
+        f"Schema: `{report.get('schema_version') or SCHEMA_VERSION}`",
+        f"Design brief: `{brief_id}`",
         f"Status: {brief.get('design_status') or 'unknown'}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
-        f"Source ideas: {', '.join(brief.get('source_idea_ids') or []) or 'design brief'}",
+        f"Source ideas: {_inline_ids(source_idea_ids) if source_idea_ids else 'design brief'}",
         "",
         "## Journey Context",
         "",
-        f"- Goal: {summary['journey_goal']}",
-        f"- Target user: {summary['target_user']}",
-        f"- Buyer: {summary['buyer']}",
-        f"- Workflow: {summary['workflow_context']}",
-        f"- Current workaround: {summary['current_workaround']}",
-        f"- Value proposition: {summary['value_proposition']}",
-        f"- Fallbacks used: {', '.join(summary['fallbacks_used']) or 'none'}",
+        f"- Goal: {_markdown_text(summary.get('journey_goal'))}",
+        f"- Target user: {_markdown_text(summary.get('target_user'))}",
+        f"- Buyer: {_markdown_text(summary.get('buyer'))}",
+        f"- Workflow: {_markdown_text(summary.get('workflow_context'))}",
+        f"- Current workaround: {_markdown_text(summary.get('current_workaround'))}",
+        f"- Value proposition: {_markdown_text(summary.get('value_proposition'))}",
+        f"- Fallbacks used: {_inline_list(_csv_items(summary.get('fallbacks_used')))}",
         "",
         "## Journey Stages",
         "",
     ]
 
-    for stage in report["journey_stages"]:
+    if not stages:
+        lines.extend(["- None", ""])
+
+    for stage in stages:
+        sequence = _compact(stage.get("sequence")) or "?"
+        stage_name = _markdown_text(stage.get("name"), "Unnamed stage")
+        success_signals = _csv_items(stage.get("success_signals"))
         lines.extend(
             [
-                f"### {stage['sequence']}. {stage['name']}",
+                f"### {sequence}. {stage_name}",
                 "",
-                f"- ID: `{stage['id']}`",
-                f"- Owner: {stage['owner']}",
-                f"- User goals: {_inline_list(stage['user_goals'])}",
-                f"- Touchpoints: {_inline_list(stage['touchpoints'])}",
-                f"- Friction points: {_inline_list(stage['friction_points'])}",
-                f"- Success signals: {_inline_list(stage['success_signals'])}",
-                f"- Evidence references: {_inline_ids(stage['evidence_reference_ids'])}",
-                f"- Source ideas: {_inline_ids(stage['source_idea_ids'])}",
+                f"- ID: `{_compact(stage.get('id')) or 'stage'}`",
+                f"- Owner: {_markdown_text(stage.get('owner'))}",
+                f"- User goals: {_inline_list(_csv_items(stage.get('user_goals')))}",
+                f"- Touchpoints: {_inline_list(_csv_items(stage.get('touchpoints')))}",
+                f"- Friction points: {_inline_list(_csv_items(stage.get('friction_points')))}",
+                f"- Success signals: {_inline_list(success_signals)}",
+                f"- Opportunities: {_inline_list(success_signals)}",
+                f"- Metrics: {_inline_list(success_signals)}",
+                f"- Evidence references: {_inline_ids(_csv_items(stage.get('evidence_reference_ids')))}",
+                f"- Source ideas: {_inline_ids(_csv_items(stage.get('source_idea_ids')) or source_idea_ids)}",
                 "",
             ]
         )
 
-    lines.extend(["## Pain Points", ""])
-    for point in report.get("pain_points") or []:
-        lines.append(f"- **{point['stage_name']}**: {point['pain_point']}")
+    lines.extend(["## Touchpoint Details", ""])
+    touchpoint_lines = _touchpoint_lines(stages)
+    lines.extend(touchpoint_lines or ["- None"])
 
-    lines.extend(["", "## Moments of Value", ""])
-    for moment in report.get("moments_of_value") or []:
-        lines.append(f"- **{moment['stage_name']}**: {moment['moment']}")
+    lines.extend(["## Pain Points", ""])
+    pain_points = _markdown_dicts(report.get("pain_points")) or _stage_items(
+        stages, source_key="friction_points", value_key="pain_point"
+    )
+    if pain_points:
+        for point in pain_points:
+            lines.append(
+                f"- **{_markdown_text(point.get('stage_name'), 'Stage')}**: "
+                f"{_markdown_text(point.get('pain_point'))}"
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Opportunities", ""])
+    opportunities = _markdown_dicts(report.get("moments_of_value")) or _stage_items(
+        stages, source_key="success_signals", value_key="moment"
+    )
+    if opportunities:
+        for opportunity in opportunities:
+            lines.append(
+                f"- **{_markdown_text(opportunity.get('stage_name'), 'Stage')}**: "
+                f"{_markdown_text(opportunity.get('moment'))}"
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Metrics", ""])
+    metric_lines = _metric_lines(stages)
+    lines.extend(metric_lines or ["- None"])
 
     lines.extend(["", "## Follow-up Actions", ""])
-    for action in report.get("follow_up_actions") or []:
-        lines.append(f"- **{action['owner']}**: {action['action']}")
+    actions = _markdown_dicts(report.get("follow_up_actions"))
+    if actions:
+        for action in actions:
+            lines.append(
+                f"- **{_markdown_text(action.get('owner'), 'Owner')}**: "
+                f"{_markdown_text(action.get('action'))}"
+            )
+    else:
+        lines.append("- None")
 
-    lines.extend(["## Evidence References", ""])
-    if report["evidence_references"]:
-        for reference in report["evidence_references"]:
-            lines.append(f"- **{reference['id']}** ({reference['type']}): {reference['summary']}")
+    lines.extend(["", "## Source Traceability", ""])
+    source_ideas = _markdown_dicts(report.get("source_ideas"))
+    if source_ideas:
+        for idea in source_ideas:
+            title = _markdown_text(idea.get("title"), "source idea")
+            missing = " (missing)" if idea.get("missing") else ""
+            lines.append(f"- `{_compact(idea.get('id')) or 'source'}`: {title}{missing}")
+    elif source_idea_ids:
+        lines.append(f"- Source ideas: {_inline_ids(source_idea_ids)}")
     else:
         lines.append("- None")
 
     lines.extend(["", "## Readiness Warnings", ""])
-    if report["readiness_warnings"]:
-        for warning in report["readiness_warnings"]:
-            lines.append(f"- **{warning['severity']}**: {warning['warning']}")
+    warnings = _markdown_dicts(report.get("readiness_warnings"))
+    if warnings:
+        for warning in warnings:
+            lines.append(
+                f"- **{_markdown_text(warning.get('severity'), 'warning')}**: "
+                f"{_markdown_text(warning.get('warning'))}"
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Evidence References", ""])
+    evidence_references = _markdown_dicts(report.get("evidence_references"))
+    if evidence_references:
+        for reference in evidence_references:
+            lines.append(
+                f"- **{_compact(reference.get('id')) or 'reference'}** "
+                f"({_markdown_text(reference.get('type'), 'evidence')}): "
+                f"{_markdown_text(reference.get('summary'))}"
+            )
     else:
         lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _markdown_dicts(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, list | tuple):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _markdown_text(value: Any, fallback: str = "none") -> str:
+    return _compact(value) or fallback
+
+
+def _touchpoint_lines(stages: list[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for stage in stages:
+        stage_name = _markdown_text(stage.get("name"), "Stage")
+        for index, touchpoint in enumerate(_csv_items(stage.get("touchpoints")), start=1):
+            lines.append(f"- **{stage_name} T{index}**: {touchpoint}")
+    return lines
+
+
+def _stage_items(
+    stages: list[dict[str, Any]],
+    *,
+    source_key: str,
+    value_key: str,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for stage in stages:
+        for index, value in enumerate(_csv_items(stage.get(source_key)), start=1):
+            items.append(
+                {
+                    "id": f"{stage.get('id') or 'stage'}-{index}",
+                    "stage_id": stage.get("id"),
+                    "stage_name": stage.get("name"),
+                    value_key: value,
+                    "source_idea_ids": stage.get("source_idea_ids"),
+                }
+            )
+    return items
+
+
+def _metric_lines(stages: list[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for stage in stages:
+        stage_name = _markdown_text(stage.get("name"), "Stage")
+        for index, signal in enumerate(_csv_items(stage.get("success_signals")), start=1):
+            lines.append(f"- **{stage_name} M{index}**: {signal}")
+    return lines
 
 
 def _render_csv(report: dict[str, Any]) -> str:
