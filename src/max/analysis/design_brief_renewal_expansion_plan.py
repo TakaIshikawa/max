@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
+from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +14,16 @@ if TYPE_CHECKING:
 
 SCHEMA_VERSION = "max.design_brief.renewal_expansion_plan.v1"
 KIND = "max.design_brief.renewal_expansion_plan"
+CSV_COLUMNS: tuple[str, ...] = (
+    "segment",
+    "renewal_trigger",
+    "expansion_opportunity",
+    "health_signal",
+    "recommended_action",
+    "owner",
+    "timing",
+    "evidence",
+)
 
 _VALIDATED_STATUSES = {"approved", "validated", "ready", "launched", "active"}
 _WEAK_STATUSES = {"draft", "candidate", "proposed", "backlog", "new"}
@@ -136,9 +148,11 @@ def render_design_brief_renewal_expansion_plan(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a renewal and expansion plan as Markdown or deterministic JSON."""
+    """Render a renewal and expansion plan as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_renewal_expansion_plan_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported renewal expansion plan format: {fmt}")
 
@@ -211,6 +225,16 @@ def render_design_brief_renewal_expansion_plan(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_renewal_expansion_plan_csv(report: dict[str, Any]) -> str:
+    """Render renewal and expansion opportunities as spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _renewal_expansion_csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def write_design_brief_renewal_expansion_plan(
     path: Path,
     report: dict[str, Any],
@@ -229,12 +253,140 @@ def renewal_expansion_plan_filename(
     *,
     fmt: str = "markdown",
 ) -> str:
-    extension = "json" if fmt == "json" else "md"
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
     return (
         f"{_filename_part(str(design_brief.get('id') or 'design-brief'))}-"
         f"{_filename_part(str(design_brief.get('title') or 'renewal-expansion-plan'))}-"
         f"renewal-expansion-plan.{extension}"
     )
+
+
+def _renewal_expansion_csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    opportunities = [
+        item for item in report.get("expansion_opportunities") or [] if isinstance(item, dict)
+    ]
+    rows: list[dict[str, str]] = []
+    for index, opportunity in enumerate(opportunities):
+        action = _csv_action_for_opportunity(report, opportunity, index)
+        for segment in _csv_segments(report, opportunity):
+            rows.append(
+                _csv_row(
+                    segment=segment,
+                    renewal_trigger=opportunity.get("trigger"),
+                    expansion_opportunity=opportunity.get("opportunity"),
+                    health_signal=_csv_health_signal(report, opportunity, index),
+                    recommended_action=action.get("action"),
+                    owner=action.get("owner_role") or action.get("owner"),
+                    timing=action.get("timing"),
+                    evidence=_csv_evidence(report, opportunity, action, index),
+                )
+            )
+    return rows
+
+
+def _csv_action_for_opportunity(
+    report: dict[str, Any],
+    opportunity: dict[str, Any],
+    index: int,
+) -> dict[str, Any]:
+    actions = [item for item in report.get("next_actions") or [] if isinstance(item, dict)]
+    opportunity_id = _csv_text(opportunity.get("id"))
+    for action in actions:
+        if opportunity_id and opportunity_id == _csv_text(action.get("addresses")):
+            return action
+    opportunity_name = _csv_text(opportunity.get("opportunity"))
+    for action in actions:
+        if opportunity_name and opportunity_name in _csv_text(action.get("action")):
+            return action
+    return actions[index] if index < len(actions) else {}
+
+
+def _csv_segments(report: dict[str, Any], opportunity: dict[str, Any]) -> list[str]:
+    explicit = (
+        opportunity.get("segments")
+        or opportunity.get("segment")
+        or opportunity.get("customer_segments")
+        or opportunity.get("customer_segment")
+    )
+    segments = _string_list(explicit)
+    if segments:
+        return segments
+    context = report.get("renewal_context") or {}
+    brief = report.get("design_brief") or {}
+    fallback = _string_list(
+        context.get("first_customers")
+        or opportunity.get("account_segment")
+        or brief.get("domain")
+        or brief.get("theme")
+    )
+    return fallback or [""]
+
+
+def _csv_health_signal(
+    report: dict[str, Any],
+    opportunity: dict[str, Any],
+    index: int,
+) -> Any:
+    explicit = (
+        opportunity.get("health_signal")
+        or opportunity.get("health_signals")
+        or opportunity.get("signal")
+        or opportunity.get("proof_needed")
+    )
+    if explicit:
+        return explicit
+    motions = [item for item in report.get("customer_success_motions") or [] if isinstance(item, dict)]
+    if index < len(motions):
+        return motions[index].get("success_evidence")
+    return ""
+
+
+def _csv_evidence(
+    report: dict[str, Any],
+    opportunity: dict[str, Any],
+    action: dict[str, Any],
+    index: int,
+) -> str:
+    evidence = (
+        opportunity.get("evidence")
+        or opportunity.get("evidence_reference_ids")
+        or opportunity.get("evidence_refs")
+        or opportunity.get("source_reference_ids")
+        or action.get("evidence")
+    )
+    proof_points = [item for item in report.get("proof_points") or [] if isinstance(item, dict)]
+    if evidence:
+        return _csv_text(evidence)
+    if index < len(proof_points):
+        proof = proof_points[index]
+        return _csv_text(
+            {
+                "claim": proof.get("claim"),
+                "evidence": proof.get("evidence"),
+                "source_reference_ids": proof.get("source_reference_ids"),
+            }
+        )
+    return ""
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in CSV_COLUMNS}
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return _csv_join(f"{key}: {item}" for key, item in sorted(value.items()))
+    if isinstance(value, (list, tuple, set)):
+        return _csv_join(value)
+    return str(value).strip()
+
+
+def _csv_join(values: Any, *, separator: str = "; ") -> str:
+    return separator.join(text for value in values if (text := _csv_text(value)))
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
