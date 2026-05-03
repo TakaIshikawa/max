@@ -209,20 +209,48 @@ def test_render_design_brief_customer_journey_map_csv_rows_and_filename(tmp_path
 
     assert csv_text == repeated
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
-    assert len(rows) == len(report["journey_stages"]) == 5
-    assert [row["sequence"] for row in rows] == ["1", "2", "3", "4", "5"]
-    assert [row["stage_id"] for row in rows] == ["JM1", "JM2", "JM3", "JM4", "JM5"]
+    assert set(rows[0]) == set(CSV_COLUMNS)
+    assert len(rows) == 5 + (3 * 5) + (2 * 5) + (2 * 5) + (2 * 5)
+    assert [row["section"] for row in rows[:8]] == [
+        "journey_stages",
+        "touchpoints",
+        "touchpoints",
+        "touchpoints",
+        "pain_points",
+        "pain_points",
+        "opportunities",
+        "metrics",
+    ]
+    assert [row["stage_id"] for row in rows if row["row_type"] == "stage"] == [
+        "JM1",
+        "JM2",
+        "JM3",
+        "JM4",
+        "JM5",
+    ]
+    assert [row["stage_sequence"] for row in rows if row["row_type"] == "stage"] == [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+    ]
     assert rows[0]["design_brief_id"] == brief_id
     assert rows[0]["design_brief_title"] == "Customer Journey Map Brief"
     assert rows[0]["readiness_score"] == "88.0"
-    assert rows[0]["name"] == "Problem Awareness"
-    assert rows[0]["owner"] == "Product marketing owner"
-    assert "problem narrative" in rows[0]["touchpoints"].split(";")
-    assert "Target user can restate the problem in their own words." in rows[0][
-        "success_signals"
-    ].split(";")
-    assert rows[0]["evidence_reference_ids"].split(";")[0] == "design_brief.why_this_now"
-    assert rows[0]["source_idea_ids"] == "bu-journey-lead;bu-journey-support"
+    assert rows[0]["design_status"] == "approved"
+    assert rows[0]["stage_name"] == "Problem Awareness"
+    assert rows[0]["stage_owner"] == "Product marketing owner"
+    assert rows[1]["row_type"] == "touchpoint"
+    assert rows[1]["item_id"] == "JM1-T1"
+    assert rows[1]["item_value"] == "problem narrative"
+    assert rows[4]["row_type"] == "pain_point"
+    assert rows[4]["item_id"] == "JM1-P1"
+    assert rows[6]["row_type"] == "opportunity"
+    assert rows[7]["row_type"] == "metric"
+    assert rows[7]["item_value"] == "Target user can restate the problem in their own words."
+    assert json.loads(rows[0]["evidence_reference_ids"])[0] == "design_brief.why_this_now"
+    assert json.loads(rows[0]["source_idea_ids"]) == ["bu-journey-lead", "bu-journey-support"]
     assert customer_journey_map_filename(report["design_brief"], fmt="csv").endswith(".csv")
 
 
@@ -266,10 +294,93 @@ def test_render_design_brief_customer_journey_map_csv_sorts_by_sequence() -> Non
         csv.DictReader(io.StringIO(render_design_brief_customer_journey_map(report, fmt="csv")))
     )
 
-    assert [(row["sequence"], row["stage_id"], row["source_idea_ids"]) for row in rows] == [
-        ("1", "JM1", "fallback-source"),
-        ("2", "JM2", "source-2"),
+    assert [(row["stage_sequence"], row["stage_id"], row["row_type"]) for row in rows] == [
+        ("1", "JM1", "stage"),
+        ("1", "JM1", "touchpoint"),
+        ("1", "JM1", "pain_point"),
+        ("1", "JM1", "opportunity"),
+        ("1", "JM1", "metric"),
+        ("2", "JM2", "stage"),
+        ("2", "JM2", "touchpoint"),
+        ("2", "JM2", "pain_point"),
+        ("2", "JM2", "opportunity"),
+        ("2", "JM2", "metric"),
     ]
+    assert json.loads(rows[0]["source_idea_ids"]) == ["fallback-source"]
+    assert json.loads(rows[5]["source_idea_ids"]) == ["source-2"]
+
+
+def test_render_design_brief_customer_journey_map_csv_escapes_special_characters(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_customer_journey_map(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["design_brief"]["title"] = 'Journey, "CSV"\nBrief'
+    report["summary"]["journey_goal"] = 'Map, "quoted"\njourney'
+    report["journey_stages"][0]["name"] = 'Awareness, "Stage"\nName'
+    report["journey_stages"][0]["touchpoints"][0] = 'Touch, "point"\nline two'
+
+    first = render_design_brief_customer_journey_map(report, fmt="csv")
+    second = render_design_brief_customer_journey_map(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(first)))
+
+    assert first == second
+    assert '"Journey, ""CSV""\nBrief"' in first
+    assert '"Awareness, ""Stage""\nName"' in first
+    touchpoint = next(row for row in rows if row["item_id"] == "JM1-T1")
+    assert touchpoint["design_brief_title"] == 'Journey, "CSV"\nBrief'
+    assert touchpoint["stage_name"] == 'Awareness, "Stage"\nName'
+    assert touchpoint["item_value"] == 'Touch, "point"\nline two'
+
+
+def test_render_design_brief_customer_journey_map_csv_sparse_stage() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.design_brief.customer_journey_map",
+        "design_brief": {
+            "id": "dbf-sparse",
+            "title": "Sparse CSV",
+            "readiness_score": 15.0,
+            "design_status": "draft",
+            "source_idea_ids": ["source-a"],
+        },
+        "summary": {
+            "journey_goal": "Map sparse journey.",
+            "target_user": "operator",
+            "buyer": "sponsor",
+            "workflow_context": "review workflow",
+        },
+        "journey_stages": [
+            {
+                "id": "JM1",
+                "sequence": 1,
+                "name": "Only Stage",
+                "owner": "Product lead",
+                "user_goals": [],
+                "touchpoints": [],
+                "friction_points": [],
+                "success_signals": [],
+                "evidence_reference_ids": [],
+                "source_idea_ids": [],
+            }
+        ],
+    }
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_customer_journey_map(report, fmt="csv")))
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["row_type"] == "stage"
+    assert rows[0]["stage_id"] == "JM1"
+    assert rows[0]["item_value"] == "Only Stage"
+    assert rows[0]["evidence_reference_ids"] == ""
+    assert json.loads(rows[0]["source_idea_ids"]) == ["source-a"]
 
 
 def test_build_design_brief_customer_journey_map_missing_brief_returns_none(tmp_path) -> None:

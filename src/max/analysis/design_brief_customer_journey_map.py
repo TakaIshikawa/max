@@ -12,19 +12,28 @@ from max.store.db import Store
 KIND = "max.design_brief.customer_journey_map"
 SCHEMA_VERSION = "max.design_brief.customer_journey_map.v1"
 CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
     "design_brief_id",
     "design_brief_title",
     "readiness_score",
-    "sequence",
+    "design_status",
+    "journey_goal",
+    "target_user",
+    "buyer",
+    "workflow_context",
+    "section",
+    "row_type",
+    "item_id",
+    "item_name",
+    "item_value",
+    "stage_sequence",
     "stage_id",
-    "name",
-    "owner",
-    "user_goals",
-    "touchpoints",
-    "friction_points",
-    "success_signals",
+    "stage_name",
+    "stage_owner",
     "evidence_reference_ids",
     "source_idea_ids",
+    "details",
 )
 
 
@@ -176,13 +185,81 @@ def _render_csv(report: dict[str, Any]) -> str:
     output = StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
-    writer.writerows(_csv_rows(report))
+    for row in _csv_rows(report):
+        writer.writerow(row)
     return output.getvalue()
 
 
 def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
     stages = [stage for stage in report.get("journey_stages") or [] if isinstance(stage, dict)]
-    return [_csv_row(report, stage) for stage in sorted(stages, key=_stage_sequence)]
+    sorted_stages = sorted(stages, key=_stage_sequence)
+    rows: list[dict[str, str]] = []
+    for stage in sorted_stages:
+        rows.append(
+            _csv_row(
+                report,
+                stage,
+                section="journey_stages",
+                row_type="stage",
+                item_id=stage.get("id"),
+                item_name=stage.get("name"),
+                item_value=stage.get("name"),
+                details={
+                    "user_goals": stage.get("user_goals"),
+                    "touchpoints": stage.get("touchpoints"),
+                    "friction_points": stage.get("friction_points"),
+                    "success_signals": stage.get("success_signals"),
+                },
+            )
+        )
+        for index, touchpoint in enumerate(_csv_items(stage.get("touchpoints")), start=1):
+            rows.append(
+                _csv_row(
+                    report,
+                    stage,
+                    section="touchpoints",
+                    row_type="touchpoint",
+                    item_id=f"{stage.get('id') or 'stage'}-T{index}",
+                    item_name=touchpoint,
+                    item_value=touchpoint,
+                )
+            )
+        for index, point in enumerate(_csv_items(stage.get("friction_points")), start=1):
+            rows.append(
+                _csv_row(
+                    report,
+                    stage,
+                    section="pain_points",
+                    row_type="pain_point",
+                    item_id=f"{stage.get('id') or 'stage'}-P{index}",
+                    item_name=point,
+                    item_value=point,
+                )
+            )
+        for index, signal in enumerate(_csv_items(stage.get("success_signals")), start=1):
+            rows.append(
+                _csv_row(
+                    report,
+                    stage,
+                    section="opportunities",
+                    row_type="opportunity",
+                    item_id=f"{stage.get('id') or 'stage'}-V{index}",
+                    item_name=signal,
+                    item_value=signal,
+                )
+            )
+            rows.append(
+                _csv_row(
+                    report,
+                    stage,
+                    section="metrics",
+                    row_type="metric",
+                    item_id=f"{stage.get('id') or 'stage'}-M{index}",
+                    item_name=signal,
+                    item_value=signal,
+                )
+            )
+    return rows
 
 
 def _stage_sequence(stage: dict[str, Any]) -> tuple[int, str]:
@@ -193,32 +270,90 @@ def _stage_sequence(stage: dict[str, Any]) -> tuple[int, str]:
     return (sequence, str(stage.get("id") or ""))
 
 
-def _csv_row(report: dict[str, Any], stage: dict[str, Any]) -> dict[str, str]:
+def _csv_row(report: dict[str, Any], stage: dict[str, Any], **values: Any) -> dict[str, str]:
     brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
     row = {
+        "schema_version": report.get("schema_version"),
+        "kind": report.get("kind"),
         "design_brief_id": brief.get("id"),
         "design_brief_title": brief.get("title"),
         "readiness_score": brief.get("readiness_score"),
-        "sequence": stage.get("sequence"),
+        "design_status": brief.get("design_status"),
+        "journey_goal": summary.get("journey_goal"),
+        "target_user": summary.get("target_user"),
+        "buyer": summary.get("buyer"),
+        "workflow_context": summary.get("workflow_context"),
+        "section": "",
+        "row_type": "",
+        "item_id": "",
+        "item_name": "",
+        "item_value": "",
+        "stage_sequence": stage.get("sequence"),
         "stage_id": stage.get("id"),
-        "name": stage.get("name"),
-        "owner": stage.get("owner"),
-        "user_goals": stage.get("user_goals"),
-        "touchpoints": stage.get("touchpoints"),
-        "friction_points": stage.get("friction_points"),
-        "success_signals": stage.get("success_signals"),
+        "stage_name": stage.get("name"),
+        "stage_owner": stage.get("owner"),
         "evidence_reference_ids": stage.get("evidence_reference_ids"),
         "source_idea_ids": stage.get("source_idea_ids") or brief.get("source_idea_ids"),
+        "details": "",
     }
+    row.update(values)
     return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
 
 
 def _csv_text(value: Any) -> str:
     if value is None:
         return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
     if isinstance(value, list):
-        return ";".join(_csv_text(item) for item in value if _csv_text(item))
+        if not value:
+            return ""
+        return _stable_json(value)
+    if isinstance(value, tuple | set):
+        if not value:
+            return ""
+        return _stable_json(list(value))
+    if isinstance(value, dict):
+        return _stable_json(
+            {key: item for key, item in value.items() if item not in (None, "", [])}
+        )
     return str(value)
+
+
+def _stable_json(value: Any) -> str:
+    return json.dumps(_stable_value(value), sort_keys=True, separators=(",", ":"))
+
+
+def _stable_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _stable_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, set):
+        return sorted(
+            (_stable_value(item) for item in value),
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+    if isinstance(value, list | tuple):
+        return [_stable_value(item) for item in value]
+    return value
+
+
+def _csv_items(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list | tuple):
+        return [str(item) for item in value if _compact(item)]
+    if isinstance(value, set):
+        return sorted((str(item) for item in value if _compact(item)))
+    text = str(value) if _compact(value) else ""
+    return [text] if text else []
 
 
 def _journey_context(
