@@ -25,6 +25,7 @@ from max.analysis.portfolio_dependency_overlap import (
     build_portfolio_dependency_overlap_from_records,
     build_portfolio_dependency_overlap_report,
     render_portfolio_dependency_overlap,
+    render_portfolio_dependency_overlap_csv,
     render_portfolio_dependency_overlap_markdown,
 )
 from max.analysis.portfolio_regulatory_exposure import (
@@ -245,6 +246,7 @@ __all__ = [
     "render_portfolio_cannibalization_markdown",
     "render_portfolio_cannibalization_report",
     "render_portfolio_dependency_overlap",
+    "render_portfolio_dependency_overlap_csv",
     "render_portfolio_dependency_overlap_markdown",
     "render_portfolio_readiness_bottlenecks",
     "render_portfolio_theme_saturation",

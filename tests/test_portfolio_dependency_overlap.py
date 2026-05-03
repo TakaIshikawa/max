@@ -15,6 +15,7 @@ from max.analysis.portfolio_dependency_overlap import (
     build_portfolio_dependency_overlap_from_records,
     build_portfolio_dependency_overlap_report,
     render_portfolio_dependency_overlap,
+    render_portfolio_dependency_overlap_csv,
     render_portfolio_dependency_overlap_markdown,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
@@ -212,24 +213,29 @@ def test_dependency_overlap_csv_headers_and_bucket_rows(store: Store) -> None:
     )
 
     report = build_portfolio_dependency_overlap_report(store)
-    rendered_csv = render_portfolio_dependency_overlap(report, fmt="csv")
+    rendered_csv = render_portfolio_dependency_overlap_csv(report)
     rows = list(csv.DictReader(StringIO(rendered_csv)))
 
+    assert rendered_csv == render_portfolio_dependency_overlap(report, fmt="csv")
     assert csv.DictReader(StringIO(rendered_csv)).fieldnames == [
-        "dependency_name",
-        "overlap_count",
-        "portfolio_share",
-        "concentration_risk_level",
-        "affected_item_ids",
-        "domains",
-        "source_type_counts",
-        "recommended_action",
+        "dependency",
+        "dependency_type",
+        "units",
+        "unit_count",
+        "overlap_score",
+        "risk_level",
+        "mitigation",
+        "owner",
     ]
-    fastapi = next(row for row in rows if row["dependency_name"] == "FastAPI")
-    assert fastapi["overlap_count"] == "2"
-    assert fastapi["portfolio_share"] == "1.0"
-    assert fastapi["concentration_risk_level"] == "high"
-    assert "fallback path" in fastapi["recommended_action"]
+    assert [row["dependency"] for row in rows] == ["FastAPI", "Python"]
+    fastapi = next(row for row in rows if row["dependency"] == "FastAPI")
+    assert fastapi["dependency_type"] == ""
+    assert fastapi["units"] == "bu-csv-a; bu-csv-b"
+    assert fastapi["unit_count"] == "2"
+    assert fastapi["overlap_score"] == "1.0"
+    assert fastapi["risk_level"] == "high"
+    assert "fallback path" in fastapi["mitigation"]
+    assert fastapi["owner"] == ""
 
 
 def test_dependency_overlap_csv_serializes_multi_value_fields(store: Store) -> None:
@@ -267,21 +273,128 @@ def test_dependency_overlap_csv_serializes_multi_value_fields(store: Store) -> N
     )
 
     report = build_portfolio_dependency_overlap_report(store, high_overlap_count=3)
-    rows = list(
-        csv.DictReader(StringIO(render_portfolio_dependency_overlap(report, fmt="csv")))
-    )
-    github_actions = next(row for row in rows if row["dependency_name"] == "GitHub Actions")
+    rows = list(csv.DictReader(StringIO(render_portfolio_dependency_overlap_csv(report))))
+    github_actions = next(row for row in rows if row["dependency"] == "GitHub Actions")
 
-    assert json.loads(github_actions["affected_item_ids"]) == [
-        "bu-csv-package",
-        "bu-csv-release",
-        brief_id,
+    assert github_actions["units"] == "; ".join(
+        sorted(
+            [
+                "bu-csv-package",
+                "bu-csv-release",
+                brief_id,
+            ]
+        )
+    )
+    assert github_actions["unit_count"] == "3"
+
+
+def test_dependency_overlap_csv_flattens_generic_shared_clusters() -> None:
+    report = {
+        "shared_dependency_clusters": [
+            {
+                "dependencies": [
+                    {"dependency": "Stripe", "dependency_type": "payment"},
+                    {"dependency": "PostgreSQL", "dependency_type": "database"},
+                ],
+                "units": ["unit-b", "unit-a"],
+                "overlap_score": 0.72,
+                "risk_level": "medium",
+                "mitigation": "Assign owners and fallback paths.",
+                "owner": "platform",
+            }
+        ]
+    }
+
+    rows = list(csv.DictReader(StringIO(render_portfolio_dependency_overlap_csv(report))))
+
+    assert rows == [
+        {
+            "dependency": "PostgreSQL",
+            "dependency_type": "database",
+            "units": "unit-a; unit-b",
+            "unit_count": "2",
+            "overlap_score": "0.72",
+            "risk_level": "medium",
+            "mitigation": "Assign owners and fallback paths.",
+            "owner": "platform",
+        },
+        {
+            "dependency": "Stripe",
+            "dependency_type": "payment",
+            "units": "unit-a; unit-b",
+            "unit_count": "2",
+            "overlap_score": "0.72",
+            "risk_level": "medium",
+            "mitigation": "Assign owners and fallback paths.",
+            "owner": "platform",
+        },
     ]
-    assert json.loads(github_actions["domains"]) == ["devtools"]
-    assert json.loads(github_actions["source_type_counts"]) == [
-        {"count": 2, "source_type": "buildable_unit"},
-        {"count": 1, "source_type": "design_brief"},
+
+
+def test_dependency_overlap_csv_serializes_overlap_findings_lists_predictably() -> None:
+    report = {
+        "overlap_findings": [
+            {
+                "dependency": "GitHub Actions",
+                "dependency_type": "ci",
+                "affected_units": ["unit-z", "unit-a", "unit-m"],
+                "risk": "high",
+                "action": "Centralize workflow ownership.",
+                "assigned_owner": "devex",
+            }
+        ]
+    }
+
+    rows = list(csv.DictReader(StringIO(render_portfolio_dependency_overlap_csv(report))))
+
+    assert rows[0]["units"] == "unit-a; unit-m; unit-z"
+    assert rows[0]["unit_count"] == "3"
+    assert rows[0]["risk_level"] == "high"
+    assert rows[0]["mitigation"] == "Centralize workflow ownership."
+    assert rows[0]["owner"] == "devex"
+
+
+def test_dependency_overlap_csv_escapes_special_values() -> None:
+    report = {
+        "overlap_findings": [
+            {
+                "dependency": 'Vendor, "Core"\nAPI',
+                "dependency_type": "external, api",
+                "units": ["unit, one", 'unit "two"'],
+                "overlap_score": 0.5,
+                "risk_level": "medium",
+                "mitigation": 'Use "backup", then review\nquarterly.',
+                "owner": "Platform, Risk",
+            }
+        ]
+    }
+
+    rendered_csv = render_portfolio_dependency_overlap_csv(report)
+    rows = list(csv.DictReader(StringIO(rendered_csv)))
+
+    assert '"Vendor, ""Core""\nAPI"' in rendered_csv
+    assert rows == [
+        {
+            "dependency": 'Vendor, "Core"\nAPI',
+            "dependency_type": "external, api",
+            "units": 'unit "two"; unit, one',
+            "unit_count": "2",
+            "overlap_score": "0.5",
+            "risk_level": "medium",
+            "mitigation": 'Use "backup", then review\nquarterly.',
+            "owner": "Platform, Risk",
+        }
     ]
+
+
+def test_dependency_overlap_csv_empty_report_output_has_header_only() -> None:
+    rendered_csv = render_portfolio_dependency_overlap_csv({})
+
+    assert list(csv.DictReader(StringIO(rendered_csv))) == []
+    assert rendered_csv == (
+        "dependency,dependency_type,units,unit_count,overlap_score,"
+        "risk_level,mitigation,owner\n"
+    )
 
 
 def test_dependency_overlap_csv_empty_bucket_output_has_header_only() -> None:
@@ -302,8 +415,8 @@ def test_dependency_overlap_csv_empty_bucket_output_has_header_only() -> None:
 
     assert list(csv.DictReader(StringIO(rendered_csv))) == []
     assert rendered_csv == (
-        "dependency_name,overlap_count,portfolio_share,concentration_risk_level,"
-        "affected_item_ids,domains,source_type_counts,recommended_action\n"
+        "dependency,dependency_type,units,unit_count,overlap_score,"
+        "risk_level,mitigation,owner\n"
     )
 
 
