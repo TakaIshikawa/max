@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.analysis import build_design_brief_privacy_impact_assessment as exported_build
 from max.analysis import render_design_brief_privacy_impact_assessment as exported_render
+from max.analysis import render_design_brief_privacy_impact_assessment_csv as exported_render_csv
 from max.analysis.design_brief_privacy_impact_assessment import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_privacy_impact_assessment,
     render_design_brief_privacy_impact_assessment,
+    render_design_brief_privacy_impact_assessment_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -219,6 +224,125 @@ def test_render_design_brief_privacy_impact_assessment_json_and_markdown(tmp_pat
 
     with pytest.raises(ValueError):
         render_design_brief_privacy_impact_assessment(report, "yaml")
+
+
+def test_render_design_brief_privacy_impact_assessment_csv_has_stable_rows(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_privacy_brief(store)
+        report = build_design_brief_privacy_impact_assessment(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_privacy_impact_assessment(report, "csv")
+    repeated = render_design_brief_privacy_impact_assessment_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == repeated == exported_render_csv(report)
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert csv.DictReader(StringIO(csv_text)).fieldnames == list(CSV_COLUMNS)
+    assert {row["section"] for row in rows} == {
+        "data_categories",
+        "processing_purposes",
+        "risk_areas",
+        "mitigations",
+        "owners",
+        "launch_gates",
+    }
+    assert all(row["design_brief_id"] == brief_id for row in rows)
+    assert all(row["design_brief_title"] == "Care Handoff Privacy Brief" for row in rows)
+    assert all(row["privacy_gate"] == "privacy_review_required" for row in rows)
+    assert all(row["design_source_idea_ids"] == "bu-privacy-lead; bu-privacy-support" for row in rows)
+
+    sensitive_category = next(row for row in rows if row["item_id"] == "regulated_sensitive_data")
+    assert sensitive_category["section"] == "data_categories"
+    assert sensitive_category["owner"] == "Privacy owner"
+    assert sensitive_category["status"] == "assumed_possible_pending_privacy_review"
+    assert sensitive_category["source_fields"] == "domain; theme; risks; domain_risks"
+    assert sensitive_category["source_idea_ids"] == "bu-privacy-lead; bu-privacy-support"
+    assert sensitive_category["details"] == '{"classification":"sensitive_personal_data"}'
+
+    sensitive_risk = next(row for row in rows if row["title"] == "Sensitive or regulated data handling")
+    assert sensitive_risk["section"] == "risk_areas"
+    assert sensitive_risk["severity"] == "high"
+    assert sensitive_risk["data_category_ids"] == "regulated_sensitive_data"
+    assert sensitive_risk["mitigation_ids"] == "M2; M3; M6"
+
+    gate_rows = [row for row in rows if row["section"] == "launch_gates"]
+    assert any(row["status"] == "blocked" and row["owner"] == "Privacy owner" for row in gate_rows)
+
+
+def test_render_design_brief_privacy_impact_assessment_csv_handles_questions_and_empty_sections(
+    tmp_path,
+) -> None:
+    lead = _unit(
+        "bu-privacy-empty",
+        domain="",
+        buyer="",
+        specific_user="",
+        workflow_context="",
+        domain_risks=[],
+        evidence_signals=[],
+        why_now="",
+        tech_approach='API exports "review", notes',
+        suggested_stack={},
+    )
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        store.insert_buildable_unit(lead)
+        brief_id = store.insert_design_brief(
+            ProjectBrief(
+                title='Sparse "Privacy", Brief',
+                domain="",
+                theme="",
+                lead=Candidate(unit=lead),
+                supporting=[],
+                readiness_score=20.0,
+                why_this_now="",
+                merged_product_concept="",
+                synthesis_rationale="",
+                mvp_scope=[],
+                first_milestones=[],
+                validation_plan="",
+                risks=[],
+                source_idea_ids=["bu-privacy-empty"],
+            )
+        )
+        report = build_design_brief_privacy_impact_assessment(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_design_brief_privacy_impact_assessment_csv(report)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+    question_rows = [row for row in rows if row["section"] == "open_questions"]
+
+    assert '"Sparse ""Privacy"", Brief"' in csv_text
+    assert question_rows
+    assert {row["priority"] for row in question_rows} == {"high"}
+    assert all(row["owner"] == "Privacy owner" for row in question_rows)
+    assert any("What data enters, leaves, and persists" in row["description"] for row in question_rows)
+
+    empty_report = {
+        "design_brief": {
+            "id": "dbf-empty",
+            "title": "Empty Privacy Report",
+            "source_idea_ids": [],
+        },
+        "summary": {"privacy_gate": "conditional_pilot_ok"},
+        "data_categories": [],
+        "processing_purposes": [],
+        "risk_areas": [],
+        "mitigations": [],
+        "open_questions": [],
+        "owners": [],
+        "launch_gates": [],
+    }
+    header_only = render_design_brief_privacy_impact_assessment(empty_report, "csv")
+
+    assert header_only == ",".join(CSV_COLUMNS) + "\n"
+    assert csv.DictReader(StringIO(header_only)).fieldnames == list(CSV_COLUMNS)
 
 
 def test_design_brief_privacy_impact_assessment_is_importable_from_analysis_package(tmp_path) -> None:

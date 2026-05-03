@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.privacy_impact_assessment.v1"
+CSV_COLUMNS: tuple[str, ...] = (
+    "design_brief_id",
+    "design_brief_title",
+    "privacy_gate",
+    "design_source_idea_ids",
+    "section",
+    "item_id",
+    "title",
+    "description",
+    "owner",
+    "status",
+    "severity",
+    "priority",
+    "source_fields",
+    "source_idea_ids",
+    "data_category_ids",
+    "mitigation_ids",
+    "details",
+)
 
 _SENSITIVE_DOMAIN_TERMS = {
     "healthcare": ("health", "healthcare", "hipaa", "patient", "clinical", "medical", "care"),
@@ -234,9 +255,11 @@ def render_design_brief_privacy_impact_assessment(
     report: dict[str, Any],
     fmt: str = "markdown",
 ) -> str:
-    """Render a privacy impact assessment as Markdown or deterministic JSON."""
+    """Render a privacy impact assessment as Markdown, deterministic JSON, or CSV."""
     if fmt == "json":
         return json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if fmt == "csv":
+        return render_design_brief_privacy_impact_assessment_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported privacy impact assessment format: {fmt}")
 
@@ -321,6 +344,170 @@ def render_design_brief_privacy_impact_assessment(
         )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_design_brief_privacy_impact_assessment_csv(report: dict[str, Any]) -> str:
+    """Render a privacy impact assessment as deterministic CSV text."""
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+
+    for row in _csv_rows(report):
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for category in report.get("data_categories") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "data_categories",
+                category,
+                title=category.get("title"),
+                description=category.get("description"),
+                owner=category.get("owner"),
+                status=category.get("collection_status"),
+                source_fields=category.get("source_fields"),
+                source_idea_ids=category.get("source_idea_ids"),
+                details={
+                    "classification": category.get("classification", ""),
+                },
+            )
+        )
+
+    for purpose in report.get("processing_purposes") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "processing_purposes",
+                purpose,
+                title=purpose.get("title"),
+                description=purpose.get("description"),
+                owner=purpose.get("owner"),
+                source_fields=purpose.get("source_fields"),
+                data_category_ids=purpose.get("data_category_ids"),
+                details={
+                    "purpose_limit": purpose.get("purpose_limit", ""),
+                },
+            )
+        )
+
+    for risk in report.get("risk_areas") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "risk_areas",
+                risk,
+                title=risk.get("title"),
+                description=risk.get("description"),
+                owner=risk.get("owner"),
+                severity=risk.get("severity"),
+                source_fields=risk.get("source_fields"),
+                source_idea_ids=risk.get("source_idea_ids"),
+                data_category_ids=risk.get("data_category_ids"),
+                mitigation_ids=risk.get("mitigation_ids"),
+            )
+        )
+
+    for mitigation in report.get("mitigations") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "mitigations",
+                mitigation,
+                title=mitigation.get("title"),
+                description=mitigation.get("action"),
+                owner=mitigation.get("owner"),
+                status=mitigation.get("status"),
+                source_fields=mitigation.get("source_fields"),
+            )
+        )
+
+    for question in report.get("open_questions") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "open_questions",
+                question,
+                title=question.get("question"),
+                description=question.get("question"),
+                owner=question.get("owner"),
+                priority=question.get("priority"),
+            )
+        )
+
+    for owner in report.get("owners") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "owners",
+                owner,
+                item_id=owner.get("role"),
+                title=owner.get("role"),
+                description=owner.get("responsibility"),
+                owner=owner.get("role"),
+            )
+        )
+
+    for gate in report.get("launch_gates") or []:
+        rows.append(
+            _csv_row(
+                report,
+                "launch_gates",
+                gate,
+                title=gate.get("recommendation"),
+                description=gate.get("criteria"),
+                owner=gate.get("owner"),
+                status=gate.get("status"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    report: dict[str, Any],
+    section: str,
+    item: dict[str, Any],
+    *,
+    item_id: Any = None,
+    title: Any = None,
+    description: Any = None,
+    owner: Any = None,
+    status: Any = None,
+    severity: Any = None,
+    priority: Any = None,
+    source_fields: Any = None,
+    source_idea_ids: Any = None,
+    data_category_ids: Any = None,
+    mitigation_ids: Any = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    summary = report.get("summary") or {}
+    values = {
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "privacy_gate": summary.get("privacy_gate"),
+        "design_source_idea_ids": brief.get("source_idea_ids"),
+        "section": section,
+        "item_id": item_id if item_id is not None else item.get("id"),
+        "title": title if title is not None else item.get("title"),
+        "description": description if description is not None else item.get("description"),
+        "owner": owner if owner is not None else item.get("owner"),
+        "status": status if status is not None else item.get("status"),
+        "severity": severity if severity is not None else item.get("severity"),
+        "priority": priority if priority is not None else item.get("priority"),
+        "source_fields": source_fields if source_fields is not None else item.get("source_fields"),
+        "source_idea_ids": source_idea_ids if source_idea_ids is not None else item.get("source_idea_ids"),
+        "data_category_ids": data_category_ids if data_category_ids is not None else item.get("data_category_ids"),
+        "mitigation_ids": mitigation_ids if mitigation_ids is not None else item.get("mitigation_ids"),
+        "details": details or {},
+    }
+    return {column: _csv_cell(values.get(column)) for column in CSV_COLUMNS}
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
@@ -717,6 +904,20 @@ def _clean(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join(_csv_cell(item) for item in value if _csv_cell(item))
+    if isinstance(value, dict):
+        if not value:
+            return ""
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _clean(value)
 
 
 def _inline_ids(values: list[str]) -> str:
