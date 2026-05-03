@@ -184,15 +184,63 @@ def test_render_design_brief_customer_journey_map_markdown_json_and_invalid_form
     assert "- Touchpoints:" in markdown
     assert "- Friction points:" in markdown
     assert "- Success signals:" in markdown
+    assert "## Touchpoint Details" in markdown
+    assert "**Problem Awareness T1**: problem narrative" in markdown
+    assert "## Opportunities" in markdown
+    assert "Target user can restate the problem in their own words." in markdown
+    assert "## Metrics" in markdown
+    assert "**Problem Awareness M1**" in markdown
+    assert "## Source Traceability" in markdown
+    assert "`bu-journey-lead`: Journey Map Lead" in markdown
     assert "## Evidence References" in markdown
     assert "**sig-journey**" in markdown
     assert "## Readiness Warnings" in markdown
+    assert markdown.endswith("\n")
 
     rendered_json = render_design_brief_customer_journey_map(report, fmt="json")
     assert json.loads(rendered_json) == report
 
     with pytest.raises(ValueError, match="Unsupported customer journey map format: yaml"):
         render_design_brief_customer_journey_map(report, fmt="yaml")
+
+
+def test_render_design_brief_customer_journey_map_markdown_handles_missing_optional_arrays() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.design_brief.customer_journey_map",
+        "design_brief": {
+            "id": "dbf-sparse-markdown",
+            "title": "Sparse Markdown Journey",
+            "readiness_score": 12.0,
+        },
+        "summary": {
+            "journey_goal": "Map a sparse journey.",
+            "target_user": "operator",
+        },
+        "journey_stages": [
+            {
+                "id": "JM1",
+                "sequence": 1,
+                "name": "Only Stage",
+            }
+        ],
+    }
+
+    markdown = render_design_brief_customer_journey_map(report, fmt="markdown")
+
+    assert markdown.startswith("# Customer Journey Map: Sparse Markdown Journey")
+    assert "Design brief: `dbf-sparse-markdown`" in markdown
+    assert "### 1. Only Stage" in markdown
+    assert "- Touchpoints: none" in markdown
+    assert "- Friction points: none" in markdown
+    assert "- Success signals: none" in markdown
+    assert "## Touchpoint Details\n\n- None" in markdown
+    assert "## Pain Points\n\n- None" in markdown
+    assert "## Opportunities\n\n- None" in markdown
+    assert "## Metrics\n\n- None" in markdown
+    assert "## Source Traceability\n\n- None" in markdown
+    assert "## Evidence References\n\n- None" in markdown
+    assert markdown.endswith("\n")
 
 
 def test_render_design_brief_customer_journey_map_csv_rows_and_filename(tmp_path) -> None:
