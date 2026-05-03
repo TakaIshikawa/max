@@ -33,6 +33,7 @@ from max.spec.customer_onboarding_plan import (
 )
 from max.spec.data_classification import (
     generate_data_classification,
+    render_data_classification_csv,
     render_data_classification_markdown,
 )
 from max.spec.data_retention_schedule import (
@@ -187,6 +188,7 @@ __all__ = [
     "render_cost_estimate_markdown",
     "render_customer_onboarding_plan_csv",
     "render_customer_onboarding_plan_markdown",
+    "render_data_classification_csv",
     "render_data_classification_markdown",
     "render_data_retention_schedule_markdown",
     "render_dependency_inventory_markdown",

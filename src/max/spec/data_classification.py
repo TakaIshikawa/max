@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 DATA_CLASSIFICATION_SCHEMA_VERSION = "max-data-classification/v1"
+DATA_CLASSIFICATION_CSV_COLUMNS = (
+    "section",
+    "row_type",
+    "source_idea_id",
+    "source_status",
+    "source_domain",
+    "source_category",
+    "tact_spec_schema_version",
+    "title",
+    "workflow_context",
+    "target_user",
+    "sensitivity_level",
+    "item_id",
+    "item_name",
+    "classification",
+    "sensitivity",
+    "data_category",
+    "handling_requirement",
+    "owner",
+    "control",
+    "evidence",
+    "source_context",
+    "description",
+    "risk_level",
+    "guidance",
+)
 
 _CATEGORY_DEFINITIONS = (
     (
@@ -254,6 +282,20 @@ def render_data_classification_markdown(classification: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_data_classification_csv(classification: dict[str, Any]) -> str:
+    """Render a generated data classification artifact as stable CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=DATA_CLASSIFICATION_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(classification):
+        writer.writerow(row)
+    return output.getvalue()
+
+
 def _classification_context(
     spec: dict[str, Any],
     source: dict[str, Any],
@@ -468,6 +510,192 @@ def _safeguards(
         {"id": f"DATA-SG{index:02d}", "owner": owner, "requirement": requirement}
         for index, (owner, requirement) in enumerate(_dedupe_pairs(requirements), start=1)
     ]
+
+
+def _csv_rows(classification: dict[str, Any]) -> list[dict[str, str]]:
+    summary = classification.get("summary") if isinstance(classification.get("summary"), dict) else {}
+    sensitivity = (
+        classification.get("sensitivity")
+        if isinstance(classification.get("sensitivity"), dict)
+        else {}
+    )
+    rows: list[dict[str, str]] = [
+        _csv_row(
+            classification,
+            section="summary",
+            row_type="summary",
+            item_id="summary",
+            item_name=summary.get("title"),
+            classification=summary.get("sensitivity_level"),
+            sensitivity=summary.get("sensitivity_level"),
+            source_context=classification.get("schema_version"),
+            description=sensitivity.get("rationale"),
+        )
+    ]
+
+    for category in _dict_items(classification.get("data_categories")):
+        rows.append(
+            _csv_row(
+                classification,
+                section="data_categories",
+                row_type="data_category",
+                item_id=category.get("id"),
+                item_name=category.get("label"),
+                classification=category.get("label"),
+                sensitivity=category.get("sensitivity"),
+                data_category=category.get("id"),
+                handling_requirement=category.get("handling_notes"),
+                evidence=category.get("evidence"),
+                source_context="classification_context.detected_terms_by_category",
+                description=category.get("description"),
+            )
+        )
+
+    retention = (
+        classification.get("retention_guidance")
+        if isinstance(classification.get("retention_guidance"), dict)
+        else {}
+    )
+    for item_id, item_name in (
+        ("default_retention", "Default retention"),
+        ("deletion_trigger", "Deletion trigger"),
+        ("backup_handling", "Backup handling"),
+        ("review_cadence", "Review cadence"),
+    ):
+        if item_id not in retention:
+            continue
+        rows.append(
+            _csv_row(
+                classification,
+                section="retention_guidance",
+                row_type="handling_requirement",
+                item_id=item_id,
+                item_name=item_name,
+                classification="retention",
+                sensitivity=summary.get("sensitivity_level"),
+                handling_requirement=retention.get(item_id),
+                source_context="retention_guidance",
+            )
+        )
+
+    for item in _dict_items(classification.get("storage_touchpoints")):
+        rows.append(
+            _csv_row(
+                classification,
+                section="storage_touchpoints",
+                row_type="storage_touchpoint",
+                item_id=item.get("id"),
+                item_name=item.get("name"),
+                classification="storage",
+                sensitivity=summary.get("sensitivity_level"),
+                risk_level=item.get("risk_level"),
+                guidance=item.get("guidance"),
+                source_context="classification_context.detected_storage_terms",
+            )
+        )
+
+    for item in _dict_items(classification.get("transfer_touchpoints")):
+        rows.append(
+            _csv_row(
+                classification,
+                section="transfer_touchpoints",
+                row_type="transfer_touchpoint",
+                item_id=item.get("id"),
+                item_name=item.get("name"),
+                classification="transfer",
+                sensitivity=summary.get("sensitivity_level"),
+                risk_level=item.get("risk_level"),
+                guidance=item.get("guidance"),
+                source_context="classification_context.detected_transfer_terms",
+            )
+        )
+
+    for index, item in enumerate(_list(classification.get("compliance_considerations")), start=1):
+        rows.append(
+            _csv_row(
+                classification,
+                section="compliance_considerations",
+                row_type="handling_requirement",
+                item_id=f"COMPLIANCE{index:02d}",
+                item_name="Compliance consideration",
+                classification="compliance",
+                sensitivity=summary.get("sensitivity_level"),
+                handling_requirement=item,
+                source_context="compliance_considerations",
+            )
+        )
+
+    for index, item in enumerate(_list(classification.get("risk_notes")), start=1):
+        rows.append(
+            _csv_row(
+                classification,
+                section="risk_notes",
+                row_type="risk_note",
+                item_id=f"RISK{index:02d}",
+                item_name="Risk note",
+                classification="risk",
+                sensitivity=summary.get("sensitivity_level"),
+                source_context="risk_notes",
+                description=item,
+            )
+        )
+
+    for item in _dict_items(classification.get("implementation_safeguards")):
+        rows.append(
+            _csv_row(
+                classification,
+                section="implementation_safeguards",
+                row_type="control",
+                item_id=item.get("id"),
+                item_name=item.get("id"),
+                classification="safeguard",
+                sensitivity=summary.get("sensitivity_level"),
+                handling_requirement=item.get("requirement"),
+                owner=item.get("owner"),
+                control=item.get("id"),
+                source_context="implementation_safeguards",
+            )
+        )
+
+    return rows
+
+
+def _csv_row(artifact: dict[str, Any], **values: Any) -> dict[str, str]:
+    source = artifact.get("source") if isinstance(artifact.get("source"), dict) else {}
+    summary = artifact.get("summary") if isinstance(artifact.get("summary"), dict) else {}
+    row = {
+        "source_idea_id": source.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_domain": source.get("domain"),
+        "source_category": source.get("category"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "workflow_context": summary.get("workflow_context"),
+        "target_user": summary.get("target_user"),
+        "sensitivity_level": summary.get("sensitivity_level"),
+        **values,
+    }
+    return {column: _csv_text(row.get(column)) for column in DATA_CLASSIFICATION_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _handling_notes(category_id: str, sensitivity: str) -> str:

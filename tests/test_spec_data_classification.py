@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 from max.spec import generate_data_classification as exported_generate
+from max.spec import render_data_classification_csv as exported_render_csv
 from max.spec import render_data_classification_markdown as exported_render_markdown
 from max.spec.data_classification import (
+    DATA_CLASSIFICATION_CSV_COLUMNS,
     DATA_CLASSIFICATION_SCHEMA_VERSION,
     generate_data_classification,
+    render_data_classification_csv,
     render_data_classification_markdown,
 )
 
@@ -156,9 +161,63 @@ def test_render_data_classification_markdown_has_stable_sections() -> None:
     assert "DATA-SG" in first
 
 
+def test_render_data_classification_csv_has_stable_header_and_rows() -> None:
+    classification = generate_data_classification(_rich_tact_spec())
+
+    first = render_data_classification_csv(classification)
+    second = render_data_classification_csv(classification)
+    rows = list(csv.DictReader(StringIO(first)))
+
+    assert first == second
+    assert first.startswith(",".join(DATA_CLASSIFICATION_CSV_COLUMNS) + "\n")
+    assert list(rows[0]) == list(DATA_CLASSIFICATION_CSV_COLUMNS)
+    assert [row["section"] for row in rows[:5]] == [
+        "summary",
+        "data_categories",
+        "data_categories",
+        "data_categories",
+        "data_categories",
+    ]
+    assert [row["item_id"] for row in rows if row["section"] == "data_categories"] == [
+        item["id"] for item in classification["data_categories"]
+    ]
+
+
+def test_render_data_classification_csv_covers_levels_controls_and_evidence() -> None:
+    classification = generate_data_classification(_rich_tact_spec())
+    rows = list(csv.DictReader(StringIO(render_data_classification_csv(classification))))
+
+    categories = {
+        row["item_id"]: row for row in rows if row["row_type"] == "data_category"
+    }
+    assert categories["personal_identifiers"]["sensitivity"] == "confidential"
+    assert categories["personal_identifiers"]["evidence"] == "email; PII"
+    assert categories["regulated_personal_data"]["sensitivity"] == "restricted"
+    assert categories["regulated_personal_data"]["evidence"] == "patient; HIPAA; health"
+    assert categories["authentication_and_secrets"]["handling_requirement"] == (
+        "Store in secret-managed locations only; redact from logs and exports."
+    )
+
+    control_rows = [row for row in rows if row["row_type"] == "control"]
+    assert {row["owner"] for row in control_rows} >= {"data_owner", "security_owner"}
+    assert all(row["control"].startswith("DATA-SG") for row in control_rows)
+    assert any(
+        row["row_type"] == "handling_requirement"
+        and row["section"] == "retention_guidance"
+        and row["item_id"] == "default_retention"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "transfer_touchpoints" and row["item_name"] == "Slack"
+        for row in rows
+    )
+
+
 def test_data_classification_is_importable_from_spec_package() -> None:
     classification = exported_generate(_rich_tact_spec())
     markdown = exported_render_markdown(classification)
+    csv_text = exported_render_csv(classification)
 
     assert classification["schema_version"] == DATA_CLASSIFICATION_SCHEMA_VERSION
     assert markdown.startswith("# Patient Follow-Up Automation Data Classification")
+    assert csv_text.startswith(",".join(DATA_CLASSIFICATION_CSV_COLUMNS) + "\n")
