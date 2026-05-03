@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.spec import generate_data_retention_schedule as exported_generate
+from max.spec import render_data_retention_schedule_csv as exported_render_csv
 from max.spec import render_data_retention_schedule_markdown as exported_render
 from max.spec.data_retention_schedule import (
+    DATA_RETENTION_SCHEDULE_CSV_COLUMNS,
     DATA_RETENTION_SCHEDULE_SCHEMA_VERSION,
     generate_data_retention_schedule,
+    render_data_retention_schedule_csv,
     render_data_retention_schedule_markdown,
 )
 from max.spec.generator import generate_spec_preview
@@ -159,11 +164,123 @@ def test_render_data_retention_schedule_markdown_rejects_unsupported_format(samp
         render_data_retention_schedule_markdown(schedule, output_format="json")
 
 
+def test_render_data_retention_schedule_csv_flattens_retention_rules(
+    sample_unit, sample_evaluation
+) -> None:
+    spec = generate_spec_preview(sample_unit, sample_evaluation)
+    spec["solution"]["technical_approach"] = (
+        "Postgres stores customer records, audit logs, OpenAI prompts, CSV exports, OAuth tokens, "
+        "and GitHub webhook payloads."
+    )
+    spec["execution"]["mvp_scope"].append("Retain logs for 30 days and expire exports after 14 days.")
+    schedule = generate_data_retention_schedule(sample_unit, sample_evaluation, spec)
+
+    first = render_data_retention_schedule_csv(schedule)
+    second = render_data_retention_schedule_csv(schedule)
+    rows = list(csv.DictReader(StringIO(first)))
+
+    assert first == second
+    assert first.endswith("\n")
+    assert csv.DictReader(StringIO(first)).fieldnames == list(DATA_RETENTION_SCHEDULE_CSV_COLUMNS)
+    assert len(rows) == len(schedule["retention_rules"])
+    assert rows[0]["schema_version"] == DATA_RETENTION_SCHEDULE_SCHEMA_VERSION
+    assert rows[0]["kind"] == "max.spec.data_retention_schedule"
+    assert rows[0]["idea_id"] == "bu-test001"
+    assert rows[0]["title"] == "MCP Test Framework"
+    assert rows[0]["rule_id"] == "RET01"
+    assert rows[0]["data_category_id"] == "customer_identifiers"
+    assert rows[0]["retention_period"] == "active account plus 90 days"
+    assert rows[0]["deletion_trigger"]
+    assert rows[0]["storage_location"] == "primary application storage and approved integration systems"
+    assert rows[0]["owner"] == "product_owner"
+    assert rows[0]["legal_privacy_rationale"]
+    assert "DEL01" in rows[0]["deletion_trigger_ids"]
+    assert "signal:sig-test001" in rows[0]["evidence_refs"]
+
+    transfers = [row for row in rows if row["data_category_id"] == "third_party_transfers"]
+    assert transfers[0]["storage_location"] == "approved third-party integration systems"
+
+
+def test_render_data_retention_schedule_csv_empty_sections_header_only() -> None:
+    csv_text = render_data_retention_schedule_csv(
+        {
+            "schema_version": DATA_RETENTION_SCHEDULE_SCHEMA_VERSION,
+            "kind": "max.spec.data_retention_schedule",
+            "idea_id": "bu-empty",
+            "summary": {"title": "Empty Retention"},
+            "data_categories": [],
+            "retention_rules": [],
+            "deletion_triggers": [],
+        }
+    )
+
+    assert csv_text == ",".join(DATA_RETENTION_SCHEDULE_CSV_COLUMNS) + "\n"
+    assert list(csv.DictReader(StringIO(csv_text))) == []
+    assert render_data_retention_schedule_csv({}) == ",".join(DATA_RETENTION_SCHEDULE_CSV_COLUMNS) + "\n"
+
+
+def test_render_data_retention_schedule_csv_escapes_special_characters() -> None:
+    schedule = {
+        "schema_version": DATA_RETENTION_SCHEDULE_SCHEMA_VERSION,
+        "kind": "max.spec.data_retention_schedule",
+        "idea_id": "bu-csv",
+        "source": {"status": "ready", "domain": "ops", "category": "automation"},
+        "summary": {
+            "title": 'Retention, "Quoted"',
+            "workflow_context": "Review\nworkflow",
+            "target_user": "admins",
+            "buyer": "Ops",
+            "retention_gate": "ready_with_owner_approval",
+        },
+        "data_categories": [
+            {
+                "id": "logs_and_telemetry",
+                "label": 'Audit logs, "events"',
+                "purpose": "Debug\nincidents",
+                "owner": "engineering_owner",
+                "legal_privacy_rationale": "Limit copies, redact secrets.",
+            }
+        ],
+        "retention_rules": [
+            {
+                "id": "RET01",
+                "data_category_id": "logs_and_telemetry",
+                "data_category": 'Audit logs, "events"',
+                "purpose": "Debug\nincidents",
+                "retention_period": '30 days, then "purge"',
+                "deletion_trigger": "Timer expires\nor workspace deleted",
+                "owner": "engineering_owner",
+                "legal_privacy_rationale": "Limit copies, redact secrets.",
+                "evidence_refs": ["source,one", 'quote"two', "line\nthree"],
+            }
+        ],
+        "deletion_triggers": [
+            {"id": "DEL01", "applies_to_rule_ids": ["RET01"]},
+        ],
+    }
+
+    csv_text = render_data_retention_schedule_csv(schedule)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert rows[0]["title"] == 'Retention, "Quoted"'
+    assert rows[0]["workflow_context"] == "Review workflow"
+    assert rows[0]["data_category"] == 'Audit logs, "events"'
+    assert rows[0]["purpose"] == "Debug incidents"
+    assert rows[0]["retention_period"] == '30 days, then "purge"'
+    assert rows[0]["deletion_trigger"] == "Timer expires or workspace deleted"
+    assert rows[0]["evidence_refs"] == 'source,one; quote"two; line three'
+    assert '"Retention, ""Quoted"""' in csv_text
+    assert '"30 days, then ""purge"""' in csv_text
+    assert '"source,one; quote""two; line three"' in csv_text
+
+
 def test_data_retention_schedule_is_importable_from_spec_package(
     sample_unit, sample_evaluation
 ) -> None:
     schedule = exported_generate(sample_unit, sample_evaluation)
     markdown = exported_render(schedule)
+    csv_text = exported_render_csv(schedule)
 
     assert schedule["schema_version"] == DATA_RETENTION_SCHEDULE_SCHEMA_VERSION
     assert markdown.startswith("# MCP Test Framework Data Retention Schedule")
+    assert csv_text.startswith(",".join(DATA_RETENTION_SCHEDULE_CSV_COLUMNS))
