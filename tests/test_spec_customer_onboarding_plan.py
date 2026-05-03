@@ -213,9 +213,7 @@ def test_render_customer_onboarding_plan_csv_includes_representative_rows(
     assert metric["row_type"] == "success_metric"
     assert metric["phase"] == "activation"
     assert metric["owner"] == "customer_success_owner"
-    assert metric["metric"] == (
-        "count(first_sessions_completed) / count(first_sessions_started)"
-    )
+    assert metric["metric"] == ("count(first_sessions_completed) / count(first_sessions_started)")
     assert "signal:sig-test001" in metric["evidence_references"]
 
     risk = next(row for row in rows if row["row_id"] == "HR1")
@@ -223,6 +221,153 @@ def test_render_customer_onboarding_plan_csv_includes_representative_rows(
     assert risk["phase"] == "handoff"
     assert risk["status"] == "elevated"
     assert risk["risk"] == "protocol churn"
+
+
+def test_render_customer_onboarding_plan_csv_flattens_multiple_milestones_and_tasks() -> None:
+    plan = {
+        "schema_version": CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION,
+        "kind": "max.customer_onboarding_plan",
+        "idea_id": "bu-onboard",
+        "idea": {"title": "Customer Launch"},
+        "milestones": [
+            {
+                "id": "M1",
+                "name": "Kickoff ready",
+                "owner": "customer_success",
+                "target_timing": "week 0",
+                "description": "Customer is prepared for setup.",
+                "success_criteria": "Sponsor, users, and sample data are confirmed.",
+                "prerequisites": ["signed order", "admin access"],
+                "customer_facing_artifacts": ["kickoff deck"],
+                "tasks": [
+                    {
+                        "id": "T1",
+                        "task": "Confirm sponsor",
+                        "owner": "customer_success",
+                        "timing": "before kickoff",
+                        "success_criteria": "Sponsor accepts first-value target.",
+                    },
+                    {
+                        "id": "T2",
+                        "task": "Provision sandbox",
+                        "owner": "technical_owner",
+                        "timing": "before kickoff",
+                        "prerequisites": ["admin access"],
+                    },
+                ],
+            },
+            {
+                "id": "M2",
+                "name": "First value",
+                "owner": "product_owner",
+                "target_window": "week 1",
+                "exit_criteria": "Customer completes a qualified workflow.",
+            },
+        ],
+        "tasks": [
+            {
+                "id": "T3",
+                "name": "Schedule handoff",
+                "owner": "launch_owner",
+                "due": "week 2",
+                "done_when": "Ongoing owner accepts next steps.",
+            }
+        ],
+        "success_criteria": [
+            {
+                "id": "SC1",
+                "metric": "activation_rate",
+                "target": ">= 80%",
+                "owner": "customer_success",
+            }
+        ],
+        "customer_facing_artifacts": [
+            {
+                "id": "CA1",
+                "name": "Setup guide",
+                "owner": "technical_owner",
+                "ready_when": "Reviewed by support.",
+            }
+        ],
+        "risks": [
+            {
+                "id": "R1",
+                "risk": "Customer data access may delay setup.",
+                "mitigation": "Prepare sample data fallback.",
+                "owner": "product_owner",
+            }
+        ],
+    }
+
+    rows = list(csv.DictReader(StringIO(render_customer_onboarding_plan_csv(plan))))
+
+    assert [row["row_id"] for row in rows] == [
+        "M1",
+        "M1.T1",
+        "M1.T2",
+        "M2",
+        "T3",
+        "SC1",
+        "CA1",
+        "R1",
+    ]
+    assert rows[0]["row_type"] == "milestone"
+    assert rows[0]["owner"] == "customer_success"
+    assert rows[0]["timing"] == "week 0"
+    assert rows[0]["success_criteria"] == "Sponsor, users, and sample data are confirmed."
+    assert rows[0]["details"] == (
+        "customer_facing_artifacts=kickoff deck; prerequisites=signed order | admin access"
+    )
+    assert rows[2]["row_type"] == "task"
+    assert rows[2]["details"] == "parent_milestone=Kickoff ready; prerequisites=admin access"
+    assert rows[4]["section"] == "onboarding_tasks"
+    assert rows[4]["timing"] == "week 2"
+    assert rows[5]["metric"] == "activation_rate"
+    assert rows[6]["section"] == "customer_facing_artifacts"
+    assert rows[7]["risk"] == "Customer data access may delay setup."
+    assert rows[7]["success_criteria"] == "Prepare sample data fallback."
+
+
+def test_render_customer_onboarding_plan_csv_escapes_commas_quotes_and_newlines() -> None:
+    plan = {
+        "schema_version": CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION,
+        "kind": "max.customer_onboarding_plan",
+        "idea_id": "bu-escape",
+        "idea": {"title": "Launch, Onboarding"},
+        "tasks": [
+            {
+                "id": "T1",
+                "name": 'Send "welcome", guide',
+                "description": "Line one\nLine two, with comma",
+                "owner": "customer_success",
+            }
+        ],
+    }
+
+    csv_text = render_customer_onboarding_plan_csv(plan)
+    row = next(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Launch, Onboarding"' in csv_text
+    assert row["name"] == 'Send "welcome", guide'
+    assert row["description"] == "Line one Line two, with comma"
+
+
+def test_render_customer_onboarding_plan_csv_handles_minimal_plan_dictionaries() -> None:
+    csv_text = render_customer_onboarding_plan_csv(
+        {
+            "schema_version": CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION,
+            "kind": "max.customer_onboarding_plan",
+            "tasks": [{"task": "Confirm kickoff"}],
+            "risks": [{"risk": "Sponsor unavailable"}],
+        }
+    )
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert [row["row_id"] for row in rows] == ["T1", "R1"]
+    assert rows[0]["name"] == "Confirm kickoff"
+    assert rows[0]["owner"] == ""
+    assert rows[0]["timing"] == ""
+    assert rows[1]["risk"] == "Sponsor unavailable"
 
 
 def test_customer_onboarding_plan_is_importable_from_spec_package(

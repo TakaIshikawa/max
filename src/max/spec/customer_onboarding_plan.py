@@ -85,9 +85,7 @@ def render_customer_onboarding_plan_markdown(
 ) -> str:
     """Render a customer onboarding plan as deterministic Markdown."""
     if output_format != "markdown":
-        raise ValueError(
-            f"Unsupported customer onboarding plan render format: {output_format}"
-        )
+        raise ValueError(f"Unsupported customer onboarding plan render format: {output_format}")
 
     idea = plan.get("idea", {})
     source = plan.get("source", {})
@@ -509,7 +507,9 @@ def _handoff_risks(
             )
         )
 
-    weaknesses = evaluation.weaknesses if evaluation else _string_list(evaluation_payload.get("weaknesses"))
+    weaknesses = (
+        evaluation.weaknesses if evaluation else _string_list(evaluation_payload.get("weaknesses"))
+    )
     for weakness in weaknesses[:2]:
         risks.append(
             _risk(
@@ -724,7 +724,11 @@ def _setup_asset_description(solution: dict[str, Any], unit: BuildableUnit) -> s
     approach = _compact(solution.get("technical_approach") or unit.tech_approach)
     if approach:
         return f"Setup guide covering account, permissions, and first input for {approach}."
-    stack = solution.get("suggested_stack") if isinstance(solution.get("suggested_stack"), dict) else unit.suggested_stack
+    stack = (
+        solution.get("suggested_stack")
+        if isinstance(solution.get("suggested_stack"), dict)
+        else unit.suggested_stack
+    )
     if stack:
         return f"Setup guide covering account, permissions, and first input for {_format_stack(stack)}."
     return "Setup guide covering account, permissions, and first input."
@@ -936,7 +940,204 @@ def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
                 source_references=risk.get("derived_from"),
             )
         )
+    for index, milestone in enumerate(
+        _list(plan.get("onboarding_milestones") or plan.get("milestones")), start=1
+    ):
+        rows.append(_generic_milestone_csv_row(plan, milestone, index))
+        for task_index, task in enumerate(
+            _list(milestone.get("tasks") or milestone.get("checklist_items")),
+            start=1,
+        ):
+            rows.append(
+                _generic_task_csv_row(
+                    plan,
+                    task,
+                    task_index,
+                    parent_id=_text(milestone.get("id")) or f"M{index}",
+                    parent_name=milestone.get("name") or milestone.get("title"),
+                )
+            )
+    for index, task in enumerate(_list(plan.get("onboarding_tasks") or plan.get("tasks")), start=1):
+        rows.append(_generic_task_csv_row(plan, task, index))
+    for index, criterion in enumerate(_list(plan.get("success_criteria")), start=1):
+        rows.append(_generic_success_criterion_csv_row(plan, criterion, index))
+    for index, prerequisite in enumerate(_list(plan.get("prerequisites")), start=1):
+        rows.append(
+            _generic_note_csv_row(plan, "prerequisites", "prerequisite", prerequisite, index)
+        )
+    for index, artifact in enumerate(
+        _list(plan.get("customer_facing_artifacts") or plan.get("artifacts")),
+        start=1,
+    ):
+        rows.append(_generic_artifact_csv_row(plan, artifact, index))
+    for index, risk in enumerate(
+        _list(plan.get("risks") or plan.get("risk_mitigation_notes")), start=1
+    ):
+        rows.append(_generic_risk_csv_row(plan, risk, index))
     return rows
+
+
+def _generic_milestone_csv_row(
+    plan: dict[str, Any], milestone: dict[str, Any], index: int
+) -> dict[str, str]:
+    row_id = _text(milestone.get("id")) or f"M{index}"
+    return _csv_row(
+        plan,
+        section="onboarding_milestones",
+        row_type="milestone",
+        row_id=row_id,
+        name=_first_value(milestone, "name", "title", "milestone"),
+        phase=_first_value(milestone, "phase", "stage", "category"),
+        owner=milestone.get("owner"),
+        timing=_first_value(milestone, "target_timing", "target_window", "timing", "due"),
+        status=milestone.get("status"),
+        description=_first_value(milestone, "description", "customer_outcome", "outcome", "goal"),
+        success_criteria=_first_value(
+            milestone,
+            "success_criteria",
+            "exit_criteria",
+            "done_when",
+            "target",
+        ),
+        evidence_references=_first_value(
+            milestone, "evidence_reference_ids", "evidence_references"
+        ),
+        source_references=_first_value(
+            milestone, "source_references", "references", "derived_from"
+        ),
+        details={
+            "prerequisites": milestone.get("prerequisites"),
+            "customer_facing_artifacts": _first_value(
+                milestone, "customer_facing_artifacts", "artifacts"
+            ),
+            "risk": _first_value(milestone, "risk", "risk_note"),
+            "mitigation": _first_value(milestone, "mitigation", "mitigation_note"),
+        },
+    )
+
+
+def _generic_task_csv_row(
+    plan: dict[str, Any],
+    task: dict[str, Any],
+    index: int,
+    *,
+    parent_id: str = "",
+    parent_name: Any = "",
+) -> dict[str, str]:
+    raw_id = _text(task.get("id")) or f"T{index}"
+    row_id = f"{parent_id}.{raw_id}" if parent_id else raw_id
+    return _csv_row(
+        plan,
+        section="onboarding_tasks",
+        row_type="task",
+        row_id=row_id,
+        name=_first_value(task, "name", "task", "title"),
+        phase=_first_value(task, "phase", "stage"),
+        owner=task.get("owner"),
+        timing=_first_value(task, "target_timing", "target_window", "timing", "due"),
+        status=task.get("status"),
+        description=_first_value(task, "description", "task", "name"),
+        success_criteria=_first_value(
+            task,
+            "success_criteria",
+            "done_when",
+            "exit_criteria",
+            "target",
+        ),
+        evidence_references=_first_value(task, "evidence_reference_ids", "evidence_references"),
+        source_references=_first_value(task, "source_references", "references", "derived_from"),
+        details={
+            "parent_milestone": parent_name,
+            "prerequisites": task.get("prerequisites"),
+            "customer_facing_artifacts": _first_value(
+                task, "customer_facing_artifacts", "artifacts"
+            ),
+        },
+    )
+
+
+def _generic_success_criterion_csv_row(
+    plan: dict[str, Any], criterion: dict[str, Any], index: int
+) -> dict[str, str]:
+    return _csv_row(
+        plan,
+        section="success_criteria",
+        row_type="success_criterion",
+        row_id=_text(criterion.get("id")) or f"SC{index}",
+        name=_first_value(criterion, "name", "metric", "title"),
+        phase=criterion.get("phase"),
+        owner=criterion.get("owner"),
+        timing=_first_value(criterion, "target_timing", "timing", "due"),
+        status=criterion.get("status"),
+        metric=criterion.get("metric"),
+        description=_first_value(criterion, "description", "evidence"),
+        success_criteria=_first_value(criterion, "target", "success_criteria", "criteria"),
+        evidence_references=_first_value(
+            criterion, "evidence_reference_ids", "evidence_references"
+        ),
+        source_references=_first_value(
+            criterion, "source_references", "references", "derived_from"
+        ),
+    )
+
+
+def _generic_note_csv_row(
+    plan: dict[str, Any],
+    section: str,
+    row_type: str,
+    item: dict[str, Any],
+    index: int,
+) -> dict[str, str]:
+    prefix = "PR" if row_type == "prerequisite" else "N"
+    return _csv_row(
+        plan,
+        section=section,
+        row_type=row_type,
+        row_id=_text(item.get("id")) or f"{prefix}{index}",
+        name=_first_value(item, "name", "title", "item"),
+        owner=item.get("owner"),
+        timing=_first_value(item, "target_timing", "timing", "due"),
+        status=item.get("status"),
+        description=_first_value(item, "description", "note", "item"),
+        success_criteria=_first_value(item, "success_criteria", "done_when", "ready_when"),
+    )
+
+
+def _generic_artifact_csv_row(
+    plan: dict[str, Any], artifact: dict[str, Any], index: int
+) -> dict[str, str]:
+    return _csv_row(
+        plan,
+        section="customer_facing_artifacts",
+        row_type="artifact",
+        row_id=_text(artifact.get("id")) or f"CA{index}",
+        name=_first_value(artifact, "name", "title", "artifact"),
+        owner=artifact.get("owner"),
+        timing=_first_value(artifact, "target_timing", "timing", "due", "ready_by"),
+        status=artifact.get("status"),
+        description=_first_value(artifact, "description", "purpose", "artifact"),
+        success_criteria=_first_value(artifact, "success_criteria", "ready_when"),
+        source_references=_first_value(artifact, "source_references", "references", "derived_from"),
+    )
+
+
+def _generic_risk_csv_row(plan: dict[str, Any], risk: dict[str, Any], index: int) -> dict[str, str]:
+    return _csv_row(
+        plan,
+        section="risk_mitigation_notes",
+        row_type="risk",
+        row_id=_text(risk.get("id")) or f"R{index}",
+        name=_first_value(risk, "name", "source", "risk"),
+        phase=_first_value(risk, "phase", "stage"),
+        owner=risk.get("owner"),
+        timing=_first_value(risk, "target_timing", "timing", "due"),
+        status=_first_value(risk, "status", "severity"),
+        risk=_first_value(risk, "risk", "description", "note"),
+        description=_first_value(risk, "description", "risk", "note"),
+        success_criteria=_first_value(risk, "mitigation", "mitigation_note", "success_criteria"),
+        evidence_references=_first_value(risk, "evidence_reference_ids", "evidence_references"),
+        source_references=_first_value(risk, "source_references", "references", "derived_from"),
+    )
 
 
 def _csv_row(
@@ -992,6 +1193,25 @@ def _first_string(value: Any) -> str:
     return _compact(value)
 
 
+def _list(value: Any) -> list[dict[str, Any]]:
+    if isinstance(value, list):
+        return [item if isinstance(item, dict) else {"item": item} for item in value]
+    if isinstance(value, dict):
+        return [value]
+    text = _compact(value)
+    return [{"item": text}] if text else []
+
+
+def _first_value(payload: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list) and any(_compact(item) for item in value):
+            return value
+        if _compact(value):
+            return value
+    return ""
+
+
 def _string_list(value: Any) -> list[str]:
     if isinstance(value, list):
         return [text for item in value if (text := _compact(item))]
@@ -1004,7 +1224,9 @@ def _dedupe(values: list[str]) -> list[str]:
 
 
 def _format_stack(stack: dict[str, Any]) -> str:
-    return ", ".join(f"{key}={value}" for key, value in sorted(stack.items())) or "unspecified stack"
+    return (
+        ", ".join(f"{key}={value}" for key, value in sorted(stack.items())) or "unspecified stack"
+    )
 
 
 def _compact(value: Any) -> str:
@@ -1016,7 +1238,7 @@ def _text(value: Any) -> str:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
-    return str(value)
+    return _compact(value)
 
 
 def _join(values: list[str] | None) -> str:
@@ -1034,7 +1256,5 @@ def _csv_details(details: dict[str, Any] | None) -> str:
     if not details:
         return ""
     return "; ".join(
-        f"{key}={_csv_join(value)}"
-        for key, value in sorted(details.items())
-        if _csv_join(value)
+        f"{key}={_csv_join(value)}" for key, value in sorted(details.items()) if _csv_join(value)
     )
