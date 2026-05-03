@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
@@ -10,11 +12,13 @@ from max.analysis import (
     build_design_brief_conversion_risk as exported_build_conversion_risk,
 )
 from max.analysis.design_brief_conversion_risk import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_conversion_risk,
     conversion_risk_filename,
     render_design_brief_conversion_risk,
+    render_design_brief_conversion_risk_csv,
 )
 from max.analysis.portfolio_synthesis import Candidate, ProjectBrief
 from max.store.db import Store
@@ -110,6 +114,92 @@ def test_render_design_brief_conversion_risk_markdown_json_and_invalid_format(
         render_design_brief_conversion_risk(report, fmt="yaml")
 
 
+def test_render_design_brief_conversion_risk_csv_rows_headers_and_order(tmp_path) -> None:
+    store, brief_id = _store_with_conversion_brief(tmp_path)
+    try:
+        report = build_design_brief_conversion_risk(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_output = render_design_brief_conversion_risk(report, fmt="csv")
+    repeated = render_design_brief_conversion_risk_csv(report)
+    reader = csv.DictReader(io.StringIO(csv_output))
+    rows = list(reader)
+
+    assert csv_output == repeated
+    assert reader.fieldnames == list(CSV_COLUMNS)
+    assert csv_output.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["funnel_stage"] for row in rows] == [
+        *(["conversion_gate"] * len(report["conversion_blockers"])),
+        *(["proof_validation"] * len(report["proof_gaps"])),
+        *(["buyer_objection"] * len(report["buyer_objections"])),
+    ]
+    assert rows[0]["risk"].startswith(f"{report['conversion_blockers'][0]['label']}: ")
+    assert rows[0]["severity"] == report["conversion_blockers"][0]["severity"]
+    assert rows[0]["likelihood"] == report["summary"]["risk_band"]
+    assert rows[0]["affected_persona"] == "VP of Revenue Operations"
+    assert rows[0]["mitigation"]
+    assert rows[0]["leading_indicator"] == report["conversion_blockers"][0]["validation_step"]
+    assert rows[0]["owner"]
+    assert rows[0]["evidence"]
+
+
+def test_render_design_brief_conversion_risk_csv_escapes_and_blanks_optional_fields() -> None:
+    report = {
+        "summary": {
+            "risk_band": "high",
+            "target_buyer": 'VP, "Growth"',
+            "target_user": "sales\nops",
+        },
+        "conversion_context": {"buyer": 'VP, "Growth"'},
+        "conversion_blockers": [
+            {
+                "id": "CB1",
+                "label": "Budget, Timing",
+                "severity": "high",
+                "summary": 'Buyer said "not now"\nuntil proof exists.',
+                "validation_step": "Confirm budget,\nand legal owner.",
+                "source_reference_ids": ["idea,1", "sig\n2"],
+            }
+        ],
+        "proof_gaps": [
+            {
+                "id": "PG1",
+                "claim": "Paid conversion proof",
+                "gap": "No owner named.",
+                "needed_evidence": "Capture approver quote.",
+                "source_reference_ids": [],
+            }
+        ],
+        "buyer_objections": [
+            {
+                "id": "BO1",
+                "objection": "Why pay now?",
+                "likely_from": "",
+                "response": "",
+                "proof_needed": "Deadline evidence",
+                "source_reference_ids": ["idea-1"],
+            }
+        ],
+        "mitigation_actions": [],
+    }
+
+    csv_output = render_design_brief_conversion_risk_csv(report)
+    rows = list(csv.DictReader(io.StringIO(csv_output)))
+
+    assert rows[0]["risk"] == 'Budget, Timing: Buyer said "not now"\nuntil proof exists.'
+    assert rows[0]["affected_persona"] == 'VP, "Growth"'
+    assert rows[0]["mitigation"] == ""
+    assert rows[0]["owner"] == ""
+    assert rows[0]["leading_indicator"] == "Confirm budget,\nand legal owner."
+    assert rows[0]["evidence"] == "idea,1; sig\n2"
+    assert rows[1]["evidence"] == ""
+    assert rows[2]["affected_persona"] == 'VP, "Growth"'
+    assert '"Budget, Timing: Buyer said ""not now""' in csv_output
+    assert '"Confirm budget,\nand legal owner."' in csv_output
+
+
 def test_build_design_brief_conversion_risk_missing_brief_returns_none(tmp_path) -> None:
     store = Store(db_path=str(tmp_path / "missing_conversion_risk.db"), wal_mode=True)
     try:
@@ -129,6 +219,10 @@ def test_conversion_risk_filename_uses_brief_id_and_title() -> None:
     assert (
         conversion_risk_filename(brief, fmt="json")
         == "dbf-test001-Pilot-Conversion-API-Brief-conversion-risk.json"
+    )
+    assert (
+        conversion_risk_filename(brief, fmt="csv")
+        == "dbf-test001-Pilot-Conversion-API-Brief-conversion-risk.csv"
     )
 
 

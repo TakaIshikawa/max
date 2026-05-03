@@ -127,6 +127,7 @@ from max.analysis.design_brief_conversion_risk import (
     build_design_brief_conversion_risk,
     conversion_risk_filename,
     render_design_brief_conversion_risk,
+    render_design_brief_conversion_risk_csv,
 )
 from max.analysis.design_brief_market_entry_risk import (
     build_design_brief_market_entry_risk_report,
@@ -229,6 +230,7 @@ __all__ = [
     "render_design_brief_competitive_alternatives",
     "render_design_brief_competitive_alternatives_markdown",
     "render_design_brief_conversion_risk",
+    "render_design_brief_conversion_risk_csv",
     "render_portfolio_cannibalization_markdown",
     "render_portfolio_cannibalization_report",
     "render_portfolio_dependency_overlap",
