@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 from datetime import datetime, timezone
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -24,6 +26,24 @@ LOW_DIMENSION_THRESHOLD = 6.0
 LOW_CONFIDENCE_THRESHOLD = 0.5
 WEAK_EVIDENCE_THRESHOLD = 50.0
 STALE_EVIDENCE_DAYS = 180
+RISK_REGISTER_CSV_COLUMNS = (
+    "section",
+    "row_type",
+    "idea_id",
+    "title",
+    "key",
+    "value",
+    "priority",
+    "risk_id",
+    "severity",
+    "likelihood",
+    "source",
+    "description",
+    "owner_suggestion",
+    "mitigations",
+    "evidence_links",
+    "validation_trigger",
+)
 
 
 def generate_risk_register(
@@ -143,6 +163,16 @@ def render_risk_register_markdown(register: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_risk_register_csv(register: dict[str, Any]) -> str:
+    """Render a generated risk register as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(RISK_REGISTER_CSV_COLUMNS)
+    for row in _csv_rows(register):
+        writer.writerow([row[column] for column in RISK_REGISTER_CSV_COLUMNS])
+    return output.getvalue()
 
 
 def _domain_risks(unit: BuildableUnit) -> list[dict[str, Any]]:
@@ -494,6 +524,102 @@ def _dedupe_risks(risks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(deduped.values())
 
 
+def _csv_rows(register: dict[str, Any]) -> list[dict[str, str]]:
+    summary = register.get("summary") if isinstance(register.get("summary"), dict) else {}
+    source = register.get("source") if isinstance(register.get("source"), dict) else {}
+    idea_id = register.get("idea_id") or source.get("idea_id")
+    title = summary.get("title")
+    rows: list[dict[str, str]] = []
+
+    for key in (
+        "schema_version",
+        "kind",
+        "risk_count",
+        "critical_risk_count",
+        "high_risk_count",
+        "top_risk_id",
+        "recommendation",
+        "overall_score",
+        "target_user",
+        "buyer",
+        "workflow_context",
+    ):
+        value = register.get(key) if key in {"schema_version", "kind"} else summary.get(key)
+        if value is None and key not in summary and key not in register:
+            continue
+        rows.append(
+            _csv_row(
+                section="summary",
+                row_type="summary",
+                idea_id=idea_id,
+                title=title,
+                key=key,
+                value=value,
+            )
+        )
+
+    for key in (
+        "system",
+        "type",
+        "idea_id",
+        "status",
+        "domain",
+        "category",
+        "evaluation_available",
+        "evidence_density_available",
+        "contradictions_available",
+    ):
+        if key not in source:
+            continue
+        rows.append(
+            _csv_row(
+                section="source_flags",
+                row_type="source_flag",
+                idea_id=idea_id,
+                title=title,
+                key=key,
+                value=source.get(key),
+            )
+        )
+
+    for risk in sorted(
+        (risk for risk in register.get("risks") or [] if isinstance(risk, dict)),
+        key=_risk_csv_sort_key,
+    ):
+        rows.append(
+            _csv_row(
+                section="risks",
+                row_type="risk",
+                idea_id=idea_id,
+                title=risk.get("title"),
+                priority=risk.get("priority"),
+                risk_id=risk.get("id"),
+                severity=risk.get("severity"),
+                likelihood=risk.get("likelihood"),
+                source=risk.get("source"),
+                description=risk.get("description"),
+                owner_suggestion=risk.get("owner_suggestion"),
+                mitigations=risk.get("mitigations"),
+                evidence_links=risk.get("evidence_links"),
+                validation_trigger=risk.get("validation_trigger"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(**values: Any) -> dict[str, str]:
+    return {column: _csv_text(values.get(column)) for column in RISK_REGISTER_CSV_COLUMNS}
+
+
+def _risk_csv_sort_key(risk: dict[str, Any]) -> tuple[int, str]:
+    try:
+        priority = int(risk.get("priority"))
+    except (TypeError, ValueError):
+        priority = 999_999
+    return priority, _csv_text(risk.get("id"))
+
+
 def _idea_evidence_links(unit: BuildableUnit) -> list[str]:
     return [
         *[f"insight:{insight_id}" for insight_id in unit.inspiring_insights],
@@ -579,6 +705,24 @@ def _compact(value: Any) -> str:
 def _text(value: Any) -> str:
     text = _compact(value)
     return text or "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    if isinstance(value, set):
+        return "; ".join(_csv_text(item) for item in sorted(value, key=str) if _csv_text(item))
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}: {_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    return str(value)
 
 
 def _bullets(values: list[Any], *, empty: str = "None.") -> list[str]:
