@@ -92,6 +92,7 @@ from max.spec.security_review import (
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_csv, render_slo_plan_markdown
 from max.spec.smoke_test_plan import (
     generate_smoke_test_plan,
+    render_smoke_test_plan_csv,
     render_smoke_test_plan_markdown,
 )
 from max.spec.stakeholder_handoff import (
@@ -149,6 +150,7 @@ __all__ = [
     "render_security_review_markdown",
     "render_slo_plan_csv",
     "render_slo_plan_markdown",
+    "render_smoke_test_plan_csv",
     "render_smoke_test_plan_markdown",
     "render_support_playbook_csv",
     "render_support_playbook_markdown",

@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 from max.spec import generate_smoke_test_plan as exported_generate
+from max.spec import render_smoke_test_plan_csv as exported_render_csv
 from max.spec import render_smoke_test_plan_markdown as exported_render
 from max.spec.generator import generate_spec_preview
 from max.spec.smoke_test_plan import (
+    SMOKE_TEST_PLAN_CSV_COLUMNS,
     SMOKE_TEST_PLAN_SCHEMA_VERSION,
     generate_smoke_test_plan,
+    render_smoke_test_plan_csv,
     render_smoke_test_plan_markdown,
 )
 
@@ -159,12 +164,118 @@ def test_render_smoke_test_plan_markdown_is_stable_and_includes_owners() -> None
     assert "`signal:sig-smoke`" in first
 
 
+def test_render_smoke_test_plan_csv_has_stable_header_and_generated_rows() -> None:
+    plan = generate_smoke_test_plan(_minimal_tact_spec())
+
+    csv_text = render_smoke_test_plan_csv(plan)
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert csv_text == render_smoke_test_plan_csv(plan)
+    assert csv_text.endswith("\n")
+    assert csv_text.splitlines()[0].split(",") == list(SMOKE_TEST_PLAN_CSV_COLUMNS)
+    assert rows[0] == {
+        "section": "summary",
+        "type": "summary",
+        "source_idea_id": "bu-smoke",
+        "source_status": "approved",
+        "tact_spec_schema_version": "tact-spec-preview/v1",
+        "title": "Agent Release Gate",
+        "workflow_context": "agent-authored pull request deployment gate",
+        "target_user": "platform engineer",
+        "buyer": "engineering manager",
+        "stack": "ci=github-actions, language=python",
+        "validation_plan": "Run against a synthetic pull request fixture.",
+        "recommendation": "yes",
+        "overall_score": "82.0",
+        "item_id": "summary",
+        "name": "",
+        "category": "",
+        "status": "yes",
+        "owner": "",
+        "suggested_owner": "",
+        "responsibility": "",
+        "description": "Run against a synthetic pull request fixture.",
+        "expected_result": "",
+        "derived_from": "",
+        "evidence_reference_ids": "insight:ins-smoke; signal:sig-smoke; spec:evidence_rationale",
+        "evidence_type": "",
+        "evidence_summary": "",
+    }
+    assert [row["item_id"] for row in rows if row["section"] == "user_journey_checks"] == [
+        "UJ1",
+        "UJ2",
+        "UJ3",
+        "UJ4",
+    ]
+    assert any(
+        row["section"] == "deployment_verification_checks"
+        and row["item_id"] == "DV1"
+        and row["owner"] == "release_owner"
+        and row["expected_result"]
+        == "Release metadata, build identifier, and stack match ci=github-actions, language=python."
+        for row in rows
+    )
+    assert any(
+        row["section"] == "observability_checks"
+        and row["item_id"] == "OB1"
+        and row["evidence_reference_ids"]
+        == "insight:ins-smoke; signal:sig-smoke; spec:evidence_rationale"
+        for row in rows
+    )
+    assert any(
+        row["section"] == "owners"
+        and row["item_id"] == "OWN2"
+        and row["suggested_owner"] == "python service owner"
+        for row in rows
+    )
+    assert [row["item_id"] for row in rows if row["section"] == "evidence_references"] == [
+        "insight:ins-smoke",
+        "signal:sig-smoke",
+        "spec:evidence_rationale",
+    ]
+
+
+def test_render_smoke_test_plan_csv_handles_missing_optional_fields_with_blanks() -> None:
+    csv_text = render_smoke_test_plan_csv(
+        {
+            "source": {"idea_id": "bu-partial"},
+            "summary": {"title": "Partial Smoke Plan"},
+            "user_journey_checks": [
+                {
+                    "id": "UJ1",
+                    "description": 'Run "quoted", comma check\nacross deploy.',
+                    "evidence_reference_ids": ["spec:fallback"],
+                    "derived_from": {"field": "project.workflow_context", "empty": None},
+                }
+            ],
+            "evidence_references": [{"id": "spec:fallback"}],
+        }
+    )
+    rows = list(csv.DictReader(StringIO(csv_text)))
+
+    assert '"Run ""quoted"", comma check across deploy."' in csv_text
+    assert rows[1]["section"] == "user_journey_checks"
+    assert rows[1]["item_id"] == "UJ1"
+    assert rows[1]["status"] == ""
+    assert rows[1]["owner"] == ""
+    assert rows[1]["expected_result"] == ""
+    assert rows[1]["derived_from"] == "field=project.workflow_context"
+    assert rows[-1]["section"] == "evidence_references"
+    assert rows[-1]["evidence_reference_ids"] == "spec:fallback"
+    assert rows[-1]["evidence_type"] == ""
+    assert rows[-1]["evidence_summary"] == ""
+    assert "None" not in csv_text
+    assert "{" not in csv_text
+
+
 def test_smoke_test_plan_is_importable_from_spec_package() -> None:
     plan = exported_generate(_minimal_tact_spec())
     markdown = exported_render(plan)
+    csv_text = exported_render_csv(plan)
 
     assert plan["schema_version"] == SMOKE_TEST_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# Agent Release Gate Smoke Test Plan")
+    assert csv_text.startswith("section,type,source_idea_id")
 
 
 def test_generate_spec_preview_embeds_smoke_test_plan_artifact(

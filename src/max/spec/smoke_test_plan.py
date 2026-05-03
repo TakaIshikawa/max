@@ -2,10 +2,40 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 SMOKE_TEST_PLAN_SCHEMA_VERSION = "max-smoke-test-plan/v1"
+SMOKE_TEST_PLAN_CSV_COLUMNS = (
+    "section",
+    "type",
+    "source_idea_id",
+    "source_status",
+    "tact_spec_schema_version",
+    "title",
+    "workflow_context",
+    "target_user",
+    "buyer",
+    "stack",
+    "validation_plan",
+    "recommendation",
+    "overall_score",
+    "item_id",
+    "name",
+    "category",
+    "status",
+    "owner",
+    "suggested_owner",
+    "responsibility",
+    "description",
+    "expected_result",
+    "derived_from",
+    "evidence_reference_ids",
+    "evidence_type",
+    "evidence_summary",
+)
 
 
 def generate_smoke_test_plan(tact_spec: dict[str, Any]) -> dict[str, Any]:
@@ -122,6 +152,20 @@ def render_smoke_test_plan_markdown(plan: dict[str, Any]) -> str:
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_smoke_test_plan_csv(plan: dict[str, Any]) -> str:
+    """Render a generated smoke test plan as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=SMOKE_TEST_PLAN_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(plan):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _user_journey_checks(
@@ -511,6 +555,151 @@ def _render_evidence(item: dict[str, Any]) -> list[str]:
         f"- Type: {_text(item.get('type'))}",
         f"- Summary: {_text(item.get('summary'))}",
     ]
+
+
+def _csv_rows(plan: dict[str, Any]) -> list[dict[str, str]]:
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    rows = [
+        _csv_row(
+            plan,
+            section="summary",
+            type_="summary",
+            item_id="summary",
+            status=summary.get("recommendation"),
+            description=summary.get("validation_plan"),
+            evidence_reference_ids=[
+                item.get("id") for item in _dict_items(plan.get("evidence_references"))
+            ],
+        )
+    ]
+
+    for section in (
+        "user_journey_checks",
+        "deployment_verification_checks",
+        "integration_checks",
+        "data_integrity_checks",
+        "observability_checks",
+        "rollback_verification_checks",
+    ):
+        for item in _dict_items(plan.get(section)):
+            rows.append(
+                _csv_row(
+                    plan,
+                    section=section,
+                    type_="check",
+                    item_id=item.get("id"),
+                    name=item.get("name"),
+                    category=item.get("category"),
+                    status=item.get("status"),
+                    owner=item.get("owner"),
+                    description=item.get("description"),
+                    expected_result=item.get("expected_result"),
+                    derived_from=item.get("derived_from"),
+                    evidence_reference_ids=item.get("evidence_reference_ids"),
+                )
+            )
+
+    for item in _dict_items(plan.get("owners")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="owners",
+                type_="owner",
+                item_id=item.get("id"),
+                name=item.get("role"),
+                owner=item.get("role"),
+                suggested_owner=item.get("suggested_owner"),
+                responsibility=item.get("responsibility"),
+            )
+        )
+
+    for item in _dict_items(plan.get("evidence_references")):
+        rows.append(
+            _csv_row(
+                plan,
+                section="evidence_references",
+                type_="evidence",
+                item_id=item.get("id"),
+                name=item.get("id"),
+                evidence_reference_ids=[item.get("id")],
+                evidence_type=item.get("type"),
+                evidence_summary=item.get("summary"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    plan: dict[str, Any],
+    *,
+    section: str,
+    type_: str,
+    item_id: Any = None,
+    name: Any = None,
+    category: Any = None,
+    status: Any = None,
+    owner: Any = None,
+    suggested_owner: Any = None,
+    responsibility: Any = None,
+    description: Any = None,
+    expected_result: Any = None,
+    derived_from: Any = None,
+    evidence_reference_ids: Any = None,
+    evidence_type: Any = None,
+    evidence_summary: Any = None,
+) -> dict[str, str]:
+    source = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+    summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    values = {
+        "section": section,
+        "type": type_,
+        "source_idea_id": source.get("idea_id"),
+        "source_status": source.get("status"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "title": summary.get("title"),
+        "workflow_context": summary.get("workflow_context"),
+        "target_user": summary.get("target_user"),
+        "buyer": summary.get("buyer"),
+        "stack": summary.get("stack"),
+        "validation_plan": summary.get("validation_plan"),
+        "recommendation": summary.get("recommendation"),
+        "overall_score": summary.get("overall_score"),
+        "item_id": item_id,
+        "name": name,
+        "category": category,
+        "status": status,
+        "owner": owner,
+        "suggested_owner": suggested_owner,
+        "responsibility": responsibility,
+        "description": description,
+        "expected_result": expected_result,
+        "derived_from": derived_from,
+        "evidence_reference_ids": evidence_reference_ids,
+        "evidence_type": evidence_type,
+        "evidence_summary": evidence_summary,
+    }
+    return {column: _csv_text(values.get(column)) for column in SMOKE_TEST_PLAN_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _list(value) if isinstance(item, dict)]
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        return "; ".join(_csv_text(item) for item in value if _csv_text(item))
+    return _compact(value)
 
 
 def _join_code(values: Any) -> str:
