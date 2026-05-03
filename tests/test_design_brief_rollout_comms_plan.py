@@ -73,17 +73,89 @@ def test_render_design_brief_rollout_comms_plan_markdown_and_json(tmp_path) -> N
     assert json.loads(rendered_json) == report
 
     markdown = render_design_brief_rollout_comms_plan(report, fmt="markdown")
+    repeated = render_design_brief_rollout_comms_plan(report, fmt="markdown")
     assert markdown.startswith("# Rollout Communications Plan: Rollout Comms Brief")
+    assert markdown.endswith("\n")
+    assert markdown == repeated
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
-    assert "## Target Audiences" in markdown
-    assert "## Launch Phase Sequencing" in markdown
-    assert "| Phase | Audience | Channel | Message | CTA |" in markdown
+    assert "## Audience Segments" in markdown
+    assert "## Launch Sequence" in markdown
+    assert "## Timing And Owners" in markdown
+    assert "## Approval Checkpoints" in markdown
+    assert "## Feedback Loops" in markdown
+    assert "| Phase | Audience | Channel | Owner | Message | CTA |" in markdown
     assert "## Internal Enablement Notes" in markdown
     assert "## Customer-Facing Announcement Drafts" in markdown
     assert "## Risk and FAQ Hooks" in markdown
     assert "## Evidence References" in markdown
     assert "## Readiness Warnings" in markdown
+
+
+def test_render_design_brief_rollout_comms_plan_markdown_rows_and_details(tmp_path) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        report = build_design_brief_rollout_comms_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    markdown = render_design_brief_rollout_comms_plan(report, fmt="markdown")
+
+    assert (
+        "| Internal product and engineering | internal | Understand scope, owner handoffs, "
+        "validation gates, and rollback triggers. | Focus rollout on Audience-specific "
+        "messaging. | launch brief, engineering sync |"
+    ) in markdown
+    assert (
+        "| Controlled customer launch | Pilot customers | email | Customer success lead | "
+        f"{report['channel_message_matrix'][2]['message']} | Join the controlled rollout "
+        "and share first-use feedback. |"
+    ) in markdown
+    assert (
+        "| 3. Controlled customer launch | T day through T+5 business days | "
+        "Customer success lead | Invite the first cohort to try Audience-specific messaging. | "
+        "Review messaging with two pilot teams before broad announcement. |"
+    ) in markdown
+    assert (
+        "- **Controlled customer launch**: T day through T+5 business days\n"
+        "  Owner: Customer success lead"
+    ) in markdown
+    assert (
+        "- **Prep and message lock** (Product lead): Launch gate is "
+        "`ready_for_launch_review` and draft messages are approved."
+    ) in markdown
+    assert (
+        "| Controlled customer launch | Pilot customers | email | Customer success lead | "
+        "Join the controlled rollout and share first-use feedback. |"
+    ) in markdown
+    assert brief_id
+
+
+def test_render_design_brief_rollout_comms_plan_markdown_empty_fallbacks() -> None:
+    report = {
+        "schema_version": SCHEMA_VERSION,
+        "design_brief": {
+            "id": "dbf-empty",
+            "title": "Empty Rollout",
+            "readiness_score": 0,
+            "source_idea_ids": [],
+        },
+        "summary": {},
+    }
+
+    markdown = render_design_brief_rollout_comms_plan(report, fmt="markdown")
+
+    assert markdown.endswith("\n")
+    assert "Design brief: `dbf-empty`" in markdown
+    assert "| None | unknown | Not specified | Not specified | none |" in markdown
+    assert "| None | Not scheduled | Unassigned | Not specified | Not specified |" in markdown
+    assert (
+        "| None | Not specified | Not specified | Unassigned | Not specified | Not specified |"
+        in markdown
+    )
+    assert "| None | Not specified | Not specified | Unassigned | Not specified |" in markdown
+    assert markdown.count("- None") >= 5
 
 
 def test_render_design_brief_rollout_comms_plan_csv_rows_and_order(tmp_path) -> None:

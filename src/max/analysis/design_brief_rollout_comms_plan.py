@@ -104,129 +104,304 @@ def render_design_brief_rollout_comms_plan(report: dict[str, Any], fmt: str = "j
     if fmt != "markdown":
         raise ValueError(f"Unsupported rollout communications plan format: {fmt}")
 
-    brief = report["design_brief"]
-    summary = report["summary"]
+    return _render_design_brief_rollout_comms_plan_markdown(report)
+
+
+def _render_design_brief_rollout_comms_plan_markdown(report: dict[str, Any]) -> str:
+    brief = _dict_value(report.get("design_brief"))
+    summary = _dict_value(report.get("summary"))
     lines = [
-        f"# Rollout Communications Plan: {brief['title']}",
+        f"# Rollout Communications Plan: {_text(brief.get('title'), 'Untitled design brief')}",
         "",
-        f"Schema: `{report['schema_version']}`",
-        f"Design brief: `{brief['id']}`",
-        f"Status: {brief.get('design_status') or 'unknown'}",
+        f"Schema: `{_text(report.get('schema_version'), 'unknown')}`",
+        f"Design brief: `{_text(brief.get('id'), 'unknown')}`",
+        f"Status: {_text(brief.get('design_status'), 'unknown')}",
         f"Readiness: {float(brief.get('readiness_score') or 0.0):.1f}/100",
-        f"Source ideas: {', '.join(brief.get('source_idea_ids') or []) or 'design brief'}",
+        f"Source ideas: {_join_text(brief.get('source_idea_ids'), 'design brief')}",
         "",
         "## Rollout Context",
         "",
-        f"- Goal: {summary['rollout_goal']}",
-        f"- Target user: {summary['target_user']}",
-        f"- Buyer: {summary['buyer']}",
-        f"- Workflow: {summary['workflow_context']}",
-        f"- Primary message: {summary['primary_message']}",
-        f"- Fallbacks used: {', '.join(summary['fallbacks_used']) or 'none'}",
+        f"- Goal: {_text(summary.get('rollout_goal'), 'Not specified')}",
+        f"- Target user: {_text(summary.get('target_user'), 'Not specified')}",
+        f"- Buyer: {_text(summary.get('buyer'), 'Not specified')}",
+        f"- Workflow: {_text(summary.get('workflow_context'), 'Not specified')}",
+        f"- Value proposition: {_text(summary.get('value_proposition'), 'Not specified')}",
+        f"- Primary message: {_text(summary.get('primary_message'), 'Not specified')}",
+        f"- Fallbacks used: {_join_text(summary.get('fallbacks_used'), 'none')}",
         "",
-        "## Target Audiences",
+        "## Audience Segments",
         "",
+        "| Audience | Type | Need | Message Angle | Preferred Channels |",
+        "| --- | --- | --- | --- | --- |",
     ]
 
-    for audience in report["target_audiences"]:
-        lines.extend(
-            [
-                f"### {audience['name']}",
-                "",
-                f"- Type: {audience['type']}",
-                f"- Need: {audience['need']}",
-                f"- Message angle: {audience['message_angle']}",
-                f"- Preferred channels: {', '.join(audience['preferred_channels'])}",
-                "",
-            ]
-        )
+    audiences = _list_of_dicts(report.get("target_audiences"))
+    if audiences:
+        for audience in audiences:
+            lines.append(
+                "| {audience} | {type} | {need} | {angle} | {channels} |".format(
+                    audience=_table_cell(audience.get("name")),
+                    type=_table_cell(audience.get("type")),
+                    need=_table_cell(audience.get("need")),
+                    angle=_table_cell(audience.get("message_angle")),
+                    channels=_table_cell(_join_text(audience.get("preferred_channels"), "none")),
+                )
+            )
+    else:
+        lines.append("| None | unknown | Not specified | Not specified | none |")
 
-    lines.extend(["## Launch Phase Sequencing", ""])
-    for phase in report["launch_phases"]:
-        lines.extend(
-            [
-                f"### {phase['sequence']}. {phase['name']}",
-                "",
-                f"- Timing: {phase['timing']}",
-                f"- Objective: {phase['objective']}",
-                f"- Owner: {phase['owner']}",
-                f"- Exit criteria: {phase['exit_criteria']}",
-                "",
-            ]
-        )
-
+    phases = _list_of_dicts(report.get("launch_phases"))
     lines.extend(
         [
-            "## Channel Message Matrix",
             "",
-            "| Phase | Audience | Channel | Message | CTA |",
+            "## Launch Sequence",
+            "",
+            "| Step | Timing | Owner | Objective | Approval / Exit Criteria |",
             "| --- | --- | --- | --- | --- |",
         ]
     )
-    for row in report["channel_message_matrix"]:
-        lines.append(
-            "| "
-            f"{row['phase']} | {row['audience']} | {row['channel']} | "
-            f"{row['message']} | {row['call_to_action']} |"
-        )
+    if phases:
+        for phase in phases:
+            step = f"{_text(phase.get('sequence'), '?')}. {_text(phase.get('name'), 'Unnamed phase')}"
+            lines.append(
+                "| {step} | {timing} | {owner} | {objective} | {criteria} |".format(
+                    step=_table_cell(step),
+                    timing=_table_cell(phase.get("timing")),
+                    owner=_table_cell(phase.get("owner"), "Unassigned"),
+                    objective=_table_cell(phase.get("objective")),
+                    criteria=_table_cell(phase.get("exit_criteria")),
+                )
+            )
+    else:
+        lines.append("| None | Not scheduled | Unassigned | Not specified | Not specified |")
+
+    matrix = _list_of_dicts(report.get("channel_message_matrix"))
+
+    lines.extend(
+        [
+            "",
+            "## Channel Message Matrix",
+            "",
+            "| Phase | Audience | Channel | Owner | Message | CTA |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    if matrix:
+        for row in matrix:
+            lines.append(
+                "| {phase} | {audience} | {channel} | {owner} | {message} | {cta} |".format(
+                    phase=_table_cell(row.get("phase")),
+                    audience=_table_cell(row.get("audience")),
+                    channel=_table_cell(row.get("channel")),
+                    owner=_table_cell(row.get("owner"), "Unassigned"),
+                    message=_table_cell(row.get("message")),
+                    cta=_table_cell(row.get("call_to_action")),
+                )
+            )
+    else:
+        lines.append("| None | Not specified | Not specified | Unassigned | Not specified | Not specified |")
+
+    lines.extend(["", "## Timing And Owners", ""])
+    if phases:
+        for phase in phases:
+            lines.extend(
+                [
+                    f"- **{_text(phase.get('name'), 'Unnamed phase')}**: {_text(phase.get('timing'), 'Not scheduled')}",
+                    f"  Owner: {_text(phase.get('owner'), 'Unassigned')}",
+                ]
+            )
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Approval Checkpoints", ""])
+    if phases:
+        for phase in phases:
+            lines.append(
+                f"- **{_text(phase.get('name'), 'Unnamed phase')}** ({_text(phase.get('owner'), 'Unassigned')}): {_text(phase.get('exit_criteria'), 'Not specified')}"
+            )
+    else:
+        lines.append("- None")
+
+    feedback_rows = _feedback_loop_rows(phases, matrix)
+    lines.extend(
+        [
+            "",
+            "## Feedback Loops",
+            "",
+            "| Phase | Audience | Channel | Owner | Loop |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
+    if feedback_rows:
+        for row in feedback_rows:
+            lines.append(
+                "| {phase} | {audience} | {channel} | {owner} | {loop} |".format(
+                    phase=_table_cell(row.get("phase")),
+                    audience=_table_cell(row.get("audience")),
+                    channel=_table_cell(row.get("channel")),
+                    owner=_table_cell(row.get("owner"), "Unassigned"),
+                    loop=_table_cell(row.get("loop")),
+                )
+            )
+    else:
+        lines.append("| None | Not specified | Not specified | Unassigned | Not specified |")
 
     lines.extend(["", "## Internal Enablement Notes", ""])
-    for note in report["internal_enablement_notes"]:
-        lines.extend(
-            [
-                f"### {note['id']}: {note['topic']}",
-                "",
-                f"- Owner: {note['owner']}",
-                f"- Detail: {note['detail']}",
-                f"- Source fields: {', '.join(note['source_fields'])}",
-                "",
-            ]
-        )
+    notes = _list_of_dicts(report.get("internal_enablement_notes"))
+    if notes:
+        for note in notes:
+            lines.extend(
+                [
+                    f"### {_text(note.get('id'), 'note')}: {_text(note.get('topic'), 'Untitled note')}",
+                    "",
+                    f"- Owner: {_text(note.get('owner'), 'Unassigned')}",
+                    f"- Detail: {_text(note.get('detail'), 'Not specified')}",
+                    f"- Source fields: {_join_text(note.get('source_fields'), 'none')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Customer-Facing Announcement Drafts", ""])
-    for draft in report["customer_facing_announcement_drafts"]:
-        lines.extend(
-            [
-                f"### {draft['name']}",
-                "",
-                f"- Channel: {draft['channel']}",
-                f"- Audience: {draft['audience']}",
-                f"- Headline: {draft['headline']}",
-                "",
-                draft["body"],
-                "",
-                f"- CTA: {draft['call_to_action']}",
-                "",
-            ]
-        )
+    drafts = _list_of_dicts(report.get("customer_facing_announcement_drafts"))
+    if drafts:
+        for draft in drafts:
+            lines.extend(
+                [
+                    f"### {_text(draft.get('name'), 'Untitled draft')}",
+                    "",
+                    f"- Channel: {_text(draft.get('channel'), 'Not specified')}",
+                    f"- Audience: {_text(draft.get('audience'), 'Not specified')}",
+                    f"- Headline: {_text(draft.get('headline'), 'Not specified')}",
+                    "",
+                    _text(draft.get("body"), "Not specified"),
+                    "",
+                    f"- CTA: {_text(draft.get('call_to_action'), 'Not specified')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Risk and FAQ Hooks", ""])
-    for hook in report["risk_faq_hooks"]:
-        lines.extend(
-            [
-                f"### {hook['id']}: {hook['question']}",
-                "",
-                f"- Answer hook: {hook['answer_hook']}",
-                f"- Source: {hook['source']}",
-                "",
-            ]
-        )
+    hooks = _list_of_dicts(report.get("risk_faq_hooks"))
+    if hooks:
+        for hook in hooks:
+            lines.extend(
+                [
+                    f"### {_text(hook.get('id'), 'FAQ')}: {_text(hook.get('question'), 'Not specified')}",
+                    "",
+                    f"- Answer hook: {_text(hook.get('answer_hook'), 'Not specified')}",
+                    f"- Source: {_text(hook.get('source'), 'Not specified')}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["- None", ""])
 
     lines.extend(["## Evidence References", ""])
-    if report["evidence_references"]:
-        for item in report["evidence_references"]:
-            lines.append(f"- **{item['id']}** ({item['type']}): {item['summary']}")
+    evidence = _list_of_dicts(report.get("evidence_references"))
+    if evidence:
+        for item in evidence:
+            lines.append(
+                f"- **{_text(item.get('id'), 'reference')}** ({_text(item.get('type'), 'unknown')}): {_text(item.get('summary'), 'Not specified')}"
+            )
     else:
         lines.append("- None")
 
     lines.extend(["", "## Readiness Warnings", ""])
-    if report["readiness_warnings"]:
-        for warning in report["readiness_warnings"]:
-            lines.append(f"- **{warning['severity']}**: {warning['warning']}")
+    warnings = _list_of_dicts(report.get("readiness_warnings"))
+    if warnings:
+        for warning in warnings:
+            lines.append(
+                f"- **{_text(warning.get('severity'), 'unknown')}**: {_text(warning.get('warning'), 'Not specified')}"
+            )
     else:
         lines.append("- None")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _feedback_loop_rows(
+    phases: list[dict[str, Any]], matrix: list[dict[str, Any]]
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    feedback_terms = ("feedback", "review", "objection", "adoption", "friction")
+
+    for item in matrix:
+        loop = _text(item.get("call_to_action"))
+        searchable = f"{loop} {_text(item.get('message'))}".lower()
+        if not loop or not any(term in searchable for term in feedback_terms):
+            continue
+        row = {
+            "phase": _text(item.get("phase"), "Not specified"),
+            "audience": _text(item.get("audience"), "Not specified"),
+            "channel": _text(item.get("channel"), "Not specified"),
+            "owner": _text(item.get("owner"), "Unassigned"),
+            "loop": loop,
+        }
+        key = (row["phase"], row["audience"], row["channel"], row["owner"], row["loop"])
+        if key not in seen:
+            seen.add(key)
+            rows.append(row)
+
+    for phase in phases:
+        phase_name = _text(phase.get("name"), "Not specified")
+        searchable = (
+            f"{phase_name} {_text(phase.get('objective'))} "
+            f"{_text(phase.get('exit_criteria'))}"
+        ).lower()
+        if not any(term in searchable for term in feedback_terms):
+            continue
+        row = {
+            "phase": phase_name,
+            "audience": "Launch team",
+            "channel": "launch review",
+            "owner": _text(phase.get("owner"), "Unassigned"),
+            "loop": _text(phase.get("exit_criteria"), "Not specified"),
+        }
+        key = (row["phase"], row["audience"], row["channel"], row["owner"], row["loop"])
+        if key not in seen:
+            seen.add(key)
+            rows.append(row)
+    return rows
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _text(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return _compact(value) or default
+    if isinstance(value, (dict, list)):
+        if not value:
+            return default
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return _compact(value) or default
+
+
+def _join_text(value: Any, default: str) -> str:
+    if isinstance(value, list):
+        items = [_text(item) for item in value]
+        joined = ", ".join(item for item in items if item)
+        return joined or default
+    text = _text(value)
+    return text or default
+
+
+def _table_cell(value: Any, default: str = "Not specified") -> str:
+    return _text(value, default).replace("|", "\\|").replace("\n", " ")
 
 
 def rollout_comms_plan_filename(design_brief: dict[str, Any], fmt: str = "markdown") -> str:
