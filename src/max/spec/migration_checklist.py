@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -10,6 +12,32 @@ from max.types.evaluation import UtilityEvaluation
 
 MIGRATION_CHECKLIST_SCHEMA_VERSION = "max-migration-checklist/v1"
 KIND = "max.migration_checklist"
+MIGRATION_CHECKLIST_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "source_status",
+    "source_category",
+    "tact_spec_schema_version",
+    "migration_gate",
+    "title",
+    "workflow_context",
+    "current_workaround",
+    "recommendation",
+    "phase",
+    "item_type",
+    "item_id",
+    "item_name",
+    "status",
+    "owner",
+    "priority",
+    "dependency",
+    "checklist_item",
+    "rationale",
+    "validation_evidence",
+    "evidence_refs",
+    "rollback_fallback_notes",
+)
 
 
 def generate_migration_checklist(
@@ -148,6 +176,20 @@ def render_migration_checklist_markdown(
     )
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_migration_checklist_csv(checklist: dict[str, Any]) -> str:
+    """Render a generated migration checklist as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=MIGRATION_CHECKLIST_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(checklist or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _context(
@@ -565,6 +607,153 @@ def _render_gap(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(checklist: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for item in _dict_items(checklist.get("migration_assumptions")):
+        rows.append(
+            _csv_row(
+                checklist,
+                phase="assumptions",
+                item_type="assumption",
+                item_id=item.get("id"),
+                item_name=item.get("title"),
+                priority=item.get("confidence"),
+                checklist_item=item.get("statement"),
+                validation_evidence=item.get("confidence"),
+                evidence_refs=item.get("evidence_refs"),
+            )
+        )
+
+    for phase, items in (
+        ("pre_migration", checklist.get("pre_migration_tasks")),
+        ("data_process_cutover", checklist.get("data_process_cutover_tasks")),
+    ):
+        for item in _dict_items(items):
+            rows.append(
+                _csv_row(
+                    checklist,
+                    phase=phase,
+                    item_type="task",
+                    item_id=item.get("id"),
+                    status=item.get("status"),
+                    owner=item.get("owner"),
+                    priority="required" if item.get("required") is True else "",
+                    dependency=item.get("rationale"),
+                    checklist_item=item.get("task"),
+                    rationale=item.get("rationale"),
+                    validation_evidence=item.get("evidence_required"),
+                    evidence_refs=item.get("evidence_refs"),
+                )
+            )
+
+    for item in _dict_items(checklist.get("rollback_checks")):
+        rows.append(
+            _csv_row(
+                checklist,
+                phase="rollback",
+                item_type="rollback_check",
+                item_id=item.get("id"),
+                status=item.get("status"),
+                owner=item.get("owner"),
+                dependency=item.get("trigger"),
+                checklist_item=item.get("check"),
+                validation_evidence=item.get("trigger"),
+                evidence_refs=item.get("evidence_refs"),
+                rollback_fallback_notes=item.get("response"),
+            )
+        )
+
+    for item in _dict_items(checklist.get("stakeholder_communications")):
+        rows.append(
+            _csv_row(
+                checklist,
+                phase="communications",
+                item_type="communication",
+                item_id=item.get("id"),
+                item_name=item.get("topic"),
+                status=item.get("status"),
+                owner=item.get("audience"),
+                dependency=item.get("timing"),
+                checklist_item=item.get("message"),
+                validation_evidence=item.get("timing"),
+                evidence_refs=item.get("evidence_refs"),
+            )
+        )
+
+    for item in _dict_items(checklist.get("unresolved_gaps")):
+        rows.append(
+            _csv_row(
+                checklist,
+                phase="gaps",
+                item_type="gap",
+                item_id=item.get("id"),
+                item_name=item.get("category"),
+                owner=item.get("owner"),
+                priority="open",
+                dependency=item.get("missing_input"),
+                checklist_item=item.get("description"),
+                validation_evidence=item.get("missing_input"),
+                rollback_fallback_notes=item.get("resolution"),
+            )
+        )
+
+    return rows
+
+
+def _csv_row(
+    checklist: dict[str, Any],
+    *,
+    phase: str,
+    item_type: str,
+    item_id: Any = None,
+    item_name: Any = None,
+    status: Any = None,
+    owner: Any = None,
+    priority: Any = None,
+    dependency: Any = None,
+    checklist_item: Any = None,
+    rationale: Any = None,
+    validation_evidence: Any = None,
+    evidence_refs: Any = None,
+    rollback_fallback_notes: Any = None,
+) -> dict[str, str]:
+    source = checklist.get("source") if isinstance(checklist.get("source"), dict) else {}
+    idea = checklist.get("idea") if isinstance(checklist.get("idea"), dict) else {}
+    summary = checklist.get("summary") if isinstance(checklist.get("summary"), dict) else {}
+    values = {
+        "schema_version": checklist.get("schema_version"),
+        "kind": checklist.get("kind"),
+        "idea_id": checklist.get("idea_id"),
+        "source_status": source.get("status"),
+        "source_category": source.get("category"),
+        "tact_spec_schema_version": source.get("tact_spec_schema_version"),
+        "migration_gate": summary.get("migration_gate"),
+        "title": idea.get("title"),
+        "workflow_context": idea.get("workflow_context"),
+        "current_workaround": idea.get("current_workaround"),
+        "recommendation": idea.get("recommendation"),
+        "phase": phase,
+        "item_type": item_type,
+        "item_id": item_id,
+        "item_name": item_name,
+        "status": status,
+        "owner": owner,
+        "priority": priority,
+        "dependency": dependency,
+        "checklist_item": checklist_item,
+        "rationale": rationale,
+        "validation_evidence": validation_evidence,
+        "evidence_refs": evidence_refs,
+        "rollback_fallback_notes": rollback_fallback_notes,
+    }
+    return {column: _csv_text(values.get(column)) for column in MIGRATION_CHECKLIST_CSV_COLUMNS}
+
+
+def _dict_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
 def _extend_section(
     lines: list[str],
     title: str,
@@ -639,6 +828,23 @@ def _join(items: list[str], empty: str) -> str:
 def _inline_list(items: list[Any]) -> str:
     values = [_compact(item) for item in items if _compact(item)]
     return ", ".join(values) if values else "none"
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_text(key)}={_csv_text(item)}"
+            for key, item in sorted(value.items())
+            if _csv_text(item)
+        )
+    if isinstance(value, list | tuple | set):
+        values = sorted(value, key=str) if isinstance(value, set) else value
+        return "; ".join(_csv_text(item) for item in values if _csv_text(item))
+    return _compact(value)
 
 
 def _compact(value: Any) -> str:
