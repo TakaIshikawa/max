@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 import pytest
 
 from max.spec import generate_customer_onboarding_plan as exported_generate
+from max.spec import render_customer_onboarding_plan_csv as exported_render_csv
 from max.spec import render_customer_onboarding_plan_markdown as exported_render
 from max.spec.customer_onboarding_plan import (
+    CUSTOMER_ONBOARDING_PLAN_CSV_COLUMNS,
     CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION,
     generate_customer_onboarding_plan,
+    render_customer_onboarding_plan_csv,
     render_customer_onboarding_plan_markdown,
 )
 from max.spec.generator import generate_spec_preview
@@ -157,11 +162,78 @@ def test_render_customer_onboarding_plan_markdown_rejects_unsupported_format(
         render_customer_onboarding_plan_markdown(plan, output_format="json")
 
 
+def test_render_customer_onboarding_plan_csv_has_stable_headers_and_sections(
+    sample_unit, sample_evaluation
+) -> None:
+    plan = generate_customer_onboarding_plan(sample_unit, sample_evaluation)
+
+    first = render_customer_onboarding_plan_csv(plan)
+    second = render_customer_onboarding_plan_csv(plan)
+    reader = csv.DictReader(StringIO(first))
+    rows = list(reader)
+
+    assert first == second
+    assert first.endswith("\n")
+    assert reader.fieldnames == list(CUSTOMER_ONBOARDING_PLAN_CSV_COLUMNS)
+    assert {row["section"] for row in rows} == {
+        "onboarding_segments",
+        "first_session_checklist",
+        "activation_milestones",
+        "enablement_assets",
+        "success_metrics",
+        "handoff_risks",
+    }
+    assert all(row["idea_id"] == "bu-test001" for row in rows)
+    assert all(row["title"] == "MCP Test Framework" for row in rows)
+
+
+def test_render_customer_onboarding_plan_csv_includes_representative_rows(
+    sample_unit, sample_evaluation
+) -> None:
+    plan = generate_customer_onboarding_plan(sample_unit, sample_evaluation)
+
+    rows = list(csv.DictReader(StringIO(render_customer_onboarding_plan_csv(plan))))
+
+    phase = next(row for row in rows if row["row_id"] == "SEG1")
+    assert phase["row_type"] == "phase"
+    assert phase["name"] == "pilot_champion"
+    assert phase["phase"] == "high_touch"
+    assert phase["owner"] == "MCP server maintainer"
+    assert "run against five open-source MCP servers" in phase["success_criteria"]
+
+    task = next(row for row in rows if row["row_id"] == "FS2")
+    assert task["section"] == "first_session_checklist"
+    assert task["row_type"] == "task"
+    assert task["owner"] == "technical_owner"
+    assert task["timing"] == "first_session"
+    assert task["status"] == "pending"
+    assert "A CLI tool that validates MCP server implementations" in task["success_criteria"]
+
+    metric = next(row for row in rows if row["row_id"] == "SM1")
+    assert metric["row_type"] == "success_metric"
+    assert metric["phase"] == "activation"
+    assert metric["owner"] == "customer_success_owner"
+    assert metric["metric"] == (
+        "count(first_sessions_completed) / count(first_sessions_started)"
+    )
+    assert "signal:sig-test001" in metric["evidence_references"]
+
+    risk = next(row for row in rows if row["row_id"] == "HR1")
+    assert risk["row_type"] == "risk"
+    assert risk["phase"] == "handoff"
+    assert risk["status"] == "elevated"
+    assert risk["risk"] == "protocol churn"
+
+
 def test_customer_onboarding_plan_is_importable_from_spec_package(
     sample_unit, sample_evaluation
 ) -> None:
     plan = exported_generate(sample_unit, sample_evaluation)
     markdown = exported_render(plan)
+    csv_text = exported_render_csv(plan)
 
     assert plan["schema_version"] == CUSTOMER_ONBOARDING_PLAN_SCHEMA_VERSION
     assert markdown.startswith("# MCP Test Framework Customer Onboarding Plan")
+    assert list(csv.DictReader(StringIO(csv_text)).fieldnames or []) == list(
+        CUSTOMER_ONBOARDING_PLAN_CSV_COLUMNS
+    )
