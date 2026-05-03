@@ -149,6 +149,7 @@ from max.analysis.design_brief_competitive_alternatives import (
 from max.analysis.design_brief_renewal_expansion_plan import (
     build_design_brief_renewal_expansion_plan,
     render_design_brief_renewal_expansion_plan,
+    render_renewal_expansion_plan_csv,
     renewal_expansion_plan_filename,
     write_design_brief_renewal_expansion_plan,
 )
@@ -231,6 +232,7 @@ __all__ = [
     "render_design_brief_privacy_impact_assessment",
     "render_design_brief_privacy_impact_assessment_csv",
     "render_design_brief_renewal_expansion_plan",
+    "render_renewal_expansion_plan_csv",
     "render_design_brief_work_breakdown",
     "render_design_brief_work_breakdown_csv",
     "render_design_brief_accessibility_review",

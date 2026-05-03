@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis import (
     build_design_brief_renewal_expansion_plan as exported_build,
+    render_renewal_expansion_plan_csv as exported_render_csv,
 )
 from max.analysis.design_brief_renewal_expansion_plan import (
+    CSV_COLUMNS,
     KIND,
     SCHEMA_VERSION,
     build_design_brief_renewal_expansion_plan,
     render_design_brief_renewal_expansion_plan,
+    render_renewal_expansion_plan_csv,
     renewal_expansion_plan_filename,
     write_design_brief_renewal_expansion_plan,
 )
@@ -121,6 +126,125 @@ def test_render_renewal_expansion_plan_markdown_json_write_and_invalid_format(
         {"id": "dbf-renewal-001", "title": "Renewal / Expansion Plan"},
         fmt="json",
     ).endswith(".json")
+
+
+def test_render_renewal_expansion_plan_csv_headers_ordering_and_evidence(
+    tmp_path,
+) -> None:
+    store = Store(str(tmp_path / "renewal_csv.db"))
+    try:
+        brief_id = _seed_renewal_brief(store)
+        report = build_design_brief_renewal_expansion_plan(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    csv_text = render_renewal_expansion_plan_csv(report)
+    repeated = render_design_brief_renewal_expansion_plan(report, "csv")
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert csv_text == repeated
+    assert exported_render_csv is render_renewal_expansion_plan_csv
+    assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert [row["expansion_opportunity"] for row in rows] == [
+        "Team rollout",
+        "Scope expansion",
+        "Segment expansion",
+    ]
+    assert rows[0]["segment"] == "B2B SaaS customer success teams"
+    assert rows[0]["renewal_trigger"] == "Repeated workflow success"
+    assert rows[0]["health_signal"] == "Activation and repeat-use evidence from the initial team."
+    assert rows[0]["recommended_action"].startswith("Pre-align VP of Customer Operations")
+    assert rows[0]["owner"] == "Account owner"
+    assert rows[0]["timing"] == "after first value recap"
+    assert rows[0]["evidence"] == "bu-renewal-lead"
+    assert renewal_expansion_plan_filename(
+        {"id": "dbf-renewal-001", "title": "Renewal / Expansion Plan"},
+        fmt="csv",
+    ).endswith(".csv")
+
+
+def test_render_renewal_expansion_plan_csv_expands_segments_and_empty_optionals() -> None:
+    report = {
+        "design_brief": {"domain": "enterprise"},
+        "renewal_context": {},
+        "expansion_opportunities": [
+            {
+                "id": "EO1",
+                "segments": ["Mid-market", "Enterprise"],
+                "trigger": "Usage crosses threshold",
+                "opportunity": "Workflow rollout",
+                "health_signal": "Weekly active teams increase",
+                "evidence": ["sig-usage", {"source": "dashboard", "metric": "WAU"}],
+            },
+            {
+                "id": "EO2",
+                "segment": "Partner-led",
+                "trigger": "Champion requests packaged rollout",
+                "opportunity": "Partner expansion",
+                "source_reference_ids": ["idea-partner"],
+            },
+        ],
+        "next_actions": [
+            {
+                "id": "NA1",
+                "addresses": "EO1",
+                "action": "Prepare rollout plan",
+                "owner_role": "Account owner",
+                "timing": "next QBR",
+            },
+            {"id": "NA2", "addresses": "EO2", "action": "Confirm partner motion"},
+        ],
+        "proof_points": [],
+    }
+
+    rows = list(csv.DictReader(io.StringIO(render_renewal_expansion_plan_csv(report))))
+
+    assert [row["segment"] for row in rows] == ["Mid-market", "Enterprise", "Partner-led"]
+    assert rows[0]["recommended_action"] == "Prepare rollout plan"
+    assert rows[1]["recommended_action"] == "Prepare rollout plan"
+    assert rows[2]["recommended_action"] == "Confirm partner motion"
+    assert rows[2]["owner"] == ""
+    assert rows[2]["timing"] == ""
+    assert rows[2]["health_signal"] == ""
+    assert rows[0]["evidence"] == "sig-usage; metric: WAU; source: dashboard"
+    assert rows[2]["evidence"] == "idea-partner"
+
+
+def test_render_renewal_expansion_plan_csv_escapes_special_values() -> None:
+    report = {
+        "design_brief": {"domain": "customer-success"},
+        "renewal_context": {},
+        "expansion_opportunities": [
+            {
+                "id": "EO1",
+                "segment": 'Enterprise, "Strategic"',
+                "trigger": 'Buyer says "yes", then asks for legal',
+                "opportunity": "Team rollout\nPhase 2",
+                "proof_needed": 'Usage, quotes, and "renewal" proof',
+                "evidence": {"note": 'Customer said "expand"', "source": "QBR, deck"},
+            }
+        ],
+        "next_actions": [
+            {
+                "addresses": "EO1",
+                "action": 'Send "expansion", plan',
+                "owner_role": 'CSM, "Lead"',
+                "timing": "after recap\nbefore renewal",
+            }
+        ],
+    }
+
+    csv_text = render_renewal_expansion_plan_csv(report)
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert rows[0]["segment"] == 'Enterprise, "Strategic"'
+    assert rows[0]["expansion_opportunity"] == "Team rollout\nPhase 2"
+    assert rows[0]["recommended_action"] == 'Send "expansion", plan'
+    assert '"Enterprise, ""Strategic"""' in csv_text
+    assert '"Team rollout\nPhase 2"' in csv_text
+    assert '"Send ""expansion"", plan"' in csv_text
+    assert '"CSM, ""Lead"""' in csv_text
 
 
 def _seed_renewal_brief(store: Store) -> str:
