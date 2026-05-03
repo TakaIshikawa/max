@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import csv
+import io
+
 from fastapi.testclient import TestClient
 
 from max.server.app import create_app
-from max.spec.release_readiness_gate import RELEASE_READINESS_GATE_SCHEMA_VERSION
+from max.spec.release_readiness_gate import (
+    RELEASE_READINESS_GATE_CSV_COLUMNS,
+    RELEASE_READINESS_GATE_SCHEMA_VERSION,
+    generate_release_readiness_gate,
+    render_release_readiness_gate_csv,
+)
 
 
 def test_post_spec_release_readiness_gate_returns_structured_response() -> None:
@@ -71,6 +79,87 @@ def test_post_spec_release_readiness_gate_invalid_payload_returns_validation_err
 
     assert response.status_code == 422
     assert response.json()["detail"]
+
+
+def test_render_release_readiness_gate_csv_has_stable_gate_and_check_rows() -> None:
+    gate = generate_release_readiness_gate(_complete_tact_spec())
+
+    csv_text = render_release_readiness_gate_csv(gate)
+    repeated = render_release_readiness_gate_csv(gate)
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text == repeated
+    assert reader.fieldnames == list(RELEASE_READINESS_GATE_CSV_COLUMNS)
+    assert csv_text.splitlines()[0] == ",".join(RELEASE_READINESS_GATE_CSV_COLUMNS)
+    assert [row["type"] for row in rows] == ["gate"] + ["check"] * 7
+
+    gate_row = rows[0]
+    assert gate_row["section"] == "summary"
+    assert gate_row["name"] == "Release Gate API"
+    assert gate_row["status"] == "go"
+    assert gate_row["owner"] == "launch_owner"
+    assert gate_row["blocker_risk"] == ""
+    assert gate_row["next_action"] == (
+        "Record final go/no-go decision with all required owner signoffs."
+    )
+
+    scope_row = rows[1]
+    assert scope_row["section"] == "readiness"
+    assert scope_row["item_id"] == "scope"
+    assert scope_row["dimension_id"] == "scope"
+    assert scope_row["name"] == "Scope"
+    assert scope_row["status"] == "ready"
+    assert scope_row["required"] == "true"
+    assert scope_row["owner"] == "product_owner"
+    assert scope_row["blocker_risk"] == ""
+    assert scope_row["next_action"] == ""
+    assert "project.workflow_context=release approval for generated TactSpec projects" in scope_row[
+        "evidence"
+    ]
+
+
+def test_render_release_readiness_gate_csv_includes_blocked_gate_rows() -> None:
+    gate = generate_release_readiness_gate({})
+
+    rows = list(csv.DictReader(io.StringIO(render_release_readiness_gate_csv(gate))))
+
+    assert len(rows) == 8
+    assert rows[0]["type"] == "gate"
+    assert rows[0]["status"] == "no-go"
+    assert rows[0]["blocker_risk"]
+    assert rows[0]["next_action"] == (
+        "Resolve release blockers before recording the final go/no-go decision."
+    )
+
+    blocked_check = next(row for row in rows if row["type"] == "check" and row["status"] == "blocked")
+    assert blocked_check["owner"]
+    assert blocked_check["blocker_risk"]
+    assert blocked_check["next_action"]
+
+
+def test_render_release_readiness_gate_csv_escapes_commas_quotes_and_newlines() -> None:
+    spec = _complete_tact_spec()
+    spec["project"]["title"] = 'Release Gate, "CSV"\nReview'
+    spec["project"]["workflow_context"] = 'approve "release", then\npublish'
+    spec["artifacts"]["support_playbook"] = {}
+    spec["artifacts"].pop("stakeholder_handoff")
+    gate = generate_release_readiness_gate(spec)
+    gate["summary"]["title"] = 'Release Gate, "CSV"\nReview'
+    gate["summary"]["workflow_context"] = 'approve "release", then\npublish'
+
+    csv_text = render_release_readiness_gate_csv(gate)
+    rows = list(csv.DictReader(io.StringIO(csv_text)))
+
+    assert '"Release Gate, ""CSV""\nReview"' in csv_text
+    assert '"approve ""release"", then\npublish"' in csv_text
+    assert rows[0]["name"] == 'Release Gate, "CSV"\nReview'
+    support_row = next(row for row in rows if row["item_id"] == "support")
+    assert support_row["status"] == "blocked"
+    assert support_row["blocker_risk"]
+    assert support_row["next_action"] == (
+        "Attach support playbook or stakeholder handoff with owner and escalation path."
+    )
 
 
 def _complete_tact_spec() -> dict:
