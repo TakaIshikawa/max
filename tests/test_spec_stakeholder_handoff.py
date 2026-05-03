@@ -198,6 +198,132 @@ def test_render_stakeholder_handoff_csv_includes_traceable_representative_rows(
     assert risk["details"] == "severity=high; status=open"
 
 
+def test_render_stakeholder_handoff_csv_flattens_tracking_sections():
+    handoff = {
+        "schema_version": STAKEHOLDER_HANDOFF_SCHEMA_VERSION,
+        "kind": "max.stakeholder_handoff",
+        "idea_id": "bu-handoff",
+        "source": {
+            "status": "approved",
+            "evaluation_available": True,
+            "tact_spec_schema_version": "tact-spec-preview/v1",
+        },
+        "summary": {
+            "title": "Partner Portal",
+            "recommendation": "yes",
+            "overall_score": 81.0,
+        },
+        "stakeholder_groups": [
+            {
+                "id": "SG1",
+                "stakeholder": "Program managers",
+                "role": "program_manager",
+                "owner": "PMO lead",
+                "description": "Track launch handoff readiness.",
+                "references": ["brief.stakeholders"],
+            }
+        ],
+        "responsibilities": [
+            {
+                "id": "RESP1",
+                "stakeholder": "program_manager",
+                "owner": "PMO lead",
+                "responsibility": "Maintain artifact completion tracker.",
+                "evidence_reference_ids": ["EV1"],
+            }
+        ],
+        "artifacts": [
+            {
+                "id": "ART1",
+                "artifact": "Launch tracker",
+                "owner": "PMO lead",
+                "status": "draft",
+                "format": "spreadsheet",
+            }
+        ],
+        "decisions": [
+            {
+                "id": "DEC1",
+                "decision": "Approve pilot launch",
+                "decider": "Launch sponsor",
+                "due": "pilot gate",
+                "criteria": "All handoff artifacts have named owners.",
+            }
+        ],
+        "open_questions": [
+            {
+                "id": "OQ1",
+                "question": "Who owns partner escalation after launch?",
+                "owner": "support lead",
+            }
+        ],
+        "success_criteria": [
+            {
+                "id": "SC1",
+                "criterion": "All stakeholders acknowledge handoff",
+                "target": "100% acknowledgement before launch",
+                "owner": "PMO lead",
+            }
+        ],
+        "follow_up_actions": [
+            {
+                "id": "FUA1",
+                "action": "Schedule artifact review",
+                "owner": "PMO lead",
+                "due": "Friday",
+                "outcome": "Review notes are attached to the tracker.",
+            }
+        ],
+    }
+
+    csv_text = render_stakeholder_handoff_csv(handoff)
+    reader = csv.DictReader(StringIO(csv_text))
+    rows = list(reader)
+
+    assert csv_text.endswith("\n")
+    assert reader.fieldnames == list(STAKEHOLDER_HANDOFF_CSV_COLUMNS)
+
+    stakeholder = next(row for row in rows if row["item_id"] == "SG1")
+    assert stakeholder["section"] == "stakeholder_groups"
+    assert stakeholder["row_type"] == "stakeholder_group"
+    assert stakeholder["label"] == "Program managers"
+    assert stakeholder["role"] == "program_manager"
+    assert stakeholder["owner"] == "PMO lead"
+    assert stakeholder["decision_criteria"] == "Track launch handoff readiness."
+    assert stakeholder["source_references"] == "brief.stakeholders"
+
+    responsibility = next(row for row in rows if row["item_id"] == "RESP1")
+    assert responsibility["section"] == "responsibilities"
+    assert responsibility["row_type"] == "responsibility"
+    assert responsibility["label"] == "Maintain artifact completion tracker."
+    assert responsibility["role"] == "program_manager"
+    assert responsibility["owner"] == "PMO lead"
+    assert responsibility["evidence_ids"] == "EV1"
+
+    artifact = next(row for row in rows if row["item_id"] == "ART1")
+    assert artifact["section"] == "artifacts"
+    assert artifact["row_type"] == "artifact"
+    assert artifact["label"] == "Launch tracker"
+    assert artifact["decision_criteria"] == "draft"
+    assert artifact["details"] == "format=spreadsheet"
+
+    action = next(row for row in rows if row["item_id"] == "FUA1")
+    assert action["section"] == "follow_up_actions"
+    assert action["row_type"] == "follow_up_action"
+    assert action["label"] == "Schedule artifact review"
+    assert action["owner"] == "PMO lead"
+    assert action["timing"] == "Friday"
+    assert action["decision_criteria"] == "Schedule artifact review"
+    assert action["details"] == "outcome=Review notes are attached to the tracker."
+
+    assert {
+        row["section"]
+        for row in rows
+        if row["row_type"]
+        in {"decision", "open_question", "success_criterion", "follow_up_action"}
+    } == {"decisions", "open_questions", "success_criteria", "follow_up_actions"}
+
+
 def test_render_stakeholder_handoff_csv_degrades_without_evaluation_or_spec(sample_unit):
     handoff = generate_stakeholder_handoff(sample_unit)
 
