@@ -13,6 +13,7 @@ from max.spec.api_contract_test_plan import (
 )
 from max.spec.adr import (
     generate_architecture_decision_record,
+    render_architecture_decision_record_csv,
     render_architecture_decision_record_markdown,
 )
 from max.spec.bundle import (
@@ -182,6 +183,7 @@ __all__ = [
     "render_vendor_risk_assessment_csv",
     "render_vendor_risk_assessment_markdown",
     "render_architecture_decision_record_markdown",
+    "render_architecture_decision_record_csv",
     "render_api_contract_test_plan_markdown",
     "render_compliance_checklist_json",
     "render_compliance_checklist_markdown",
