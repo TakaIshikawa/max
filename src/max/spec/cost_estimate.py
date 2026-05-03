@@ -2,10 +2,29 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 
 COST_ESTIMATE_SCHEMA_VERSION = "max-cost-estimate/v1"
+COST_ESTIMATE_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "source_idea_id",
+    "title",
+    "category",
+    "item",
+    "description",
+    "estimate_type",
+    "low_monthly_cost",
+    "base_monthly_cost",
+    "high_monthly_cost",
+    "one_time_cost",
+    "assumptions",
+    "confidence",
+    "notes",
+)
 
 _EXTERNAL_SERVICE_TERMS = {
     "ai": ("openai", "anthropic", "llm", "model", "embedding", "vector", "artificial intelligence"),
@@ -105,6 +124,20 @@ def render_cost_estimate_markdown(estimate: dict[str, Any]) -> str:
     _extend_section(lines, "Risks", estimate.get("risks") or [], _render_risk)
     _extend_section(lines, "Recommendations", estimate.get("recommendations") or [], _render_recommendation)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_cost_estimate_csv(estimate: dict[str, Any]) -> str:
+    """Render cost estimate line items as deterministic CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=COST_ESTIMATE_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(estimate or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _complexity_signals(
@@ -458,6 +491,123 @@ def _render_recommendation(item: dict[str, Any]) -> list[str]:
     ]
 
 
+def _csv_rows(estimate: dict[str, Any]) -> list[dict[str, str]]:
+    line_items = _cost_line_items(estimate)
+    return [_csv_row(estimate, item) for item in line_items]
+
+
+def _cost_line_items(estimate: dict[str, Any]) -> list[dict[str, Any]]:
+    for key in ("cost_line_items", "line_items", "cost_items"):
+        items = estimate.get(key)
+        if isinstance(items, list):
+            return [item if isinstance(item, dict) else {"item": item} for item in items]
+
+    drivers = estimate.get("cost_drivers")
+    if isinstance(drivers, list):
+        return [driver for driver in drivers if isinstance(driver, dict)]
+    return []
+
+
+def _csv_row(estimate: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
+    summary = estimate.get("summary") if isinstance(estimate.get("summary"), dict) else {}
+    source = estimate.get("source") if isinstance(estimate.get("source"), dict) else {}
+    monthly = _dict(item.get("monthly_cost") or item.get("monthly_estimate"))
+    effort = estimate.get("effort_estimate") if isinstance(estimate.get("effort_estimate"), dict) else {}
+    return {
+        "schema_version": _csv_text(estimate.get("schema_version")),
+        "kind": _csv_text(estimate.get("kind")),
+        "source_idea_id": _csv_text(source.get("idea_id")),
+        "title": _csv_text(summary.get("title")),
+        "category": _csv_text(item.get("category")),
+        "item": _csv_text(
+            item.get("item")
+            or item.get("name")
+            or item.get("title")
+            or item.get("id")
+        ),
+        "description": _csv_text(item.get("description")),
+        "estimate_type": _csv_text(
+            item.get("estimate_type")
+            or item.get("cost_type")
+            or item.get("type")
+            or ("driver" if item.get("impact") else "")
+        ),
+        "low_monthly_cost": _csv_text(
+            _first_present(
+                item,
+                "low_monthly_cost",
+                "monthly_cost_low",
+                "low_monthly",
+                "monthly_low",
+                fallback=monthly.get("low"),
+            )
+        ),
+        "base_monthly_cost": _csv_text(
+            _first_present(
+                item,
+                "base_monthly_cost",
+                "monthly_cost_base",
+                "base_monthly",
+                "monthly_base",
+                fallback=_first_non_none(
+                    monthly.get("base"),
+                    _monthly_scalar(item.get("monthly_cost")),
+                ),
+            )
+        ),
+        "high_monthly_cost": _csv_text(
+            _first_present(
+                item,
+                "high_monthly_cost",
+                "monthly_cost_high",
+                "high_monthly",
+                "monthly_high",
+                fallback=monthly.get("high"),
+            )
+        ),
+        "one_time_cost": _csv_text(
+            _first_present(
+                item,
+                "one_time_cost",
+                "one_time",
+                "one_time_estimate",
+                "setup_cost",
+            )
+        ),
+        "assumptions": _csv_join(item.get("assumptions")),
+        "confidence": _csv_text(item.get("confidence") or effort.get("confidence")),
+        "notes": _csv_join(
+            item.get("notes")
+            or item.get("note")
+            or item.get("derived_from")
+            or item.get("source_references")
+        ),
+    }
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _first_present(mapping: dict[str, Any], *keys: str, fallback: Any = None) -> Any:
+    for key in keys:
+        value = mapping.get(key)
+        if value is not None:
+            return value
+    return fallback
+
+
+def _monthly_scalar(value: Any) -> Any:
+    return None if isinstance(value, dict) else value
+
+
+def _first_non_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 def _detected_categories(text: str, categories: dict[str, tuple[str, ...]]) -> list[str]:
     detected = [category for category, terms in sorted(categories.items()) if _contains_any(text, terms)]
     return list(dict.fromkeys(detected))
@@ -529,3 +679,17 @@ def _text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _csv_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return _compact(value)
+
+
+def _csv_join(values: Any) -> str:
+    if isinstance(values, list | tuple):
+        return " | ".join(_csv_text(value) for value in values if _csv_text(value))
+    return _csv_text(values)
