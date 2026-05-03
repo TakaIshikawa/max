@@ -12,16 +12,24 @@ from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.support_playbook.v1"
 CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "kind",
     "design_brief_id",
     "design_brief_title",
+    "design_status",
+    "readiness_score",
     "section",
     "item_id",
+    "item_title",
     "name",
     "owner",
+    "team",
     "severity",
-    "trigger_or_threshold",
-    "action",
-    "details",
+    "priority",
+    "trigger",
+    "response",
+    "detail",
+    "source_idea_ids",
 )
 
 
@@ -214,13 +222,16 @@ def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
         rows.append(
             _csv_row(
                 playbook,
-                section="onboarding",
+                section="readiness_gaps",
                 item_id=item.get("id"),
+                item_title=item.get("check"),
                 name=item.get("check"),
                 owner=item.get("owner"),
-                trigger_or_threshold=item.get("pass_signal"),
-                action=item.get("failure_action"),
-                details={"source_idea_ids": item.get("source_idea_ids") or []},
+                priority="readiness",
+                trigger=item.get("pass_signal"),
+                response=item.get("failure_action"),
+                detail={"pass_signal": item.get("pass_signal")},
+                source_idea_ids=item.get("source_idea_ids") or [],
             )
         )
 
@@ -228,49 +239,58 @@ def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
         rows.append(
             _csv_row(
                 playbook,
-                section="scenarios",
+                section="support_scenarios",
                 item_id=item.get("id"),
+                item_title=item.get("name"),
                 name=item.get("name"),
-                trigger_or_threshold=item.get("trigger"),
-                action=item.get("first_response"),
-                details={
+                trigger=item.get("trigger"),
+                response=item.get("first_response"),
+                detail={
                     "likely_cause": item.get("likely_cause"),
                     "resolution_target": item.get("resolution_target"),
-                    "source_idea_ids": item.get("source_idea_ids") or [],
                 },
+                source_idea_ids=item.get("source_idea_ids") or [],
             )
         )
 
     for item in playbook.get("troubleshooting_flows") or []:
-        rows.append(
-            _csv_row(
-                playbook,
-                section="troubleshooting",
-                item_id=item.get("scenario_id"),
-                name=f"Troubleshooting flow for {item.get('scenario_id') or ''}".strip(),
-                trigger_or_threshold=item.get("stop_condition"),
-                details={
-                    "steps": item.get("steps") or [],
-                    "source_idea_ids": item.get("source_idea_ids") or [],
-                },
+        scenario_id = item.get("scenario_id")
+        for index, step in enumerate(item.get("steps") or [], start=1):
+            rows.append(
+                _csv_row(
+                    playbook,
+                    section="troubleshooting_steps",
+                    item_id=f"{scenario_id}-TS{index}" if scenario_id else f"TS{index}",
+                    item_title=f"Troubleshooting step {index}",
+                    name=f"Troubleshooting flow for {scenario_id or 'scenario'}",
+                    priority=index,
+                    trigger=item.get("stop_condition"),
+                    response=step,
+                    detail={
+                        "scenario_id": scenario_id,
+                        "step_number": index,
+                        "stop_condition": item.get("stop_condition"),
+                    },
+                    source_idea_ids=item.get("source_idea_ids") or [],
+                )
             )
-        )
 
     for item in playbook.get("escalation_criteria") or []:
         rows.append(
             _csv_row(
                 playbook,
-                section="escalation",
+                section="escalation_paths",
                 item_id=item.get("id"),
+                item_title=item.get("name"),
                 name=item.get("name"),
                 owner=item.get("owner"),
                 severity=item.get("severity"),
-                trigger_or_threshold=item.get("escalate_when"),
-                action=item.get("path"),
-                details={
+                trigger=item.get("escalate_when"),
+                response=item.get("path"),
+                detail={
                     "sla": item.get("sla"),
-                    "source_idea_ids": item.get("source_idea_ids") or [],
                 },
+                source_idea_ids=item.get("source_idea_ids") or [],
             )
         )
 
@@ -278,12 +298,14 @@ def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
         rows.append(
             _csv_row(
                 playbook,
-                section="snippets",
+                section="macros_templates",
                 item_id=item.get("id"),
+                item_title=item.get("name"),
                 name=item.get("name"),
-                trigger_or_threshold=item.get("channel"),
-                action=item.get("body"),
-                details={"source_idea_ids": item.get("source_idea_ids") or []},
+                trigger=item.get("channel"),
+                response=item.get("body"),
+                detail={"channel": item.get("channel")},
+                source_idea_ids=item.get("source_idea_ids") or [],
             )
         )
 
@@ -291,13 +313,70 @@ def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
         rows.append(
             _csv_row(
                 playbook,
-                section="monitoring",
+                section="metrics",
                 item_id=item.get("id"),
+                item_title=item.get("signal"),
                 name=item.get("signal"),
                 owner=item.get("owner"),
-                trigger_or_threshold=item.get("threshold"),
-                action=item.get("action"),
-                details={"source_idea_ids": item.get("source_idea_ids") or []},
+                trigger=item.get("threshold"),
+                response=item.get("action"),
+                detail={"threshold": item.get("threshold")},
+                source_idea_ids=item.get("source_idea_ids") or [],
+            )
+        )
+
+    for index, item in enumerate(playbook.get("next_actions") or [], start=1):
+        if isinstance(item, dict):
+            item_id = item.get("id") or f"NA{index}"
+            title = (
+                item.get("title")
+                or item.get("name")
+                or item.get("action")
+                or f"Next action {index}"
+            )
+            response = item.get("action") or item.get("response") or item.get("detail") or title
+            detail = {
+                key: value
+                for key, value in sorted(item.items())
+                if key
+                not in {
+                    "id",
+                    "title",
+                    "name",
+                    "action",
+                    "response",
+                    "detail",
+                    "owner",
+                    "team",
+                    "severity",
+                    "priority",
+                    "trigger",
+                    "source_idea_ids",
+                }
+            }
+            source_ids = item.get("source_idea_ids")
+        else:
+            item_id = f"NA{index}"
+            title = f"Next action {index}"
+            response = item
+            detail = {}
+            source_ids = None
+        rows.append(
+            _csv_row(
+                playbook,
+                section="next_actions",
+                item_id=item_id,
+                item_title=title,
+                name=title,
+                owner=item.get("owner") if isinstance(item, dict) else None,
+                team=item.get("team") if isinstance(item, dict) else None,
+                severity=item.get("severity") if isinstance(item, dict) else None,
+                priority=item.get("priority") if isinstance(item, dict) else None,
+                trigger=item.get("trigger") if isinstance(item, dict) else None,
+                response=response,
+                detail=detail,
+                source_idea_ids=source_ids
+                or (playbook.get("design_brief") or {}).get("source_idea_ids"),
             )
         )
 
@@ -307,8 +386,12 @@ def _csv_rows(playbook: dict[str, Any]) -> list[dict[str, str]]:
 def _csv_row(playbook: dict[str, Any], **values: Any) -> dict[str, str]:
     brief = playbook.get("design_brief") or {}
     row = {
+        "schema_version": playbook.get("schema_version"),
+        "kind": playbook.get("kind"),
         "design_brief_id": brief.get("id"),
         "design_brief_title": brief.get("title"),
+        "design_status": brief.get("design_status"),
+        "readiness_score": brief.get("readiness_score"),
         **values,
     }
     return {column: _csv_text(row.get(column)) for column in CSV_COLUMNS}
@@ -322,8 +405,18 @@ def _csv_text(value: Any) -> str:
     if isinstance(value, set):
         value = sorted(value, key=str)
     if isinstance(value, (dict, list, tuple, set)):
-        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+        return json.dumps(_json_safe(value), sort_keys=True, separators=(",", ":"))
     return str(value)
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe(value[key]) for key in sorted(value, key=str)}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe(item) for item in sorted(value, key=str)]
+    return value
 
 
 def _support_context(

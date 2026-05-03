@@ -140,20 +140,31 @@ def test_render_design_brief_support_playbook_csv_is_parseable_and_deterministic
     assert csv_text == repeated
     assert reader.fieldnames == list(CSV_COLUMNS)
     assert csv_text.splitlines()[0] == ",".join(CSV_COLUMNS)
-    assert len(rows) == 23
+    assert len(rows) == 40
     assert rows[0] == {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "max.design_brief.support_playbook",
         "design_brief_id": brief_id,
         "design_brief_title": "Support Playbook Brief",
-        "section": "onboarding",
+        "design_status": "approved",
+        "readiness_score": "86.0",
+        "section": "readiness_gaps",
         "item_id": "OC1",
+        "item_title": "Confirm support engineer can enter pilot support intake.",
         "name": "Confirm support engineer can enter pilot support intake.",
         "owner": "Support owner",
+        "team": "",
         "severity": "",
-        "trigger_or_threshold": (
+        "priority": "readiness",
+        "trigger": (
             "Customer can name the trigger, input, and expected output before first use."
         ),
-        "action": "Schedule guided setup and record the missing workflow precondition.",
-        "details": '{"source_idea_ids":["bu-support-playbook-lead"]}',
+        "response": "Schedule guided setup and record the missing workflow precondition.",
+        "detail": (
+            '{"pass_signal":"Customer can name the trigger, input, and expected output '
+            'before first use."}'
+        ),
+        "source_idea_ids": '["bu-support-playbook-lead"]',
     }
 
 
@@ -172,21 +183,37 @@ def test_render_design_brief_support_playbook_csv_covers_operational_sections(
     )
 
     assert [row["section"] for row in rows] == [
-        *["onboarding"] * 4,
-        *["scenarios"] * 4,
-        *["troubleshooting"] * 4,
-        *["escalation"] * 3,
-        *["snippets"] * 3,
-        *["monitoring"] * 5,
+        *["readiness_gaps"] * 4,
+        *["support_scenarios"] * 4,
+        *["troubleshooting_steps"] * 21,
+        *["escalation_paths"] * 3,
+        *["macros_templates"] * 3,
+        *["metrics"] * 5,
     ]
-    assert [row["item_id"] for row in rows if row["section"] == "troubleshooting"] == [
-        "SS1",
-        "SS2",
-        "SS3",
-        "SS4",
+    assert [
+        row["item_id"] for row in rows if row["section"] == "troubleshooting_steps"
+    ][:6] == [
+        "SS1-TS1",
+        "SS1-TS2",
+        "SS1-TS3",
+        "SS1-TS4",
+        "SS1-TS5",
+        "SS2-TS1",
     ]
-    assert rows[14]["severity"] == "elevated"
-    assert rows[-1]["section"] == "monitoring"
+    elevated = next(row for row in rows if row["item_id"] == "EC3")
+    assert elevated["section"] == "escalation_paths"
+    assert elevated["severity"] == "elevated"
+    assert elevated["response"] == (
+        "Support owner -> Risk owner -> Engineering lead -> Product sponsor"
+    )
+    scenario = next(row for row in rows if row["item_id"] == "SS1")
+    assert scenario["section"] == "support_scenarios"
+    assert scenario["trigger"].startswith("support engineer cannot complete")
+    assert scenario["response"].startswith("Acknowledge the blocker")
+    macro = next(row for row in rows if row["item_id"] == "RS2")
+    assert macro["section"] == "macros_templates"
+    assert macro["trigger"] == "email_or_chat"
+    assert rows[-1]["section"] == "metrics"
     assert rows[-1]["owner"] == "Risk owner"
 
 
@@ -203,17 +230,64 @@ def test_render_design_brief_support_playbook_csv_uses_compact_json_details(
     rows = list(
         csv.DictReader(io.StringIO(render_design_brief_support_playbook(playbook, "csv")))
     )
-    flow = next(
-        row for row in rows if row["section"] == "troubleshooting" and row["item_id"] == "SS4"
+    step = next(
+        row
+        for row in rows
+        if row["section"] == "troubleshooting_steps" and row["item_id"] == "SS4-TS3"
     )
-    details = json.loads(flow["details"])
+    detail = json.loads(step["detail"])
 
-    assert flow["details"] == json.dumps(details, sort_keys=True, separators=(",", ":"))
-    assert '":' in flow["details"]
-    assert '": ' not in flow["details"]
-    assert '", "' not in flow["details"]
-    assert details["source_idea_ids"] == ["bu-support-playbook-lead"]
-    assert details["steps"] == playbook["troubleshooting_flows"][3]["steps"]
+    assert step["detail"] == json.dumps(detail, sort_keys=True, separators=(",", ":"))
+    assert step["source_idea_ids"] == '["bu-support-playbook-lead"]'
+    assert '":' in step["detail"]
+    assert '": ' not in step["detail"]
+    assert '", "' not in step["detail"]
+    assert detail["scenario_id"] == "SS4"
+    assert detail["step_number"] == 3
+    assert step["response"] == playbook["troubleshooting_flows"][3]["steps"][2]
+
+
+def test_render_design_brief_support_playbook_csv_includes_next_actions_when_present(
+    tmp_path,
+) -> None:
+    store, brief_id = _store_with_brief(tmp_path)
+    try:
+        playbook = build_design_brief_support_playbook(store, brief_id)
+    finally:
+        store.close()
+
+    assert playbook is not None
+    playbook["next_actions"] = [
+        {
+            "id": "NA-custom",
+            "title": "Publish support import",
+            "owner": "Support ops",
+            "team": "Support",
+            "priority": "high",
+            "trigger": "CSV is accepted by the support system.",
+            "action": "Import scenarios and escalation paths.",
+            "source_idea_ids": ["bu-support-playbook-lead"],
+            "metadata": {"systems": ["zendesk", "linear"], "rank": 1},
+        }
+    ]
+
+    rows = list(
+        csv.DictReader(io.StringIO(render_design_brief_support_playbook(playbook, "csv")))
+    )
+    action = rows[-1]
+    detail = json.loads(action["detail"])
+
+    assert action["section"] == "next_actions"
+    assert action["item_id"] == "NA-custom"
+    assert action["item_title"] == "Publish support import"
+    assert action["owner"] == "Support ops"
+    assert action["team"] == "Support"
+    assert action["priority"] == "high"
+    assert action["trigger"] == "CSV is accepted by the support system."
+    assert action["response"] == "Import scenarios and escalation paths."
+    assert action["source_idea_ids"] == '["bu-support-playbook-lead"]'
+    assert action["detail"] == json.dumps(detail, sort_keys=True, separators=(",", ":"))
+    assert detail == {"metadata": {"rank": 1, "systems": ["zendesk", "linear"]}}
 
 
 def test_render_design_brief_support_playbook_csv_does_not_change_json_or_markdown(
