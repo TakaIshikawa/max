@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+import json
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +12,24 @@ from max.types.evaluation import UtilityEvaluation
 
 
 DEPENDENCY_INVENTORY_SCHEMA_VERSION = "max-dependency-inventory/v1"
+
+DEPENDENCY_INVENTORY_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "title",
+    "dependency_id",
+    "dependency_name",
+    "dependency_type",
+    "purpose",
+    "owner",
+    "risk_level",
+    "license_compliance_notes",
+    "replacement_fallback",
+    "evidence",
+    "source_fields",
+    "notes",
+)
 
 _DATA_KEYS = {"cache", "data", "database", "db", "queue", "search", "storage", "warehouse"}
 _EXTERNAL_KEYS = {"ai", "analytics", "auth", "billing", "cloud", "crm", "email", "hosting", "payments"}
@@ -169,6 +190,20 @@ def render_dependency_inventory_markdown(inventory: dict[str, Any]) -> str:
     lines.extend(_bullets(inventory.get("missing_input_notes") or [], empty="None."))
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_dependency_inventory_csv(inventory: dict[str, Any]) -> str:
+    """Render dependency records as deterministic CSV for review workflows."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=DEPENDENCY_INVENTORY_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _csv_rows(inventory or {}):
+        writer.writerow(row)
+    return output.getvalue()
 
 
 def _dependency_records(unit: BuildableUnit, spec: dict[str, Any]) -> list[dict[str, Any]]:
@@ -458,6 +493,58 @@ def _list(value: Any) -> list[Any]:
 
 def _count_type(dependencies: list[dict[str, Any]], dep_type: str) -> int:
     return sum(1 for item in dependencies if item["type"] == dep_type)
+
+
+def _csv_rows(inventory: dict[str, Any]) -> list[dict[str, str]]:
+    dependencies = inventory.get("dependencies")
+    if not isinstance(dependencies, list):
+        return []
+    return [
+        _csv_row(inventory, item)
+        for item in dependencies
+        if isinstance(item, dict)
+    ]
+
+
+def _csv_row(inventory: dict[str, Any], item: dict[str, Any]) -> dict[str, str]:
+    summary = inventory.get("summary")
+    summary = summary if isinstance(summary, dict) else {}
+    return {
+        "schema_version": _csv_cell(inventory.get("schema_version")),
+        "kind": _csv_cell(inventory.get("kind")),
+        "idea_id": _csv_cell(inventory.get("idea_id")),
+        "title": _csv_cell(summary.get("title")),
+        "dependency_id": _csv_cell(item.get("id")),
+        "dependency_name": _csv_cell(item.get("name")),
+        "dependency_type": _csv_cell(item.get("type")),
+        "purpose": _csv_cell(item.get("purpose") or item.get("notes")),
+        "owner": _csv_cell(item.get("owner")),
+        "risk_level": _csv_cell(item.get("risk_level")),
+        "license_compliance_notes": _csv_cell(
+            item.get("license_compliance_notes")
+            or item.get("compliance_notes")
+            or item.get("license_notes")
+        ),
+        "replacement_fallback": _csv_cell(
+            item.get("replacement_fallback")
+            or item.get("fallback")
+            or item.get("replacement")
+        ),
+        "evidence": _csv_cell(item.get("evidence") or item.get("evidence_fields")),
+        "source_fields": _csv_cell(item.get("source_fields")),
+        "notes": _csv_cell(item.get("notes")),
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    if isinstance(value, (list, tuple, set)):
+        values = sorted(value, key=_csv_cell) if isinstance(value, set) else value
+        return " | ".join(item for item in (_csv_cell(item) for item in values) if item)
+    return str(value).strip()
 
 
 def _risk_rank(level: str) -> int:
