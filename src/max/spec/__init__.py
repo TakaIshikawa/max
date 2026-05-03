@@ -103,6 +103,7 @@ from max.spec.smoke_test_plan import (
 )
 from max.spec.stakeholder_handoff import (
     generate_stakeholder_handoff,
+    render_stakeholder_handoff_csv,
     render_stakeholder_handoff_markdown,
 )
 from max.spec.support_playbook import (
@@ -198,5 +199,6 @@ __all__ = [
     "render_spec_bundle_yaml",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
+    "render_stakeholder_handoff_csv",
     "render_stakeholder_handoff_markdown",
 ]
