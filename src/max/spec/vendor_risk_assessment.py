@@ -734,16 +734,60 @@ def _csv_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
                 item_name=vendor.get("name"),
                 category=vendor.get("category"),
                 severity_or_status=vendor.get("risk_level"),
+                owner=_first_present(
+                    vendor,
+                    "owner",
+                    "business_owner",
+                    "technical_owner",
+                    "review_owner",
+                    "review_owners",
+                ),
                 evidence=vendor.get("source_fields"),
-                context=vendor.get("data_exchanged"),
+                context=[
+                    vendor.get("data_exchanged"),
+                    vendor.get("data_exposure"),
+                    vendor.get("compliance_context"),
+                    vendor.get("compliance_notes"),
+                    _date_context(vendor),
+                    vendor.get("fallback_strategy"),
+                    vendor.get("fallback_strategies"),
+                ],
                 details=[
                     vendor.get("operational_dependency"),
+                    vendor.get("mitigation"),
+                    vendor.get("mitigations"),
                     vendor.get("review_requirements"),
                 ],
             )
         )
 
-    for risk in _list(assessment.get("risks")):
+    for service in _list(assessment.get("external_services")):
+        if not isinstance(service, dict):
+            service = {"name": service}
+        rows.append(
+            _csv_row(
+                assessment,
+                section="external_services",
+                item_type="external_service",
+                item_id=service.get("id"),
+                item_name=service.get("name") or service.get("service") or service.get("title"),
+                category=service.get("category") or service.get("type"),
+                severity_or_status=service.get("risk_level") or service.get("status"),
+                owner=_first_present(service, "owner", "review_owner"),
+                evidence=service.get("evidence") or service.get("source_fields"),
+                context=[
+                    service.get("purpose"),
+                    service.get("data_exchanged"),
+                    service.get("data_exposure"),
+                    service.get("compliance_context"),
+                    _date_context(service),
+                    service.get("fallback_strategy"),
+                ],
+                details=service.get("notes") or service.get("details"),
+            )
+        )
+
+    for risk in [*_list(assessment.get("risks")), *_list(assessment.get("risk_findings"))]:
         if not isinstance(risk, dict):
             continue
         rows.append(
@@ -755,9 +799,17 @@ def _csv_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
                 item_name=risk.get("title"),
                 category=risk.get("category"),
                 severity_or_status=risk.get("severity"),
+                owner=_first_present(risk, "owner", "review_owner"),
                 evidence=risk.get("evidence"),
-                context=risk.get("description"),
-                details=risk.get("mitigations"),
+                context=[
+                    risk.get("description"),
+                    risk.get("compliance_context"),
+                    risk.get("compliance_notes"),
+                    risk.get("data_exposure"),
+                    _date_context(risk),
+                    risk.get("fallback_strategy"),
+                ],
+                details=risk.get("mitigations") or risk.get("mitigation"),
             )
         )
 
@@ -792,6 +844,66 @@ def _csv_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
 
+    for owner in _review_owner_rows(assessment):
+        rows.append(
+            _csv_row(
+                assessment,
+                section="review_owners",
+                item_type="review_owner",
+                item_id=owner.get("id") or owner.get("owner") or owner.get("name"),
+                item_name=owner.get("name") or owner.get("owner") or owner.get("role"),
+                category=owner.get("role") or owner.get("category"),
+                severity_or_status=owner.get("status"),
+                owner=owner.get("owner") or owner.get("name"),
+                context=owner.get("responsibility") or owner.get("context"),
+                details=owner.get("notes") or owner.get("details"),
+            )
+        )
+
+    for note in _list(assessment.get("compliance_notes")):
+        if not isinstance(note, dict):
+            note = {"note": note}
+        rows.append(
+            _csv_row(
+                assessment,
+                section="compliance_notes",
+                item_type="compliance_note",
+                item_id=note.get("id"),
+                item_name=note.get("title") or note.get("note"),
+                category=note.get("framework") or note.get("category"),
+                severity_or_status=note.get("status"),
+                owner=note.get("owner"),
+                evidence=note.get("evidence"),
+                context=note.get("note") or note.get("context"),
+                details=note.get("details"),
+            )
+        )
+
+    for exposure in _list(assessment.get("data_exposure")):
+        if not isinstance(exposure, dict):
+            exposure = {"data": exposure}
+        rows.append(
+            _csv_row(
+                assessment,
+                section="data_exposure",
+                item_type="data_exposure",
+                item_id=exposure.get("id"),
+                item_name=exposure.get("data") or exposure.get("title") or exposure.get("name"),
+                category=exposure.get("category") or exposure.get("classification"),
+                severity_or_status=exposure.get("risk_level") or exposure.get("status"),
+                owner=exposure.get("owner"),
+                evidence=exposure.get("evidence"),
+                context=exposure.get("context") or exposure.get("purpose"),
+                details=exposure.get("details") or exposure.get("notes"),
+            )
+        )
+
+    for date_row in _dated_rows(assessment):
+        rows.append(date_row)
+
+    for fallback in _fallback_rows(assessment):
+        rows.append(fallback)
+
     gate = _dict(assessment.get("gate_decision"))
     if gate:
         rows.append(
@@ -808,6 +920,116 @@ def _csv_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
             )
         )
     return rows
+
+
+def _review_owner_rows(assessment: dict[str, Any]) -> list[dict[str, Any]]:
+    explicit = _list(assessment.get("review_owners"))
+    if explicit:
+        return [owner if isinstance(owner, dict) else {"owner": owner} for owner in explicit]
+    return []
+
+
+def _dated_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for source_section, items in (
+        ("vendors", _list(assessment.get("vendors"))),
+        ("external_services", _list(assessment.get("external_services"))),
+    ):
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            for key in ("renewal_date", "review_date", "next_review_date"):
+                if item.get(key) in (None, ""):
+                    continue
+                rows.append(
+                    _csv_row(
+                        assessment,
+                        section="renewal_review_dates",
+                        item_type=key,
+                        item_id=item.get("id"),
+                        item_name=item.get("name") or item.get("service") or item.get("title"),
+                        category=source_section,
+                        owner=_first_present(item, "owner", "review_owner"),
+                        context=item.get(key),
+                    )
+                )
+
+    for key in ("renewal_date", "review_date", "next_review_date"):
+        if assessment.get(key) in (None, ""):
+            continue
+        rows.append(
+            _csv_row(
+                assessment,
+                section="renewal_review_dates",
+                item_type=key,
+                item_id=key,
+                item_name=key.replace("_", " "),
+                context=assessment.get(key),
+            )
+        )
+    return rows
+
+
+def _fallback_rows(assessment: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    fallback_values = [
+        *[
+            {
+                **item,
+                "source_section": "vendors",
+            }
+            for item in _list(assessment.get("vendors"))
+            if isinstance(item, dict)
+            and (item.get("fallback_strategy") or item.get("fallback_strategies"))
+        ],
+        *[
+            {
+                **item,
+                "source_section": "external_services",
+            }
+            for item in _list(assessment.get("external_services"))
+            if isinstance(item, dict) and item.get("fallback_strategy")
+        ],
+    ]
+    for fallback in _list(assessment.get("fallback_strategies")):
+        if isinstance(fallback, dict):
+            fallback_values.append({**fallback, "source_section": "assessment"})
+        else:
+            fallback_values.append({"fallback_strategy": fallback, "source_section": "assessment"})
+
+    for item in fallback_values:
+        rows.append(
+            _csv_row(
+                assessment,
+                section="fallback_strategies",
+                item_type="fallback_strategy",
+                item_id=item.get("id"),
+                item_name=item.get("name") or item.get("service") or item.get("title"),
+                category=item.get("source_section"),
+                owner=_first_present(item, "owner", "review_owner"),
+                context=item.get("fallback_strategy") or item.get("fallback_strategies"),
+                details=item.get("notes") or item.get("details"),
+            )
+        )
+    return rows
+
+
+def _date_context(item: dict[str, Any]) -> list[Any]:
+    return [
+        f"renewal_date={_csv_cell(item.get('renewal_date'))}" if item.get("renewal_date") else "",
+        f"review_date={_csv_cell(item.get('review_date'))}" if item.get("review_date") else "",
+        f"next_review_date={_csv_cell(item.get('next_review_date'))}"
+        if item.get("next_review_date")
+        else "",
+    ]
+
+
+def _first_present(item: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, "", [], (), {}):
+            return value
+    return ""
 
 
 def _csv_row(
