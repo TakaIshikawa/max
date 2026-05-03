@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 from collections import Counter, defaultdict
@@ -12,6 +14,30 @@ from max.analysis.portfolio_overlap import find_portfolio_overlap_clusters
 from max.store.db import Store
 
 SCHEMA_VERSION = "max.design_brief.competitive_landscape.v1"
+
+CSV_COLUMNS: tuple[str, ...] = (
+    "schema_version",
+    "design_brief_id",
+    "design_brief_title",
+    "status",
+    "row_type",
+    "item_id",
+    "item_name",
+    "saturation_level",
+    "saturation_score",
+    "source_idea_ids",
+    "competitor_count",
+    "prior_art_record_count",
+    "similar_idea_count",
+    "portfolio_overlap_cluster_count",
+    "evaluation_count",
+    "overlap_score",
+    "evidence_ids",
+    "counts",
+    "rationale_summary",
+    "suggested_response",
+    "details",
+)
 
 
 def build_design_brief_competitive_landscape(
@@ -95,6 +121,8 @@ def render_design_brief_competitive_landscape(report: dict[str, Any], fmt: str =
     """Render a competitive landscape report for MCP consumers."""
     if fmt == "json":
         return json.dumps(report, indent=2) + "\n"
+    if fmt == "csv":
+        return render_design_brief_competitive_landscape_csv(report)
     if fmt != "markdown":
         raise ValueError(f"Unsupported competitive landscape format: {fmt}")
 
@@ -127,6 +155,210 @@ def render_design_brief_competitive_landscape(report: dict[str, Any], fmt: str =
     if not report["competitor_clusters"]:
         lines.extend(["## Data Gap", "", "; ".join(report["summary"]["insufficient_data_reasons"]), ""])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_design_brief_competitive_landscape_csv(report: dict[str, Any]) -> str:
+    """Render competitive landscape rows as deterministic CSV text."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    for row in _csv_rows(report):
+        writer.writerow(row)
+    return output.getvalue()
+
+
+def _csv_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    summary = report.get("summary") or {}
+    saturation = report.get("saturation") or {}
+    clusters = list(report.get("competitor_clusters") or [])
+    angles = list(report.get("differentiation_angles") or [])
+    signal_counts = _signal_counts(report)
+    rows = [
+        _csv_row(
+            report,
+            row_type="summary",
+            item_id="summary",
+            item_name="Competitive landscape summary",
+            saturation_level=summary.get("saturation_level") or saturation.get("level"),
+            prior_art_record_count=summary.get("prior_art_record_count"),
+            competitor_count=summary.get("competitor_cluster_count"),
+            similar_idea_count=summary.get("similar_idea_count"),
+            portfolio_overlap_cluster_count=summary.get("portfolio_overlap_cluster_count"),
+            evaluation_count=signal_counts["evaluation_count"],
+            source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+            counts=signal_counts,
+            rationale_summary="; ".join(_string_list(summary.get("insufficient_data_reasons"))),
+            suggested_response=report.get("recommended_positioning"),
+        ),
+        _csv_row(
+            report,
+            row_type="saturation",
+            item_id="saturation",
+            item_name="Saturation signal",
+            saturation_level=saturation.get("level"),
+            saturation_score=saturation.get("score"),
+            source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+            counts=signal_counts,
+            rationale_summary=saturation.get("level"),
+            suggested_response=report.get("recommended_positioning"),
+            details={"drivers": saturation.get("drivers")},
+        ),
+    ]
+
+    if not clusters:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="data_gap",
+                item_id="data-gap",
+                item_name="Prior-art data gap",
+                saturation_level=saturation.get("level"),
+                source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+                counts=signal_counts,
+                rationale_summary="; ".join(_string_list(summary.get("insufficient_data_reasons"))),
+                suggested_response=report.get("recommended_positioning"),
+            )
+        )
+
+    for cluster in clusters:
+        top_competitors = list(cluster.get("top_competitors") or [])
+        rows.append(
+            _csv_row(
+                report,
+                row_type="competitor_cluster",
+                item_id=cluster.get("id"),
+                item_name=cluster.get("name"),
+                saturation_level=saturation.get("level"),
+                saturation_score=saturation.get("score"),
+                source_idea_ids=cluster.get("source_idea_ids"),
+                competitor_count=cluster.get("competitor_count"),
+                overlap_score=cluster.get("overlap_score"),
+                evidence_ids=[record.get("id") for record in top_competitors],
+                counts={
+                    "competitor_count": cluster.get("competitor_count"),
+                    "source_idea_count": len(_string_list(cluster.get("source_idea_ids"))),
+                    "top_competitor_count": len(top_competitors),
+                },
+                rationale_summary=cluster.get("positioning_summary"),
+                suggested_response=cluster.get("suggested_response"),
+                details={
+                    "source": cluster.get("source"),
+                    "shared_terms": cluster.get("shared_terms"),
+                    "top_competitor_ids": [record.get("id") for record in top_competitors],
+                    "top_competitor_titles": [record.get("title") for record in top_competitors],
+                },
+            )
+        )
+
+    for angle in angles:
+        rows.append(
+            _csv_row(
+                report,
+                row_type="differentiation_angle",
+                item_id=angle.get("id"),
+                item_name=angle.get("title"),
+                saturation_level=saturation.get("level"),
+                source_idea_ids=angle.get("source_idea_ids"),
+                evidence_ids=angle.get("evidence"),
+                counts={"evidence_count": len(_string_list(angle.get("evidence")))},
+                rationale_summary=angle.get("rationale"),
+                suggested_response=report.get("recommended_positioning"),
+            )
+        )
+
+    rows.append(
+        _csv_row(
+            report,
+            row_type="recommended_positioning",
+            item_id="recommended-positioning",
+            item_name="Recommended positioning",
+            saturation_level=saturation.get("level"),
+            saturation_score=saturation.get("score"),
+            source_idea_ids=(report.get("design_brief") or {}).get("source_idea_ids"),
+            counts=signal_counts,
+            rationale_summary=report.get("recommended_positioning"),
+            suggested_response=report.get("recommended_positioning"),
+        )
+    )
+    return rows
+
+
+def _csv_row(report: dict[str, Any], **values: Any) -> dict[str, str]:
+    brief = report.get("design_brief") or {}
+    row = {
+        "schema_version": report.get("schema_version"),
+        "design_brief_id": brief.get("id"),
+        "design_brief_title": brief.get("title"),
+        "status": report.get("status"),
+        "row_type": "",
+        "item_id": "",
+        "item_name": "",
+        "saturation_level": "",
+        "saturation_score": "",
+        "source_idea_ids": "",
+        "competitor_count": "",
+        "prior_art_record_count": "",
+        "similar_idea_count": "",
+        "portfolio_overlap_cluster_count": "",
+        "evaluation_count": "",
+        "overlap_score": "",
+        "evidence_ids": "",
+        "counts": "",
+        "rationale_summary": "",
+        "suggested_response": "",
+        "details": "",
+    }
+    row.update(values)
+    return {column: _csv_cell(row.get(column)) for column in CSV_COLUMNS}
+
+
+def _signal_counts(report: dict[str, Any]) -> dict[str, int]:
+    summary = report.get("summary") or {}
+    signals = report.get("signals") or {}
+    return {
+        "source_idea_count": int(summary.get("source_idea_count") or 0),
+        "prior_art_record_count": int(summary.get("prior_art_record_count") or 0),
+        "competitor_cluster_count": int(summary.get("competitor_cluster_count") or 0),
+        "similar_idea_count": int(summary.get("similar_idea_count") or 0),
+        "portfolio_overlap_cluster_count": int(summary.get("portfolio_overlap_cluster_count") or 0),
+        "evaluation_count": len(signals.get("evaluations") or []),
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, list | tuple | set):
+        return _stable_json(list(value))
+    if isinstance(value, dict):
+        return _stable_json(
+            {key: item for key, item in value.items() if item not in (None, "", [])}
+        )
+    return str(value)
+
+
+def _stable_json(value: Any) -> str:
+    return json.dumps(_stable_value(value), sort_keys=True, separators=(",", ":"))
+
+
+def _stable_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _stable_value(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, list | tuple | set):
+        return sorted(
+            (_stable_value(item) for item in value),
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+    return value
 
 
 def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:

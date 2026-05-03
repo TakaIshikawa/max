@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 
 import pytest
 
 from max.analysis.design_brief_competitive_landscape import (
+    CSV_COLUMNS,
     SCHEMA_VERSION,
     build_design_brief_competitive_landscape,
     render_design_brief_competitive_landscape,
@@ -207,3 +210,138 @@ def test_render_competitive_landscape_json_and_markdown(tmp_path) -> None:
 
     with pytest.raises(ValueError):
         render_design_brief_competitive_landscape(report, "yaml")
+
+
+def test_render_competitive_landscape_csv_populated_report(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_landscape(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rendered = render_design_brief_competitive_landscape(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert rendered.splitlines()[0] == ",".join(CSV_COLUMNS)
+    assert rows
+    assert set(rows[0]) == set(CSV_COLUMNS)
+    assert {row["design_brief_id"] for row in rows} == {brief_id}
+    assert {row["design_brief_title"] for row in rows} == {"Agent Release Gate Brief"}
+    assert [row["row_type"] for row in rows[:4]] == [
+        "summary",
+        "saturation",
+        "competitor_cluster",
+        "competitor_cluster",
+    ]
+    assert rows[-1]["row_type"] == "recommended_positioning"
+
+    summary = rows[0]
+    assert summary["status"] == "ready"
+    assert summary["saturation_level"] in {"medium", "high"}
+    assert summary["competitor_count"] == "2"
+    assert summary["prior_art_record_count"] == "2"
+    assert summary["similar_idea_count"] == "1"
+    assert summary["evaluation_count"] == "2"
+    assert json.loads(summary["source_idea_ids"]) == ["bu-comp-lead", "bu-comp-support"]
+    assert json.loads(summary["counts"]) == {
+        "competitor_cluster_count": 2,
+        "evaluation_count": 2,
+        "portfolio_overlap_cluster_count": report["summary"]["portfolio_overlap_cluster_count"],
+        "prior_art_record_count": 2,
+        "similar_idea_count": 1,
+        "source_idea_count": 2,
+    }
+
+    cluster = next(row for row in rows if row["row_type"] == "competitor_cluster")
+    assert cluster["item_id"] == "competitor-cluster-1"
+    assert cluster["item_name"] == "Open-source repository competitors"
+    assert cluster["competitor_count"] == "1"
+    assert cluster["overlap_score"] == "0.91"
+    assert json.loads(cluster["evidence_ids"])
+    assert json.loads(cluster["details"])["source"] == "github"
+
+    angle = next(
+        row
+        for row in rows
+        if row["row_type"] == "differentiation_angle"
+        and row["item_id"] == "competitive-density-mitigation"
+    )
+    assert angle["item_id"] == "competitive-density-mitigation"
+    assert json.loads(angle["evidence_ids"]) == ["evaluation.competitive_density"]
+    assert json.loads(angle["counts"]) == {"evidence_count": 1}
+
+
+def test_render_competitive_landscape_csv_insufficient_data_report(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store, with_prior_art=False)
+        report = build_design_brief_competitive_landscape(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    rendered = render_design_brief_competitive_landscape(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert [row["row_type"] for row in rows[:3]] == [
+        "summary",
+        "saturation",
+        "data_gap",
+    ]
+    assert rows[-1]["row_type"] == "recommended_positioning"
+    assert any(row["row_type"] == "differentiation_angle" for row in rows)
+    assert {row["status"] for row in rows} == {"insufficient_data"}
+    data_gap = next(row for row in rows if row["row_type"] == "data_gap")
+    assert data_gap["saturation_level"] == "unknown"
+    assert data_gap["prior_art_record_count"] == ""
+    assert data_gap["rationale_summary"] == (
+        "No stored prior-art records are linked to the design brief source ideas."
+    )
+    assert data_gap["suggested_response"].startswith("Insufficient stored prior-art data")
+
+
+def test_render_competitive_landscape_csv_is_deterministic_and_escapes(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_landscape(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    report["design_brief"]["title"] = 'Agent, "Release"\nBrief'
+    report["competitor_clusters"][0]["name"] = 'Open, "Source"\nCompetitors'
+    report["competitor_clusters"][0]["positioning_summary"] = 'Line one, "quoted"\nline two'
+    report["competitor_clusters"][0]["source_idea_ids"] = ["z-idea", "a-idea"]
+
+    first = render_design_brief_competitive_landscape(report, fmt="csv")
+    second = render_design_brief_competitive_landscape(report, fmt="csv")
+    rows = list(csv.DictReader(io.StringIO(first)))
+
+    assert first == second
+    assert '"Agent, ""Release""\nBrief"' in first
+    assert '"Open, ""Source""\nCompetitors"' in first
+    cluster = next(
+        row
+        for row in rows
+        if row["row_type"] == "competitor_cluster" and row["item_id"] == "competitor-cluster-1"
+    )
+    assert cluster["design_brief_title"] == 'Agent, "Release"\nBrief'
+    assert cluster["item_name"] == 'Open, "Source"\nCompetitors'
+    assert json.loads(cluster["source_idea_ids"]) == ["a-idea", "z-idea"]
+    assert cluster["rationale_summary"] == 'Line one, "quoted"\nline two'
+
+
+def test_render_competitive_landscape_unsupported_format_validation(tmp_path) -> None:
+    store = Store(str(tmp_path / "max.db"))
+    try:
+        brief_id = _seed_brief(store)
+        report = build_design_brief_competitive_landscape(store, brief_id)
+    finally:
+        store.close()
+
+    assert report is not None
+    with pytest.raises(ValueError, match="Unsupported competitive landscape format: yaml"):
+        render_design_brief_competitive_landscape(report, fmt="yaml")
