@@ -12,6 +12,7 @@ import pytest
 from max.analysis.portfolio_stage_distribution import (
     SCHEMA_VERSION,
     build_portfolio_stage_distribution_report,
+    render_portfolio_stage_distribution_json,
     render_portfolio_stage_distribution_report,
 )
 from max.types.evaluation import DimensionScore, UtilityEvaluation
@@ -286,3 +287,36 @@ def _evaluation(unit_id: str, *, recommendation: str) -> UtilityEvaluation:
 
 def _bucket(rows: list[dict], key: str, value: str) -> dict:
     return next(row for row in rows if row[key] == value)
+
+
+def test_render_portfolio_stage_distribution_json_produces_valid_json() -> None:
+    """Verify JSON renderer produces valid, deterministic JSON output."""
+    report = build_portfolio_stage_distribution_report(
+        [
+            _unit("bu-approved", status="approved", domain="analytics", profile="platform"),
+            _unit("bu-draft", status="draft", domain="finops", profile="finance"),
+        ],
+        [
+            _evaluation("bu-approved", recommendation="yes"),
+            _evaluation("bu-draft", recommendation="maybe"),
+        ],
+    )
+
+    json_output = render_portfolio_stage_distribution_json(report)
+
+    # Should be valid JSON
+    parsed = json.loads(json_output)
+    assert parsed["schema_version"] == SCHEMA_VERSION
+    assert parsed["kind"] == "max.portfolio_stage_distribution"
+    assert parsed["summary"]["total_ideas"] == 2
+    assert parsed["summary"]["evaluated_count"] == 2
+
+    # Should be deterministic
+    assert render_portfolio_stage_distribution_json(report) == json_output
+
+    # Should end with newline
+    assert json_output.endswith("\n")
+
+    # Should be sorted and indented
+    assert '"by_domain"' in json_output
+    assert json_output.index('"by_domain"') < json_output.index('"by_evidence_strength"')
