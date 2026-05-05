@@ -112,6 +112,11 @@ from max.spec.risk_register import (
     render_risk_register_csv,
     render_risk_register_markdown,
 )
+from max.spec.scaling_strategy import (
+    generate_scaling_strategy,
+    render_scaling_strategy_csv,
+    render_scaling_strategy_markdown,
+)
 from max.spec.security_review import (
     generate_security_review,
     render_security_review_csv,
@@ -173,6 +178,7 @@ __all__ = [
     "generate_privacy_impact_assessment",
     "generate_release_readiness_gate",
     "generate_rollback_plan",
+    "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_review",
     "generate_slo_plan",
@@ -185,6 +191,8 @@ __all__ = [
     "render_rollback_plan_markdown",
     "render_risk_register_csv",
     "render_risk_register_markdown",
+    "render_scaling_strategy_csv",
+    "render_scaling_strategy_markdown",
     "render_security_review_csv",
     "render_security_review_markdown",
     "render_slo_plan_csv",
