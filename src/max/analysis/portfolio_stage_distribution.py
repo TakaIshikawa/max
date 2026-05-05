@@ -217,6 +217,11 @@ def render_portfolio_stage_distribution_csv(report: Mapping[str, Any]) -> str:
     return output.getvalue()
 
 
+def render_portfolio_stage_distribution_json(report: Mapping[str, Any]) -> str:
+    """Render portfolio stage distribution report as deterministic JSON."""
+    return json.dumps(report, indent=2, sort_keys=True) + "\n"
+
+
 def _idea_row(unit: Any, evaluation: Any | None) -> dict[str, Any]:
     evidence_score = _evidence_score(unit)
     return {
