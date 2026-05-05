@@ -6,9 +6,10 @@ import csv
 import json
 import re
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.analysis.design_brief_one_pager import DesignBriefStoreProtocol
 
 SCHEMA_VERSION = "max.design_brief.prd.v1"
 
@@ -38,7 +39,7 @@ CSV_COLUMNS: tuple[str, ...] = (
 )
 
 
-def build_design_brief_prd(store: Store, brief_id: str) -> dict[str, Any] | None:
+def build_design_brief_prd(store: DesignBriefStoreProtocol, brief_id: str) -> dict[str, Any] | None:
     """Build a concise PRD from a persisted design brief and source ideas."""
     design_brief = store.get_design_brief(brief_id)
     if not design_brief:
@@ -373,7 +374,7 @@ def _section(
     }
 
 
-def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+def _source_ideas(store: DesignBriefStoreProtocol, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
     ideas: list[dict[str, Any]] = []
     seen: set[str] = set()
     sources = list(design_brief.get("sources", []))
@@ -476,7 +477,7 @@ def _risks(design_brief: dict[str, Any], source_ideas: list[dict[str, Any]]) -> 
     return _dedupe_strings(risks) or ["No explicit risks are captured yet."]
 
 
-def _evidence_links(store: Store, source_ideas: list[dict[str, Any]]) -> list[str]:
+def _evidence_links(store: DesignBriefStoreProtocol, source_ideas: list[dict[str, Any]]) -> list[str]:
     links: list[str] = []
     for idea in source_ideas:
         if idea.get("missing"):

@@ -7,9 +7,10 @@ import json
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.analysis.design_brief_one_pager import DesignBriefStoreProtocol
 
 SCHEMA_VERSION = "max.design_brief.validation_plan.v1"
 
@@ -32,7 +33,7 @@ CSV_COLUMNS = [
 
 
 def build_validation_plan(
-    store: Store,
+    store: DesignBriefStoreProtocol,
     design_brief: dict[str, Any],
     *,
     generated_at: str | None = None,
@@ -623,7 +624,7 @@ def _evidence_source_fields(item: Any) -> list[str]:
     return [str(field) for field in _list_items(item.get("source_fields")) if _csv_text(field)]
 
 
-def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+def _source_ideas(store: DesignBriefStoreProtocol, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
     ideas: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     sources = list(design_brief.get("sources", []))

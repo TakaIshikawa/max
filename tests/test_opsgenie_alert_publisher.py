@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -333,7 +334,8 @@ def test_provider_failures_and_validation_raise_actionable_errors() -> None:
         OpsgenieAlertPublisher(priority="critical")
 
     with pytest.raises(OpsgenieAlertPublishError, match="details"):
-        OpsgenieAlertPublisher(details=["not", "a", "dict"])  # type: ignore[arg-type]
+        invalid_details: Any = ["not", "a", "dict"]
+        OpsgenieAlertPublisher(details=invalid_details)
 
     with pytest.raises(OpsgenieAlertPublishError, match="design_brief.title"):
         OpsgenieAlertPublisher().build_design_brief_payload({"design_brief": {}})

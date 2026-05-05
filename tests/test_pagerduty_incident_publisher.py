@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -224,7 +225,8 @@ def test_build_incident_payload_validates_input() -> None:
         PagerDutyIncidentPublisher(severity="urgent")
 
     with pytest.raises(PagerDutyIncidentPublishError, match="custom_details"):
-        PagerDutyIncidentPublisher(custom_details=["not", "a", "dict"])  # type: ignore[arg-type]
+        invalid_custom_details: Any = ["not", "a", "dict"]
+        PagerDutyIncidentPublisher(custom_details=invalid_custom_details)
 
 
 def test_exported_from_publisher_package() -> None:

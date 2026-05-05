@@ -6,9 +6,10 @@ import csv
 import json
 import re
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.analysis.design_brief_one_pager import DesignBriefStoreProtocol
 
 SCHEMA_VERSION = "max.design_brief.risk_register.v1"
 CSV_COLUMNS: tuple[str, ...] = (
@@ -50,7 +51,7 @@ _CATEGORY_KEYWORDS = {
 }
 
 
-def build_design_brief_risk_register(store: Store, brief_id: str) -> dict[str, Any] | None:
+def build_design_brief_risk_register(store: DesignBriefStoreProtocol, brief_id: str) -> dict[str, Any] | None:
     """Build a consolidated risk register from a persisted brief and linked ideas."""
     design_brief = store.get_design_brief(brief_id)
     if not design_brief:
@@ -378,7 +379,7 @@ def _prioritize(risks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return risks
 
 
-def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+def _source_ideas(store: DesignBriefStoreProtocol, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
     relationship_by_id = {source["idea_id"]: source for source in design_brief.get("sources", [])}
     ordered_ids = list(
         dict.fromkeys(

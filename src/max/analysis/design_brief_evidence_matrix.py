@@ -6,9 +6,10 @@ import csv
 import json
 from datetime import datetime, timezone
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.analysis.design_brief_one_pager import DesignBriefStoreProtocol
 
 SCHEMA_VERSION = "max.design_brief.evidence_matrix.v1"
 CSV_COLUMNS: tuple[str, ...] = (
@@ -103,7 +104,7 @@ CLAIM_CONFIG: dict[str, dict[str, Any]] = {
 
 
 def build_design_brief_evidence_matrix(
-    store: Store,
+    store: DesignBriefStoreProtocol,
     design_brief: dict[str, Any],
     *,
     generated_at: str | None = None,
@@ -382,7 +383,7 @@ def _supporting_signal_ids(config: dict[str, Any], evidence: dict[str, Any]) -> 
     return sorted(selected)
 
 
-def _collect_evidence(store: Store, source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
+def _collect_evidence(store: DesignBriefStoreProtocol, source_ideas: list[dict[str, Any]]) -> dict[str, Any]:
     idea_signal_ids: set[str] = set()
     insight_ids: set[str] = set()
 
@@ -415,7 +416,7 @@ def _collect_evidence(store: Store, source_ideas: list[dict[str, Any]]) -> dict[
     }
 
 
-def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+def _source_ideas(store: DesignBriefStoreProtocol, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
     relationship_by_id: dict[str, dict[str, Any]] = {}
     for source in design_brief.get("sources", []):
         relationship_by_id.setdefault(source["idea_id"], source)
