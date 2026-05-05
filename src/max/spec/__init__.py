@@ -112,6 +112,10 @@ from max.spec.risk_register import (
     render_risk_register_csv,
     render_risk_register_markdown,
 )
+from max.spec.security_controls import (
+    generate_security_controls,
+    render_security_controls_csv,
+)
 from max.spec.security_review import (
     generate_security_review,
     render_security_review_csv,
@@ -174,6 +178,7 @@ __all__ = [
     "generate_release_readiness_gate",
     "generate_rollback_plan",
     "generate_spec_bundle",
+    "generate_security_controls",
     "generate_security_review",
     "generate_slo_plan",
     "generate_smoke_test_plan",
@@ -185,6 +190,7 @@ __all__ = [
     "render_rollback_plan_markdown",
     "render_risk_register_csv",
     "render_risk_register_markdown",
+    "render_security_controls_csv",
     "render_security_review_csv",
     "render_security_review_markdown",
     "render_slo_plan_csv",
