@@ -5,16 +5,39 @@ from __future__ import annotations
 import csv
 from io import StringIO
 import json
-from typing import Any
+from typing import Any, Protocol
 
 from max.analysis.design_brief_evidence_matrix import build_design_brief_evidence_matrix
 from max.analysis.design_brief_prd import build_design_brief_prd
 from max.analysis.design_brief_risk_register import build_design_brief_risk_register
 from max.analysis.design_brief_roadmap import build_design_brief_roadmap
 from max.analysis.design_validation import build_validation_plan
-from max.store.db import Store
+from max.types.buildable_unit import BuildableUnit
+from max.types.insight import Insight
+from max.types.signal import Signal
 
 SCHEMA_VERSION = "max.design_brief.one_pager.v1"
+
+
+class DesignBriefStoreProtocol(Protocol):
+    """Minimal store interface for building design brief one-pagers."""
+
+    def get_design_brief(self, brief_id: str) -> dict[str, Any] | None:
+        """Retrieve a design brief by ID."""
+        ...
+
+    def get_buildable_unit(self, unit_id: str) -> BuildableUnit | None:
+        """Retrieve a buildable unit by ID."""
+        ...
+
+    def get_signal(self, signal_id: str) -> Signal | None:
+        """Retrieve a signal by ID."""
+        ...
+
+    def get_insight(self, insight_id: str) -> Insight | None:
+        """Retrieve an insight by ID."""
+        ...
+
 
 CSV_COLUMNS = (
     "design_brief_id",
@@ -41,7 +64,7 @@ DECISION_CSV_FIELDS = (
 )
 
 
-def build_design_brief_one_pager(store: Store, brief_id: str) -> dict[str, Any] | None:
+def build_design_brief_one_pager(store: DesignBriefStoreProtocol, brief_id: str) -> dict[str, Any] | None:
     """Build a compact decision artifact from a persisted design brief."""
     design_brief = store.get_design_brief(brief_id)
     if not design_brief:

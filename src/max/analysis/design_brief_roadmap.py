@@ -7,9 +7,10 @@ import json
 import re
 from datetime import datetime, timezone
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from max.store.db import Store
+if TYPE_CHECKING:
+    from max.analysis.design_brief_one_pager import DesignBriefStoreProtocol
 
 SCHEMA_VERSION = "max.design_brief.roadmap.v1"
 
@@ -70,7 +71,7 @@ PHASES: tuple[dict[str, str], ...] = (
 )
 
 
-def build_design_brief_roadmap(store: Store, brief_id: str) -> dict[str, Any] | None:
+def build_design_brief_roadmap(store: DesignBriefStoreProtocol, brief_id: str) -> dict[str, Any] | None:
     """Build an actionable phased roadmap from a persisted design brief."""
     design_brief = store.get_design_brief(brief_id)
     if not design_brief:
@@ -465,7 +466,7 @@ def _add_item(
     return item_id
 
 
-def _source_ideas(store: Store, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
+def _source_ideas(store: DesignBriefStoreProtocol, design_brief: dict[str, Any]) -> list[dict[str, Any]]:
     ideas: list[dict[str, Any]] = []
     seen: set[str] = set()
     sources = list(design_brief.get("sources", []))

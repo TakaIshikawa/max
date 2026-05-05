@@ -19,6 +19,7 @@ from max.analysis.design_brief_one_pager import (
     render_design_brief_one_pager_csv,
 )
 from max.types.buildable_unit import BuildableUnit
+from max.types.insight import Insight
 from max.types.signal import Signal, SignalSourceType
 
 
@@ -36,6 +37,9 @@ class InMemoryDesignBriefStore:
 
     def get_signal(self, signal_id: str) -> Signal | None:
         return self.signals.get(signal_id)
+
+    def get_insight(self, insight_id: str) -> Insight | None:
+        return None
 
 
 @pytest.fixture
@@ -118,8 +122,8 @@ def test_build_design_brief_one_pager_is_stable_for_existing_brief(
 ) -> None:
     store, brief_id = one_pager_store
 
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
-    repeated = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
+    repeated = build_design_brief_one_pager(store, brief_id)
 
     assert one_pager == repeated
     assert one_pager is not None
@@ -145,14 +149,14 @@ def test_build_design_brief_one_pager_missing_brief_returns_none(
 ) -> None:
     store, _brief_id = one_pager_store
 
-    assert build_design_brief_one_pager(store, "dbf-missing") is None  # type: ignore[arg-type]
+    assert build_design_brief_one_pager(store, "dbf-missing") is None
 
 
 def test_render_design_brief_one_pager_markdown_has_decision_fields_without_repr(
     one_pager_store: tuple[InMemoryDesignBriefStore, str],
 ) -> None:
     store, brief_id = one_pager_store
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
     assert one_pager is not None
 
     parsed = json.loads(render_design_brief_one_pager(one_pager, fmt="json"))
@@ -180,7 +184,7 @@ def test_render_design_brief_one_pager_csv_has_decision_and_risk_rows(
     one_pager_store: tuple[InMemoryDesignBriefStore, str],
 ) -> None:
     store, brief_id = one_pager_store
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
     assert one_pager is not None
 
     csv_text = render_design_brief_one_pager(one_pager, fmt="csv")
@@ -222,7 +226,7 @@ def test_render_design_brief_one_pager_csv_without_risks_keeps_decision_rows(
     one_pager_store: tuple[InMemoryDesignBriefStore, str],
 ) -> None:
     store, brief_id = one_pager_store
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
     assert one_pager is not None
     no_risk_one_pager = deepcopy(one_pager)
     no_risk_one_pager["top_risks"] = []
@@ -240,7 +244,7 @@ def test_render_design_brief_one_pager_csv_is_deterministic(
     one_pager_store: tuple[InMemoryDesignBriefStore, str],
 ) -> None:
     store, brief_id = one_pager_store
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
     assert one_pager is not None
 
     assert render_design_brief_one_pager(one_pager, fmt="csv") == render_design_brief_one_pager(
@@ -253,7 +257,7 @@ def test_render_design_brief_one_pager_csv_escapes_long_text(
     one_pager_store: tuple[InMemoryDesignBriefStore, str],
 ) -> None:
     store, brief_id = one_pager_store
-    one_pager = build_design_brief_one_pager(store, brief_id)  # type: ignore[arg-type]
+    one_pager = build_design_brief_one_pager(store, brief_id)
     assert one_pager is not None
     escaped_one_pager = deepcopy(one_pager)
     escaped_one_pager["problem"] = (
