@@ -204,7 +204,9 @@ def _trending_url(base_url: str, language: str, since: str) -> str:
     path = "/trending"
     if language:
         path = f"{path}/{quote(language, safe='')}"
-    return f"{urljoin(f'{base_url.rstrip('/')}/', path.lstrip('/'))}?{urlencode({'since': since})}"
+    base_with_slash = f"{base_url.rstrip('/')}/"
+    clean_path = path.lstrip('/')
+    return f"{urljoin(base_with_slash, clean_path)}?{urlencode({'since': since})}"
 
 
 def _parse_trending_html(
