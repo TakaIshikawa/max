@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,27 @@ from max.types.evaluation import UtilityEvaluation
 
 
 EXPERIMENT_CARD_SCHEMA_VERSION = "max-experiment-card/v1"
+
+EXPERIMENT_CARD_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "idea_title",
+    "primary_hypothesis",
+    "target_persona",
+    "sample_size",
+    "test_type",
+    "test_description",
+    "duration_days",
+    "success_metrics",
+    "failure_signals",
+    "decision_proceed",
+    "decision_iterate",
+    "decision_stop",
+    "riskiest_assumptions",
+    "recruitment_channels",
+    "seven_day_plan",
+)
 
 DIMENSION_NAMES = (
     "pain_severity",
@@ -480,3 +503,107 @@ def _dedupe_by_channel(channels: list[dict[str, str]]) -> list[dict[str, str]]:
 
 def _compact(value: Any) -> str:
     return " ".join(str(value or "").split())
+
+
+def render_experiment_card_csv(card: dict[str, Any]) -> str:
+    """Render experiment card as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=list(EXPERIMENT_CARD_CSV_COLUMNS),
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    writer.writerow(_csv_row(card or {}))  # type: ignore[arg-type]
+    return output.getvalue()
+
+
+def _csv_row(card: dict[str, Any]) -> dict[str, str]:
+    idea_summary = card.get("idea_summary")
+    idea_summary = idea_summary if isinstance(idea_summary, dict) else {}
+    target_participant = card.get("target_participant")
+    target_participant = target_participant if isinstance(target_participant, dict) else {}
+    mvt = card.get("minimum_viable_test")
+    mvt = mvt if isinstance(mvt, dict) else {}
+    decision_rules = card.get("decision_rules")
+    decision_rules = decision_rules if isinstance(decision_rules, dict) else {}
+
+    success_metrics = card.get("success_metrics")
+    success_metrics = success_metrics if isinstance(success_metrics, list) else []
+    failure_signals = card.get("failure_signals")
+    failure_signals = failure_signals if isinstance(failure_signals, list) else []
+    assumptions = card.get("riskiest_assumptions")
+    assumptions = assumptions if isinstance(assumptions, list) else []
+    channels = card.get("recruitment_channel_suggestions")
+    channels = channels if isinstance(channels, list) else []
+    plan = card.get("seven_day_execution_plan")
+    plan = plan if isinstance(plan, list) else []
+
+    return {
+        "schema_version": _csv_cell(card.get("schema_version")),
+        "kind": _csv_cell(card.get("kind")),
+        "idea_id": _csv_cell(card.get("idea_id")),
+        "idea_title": _csv_cell(idea_summary.get("title")),
+        "primary_hypothesis": _csv_cell(card.get("primary_hypothesis")),
+        "target_persona": _csv_cell(target_participant.get("persona")),
+        "sample_size": _csv_cell(target_participant.get("sample_size")),
+        "test_type": _csv_cell(mvt.get("type")),
+        "test_description": _csv_cell(mvt.get("description")),
+        "duration_days": _csv_cell(mvt.get("duration_days")),
+        "success_metrics": _csv_cell(
+            [
+                f"{m.get('metric')}: {m.get('target')}"
+                for m in success_metrics
+                if isinstance(m, dict)
+            ]
+        ),
+        "failure_signals": _csv_cell(
+            [
+                f"{s.get('signal')}: {s.get('threshold')}"
+                for s in failure_signals
+                if isinstance(s, dict)
+            ]
+        ),
+        "decision_proceed": _csv_cell(decision_rules.get("proceed")),
+        "decision_iterate": _csv_cell(decision_rules.get("iterate")),
+        "decision_stop": _csv_cell(decision_rules.get("stop")),
+        "riskiest_assumptions": _csv_cell(
+            [a.get("assumption") for a in assumptions if isinstance(a, dict)]
+        ),
+        "recruitment_channels": _csv_cell(
+            [c.get("channel") for c in channels if isinstance(c, dict)]
+        ),
+        "seven_day_plan": _csv_cell(
+            [f"{d.get('day')}: {d.get('focus')}" for d in plan if isinstance(d, dict)]
+        ),
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_cell(key)}={_csv_cell(item)}"
+            for key, item in sorted(value.items())
+            if _csv_cell(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        return " | ".join(_csv_cell(item) for item in _list(value) if _csv_cell(item))
+    return _compact(value)
+
+
+def _list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, set):
+        return sorted(value)
+    return [value]
