@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 
 from max.spec.experiment_card import (
     EXPERIMENT_CARD_SCHEMA_VERSION,
     generate_experiment_card,
+    render_experiment_card_csv,
 )
 
 
@@ -67,3 +70,124 @@ def test_generate_experiment_card_is_json_serializable(sample_unit, sample_evalu
     card = generate_experiment_card(sample_unit, sample_evaluation)
 
     assert json.loads(json.dumps(card))["kind"] == "max.experiment_card"
+
+
+def test_render_experiment_card_csv_structure(sample_unit, sample_evaluation):
+    card = generate_experiment_card(sample_unit, sample_evaluation)
+
+    csv_output = render_experiment_card_csv(card)
+
+    # Parse CSV
+    reader = csv.DictReader(StringIO(csv_output))
+    rows = list(reader)
+
+    # Should have exactly one row
+    assert len(rows) == 1
+    row = rows[0]
+
+    # Verify all expected columns are present
+    assert "schema_version" in row
+    assert "kind" in row
+    assert "idea_id" in row
+    assert "title" in row
+    assert "primary_hypothesis" in row
+    assert "target_persona" in row
+    assert "target_buyer" in row
+    assert "workflow_context" in row
+    assert "sample_size" in row
+    assert "duration_days" in row
+    assert "test_type" in row
+    assert "test_description" in row
+    assert "riskiest_assumptions" in row
+    assert "success_metrics" in row
+    assert "failure_signals" in row
+    assert "recruitment_channels" in row
+    assert "success_criteria" in row
+    assert "rollback_triggers" in row
+    assert "learnings_capture" in row
+
+
+def test_render_experiment_card_csv_metadata(sample_unit, sample_evaluation):
+    card = generate_experiment_card(sample_unit, sample_evaluation)
+
+    csv_output = render_experiment_card_csv(card)
+
+    # Parse CSV
+    reader = csv.DictReader(StringIO(csv_output))
+    row = next(reader)
+
+    # Verify core metadata
+    assert row["schema_version"] == "max-experiment-card/v1"
+    assert row["kind"] == "max.experiment_card"
+    assert row["idea_id"] == "bu-test001"
+    assert row["title"] == "MCP Test Framework"
+    assert row["target_persona"] == "MCP server maintainer"
+    assert row["sample_size"] == "5"
+    assert row["duration_days"] == "7"
+    assert "MCP server maintainer will try MCP Test Framework" in row["primary_hypothesis"]
+
+
+def test_render_experiment_card_csv_experiment_details(sample_unit, sample_evaluation):
+    card = generate_experiment_card(sample_unit, sample_evaluation)
+
+    csv_output = render_experiment_card_csv(card)
+
+    # Parse CSV
+    reader = csv.DictReader(StringIO(csv_output))
+    row = next(reader)
+
+    # Verify test design
+    assert row["test_type"] == "scripted_validation"
+    assert row["test_description"]
+    assert row["workflow_context"]
+    assert row["target_buyer"]
+
+    # Verify success metrics are formatted correctly
+    assert "workflow_commitment" in row["success_metrics"]
+    assert "|" in row["success_metrics"]  # Separator between metrics
+
+    # Verify failure signals are formatted correctly
+    assert row["failure_signals"]
+    assert "|" in row["failure_signals"]  # Separator between signals
+
+    # Verify riskiest assumptions are present
+    assert "domain_risk_1" in row["riskiest_assumptions"]
+    assert "|" in row["riskiest_assumptions"]  # Separator between assumptions
+
+
+def test_render_experiment_card_csv_criteria_and_triggers(sample_unit, sample_evaluation):
+    card = generate_experiment_card(sample_unit, sample_evaluation)
+
+    csv_output = render_experiment_card_csv(card)
+
+    # Parse CSV
+    reader = csv.DictReader(StringIO(csv_output))
+    row = next(reader)
+
+    # Verify success criteria (proceed decision rule)
+    assert row["success_criteria"]
+    assert "commitments" in row["success_criteria"].lower()
+
+    # Verify rollback triggers (stop decision rule)
+    assert row["rollback_triggers"]
+    assert "stop" in row["rollback_triggers"].lower() or "do not build" in row["rollback_triggers"].lower()
+
+    # Verify learnings capture (instrumentation notes)
+    assert row["learnings_capture"]
+    assert "|" in row["learnings_capture"]  # Separator between notes
+
+
+def test_render_experiment_card_csv_recruitment_channels(sample_unit, sample_evaluation):
+    card = generate_experiment_card(sample_unit, sample_evaluation)
+
+    csv_output = render_experiment_card_csv(card)
+
+    # Parse CSV
+    reader = csv.DictReader(StringIO(csv_output))
+    row = next(reader)
+
+    # Verify recruitment channels
+    assert row["recruitment_channels"]
+    # Should have multiple channels separated by |
+    channels = row["recruitment_channels"].split("|")
+    assert len(channels) >= 1
