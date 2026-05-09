@@ -5,10 +5,11 @@ from io import StringIO
 
 from max.spec import (
     generate_architecture_decision_record,
+    render_adr_csv,
     render_architecture_decision_record_csv,
     render_architecture_decision_record_markdown,
 )
-from max.spec.adr import ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS
+from max.spec.adr import ADR_CSV_COLUMNS, ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS
 from max.types.buildable_unit import BuildableUnit
 
 
@@ -207,3 +208,89 @@ def test_architecture_decision_record_functions_are_importable_from_spec_package
     assert callable(generate_architecture_decision_record)
     assert callable(render_architecture_decision_record_markdown)
     assert callable(render_architecture_decision_record_csv)
+    assert callable(render_adr_csv)
+
+
+def test_render_adr_csv_includes_required_columns(
+    sample_unit,
+    sample_evaluation,
+) -> None:
+    sample_unit.status = "approved"
+    record = generate_architecture_decision_record(sample_unit, sample_evaluation)
+
+    rendered = render_adr_csv(record)
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert csv.DictReader(StringIO(rendered)).fieldnames == list(ADR_CSV_COLUMNS)
+    assert len(rows) == 1
+    row = rows[0]
+
+    assert row["number"] == sample_unit.id
+    assert row["title"] == sample_unit.title
+    assert row["status"] == "accepted"
+    assert row["context"] == sample_unit.problem
+    assert "Build MCP Test Framework" in row["decision_rationale"]
+    assert row["date"] == ""  # No date field in schema
+
+
+def test_render_adr_csv_includes_alternatives_and_stakeholders(
+    sample_unit,
+    sample_evaluation,
+) -> None:
+    sample_unit.status = "approved"
+    record = generate_architecture_decision_record(sample_unit, sample_evaluation)
+
+    rendered = render_adr_csv(record)
+    rows = list(csv.DictReader(StringIO(rendered)))
+    row = rows[0]
+
+    assert "Build the proposed MVP: selected" in row["alternatives_considered"]
+    assert "Do nothing: rejected" in row["alternatives_considered"]
+    assert "Target:" in row["stakeholders"] or row["stakeholders"] == ""
+
+
+def test_render_adr_csv_includes_consequences(
+    sample_unit,
+    sample_evaluation,
+) -> None:
+    sample_unit.status = "approved"
+    record = generate_architecture_decision_record(sample_unit, sample_evaluation)
+
+    rendered = render_adr_csv(record)
+    rows = list(csv.DictReader(StringIO(rendered)))
+    row = rows[0]
+
+    assert row["consequences"] != ""
+    assert "Positive:" in row["consequences"] or "Negative:" in row["consequences"]
+
+
+def test_render_adr_csv_handles_minimal_record() -> None:
+    minimal_record = {
+        "idea_id": "bu-minimal",
+        "status": "proposed",
+        "context": {"title": "Minimal ADR", "problem": "Test problem"},
+        "decision": {"summary": "Test decision"},
+        "consequences": {},
+        "considered_alternatives": [],
+    }
+
+    rendered = render_adr_csv(minimal_record)
+    rows = list(csv.DictReader(StringIO(rendered)))
+
+    assert len(rows) == 1
+    assert rows[0]["number"] == "bu-minimal"
+    assert rows[0]["title"] == "Minimal ADR"
+    assert rows[0]["status"] == "proposed"
+
+
+def test_render_adr_csv_is_deterministic(
+    sample_unit,
+    sample_evaluation,
+) -> None:
+    sample_unit.status = "approved"
+    record = generate_architecture_decision_record(sample_unit, sample_evaluation)
+
+    rendered1 = render_adr_csv(record)
+    rendered2 = render_adr_csv(record)
+
+    assert rendered1 == rendered2

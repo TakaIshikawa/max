@@ -14,6 +14,7 @@ from max.spec.api_contract_test_plan import (
 )
 from max.spec.adr import (
     generate_architecture_decision_record,
+    render_adr_csv,
     render_architecture_decision_record_csv,
     render_architecture_decision_record_markdown,
 )
