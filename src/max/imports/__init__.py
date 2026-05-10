@@ -1,1 +1,1 @@
-"""Developer platform and data source import adapters."""
+"""Platform source adapters for developer, social media, and community signal collection."""
