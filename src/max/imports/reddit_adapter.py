@@ -1,4 +1,4 @@
-"""Reddit source adapter — community signals from subreddit discussions."""
+"""Reddit source adapter — community signals from developer subreddits."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from max.sources.base import SourceAdapter, fetch_with_retry
+from max.sources.base import AdapterFetchError, SourceAdapter, fetch_with_retry
 from max.types.signal import Signal, SignalSourceType
 
 logger = logging.getLogger(__name__)
@@ -23,16 +23,24 @@ _DEFAULT_SUBREDDITS = [
     "ExperiencedDevs",
 ]
 
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
 _BROWSER_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
 }
 
-_KEYWORD_TAGS: dict[str, list[str]] = {
+_KEYWORD_TAGS = {
     "ai": ["ai", "llm", "gpt", "claude", "openai", "anthropic"],
     "agent": ["agent", "agentic", "autonomous"],
     "mcp": ["mcp", "model context protocol"],
@@ -42,36 +50,9 @@ _KEYWORD_TAGS: dict[str, list[str]] = {
     "open_source": ["open source", "oss", "foss"],
 }
 
-_SUBREDDIT_TAGS: dict[str, str] = {
-    "MachineLearning": "ml",
-    "LocalLLaMA": "llm",
-    "ChatGPT": "ai",
-    "artificial": "ai",
-    "devops": "devops",
-    "programming": "programming",
-    "ExperiencedDevs": "devtools",
-}
-
-
-def _extract_tags(title: str, subreddit: str) -> list[str]:
-    """Extract tags from post title and subreddit context."""
-    tags: list[str] = []
-    lower = title.lower()
-
-    sub_tag = _SUBREDDIT_TAGS.get(subreddit)
-    if sub_tag:
-        tags.append(sub_tag)
-
-    for tag, terms in _KEYWORD_TAGS.items():
-        if any(t in lower for t in terms) and tag not in tags:
-            tags.append(tag)
-
-    tags.append("reddit")
-    return tags[:10]
-
 
 class RedditAdapter(SourceAdapter):
-    """Fetch posts and comments from specified subreddits."""
+    """Fetch top posts from developer and AI subreddits."""
 
     @property
     def name(self) -> str:
@@ -95,11 +76,8 @@ class RedditAdapter(SourceAdapter):
                 break
             if i > 0:
                 await asyncio.sleep(2)
-
             async with httpx.AsyncClient(
-                timeout=30,
-                headers=_BROWSER_HEADERS,
-                follow_redirects=True,
+                timeout=30, headers=_BROWSER_HEADERS, follow_redirects=True,
             ) as client:
                 try:
                     resp = await fetch_with_retry(
@@ -109,18 +87,14 @@ class RedditAdapter(SourceAdapter):
                         params={"limit": per_sub},
                     )
                     data = resp.json()
-                except Exception:
-                    logger.warning(
-                        "Reddit fetch failed for r/%s", subreddit, exc_info=True,
-                    )
+                except AdapterFetchError:
+                    logger.warning("Reddit fetch failed for r/%s", subreddit, exc_info=True)
                     continue
-
-                if not isinstance(data, dict):
+                except (ValueError, KeyError, TypeError):
+                    logger.warning("Reddit parse failed for r/%s", subreddit, exc_info=True)
                     continue
 
                 for child in data.get("data", {}).get("children", []):
-                    if len(signals) >= limit:
-                        break
                     post = child.get("data", {})
                     if post.get("stickied"):
                         continue
@@ -128,6 +102,7 @@ class RedditAdapter(SourceAdapter):
                     title = post.get("title", "")
                     selftext = post.get("selftext", "")
                     score = post.get("score", 0)
+                    url = post.get("url", "")
                     permalink = f"https://www.reddit.com{post.get('permalink', '')}"
 
                     signals.append(
@@ -147,9 +122,32 @@ class RedditAdapter(SourceAdapter):
                                 "subreddit": subreddit,
                                 "score": score,
                                 "num_comments": post.get("num_comments", 0),
-                                "link_url": post.get("url"),
+                                "link_url": url if url != permalink else None,
                             },
-                        )
+                        ),
                     )
 
         return signals[:limit]
+
+
+def _extract_tags(title: str, subreddit: str) -> list[str]:
+    tags: list[str] = []
+    lower = title.lower()
+
+    sub_tags = {
+        "MachineLearning": "ml",
+        "LocalLLaMA": "llm",
+        "ChatGPT": "ai",
+        "artificial": "ai",
+        "devops": "devops",
+        "programming": "programming",
+        "ExperiencedDevs": "devtools",
+    }
+    if subreddit in sub_tags:
+        tags.append(sub_tags[subreddit])
+
+    for tag, terms in _KEYWORD_TAGS.items():
+        if any(t in lower for t in terms) and tag not in tags:
+            tags.append(tag)
+
+    return tags

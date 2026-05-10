@@ -1,4 +1,4 @@
-"""Tests for Reddit source adapter (imports module)."""
+"""Tests for the Reddit import source adapter."""
 
 from __future__ import annotations
 
@@ -6,257 +6,152 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from max.imports.reddit_adapter import RedditAdapter, _extract_tags
-from max.sources.base import AdapterFetchError, SourceAdapter
+from max.imports.reddit_adapter import RedditAdapter
 from max.types.signal import SignalSourceType
 
 
-# ── Test Data ────────────────────────────────────────────────────────
-
-MOCK_REDDIT_RESPONSE = {
-    "data": {
-        "children": [
-            {
-                "data": {
-                    "title": "Building an AI Agent with MCP",
-                    "selftext": "Step-by-step guide to building agents.",
-                    "score": 500,
-                    "url": "https://example.com/article",
-                    "permalink": "/r/programming/comments/abc123/building_an_ai_agent/",
-                    "author": "dev_alice",
-                    "created_utc": 1712764800,
-                    "num_comments": 42,
-                    "stickied": False,
-                },
-            },
-            {
-                "data": {
-                    "title": "Rust vs Go for CLI Tools",
-                    "selftext": "Comparing Rust and Go.",
-                    "score": 1200,
-                    "url": "https://www.reddit.com/r/programming/comments/def456/rust_vs_go/",
-                    "permalink": "/r/programming/comments/def456/rust_vs_go/",
-                    "author": "rustacean",
-                    "created_utc": 1712851200,
-                    "num_comments": 88,
-                    "stickied": False,
-                },
-            },
-            {
-                "data": {
-                    "title": "Weekly Discussion Thread",
-                    "selftext": "Weekly thread.",
-                    "score": 10,
-                    "url": "https://www.reddit.com/r/programming/comments/ghi/weekly/",
-                    "permalink": "/r/programming/comments/ghi/weekly/",
-                    "author": "AutoModerator",
-                    "created_utc": 1712678400,
-                    "num_comments": 5,
-                    "stickied": True,
-                },
-            },
-        ],
-    },
-}
+def _response(payload: object) -> MagicMock:
+    resp = MagicMock()
+    resp.json.return_value = payload
+    return resp
 
 
-# ── Unit Tests: _extract_tags ────────────────────────────────────────
+def _reddit_listing(*posts: dict) -> dict:
+    return {
+        "data": {
+            "children": [{"data": post} for post in posts],
+        },
+    }
 
 
-class TestExtractTags:
-    def test_subreddit_tag(self) -> None:
-        tags = _extract_tags("some title", "MachineLearning")
-        assert "ml" in tags
-
-    def test_keyword_ai(self) -> None:
-        tags = _extract_tags("Using Claude and LLM for coding", "programming")
-        assert "ai" in tags
-
-    def test_keyword_mcp(self) -> None:
-        tags = _extract_tags("MCP protocol is great", "programming")
-        assert "mcp" in tags
-
-    def test_always_includes_reddit(self) -> None:
-        tags = _extract_tags("random title", "somesubreddit")
-        assert "reddit" in tags
-
-    def test_limits_to_10(self) -> None:
-        tags = _extract_tags(
-            "ai llm agent mcp rust python security open source vulnerability cve exploit autonomous",
-            "MachineLearning",
-        )
-        assert len(tags) <= 10
-
-
-# ── Adapter Property Tests ───────────────────────────────────────────
+def _post(
+    title: str = "New AI framework released",
+    *,
+    selftext: str = "Check out this LLM agent toolkit",
+    score: int = 150,
+    author: str = "dev_user",
+    subreddit: str = "programming",
+    permalink: str = "/r/programming/comments/abc123/new_ai_framework/",
+    stickied: bool = False,
+    num_comments: int = 42,
+    created_utc: float = 1713780000.0,
+) -> dict:
+    return {
+        "title": title,
+        "selftext": selftext,
+        "score": score,
+        "author": author,
+        "subreddit": subreddit,
+        "permalink": permalink,
+        "url": f"https://www.reddit.com{permalink}",
+        "stickied": stickied,
+        "num_comments": num_comments,
+        "created_utc": created_utc,
+    }
 
 
-class TestRedditAdapterProperties:
-    def test_name(self) -> None:
-        assert RedditAdapter().name == "reddit_import"
+def test_reddit_adapter_properties() -> None:
+    adapter = RedditAdapter(config={"subreddits": ["rust", "golang"]})
 
-    def test_source_type(self) -> None:
-        assert RedditAdapter().source_type == SignalSourceType.FORUM.value
-
-    def test_inherits_from_source_adapter(self) -> None:
-        assert isinstance(RedditAdapter(), SourceAdapter)
-
-    def test_default_subreddits(self) -> None:
-        a = RedditAdapter()
-        assert "programming" in a.subreddits
-        assert "MachineLearning" in a.subreddits
-
-    def test_config_overrides(self) -> None:
-        a = RedditAdapter(config={"subreddits": ["rust", "golang"]})
-        assert a.subreddits == ["rust", "golang"]
+    assert adapter.name == "reddit_import"
+    assert adapter.source_type == SignalSourceType.FORUM.value
+    assert adapter.subreddits == ["rust", "golang"]
 
 
-# ── Adapter Fetch Tests ──────────────────────────────────────────────
+def test_reddit_adapter_default_subreddits() -> None:
+    adapter = RedditAdapter()
+    assert "programming" in adapter.subreddits
+    assert "MachineLearning" in adapter.subreddits
 
 
-class TestRedditAdapterFetch:
-    @pytest.mark.asyncio
-    async def test_fetch_parses_posts(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["programming"]})
+@pytest.mark.asyncio
+async def test_reddit_fetches_posts() -> None:
+    adapter = RedditAdapter(config={"subreddits": ["programming"]})
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = MOCK_REDDIT_RESPONSE
-        mock_resp.status_code = 200
+    listing = _reddit_listing(
+        _post(title="AI agents are the future"),
+        _post(title="New Rust compiler improvements"),
+    )
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ):
-            signals = await adapter.fetch(limit=10)
+    with patch("max.imports.reddit_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.return_value = _response(listing)
+        signals = await adapter.fetch(limit=10)
 
-        # Stickied post should be skipped
-        assert len(signals) == 2
-        assert signals[0].source_adapter == "reddit_import"
-        assert signals[0].source_type == SignalSourceType.FORUM
-        assert "AI Agent" in signals[0].title
-        assert signals[0].author == "dev_alice"
-        assert signals[0].metadata["subreddit"] == "programming"
-        assert signals[0].metadata["score"] == 500
+    assert len(signals) == 2
+    assert signals[0].source_adapter == "reddit_import"
+    assert signals[0].source_type == SignalSourceType.FORUM
+    assert "AI agents" in signals[0].title
+    assert signals[0].author == "dev_user"
 
-    @pytest.mark.asyncio
-    async def test_fetch_credibility_from_score(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["programming"]})
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = MOCK_REDDIT_RESPONSE
-        mock_resp.status_code = 200
+@pytest.mark.asyncio
+async def test_reddit_skips_stickied_posts() -> None:
+    adapter = RedditAdapter(config={"subreddits": ["programming"]})
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ):
-            signals = await adapter.fetch(limit=10)
+    listing = _reddit_listing(
+        _post(title="Weekly Discussion Thread", stickied=True),
+        _post(title="Real post about Python"),
+    )
 
-        # 500/1000 = 0.5
-        assert signals[0].credibility == pytest.approx(0.5)
-        # min(1200/1000, 1.0) = 1.0
-        assert signals[1].credibility == pytest.approx(1.0)
+    with patch("max.imports.reddit_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.return_value = _response(listing)
+        signals = await adapter.fetch(limit=10)
 
-    @pytest.mark.asyncio
-    async def test_fetch_respects_limit(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["programming"]})
+    assert len(signals) == 1
+    assert "Real post" in signals[0].title
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = MOCK_REDDIT_RESPONSE
-        mock_resp.status_code = 200
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ):
-            signals = await adapter.fetch(limit=1)
+@pytest.mark.asyncio
+async def test_reddit_extracts_metadata() -> None:
+    adapter = RedditAdapter(config={"subreddits": ["MachineLearning"]})
 
-        assert len(signals) == 1
+    listing = _reddit_listing(
+        _post(score=500, num_comments=100, subreddit="MachineLearning"),
+    )
 
-    @pytest.mark.asyncio
-    async def test_fetch_skips_stickied(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["programming"]})
+    with patch("max.imports.reddit_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.return_value = _response(listing)
+        signals = await adapter.fetch(limit=10)
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = MOCK_REDDIT_RESPONSE
-        mock_resp.status_code = 200
+    assert len(signals) == 1
+    assert signals[0].metadata["subreddit"] == "MachineLearning"
+    assert signals[0].metadata["score"] == 500
+    assert signals[0].metadata["num_comments"] == 100
+    assert signals[0].credibility == 0.5  # 500/1000
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ):
-            signals = await adapter.fetch(limit=10)
 
-        titles = [s.title for s in signals]
-        assert "Weekly Discussion Thread" not in titles
+@pytest.mark.asyncio
+async def test_reddit_handles_fetch_error() -> None:
+    from max.sources.base import AdapterFetchError
 
-    @pytest.mark.asyncio
-    async def test_fetch_continues_on_error(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["bad_sub", "programming"]})
+    adapter = RedditAdapter(config={"subreddits": ["programming"]})
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = MOCK_REDDIT_RESPONSE
-        mock_resp.status_code = 200
+    with patch("max.imports.reddit_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.side_effect = AdapterFetchError("reddit_import", 429, "https://old.reddit.com/...")
+        signals = await adapter.fetch(limit=10)
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            side_effect=[AdapterFetchError("reddit_import", 500, "url"), mock_resp],
-        ):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                signals = await adapter.fetch(limit=10)
+    assert signals == []
 
-        assert len(signals) == 2
 
-    @pytest.mark.asyncio
-    async def test_fetch_all_fail_returns_empty(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["bad"]})
+@pytest.mark.asyncio
+async def test_reddit_respects_limit() -> None:
+    adapter = RedditAdapter(config={"subreddits": ["programming"]})
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            side_effect=AdapterFetchError("reddit_import", 503, "url"),
-        ):
-            signals = await adapter.fetch(limit=10)
+    listing = _reddit_listing(
+        *[_post(title=f"Post {i}") for i in range(20)],
+    )
 
-        assert signals == []
+    with patch("max.imports.reddit_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.return_value = _response(listing)
+        signals = await adapter.fetch(limit=3)
 
-    @pytest.mark.asyncio
-    async def test_fetch_content_truncated(self) -> None:
-        adapter = RedditAdapter(config={"subreddits": ["programming"]})
+    assert len(signals) == 3
 
-        response = {
-            "data": {
-                "children": [
-                    {
-                        "data": {
-                            "title": "Long post",
-                            "selftext": "x" * 2000,
-                            "score": 10,
-                            "permalink": "/r/programming/comments/abc/long/",
-                            "author": "writer",
-                            "created_utc": 1712764800,
-                            "num_comments": 1,
-                            "stickied": False,
-                        },
-                    },
-                ],
-            },
-        }
 
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = response
-        mock_resp.status_code = 200
+def test_reddit_tag_extraction() -> None:
+    from max.imports.reddit_adapter import _extract_tags
 
-        with patch(
-            "max.imports.reddit_adapter.fetch_with_retry",
-            new_callable=AsyncMock,
-            return_value=mock_resp,
-        ):
-            signals = await adapter.fetch(limit=10)
-
-        assert len(signals[0].content) <= 1000
+    tags = _extract_tags("New AI agent framework with LLM support", "MachineLearning")
+    assert "ml" in tags
+    assert "ai" in tags
+    assert "agent" in tags

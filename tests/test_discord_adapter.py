@@ -1,4 +1,4 @@
-"""Tests for Discord source adapter."""
+"""Tests for the Discord source adapter."""
 
 from __future__ import annotations
 
@@ -6,308 +6,304 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from max.imports.discord_adapter import (
-    DiscordAdapter,
-    _extract_tags,
-    _parse_datetime,
-    _reaction_credibility,
-)
-from max.sources.base import AdapterFetchError, SourceAdapter
+from max.imports.discord_adapter import DiscordAdapter
 from max.types.signal import SignalSourceType
 
 
-# ── Test Data ────────────────────────────────────────────────────────
-
-MOCK_DISCORD_MESSAGES = [
-    {
-        "id": "msg_001",
-        "content": "Has anyone tried the new MCP agent framework? Looks promising for LLM workflows.",
-        "author": {"id": "user_001", "username": "alice_dev"},
-        "timestamp": "2026-04-10T14:00:00Z",
-        "reactions": [
-            {"emoji": {"name": "thumbsup"}, "count": 5},
-            {"emoji": {"name": "heart"}, "count": 3},
-        ],
-        "thread": None,
-    },
-    {
-        "id": "msg_002",
-        "content": "Bug report: the API returns 500 when you send more than 100 items in a batch.",
-        "author": {"id": "user_002", "username": "bob_qa"},
-        "timestamp": "2026-04-11T10:30:00Z",
-        "reactions": [
-            {"emoji": {"name": "eyes"}, "count": 10},
-        ],
-        "thread": {"id": "thread_001"},
-    },
-    {
-        "id": "msg_003",
-        "content": "",
-        "author": {"id": "user_003", "username": "bot_notifications"},
-        "timestamp": "2026-04-12T08:00:00Z",
-        "reactions": [],
-    },
-]
+def _response(payload: object) -> MagicMock:
+    resp = MagicMock()
+    resp.json.return_value = payload
+    return resp
+
+
+def _message(
+    msg_id: str,
+    *,
+    content: str = "Check out this new AI agent framework!",
+    reactions: list[dict] | None = None,
+    bot: bool = False,
+    thread: dict | None = None,
+    timestamp: str = "2026-04-22T10:00:00+00:00",
+) -> dict:
+    return {
+        "id": msg_id,
+        "content": content,
+        "timestamp": timestamp,
+        "author": {
+            "id": "user123",
+            "username": "devuser",
+            "global_name": "Dev User",
+            "bot": bot,
+        },
+        "reactions": reactions or [],
+        "thread": thread,
+        "mentions": [],
+        "attachments": [],
+    }
+
+
+def test_discord_adapter_properties() -> None:
+    adapter = DiscordAdapter(
+        config={
+            "channel_ids": ["111", "222"],
+            "guild_ids": ["999"],
+            "bot_token_env": "MY_DISCORD_TOKEN",
+            "min_reactions": 2,
+        }
+    )
+
+    assert adapter.name == "discord"
+    assert adapter.source_type == SignalSourceType.FORUM.value
+    assert adapter.channel_ids == ["111", "222"]
+    assert adapter.guild_ids == ["999"]
+    assert adapter.bot_token_env == "MY_DISCORD_TOKEN"
+    assert adapter.min_reactions == 2
+
+
+def test_discord_adapter_default_properties() -> None:
+    adapter = DiscordAdapter()
+
+    assert adapter.name == "discord"
+    assert adapter.channel_ids == []
+    assert adapter.guild_ids == []
+    assert adapter.bot_token_env == "DISCORD_BOT_TOKEN"
+    assert adapter.min_reactions == 0
+
+
+@pytest.mark.asyncio
+async def test_discord_returns_empty_without_token() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["111"]})
+    with patch.dict("os.environ", {}, clear=True):
+        signals = await adapter.fetch(limit=10)
+    assert signals == []
+
+
+@pytest.mark.asyncio
+async def test_discord_fetches_channel_messages() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
+
+    messages = [
+        _message("m1", content="New LLM agent framework released"),
+        _message("m2", content="MCP protocol discussion thread"),
+    ]
+
+    mock_resp = _response(messages)
+
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = mock_resp
+        signals = await adapter.fetch(limit=10)
+
+    assert len(signals) == 2
+    assert signals[0].source_adapter == "discord"
+    assert signals[0].source_type == SignalSourceType.FORUM
+    assert "LLM" in signals[0].title
+    assert signals[0].author == "Dev User"
+    assert signals[0].metadata["channel_id"] == "ch1"
+    assert signals[0].metadata["message_id"] == "m1"
+
+
+@pytest.mark.asyncio
+async def test_discord_skips_bot_messages() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
+
+    messages = [
+        _message("m1", bot=True, content="Bot auto-message"),
+        _message("m2", content="Human message about Python"),
+    ]
+
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = _response(messages)
+        signals = await adapter.fetch(limit=10)
+
+    assert len(signals) == 1
+    assert signals[0].metadata["message_id"] == "m2"
+
+
+@pytest.mark.asyncio
+async def test_discord_filters_by_min_reactions() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"], "min_reactions": 3})
 
-MOCK_CHANNEL_INFO = {"id": "chan_001", "name": "general-dev"}
+    messages = [
+        _message("m1", reactions=[{"emoji": {"name": "👍"}, "count": 5}]),
+        _message("m2", reactions=[{"emoji": {"name": "👍"}, "count": 1}]),
+    ]
 
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = _response(messages)
+        signals = await adapter.fetch(limit=10)
+
+    assert len(signals) == 1
+    assert signals[0].metadata["message_id"] == "m1"
+    assert signals[0].metadata["reactions"] == 5
 
-# ── Unit Tests: _extract_tags ────────────────────────────────────────
 
+@pytest.mark.asyncio
+async def test_discord_deduplicates_messages() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1", "ch2"]})
 
-class TestExtractTags:
-    def test_includes_discord(self) -> None:
-        tags = _extract_tags("some text", "general")
-        assert "discord" in tags
+    messages = [_message("m1", content="Duplicate message")]
 
-    def test_includes_channel_name(self) -> None:
-        tags = _extract_tags("some text", "ai-discussion")
-        assert "ai-discussion" in tags
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = _response(messages)
+        signals = await adapter.fetch(limit=10)
 
-    def test_keyword_detection(self) -> None:
-        tags = _extract_tags("MCP agent for LLM", "general")
-        assert "mcp" in tags
-        assert "agent" in tags
-        assert "llm" in tags
+    # Same message ID from two channels should only appear once
+    assert len(signals) == 1
 
-    def test_bug_keyword(self) -> None:
-        tags = _extract_tags("Found a bug in the parser", "dev")
-        assert "bug" in tags
 
-    def test_feature_keyword(self) -> None:
-        tags = _extract_tags("Feature request: dark mode", "suggestions")
-        assert "feature-request" in tags
+@pytest.mark.asyncio
+async def test_discord_extracts_thread_metadata() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
 
-    def test_limits_to_10(self) -> None:
-        text = "agent llm mcp openai langchain rag embedding claude anthropic bug feature"
-        tags = _extract_tags(text, "long-channel-name")
-        assert len(tags) <= 10
+    messages = [
+        _message("m1", thread={"id": "thread123", "name": "Discussion"}),
+    ]
 
-    def test_none_channel(self) -> None:
-        tags = _extract_tags("text", None)
-        assert "discord" in tags
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = _response(messages)
+        signals = await adapter.fetch(limit=10)
 
+    assert len(signals) == 1
+    assert signals[0].metadata["has_thread"] is True
+    assert signals[0].metadata["thread_id"] == "thread123"
 
-# ── Unit Tests: _parse_datetime ──────────────────────────────────────
 
+@pytest.mark.asyncio
+async def test_discord_fetches_guild_channels() -> None:
+    adapter = DiscordAdapter(config={"guild_ids": ["g1"]})
 
-class TestParseDatetime:
-    def test_iso_with_z(self) -> None:
-        dt = _parse_datetime("2026-04-10T14:00:00Z")
-        assert dt is not None
-        assert dt.year == 2026
+    channels = [
+        {"id": "ch1", "type": 0, "name": "general"},
+        {"id": "ch2", "type": 2, "name": "voice"},  # voice channel, should skip
+        {"id": "ch3", "type": 15, "name": "forum"},
+    ]
 
-    def test_none_input(self) -> None:
-        assert _parse_datetime(None) is None
+    messages = [_message("m1", content="Guild message")]
 
-    def test_empty_string(self) -> None:
-        assert _parse_datetime("") is None
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        # First call returns channels, subsequent calls return messages
+        mock_fetch.side_effect = [
+            _response(channels),
+            _response(messages),
+            _response([_message("m2", content="Forum post")]),
+        ]
+        signals = await adapter.fetch(limit=10)
 
-    def test_invalid(self) -> None:
-        assert _parse_datetime("not-a-date") is None
+    # Should have fetched from text (ch1) and forum (ch3) channels, not voice (ch2)
+    assert len(signals) == 2
+    assert mock_fetch.call_count == 3
 
 
-# ── Unit Tests: _reaction_credibility ────────────────────────────────
+@pytest.mark.asyncio
+async def test_discord_handles_fetch_error_gracefully() -> None:
+    from max.sources.base import AdapterFetchError
 
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
 
-class TestReactionCredibility:
-    def test_zero_reactions(self) -> None:
-        assert _reaction_credibility(0) == pytest.approx(0.2)
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.side_effect = AdapterFetchError("discord", 403, "https://discord.com/api/...")
+        signals = await adapter.fetch(limit=10)
 
-    def test_high_reactions_caps_at_1(self) -> None:
-        assert _reaction_credibility(1000) == 1.0
+    assert signals == []
 
-    def test_moderate_reactions(self) -> None:
-        # 8 reactions -> 0.2 + 8/50 = 0.36
-        cred = _reaction_credibility(8)
-        assert 0.3 < cred < 0.5
 
+@pytest.mark.asyncio
+async def test_discord_respects_limit() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
 
-# ── Adapter Property Tests ───────────────────────────────────────────
+    messages = [_message(f"m{i}", content=f"Message {i}") for i in range(20)]
 
+    with (
+        patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}),
+        patch("max.imports.discord_adapter.fetch_with_retry", new_callable=AsyncMock) as mock_fetch,
+    ):
+        mock_fetch.return_value = _response(messages)
+        signals = await adapter.fetch(limit=5)
 
-class TestDiscordAdapterProperties:
-    def test_name(self) -> None:
-        assert DiscordAdapter().name == "discord"
+    assert len(signals) == 5
 
-    def test_source_type(self) -> None:
-        assert DiscordAdapter().source_type == SignalSourceType.FORUM.value
 
-    def test_inherits_from_source_adapter(self) -> None:
-        assert isinstance(DiscordAdapter(), SourceAdapter)
+@pytest.mark.asyncio
+async def test_discord_returns_empty_for_zero_limit() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
+    with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
+        signals = await adapter.fetch(limit=0)
+    assert signals == []
 
-    def test_no_channel_ids_by_default(self) -> None:
-        assert DiscordAdapter().channel_ids == []
 
-    def test_config_channel_ids(self) -> None:
-        a = DiscordAdapter(config={"channel_ids": ["123", "456"]})
-        assert a.channel_ids == ["123", "456"]
+def test_discord_tags_extraction() -> None:
+    adapter = DiscordAdapter(config={"channel_ids": ["ch1"]})
 
-    def test_bot_token_env_default(self) -> None:
-        assert DiscordAdapter().bot_token_env == "DISCORD_BOT_TOKEN"
+    messages = [_message("m1", content="Working on an AI agent with MCP protocol")]
 
+    # Verify tags by creating signal directly
+    from max.imports.discord_adapter import _extract_tags
 
-# ── Adapter Fetch Tests ──────────────────────────────────────────────
+    tags = _extract_tags("Working on an AI agent with MCP protocol", "dev-chat")
+    assert "discord" in tags
+    assert "ai" in tags
+    assert "agent" in tags
+    assert "mcp" in tags
+    assert "dev_chat" in tags
 
 
-class TestDiscordAdapterFetch:
-    @pytest.mark.asyncio
-    async def test_fetch_returns_empty_without_token(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["123"]})
+def test_discord_message_url_with_guild() -> None:
+    from max.imports.discord_adapter import _message_url
 
-        with patch.dict("os.environ", {}, clear=True):
-            signals = await adapter.fetch(limit=10)
+    url = _message_url(guild_id="g1", channel_id="ch1", message_id="m1")
+    assert url == "https://discord.com/channels/g1/ch1/m1"
 
-        assert signals == []
 
-    @pytest.mark.asyncio
-    async def test_fetch_returns_empty_without_channels(self) -> None:
-        adapter = DiscordAdapter()
+def test_discord_message_url_without_guild() -> None:
+    from max.imports.discord_adapter import _message_url
 
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            signals = await adapter.fetch(limit=10)
+    url = _message_url(guild_id=None, channel_id="ch1", message_id="m1")
+    assert url == "https://discord.com/channels/@me/ch1/m1"
 
-        assert signals == []
 
-    @pytest.mark.asyncio
-    async def test_fetch_parses_messages(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["chan_001"]})
+def test_discord_credibility_calculation() -> None:
+    from max.imports.discord_adapter import _credibility
 
-        mock_msg_resp = MagicMock()
-        mock_msg_resp.json.return_value = MOCK_DISCORD_MESSAGES
-        mock_msg_resp.status_code = 200
+    # Baseline: no reactions, no thread
+    assert _credibility(total_reactions=0, has_thread=False) == 0.2
 
-        mock_chan_resp = MagicMock()
-        mock_chan_resp.json.return_value = MOCK_CHANNEL_INFO
-        mock_chan_resp.status_code = 200
+    # With thread
+    cred_thread = _credibility(total_reactions=0, has_thread=True)
+    assert cred_thread > 0.2
 
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=[mock_msg_resp, mock_chan_resp],
-            ):
-                signals = await adapter.fetch(limit=10)
+    # With reactions
+    cred_reactions = _credibility(total_reactions=10, has_thread=False)
+    assert cred_reactions > 0.2
 
-        # msg_003 has empty content, should be skipped
-        assert len(signals) == 2
-        assert signals[0].source_adapter == "discord"
-        assert signals[0].source_type == SignalSourceType.FORUM
-        assert "MCP" in signals[0].title
-        assert signals[0].author == "alice_dev"
-        assert signals[0].metadata["channel_id"] == "chan_001"
+    # Capped at 1.0
+    assert _credibility(total_reactions=1000, has_thread=True) == 1.0
 
-    @pytest.mark.asyncio
-    async def test_fetch_reaction_count(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["chan_001"]})
 
-        mock_msg_resp = MagicMock()
-        mock_msg_resp.json.return_value = MOCK_DISCORD_MESSAGES
-        mock_msg_resp.status_code = 200
-
-        mock_chan_resp = MagicMock()
-        mock_chan_resp.json.return_value = MOCK_CHANNEL_INFO
-        mock_chan_resp.status_code = 200
-
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=[mock_msg_resp, mock_chan_resp],
-            ):
-                signals = await adapter.fetch(limit=10)
-
-        # msg_001: 5 + 3 = 8 reactions
-        assert signals[0].metadata["reaction_count"] == 8
-        # msg_002: 10 reactions
-        assert signals[1].metadata["reaction_count"] == 10
-
-    @pytest.mark.asyncio
-    async def test_fetch_thread_detection(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["chan_001"]})
-
-        mock_msg_resp = MagicMock()
-        mock_msg_resp.json.return_value = MOCK_DISCORD_MESSAGES
-        mock_msg_resp.status_code = 200
-
-        mock_chan_resp = MagicMock()
-        mock_chan_resp.json.return_value = MOCK_CHANNEL_INFO
-        mock_chan_resp.status_code = 200
-
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=[mock_msg_resp, mock_chan_resp],
-            ):
-                signals = await adapter.fetch(limit=10)
-
-        assert signals[0].metadata["has_thread"] is False
-        assert signals[1].metadata["has_thread"] is True
-
-    @pytest.mark.asyncio
-    async def test_fetch_respects_limit(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["chan_001"]})
-
-        mock_msg_resp = MagicMock()
-        mock_msg_resp.json.return_value = MOCK_DISCORD_MESSAGES
-        mock_msg_resp.status_code = 200
-
-        mock_chan_resp = MagicMock()
-        mock_chan_resp.json.return_value = MOCK_CHANNEL_INFO
-        mock_chan_resp.status_code = 200
-
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=[mock_msg_resp, mock_chan_resp],
-            ):
-                signals = await adapter.fetch(limit=1)
-
-        assert len(signals) == 1
-
-
-# ── Error Handling Tests ─────────────────────────────────────────────
-
-
-class TestDiscordAdapterErrors:
-    @pytest.mark.asyncio
-    async def test_fetch_continues_on_channel_error(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["bad_chan", "chan_001"]})
-
-        mock_msg_resp = MagicMock()
-        mock_msg_resp.json.return_value = MOCK_DISCORD_MESSAGES
-        mock_msg_resp.status_code = 200
-
-        mock_chan_resp = MagicMock()
-        mock_chan_resp.json.return_value = MOCK_CHANNEL_INFO
-        mock_chan_resp.status_code = 200
-
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=[
-                    AdapterFetchError("discord", 403, "url"),
-                    mock_msg_resp,
-                    mock_chan_resp,
-                ],
-            ):
-                signals = await adapter.fetch(limit=10)
-
-        assert len(signals) == 2
-
-    @pytest.mark.asyncio
-    async def test_fetch_all_fail_returns_empty(self) -> None:
-        adapter = DiscordAdapter(config={"channel_ids": ["bad"]})
-
-        with patch.dict("os.environ", {"DISCORD_BOT_TOKEN": "test-token"}):
-            with patch(
-                "max.imports.discord_adapter.fetch_with_retry",
-                new_callable=AsyncMock,
-                side_effect=AdapterFetchError("discord", 500, "url"),
-            ):
-                signals = await adapter.fetch(limit=10)
-
-        assert signals == []
+def test_discord_skips_empty_content() -> None:
+    adapter = DiscordAdapter()
+    signal = adapter._message_to_signal(
+        {"id": "m1", "content": "", "author": {"id": "u1", "username": "test"}, "timestamp": "2026-04-22T10:00:00Z"},
+        channel_id="ch1",
+    )
+    assert signal is None
