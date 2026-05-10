@@ -1,167 +1,203 @@
-"""Tests for stakeholder mapping export module."""
+"""Tests for stakeholder mapping export."""
 
-import pytest
+from __future__ import annotations
+
+import json
 
 from max.exports.stakeholder_map import (
+    KIND,
+    SCHEMA_VERSION,
     build_stakeholder_map,
-    render_stakeholder_map_markdown,
-    _classify_stakeholders,
-    _determine_quadrant,
-    _group_by_quadrant,
-    _recommend_engagement_strategies,
-    QUADRANT_HIGH_POWER_HIGH_INTEREST,
-    QUADRANT_HIGH_POWER_LOW_INTEREST,
-    QUADRANT_LOW_POWER_HIGH_INTEREST,
-    QUADRANT_LOW_POWER_LOW_INTEREST,
+    classify_quadrant,
+    render_stakeholder_json,
+    render_stakeholder_markdown,
 )
 
+# ── Test Data ────────────────────────────────────────────────────────
 
-@pytest.fixture
-def stakeholders():
-    return [
-        {
-            "name": "CEO",
-            "role": "Executive Sponsor",
-            "interest": 5,
-            "influence": 5,
-            "sentiment": "supportive",
-        },
-        {
-            "name": "CTO",
-            "role": "Technical Lead",
-            "interest": 5,
-            "influence": 4,
-            "sentiment": "supportive",
-        },
-        {
-            "name": "CFO",
-            "role": "Budget Approver",
-            "interest": 2,
-            "influence": 5,
-            "sentiment": "neutral",
-        },
-        {
-            "name": "Dev Team",
-            "role": "Implementers",
-            "interest": 5,
-            "influence": 2,
-            "sentiment": "supportive",
-        },
-        {
-            "name": "Legal",
-            "role": "Compliance",
-            "interest": 2,
-            "influence": 2,
-            "sentiment": "resistant",
-        },
-    ]
+SAMPLE_STAKEHOLDERS = [
+    {
+        "name": "Alice Chen",
+        "role": "VP Engineering",
+        "influence": 0.9,
+        "interest": 0.8,
+        "notes": "Key decision maker for technical direction",
+    },
+    {
+        "name": "Bob Martinez",
+        "role": "CFO",
+        "influence": 0.85,
+        "interest": 0.3,
+        "notes": "Concerned with budget only",
+    },
+    {
+        "name": "Carol Davis",
+        "role": "Developer",
+        "influence": 0.2,
+        "interest": 0.9,
+        "notes": "Enthusiastic early adopter",
+    },
+    {
+        "name": "Dan Wilson",
+        "role": "External Auditor",
+        "influence": 0.1,
+        "interest": 0.2,
+    },
+]
 
 
-class TestDetermineQuadrant:
-    def test_high_power_high_interest(self):
-        assert _determine_quadrant(5, 5) == QUADRANT_HIGH_POWER_HIGH_INTEREST
-        assert _determine_quadrant(4, 4) == QUADRANT_HIGH_POWER_HIGH_INTEREST
-
-    def test_high_power_low_interest(self):
-        assert _determine_quadrant(2, 5) == QUADRANT_HIGH_POWER_LOW_INTEREST
-        assert _determine_quadrant(3, 4) == QUADRANT_HIGH_POWER_LOW_INTEREST
-
-    def test_low_power_high_interest(self):
-        assert _determine_quadrant(5, 2) == QUADRANT_LOW_POWER_HIGH_INTEREST
-        assert _determine_quadrant(4, 3) == QUADRANT_LOW_POWER_HIGH_INTEREST
-
-    def test_low_power_low_interest(self):
-        assert _determine_quadrant(2, 2) == QUADRANT_LOW_POWER_LOW_INTEREST
-        assert _determine_quadrant(3, 3) == QUADRANT_LOW_POWER_LOW_INTEREST
+# ── classify_quadrant tests ─────────────────────────────────────────
 
 
-class TestClassifyStakeholders:
-    def test_assigns_quadrants(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        ceo = next(s for s in classified if s["name"] == "CEO")
-        assert ceo["quadrant"] == QUADRANT_HIGH_POWER_HIGH_INTEREST
-
-        cfo = next(s for s in classified if s["name"] == "CFO")
-        assert cfo["quadrant"] == QUADRANT_HIGH_POWER_LOW_INTEREST
-
-        dev = next(s for s in classified if s["name"] == "Dev Team")
-        assert dev["quadrant"] == QUADRANT_LOW_POWER_HIGH_INTEREST
-
-        legal = next(s for s in classified if s["name"] == "Legal")
-        assert legal["quadrant"] == QUADRANT_LOW_POWER_LOW_INTEREST
-
-    def test_empty_list(self):
-        assert _classify_stakeholders([]) == []
+def test_classify_manage_closely() -> None:
+    assert classify_quadrant(0.8, 0.7) == "manage_closely"
 
 
-class TestGroupByQuadrant:
-    def test_grouping(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        quadrants = _group_by_quadrant(classified)
-        assert len(quadrants[QUADRANT_HIGH_POWER_HIGH_INTEREST]) == 2  # CEO, CTO
-        assert len(quadrants[QUADRANT_HIGH_POWER_LOW_INTEREST]) == 1  # CFO
-        assert len(quadrants[QUADRANT_LOW_POWER_HIGH_INTEREST]) == 1  # Dev Team
-        assert len(quadrants[QUADRANT_LOW_POWER_LOW_INTEREST]) == 1  # Legal
+def test_classify_keep_satisfied() -> None:
+    assert classify_quadrant(0.8, 0.3) == "keep_satisfied"
 
 
-class TestRecommendEngagementStrategies:
-    def test_strategy_per_stakeholder(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        strategies = _recommend_engagement_strategies(classified)
-        assert len(strategies) == 5
-
-    def test_high_power_gets_active_engagement(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        strategies = _recommend_engagement_strategies(classified)
-        ceo_strategy = next(s for s in strategies if s["stakeholder"] == "CEO")
-        assert "Engage actively" in ceo_strategy["strategy"]
-        assert ceo_strategy["communication_frequency"] == "weekly"
-
-    def test_resistant_gets_concern_addressing(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        strategies = _recommend_engagement_strategies(classified)
-        legal_strategy = next(s for s in strategies if s["stakeholder"] == "Legal")
-        assert "address concerns" in legal_strategy["strategy"]
-
-    def test_supportive_gets_leverage(self, stakeholders):
-        classified = _classify_stakeholders(stakeholders)
-        strategies = _recommend_engagement_strategies(classified)
-        ceo_strategy = next(s for s in strategies if s["stakeholder"] == "CEO")
-        assert "leverage support" in ceo_strategy["strategy"]
+def test_classify_keep_informed() -> None:
+    assert classify_quadrant(0.3, 0.7) == "keep_informed"
 
 
-class TestBuildStakeholderMap:
-    def test_report_structure(self, stakeholders):
-        report = build_stakeholder_map(stakeholders)
-        assert report["schema_version"] == "max.stakeholder_map.v1"
-        assert report["kind"] == "max.stakeholder_map"
-        assert "stakeholders" in report
-        assert "quadrants" in report
-        assert "engagement_strategies" in report
-        assert "summary" in report
-
-    def test_summary_counts(self, stakeholders):
-        report = build_stakeholder_map(stakeholders)
-        summary = report["summary"]
-        assert summary["total_stakeholders"] == 5
-        assert summary["manage_closely"] == 2
-        assert summary["keep_satisfied"] == 1
-        assert summary["keep_informed"] == 1
-        assert summary["monitor"] == 1
+def test_classify_monitor() -> None:
+    assert classify_quadrant(0.2, 0.2) == "monitor"
 
 
-class TestRenderMarkdown:
-    def test_renders_without_error(self, stakeholders):
-        report = build_stakeholder_map(stakeholders)
-        md = render_stakeholder_map_markdown(report)
-        assert "# Stakeholder Map" in md
-        assert "## Summary" in md
-        assert "## Stakeholder Matrix" in md
-        assert "## Engagement Strategies" in md
+def test_classify_boundary_high() -> None:
+    assert classify_quadrant(0.5, 0.5) == "manage_closely"
 
-    def test_contains_stakeholder_data(self, stakeholders):
-        report = build_stakeholder_map(stakeholders)
-        md = render_stakeholder_map_markdown(report)
-        assert "CEO" in md
-        assert "CTO" in md
-        assert "weekly" in md
+
+def test_classify_boundary_low() -> None:
+    assert classify_quadrant(0.49, 0.49) == "monitor"
+
+
+# ── build_stakeholder_map tests ─────────────────────────────────────
+
+
+def test_build_schema() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    assert doc["schema_version"] == SCHEMA_VERSION
+    assert doc["kind"] == KIND
+    assert "generated_at" in doc
+
+
+def test_build_project_name() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS, project_name="TestProject")
+    assert doc["project_name"] == "TestProject"
+
+
+def test_build_stakeholder_count() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    assert len(doc["stakeholders"]) == 4
+
+
+def test_build_quadrant_assignment() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    stakeholders = {s["name"]: s for s in doc["stakeholders"]}
+    assert stakeholders["Alice Chen"]["quadrant"] == "manage_closely"
+    assert stakeholders["Bob Martinez"]["quadrant"] == "keep_satisfied"
+    assert stakeholders["Carol Davis"]["quadrant"] == "keep_informed"
+    assert stakeholders["Dan Wilson"]["quadrant"] == "monitor"
+
+
+def test_build_engagement_strategies_assigned() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    for s in doc["stakeholders"]:
+        assert s["engagement_strategy"] != ""
+
+
+def test_build_quadrant_groups() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    groups = doc["quadrant_groups"]
+    assert len(groups["manage_closely"]) == 1
+    assert len(groups["keep_satisfied"]) == 1
+    assert len(groups["keep_informed"]) == 1
+    assert len(groups["monitor"]) == 1
+
+
+def test_build_summary_counts() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    summary = doc["summary"]
+    assert summary["manage_closely"] == 1
+    assert summary["keep_satisfied"] == 1
+    assert summary["keep_informed"] == 1
+    assert summary["monitor"] == 1
+
+
+def test_build_clamps_scores() -> None:
+    stakeholders = [{"name": "X", "influence": 1.5, "interest": -0.3}]
+    doc = build_stakeholder_map(stakeholders)
+    s = doc["stakeholders"][0]
+    assert s["influence"] == 1.0
+    assert s["interest"] == 0.0
+
+
+def test_build_empty() -> None:
+    doc = build_stakeholder_map([])
+    assert doc["stakeholders"] == []
+    assert sum(doc["summary"].values()) == 0
+
+
+# ── Markdown rendering ──────────────────────────────────────────────
+
+
+def test_render_markdown_title() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS, project_name="TestApp")
+    md = render_stakeholder_markdown(doc)
+    assert "# Stakeholder Map — TestApp" in md
+
+
+def test_render_markdown_summary() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    md = render_stakeholder_markdown(doc)
+    assert "Total stakeholders: 4" in md
+
+
+def test_render_markdown_quadrant_sections() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    md = render_stakeholder_markdown(doc)
+    assert "## Manage Closely" in md
+    assert "## Keep Satisfied" in md
+    assert "## Keep Informed" in md
+    assert "## Monitor" in md
+
+
+def test_render_markdown_stakeholder_details() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    md = render_stakeholder_markdown(doc)
+    assert "Alice Chen" in md
+    assert "VP Engineering" in md
+    assert "Influence: 90%" in md
+    assert "Interest: 80%" in md
+
+
+def test_render_markdown_notes() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    md = render_stakeholder_markdown(doc)
+    assert "Key decision maker" in md
+
+
+def test_render_markdown_strategy() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    md = render_stakeholder_markdown(doc)
+    assert "Active engagement" in md
+
+
+# ── JSON rendering ──────────────────────────────────────────────────
+
+
+def test_render_json_valid() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS)
+    output = render_stakeholder_json(doc)
+    parsed = json.loads(output)
+    assert parsed["schema_version"] == SCHEMA_VERSION
+
+
+def test_render_json_roundtrip() -> None:
+    doc = build_stakeholder_map(SAMPLE_STAKEHOLDERS, project_name="App")
+    output = render_stakeholder_json(doc)
+    parsed = json.loads(output)
+    assert parsed["project_name"] == "App"
+    assert len(parsed["stakeholders"]) == 4
