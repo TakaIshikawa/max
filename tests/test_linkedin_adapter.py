@@ -64,7 +64,7 @@ def test_linkedin_adapter_properties() -> None:
     )
 
     assert adapter.name == "linkedin"
-    assert adapter.source_type == SignalSourceType.FORUM.value
+    assert adapter.source_type == SignalSourceType.MARKET.value
     assert adapter.keywords == ["rust developer"]
     assert adapter.access_token_env == "MY_LINKEDIN_TOKEN"
     assert adapter.organization_ids == ["org1", "org2"]
@@ -107,7 +107,7 @@ async def test_linkedin_fetches_org_posts() -> None:
 
     assert len(signals) == 2
     assert signals[0].source_adapter == "linkedin"
-    assert signals[0].source_type == SignalSourceType.FORUM
+    assert signals[0].source_type == SignalSourceType.MARKET
     assert "AI developer tools" in signals[0].title
     assert signals[0].metadata["type"] == "post"
 

@@ -43,7 +43,7 @@ class LinkedInAdapter(SourceAdapter):
 
     @property
     def source_type(self) -> str:
-        return SignalSourceType.FORUM.value
+        return SignalSourceType.MARKET.value
 
     @property
     def keywords(self) -> list[str]:
@@ -191,7 +191,7 @@ class LinkedInAdapter(SourceAdapter):
         timestamp = _parse_timestamp(post.get("createdAt"))
 
         return Signal(
-            source_type=SignalSourceType.FORUM,
+            source_type=SignalSourceType.MARKET,
             source_adapter=self.name,
             title=_title_from_text(text),
             content=text[:1000],
@@ -221,7 +221,7 @@ class LinkedInAdapter(SourceAdapter):
         skills = _extract_skills(job)
 
         return Signal(
-            source_type=SignalSourceType.FORUM,
+            source_type=SignalSourceType.MARKET,
             source_adapter=self.name,
             title=f"{title} at {company}" if company else title,
             content=description[:1000] if description else title,
