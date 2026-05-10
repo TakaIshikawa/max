@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 from dataclasses import asdict
 from datetime import datetime, timezone
+from io import StringIO
 from typing import Any
 
 from max.analysis.contradictions import build_idea_contradiction_report
@@ -38,6 +40,23 @@ from max.types.evaluation import UtilityEvaluation
 
 
 SPEC_BUNDLE_SCHEMA_VERSION = "max-spec-bundle/v1"
+
+SPEC_BUNDLE_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "generated_at",
+    "artifact_name",
+    "artifact_type",
+    "artifact_schema_version",
+    "artifact_kind",
+    "file_path",
+    "format",
+    "timestamp",
+    "dependencies",
+    "validation_status",
+    "validation_details",
+)
 
 
 def generate_spec_bundle(
@@ -494,6 +513,20 @@ def render_spec_bundle_yaml(bundle: dict[str, Any]) -> str:
     return yaml.safe_dump(bundle, sort_keys=False, allow_unicode=True)
 
 
+def render_bundle_csv(bundle: dict[str, Any]) -> str:
+    """Render spec bundle manifest as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=list(SPEC_BUNDLE_CSV_COLUMNS),
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in _bundle_csv_rows(bundle or {}):
+        writer.writerow(row)  # type: ignore[arg-type]
+    return output.getvalue()
+
+
 def _select_artifacts(
     artifact_payload: dict[str, Any],
     requested: list[str] | tuple[str, ...] | set[str] | None,
@@ -596,3 +629,213 @@ def _text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _bundle_csv_rows(bundle: dict[str, Any]) -> list[dict[str, str]]:
+    """Generate CSV rows for each artifact in the bundle."""
+    artifacts = bundle.get("artifacts")
+    if not isinstance(artifacts, dict):
+        return []
+
+    rows: list[dict[str, str]] = []
+    for artifact_name, artifact_data in sorted(artifacts.items()):
+        if not isinstance(artifact_data, dict):
+            continue
+        rows.append(_bundle_csv_row(bundle, artifact_name, artifact_data))
+    return rows
+
+
+def _bundle_csv_row(bundle: dict[str, Any], artifact_name: str, artifact_data: dict[str, Any]) -> dict[str, str]:
+    """Build a single CSV row for an artifact."""
+    # Extract validation status from artifact
+    validation_status = _extract_validation_status(artifact_data)
+    validation_details = _extract_validation_details(artifact_data)
+
+    # Extract dependencies from artifact
+    dependencies = _extract_dependencies(artifact_data)
+
+    # Determine file path and format
+    file_path = _generate_artifact_file_path(bundle.get("idea_id", ""), artifact_name)
+    format_type = _determine_artifact_format(artifact_name, artifact_data)
+
+    return {
+        "schema_version": _csv_cell(bundle.get("schema_version")),
+        "kind": _csv_cell(bundle.get("kind")),
+        "idea_id": _csv_cell(bundle.get("idea_id")),
+        "generated_at": _csv_cell(bundle.get("generated_at")),
+        "artifact_name": _csv_cell(artifact_name),
+        "artifact_type": _csv_cell(_artifact_type(artifact_name)),
+        "artifact_schema_version": _csv_cell(artifact_data.get("schema_version")),
+        "artifact_kind": _csv_cell(artifact_data.get("kind")),
+        "file_path": _csv_cell(file_path),
+        "format": _csv_cell(format_type),
+        "timestamp": _csv_cell(bundle.get("generated_at")),
+        "dependencies": _csv_cell(dependencies),
+        "validation_status": _csv_cell(validation_status),
+        "validation_details": _csv_cell(validation_details),
+    }
+
+
+def _extract_validation_status(artifact_data: dict[str, Any]) -> str:
+    """Extract validation status from artifact data."""
+    # Check for readiness status
+    if "status" in artifact_data:
+        return str(artifact_data["status"])
+
+    # Check for review gate decision
+    if "decision" in artifact_data:
+        return str(artifact_data["decision"])
+
+    # Check for passed field (readiness)
+    if "passed" in artifact_data:
+        return "passed" if artifact_data["passed"] else "failed"
+
+    # Default to valid if artifact exists
+    return "valid"
+
+
+def _extract_validation_details(artifact_data: dict[str, Any]) -> str:
+    """Extract validation details from artifact data."""
+    details: list[str] = []
+
+    # Check for failed checks
+    if "failed_check_ids" in artifact_data and artifact_data["failed_check_ids"]:
+        failed_checks = artifact_data["failed_check_ids"]
+        if isinstance(failed_checks, list) and failed_checks:
+            details.append(f"failed_checks: {', '.join(str(c) for c in failed_checks)}")
+
+    # Check for blocking reasons
+    if "blocking_reasons" in artifact_data and artifact_data["blocking_reasons"]:
+        blocking = artifact_data["blocking_reasons"]
+        if isinstance(blocking, list) and blocking:
+            details.append(f"blocking: {', '.join(str(r) for r in blocking)}")
+
+    # Check for warnings
+    if "warnings" in artifact_data and artifact_data["warnings"]:
+        warnings = artifact_data["warnings"]
+        if isinstance(warnings, list) and warnings:
+            details.append(f"warnings: {len(warnings)}")
+
+    # Check for gaps
+    if "gaps" in artifact_data and artifact_data["gaps"]:
+        gaps = artifact_data["gaps"]
+        if isinstance(gaps, list) and gaps:
+            details.append(f"gaps: {len(gaps)}")
+
+    return " | ".join(details) if details else ""
+
+
+def _extract_dependencies(artifact_data: dict[str, Any]) -> list[str]:
+    """Extract dependencies from artifact data."""
+    dependencies: list[str] = []
+
+    # Check for source field indicating evaluation dependency
+    if "source" in artifact_data:
+        source = artifact_data["source"]
+        if isinstance(source, dict):
+            if source.get("evaluation_available") is False:
+                dependencies.append("evaluation")
+
+    # Check for dependency_inventory specific dependencies
+    if "dependencies" in artifact_data:
+        deps = artifact_data["dependencies"]
+        if isinstance(deps, list):
+            for dep in deps:
+                if isinstance(dep, dict) and "name" in dep:
+                    dependencies.append(str(dep["name"]))
+
+    # Check for insight/signal dependencies
+    if "insight_ids" in artifact_data and artifact_data["insight_ids"]:
+        dependencies.append("insights")
+    if "signal_ids" in artifact_data and artifact_data["signal_ids"]:
+        dependencies.append("signals")
+
+    return dependencies
+
+
+def _generate_artifact_file_path(idea_id: str, artifact_name: str) -> str:
+    """Generate suggested file path for artifact export."""
+    if not idea_id:
+        idea_id = "unknown"
+
+    # Create a file-safe name
+    safe_name = artifact_name.replace("_", "-")
+    return f"artifacts/{idea_id}/{safe_name}.json"
+
+
+def _determine_artifact_format(artifact_name: str, artifact_data: dict[str, Any]) -> str:
+    """Determine the format type of an artifact."""
+    # Most artifacts are JSON
+    if artifact_data.get("schema_version"):
+        return "json"
+
+    # Summary artifacts might be different
+    if artifact_name in {"evidence_density", "evidence_chain_summary"}:
+        return "json"
+
+    return "json"
+
+
+def _artifact_type(artifact_name: str) -> str:
+    """Map artifact name to its type category."""
+    type_mapping = {
+        "spec_preview": "specification",
+        "readiness": "assessment",
+        "implementation_plan": "plan",
+        "launch_checklist": "checklist",
+        "rollback_plan": "plan",
+        "disaster_recovery_plan": "plan",
+        "acceptance_criteria": "criteria",
+        "experiment_card": "experiment",
+        "data_classification": "compliance",
+        "data_retention_schedule": "compliance",
+        "privacy_impact_assessment": "compliance",
+        "dependency_inventory": "inventory",
+        "risk_register": "risk",
+        "threat_model": "security",
+        "slo_plan": "operations",
+        "post_launch_monitoring_plan": "operations",
+        "review_gate": "assessment",
+        "evidence_density": "evidence",
+        "evidence_chain_summary": "evidence",
+    }
+    return type_mapping.get(artifact_name, "other")
+
+
+def _csv_cell(value: Any) -> str:
+    """Format a value for CSV cell output."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_cell(key)}={_csv_cell(item)}"
+            for key, item in sorted(value.items())
+            if _csv_cell(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        return " | ".join(_csv_cell(item) for item in _as_list(value) if _csv_cell(item))
+    return _compact_text(value)
+
+
+def _as_list(value: Any) -> list[Any]:
+    """Convert value to list."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, set):
+        return sorted(value)
+    return [value]
+
+
+def _compact_text(value: Any) -> str:
+    """Compact text by removing extra whitespace."""
+    if value is None:
+        return ""
+    return " ".join(str(value).split())

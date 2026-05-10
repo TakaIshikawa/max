@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from typing import Any
 
 from max.types.buildable_unit import BuildableUnit
@@ -9,6 +11,28 @@ from max.types.evaluation import UtilityEvaluation
 
 
 EXPERIMENT_CARD_SCHEMA_VERSION = "max-experiment-card/v1"
+
+EXPERIMENT_CARD_CSV_COLUMNS = (
+    "schema_version",
+    "kind",
+    "idea_id",
+    "title",
+    "primary_hypothesis",
+    "target_persona",
+    "target_buyer",
+    "workflow_context",
+    "sample_size",
+    "duration_days",
+    "test_type",
+    "test_description",
+    "riskiest_assumptions",
+    "success_metrics",
+    "failure_signals",
+    "recruitment_channels",
+    "success_criteria",
+    "rollback_triggers",
+    "learnings_capture",
+)
 
 DIMENSION_NAMES = (
     "pain_severity",
@@ -70,6 +94,81 @@ def generate_experiment_card(
         "instrumentation_notes": _instrumentation_notes(unit),
         "decision_rules": _decision_rules(evaluation),
     }
+
+
+def render_experiment_card_csv(card: dict[str, Any]) -> str:
+    """Render experiment card as deterministic, spreadsheet-friendly CSV."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=list(EXPERIMENT_CARD_CSV_COLUMNS),
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    writer.writerow(_experiment_card_csv_row(card or {}))  # type: ignore[arg-type]
+    return output.getvalue()
+
+
+def _experiment_card_csv_row(card: dict[str, Any]) -> dict[str, str]:
+    """Build CSV row for experiment card."""
+    idea_summary = card.get("idea_summary", {})
+    target_participant = card.get("target_participant", {})
+    minimum_viable_test = card.get("minimum_viable_test", {})
+    success_metrics = card.get("success_metrics", [])
+    failure_signals = card.get("failure_signals", [])
+    riskiest_assumptions = card.get("riskiest_assumptions", [])
+    recruitment_channels = card.get("recruitment_channel_suggestions", [])
+    decision_rules = card.get("decision_rules", {})
+
+    return {
+        "schema_version": _csv_cell(card.get("schema_version")),
+        "kind": _csv_cell(card.get("kind")),
+        "idea_id": _csv_cell(card.get("idea_id")),
+        "title": _csv_cell(idea_summary.get("title")),
+        "primary_hypothesis": _csv_cell(card.get("primary_hypothesis")),
+        "target_persona": _csv_cell(target_participant.get("persona")),
+        "target_buyer": _csv_cell(target_participant.get("buyer")),
+        "workflow_context": _csv_cell(target_participant.get("workflow_context")),
+        "sample_size": _csv_cell(target_participant.get("sample_size")),
+        "duration_days": _csv_cell(minimum_viable_test.get("duration_days")),
+        "test_type": _csv_cell(minimum_viable_test.get("type")),
+        "test_description": _csv_cell(minimum_viable_test.get("description")),
+        "riskiest_assumptions": _csv_cell(
+            [f"{a.get('id')}: {a.get('assumption')}" for a in riskiest_assumptions if isinstance(a, dict)]
+        ),
+        "success_metrics": _csv_cell(
+            [f"{m.get('metric')}: {m.get('target')}" for m in success_metrics if isinstance(m, dict)]
+        ),
+        "failure_signals": _csv_cell(
+            [f"{s.get('signal')}: {s.get('threshold')}" for s in failure_signals if isinstance(s, dict)]
+        ),
+        "recruitment_channels": _csv_cell(
+            [c.get("channel") for c in recruitment_channels if isinstance(c, dict)]
+        ),
+        "success_criteria": _csv_cell(decision_rules.get("proceed")),
+        "rollback_triggers": _csv_cell(decision_rules.get("stop")),
+        "learnings_capture": _csv_cell(card.get("instrumentation_notes")),
+    }
+
+
+def _csv_cell(value: Any) -> str:
+    """Format a value for CSV cell output."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        return "; ".join(
+            f"{_csv_cell(key)}={_csv_cell(item)}"
+            for key, item in sorted(value.items())
+            if _csv_cell(item)
+        )
+    if isinstance(value, (list, tuple, set)):
+        items = value if isinstance(value, list) else list(value)
+        return " | ".join(_csv_cell(item) for item in items if _csv_cell(item))
+    return _compact(value)
 
 
 def _riskiest_assumptions(
