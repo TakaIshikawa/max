@@ -40,6 +40,18 @@ ARCHITECTURE_DECISION_RECORD_CSV_COLUMNS = (
     "score",
 )
 
+ADR_CSV_COLUMNS = (
+    "number",
+    "title",
+    "status",
+    "date",
+    "context",
+    "decision_rationale",
+    "consequences",
+    "alternatives_considered",
+    "stakeholders",
+)
+
 
 def generate_architecture_decision_record(
     unit: BuildableUnit,
@@ -218,6 +230,65 @@ def render_architecture_decision_record_csv(record: dict[str, Any]) -> str:
     for row in _adr_csv_rows(record or {}):
         writer.writerow(row)
     return output.getvalue()
+
+
+def render_adr_csv(record: dict[str, Any]) -> str:
+    """Render ADR as a single-row CSV with traditional ADR columns."""
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=ADR_CSV_COLUMNS,
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    row = _adr_simple_csv_row(record or {})
+    writer.writerow(row)
+    return output.getvalue()
+
+
+def _adr_simple_csv_row(record: dict[str, Any]) -> dict[str, str]:
+    """Convert ADR record to a single-row CSV dictionary."""
+    context = _dict(record.get("context"))
+    decision = _dict(record.get("decision"))
+    consequences = _dict(record.get("consequences"))
+
+    # Extract alternatives text
+    alternatives = record.get("considered_alternatives") or []
+    alternatives_text = "; ".join(
+        f"{_compact(alt.get('name'))}: {_compact(alt.get('outcome'))}"
+        for alt in alternatives
+        if isinstance(alt, dict) and _compact(alt.get("name"))
+    )
+
+    # Extract stakeholders from various sources
+    stakeholders_parts = []
+    if _compact(context.get("target_user")):
+        stakeholders_parts.append(f"Target: {context.get('target_user')}")
+    if _compact(context.get("buyer")):
+        stakeholders_parts.append(f"Buyer: {context.get('buyer')}")
+    stakeholders_text = "; ".join(stakeholders_parts) if stakeholders_parts else ""
+
+    # Combine consequences
+    positive = consequences.get("positive") or []
+    negative = consequences.get("negative") or []
+    consequences_parts = []
+    if positive:
+        consequences_parts.append("Positive: " + " | ".join(_compact(c) for c in positive if _compact(c)))
+    if negative:
+        consequences_parts.append("Negative: " + " | ".join(_compact(c) for c in negative if _compact(c)))
+    consequences_text = "; ".join(consequences_parts)
+
+    return {
+        "number": _compact(record.get("idea_id")),
+        "title": _compact(context.get("title")),
+        "status": _compact(record.get("status")),
+        "date": "",  # No date field in current ADR schema
+        "context": _compact(context.get("problem")),
+        "decision_rationale": _compact(decision.get("summary")),
+        "consequences": consequences_text,
+        "alternatives_considered": alternatives_text,
+        "stakeholders": stakeholders_text,
+    }
 
 
 def _adr_csv_rows(record: dict[str, Any]) -> list[dict[str, Any]]:
