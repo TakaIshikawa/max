@@ -16,20 +16,26 @@ EXPERIMENT_CARD_CSV_COLUMNS = (
     "schema_version",
     "kind",
     "idea_id",
+    "title",
     "idea_title",
     "primary_hypothesis",
     "target_persona",
+    "target_buyer",
+    "workflow_context",
     "sample_size",
+    "duration_days",
     "test_type",
     "test_description",
-    "duration_days",
+    "riskiest_assumptions",
     "success_metrics",
     "failure_signals",
+    "recruitment_channels",
+    "success_criteria",
+    "rollback_triggers",
+    "learnings_capture",
     "decision_proceed",
     "decision_iterate",
     "decision_stop",
-    "riskiest_assumptions",
-    "recruitment_channels",
     "seven_day_plan",
 )
 
@@ -118,12 +124,14 @@ def _experiment_card_csv_row(card: dict[str, Any]) -> dict[str, str]:
     riskiest_assumptions = card.get("riskiest_assumptions", [])
     recruitment_channels = card.get("recruitment_channel_suggestions", [])
     decision_rules = card.get("decision_rules", {})
+    seven_day_plan = card.get("seven_day_execution_plan", [])
 
     return {
         "schema_version": _csv_cell(card.get("schema_version")),
         "kind": _csv_cell(card.get("kind")),
         "idea_id": _csv_cell(card.get("idea_id")),
         "title": _csv_cell(idea_summary.get("title")),
+        "idea_title": _csv_cell(idea_summary.get("title")),
         "primary_hypothesis": _csv_cell(card.get("primary_hypothesis")),
         "target_persona": _csv_cell(target_participant.get("persona")),
         "target_buyer": _csv_cell(target_participant.get("buyer")),
@@ -147,6 +155,16 @@ def _experiment_card_csv_row(card: dict[str, Any]) -> dict[str, str]:
         "success_criteria": _csv_cell(decision_rules.get("proceed")),
         "rollback_triggers": _csv_cell(decision_rules.get("stop")),
         "learnings_capture": _csv_cell(card.get("instrumentation_notes")),
+        "decision_proceed": _csv_cell(decision_rules.get("proceed")),
+        "decision_iterate": _csv_cell(decision_rules.get("iterate")),
+        "decision_stop": _csv_cell(decision_rules.get("stop")),
+        "seven_day_plan": _csv_cell(
+            [
+                f"{day.get('day')}: {day.get('focus')} - {day.get('actions')}"
+                for day in seven_day_plan
+                if isinstance(day, dict)
+            ]
+        ),
     }
 
 
@@ -618,9 +636,12 @@ def _csv_row(card: dict[str, Any]) -> dict[str, str]:
         "schema_version": _csv_cell(card.get("schema_version")),
         "kind": _csv_cell(card.get("kind")),
         "idea_id": _csv_cell(card.get("idea_id")),
+        "title": _csv_cell(idea_summary.get("title")),
         "idea_title": _csv_cell(idea_summary.get("title")),
         "primary_hypothesis": _csv_cell(card.get("primary_hypothesis")),
         "target_persona": _csv_cell(target_participant.get("persona")),
+        "target_buyer": _csv_cell(target_participant.get("buyer")),
+        "workflow_context": _csv_cell(target_participant.get("workflow_context")),
         "sample_size": _csv_cell(target_participant.get("sample_size")),
         "test_type": _csv_cell(mvt.get("type")),
         "test_description": _csv_cell(mvt.get("description")),
@@ -643,11 +664,18 @@ def _csv_row(card: dict[str, Any]) -> dict[str, str]:
         "decision_iterate": _csv_cell(decision_rules.get("iterate")),
         "decision_stop": _csv_cell(decision_rules.get("stop")),
         "riskiest_assumptions": _csv_cell(
-            [a.get("assumption") for a in assumptions if isinstance(a, dict)]
+            [
+                f"{a.get('id')}: {a.get('assumption')}"
+                for a in assumptions
+                if isinstance(a, dict)
+            ]
         ),
         "recruitment_channels": _csv_cell(
             [c.get("channel") for c in channels if isinstance(c, dict)]
         ),
+        "success_criteria": _csv_cell(decision_rules.get("proceed")),
+        "rollback_triggers": _csv_cell(decision_rules.get("stop")),
+        "learnings_capture": _csv_cell(card.get("instrumentation_notes")),
         "seven_day_plan": _csv_cell(
             [f"{d.get('day')}: {d.get('focus')}" for d in plan if isinstance(d, dict)]
         ),
