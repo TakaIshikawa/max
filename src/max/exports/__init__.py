@@ -11,6 +11,11 @@ from max.exports.api_quota_utilization import (
     render_api_quota_utilization_json,
     render_api_quota_utilization_markdown,
 )
+from max.exports.buyer_committee_alignment import (
+    build_buyer_committee_alignment_export,
+    render_buyer_committee_alignment_json,
+    render_buyer_committee_alignment_markdown,
+)
 from max.exports.data_residency_matrix import (
     build_data_residency_matrix_export,
     render_data_residency_matrix_csv,
@@ -62,6 +67,7 @@ from max.exports.sla_breach_risk import (
 __all__ = [
     "build_retention_cohort_export",
     "build_api_quota_utilization_export",
+    "build_buyer_committee_alignment_export",
     "build_data_residency_matrix_export",
     "build_incident_impact_assessment_export",
     "build_integration_dependency_health_export",
@@ -73,6 +79,8 @@ __all__ = [
     "render_api_quota_utilization_csv",
     "render_api_quota_utilization_json",
     "render_api_quota_utilization_markdown",
+    "render_buyer_committee_alignment_json",
+    "render_buyer_committee_alignment_markdown",
     "render_data_residency_matrix_csv",
     "render_data_residency_matrix_json",
     "render_data_residency_matrix_markdown",
