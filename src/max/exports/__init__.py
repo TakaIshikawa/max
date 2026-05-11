@@ -73,6 +73,12 @@ from max.exports.competitive_landscape import (
     render_competitive_landscape_json,
     render_competitive_landscape_markdown,
 )
+from max.exports.competitive_win_loss import (
+    build_competitive_win_loss_export,
+    render_competitive_win_loss_csv,
+    render_competitive_win_loss_json,
+    render_competitive_win_loss_markdown,
+)
 from max.exports.product_usage_segmentation import (
     build_product_usage_segmentation_export,
     render_product_usage_segmentation_csv,
@@ -124,6 +130,7 @@ __all__ = [
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
     "build_competitive_landscape",
+    "build_competitive_win_loss_export",
     "build_product_usage_segmentation_export",
     "build_release_readiness_scorecard_export",
     "build_roadmap_prioritization_export",
@@ -153,6 +160,9 @@ __all__ = [
     "render_partner_ecosystem_map_markdown",
     "render_competitive_landscape_json",
     "render_competitive_landscape_markdown",
+    "render_competitive_win_loss_csv",
+    "render_competitive_win_loss_json",
+    "render_competitive_win_loss_markdown",
     "render_compliance_evidence_packet_csv",
     "render_compliance_evidence_packet_json",
     "render_compliance_evidence_packet_markdown",
