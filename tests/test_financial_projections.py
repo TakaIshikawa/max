@@ -1,338 +1,240 @@
-"""Tests for financial projections export module."""
+"""Tests for buildable-unit financial projections export."""
 
 from __future__ import annotations
 
+import csv
+import io
 import json
+from unittest.mock import MagicMock
 
 import pytest
 
 from max.exports.financial_projections import (
+    KIND,
+    SCHEMA_VERSION,
+    _calculate_roi,
+    _estimate_costs,
     build_financial_projections,
+    render_financial_projections_csv,
     render_financial_projections_json,
     render_financial_projections_markdown,
 )
 
 
-# ── Fixtures ─────────────────────────────────────────────────────────
+def _make_unit(
+    *,
+    unit_id: str = "bu-001",
+    title: str = "Usage-based Billing Copilot",
+    domain: str = "finops",
+    category: str = "application",
+    quality_score: float = 0.7,
+    usefulness_score: float = 0.6,
+    evidence_signals: list[str] | None = None,
+    metadata: dict | None = None,
+) -> MagicMock:
+    unit = MagicMock()
+    unit.id = unit_id
+    unit.title = title
+    unit.domain = domain
+    unit.category = category
+    unit.quality_score = quality_score
+    unit.usefulness_score = usefulness_score
+    unit.evidence_signals = evidence_signals or ["sig-1", "sig-2"]
+    unit.metadata = metadata or {}
+    return unit
 
 
-@pytest.fixture
-def basic_report() -> dict:
-    return build_financial_projections(
-        starting_customers=100,
-        monthly_growth_rate=0.10,
-        monthly_churn_rate=0.05,
-        arpu=50.0,
-        cac=200.0,
-        gross_margin=0.80,
-        fixed_costs=10_000.0,
-        months=12,
+def _mock_store(units: list | None = None) -> MagicMock:
+    store = MagicMock()
+    store.get_buildable_units.return_value = units or []
+    return store
+
+
+def test_build_schema() -> None:
+    store = _mock_store([_make_unit()])
+
+    report = build_financial_projections(store, domain="finops")
+
+    assert report["schema_version"] == SCHEMA_VERSION
+    assert report["kind"] == KIND
+    assert "generated_at" in report
+    assert report["source"]["entity_type"] == "financial_projections"
+    assert report["source"]["domain_filter"] == "finops"
+    assert report["projection_count"] == 1
+    assert len(report["projections"]) == 1
+    store.get_buildable_units.assert_called_once_with(limit=1000, domain="finops")
+
+
+def test_projection_fields() -> None:
+    unit = _make_unit(
+        metadata={
+            "development_cost": 80_000,
+            "infrastructure_cost": 2_000,
+            "maintenance_cost": 3_000,
+            "projected_monthly_revenue": 22_000,
+            "confidence": "high",
+        }
+    )
+    report = build_financial_projections(_mock_store([unit]))
+
+    projection = report["projections"][0]
+    assert projection == {
+        "idea_id": "bu-001",
+        "title": "Usage-based Billing Copilot",
+        "estimated_dev_cost": 80_000.0,
+        "estimated_monthly_cost": 5_000.0,
+        "projected_monthly_revenue": 22_000.0,
+        "payback_months": pytest.approx(4.71),
+        "roi_12_month": pytest.approx(0.8857),
+        "confidence": "high",
+    }
+
+
+def test_estimate_costs_defaults() -> None:
+    costs = _estimate_costs(_make_unit(metadata={}))
+
+    assert costs == {
+        "development_cost": 50_000.0,
+        "infrastructure_cost": 1_000.0,
+        "maintenance_cost": 2_500.0,
+        "monthly_cost": 3_500.0,
+    }
+
+
+def test_estimate_costs_nested_financials() -> None:
+    costs = _estimate_costs(
+        _make_unit(
+            metadata={
+                "financials": {
+                    "dev_cost": "120000",
+                    "infra_cost": "4500",
+                    "support_cost": "5500",
+                }
+            }
+        )
     )
 
-
-# ── Schema / metadata ───────────────────────────────────────────────
-
-
-def test_schema_metadata(basic_report: dict) -> None:
-    assert basic_report["schema_version"] == "max.financial_projections.v1"
-    assert basic_report["kind"] == "max.financial_projections"
-    assert "generated_at" in basic_report
-    assert basic_report["source"]["entity_type"] == "financial_projections"
+    assert costs["development_cost"] == 120_000.0
+    assert costs["monthly_cost"] == 10_000.0
 
 
-def test_assumptions_stored(basic_report: dict) -> None:
-    a = basic_report["assumptions"]
-    assert a["starting_customers"] == 100
-    assert a["monthly_growth_rate"] == 0.10
-    assert a["monthly_churn_rate"] == 0.05
-    assert a["arpu"] == 50.0
-    assert a["cac"] == 200.0
-    assert a["months"] == 12
+def test_calculate_roi() -> None:
+    roi = _calculate_roi(
+        {"development_cost": 80_000.0, "monthly_cost": 5_000.0},
+        revenue=25_000.0,
+    )
+
+    assert roi["payback_months"] == pytest.approx(4.0)
+    assert roi["net_profit"] == pytest.approx(160_000.0)
+    assert roi["roi_12_month"] == pytest.approx(1.1429)
 
 
-# ── MRR / ARR calculations ──────────────────────────────────────────
+def test_calculate_roi_no_payback() -> None:
+    roi = _calculate_roi(
+        {"development_cost": 80_000.0, "monthly_cost": 10_000.0},
+        revenue=5_000.0,
+    )
+
+    assert roi["payback_months"] is None
+    assert roi["roi_12_month"] < 0
 
 
-def test_mrr_equals_customers_times_arpu(basic_report: dict) -> None:
-    for m in basic_report["monthly_projections"]:
-        expected_mrr = m["customers"] * 50.0
-        assert m["mrr"] == pytest.approx(expected_mrr, abs=0.01)
-
-
-def test_arr_equals_mrr_times_twelve(basic_report: dict) -> None:
-    for m in basic_report["monthly_projections"]:
-        assert m["arr"] == pytest.approx(m["mrr"] * 12, abs=0.01)
-
-
-def test_mrr_grows_over_time(basic_report: dict) -> None:
-    projections = basic_report["monthly_projections"]
-    # With net positive growth (10% growth - 5% churn), MRR should increase
-    assert projections[-1]["mrr"] > projections[0]["mrr"]
-
-
-# ── Churn-adjusted growth ───────────────────────────────────────────
-
-
-def test_churn_reduces_customers() -> None:
+def test_render_markdown() -> None:
     report = build_financial_projections(
-        starting_customers=100,
-        monthly_growth_rate=0.0,
-        monthly_churn_rate=0.10,
-        arpu=50.0,
-        months=6,
-    )
-    projections = report["monthly_projections"]
-    # With no growth and 10% churn, customers decline
-    assert projections[-1]["customers"] < 100
-
-
-def test_zero_churn_only_growth() -> None:
-    report = build_financial_projections(
-        starting_customers=100,
-        monthly_growth_rate=0.10,
-        monthly_churn_rate=0.0,
-        arpu=50.0,
-        months=6,
-    )
-    projections = report["monthly_projections"]
-    # No churn => churned_customers always 0
-    for m in projections:
-        assert m["churned_customers"] == 0
-    assert projections[-1]["customers"] > 100
-
-
-def test_new_and_churned_customers_counted(basic_report: dict) -> None:
-    for m in basic_report["monthly_projections"]:
-        assert m["new_customers"] >= 0
-        assert m["churned_customers"] >= 0
-
-
-# ── Unit economics ──────────────────────────────────────────────────
-
-
-def test_ltv_calculation(basic_report: dict) -> None:
-    ue = basic_report["unit_economics"]
-    # LTV = gross_profit_per_user * avg_lifetime
-    # gross_profit_per_user = 50 * 0.80 = 40
-    # avg_lifetime = 1 / 0.05 = 20 months
-    # LTV = 40 * 20 = 800
-    assert ue["ltv"] == pytest.approx(800.0, abs=0.01)
-
-
-def test_ltv_cac_ratio(basic_report: dict) -> None:
-    ue = basic_report["unit_economics"]
-    # LTV = 800, CAC = 200 => ratio = 4.0
-    assert ue["ltv_cac_ratio"] == pytest.approx(4.0, abs=0.01)
-
-
-def test_payback_period(basic_report: dict) -> None:
-    ue = basic_report["unit_economics"]
-    # payback = CAC / gross_profit_per_user = 200 / 40 = 5 months
-    assert ue["payback_months"] == pytest.approx(5.0, abs=0.01)
-
-
-def test_gross_profit_per_user(basic_report: dict) -> None:
-    ue = basic_report["unit_economics"]
-    assert ue["gross_profit_per_user"] == pytest.approx(40.0, abs=0.01)
-
-
-def test_unit_economics_zero_churn() -> None:
-    report = build_financial_projections(
-        starting_customers=100,
-        monthly_churn_rate=0.0,
-        arpu=50.0,
-        cac=200.0,
-        gross_margin=0.80,
-        months=6,
-    )
-    ue = report["unit_economics"]
-    # Infinite lifetime => LTV and LTV/CAC should be None (infinity)
-    assert ue["avg_lifetime_months"] is None
-    assert ue["ltv"] is None
-    assert ue["ltv_cac_ratio"] is None
-
-
-def test_unit_economics_zero_cac() -> None:
-    report = build_financial_projections(
-        starting_customers=100,
-        monthly_churn_rate=0.05,
-        arpu=50.0,
-        cac=0.0,
-        gross_margin=0.80,
-        months=6,
-    )
-    ue = report["unit_economics"]
-    assert ue["ltv_cac_ratio"] is None  # inf
-    assert ue["payback_months"] == pytest.approx(0.0, abs=0.01)
-
-
-# ── P&L ─────────────────────────────────────────────────────────────
-
-
-def test_pnl_total_revenue(basic_report: dict) -> None:
-    pnl = basic_report["pnl_summary"]
-    expected = sum(m["revenue"] for m in basic_report["monthly_projections"])
-    assert pnl["total_revenue"] == pytest.approx(expected, abs=1.0)
-
-
-def test_pnl_gross_profit(basic_report: dict) -> None:
-    pnl = basic_report["pnl_summary"]
-    assert pnl["total_gross_profit"] == pytest.approx(
-        pnl["total_revenue"] - pnl["total_cogs"], abs=1.0
+        _mock_store([
+            _make_unit(
+                metadata={
+                    "development_cost": 80_000,
+                    "monthly_revenue": 25_000,
+                }
+            )
+        ])
     )
 
+    markdown = render_financial_projections_markdown(report)
 
-def test_pnl_net_profit(basic_report: dict) -> None:
-    pnl = basic_report["pnl_summary"]
-    expected = (
-        pnl["total_gross_profit"]
-        - pnl["total_fixed_costs"]
-        - pnl["total_acquisition_costs"]
-    )
-    assert pnl["net_profit"] == pytest.approx(expected, abs=1.0)
-
-
-def test_pnl_fixed_costs_match_months(basic_report: dict) -> None:
-    pnl = basic_report["pnl_summary"]
-    assert pnl["total_fixed_costs"] == pytest.approx(10_000.0 * 12, abs=0.01)
+    assert "# Financial Projections" in markdown
+    assert "## Summary" in markdown
+    assert "## Per-Idea Details" in markdown
+    assert "## Portfolio Totals" in markdown
+    assert "| Metric | Value |" in markdown
+    assert "Usage-based Billing Copilot" in markdown
+    assert markdown.endswith("\n")
 
 
-# ── Breakeven analysis ──────────────────────────────────────────────
+def test_render_json() -> None:
+    report = build_financial_projections(_mock_store([_make_unit()]))
+
+    rendered = render_financial_projections_json(report)
+    parsed = json.loads(rendered)
+
+    assert parsed["schema_version"] == SCHEMA_VERSION
+    assert parsed["projection_count"] == 1
+    assert parsed["projections"][0]["idea_id"] == "bu-001"
 
 
-def test_breakeven_reached() -> None:
-    report = build_financial_projections(
-        starting_customers=500,
-        monthly_growth_rate=0.10,
-        monthly_churn_rate=0.02,
-        arpu=100.0,
-        cac=50.0,
-        fixed_costs=5_000.0,
-        months=24,
-    )
-    be = report["breakeven"]
-    assert be["breakeven_month"] is not None
-    assert be["breakeven_month"] >= 1
-    assert be["breakeven_customers"] is not None
+def test_render_csv() -> None:
+    report = build_financial_projections(_mock_store([_make_unit()]))
+
+    rendered = render_financial_projections_csv(report)
+    rows = list(csv.DictReader(io.StringIO(rendered)))
+
+    assert rendered.splitlines()[0].split(",") == [
+        "idea_id",
+        "title",
+        "estimated_dev_cost",
+        "estimated_monthly_cost",
+        "projected_monthly_revenue",
+        "payback_months",
+        "roi_12_month",
+        "confidence",
+    ]
+    assert rows[0]["idea_id"] == "bu-001"
 
 
-def test_breakeven_not_reached() -> None:
-    report = build_financial_projections(
-        starting_customers=10,
-        monthly_growth_rate=0.01,
-        monthly_churn_rate=0.05,
-        arpu=10.0,
-        cac=500.0,
-        fixed_costs=50_000.0,
-        months=12,
-    )
-    be = report["breakeven"]
-    assert be["breakeven_month"] is None
-    assert be["cumulative_cash_flow"] < 0
+def test_empty_store_produces_valid_output() -> None:
+    report = build_financial_projections(_mock_store())
+
+    assert report["projection_count"] == 0
+    assert report["projections"] == []
+    assert report["portfolio_summary"]["total_dev_cost"] == 0
+    assert report["portfolio_summary"]["average_roi_12_month"] == 0.0
+    assert render_financial_projections_csv(report).startswith("idea_id,title")
 
 
-def test_breakeven_cumulative_cash_flow(basic_report: dict) -> None:
-    be = basic_report["breakeven"]
-    expected = sum(m["net_cash_flow"] for m in basic_report["monthly_projections"])
-    assert be["cumulative_cash_flow"] == pytest.approx(expected, abs=1.0)
+def test_multiple_units_aggregation() -> None:
+    units = [
+        _make_unit(
+            unit_id="bu-1",
+            domain="finops",
+            metadata={
+                "development_cost": 50_000,
+                "infrastructure_cost": 1_000,
+                "maintenance_cost": 2_000,
+                "monthly_revenue": 15_000,
+            },
+        ),
+        _make_unit(
+            unit_id="bu-2",
+            title="Security Evidence Pack",
+            domain="security",
+            metadata={
+                "development_cost": 100_000,
+                "infrastructure_cost": 2_000,
+                "maintenance_cost": 3_000,
+                "monthly_revenue": 30_000,
+            },
+        ),
+    ]
 
+    report = build_financial_projections(_mock_store(units))
 
-# ── Configurable time horizons ───────────────────────────────────────
-
-
-def test_custom_months() -> None:
-    report = build_financial_projections(
-        starting_customers=100,
-        months=6,
-    )
-    assert len(report["monthly_projections"]) == 6
-
-
-def test_single_month() -> None:
-    report = build_financial_projections(
-        starting_customers=100,
-        months=1,
-    )
-    assert len(report["monthly_projections"]) == 1
-
-
-# ── Rendering ────────────────────────────────────────────────────────
-
-
-def test_render_markdown_contains_sections(basic_report: dict) -> None:
-    md = render_financial_projections_markdown(basic_report)
-    assert "# Financial Projections" in md
-    assert "## Assumptions" in md
-    assert "## Unit Economics" in md
-    assert "## Monthly Projections" in md
-    assert "## P&L Summary" in md
-    assert "## Breakeven Analysis" in md
-
-
-def test_render_markdown_ends_with_newline(basic_report: dict) -> None:
-    md = render_financial_projections_markdown(basic_report)
-    assert md.endswith("\n")
-    assert not md.endswith("\n\n")
-
-
-def test_render_json_valid(basic_report: dict) -> None:
-    raw = render_financial_projections_json(basic_report)
-    parsed = json.loads(raw)
-    assert parsed["schema_version"] == "max.financial_projections.v1"
-    assert "monthly_projections" in parsed
-
-
-# ── Validation / edge cases ──────────────────────────────────────────
-
-
-def test_negative_starting_customers_rejected() -> None:
-    with pytest.raises(ValueError, match="starting_customers"):
-        build_financial_projections(starting_customers=-1)
-
-
-def test_invalid_churn_rate_rejected() -> None:
-    with pytest.raises(ValueError, match="monthly_churn_rate"):
-        build_financial_projections(starting_customers=100, monthly_churn_rate=1.5)
-
-
-def test_invalid_growth_rate_rejected() -> None:
-    with pytest.raises(ValueError, match="monthly_growth_rate"):
-        build_financial_projections(starting_customers=100, monthly_growth_rate=-0.1)
-
-
-def test_invalid_months_rejected() -> None:
-    with pytest.raises(ValueError, match="months"):
-        build_financial_projections(starting_customers=100, months=0)
-
-
-def test_invalid_gross_margin_rejected() -> None:
-    with pytest.raises(ValueError, match="gross_margin"):
-        build_financial_projections(starting_customers=100, gross_margin=1.5)
-
-
-def test_zero_customers() -> None:
-    report = build_financial_projections(starting_customers=0, months=6)
-    for m in report["monthly_projections"]:
-        assert m["customers"] == 0
-        assert m["mrr"] == 0.0
-
-
-def test_projection_accuracy_known_scenario() -> None:
-    """Verify projection math with a hand-calculated scenario."""
-    report = build_financial_projections(
-        starting_customers=100,
-        monthly_growth_rate=0.10,
-        monthly_churn_rate=0.0,
-        arpu=100.0,
-        cac=0.0,
-        gross_margin=1.0,
-        fixed_costs=0.0,
-        months=1,
-    )
-    m = report["monthly_projections"][0]
-    # 10% growth of 100 = 10 new, 0 churned => 110 customers
-    assert m["customers"] == 110
-    assert m["new_customers"] == 10
-    assert m["churned_customers"] == 0
-    assert m["mrr"] == pytest.approx(11_000.0, abs=0.01)
-    assert m["arr"] == pytest.approx(132_000.0, abs=0.01)
+    summary = report["portfolio_summary"]
+    assert report["projection_count"] == 2
+    assert summary["total_dev_cost"] == 150_000.0
+    assert summary["total_monthly_cost"] == 8_000.0
+    assert summary["total_monthly_revenue"] == 45_000.0
+    assert {segment["segment"] for segment in summary["by_segment"]} == {
+        "finops",
+        "security",
+    }
