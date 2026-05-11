@@ -78,6 +78,47 @@ async def test_fetch_parses_startup_profiles() -> None:
     assert signal.metadata["total_raised_usd"] == 12_000_000
     assert signal.metadata["job_count"] == 2
     assert signal.metadata["hiring_roles"] == ["Founding Infrastructure Engineer", "AI Product Lead"]
+    assert signal.metadata["trend_signals"]["well_funded"] is True
+    assert signal.metadata["trend_signals"]["actively_hiring"] is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_parses_alternate_funding_and_jobs_shape() -> None:
+    adapter = AngelListAdapter(config={"markets": ["ai"]})
+    payload = {
+        "companies": [
+            {
+                "slug": "agentgrid",
+                "name": "AgentGrid",
+                "high_concept": "Agent orchestration for operations teams.",
+                "url": "https://angel.co/company/agentgrid",
+                "company_size": "11-50",
+                "technologies": ["Python", {"name": "Postgres"}],
+                "funding_rounds": [
+                    {"type": "pre_seed", "amount_usd": "500000"},
+                    {"type": "seed", "raised_amount_usd": 2500000},
+                ],
+                "job_postings": ["Founding GTM Engineer"],
+                "updated_at": "2026-02-10T12:00:00Z",
+            }
+        ]
+    }
+
+    with (
+        patch("max.imports.angellist_adapter._get_token", return_value="token"),
+        patch("max.imports.angellist_adapter.fetch_with_retry", new_callable=AsyncMock) as fetch,
+    ):
+        fetch.return_value = _mock_response(payload)
+        signals = await adapter.fetch(limit=10)
+
+    assert len(signals) == 1
+    signal = signals[0]
+    assert signal.title == "AgentGrid"
+    assert signal.metadata["team_size"] == "11-50"
+    assert signal.metadata["technology_tags"] == ["Python", "Postgres"]
+    assert signal.metadata["total_raised_usd"] == 3_000_000
+    assert signal.metadata["job_count"] == 1
+    assert signal.metadata["hiring_roles"] == ["Founding GTM Engineer"]
 
 
 @pytest.mark.asyncio
