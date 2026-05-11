@@ -107,10 +107,49 @@ from max.analysis.design_brief_event_dictionary import (
     event_dictionary_filename,
     render_design_brief_event_dictionary,
 )
+from max.analysis.design_brief_competitive_alternatives import (
+    build_design_brief_competitive_alternatives,
+    competitive_alternatives_filename,
+    render_design_brief_competitive_alternatives,
+)
+from max.analysis.design_brief_conversion_risk import (
+    build_design_brief_conversion_risk,
+    conversion_risk_filename,
+    render_design_brief_conversion_risk,
+)
 from max.analysis.design_brief_failure_modes import (
     build_design_brief_failure_modes,
     failure_modes_filename,
     render_design_brief_failure_modes,
+)
+from max.analysis.design_brief_integration_contract import (
+    build_design_brief_integration_contract,
+    render_design_brief_integration_contract,
+)
+from max.analysis.design_brief_investor_update import (
+    build_design_brief_investor_update,
+    investor_update_filename,
+    render_design_brief_investor_update,
+)
+from max.analysis.design_brief_kill_criteria import (
+    build_design_brief_kill_criteria,
+    kill_criteria_filename,
+    render_design_brief_kill_criteria,
+)
+from max.analysis.design_brief_market_entry_risk import (
+    build_design_brief_market_entry_risk_report,
+    market_entry_risk_report_filename,
+    render_design_brief_market_entry_risk_report,
+)
+from max.analysis.design_brief_renewal_expansion_plan import (
+    build_design_brief_renewal_expansion_plan,
+    render_design_brief_renewal_expansion_plan,
+    renewal_expansion_plan_filename,
+)
+from max.analysis.design_brief_work_breakdown import (
+    build_design_brief_work_breakdown,
+    render_design_brief_work_breakdown,
+    work_breakdown_filename,
 )
 from max.analysis.design_brief_churn_risk_report import (
     build_design_brief_churn_risk_report,
@@ -9874,6 +9913,348 @@ def _design_brief_success_metrics_markdown_response(
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dict[str, Any] | None:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        return None
+
+    source_ideas = [
+        store.get_buildable_unit(source_id)
+        for source_id in (brief.get("source_idea_ids") or [])
+    ]
+    source_ideas = [idea for idea in source_ideas if idea is not None]
+    lead = next((idea for idea in source_ideas if idea.id == brief.get("lead_idea_id")), None)
+    source_idea_ids = [idea.id for idea in source_ideas] or list(brief.get("source_idea_ids") or [])
+    evidence_signals: list[str] = []
+    inspiring_insights: list[str] = []
+    domain_risks = list(brief.get("risks") or [])
+    for idea in source_ideas:
+        evidence_signals.extend(idea.evidence_signals)
+        inspiring_insights.extend(idea.inspiring_insights)
+        domain_risks.extend(idea.domain_risks)
+
+    unit = BuildableUnit(
+        id=brief["id"],
+        title=brief["title"],
+        one_liner=brief.get("merged_product_concept") or brief.get("theme") or brief["title"],
+        category=(lead.category if lead else "application"),
+        problem=(lead.problem if lead else brief.get("synthesis_rationale") or brief["title"]),
+        solution=brief.get("merged_product_concept") or (lead.solution if lead else brief["title"]),
+        target_users=(lead.target_users if lead else "both"),
+        value_proposition=(lead.value_proposition if lead else brief.get("why_this_now") or brief["title"]),
+        specific_user=brief.get("specific_user") or (lead.specific_user if lead else ""),
+        buyer=brief.get("buyer") or (lead.buyer if lead else ""),
+        workflow_context=brief.get("workflow_context") or (lead.workflow_context if lead else ""),
+        current_workaround=(lead.current_workaround if lead else ""),
+        why_now=brief.get("why_this_now") or (lead.why_now if lead else ""),
+        validation_plan=brief.get("validation_plan") or (lead.validation_plan if lead else ""),
+        domain_risks=domain_risks,
+        evidence_rationale=brief.get("synthesis_rationale") or (lead.evidence_rationale if lead else ""),
+        quality_score=float(brief.get("readiness_score") or 0.0),
+        inspiring_insights=inspiring_insights,
+        evidence_signals=evidence_signals,
+        source_idea_ids=source_idea_ids,
+        tech_approach=(lead.tech_approach if lead else ""),
+        domain=brief.get("domain") or (lead.domain if lead else ""),
+        status=brief.get("design_status") or (lead.status if lead else "draft"),
+        created_at=brief.get("created_at") or (lead.created_at if lead else None),
+        updated_at=brief.get("updated_at") or (lead.updated_at if lead else None),
+    )
+    return build_design_brief_kill_criteria(unit)
+
+
+def _design_brief_rendered_artifact_response(
+    report: dict[str, Any],
+    *,
+    fmt: str,
+    render,
+    filename,
+) -> Response:
+    try:
+        content = render(report, fmt=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_type = {"csv": "text/csv", "json": "application/json"}.get(fmt, "text/markdown")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename(report, fmt)}"'},
+    )
+
+
+def _integration_contract_filename(report: dict[str, Any], fmt: str) -> str:
+    extension = {"csv": "csv", "json": "json"}.get(fmt, "md")
+    brief = report["design_brief"]
+    return (
+        f"{_download_filename_part(brief.get('id') or 'design-brief')}-"
+        f"{_download_filename_part(brief.get('title') or 'integration-contract')}-"
+        f"integration-contract.{extension}"
+    )
+
+
+_DESIGN_BRIEF_ARTIFACTS = {
+    "kill_criteria": (
+        _build_design_brief_kill_criteria_report,
+        render_design_brief_kill_criteria,
+        lambda report, fmt: kill_criteria_filename(report["design_brief"], fmt=fmt),
+    ),
+    "conversion_risk": (
+        build_design_brief_conversion_risk,
+        render_design_brief_conversion_risk,
+        lambda report, fmt: conversion_risk_filename(report["design_brief"], fmt=fmt),
+    ),
+    "competitive_alternatives": (
+        build_design_brief_competitive_alternatives,
+        render_design_brief_competitive_alternatives,
+        lambda report, fmt: competitive_alternatives_filename(report["design_brief"], fmt=fmt),
+    ),
+    "market_entry_risk": (
+        build_design_brief_market_entry_risk_report,
+        render_design_brief_market_entry_risk_report,
+        lambda report, fmt: market_entry_risk_report_filename(report["design_brief"], fmt=fmt),
+    ),
+    "work_breakdown": (
+        build_design_brief_work_breakdown,
+        render_design_brief_work_breakdown,
+        lambda report, fmt: work_breakdown_filename(report["design_brief"], fmt=fmt),
+    ),
+    "investor_update": (
+        build_design_brief_investor_update,
+        render_design_brief_investor_update,
+        lambda report, fmt: investor_update_filename(report["design_brief"], fmt=fmt),
+    ),
+    "integration_contract": (
+        build_design_brief_integration_contract,
+        render_design_brief_integration_contract,
+        _integration_contract_filename,
+    ),
+    "renewal_expansion_plan": (
+        build_design_brief_renewal_expansion_plan,
+        render_design_brief_renewal_expansion_plan,
+        lambda report, fmt: renewal_expansion_plan_filename(report["design_brief"], fmt=fmt),
+    ),
+}
+
+
+def _get_design_brief_artifact(
+    artifact: str,
+    brief_id: str,
+    store: Store,
+) -> dict[str, Any]:
+    build, _, _ = _DESIGN_BRIEF_ARTIFACTS[artifact]
+    report = build(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return report
+
+
+def _get_design_brief_artifact_response(
+    artifact: str,
+    brief_id: str,
+    fmt: str,
+    store: Store,
+) -> dict[str, Any] | Response:
+    report = _get_design_brief_artifact(artifact, brief_id, store)
+    _, render, filename = _DESIGN_BRIEF_ARTIFACTS[artifact]
+    if fmt == "json":
+        return report
+    return _design_brief_rendered_artifact_response(
+        report,
+        fmt=fmt,
+        render=render,
+        filename=filename,
+    )
+
+
+@router.get("/design-briefs/{brief_id}/kill-criteria", response_model=dict[str, Any])
+def get_design_brief_kill_criteria(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("kill_criteria", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/kill-criteria.md", response_model=None)
+def get_design_brief_kill_criteria_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("kill_criteria", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/kill-criteria.csv", response_model=None)
+def get_design_brief_kill_criteria_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("kill_criteria", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/conversion-risk", response_model=dict[str, Any])
+def get_design_brief_conversion_risk(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("conversion_risk", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/conversion-risk.md", response_model=None)
+def get_design_brief_conversion_risk_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("conversion_risk", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/conversion-risk.csv", response_model=None)
+def get_design_brief_conversion_risk_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("conversion_risk", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/competitive-alternatives", response_model=dict[str, Any])
+def get_design_brief_competitive_alternatives(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("competitive_alternatives", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/competitive-alternatives.md", response_model=None)
+def get_design_brief_competitive_alternatives_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response(
+        "competitive_alternatives", brief_id, "markdown", store
+    )
+
+
+@router.get("/design-briefs/{brief_id}/market-entry-risk", response_model=dict[str, Any])
+def get_design_brief_market_entry_risk(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("market_entry_risk", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/market-entry-risk.md", response_model=None)
+def get_design_brief_market_entry_risk_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("market_entry_risk", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/work-breakdown", response_model=dict[str, Any])
+def get_design_brief_work_breakdown(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("work_breakdown", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/work-breakdown.md", response_model=None)
+def get_design_brief_work_breakdown_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("work_breakdown", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/work-breakdown.csv", response_model=None)
+def get_design_brief_work_breakdown_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("work_breakdown", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/investor-update", response_model=dict[str, Any])
+def get_design_brief_investor_update(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("investor_update", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/investor-update.md", response_model=None)
+def get_design_brief_investor_update_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("investor_update", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/investor-update.csv", response_model=None)
+def get_design_brief_investor_update_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("investor_update", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/integration-contract", response_model=dict[str, Any])
+def get_design_brief_integration_contract(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("integration_contract", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/integration-contract.md", response_model=None)
+def get_design_brief_integration_contract_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("integration_contract", brief_id, "markdown", store)
+
+
+@router.get("/design-briefs/{brief_id}/integration-contract.csv", response_model=None)
+def get_design_brief_integration_contract_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("integration_contract", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/renewal-expansion-plan", response_model=dict[str, Any])
+def get_design_brief_renewal_expansion_plan(
+    brief_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response("renewal_expansion_plan", brief_id, format, store)
+
+
+@router.get("/design-briefs/{brief_id}/renewal-expansion-plan.md", response_model=None)
+def get_design_brief_renewal_expansion_plan_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response(
+        "renewal_expansion_plan", brief_id, "markdown", store
+    )
+
+
+@router.get("/design-briefs/{brief_id}/renewal-expansion-plan.csv", response_model=None)
+def get_design_brief_renewal_expansion_plan_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response("renewal_expansion_plan", brief_id, "csv", store)
 
 
 @router.get(
