@@ -29,6 +29,11 @@ from max.spec.compliance_checklist import (
     render_compliance_checklist_json,
     render_compliance_checklist_markdown,
 )
+from max.spec.consent_management_plan import (
+    generate_consent_management_plan,
+    render_consent_management_plan_csv,
+    render_consent_management_plan_markdown,
+)
 from max.spec.cost_estimate import (
     generate_cost_estimate,
     render_cost_estimate_csv,
@@ -164,6 +169,7 @@ __all__ = [
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
     "generate_compliance_checklist",
+    "generate_consent_management_plan",
     "generate_cost_estimate",
     "generate_customer_onboarding_plan",
     "generate_data_classification",
@@ -220,6 +226,8 @@ __all__ = [
     "render_compliance_checklist_json",
     "render_compliance_checklist_csv",
     "render_compliance_checklist_markdown",
+    "render_consent_management_plan_csv",
+    "render_consent_management_plan_markdown",
     "render_cost_estimate_markdown",
     "render_cost_estimate_csv",
     "render_customer_onboarding_plan_csv",
