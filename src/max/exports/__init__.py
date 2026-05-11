@@ -131,6 +131,15 @@ from max.exports.support_ticket_theme_report import (
     render_support_ticket_theme_report_json,
     render_support_ticket_theme_report_markdown,
 )
+from max.exports.tech_radar import (
+    RadarQuadrant,
+    RadarRing,
+    build_tech_radar,
+    build_tech_radar_export,
+    classify_radar_ring,
+    render_tech_radar_json,
+    render_tech_radar_markdown,
+)
 from max.exports.trial_conversion_funnel import (
     build_trial_conversion_funnel_export,
     render_trial_conversion_funnel_json,
@@ -161,7 +170,12 @@ __all__ = [
     "build_sales_pipeline_forecast",
     "build_sla_breach_risk_export",
     "build_support_ticket_theme_report",
+    "build_tech_radar",
+    "build_tech_radar_export",
     "build_trial_conversion_funnel_export",
+    "classify_radar_ring",
+    "RadarQuadrant",
+    "RadarRing",
     "render_api_quota_utilization_csv",
     "render_api_quota_utilization_json",
     "render_api_quota_utilization_markdown",
@@ -224,6 +238,8 @@ __all__ = [
     "render_support_ticket_theme_report_csv",
     "render_support_ticket_theme_report_json",
     "render_support_ticket_theme_report_markdown",
+    "render_tech_radar_json",
+    "render_tech_radar_markdown",
     "render_trial_conversion_funnel_json",
     "render_trial_conversion_funnel_markdown",
 ]
