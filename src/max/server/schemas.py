@@ -654,6 +654,58 @@ class CostEstimateRequest(BaseModel):
         return self
 
 
+class SpecArtifactRequest(BaseModel):
+    tact_spec: dict[str, Any] | None = Field(default=None, min_length=1)
+    idea: IdeaCreate | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_wrapped_tact_spec_or_direct_payload(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "tact_spec" in data or "idea" in data:
+            return data
+        if "schema_version" in data or data.get("kind") == "tact.project_spec":
+            return {"tact_spec": data}
+        return {"idea": data}
+
+    @model_validator(mode="after")
+    def require_tact_spec_or_idea(self) -> "SpecArtifactRequest":
+        if self.tact_spec is None and self.idea is None:
+            raise ValueError("Provide tact_spec or idea")
+        return self
+
+
+class BackupRecoveryRequest(SpecArtifactRequest):
+    pass
+
+
+class DataClassificationRequest(SpecArtifactRequest):
+    pass
+
+
+class DataRetentionScheduleRequest(SpecArtifactRequest):
+    pass
+
+
+class IncidentResponsePlanRequest(SpecArtifactRequest):
+    pass
+
+
+class ObservabilityPlanRequest(SpecArtifactRequest):
+    pass
+
+
+class OperationalRunbookRequest(SpecArtifactRequest):
+    pass
+
+
+class RateLimitingRequest(SpecArtifactRequest):
+    pass
+
+
+class DisasterRecoveryPlanRequest(SpecArtifactRequest):
+    pass
+
+
 class VendorRiskAssessmentRequest(BaseModel):
     tact_spec: dict[str, Any] | None = Field(default=None, min_length=1)
     idea: IdeaCreate | None = None
@@ -1844,6 +1896,130 @@ class VendorRiskAssessmentResponse(BaseModel):
     mitigations: list[dict[str, Any]]
     review_checklist: list[dict[str, Any]]
     gate_decision: dict[str, Any]
+
+
+class BackupRecoveryResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    backup_plans: list[dict[str, Any]]
+
+
+class DataClassificationResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    classification_context: dict[str, Any]
+    data_categories: list[dict[str, Any]]
+    sensitivity: dict[str, Any]
+    retention_guidance: dict[str, Any]
+    compliance_considerations: list[str]
+    storage_touchpoints: list[dict[str, Any]]
+    transfer_touchpoints: list[dict[str, Any]]
+    risk_notes: list[str]
+    implementation_safeguards: list[dict[str, Any]]
+    markdown: str
+
+
+class DataRetentionScheduleResponse(BaseModel):
+    schema_version: str
+    kind: str
+    idea_id: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    retention_context: dict[str, Any]
+    data_categories: list[dict[str, Any]]
+    retention_rules: list[dict[str, Any]]
+    deletion_triggers: list[dict[str, Any]]
+    owners: list[dict[str, Any]]
+    gaps: list[dict[str, Any]]
+    missing_inputs: list[str]
+    next_actions: list[dict[str, Any]]
+    markdown: str
+
+
+class IncidentResponsePlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    incident_context: dict[str, Any]
+    severity_levels: list[dict[str, Any]]
+    incident_classes: list[dict[str, Any]]
+    escalation_roles: list[dict[str, Any]]
+    triage_steps: list[dict[str, Any]]
+    containment_actions: list[dict[str, Any]]
+    communication_checkpoints: list[dict[str, Any]]
+    postmortem_requirements: list[dict[str, Any]]
+    evidence_references: list[str]
+    gaps: list[dict[str, Any]]
+    markdown: str
+
+
+class ObservabilityPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    metrics: list[dict[str, Any]]
+    events: list[dict[str, Any]]
+    logs: list[dict[str, Any]]
+    traces: list[dict[str, Any]]
+    slos: list[dict[str, Any]]
+    alerts: list[dict[str, Any]]
+    dashboards: list[dict[str, Any]]
+    owners: list[dict[str, Any]]
+    rollout_validation_checks: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    markdown: str
+
+
+class OperationalRunbookResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    service_overview: dict[str, Any]
+    deploy_prerequisites: list[dict[str, Any]]
+    configuration_env_vars: list[dict[str, Any]]
+    health_checks: list[dict[str, Any]]
+    rollback_triggers: list[dict[str, Any]]
+    incident_triage_steps: list[dict[str, Any]]
+    observability_checks: list[dict[str, Any]]
+    support_escalation: list[dict[str, Any]]
+    post_incident_follow_up: list[dict[str, Any]]
+    markdown: str
+
+
+class RateLimitingResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    rate_limits: list[dict[str, Any]]
+
+
+class DisasterRecoveryPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    recovery_objectives: list[dict[str, Any]]
+    critical_capabilities: list[dict[str, Any]]
+    critical_dependencies: list[dict[str, Any]]
+    backup_restore_assumptions: list[dict[str, Any]]
+    backup_strategy: list[dict[str, Any]]
+    failover_steps: list[dict[str, Any]]
+    restore_sequence: list[dict[str, Any]]
+    data_integrity_checks: list[dict[str, Any]]
+    validation_checks: list[dict[str, Any]]
+    communications: list[dict[str, Any]]
+    owner_roles: list[dict[str, Any]]
+    validation_drills: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    gaps: list[dict[str, Any]]
+    markdown: str
 
 
 class ThreatModelResponse(BaseModel):

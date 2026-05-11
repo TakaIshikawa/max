@@ -460,8 +460,16 @@ from max.server.schemas import (
     DesignBriefTrelloCardPublishRequest,
     DesignBriefTrelloCardPublishResponse,
     DesignBriefValidationPlanResponse,
+    BackupRecoveryRequest,
+    BackupRecoveryResponse,
     CostEstimateRequest,
     CostEstimateResponse,
+    DataClassificationRequest,
+    DataClassificationResponse,
+    DataRetentionScheduleRequest,
+    DataRetentionScheduleResponse,
+    DisasterRecoveryPlanRequest,
+    DisasterRecoveryPlanResponse,
     DiscordPublishRequest,
     DiscordPublishResponse,
     DomainQualityMemoryResponse,
@@ -512,6 +520,10 @@ from max.server.schemas import (
     IdeaMemoryResponse,
     IdeaProductBriefResponse,
     OpportunityHeatmapBucketResponse,
+    ObservabilityPlanRequest,
+    ObservabilityPlanResponse,
+    OperationalRunbookRequest,
+    OperationalRunbookResponse,
     IdeaSimilarityRequest,
     IdeaSimilarityResultResponse,
     IdeaScoreDistributionResponse,
@@ -521,6 +533,8 @@ from max.server.schemas import (
     SpecReadinessBatchRequest,
     SpecReadinessBatchResponse,
     InsightCreate,
+    IncidentResponsePlanRequest,
+    IncidentResponsePlanResponse,
     InsightDetailResponse,
     InsightResponse,
     InsightTrendItemResponse,
@@ -589,6 +603,8 @@ from max.server.schemas import (
     ReviewThresholdRecommendationResponse,
     ReviewThresholdsResponse,
     RoiForecastResponse,
+    RateLimitingRequest,
+    RateLimitingResponse,
     ScheduleStatusResponse,
     ScheduleUpdateRequest,
     SignalCreate,
@@ -639,13 +655,39 @@ from max.evaluation.explain import explain_evaluation
 from max.evaluation.sensitivity import analyze_evaluation_sensitivity
 from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_weights
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
-from max.spec.experiment_card import generate_experiment_card
 from max.spec.acceptance_criteria import generate_acceptance_criteria
+from max.spec.backup_recovery import generate_backup_recovery_plan
 from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
 from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
+from max.spec.data_classification import (
+    generate_data_classification,
+    render_data_classification_markdown,
+)
+from max.spec.data_retention_schedule import (
+    generate_data_retention_schedule,
+    render_data_retention_schedule_markdown,
+)
+from max.spec.disaster_recovery_plan import (
+    generate_disaster_recovery_plan,
+    render_disaster_recovery_plan_markdown,
+)
+from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
+from max.spec.incident_response_plan import (
+    generate_incident_response_plan,
+    render_incident_response_plan_markdown,
+)
 from max.spec.implementation_plan import generate_implementation_plan
 from max.spec.launch_checklist import generate_launch_checklist, render_launch_checklist_markdown
+from max.spec.observability_plan import (
+    generate_observability_plan,
+    render_observability_plan_markdown,
+)
+from max.spec.operational_runbook import (
+    generate_operational_runbook,
+    render_operational_runbook_markdown,
+)
+from max.spec.rate_limiting import generate_rate_limiting_config
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import generate_release_readiness_gate
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
@@ -5985,10 +6027,111 @@ def generate_spec_cost_estimate(body: CostEstimateRequest) -> CostEstimateRespon
     )
 
 
+@router.post("/spec/backup-recovery", response_model=BackupRecoveryResponse)
+@router.post("/ideas/spec-backup-recovery", response_model=BackupRecoveryResponse)
+def generate_spec_backup_recovery(body: BackupRecoveryRequest) -> BackupRecoveryResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    return BackupRecoveryResponse.model_validate(generate_backup_recovery_plan(tact_spec))
+
+
+@router.post("/spec/data-classification", response_model=DataClassificationResponse)
+@router.post("/ideas/spec-data-classification", response_model=DataClassificationResponse)
+def generate_spec_data_classification(
+    body: DataClassificationRequest,
+) -> DataClassificationResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    classification = generate_data_classification(tact_spec)
+    return DataClassificationResponse.model_validate(
+        {**classification, "markdown": render_data_classification_markdown(classification)}
+    )
+
+
+@router.post("/spec/data-retention-schedule", response_model=DataRetentionScheduleResponse)
+@router.post("/ideas/spec-data-retention-schedule", response_model=DataRetentionScheduleResponse)
+def generate_spec_data_retention_schedule(
+    body: DataRetentionScheduleRequest,
+) -> DataRetentionScheduleResponse:
+    unit, tact_spec = _unit_and_tact_spec_from_artifact_request(body)
+    schedule = generate_data_retention_schedule(unit, None, tact_spec)
+    return DataRetentionScheduleResponse.model_validate(
+        {**schedule, "markdown": render_data_retention_schedule_markdown(schedule)}
+    )
+
+
+@router.post("/spec/incident-response-plan", response_model=IncidentResponsePlanResponse)
+@router.post("/ideas/spec-incident-response-plan", response_model=IncidentResponsePlanResponse)
+def generate_spec_incident_response_plan(
+    body: IncidentResponsePlanRequest,
+) -> IncidentResponsePlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_incident_response_plan(tact_spec)
+    return IncidentResponsePlanResponse.model_validate(
+        {**plan, "markdown": render_incident_response_plan_markdown(plan)}
+    )
+
+
+@router.post("/spec/observability-plan", response_model=ObservabilityPlanResponse)
+@router.post("/ideas/spec-observability-plan", response_model=ObservabilityPlanResponse)
+def generate_spec_observability_plan(
+    body: ObservabilityPlanRequest,
+) -> ObservabilityPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_observability_plan(tact_spec)
+    return ObservabilityPlanResponse.model_validate(
+        {**plan, "markdown": render_observability_plan_markdown(plan)}
+    )
+
+
+@router.post("/spec/operational-runbook", response_model=OperationalRunbookResponse)
+@router.post("/ideas/spec-operational-runbook", response_model=OperationalRunbookResponse)
+def generate_spec_operational_runbook(
+    body: OperationalRunbookRequest,
+) -> OperationalRunbookResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    runbook = generate_operational_runbook(tact_spec)
+    return OperationalRunbookResponse.model_validate(
+        {**runbook, "markdown": render_operational_runbook_markdown(runbook)}
+    )
+
+
+@router.post("/spec/rate-limiting", response_model=RateLimitingResponse)
+@router.post("/ideas/spec-rate-limiting", response_model=RateLimitingResponse)
+def generate_spec_rate_limiting(body: RateLimitingRequest) -> RateLimitingResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    return RateLimitingResponse.model_validate(generate_rate_limiting_config(tact_spec))
+
+
+@router.post("/spec/disaster-recovery-plan", response_model=DisasterRecoveryPlanResponse)
+@router.post("/ideas/spec-disaster-recovery-plan", response_model=DisasterRecoveryPlanResponse)
+def generate_spec_disaster_recovery_plan(
+    body: DisasterRecoveryPlanRequest,
+) -> DisasterRecoveryPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_disaster_recovery_plan(tact_spec)
+    return DisasterRecoveryPlanResponse.model_validate(
+        {**plan, "markdown": render_disaster_recovery_plan_markdown(plan)}
+    )
+
+
+def _tact_spec_from_artifact_request(body: Any) -> dict[str, Any]:
+    return body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
+
+
+def _unit_and_tact_spec_from_artifact_request(body: Any) -> tuple[BuildableUnit, dict[str, Any]]:
+    if body.tact_spec is not None:
+        return _buildable_unit_from_tact_spec(body.tact_spec), body.tact_spec
+    unit = _buildable_unit_from_idea(body.idea)
+    return unit, generate_spec_preview(unit)
+
+
 def _tact_spec_from_idea(idea: IdeaCreate | None) -> dict[str, Any]:
+    return generate_spec_preview(_buildable_unit_from_idea(idea))
+
+
+def _buildable_unit_from_idea(idea: IdeaCreate | None) -> BuildableUnit:
     if idea is None:
         raise HTTPException(status_code=422, detail="Provide tact_spec or idea")
-    unit = BuildableUnit(
+    return BuildableUnit(
         title=idea.title,
         one_liner=idea.one_liner,
         category=idea.category,
@@ -6009,7 +6152,41 @@ def _tact_spec_from_idea(idea: IdeaCreate | None) -> dict[str, Any]:
         suggested_stack=idea.suggested_stack,
         composability_notes=idea.composability_notes,
     )
-    return generate_spec_preview(unit)
+
+
+def _buildable_unit_from_tact_spec(tact_spec: dict[str, Any]) -> BuildableUnit:
+    source = tact_spec.get("source") if isinstance(tact_spec.get("source"), dict) else {}
+    project = tact_spec.get("project") if isinstance(tact_spec.get("project"), dict) else {}
+    problem = tact_spec.get("problem") if isinstance(tact_spec.get("problem"), dict) else {}
+    solution = tact_spec.get("solution") if isinstance(tact_spec.get("solution"), dict) else {}
+    execution = tact_spec.get("execution") if isinstance(tact_spec.get("execution"), dict) else {}
+    evidence = tact_spec.get("evidence") if isinstance(tact_spec.get("evidence"), dict) else {}
+    return BuildableUnit(
+        id=str(source.get("idea_id") or ""),
+        title=str(project.get("title") or source.get("idea_id") or "Untitled TactSpec"),
+        one_liner=str(project.get("summary") or project.get("title") or "Generated from TactSpec"),
+        category=str(source.get("category") or "application"),
+        problem=str(problem.get("statement") or project.get("summary") or "Generated from TactSpec"),
+        solution=str(solution.get("approach") or solution.get("technical_approach") or ""),
+        target_users=str(project.get("target_users") or "both"),
+        value_proposition=str(project.get("value_proposition") or project.get("summary") or ""),
+        specific_user=str(project.get("specific_user") or ""),
+        buyer=str(project.get("buyer") or ""),
+        workflow_context=str(project.get("workflow_context") or ""),
+        current_workaround=str(problem.get("current_workaround") or ""),
+        why_now=str(problem.get("why_now") or ""),
+        validation_plan=str(execution.get("validation_plan") or ""),
+        first_10_customers=str(execution.get("first_10_customers") or ""),
+        domain_risks=[str(risk) for risk in execution.get("risks") or []],
+        evidence_rationale=str(evidence.get("rationale") or ""),
+        tech_approach=str(solution.get("technical_approach") or ""),
+        suggested_stack=(
+            solution.get("suggested_stack") if isinstance(solution.get("suggested_stack"), dict) else {}
+        ),
+        composability_notes=str(solution.get("composability_notes") or ""),
+        domain=str(source.get("domain") or ""),
+        status=str(source.get("status") or "draft"),
+    )
 
 
 @router.post("/spec/release-readiness-gate", response_model=ReleaseReadinessGateResponse)
