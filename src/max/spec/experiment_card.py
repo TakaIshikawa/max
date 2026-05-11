@@ -16,24 +16,6 @@ EXPERIMENT_CARD_CSV_COLUMNS = (
     "schema_version",
     "kind",
     "idea_id",
-<<<<<<< HEAD
-    "title",
-    "primary_hypothesis",
-    "target_persona",
-    "target_buyer",
-    "workflow_context",
-    "sample_size",
-    "duration_days",
-    "test_type",
-    "test_description",
-    "riskiest_assumptions",
-    "success_metrics",
-    "failure_signals",
-    "recruitment_channels",
-    "success_criteria",
-    "rollback_triggers",
-    "learnings_capture",
-=======
     "idea_title",
     "primary_hypothesis",
     "target_persona",
@@ -49,7 +31,6 @@ EXPERIMENT_CARD_CSV_COLUMNS = (
     "riskiest_assumptions",
     "recruitment_channels",
     "seven_day_plan",
->>>>>>> relay/claude-code/add-csv-export-for-spec-experiment-cards-01KR6SH1
 )
 
 DIMENSION_NAMES = (
