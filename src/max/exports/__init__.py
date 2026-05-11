@@ -45,6 +45,11 @@ from max.exports.incident_impact_assessment import (
     render_incident_impact_assessment_json,
     render_incident_impact_assessment_markdown,
 )
+from max.exports.implementation_risk_heatmap import (
+    build_implementation_risk_heatmap_export,
+    render_implementation_risk_heatmap_json,
+    render_implementation_risk_heatmap_markdown,
+)
 from max.exports.integration_dependency_health import (
     build_integration_dependency_health_export,
     render_integration_dependency_health_csv,
@@ -131,6 +136,7 @@ __all__ = [
     "build_data_residency_matrix_export",
     "build_feature_adoption_cohorts_export",
     "build_incident_impact_assessment_export",
+    "build_implementation_risk_heatmap_export",
     "build_integration_dependency_health_export",
     "build_localization_readiness_export",
     "build_partner_ecosystem_map_export",
@@ -157,6 +163,8 @@ __all__ = [
     "render_incident_impact_assessment_csv",
     "render_incident_impact_assessment_json",
     "render_incident_impact_assessment_markdown",
+    "render_implementation_risk_heatmap_json",
+    "render_implementation_risk_heatmap_markdown",
     "render_integration_dependency_health_csv",
     "render_integration_dependency_health_json",
     "render_integration_dependency_health_markdown",
