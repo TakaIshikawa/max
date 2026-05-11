@@ -236,6 +236,43 @@ def test_render_design_brief_retention_policy_unsupported_format() -> None:
         render_design_brief_retention_policy(_policy(), fmt="html")
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("data_classification", None),
+        ("legal_basis", None),
+        ("review_schedule", None),
+    ],
+)
+def test_retention_policy_handles_missing_optional_metadata_fields(field: str, value) -> None:
+    brief_id = f"dbf-missing-{field}"
+    store = FakeStore(
+        {
+            brief_id: {
+                "id": brief_id,
+                "title": "Missing Optional Retention Metadata",
+                "domain": "customer-operations",
+                "theme": "retention",
+                "readiness_score": 70.0,
+                "design_status": "candidate",
+                "source_idea_ids": [],
+                "created_at": "2026-04-25T10:00:00Z",
+                "updated_at": "2026-04-26T11:00:00Z",
+                field: value,
+            }
+        }
+    )
+
+    report = build_design_brief_retention_policy(store, brief_id)
+
+    assert report is not None
+    assert report["data_classes"]
+    assert render_design_brief_retention_policy(report, fmt="markdown").endswith("\n")
+    csv_text = render_design_brief_retention_policy(report, fmt="csv")
+    assert csv_text.startswith(",".join(CSV_COLUMNS))
+    assert list(csv.DictReader(io.StringIO(csv_text)))
+
+
 def _policy() -> dict:
     brief_id = "dbf-retention"
     store = FakeStore(

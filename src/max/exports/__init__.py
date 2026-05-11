@@ -23,6 +23,11 @@ from max.exports.api_quota_utilization import (
     render_api_quota_utilization_json,
     render_api_quota_utilization_markdown,
 )
+from max.exports.account_health_score import (
+    build_account_health_score_export,
+    render_account_health_score_json,
+    render_account_health_score_markdown,
+)
 from max.exports.buyer_committee_alignment import (
     build_buyer_committee_alignment_export,
     render_buyer_committee_alignment_json,
@@ -126,12 +131,18 @@ from max.exports.support_ticket_theme_report import (
     render_support_ticket_theme_report_json,
     render_support_ticket_theme_report_markdown,
 )
+from max.exports.trial_conversion_funnel import (
+    build_trial_conversion_funnel_export,
+    render_trial_conversion_funnel_json,
+    render_trial_conversion_funnel_markdown,
+)
 
 __all__ = [
     "build_compliance_evidence_packet",
     "build_customer_success_qbr_export",
     "build_retention_cohort_export",
     "build_api_quota_utilization_export",
+    "build_account_health_score_export",
     "build_buyer_committee_alignment_export",
     "build_data_residency_matrix_export",
     "build_feature_adoption_cohorts_export",
@@ -150,9 +161,12 @@ __all__ = [
     "build_sales_pipeline_forecast",
     "build_sla_breach_risk_export",
     "build_support_ticket_theme_report",
+    "build_trial_conversion_funnel_export",
     "render_api_quota_utilization_csv",
     "render_api_quota_utilization_json",
     "render_api_quota_utilization_markdown",
+    "render_account_health_score_json",
+    "render_account_health_score_markdown",
     "render_buyer_committee_alignment_json",
     "render_buyer_committee_alignment_markdown",
     "render_data_residency_matrix_csv",
@@ -210,4 +224,6 @@ __all__ = [
     "render_support_ticket_theme_report_csv",
     "render_support_ticket_theme_report_json",
     "render_support_ticket_theme_report_markdown",
+    "render_trial_conversion_funnel_json",
+    "render_trial_conversion_funnel_markdown",
 ]

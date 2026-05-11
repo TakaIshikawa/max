@@ -345,6 +345,58 @@ def test_rollout_comms_plan_missing_brief_and_invalid_format(tmp_path) -> None:
         render_design_brief_rollout_comms_plan({"design_brief": {}}, fmt="yaml")
 
 
+@pytest.mark.parametrize(
+    "timeline",
+    [
+        [],
+        [{"phase": "pilot", "channels": ["email"]}],
+        [{"phase": "pilot", "audience": "pilot customers"}],
+    ],
+)
+def test_rollout_comms_plan_handles_missing_timeline_audience_or_channels(timeline) -> None:
+    store = _FakeRolloutStore(
+        {
+            "dbf-timeline": {
+                "id": "dbf-timeline",
+                "title": "Timeline Sparse Brief",
+                "domain": "developer-tools",
+                "theme": "rollout-comms",
+                "readiness_score": 76.0,
+                "design_status": "approved",
+                "source_idea_ids": [],
+                "timeline": timeline,
+                "buyer": "engineering director",
+                "specific_user": "platform lead",
+                "workflow_context": "developer platform launch",
+                "merged_product_concept": "Timeline sparse communications planning.",
+                "mvp_scope": ["Pilot rollout"],
+                "validation_plan": "Review with pilot customers.",
+            }
+        }
+    )
+
+    report = build_design_brief_rollout_comms_plan(store, "dbf-timeline")
+
+    assert report is not None
+    assert report["launch_phases"]
+    assert report["channel_message_matrix"]
+    assert render_design_brief_rollout_comms_plan(report, fmt="markdown").endswith("\n")
+    assert render_design_brief_rollout_comms_plan(report, fmt="csv").startswith(
+        ",".join(CSV_COLUMNS)
+    )
+
+
+class _FakeRolloutStore:
+    def __init__(self, briefs: dict[str, dict]):
+        self._briefs = briefs
+
+    def get_design_brief(self, brief_id: str) -> dict | None:
+        return self._briefs.get(brief_id)
+
+    def get_buildable_unit(self, idea_id: str):
+        return None
+
+
 def _store_with_brief(tmp_path) -> tuple[Store, str]:
     store = Store(db_path=str(tmp_path / "design_brief_rollout_comms.db"), wal_mode=True)
     lead = BuildableUnit(
