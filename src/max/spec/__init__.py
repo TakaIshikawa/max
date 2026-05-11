@@ -158,6 +158,11 @@ from max.spec.smoke_test_plan import (
     render_smoke_test_plan_json,
     render_smoke_test_plan_markdown,
 )
+from max.spec.service_deprecation_plan import (
+    generate_service_deprecation_plan,
+    render_service_deprecation_plan_csv,
+    render_service_deprecation_plan_markdown,
+)
 from max.spec.stakeholder_handoff import (
     generate_stakeholder_handoff,
     render_stakeholder_handoff_csv,
@@ -220,6 +225,7 @@ __all__ = [
     "generate_spec_bundle",
     "generate_security_controls",
     "generate_security_review",
+    "generate_service_deprecation_plan",
     "generate_slo_plan",
     "generate_smoke_test_plan",
     "generate_stakeholder_handoff",
@@ -237,6 +243,8 @@ __all__ = [
     "render_security_controls_csv",
     "render_security_review_csv",
     "render_security_review_markdown",
+    "render_service_deprecation_plan_csv",
+    "render_service_deprecation_plan_markdown",
     "render_slo_plan_csv",
     "render_slo_plan_markdown",
     "render_smoke_test_plan_csv",
