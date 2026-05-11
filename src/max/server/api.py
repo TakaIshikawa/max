@@ -320,6 +320,10 @@ from max.analysis.run_comparison import (
     PipelineRunComparisonNotFound,
     compare_pipeline_runs,
 )
+from max.analysis.unit_dependency_map import (
+    build_unit_dependency_map,
+    render_unit_dependency_map,
+)
 from max.analysis.pipeline_run_export import (
     PipelineRunExportNotFound,
     export_pipeline_run,
@@ -857,14 +861,14 @@ def export_pipeline_run_endpoint(
     return PipelineRunExportRecordResponse.model_validate(export)
 
 
-@router.get("/pipeline/runs/compare", response_model=PipelineRunComparisonResponse)
-def compare_pipeline_runs_endpoint(
-    base_run_id: str = Query(..., min_length=1),
-    target_run_id: str = Query(..., min_length=1),
-    store: Store = Depends(get_store),
-) -> PipelineRunComparisonResponse:
+def _pipeline_run_comparison_or_404(
+    store: Store,
+    *,
+    base_run_id: str,
+    target_run_id: str,
+) -> dict[str, object]:
     try:
-        comparison = compare_pipeline_runs(
+        return compare_pipeline_runs(
             store,
             base_run_id=base_run_id,
             target_run_id=target_run_id,
@@ -877,7 +881,83 @@ def compare_pipeline_runs_endpoint(
                 "missing_run_ids": exc.missing_run_ids,
             },
         ) from exc
+
+
+def _pipeline_run_comparison_response(
+    comparison: dict[str, object],
+    *,
+    format: Literal["json", "markdown"] = "json",
+    filename: str = "pipeline-run-comparison.md",
+) -> PipelineRunComparisonResponse | Response:
+    if format == "markdown":
+        return Response(
+            content=_render_pipeline_run_comparison_markdown(comparison),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     return PipelineRunComparisonResponse.model_validate(comparison)
+
+
+@router.get("/pipeline/runs/compare", response_model=None)
+def compare_pipeline_runs_endpoint(
+    base_run_id: str = Query(..., min_length=1),
+    target_run_id: str = Query(..., min_length=1),
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> PipelineRunComparisonResponse | Response:
+    comparison = _pipeline_run_comparison_or_404(
+        store,
+        base_run_id=base_run_id,
+        target_run_id=target_run_id,
+    )
+    return _pipeline_run_comparison_response(
+        comparison,
+        format=format,
+        filename=f"{base_run_id}-compare-{target_run_id}.md",
+    )
+
+
+@router.get(
+    "/pipeline/runs/{baseline_run_id}/compare/{candidate_run_id}",
+    response_model=None,
+)
+def compare_pipeline_runs_by_path_endpoint(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> PipelineRunComparisonResponse | Response:
+    comparison = _pipeline_run_comparison_or_404(
+        store,
+        base_run_id=baseline_run_id,
+        target_run_id=candidate_run_id,
+    )
+    return _pipeline_run_comparison_response(
+        comparison,
+        format=format,
+        filename=f"{baseline_run_id}-compare-{candidate_run_id}.md",
+    )
+
+
+@router.get(
+    "/pipeline/runs/{baseline_run_id}/compare/{candidate_run_id}.md",
+    response_model=None,
+)
+def compare_pipeline_runs_by_path_markdown_endpoint(
+    baseline_run_id: str,
+    candidate_run_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    comparison = _pipeline_run_comparison_or_404(
+        store,
+        base_run_id=baseline_run_id,
+        target_run_id=candidate_run_id,
+    )
+    return _pipeline_run_comparison_response(
+        comparison,
+        format="markdown",
+        filename=f"{baseline_run_id}-compare-{candidate_run_id}.md",
+    )
 
 
 @router.get("/pipeline/runs/{run_id}/replay-plan", response_model=PipelineReplayPlanResponse)
@@ -974,6 +1054,45 @@ def llm_cost_anomalies(
 ) -> CostAnomalyReportResponse:
     return CostAnomalyReportResponse.model_validate(
         build_cost_anomaly_report(store, limit=limit, z_threshold=z_threshold)
+    )
+
+
+@router.get("/units/dependency-map", response_model=None)
+def get_unit_dependency_map_endpoint(
+    limit: int = Query(100, ge=1, le=10_000),
+    min_shared_signals: int = Query(1, ge=1, le=1000),
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    report = build_unit_dependency_map(
+        store,
+        limit=limit,
+        min_shared_signals=min_shared_signals,
+    )
+    if format == "markdown":
+        return Response(
+            content=render_unit_dependency_map(report, fmt="markdown"),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="unit-dependency-map.md"'},
+        )
+    return report
+
+
+@router.get("/units/dependency-map.md", response_model=None)
+def get_unit_dependency_map_markdown_endpoint(
+    limit: int = Query(100, ge=1, le=10_000),
+    min_shared_signals: int = Query(1, ge=1, le=1000),
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_unit_dependency_map(
+        store,
+        limit=limit,
+        min_shared_signals=min_shared_signals,
+    )
+    return Response(
+        content=render_unit_dependency_map(report, fmt="markdown"),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="unit-dependency-map.md"'},
     )
 
 
@@ -2411,15 +2530,53 @@ def get_profile_coverage_gaps(
     return _profile_coverage_gaps_to_response(report)
 
 
-@router.get("/profiles/{profile_name}/drift", response_model=ProfileDriftResponse)
-@router.get("/profiles/{profile_name}/profile-drift", response_model=ProfileDriftResponse)
-def get_profile_drift(
+@router.get("/profiles/{profile_name}/drift.md", response_model=None)
+def get_profile_drift_markdown(
     profile_name: str,
     signal_limit: int = Query(DEFAULT_PROFILE_DRIFT_SIGNAL_LIMIT, ge=1, le=10_000),
     unit_limit: int = Query(DEFAULT_PROFILE_DRIFT_UNIT_LIMIT, ge=1, le=10_000),
     insight_limit: int = Query(DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT, ge=1, le=10_000),
     store: Store = Depends(get_store),
-) -> ProfileDriftResponse:
+) -> Response:
+    return _profile_drift_response(
+        profile_name,
+        signal_limit=signal_limit,
+        unit_limit=unit_limit,
+        insight_limit=insight_limit,
+        store=store,
+        format="markdown",
+    )
+
+
+@router.get("/profiles/{profile_name}/drift", response_model=None)
+@router.get("/profiles/{profile_name}/profile-drift", response_model=None)
+def get_profile_drift(
+    profile_name: str,
+    signal_limit: int = Query(DEFAULT_PROFILE_DRIFT_SIGNAL_LIMIT, ge=1, le=10_000),
+    unit_limit: int = Query(DEFAULT_PROFILE_DRIFT_UNIT_LIMIT, ge=1, le=10_000),
+    insight_limit: int = Query(DEFAULT_PROFILE_DRIFT_INSIGHT_LIMIT, ge=1, le=10_000),
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> ProfileDriftResponse | Response:
+    return _profile_drift_response(
+        profile_name,
+        signal_limit=signal_limit,
+        unit_limit=unit_limit,
+        insight_limit=insight_limit,
+        store=store,
+        format=format,
+    )
+
+
+def _profile_drift_response(
+    profile_name: str,
+    *,
+    signal_limit: int,
+    unit_limit: int,
+    insight_limit: int,
+    store: Store,
+    format: Literal["json", "markdown"],
+) -> ProfileDriftResponse | Response:
     profile = _load_profile_or_404(profile_name)
     report = build_profile_drift_report(
         profile,
@@ -2428,6 +2585,13 @@ def get_profile_drift(
         unit_limit=unit_limit,
         insight_limit=insight_limit,
     )
+    if format == "markdown":
+        filename = f"{_download_filename_part(profile_name)}-profile-drift.md"
+        return Response(
+            content=_render_profile_drift_markdown(report.to_dict()),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     return ProfileDriftResponse.model_validate(report.to_dict())
 
 
@@ -2467,9 +2631,26 @@ def get_profile_source_recommendations(
     return ProfileSourceRecommendationsResponse.model_validate(report.to_dict())
 
 
+@router.get("/profiles/{profile_name}/source-mix.md", response_model=None)
+def get_profile_source_mix_markdown(
+    profile_name: str,
+    concentration_threshold: float = Query(
+        DEFAULT_CONCENTRATION_THRESHOLD,
+        gt=0.0,
+        le=1.0,
+        description="Flag source groups above this adapter, weight, or configured-limit share",
+    ),
+) -> Response:
+    return _profile_source_mix_response(
+        profile_name,
+        concentration_threshold=concentration_threshold,
+        format="markdown",
+    )
+
+
 @router.get(
     "/profiles/{profile_name}/source-mix",
-    response_model=ProfileSourceMixResponse,
+    response_model=None,
 )
 def get_profile_source_mix(
     profile_name: str,
@@ -2479,12 +2660,33 @@ def get_profile_source_mix(
         le=1.0,
         description="Flag source groups above this adapter, weight, or configured-limit share",
     ),
-) -> ProfileSourceMixResponse:
+    format: Literal["json", "markdown"] = Query("json"),
+) -> ProfileSourceMixResponse | Response:
+    return _profile_source_mix_response(
+        profile_name,
+        concentration_threshold=concentration_threshold,
+        format=format,
+    )
+
+
+def _profile_source_mix_response(
+    profile_name: str,
+    *,
+    concentration_threshold: float,
+    format: Literal["json", "markdown"],
+) -> ProfileSourceMixResponse | Response:
     profile = _load_profile_or_404(profile_name)
     report = build_profile_source_mix_for_profile(
         profile,
         concentration_threshold=concentration_threshold,
     )
+    if format == "markdown":
+        filename = f"{_download_filename_part(profile_name)}-source-mix.md"
+        return Response(
+            content=_render_profile_source_mix_markdown(report.to_dict()),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     return ProfileSourceMixResponse.model_validate(report.to_dict())
 
 
@@ -6393,6 +6595,141 @@ def _spec_bundle_markdown_response(idea_id: str, bundle: dict[str, Any]) -> Resp
 def _download_filename_part(value: str) -> str:
     cleaned = "".join(char if char.isalnum() or char in {"-", "_"} else "-" for char in value)
     return cleaned.strip("-_") or "idea"
+
+
+def _render_profile_source_mix_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        f"# Profile Source Mix: {report['profile_name']}",
+        "",
+        f"- Domain: {report['domain']}",
+        f"- Enabled adapters: {report['enabled_adapter_count']}",
+        f"- Disabled adapters: {report['disabled_adapter_count']}",
+        f"- Total weight: {report['total_weight']}",
+        f"- Concentration threshold: {report['concentration_threshold']}",
+        "",
+        "## Groups",
+    ]
+    groups = report.get("groups") or []
+    if groups:
+        for group in groups:
+            lines.append(
+                f"- {group['group']}: {group['adapter_count']} adapter(s), "
+                f"weight {group['total_weight']} ({group['weight_percentage']:.4f}), "
+                f"limit share {group['configured_limit_percentage']:.4f}"
+            )
+            lines.append(f"  - Adapters: {', '.join(group.get('adapters') or [])}")
+    else:
+        lines.append("- No enabled source groups configured.")
+
+    lines.extend(["", "## Concentration Flags"])
+    flags = report.get("concentration_flags") or []
+    if flags:
+        for flag in flags:
+            lines.append(
+                f"- {flag['group']} {flag['metric']}: "
+                f"{flag['percentage']:.4f} > {flag['threshold']:.4f}"
+            )
+    else:
+        lines.append("- No source group exceeds the threshold.")
+
+    lines.extend(["", "## Recommendations"])
+    recommendations = report.get("recommendations") or []
+    if recommendations:
+        for recommendation in recommendations:
+            lines.append(
+                f"- {recommendation['group']}: {recommendation['reason']} "
+                f"Adapters: {', '.join(recommendation.get('available_adapters') or [])}"
+            )
+    else:
+        lines.append("- No underrepresented source groups found.")
+    return "\n".join(lines) + "\n"
+
+
+def _render_profile_drift_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        f"# Profile Drift: {report['profile_name']}",
+        "",
+        f"- Domain: {report['domain']}",
+        f"- Status: {report['status']}",
+        f"- Overall drift score: {report['overall_drift_score']:.4f}",
+        f"- Signals analyzed: {report['signals_analyzed']}",
+        f"- Units analyzed: {report['units_analyzed']}",
+        "",
+        "## Drift Summary",
+    ]
+    for key in ("category_drift", "source_mix_drift", "target_user_drift"):
+        drift = report[key]
+        lines.append(
+            f"- {drift['metric']}: {drift['status']} "
+            f"(score {drift['drift_score']:.4f}, samples {drift['sample_count']})"
+        )
+        if drift.get("unexpected"):
+            lines.append(f"  - Unexpected: {', '.join(drift['unexpected'])}")
+        if drift.get("missing_expected"):
+            lines.append(f"  - Missing expected: {', '.join(drift['missing_expected'])}")
+
+    mismatch = report["evaluation_weight_mismatch"]
+    lines.extend(
+        [
+            "",
+            "## Evaluation Weights",
+            f"- Status: {mismatch['status']}",
+            f"- Average absolute delta: {mismatch['average_absolute_delta']:.4f}",
+            f"- Mismatched evaluations: {mismatch['mismatched_evaluation_count']}",
+            "",
+            "## Warnings",
+        ]
+    )
+    warnings = report.get("warnings") or []
+    lines.extend(f"- {warning}" for warning in warnings) if warnings else lines.append("- None")
+    return "\n".join(lines) + "\n"
+
+
+def _render_pipeline_run_comparison_markdown(comparison: dict[str, object]) -> str:
+    base = comparison["base_run"]
+    target = comparison["target_run"]
+    assert isinstance(base, dict)
+    assert isinstance(target, dict)
+    lines = [
+        f"# Pipeline Run Comparison: {base['id']} vs {target['id']}",
+        "",
+        f"- Baseline status: {base['status']}",
+        f"- Candidate status: {target['status']}",
+        "",
+        "| Section | Metric | Baseline | Candidate | Delta |",
+        "| --- | --- | ---: | ---: | ---: |",
+    ]
+    for section in (
+        "fetched_signals",
+        "insights",
+        "generated_ideas",
+        "approved_published_outputs",
+        "budget_usage",
+    ):
+        metrics = comparison.get(section)
+        if not isinstance(metrics, dict):
+            continue
+        for metric, delta in metrics.items():
+            if not isinstance(delta, dict):
+                continue
+            lines.append(
+                f"| {section} | {metric} | {delta['base']} | "
+                f"{delta['target']} | {delta['delta']} |"
+            )
+
+    lines.extend(["", "## Adapter Metrics"])
+    adapters = comparison.get("adapter_metrics")
+    if isinstance(adapters, list) and adapters:
+        for adapter in adapters:
+            if not isinstance(adapter, dict):
+                continue
+            lines.append(
+                f"- {adapter['adapter']}: {adapter.get('base_status') or 'missing'} -> "
+                f"{adapter.get('target_status') or 'missing'}"
+            )
+    else:
+        lines.append("- No adapter metric deltas.")
+    return "\n".join(lines) + "\n"
 
 
 @router.get("/ideas/{idea_id}/product-brief.md", response_model=None)
