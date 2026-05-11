@@ -12,6 +12,116 @@ DEFAULT_MAX_AGE_DAYS = 30
 
 
 @dataclass(frozen=True)
+class FreshnessScore:
+    source_adapter: str
+    signal_count: int
+    avg_age_hours: float
+    median_age_hours: float
+    newest_age_hours: float
+    oldest_age_hours: float
+    stale_count: int
+    stale_ratio: float
+    health: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source_adapter": self.source_adapter,
+            "signal_count": self.signal_count,
+            "avg_age_hours": self.avg_age_hours,
+            "median_age_hours": self.median_age_hours,
+            "newest_age_hours": self.newest_age_hours,
+            "oldest_age_hours": self.oldest_age_hours,
+            "stale_count": self.stale_count,
+            "stale_ratio": self.stale_ratio,
+            "health": self.health,
+        }
+
+
+@dataclass
+class FreshnessReport:
+    scores: list[FreshnessScore]
+    overall_health: str
+    generated_at: str
+    staleness_threshold_hours: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scores": [score.to_dict() for score in self.scores],
+            "overall_health": self.overall_health,
+            "generated_at": self.generated_at,
+            "staleness_threshold_hours": self.staleness_threshold_hours,
+        }
+
+
+class SignalFreshnessAnalyzer:
+    """Analyze freshness of in-memory signal dictionaries by source adapter."""
+
+    def __init__(self, *, staleness_threshold_hours: float = 168.0) -> None:
+        if staleness_threshold_hours <= 0:
+            raise ValueError("staleness_threshold_hours must be greater than 0")
+        self.staleness_threshold_hours = float(staleness_threshold_hours)
+
+    def analyze(self, signals: list[dict[str, Any]]) -> FreshnessReport:
+        now = datetime.now(timezone.utc)
+        grouped: dict[str, list[float]] = {}
+        for signal in signals:
+            source_adapter = str(signal.get("source_adapter") or "unknown")
+            grouped.setdefault(source_adapter, []).append(self._compute_age(signal, now))
+
+        scores: list[FreshnessScore] = []
+        for source_adapter, ages in grouped.items():
+            stale_count = sum(age > self.staleness_threshold_hours for age in ages)
+            avg_age = sum(ages) / len(ages)
+            stale_ratio = stale_count / len(ages)
+            scores.append(
+                FreshnessScore(
+                    source_adapter=source_adapter,
+                    signal_count=len(ages),
+                    avg_age_hours=round(avg_age, 2),
+                    median_age_hours=round(float(median(ages)), 2),
+                    newest_age_hours=round(min(ages), 2),
+                    oldest_age_hours=round(max(ages), 2),
+                    stale_count=stale_count,
+                    stale_ratio=round(stale_ratio, 4),
+                    health=self._classify_health(avg_age, stale_ratio),
+                )
+            )
+
+        scores.sort(key=lambda score: score.source_adapter)
+        return FreshnessReport(
+            scores=scores,
+            overall_health=self._overall_health(scores),
+            generated_at=now.isoformat(),
+            staleness_threshold_hours=self.staleness_threshold_hours,
+        )
+
+    def _compute_age(self, signal: dict[str, Any], now: datetime) -> float:
+        timestamp = _parse_optional_timestamp(
+            signal.get("fetched_at") or signal.get("published_at")
+        )
+        if timestamp is None:
+            return 0.0
+        age_hours = (now - timestamp).total_seconds() / 3600
+        return max(age_hours, 0.0)
+
+    def _classify_health(self, avg_age: float, stale_ratio: float) -> str:
+        threshold = self.staleness_threshold_hours
+        if stale_ratio >= 0.75 or avg_age >= threshold * 2:
+            return "critical"
+        if stale_ratio >= 0.4 or avg_age >= threshold:
+            return "stale"
+        if stale_ratio > 0 or avg_age >= threshold * 0.5:
+            return "aging"
+        return "fresh"
+
+    def _overall_health(self, scores: list[FreshnessScore]) -> str:
+        if not scores:
+            return "fresh"
+        severity = {"fresh": 0, "aging": 1, "stale": 2, "critical": 3}
+        return max(scores, key=lambda score: severity[score.health]).health
+
+
+@dataclass(frozen=True)
 class FreshnessGroupSummary:
     key: str
     total_count: int
@@ -211,10 +321,17 @@ def _build_recommendations(
 
 
 def _parse_timestamp(value: Any) -> datetime:
+    parsed = _parse_optional_timestamp(value)
+    if parsed is None:
+        return datetime.now(timezone.utc)
+    return parsed
+
+
+def _parse_optional_timestamp(value: Any) -> datetime | None:
     if isinstance(value, datetime):
         return _ensure_aware_utc(value)
     if not value:
-        return datetime.now(timezone.utc)
+        return None
     parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     return _ensure_aware_utc(parsed)
 
@@ -223,3 +340,39 @@ def _ensure_aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def render_freshness_markdown(report: FreshnessReport) -> str:
+    lines = [
+        "# Signal Freshness",
+        "",
+        f"Generated: {report.generated_at}",
+        f"Staleness threshold: {report.staleness_threshold_hours:g} hours",
+        f"Overall health: {_health_indicator(report.overall_health)}",
+        "",
+        "| Source | Count | Avg age | Median age | Newest | Oldest | Stale | Health |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for score in report.scores:
+        lines.append(
+            "| "
+            f"{score.source_adapter} | "
+            f"{score.signal_count} | "
+            f"{score.avg_age_hours:.1f}h | "
+            f"{score.median_age_hours:.1f}h | "
+            f"{score.newest_age_hours:.1f}h | "
+            f"{score.oldest_age_hours:.1f}h | "
+            f"{score.stale_count} ({score.stale_ratio:.0%}) | "
+            f"{_health_indicator(score.health)} |"
+        )
+    return "\n".join(lines)
+
+
+def _health_indicator(health: str) -> str:
+    colors = {
+        "fresh": "[green] fresh",
+        "aging": "[yellow] aging",
+        "stale": "[orange] stale",
+        "critical": "[red] critical",
+    }
+    return colors.get(health, health)
