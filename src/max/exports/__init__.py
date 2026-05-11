@@ -72,6 +72,11 @@ from max.exports.integration_readiness_matrix import (
     render_integration_readiness_matrix_json,
     render_integration_readiness_matrix_markdown,
 )
+from max.exports.investment_case import (
+    build_investment_case,
+    render_investment_case_json,
+    render_investment_case_markdown,
+)
 from max.exports.localization_readiness import (
     build_localization_readiness_export,
     render_localization_readiness_csv,
@@ -172,6 +177,7 @@ __all__ = [
     "build_implementation_risk_heatmap_export",
     "build_integration_dependency_health_export",
     "build_integration_readiness_matrix_export",
+    "build_investment_case",
     "build_localization_readiness_export",
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
@@ -213,6 +219,8 @@ __all__ = [
     "render_integration_readiness_matrix_csv",
     "render_integration_readiness_matrix_json",
     "render_integration_readiness_matrix_markdown",
+    "render_investment_case_json",
+    "render_investment_case_markdown",
     "render_localization_readiness_csv",
     "render_localization_readiness_json",
     "render_localization_readiness_markdown",
