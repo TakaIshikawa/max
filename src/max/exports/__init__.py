@@ -41,6 +41,11 @@ from max.exports.pricing_sensitivity import (
     render_pricing_sensitivity_json,
     render_pricing_sensitivity_markdown,
 )
+from max.exports.competitive_landscape import (
+    build_competitive_landscape,
+    render_competitive_landscape_json,
+    render_competitive_landscape_markdown,
+)
 from max.exports.sales_pipeline_forecast import (
     build_sales_pipeline_forecast,
     render_sales_pipeline_forecast_csv,
@@ -62,6 +67,7 @@ __all__ = [
     "build_integration_dependency_health_export",
     "build_localization_readiness_export",
     "build_pricing_sensitivity_report",
+    "build_competitive_landscape",
     "build_sales_pipeline_forecast",
     "build_sla_breach_risk_export",
     "render_api_quota_utilization_csv",
@@ -79,6 +85,8 @@ __all__ = [
     "render_localization_readiness_csv",
     "render_localization_readiness_json",
     "render_localization_readiness_markdown",
+    "render_competitive_landscape_json",
+    "render_competitive_landscape_markdown",
     "render_pricing_sensitivity_csv",
     "render_pricing_sensitivity_json",
     "render_pricing_sensitivity_markdown",
