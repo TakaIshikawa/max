@@ -114,6 +114,21 @@ from max.analysis.design_brief_operating_model import (
     render_design_brief_operating_model,
     render_design_brief_operating_model_csv,
 )
+from max.analysis.design_brief_change_impact import (
+    build_design_brief_change_impact_memo,
+    render_design_brief_change_impact_memo,
+    render_design_brief_change_impact_memo_csv,
+)
+from max.analysis.design_brief_objection_handling import (
+    build_design_brief_objection_handling_guide,
+    render_design_brief_objection_handling_guide,
+    render_design_brief_objection_handling_guide_csv,
+)
+from max.analysis.design_brief_reference_customer_profile import (
+    build_design_brief_reference_customer_profile,
+    render_design_brief_reference_customer_profile,
+    render_design_brief_reference_customer_profile_csv,
+)
 from max.analysis.design_brief_partner_integration_checklist import (
     build_design_brief_partner_integration_checklist,
     partner_integration_checklist_filename,
@@ -210,6 +225,9 @@ __all__ = [
     "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_operating_model",
+    "build_design_brief_change_impact_memo",
+    "build_design_brief_objection_handling_guide",
+    "build_design_brief_reference_customer_profile",
     "build_design_brief_raci_matrix",
     "build_design_brief_privacy_impact_assessment",
     "build_design_brief_renewal_expansion_plan",
@@ -262,6 +280,12 @@ __all__ = [
     "render_design_brief_sales_enablement_checklist",
     "render_design_brief_operating_model",
     "render_design_brief_operating_model_csv",
+    "render_design_brief_change_impact_memo",
+    "render_design_brief_change_impact_memo_csv",
+    "render_design_brief_objection_handling_guide",
+    "render_design_brief_objection_handling_guide_csv",
+    "render_design_brief_reference_customer_profile",
+    "render_design_brief_reference_customer_profile_csv",
     "render_design_brief_raci_matrix",
     "render_raci_matrix_csv",
     "render_design_brief_kpi_tree_markdown",
