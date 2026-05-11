@@ -11,6 +11,11 @@ from max.exports.pricing_sensitivity import (
     render_pricing_sensitivity_json,
     render_pricing_sensitivity_markdown,
 )
+from max.exports.competitive_landscape import (
+    build_competitive_landscape,
+    render_competitive_landscape_json,
+    render_competitive_landscape_markdown,
+)
 from max.exports.sales_pipeline_forecast import (
     build_sales_pipeline_forecast,
     render_sales_pipeline_forecast_csv,
@@ -21,7 +26,10 @@ from max.exports.sales_pipeline_forecast import (
 __all__ = [
     "build_retention_cohort_export",
     "build_pricing_sensitivity_report",
+    "build_competitive_landscape",
     "build_sales_pipeline_forecast",
+    "render_competitive_landscape_json",
+    "render_competitive_landscape_markdown",
     "render_pricing_sensitivity_csv",
     "render_pricing_sensitivity_json",
     "render_pricing_sensitivity_markdown",
