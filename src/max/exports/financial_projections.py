@@ -1,96 +1,84 @@
-"""Financial projections export — revenue and cost forecast documents.
+"""Financial projections export for buildable units.
 
-Builds projection models with MRR/ARR calculations, churn assumptions,
-and cost scaling curves.  Exports P&L projections, unit economics,
-and breakeven analysis.
+Generates lightweight ROI models, cost projections, and revenue estimates from
+buildable unit metadata for investment and portfolio planning.
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import math
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from max.store.db import Store
 
 SCHEMA_VERSION = "max.financial_projections.v1"
 KIND = "max.financial_projections"
 
-# ── Default assumptions ──────────────────────────────────────────────
+_DEFAULT_DEV_COST = 50_000.0
+_DEFAULT_INFRA_COST = 1_000.0
+_DEFAULT_MAINTENANCE_COST = 2_500.0
+_DEFAULT_MONTHLY_REVENUE = 10_000.0
 
-_DEFAULT_MONTHS = 24
-_DEFAULT_MONTHLY_CHURN = 0.05  # 5 %
-_DEFAULT_MONTHLY_GROWTH = 0.10  # 10 %
-_DEFAULT_ARPU = 50.0  # average revenue per user
-_DEFAULT_CAC = 200.0  # customer acquisition cost
-_DEFAULT_GROSS_MARGIN = 0.80  # 80 %
-_DEFAULT_FIXED_COSTS = 10_000.0  # monthly fixed costs
-
-
-# ── Public API ───────────────────────────────────────────────────────
+_PROJECTION_FIELDS = [
+    "idea_id",
+    "title",
+    "estimated_dev_cost",
+    "estimated_monthly_cost",
+    "projected_monthly_revenue",
+    "payback_months",
+    "roi_12_month",
+    "confidence",
+]
 
 
 def build_financial_projections(
-    *,
-    starting_customers: int,
-    monthly_growth_rate: float = _DEFAULT_MONTHLY_GROWTH,
-    monthly_churn_rate: float = _DEFAULT_MONTHLY_CHURN,
-    arpu: float = _DEFAULT_ARPU,
-    cac: float = _DEFAULT_CAC,
-    gross_margin: float = _DEFAULT_GROSS_MARGIN,
-    fixed_costs: float = _DEFAULT_FIXED_COSTS,
-    months: int = _DEFAULT_MONTHS,
+    store: Store,
+    domain: str | None = None,
 ) -> dict[str, Any]:
-    """Build financial projections report.
+    """Build ROI projections for buildable units in the store."""
+    units = store.get_buildable_units(limit=1000, domain=domain)
 
-    Args:
-        starting_customers: Number of customers at month 0.
-        monthly_growth_rate: Fractional monthly customer growth rate.
-        monthly_churn_rate: Fractional monthly customer churn rate.
-        arpu: Average revenue per user per month.
-        cac: Customer acquisition cost.
-        gross_margin: Gross margin as a fraction (0-1).
-        fixed_costs: Monthly fixed operating costs.
-        months: Number of months to project.
-
-    Returns:
-        Dict with monthly projections, unit economics, P&L, and
-        breakeven analysis.
-
-    Raises:
-        ValueError: For invalid parameter values.
-    """
-    _validate_inputs(
-        starting_customers=starting_customers,
-        monthly_growth_rate=monthly_growth_rate,
-        monthly_churn_rate=monthly_churn_rate,
-        arpu=arpu,
-        cac=cac,
-        gross_margin=gross_margin,
-        fixed_costs=fixed_costs,
-        months=months,
+    projections: list[dict[str, Any]] = []
+    groups: dict[str, dict[str, float]] = defaultdict(
+        lambda: {
+            "projection_count": 0,
+            "estimated_dev_cost": 0.0,
+            "estimated_monthly_cost": 0.0,
+            "projected_monthly_revenue": 0.0,
+            "net_12_month": 0.0,
+        }
     )
 
-    monthly = _build_monthly_projections(
-        starting_customers=starting_customers,
-        monthly_growth_rate=monthly_growth_rate,
-        monthly_churn_rate=monthly_churn_rate,
-        arpu=arpu,
-        cac=cac,
-        gross_margin=gross_margin,
-        fixed_costs=fixed_costs,
-        months=months,
-    )
+    for unit in units:
+        costs = _estimate_costs(unit)
+        revenue = _estimate_monthly_revenue(unit)
+        roi = _calculate_roi(costs, revenue)
+        confidence = _estimate_confidence(unit, costs, revenue)
+        projection = {
+            "idea_id": str(getattr(unit, "id", "")),
+            "title": str(getattr(unit, "title", "Untitled")),
+            "estimated_dev_cost": costs["development_cost"],
+            "estimated_monthly_cost": costs["monthly_cost"],
+            "projected_monthly_revenue": round(revenue, 2),
+            "payback_months": roi["payback_months"],
+            "roi_12_month": roi["roi_12_month"],
+            "confidence": confidence,
+        }
+        projections.append(projection)
 
-    unit_economics = _compute_unit_economics(
-        arpu=arpu,
-        cac=cac,
-        monthly_churn_rate=monthly_churn_rate,
-        gross_margin=gross_margin,
-    )
-
-    pnl = _build_pnl(monthly, fixed_costs)
-
-    breakeven = _compute_breakeven(monthly)
+        group_name = _group_name(unit)
+        group = groups[group_name]
+        group["projection_count"] += 1
+        group["estimated_dev_cost"] += projection["estimated_dev_cost"]
+        group["estimated_monthly_cost"] += projection["estimated_monthly_cost"]
+        group["projected_monthly_revenue"] += projection["projected_monthly_revenue"]
+        group["net_12_month"] += roi["net_profit"]
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -99,270 +87,260 @@ def build_financial_projections(
         "source": {
             "project": "max",
             "entity_type": "financial_projections",
+            "domain_filter": domain,
         },
-        "assumptions": {
-            "starting_customers": starting_customers,
-            "monthly_growth_rate": monthly_growth_rate,
-            "monthly_churn_rate": monthly_churn_rate,
-            "arpu": arpu,
-            "cac": cac,
-            "gross_margin": gross_margin,
-            "fixed_costs": fixed_costs,
-            "months": months,
-        },
-        "monthly_projections": monthly,
-        "unit_economics": unit_economics,
-        "pnl_summary": pnl,
-        "breakeven": breakeven,
+        "projection_count": len(projections),
+        "projections": projections,
+        "portfolio_summary": _build_portfolio_summary(projections, groups),
     }
 
 
 def render_financial_projections_markdown(report: dict[str, Any]) -> str:
-    """Render financial projections report as Markdown."""
+    """Render a financial projections report as Markdown."""
+    summary = report.get("portfolio_summary", {})
     lines = [
         "# Financial Projections",
         "",
         f"Schema: `{report['schema_version']}`",
         f"Generated: {report['generated_at']}",
+        f"Total projections: {report.get('projection_count', 0)}",
         "",
+        "## Summary",
+        "",
+        "| Metric | Value |",
+        "|--------|-------|",
+        f"| Total development cost | ${summary.get('total_dev_cost', 0):,.0f} |",
+        f"| Total monthly cost | ${summary.get('total_monthly_cost', 0):,.0f} |",
+        f"| Projected monthly revenue | ${summary.get('total_monthly_revenue', 0):,.0f} |",
+        f"| 12-month net profit | ${summary.get('net_profit_12_month', 0):,.0f} |",
+        f"| Average 12-month ROI | {summary.get('average_roi_12_month', 0):.2f} |",
+        "",
+        "## Per-Idea Details",
+        "",
+        "| Idea | Dev Cost | Monthly Cost | Monthly Revenue | Payback | ROI | Confidence |",
+        "|------|----------|--------------|-----------------|---------|-----|------------|",
     ]
 
-    # Assumptions
-    a = report["assumptions"]
-    lines.extend([
-        "## Assumptions",
-        "",
-        f"- Starting customers: {a['starting_customers']:,}",
-        f"- Monthly growth rate: {a['monthly_growth_rate']:.1%}",
-        f"- Monthly churn rate: {a['monthly_churn_rate']:.1%}",
-        f"- ARPU: ${a['arpu']:,.2f}",
-        f"- CAC: ${a['cac']:,.2f}",
-        f"- Gross margin: {a['gross_margin']:.0%}",
-        f"- Fixed costs: ${a['fixed_costs']:,.2f}/mo",
-        f"- Projection horizon: {a['months']} months",
-        "",
-    ])
-
-    # Unit economics
-    ue = report["unit_economics"]
-    lines.extend([
-        "## Unit Economics",
-        "",
-        f"- **LTV**: ${ue['ltv']:,.2f}",
-        f"- **LTV/CAC ratio**: {ue['ltv_cac_ratio']:.2f}x",
-        f"- **Payback period**: {ue['payback_months']:.1f} months",
-        f"- **Gross profit/user/mo**: ${ue['gross_profit_per_user']:,.2f}",
-        "",
-    ])
-
-    # Monthly projections table
-    monthly = report["monthly_projections"]
-    lines.extend([
-        "## Monthly Projections",
-        "",
-        "| Month | Customers | MRR | ARR | New | Churned | Net Cash Flow |",
-        "|-------|-----------|-----|-----|-----|---------|---------------|",
-    ])
-    for m in monthly:
+    for projection in report.get("projections", []):
+        payback = projection["payback_months"]
+        payback_text = "n/a" if payback is None else f"{payback:.1f} mo"
         lines.append(
-            f"| {m['month']} | {m['customers']:,} "
-            f"| ${m['mrr']:,.0f} | ${m['arr']:,.0f} "
-            f"| {m['new_customers']} | {m['churned_customers']} "
-            f"| ${m['net_cash_flow']:,.0f} |"
+            f"| {projection['title']} | "
+            f"${projection['estimated_dev_cost']:,.0f} | "
+            f"${projection['estimated_monthly_cost']:,.0f} | "
+            f"${projection['projected_monthly_revenue']:,.0f} | "
+            f"{payback_text} | "
+            f"{projection['roi_12_month']:.2f} | "
+            f"{projection['confidence']} |"
         )
-    lines.append("")
 
-    # P&L summary
-    pnl = report["pnl_summary"]
     lines.extend([
-        "## P&L Summary",
         "",
-        f"- Total revenue: ${pnl['total_revenue']:,.0f}",
-        f"- Total COGS: ${pnl['total_cogs']:,.0f}",
-        f"- Total gross profit: ${pnl['total_gross_profit']:,.0f}",
-        f"- Total fixed costs: ${pnl['total_fixed_costs']:,.0f}",
-        f"- Total acquisition costs: ${pnl['total_acquisition_costs']:,.0f}",
-        f"- Net profit: ${pnl['net_profit']:,.0f}",
+        "## Portfolio Totals",
         "",
+        f"- Development cost: ${summary.get('total_dev_cost', 0):,.0f}",
+        f"- Monthly operating cost: ${summary.get('total_monthly_cost', 0):,.0f}",
+        f"- Monthly revenue: ${summary.get('total_monthly_revenue', 0):,.0f}",
+        f"- Median payback: {_format_months(summary.get('median_payback_months'))}",
+        "",
+        "## Aggregation",
+        "",
+        "| Segment | Count | Dev Cost | Monthly Cost | Monthly Revenue | 12-Month Net |",
+        "|---------|-------|----------|--------------|-----------------|--------------|",
     ])
-
-    # Breakeven
-    be = report["breakeven"]
-    lines.extend([
-        "## Breakeven Analysis",
-        "",
-    ])
-    if be["breakeven_month"] is not None:
+    for segment in summary.get("by_segment", []):
         lines.append(
-            f"- Breakeven reached at **month {be['breakeven_month']}** "
-            f"with {be['breakeven_customers']:,} customers"
+            f"| {segment['segment']} | {segment['projection_count']} | "
+            f"${segment['estimated_dev_cost']:,.0f} | "
+            f"${segment['estimated_monthly_cost']:,.0f} | "
+            f"${segment['projected_monthly_revenue']:,.0f} | "
+            f"${segment['net_12_month']:,.0f} |"
         )
-    else:
-        lines.append("- Breakeven **not reached** within projection horizon")
-    lines.extend([
-        f"- Cumulative cash flow at end: ${be['cumulative_cash_flow']:,.0f}",
-        "",
-    ])
 
     return "\n".join(lines).rstrip() + "\n"
 
 
 def render_financial_projections_json(report: dict[str, Any]) -> str:
-    """Render financial projections report as formatted JSON."""
+    """Render a financial projections report as formatted JSON."""
     return json.dumps(report, indent=2, default=str)
 
 
-# ── Internal helpers ─────────────────────────────────────────────────
+def render_financial_projections_csv(report: dict[str, Any]) -> str:
+    """Render projection rows as CSV."""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=_PROJECTION_FIELDS)
+    writer.writeheader()
+    for projection in report.get("projections", []):
+        writer.writerow({field: projection.get(field) for field in _PROJECTION_FIELDS})
+    return output.getvalue()
 
 
-def _validate_inputs(
-    *,
-    starting_customers: int,
-    monthly_growth_rate: float,
-    monthly_churn_rate: float,
-    arpu: float,
-    cac: float,
-    gross_margin: float,
-    fixed_costs: float,
-    months: int,
-) -> None:
-    """Validate projection input parameters."""
-    if starting_customers < 0:
-        raise ValueError("starting_customers must be >= 0")
-    if not 0.0 <= monthly_churn_rate <= 1.0:
-        raise ValueError("monthly_churn_rate must be between 0 and 1")
-    if monthly_growth_rate < 0.0:
-        raise ValueError("monthly_growth_rate must be >= 0")
-    if arpu < 0:
-        raise ValueError("arpu must be >= 0")
-    if cac < 0:
-        raise ValueError("cac must be >= 0")
-    if not 0.0 <= gross_margin <= 1.0:
-        raise ValueError("gross_margin must be between 0 and 1")
-    if fixed_costs < 0:
-        raise ValueError("fixed_costs must be >= 0")
-    if months < 1:
-        raise ValueError("months must be >= 1")
-
-
-def _build_monthly_projections(
-    *,
-    starting_customers: int,
-    monthly_growth_rate: float,
-    monthly_churn_rate: float,
-    arpu: float,
-    cac: float,
-    gross_margin: float,
-    fixed_costs: float,
-    months: int,
-) -> list[dict[str, Any]]:
-    """Generate month-by-month projections."""
-    rows: list[dict[str, Any]] = []
-    customers = float(starting_customers)
-
-    for month in range(1, months + 1):
-        new_customers = int(math.floor(customers * monthly_growth_rate))
-        churned_customers = int(math.floor(customers * monthly_churn_rate))
-        customers = customers + new_customers - churned_customers
-
-        mrr = customers * arpu
-        arr = mrr * 12
-        revenue = mrr
-        cogs = revenue * (1 - gross_margin)
-        gross_profit = revenue - cogs
-        acquisition_cost = new_customers * cac
-        net_cash_flow = gross_profit - fixed_costs - acquisition_cost
-
-        rows.append({
-            "month": month,
-            "customers": int(customers),
-            "new_customers": new_customers,
-            "churned_customers": churned_customers,
-            "mrr": round(mrr, 2),
-            "arr": round(arr, 2),
-            "revenue": round(revenue, 2),
-            "cogs": round(cogs, 2),
-            "gross_profit": round(gross_profit, 2),
-            "acquisition_cost": round(acquisition_cost, 2),
-            "net_cash_flow": round(net_cash_flow, 2),
-        })
-
-    return rows
-
-
-def _compute_unit_economics(
-    *,
-    arpu: float,
-    cac: float,
-    monthly_churn_rate: float,
-    gross_margin: float,
-) -> dict[str, Any]:
-    """Compute unit economics: LTV, LTV/CAC, payback period."""
-    gross_profit_per_user = arpu * gross_margin
-
-    if monthly_churn_rate > 0:
-        avg_lifetime_months = 1.0 / monthly_churn_rate
-    else:
-        avg_lifetime_months = float("inf")
-
-    ltv = gross_profit_per_user * avg_lifetime_months
-
-    ltv_cac_ratio = ltv / cac if cac > 0 else float("inf")
-
-    if gross_profit_per_user > 0:
-        payback_months = cac / gross_profit_per_user
-    else:
-        payback_months = float("inf")
-
+def _estimate_costs(unit: Any) -> dict[str, float]:
+    """Extract or default cost fields from buildable unit metadata."""
+    metadata = _metadata(unit)
+    development_cost = _number_from_metadata(
+        metadata,
+        ["development_cost", "dev_cost", "estimated_dev_cost", "build_cost"],
+        _DEFAULT_DEV_COST,
+    )
+    infrastructure_cost = _number_from_metadata(
+        metadata,
+        ["infrastructure_cost", "infra_cost", "monthly_infrastructure_cost"],
+        _DEFAULT_INFRA_COST,
+    )
+    maintenance_cost = _number_from_metadata(
+        metadata,
+        ["maintenance_cost", "monthly_maintenance_cost", "support_cost"],
+        _DEFAULT_MAINTENANCE_COST,
+    )
+    monthly_cost = infrastructure_cost + maintenance_cost
     return {
-        "arpu": arpu,
-        "gross_profit_per_user": round(gross_profit_per_user, 2),
-        "avg_lifetime_months": round(avg_lifetime_months, 2) if math.isfinite(avg_lifetime_months) else None,
-        "ltv": round(ltv, 2) if math.isfinite(ltv) else None,
-        "ltv_cac_ratio": round(ltv_cac_ratio, 2) if math.isfinite(ltv_cac_ratio) else None,
-        "payback_months": round(payback_months, 2) if math.isfinite(payback_months) else None,
-        "cac": cac,
+        "development_cost": round(development_cost, 2),
+        "infrastructure_cost": round(infrastructure_cost, 2),
+        "maintenance_cost": round(maintenance_cost, 2),
+        "monthly_cost": round(monthly_cost, 2),
     }
 
 
-def _build_pnl(
-    monthly: list[dict[str, Any]],
-    fixed_costs: float,
-) -> dict[str, Any]:
-    """Build P&L summary from monthly projections."""
-    total_revenue = sum(m["revenue"] for m in monthly)
-    total_cogs = sum(m["cogs"] for m in monthly)
-    total_gross_profit = sum(m["gross_profit"] for m in monthly)
-    total_fixed = fixed_costs * len(monthly)
-    total_acq = sum(m["acquisition_cost"] for m in monthly)
-    net_profit = total_gross_profit - total_fixed - total_acq
-
+def _calculate_roi(
+    costs: dict[str, float],
+    revenue: float,
+    months: int = 12,
+) -> dict[str, float | None]:
+    """Calculate simple payback and ROI over a projection horizon."""
+    dev_cost = float(costs.get("development_cost", 0.0))
+    monthly_cost = float(costs.get("monthly_cost", 0.0))
+    monthly_profit = revenue - monthly_cost
+    total_cost = dev_cost + (monthly_cost * months)
+    total_revenue = revenue * months
+    net_profit = total_revenue - total_cost
+    payback_months = None
+    if monthly_profit > 0:
+        payback_months = round(dev_cost / monthly_profit, 2)
+    roi = 0.0 if total_cost <= 0 else net_profit / total_cost
     return {
-        "total_revenue": round(total_revenue, 2),
-        "total_cogs": round(total_cogs, 2),
-        "total_gross_profit": round(total_gross_profit, 2),
-        "total_fixed_costs": round(total_fixed, 2),
-        "total_acquisition_costs": round(total_acq, 2),
+        "payback_months": payback_months,
+        "roi_12_month": round(roi, 4),
         "net_profit": round(net_profit, 2),
+        "monthly_profit": round(monthly_profit, 2),
     }
 
 
-def _compute_breakeven(
-    monthly: list[dict[str, Any]],
+def _estimate_monthly_revenue(unit: Any) -> float:
+    metadata = _metadata(unit)
+    explicit = _number_from_metadata(
+        metadata,
+        [
+            "projected_monthly_revenue",
+            "monthly_revenue",
+            "estimated_monthly_revenue",
+            "revenue_estimate",
+        ],
+        math.nan,
+    )
+    if math.isfinite(explicit):
+        return round(explicit, 2)
+
+    signal_count = len(getattr(unit, "evidence_signals", []) or [])
+    quality_score = _coerce_float(getattr(unit, "quality_score", 0.0), 0.0)
+    usefulness_score = _coerce_float(getattr(unit, "usefulness_score", 0.0), 0.0)
+    confidence_multiplier = 1.0 + min(max(quality_score + usefulness_score, 0.0), 2.0) * 0.25
+    signal_multiplier = 1.0 + min(signal_count, 10) * 0.08
+    return round(_DEFAULT_MONTHLY_REVENUE * confidence_multiplier * signal_multiplier, 2)
+
+
+def _build_portfolio_summary(
+    projections: list[dict[str, Any]],
+    groups: dict[str, dict[str, float]],
 ) -> dict[str, Any]:
-    """Find the first month where cumulative cash flow turns positive."""
-    cumulative = 0.0
-    breakeven_month: int | None = None
-    breakeven_customers: int | None = None
-
-    for m in monthly:
-        cumulative += m["net_cash_flow"]
-        if breakeven_month is None and cumulative > 0:
-            breakeven_month = m["month"]
-            breakeven_customers = m["customers"]
-
+    total_dev = sum(p["estimated_dev_cost"] for p in projections)
+    total_monthly_cost = sum(p["estimated_monthly_cost"] for p in projections)
+    total_revenue = sum(p["projected_monthly_revenue"] for p in projections)
+    roi_values = [p["roi_12_month"] for p in projections]
+    paybacks = sorted(p["payback_months"] for p in projections if p["payback_months"] is not None)
+    net_profit = sum(group["net_12_month"] for group in groups.values())
     return {
-        "breakeven_month": breakeven_month,
-        "breakeven_customers": breakeven_customers,
-        "cumulative_cash_flow": round(cumulative, 2),
+        "total_dev_cost": round(total_dev, 2),
+        "total_monthly_cost": round(total_monthly_cost, 2),
+        "total_monthly_revenue": round(total_revenue, 2),
+        "net_profit_12_month": round(net_profit, 2),
+        "average_roi_12_month": round(sum(roi_values) / len(roi_values), 4) if roi_values else 0.0,
+        "median_payback_months": _median(paybacks),
+        "by_segment": [
+            {"segment": segment, **{k: round(v, 2) for k, v in values.items()}}
+            for segment, values in sorted(groups.items())
+        ],
     }
+
+
+def _metadata(unit: Any) -> dict[str, Any]:
+    metadata = getattr(unit, "metadata", None)
+    if isinstance(metadata, dict):
+        return metadata
+    extra = getattr(unit, "extra", None)
+    if isinstance(extra, dict):
+        return extra
+    return {}
+
+
+def _number_from_metadata(
+    metadata: dict[str, Any],
+    keys: list[str],
+    default: float,
+) -> float:
+    for key in keys:
+        if key in metadata:
+            return _coerce_float(metadata[key], default)
+    financials = metadata.get("financials")
+    if isinstance(financials, dict):
+        for key in keys:
+            if key in financials:
+                return _coerce_float(financials[key], default)
+    return default
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        if value is None or value == "":
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _estimate_confidence(unit: Any, costs: dict[str, float], revenue: float) -> str:
+    metadata = _metadata(unit)
+    explicit = str(metadata.get("confidence", "")).lower()
+    if explicit in {"low", "medium", "high"}:
+        return explicit
+    score = 0.0
+    if costs["development_cost"] != _DEFAULT_DEV_COST:
+        score += 0.25
+    if revenue != _DEFAULT_MONTHLY_REVENUE:
+        score += 0.25
+    score += min(len(getattr(unit, "evidence_signals", []) or []), 5) * 0.08
+    score += min(max(_coerce_float(getattr(unit, "quality_score", 0.0), 0.0), 0.0), 1.0) * 0.2
+    if score >= 0.65:
+        return "high"
+    if score >= 0.3:
+        return "medium"
+    return "low"
+
+
+def _group_name(unit: Any) -> str:
+    return str(getattr(unit, "domain", "") or getattr(unit, "category", "") or "general")
+
+
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    midpoint = len(values) // 2
+    if len(values) % 2:
+        return values[midpoint]
+    return round((values[midpoint - 1] + values[midpoint]) / 2, 2)
+
+
+def _format_months(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.1f} months"
