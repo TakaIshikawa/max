@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -11,6 +12,8 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 import httpx
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_BACKOFF_SECONDS = 0.0
 
 
 class SlackWebhookPublishError(RuntimeError):
@@ -30,6 +33,14 @@ class SlackWebhookPublishResult:
     dry_run: bool
     payload: dict[str, Any]
     response_body: str = ""
+    ok: bool = False
+    channel: str = ""
+    ts: str = ""
+    attempts: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the compact publish status expected by notification callers."""
+        return {"ok": self.ok, "channel": self.channel, "ts": self.ts}
 
 
 class SlackWebhookPublisher:
@@ -44,16 +55,20 @@ class SlackWebhookPublisher:
         icon_emoji: str | None = None,
         icon_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_backoff: float = DEFAULT_RETRY_BACKOFF_SECONDS,
         client: httpx.Client | None = None,
     ) -> None:
         if not webhook_url.strip():
-            raise SlackWebhookPublishError("Slack webhook URL is required")
+            raise ValueError("Slack webhook URL is required")
         self.webhook_url = webhook_url
         self.channel = _clean_text(channel)
         self.username = _clean_text(username)
         self.icon_emoji = _clean_text(icon_emoji)
         self.icon_url = _clean_text(icon_url)
         self.timeout = timeout
+        self.max_retries = max(0, max_retries)
+        self.retry_backoff = max(0.0, retry_backoff)
         self._client = client
 
     @classmethod
@@ -66,6 +81,8 @@ class SlackWebhookPublisher:
         icon_emoji: str | None = None,
         icon_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_backoff: float = DEFAULT_RETRY_BACKOFF_SECONDS,
         client: httpx.Client | None = None,
     ) -> SlackWebhookPublisher:
         """Create a publisher using explicit values first, then environment variables."""
@@ -81,6 +98,8 @@ class SlackWebhookPublisher:
             icon_emoji=icon_emoji or os.getenv("SLACK_WEBHOOK_ICON_EMOJI"),
             icon_url=icon_url or os.getenv("SLACK_WEBHOOK_ICON_URL"),
             timeout=timeout,
+            max_retries=max_retries,
+            retry_backoff=retry_backoff,
             client=client,
         )
 
@@ -128,25 +147,14 @@ class SlackWebhookPublisher:
                 url=self.redacted_url,
                 dry_run=True,
                 payload=slack_payload,
+                channel=self.channel or "",
+                attempts=0,
             )
 
         close_client = self._client is None
         client = self._client or httpx.Client(timeout=self.timeout)
         try:
-            response = client.post(
-                self.webhook_url,
-                json=slack_payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "max-slack-webhook-publisher/1",
-                    "X-Max-Published-At": datetime.now(timezone.utc).isoformat(),
-                },
-                timeout=self.timeout,
-            )
-        except (httpx.RequestError, httpx.TimeoutException) as exc:
-            raise SlackWebhookPublishError(
-                f"Slack webhook publish failed for {self.redacted_url}: {exc}"
-            ) from exc
+            response, attempts = self._post_with_retries(client, slack_payload)
         finally:
             if close_client:
                 client.close()
@@ -164,7 +172,61 @@ class SlackWebhookPublisher:
             dry_run=False,
             payload=slack_payload,
             response_body=_response_body_preview(response),
+            ok=True,
+            channel=self.channel or _response_field(response, "channel"),
+            ts=_response_field(response, "ts"),
+            attempts=attempts,
         )
+
+    def _post_with_retries(
+        self,
+        client: httpx.Client,
+        slack_payload: dict[str, Any],
+    ) -> tuple[httpx.Response, int]:
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "max-slack-webhook-publisher/1",
+            "X-Max-Published-At": datetime.now(timezone.utc).isoformat(),
+        }
+        last_response: httpx.Response | None = None
+        last_error: Exception | None = None
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = client.post(
+                    self.webhook_url,
+                    json=slack_payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+            except (httpx.RequestError, httpx.TimeoutException) as exc:
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise SlackWebhookPublishError(
+                        f"Slack webhook publish failed for {self.redacted_url}: {exc}"
+                    ) from exc
+                self._sleep_before_retry(attempt, None)
+                continue
+
+            if not _is_retryable_response(response):
+                return response, attempt + 1
+
+            last_response = response
+            if attempt < self.max_retries:
+                self._sleep_before_retry(attempt, response)
+
+        if last_response is not None:
+            return last_response, self.max_retries + 1
+        raise SlackWebhookPublishError(
+            f"Slack webhook publish failed for {self.redacted_url}: {last_error}"
+        ) from last_error
+
+    def _sleep_before_retry(self, attempt: int, response: httpx.Response | None) -> None:
+        delay = _retry_after_seconds(response) if response is not None else None
+        if delay is None:
+            delay = self.retry_backoff * (attempt + 1)
+        if delay > 0:
+            time.sleep(delay)
 
 
 def _idea_message(payload: dict[str, Any]) -> dict[str, Any]:
@@ -338,6 +400,30 @@ def _response_body_preview(response: httpx.Response, *, limit: int = 500) -> str
     if len(text) <= limit:
         return text
     return text[:limit] + "..."
+
+
+def _is_retryable_response(response: httpx.Response) -> bool:
+    return response.status_code == 429 or 500 <= response.status_code < 600
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    retry_after = response.headers.get("Retry-After")
+    if retry_after is None:
+        return None
+    try:
+        return max(0.0, float(retry_after))
+    except ValueError:
+        return None
+
+
+def _response_field(response: httpx.Response, key: str) -> str:
+    try:
+        data = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return _text(data.get(key))
 
 
 def redact_slack_webhook_url(url: str) -> str:

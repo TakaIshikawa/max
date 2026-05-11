@@ -97,6 +97,38 @@ def test_live_publish_raises_for_slack_error_response() -> None:
     assert "invalid_payload" in str(exc_info.value)
 
 
+def test_live_publish_retries_transient_slack_response() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(429, text="rate_limited", headers={"Retry-After": "0"})
+        return httpx.Response(200, json={"ok": True, "channel": "C123", "ts": "1710000000.000100"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    publisher = SlackWebhookPublisher(
+        "https://hooks.slack.com/services/T000/B000/secret",
+        client=client,
+        max_retries=1,
+    )
+
+    result = publisher.publish(_tact_spec(), dry_run=False)
+
+    assert result.status_code == 200
+    assert result.ok is True
+    assert result.channel == "C123"
+    assert result.ts == "1710000000.000100"
+    assert result.attempts == 2
+    assert result.to_dict() == {"ok": True, "channel": "C123", "ts": "1710000000.000100"}
+    assert len(requests) == 2
+
+
+def test_missing_webhook_url_raises_value_error() -> None:
+    with pytest.raises(ValueError, match="Slack webhook URL is required"):
+        SlackWebhookPublisher("")
+
+
 def test_build_payload_formats_design_brief() -> None:
     publisher = SlackWebhookPublisher(
         "https://hooks.slack.com/services/T000/B000/secret",
