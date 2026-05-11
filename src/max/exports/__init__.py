@@ -34,6 +34,11 @@ from max.exports.data_residency_matrix import (
     render_data_residency_matrix_json,
     render_data_residency_matrix_markdown,
 )
+from max.exports.feature_adoption_cohorts import (
+    build_feature_adoption_cohorts_export,
+    render_feature_adoption_cohorts_json,
+    render_feature_adoption_cohorts_markdown,
+)
 from max.exports.incident_impact_assessment import (
     build_incident_impact_assessment_export,
     render_incident_impact_assessment_csv,
@@ -112,6 +117,7 @@ __all__ = [
     "build_api_quota_utilization_export",
     "build_buyer_committee_alignment_export",
     "build_data_residency_matrix_export",
+    "build_feature_adoption_cohorts_export",
     "build_incident_impact_assessment_export",
     "build_integration_dependency_health_export",
     "build_localization_readiness_export",
@@ -132,6 +138,8 @@ __all__ = [
     "render_data_residency_matrix_csv",
     "render_data_residency_matrix_json",
     "render_data_residency_matrix_markdown",
+    "render_feature_adoption_cohorts_json",
+    "render_feature_adoption_cohorts_markdown",
     "render_incident_impact_assessment_csv",
     "render_incident_impact_assessment_json",
     "render_incident_impact_assessment_markdown",
