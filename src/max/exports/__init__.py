@@ -85,6 +85,12 @@ from max.exports.release_readiness_scorecard import (
     render_release_readiness_scorecard_json,
     render_release_readiness_scorecard_markdown,
 )
+from max.exports.revenue_leakage_diagnostic import (
+    build_revenue_leakage_diagnostic_export,
+    render_revenue_leakage_diagnostic_csv,
+    render_revenue_leakage_diagnostic_json,
+    render_revenue_leakage_diagnostic_markdown,
+)
 from max.exports.roadmap_prioritization import (
     build_roadmap_prioritization_export,
     render_roadmap_prioritization_csv,
@@ -126,6 +132,7 @@ __all__ = [
     "build_competitive_landscape",
     "build_product_usage_segmentation_export",
     "build_release_readiness_scorecard_export",
+    "build_revenue_leakage_diagnostic_export",
     "build_roadmap_prioritization_export",
     "build_sales_pipeline_forecast",
     "build_sla_breach_risk_export",
@@ -168,6 +175,9 @@ __all__ = [
     "render_release_readiness_scorecard_csv",
     "render_release_readiness_scorecard_json",
     "render_release_readiness_scorecard_markdown",
+    "render_revenue_leakage_diagnostic_csv",
+    "render_revenue_leakage_diagnostic_json",
+    "render_revenue_leakage_diagnostic_markdown",
     "render_retention_cohort_json",
     "render_retention_cohort_markdown",
     "render_roadmap_prioritization_csv",
