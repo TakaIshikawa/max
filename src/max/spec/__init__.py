@@ -44,6 +44,11 @@ from max.spec.cost_estimate import (
     render_cost_estimate_csv,
     render_cost_estimate_markdown,
 )
+from max.spec.change_freeze_plan import (
+    generate_change_freeze_plan,
+    render_change_freeze_plan_csv,
+    render_change_freeze_plan_markdown,
+)
 from max.spec.customer_onboarding_plan import (
     generate_customer_onboarding_plan,
     render_customer_onboarding_plan_csv,
@@ -58,6 +63,11 @@ from max.spec.data_retention_schedule import (
     generate_data_retention_schedule,
     render_data_retention_schedule_csv,
     render_data_retention_schedule_markdown,
+)
+from max.spec.data_migration_rehearsal_plan import (
+    generate_data_migration_rehearsal_plan,
+    render_data_migration_rehearsal_plan_csv,
+    render_data_migration_rehearsal_plan_markdown,
 )
 from max.spec.dependency_inventory import (
     generate_dependency_inventory,
@@ -81,6 +91,11 @@ from max.spec.disaster_recovery_plan import (
     render_disaster_recovery_plan_csv,
     render_disaster_recovery_plan_markdown,
 )
+from max.spec.feature_flag_rollout_plan import (
+    generate_feature_flag_rollout_plan,
+    render_feature_flag_rollout_plan_csv,
+    render_feature_flag_rollout_plan_markdown,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import (
     generate_implementation_plan,
@@ -91,6 +106,11 @@ from max.spec.incident_response_plan import (
     render_incident_response_plan_csv,
     render_incident_response_plan_json,
     render_incident_response_plan_markdown,
+)
+from max.spec.incident_comms_matrix import (
+    generate_incident_comms_matrix,
+    render_incident_comms_matrix_csv,
+    render_incident_comms_matrix_markdown,
 )
 from max.spec.launch_checklist import generate_launch_checklist
 from max.spec.migration_checklist import (
@@ -152,6 +172,12 @@ from max.spec.security_review import (
     render_security_review_markdown,
 )
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_csv, render_slo_plan_markdown
+from max.spec.slo_exception_review import (
+    SLO_EXCEPTION_REVIEW_SCHEMA_VERSION,
+    generate_slo_exception_review,
+    render_slo_exception_review_csv,
+    render_slo_exception_review_markdown,
+)
 from max.spec.smoke_test_plan import (
     generate_smoke_test_plan,
     render_smoke_test_plan_csv,
@@ -190,6 +216,7 @@ __all__ = [
     "API_CONTRACT_TEST_PLAN_SCHEMA_VERSION",
     "ACCESSIBILITY_COMPLIANCE_PLAN_SCHEMA_VERSION",
     "ERROR_BUDGET_POLICY_SCHEMA_VERSION",
+    "SLO_EXCEPTION_REVIEW_SCHEMA_VERSION",
     "RUNTIME_CONFIGURATION_PLAN_CSV_COLUMNS",
     "RUNTIME_CONFIGURATION_PLAN_KIND",
     "RUNTIME_CONFIGURATION_PLAN_SCHEMA_VERSION",
@@ -201,16 +228,20 @@ __all__ = [
     "generate_compliance_checklist",
     "generate_consent_management_plan",
     "generate_cost_estimate",
+    "generate_change_freeze_plan",
     "generate_customer_onboarding_plan",
     "generate_data_classification",
+    "generate_data_migration_rehearsal_plan",
     "generate_data_retention_schedule",
     "generate_dependency_inventory",
     "generate_deployment_topology",
     "generate_error_budget_policy",
     "generate_disaster_recovery_plan",
     "generate_experiment_card",
+    "generate_feature_flag_rollout_plan",
     "generate_implementation_plan",
     "render_implementation_plan_markdown",
+    "generate_incident_comms_matrix",
     "generate_incident_response_plan",
     "generate_launch_checklist",
     "generate_migration_checklist",
@@ -226,6 +257,7 @@ __all__ = [
     "generate_security_controls",
     "generate_security_review",
     "generate_service_deprecation_plan",
+    "generate_slo_exception_review",
     "generate_slo_plan",
     "generate_smoke_test_plan",
     "generate_stakeholder_handoff",
@@ -268,10 +300,14 @@ __all__ = [
     "render_consent_management_plan_markdown",
     "render_cost_estimate_markdown",
     "render_cost_estimate_csv",
+    "render_change_freeze_plan_csv",
+    "render_change_freeze_plan_markdown",
     "render_customer_onboarding_plan_csv",
     "render_customer_onboarding_plan_markdown",
     "render_data_classification_csv",
     "render_data_classification_markdown",
+    "render_data_migration_rehearsal_plan_csv",
+    "render_data_migration_rehearsal_plan_markdown",
     "render_data_retention_schedule_csv",
     "render_data_retention_schedule_markdown",
     "render_dependency_inventory_csv",
@@ -281,11 +317,15 @@ __all__ = [
     "render_deployment_topology_markdown",
     "render_error_budget_policy_csv",
     "render_error_budget_policy_markdown",
+    "render_feature_flag_rollout_plan_csv",
+    "render_feature_flag_rollout_plan_markdown",
     "render_disaster_recovery_plan_markdown",
     "render_disaster_recovery_plan_csv",
     "render_incident_response_plan_markdown",
     "render_incident_response_plan_csv",
     "render_incident_response_plan_json",
+    "render_incident_comms_matrix_csv",
+    "render_incident_comms_matrix_markdown",
     "render_migration_checklist_markdown",
     "render_migration_checklist_csv",
     "render_observability_plan_markdown",
@@ -298,6 +338,8 @@ __all__ = [
     "render_release_readiness_gate_json",
     "render_release_readiness_gate_markdown",
     "render_spec_bundle_yaml",
+    "render_slo_exception_review_csv",
+    "render_slo_exception_review_markdown",
     "generate_spec_preview",
     "render_spec_bundle_markdown",
     "render_stakeholder_handoff_csv",
