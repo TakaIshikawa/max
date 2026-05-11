@@ -109,6 +109,11 @@ from max.analysis.design_brief_raci_matrix import (
     render_design_brief_raci_matrix,
     render_raci_matrix_csv,
 )
+from max.analysis.design_brief_operating_model import (
+    build_design_brief_operating_model,
+    render_design_brief_operating_model,
+    render_design_brief_operating_model_csv,
+)
 from max.analysis.design_brief_partner_integration_checklist import (
     build_design_brief_partner_integration_checklist,
     partner_integration_checklist_filename,
@@ -204,6 +209,7 @@ __all__ = [
     "build_design_brief_release_notes",
     "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
+    "build_design_brief_operating_model",
     "build_design_brief_raci_matrix",
     "build_design_brief_privacy_impact_assessment",
     "build_design_brief_renewal_expansion_plan",
@@ -254,6 +260,8 @@ __all__ = [
     "render_design_brief_integration_contract",
     "render_design_brief_release_notes",
     "render_design_brief_sales_enablement_checklist",
+    "render_design_brief_operating_model",
+    "render_design_brief_operating_model_csv",
     "render_design_brief_raci_matrix",
     "render_raci_matrix_csv",
     "render_design_brief_kpi_tree_markdown",
