@@ -68,6 +68,38 @@ from max.analysis.design_brief_event_dictionary import (
     build_design_brief_event_dictionary,
     render_design_brief_event_dictionary,
 )
+from max.analysis.design_brief_competitive_alternatives import (
+    build_design_brief_competitive_alternatives,
+    render_design_brief_competitive_alternatives,
+)
+from max.analysis.design_brief_conversion_risk import (
+    build_design_brief_conversion_risk,
+    render_design_brief_conversion_risk,
+)
+from max.analysis.design_brief_integration_contract import (
+    build_design_brief_integration_contract,
+    render_design_brief_integration_contract,
+)
+from max.analysis.design_brief_investor_update import (
+    build_design_brief_investor_update,
+    render_design_brief_investor_update,
+)
+from max.analysis.design_brief_kill_criteria import (
+    build_design_brief_kill_criteria,
+    render_design_brief_kill_criteria,
+)
+from max.analysis.design_brief_market_entry_risk import (
+    build_design_brief_market_entry_risk_report,
+    render_design_brief_market_entry_risk_report,
+)
+from max.analysis.design_brief_renewal_expansion_plan import (
+    build_design_brief_renewal_expansion_plan,
+    render_design_brief_renewal_expansion_plan,
+)
+from max.analysis.design_brief_work_breakdown import (
+    build_design_brief_work_breakdown,
+    render_design_brief_work_breakdown,
+)
 from max.analysis.design_brief_gtm_channel_plan import (
     build_design_brief_gtm_channel_plan,
     render_design_brief_gtm_channel_plan,
@@ -1812,6 +1844,196 @@ def get_design_brief_event_dictionary(brief_id: str, format: str = "json") -> di
         return json.loads(rendered)
     except MCPToolError as e:
         return e.to_dict()
+
+
+def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dict | None:
+    from max.types.buildable_unit import BuildableUnit
+
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        return None
+
+    source_ideas = [
+        store.get_buildable_unit(source_id)
+        for source_id in (brief.get("source_idea_ids") or [])
+    ]
+    source_ideas = [idea for idea in source_ideas if idea is not None]
+    lead = next((idea for idea in source_ideas if idea.id == brief.get("lead_idea_id")), None)
+    source_idea_ids = [idea.id for idea in source_ideas] or list(brief.get("source_idea_ids") or [])
+    evidence_signals: list[str] = []
+    inspiring_insights: list[str] = []
+    domain_risks = list(brief.get("risks") or [])
+    for idea in source_ideas:
+        evidence_signals.extend(idea.evidence_signals)
+        inspiring_insights.extend(idea.inspiring_insights)
+        domain_risks.extend(idea.domain_risks)
+
+    unit = BuildableUnit(
+        id=brief["id"],
+        title=brief["title"],
+        one_liner=brief.get("merged_product_concept") or brief.get("theme") or brief["title"],
+        category=(lead.category if lead else "application"),
+        problem=(lead.problem if lead else brief.get("synthesis_rationale") or brief["title"]),
+        solution=brief.get("merged_product_concept") or (lead.solution if lead else brief["title"]),
+        target_users=(lead.target_users if lead else "both"),
+        value_proposition=(lead.value_proposition if lead else brief.get("why_this_now") or brief["title"]),
+        specific_user=brief.get("specific_user") or (lead.specific_user if lead else ""),
+        buyer=brief.get("buyer") or (lead.buyer if lead else ""),
+        workflow_context=brief.get("workflow_context") or (lead.workflow_context if lead else ""),
+        current_workaround=(lead.current_workaround if lead else ""),
+        why_now=brief.get("why_this_now") or (lead.why_now if lead else ""),
+        validation_plan=brief.get("validation_plan") or (lead.validation_plan if lead else ""),
+        domain_risks=domain_risks,
+        evidence_rationale=brief.get("synthesis_rationale") or (lead.evidence_rationale if lead else ""),
+        quality_score=float(brief.get("readiness_score") or 0.0),
+        inspiring_insights=inspiring_insights,
+        evidence_signals=evidence_signals,
+        source_idea_ids=source_idea_ids,
+        tech_approach=(lead.tech_approach if lead else ""),
+        domain=brief.get("domain") or (lead.domain if lead else ""),
+        status=brief.get("design_status") or (lead.status if lead else "draft"),
+        created_at=brief.get("created_at") or (lead.created_at if lead else None),
+        updated_at=brief.get("updated_at") or (lead.updated_at if lead else None),
+    )
+    return build_design_brief_kill_criteria(unit)
+
+
+_DESIGN_BRIEF_ARTIFACT_TOOLS = {
+    "kill criteria": (
+        _build_design_brief_kill_criteria_report,
+        render_design_brief_kill_criteria,
+        {"json", "markdown", "csv"},
+    ),
+    "conversion risk": (
+        build_design_brief_conversion_risk,
+        render_design_brief_conversion_risk,
+        {"json", "markdown", "csv"},
+    ),
+    "competitive alternatives": (
+        build_design_brief_competitive_alternatives,
+        render_design_brief_competitive_alternatives,
+        {"json", "markdown"},
+    ),
+    "market entry risk": (
+        build_design_brief_market_entry_risk_report,
+        render_design_brief_market_entry_risk_report,
+        {"json", "markdown"},
+    ),
+    "work breakdown": (
+        build_design_brief_work_breakdown,
+        render_design_brief_work_breakdown,
+        {"json", "markdown", "csv"},
+    ),
+    "investor update": (
+        build_design_brief_investor_update,
+        render_design_brief_investor_update,
+        {"json", "markdown", "csv"},
+    ),
+    "integration contract": (
+        build_design_brief_integration_contract,
+        render_design_brief_integration_contract,
+        {"json", "markdown", "csv"},
+    ),
+    "renewal expansion plan": (
+        build_design_brief_renewal_expansion_plan,
+        render_design_brief_renewal_expansion_plan,
+        {"json", "markdown", "csv"},
+    ),
+}
+
+
+def _get_design_brief_artifact_tool(
+    brief_id: str,
+    format: str,
+    *,
+    artifact_name: str,
+) -> dict:
+    try:
+        fmt = format.strip().lower()
+        build, render, supported_formats = _DESIGN_BRIEF_ARTIFACT_TOOLS[artifact_name]
+        if fmt not in supported_formats:
+            raise ValidationError(
+                f"Unsupported {artifact_name} format: {format}",
+                field="format",
+                expected=" or ".join(sorted(supported_formats)),
+                actual=format,
+            )
+
+        with _get_store() as store:
+            report = build(store, brief_id)
+            if not report:
+                raise ResourceNotFoundError(
+                    f"Design brief not found: {brief_id}",
+                    resource_type="design_brief",
+                    resource_id=brief_id,
+                )
+
+        rendered = render(report, fmt=fmt)
+        if fmt == "json":
+            return json.loads(rendered)
+        return {"id": brief_id, "format": fmt, fmt: rendered}
+    except MCPToolError as e:
+        return e.to_dict()
+
+
+def get_design_brief_kill_criteria(brief_id: str, format: str = "json") -> dict:
+    """Get stop, pivot, and continue kill criteria for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="kill criteria"
+    )
+
+
+def get_design_brief_conversion_risk(brief_id: str, format: str = "json") -> dict:
+    """Get pilot-to-paid conversion risk for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="conversion risk"
+    )
+
+
+def get_design_brief_competitive_alternatives(
+    brief_id: str, format: str = "json"
+) -> dict:
+    """Get the competitive alternatives matrix for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="competitive alternatives"
+    )
+
+
+def get_design_brief_market_entry_risk(brief_id: str, format: str = "json") -> dict:
+    """Get market entry risk for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="market entry risk"
+    )
+
+
+def get_design_brief_work_breakdown(brief_id: str, format: str = "json") -> dict:
+    """Get the work breakdown artifact for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="work breakdown"
+    )
+
+
+def get_design_brief_investor_update(brief_id: str, format: str = "json") -> dict:
+    """Get the investor update artifact for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="investor update"
+    )
+
+
+def get_design_brief_integration_contract(brief_id: str, format: str = "json") -> dict:
+    """Get the integration contract artifact for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="integration contract"
+    )
+
+
+def get_design_brief_renewal_expansion_plan(
+    brief_id: str, format: str = "json"
+) -> dict:
+    """Get the renewal expansion plan artifact for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="renewal expansion plan"
+    )
 
 
 def get_design_brief_launch_checklist(brief_id: str, format: str = "json") -> dict:
@@ -4945,6 +5167,46 @@ def design_brief_event_dictionary_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_event_dictionary(brief_id), indent=2)
 
 
+def design_brief_kill_criteria_detail(brief_id: str) -> str:
+    """Get kill criteria for a specific design brief."""
+    return json.dumps(get_design_brief_kill_criteria(brief_id), indent=2)
+
+
+def design_brief_conversion_risk_detail(brief_id: str) -> str:
+    """Get conversion risk for a specific design brief."""
+    return json.dumps(get_design_brief_conversion_risk(brief_id), indent=2)
+
+
+def design_brief_competitive_alternatives_detail(brief_id: str) -> str:
+    """Get competitive alternatives for a specific design brief."""
+    return json.dumps(get_design_brief_competitive_alternatives(brief_id), indent=2)
+
+
+def design_brief_market_entry_risk_detail(brief_id: str) -> str:
+    """Get market entry risk for a specific design brief."""
+    return json.dumps(get_design_brief_market_entry_risk(brief_id), indent=2)
+
+
+def design_brief_work_breakdown_detail(brief_id: str) -> str:
+    """Get work breakdown for a specific design brief."""
+    return json.dumps(get_design_brief_work_breakdown(brief_id), indent=2)
+
+
+def design_brief_investor_update_detail(brief_id: str) -> str:
+    """Get investor update for a specific design brief."""
+    return json.dumps(get_design_brief_investor_update(brief_id), indent=2)
+
+
+def design_brief_integration_contract_detail(brief_id: str) -> str:
+    """Get integration contract for a specific design brief."""
+    return json.dumps(get_design_brief_integration_contract(brief_id), indent=2)
+
+
+def design_brief_renewal_expansion_plan_detail(brief_id: str) -> str:
+    """Get renewal expansion plan for a specific design brief."""
+    return json.dumps(get_design_brief_renewal_expansion_plan(brief_id), indent=2)
+
+
 def design_brief_launch_checklist_detail(brief_id: str) -> str:
     """Get the launch checklist for a specific design brief."""
     return json.dumps(get_design_brief_launch_checklist(brief_id), indent=2)
@@ -5210,6 +5472,14 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_evidence_quality_scorecard)
     mcp.tool(get_design_brief_qa_test_plan)
     mcp.tool(get_design_brief_event_dictionary)
+    mcp.tool(get_design_brief_kill_criteria)
+    mcp.tool(get_design_brief_conversion_risk)
+    mcp.tool(get_design_brief_competitive_alternatives)
+    mcp.tool(get_design_brief_market_entry_risk)
+    mcp.tool(get_design_brief_work_breakdown)
+    mcp.tool(get_design_brief_investor_update)
+    mcp.tool(get_design_brief_integration_contract)
+    mcp.tool(get_design_brief_renewal_expansion_plan)
     mcp.tool(get_design_brief_launch_checklist)
     mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_procurement_checklist)
@@ -5308,6 +5578,24 @@ def create_mcp_server() -> FastMCP:
     mcp.resource("design-brief-qa-test-plans://{brief_id}")(design_brief_qa_test_plan_detail)
     mcp.resource("design-brief-event-dictionaries://{brief_id}")(
         design_brief_event_dictionary_detail
+    )
+    mcp.resource("design-brief-kill-criteria://{brief_id}")(design_brief_kill_criteria_detail)
+    mcp.resource("design-brief-conversion-risks://{brief_id}")(
+        design_brief_conversion_risk_detail
+    )
+    mcp.resource("design-brief-competitive-alternatives://{brief_id}")(
+        design_brief_competitive_alternatives_detail
+    )
+    mcp.resource("design-brief-market-entry-risks://{brief_id}")(
+        design_brief_market_entry_risk_detail
+    )
+    mcp.resource("design-brief-work-breakdowns://{brief_id}")(design_brief_work_breakdown_detail)
+    mcp.resource("design-brief-investor-updates://{brief_id}")(design_brief_investor_update_detail)
+    mcp.resource("design-brief-integration-contracts://{brief_id}")(
+        design_brief_integration_contract_detail
+    )
+    mcp.resource("design-brief-renewal-expansion-plans://{brief_id}")(
+        design_brief_renewal_expansion_plan_detail
     )
     mcp.resource("design-brief-launch-checklist://{brief_id}")(design_brief_launch_checklist_detail)
     mcp.resource("design-brief-compliance-checklist://{brief_id}")(
