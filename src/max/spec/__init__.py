@@ -129,6 +129,14 @@ from max.spec.risk_register import (
     render_risk_register_csv,
     render_risk_register_markdown,
 )
+from max.spec.runtime_configuration_plan import (
+    KIND as RUNTIME_CONFIGURATION_PLAN_KIND,
+    RUNTIME_CONFIGURATION_PLAN_CSV_COLUMNS,
+    SCHEMA_VERSION as RUNTIME_CONFIGURATION_PLAN_SCHEMA_VERSION,
+    generate_runtime_configuration_plan,
+    render_runtime_configuration_plan_csv,
+    render_runtime_configuration_plan_markdown,
+)
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -177,6 +185,9 @@ __all__ = [
     "API_CONTRACT_TEST_PLAN_SCHEMA_VERSION",
     "ACCESSIBILITY_COMPLIANCE_PLAN_SCHEMA_VERSION",
     "ERROR_BUDGET_POLICY_SCHEMA_VERSION",
+    "RUNTIME_CONFIGURATION_PLAN_CSV_COLUMNS",
+    "RUNTIME_CONFIGURATION_PLAN_KIND",
+    "RUNTIME_CONFIGURATION_PLAN_SCHEMA_VERSION",
     "generate_acceptance_criteria",
     "generate_accessibility_compliance_plan",
     "render_acceptance_criteria_markdown",
@@ -204,6 +215,7 @@ __all__ = [
     "generate_privacy_impact_assessment",
     "generate_release_readiness_gate",
     "generate_rollback_plan",
+    "generate_runtime_configuration_plan",
     "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_controls",
@@ -218,6 +230,8 @@ __all__ = [
     "render_rollback_plan_markdown",
     "render_risk_register_csv",
     "render_risk_register_markdown",
+    "render_runtime_configuration_plan_csv",
+    "render_runtime_configuration_plan_markdown",
     "render_scaling_strategy_csv",
     "render_scaling_strategy_markdown",
     "render_security_controls_csv",
