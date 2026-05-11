@@ -1,3 +1,12 @@
+from max.analysis.adoption_lifecycle import (
+    AdoptionClassification,
+    AdoptionProfile,
+    AdoptionStage,
+    build_adoption_profile,
+    classify_adoption_stage,
+    render_adoption_profile_json,
+    render_adoption_profile_markdown,
+)
 from max.analysis.persona_interview_guide import (
     generate_persona_interview_guide,
     render_persona_interview_guide_markdown,
@@ -162,7 +171,11 @@ from max.analysis.source_adapter_coverage_gaps import (
 )
 
 __all__ = [
+    "AdoptionClassification",
+    "AdoptionProfile",
+    "AdoptionStage",
     "accessibility_review_filename",
+    "build_adoption_profile",
     "build_design_brief_accessibility_review",
     "build_design_brief_churn_risk_report",
     "build_buildable_unit_competitive_alternatives",
@@ -195,6 +208,7 @@ __all__ = [
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_coverage_gaps_report",
     "churn_risk_report_filename",
+    "classify_adoption_stage",
     "competitive_alternatives_filename",
     "conversion_risk_filename",
     "generate_design_brief_kpi_tree",
@@ -210,6 +224,8 @@ __all__ = [
     "qa_test_plan_filename",
     "raci_matrix_filename",
     "release_notes_filename",
+    "render_adoption_profile_json",
+    "render_adoption_profile_markdown",
     "sales_enablement_checklist_filename",
     "render_design_brief_onboarding_checklist",
     "render_persona_interview_guide_markdown",
