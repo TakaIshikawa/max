@@ -5,6 +5,11 @@ from max.spec.acceptance_criteria import (
     generate_acceptance_criteria,
     render_acceptance_criteria_markdown,
 )
+from max.spec.accessibility_compliance_plan import (
+    ACCESSIBILITY_COMPLIANCE_PLAN_SCHEMA_VERSION,
+    generate_accessibility_compliance_plan,
+    render_accessibility_compliance_plan_markdown,
+)
 from max.spec.api_contract_test_plan import (
     KIND as API_CONTRACT_TEST_PLAN_KIND,
     SCHEMA_VERSION as API_CONTRACT_TEST_PLAN_SCHEMA_VERSION,
@@ -159,7 +164,9 @@ __all__ = [
     "evaluate_spec_readiness",
     "API_CONTRACT_TEST_PLAN_KIND",
     "API_CONTRACT_TEST_PLAN_SCHEMA_VERSION",
+    "ACCESSIBILITY_COMPLIANCE_PLAN_SCHEMA_VERSION",
     "generate_acceptance_criteria",
+    "generate_accessibility_compliance_plan",
     "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
@@ -215,6 +222,7 @@ __all__ = [
     "render_vendor_risk_assessment_markdown",
     "render_architecture_decision_record_markdown",
     "render_architecture_decision_record_csv",
+    "render_accessibility_compliance_plan_markdown",
     "render_api_contract_test_plan_csv",
     "render_api_contract_test_plan_markdown",
     "render_compliance_checklist_json",
