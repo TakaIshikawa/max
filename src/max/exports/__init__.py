@@ -35,6 +35,11 @@ from max.exports.localization_readiness import (
     render_localization_readiness_json,
     render_localization_readiness_markdown,
 )
+from max.exports.partner_ecosystem_map import (
+    build_partner_ecosystem_map_export,
+    render_partner_ecosystem_map_json,
+    render_partner_ecosystem_map_markdown,
+)
 from max.exports.pricing_sensitivity import (
     build_pricing_sensitivity_report,
     render_pricing_sensitivity_csv,
@@ -66,6 +71,7 @@ __all__ = [
     "build_incident_impact_assessment_export",
     "build_integration_dependency_health_export",
     "build_localization_readiness_export",
+    "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
     "build_competitive_landscape",
     "build_sales_pipeline_forecast",
@@ -85,6 +91,8 @@ __all__ = [
     "render_localization_readiness_csv",
     "render_localization_readiness_json",
     "render_localization_readiness_markdown",
+    "render_partner_ecosystem_map_json",
+    "render_partner_ecosystem_map_markdown",
     "render_competitive_landscape_json",
     "render_competitive_landscape_markdown",
     "render_pricing_sensitivity_csv",
