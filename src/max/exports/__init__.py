@@ -159,6 +159,7 @@ from max.exports.trial_conversion_funnel import (
 
 __all__ = [
     "build_compliance_evidence_packet",
+    "build_customer_adoption_risk_index_export",
     "build_customer_success_qbr_export",
     "build_customer_adoption_risk_index_export",
     "build_retention_cohort_export",
@@ -225,6 +226,8 @@ __all__ = [
     "render_compliance_evidence_packet_csv",
     "render_compliance_evidence_packet_json",
     "render_compliance_evidence_packet_markdown",
+    "render_customer_adoption_risk_index_json",
+    "render_customer_adoption_risk_index_markdown",
     "render_customer_success_qbr_csv",
     "render_customer_success_qbr_json",
     "render_customer_success_qbr_markdown",
