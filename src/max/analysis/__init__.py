@@ -114,6 +114,11 @@ from max.analysis.design_brief_operating_model import (
     render_design_brief_operating_model,
     render_design_brief_operating_model_csv,
 )
+from max.analysis.design_brief_operational_dependency_map import (
+    build_design_brief_operational_dependency_map,
+    render_design_brief_operational_dependency_map,
+    render_design_brief_operational_dependency_map_csv,
+)
 from max.analysis.design_brief_change_impact import (
     build_design_brief_change_impact_memo,
     render_design_brief_change_impact_memo,
@@ -225,6 +230,7 @@ __all__ = [
     "build_design_brief_sales_enablement_checklist",
     "build_design_brief_onboarding_checklist",
     "build_design_brief_operating_model",
+    "build_design_brief_operational_dependency_map",
     "build_design_brief_change_impact_memo",
     "build_design_brief_objection_handling_guide",
     "build_design_brief_reference_customer_profile",
@@ -280,6 +286,8 @@ __all__ = [
     "render_design_brief_sales_enablement_checklist",
     "render_design_brief_operating_model",
     "render_design_brief_operating_model_csv",
+    "render_design_brief_operational_dependency_map",
+    "render_design_brief_operational_dependency_map_csv",
     "render_design_brief_change_impact_memo",
     "render_design_brief_change_impact_memo_csv",
     "render_design_brief_objection_handling_guide",

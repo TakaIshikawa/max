@@ -12,6 +12,11 @@ from max.exports.customer_success_qbr import (
     render_customer_success_qbr_json,
     render_customer_success_qbr_markdown,
 )
+from max.exports.customer_adoption_risk_index import (
+    build_customer_adoption_risk_index_export,
+    render_customer_adoption_risk_index_json,
+    render_customer_adoption_risk_index_markdown,
+)
 from max.exports.retention_cohorts import (
     build_retention_cohort_export,
     render_retention_cohort_json,
@@ -60,6 +65,12 @@ from max.exports.integration_dependency_health import (
     render_integration_dependency_health_csv,
     render_integration_dependency_health_json,
     render_integration_dependency_health_markdown,
+)
+from max.exports.integration_readiness_matrix import (
+    build_integration_readiness_matrix_export,
+    render_integration_readiness_matrix_csv,
+    render_integration_readiness_matrix_json,
+    render_integration_readiness_matrix_markdown,
 )
 from max.exports.localization_readiness import (
     build_localization_readiness_export,
@@ -149,6 +160,7 @@ from max.exports.trial_conversion_funnel import (
 __all__ = [
     "build_compliance_evidence_packet",
     "build_customer_success_qbr_export",
+    "build_customer_adoption_risk_index_export",
     "build_retention_cohort_export",
     "build_api_quota_utilization_export",
     "build_account_health_score_export",
@@ -158,6 +170,7 @@ __all__ = [
     "build_incident_impact_assessment_export",
     "build_implementation_risk_heatmap_export",
     "build_integration_dependency_health_export",
+    "build_integration_readiness_matrix_export",
     "build_localization_readiness_export",
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
@@ -196,6 +209,9 @@ __all__ = [
     "render_integration_dependency_health_csv",
     "render_integration_dependency_health_json",
     "render_integration_dependency_health_markdown",
+    "render_integration_readiness_matrix_csv",
+    "render_integration_readiness_matrix_json",
+    "render_integration_readiness_matrix_markdown",
     "render_localization_readiness_csv",
     "render_localization_readiness_json",
     "render_localization_readiness_markdown",
@@ -212,6 +228,8 @@ __all__ = [
     "render_customer_success_qbr_csv",
     "render_customer_success_qbr_json",
     "render_customer_success_qbr_markdown",
+    "render_customer_adoption_risk_index_json",
+    "render_customer_adoption_risk_index_markdown",
     "render_product_usage_segmentation_csv",
     "render_product_usage_segmentation_json",
     "render_product_usage_segmentation_markdown",
