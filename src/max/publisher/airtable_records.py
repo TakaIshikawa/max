@@ -79,6 +79,7 @@ class AirtableRecordPublisher:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = 0.0,
+        field_mapping: dict[str, str] | None = None,
         client: httpx.Client | None = None,
     ) -> None:
         self.base_id = _required_text(
@@ -96,6 +97,7 @@ class AirtableRecordPublisher:
         self.timeout = timeout
         self.max_retries = max(0, max_retries)
         self.retry_backoff = max(0.0, retry_backoff)
+        self.field_mapping = _field_mapping_value(field_mapping)
         self._client = client
 
     @classmethod
@@ -108,6 +110,7 @@ class AirtableRecordPublisher:
         api_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
+        field_mapping: dict[str, str] | None = None,
         client: httpx.Client | None = None,
     ) -> AirtableRecordPublisher:
         """Create a publisher using explicit values first, then environment variables."""
@@ -117,7 +120,12 @@ class AirtableRecordPublisher:
                 "Airtable base_id is required; pass base_id or set AIRTABLE_BASE_ID",
                 api_key=api_key,
             )
-        resolved_table = table or os.getenv("AIRTABLE_TABLE") or os.getenv("AIRTABLE_TABLE_ID")
+        resolved_table = (
+            table
+            or os.getenv("AIRTABLE_TABLE_ID_OR_NAME")
+            or os.getenv("AIRTABLE_TABLE")
+            or os.getenv("AIRTABLE_TABLE_ID")
+        )
         if not resolved_table:
             raise AirtableRecordPublishError(
                 "Airtable table is required; pass table or set AIRTABLE_TABLE",
@@ -130,6 +138,7 @@ class AirtableRecordPublisher:
             api_url=api_url or os.getenv("AIRTABLE_API_URL", DEFAULT_AIRTABLE_API_URL),
             timeout=timeout,
             max_retries=max_retries,
+            field_mapping=field_mapping or _env_field_mapping(),
             client=client,
         )
 
@@ -193,6 +202,7 @@ class AirtableRecordPublisher:
                 "Source Idea IDs": _join_strings(evidence.get("source_idea_ids")),
             }
         )
+        fields = self._apply_field_mapping(fields)
         metadata = {
             "publisher": "max.airtable_records",
             "source_system": source.get("system", "max"),
@@ -246,6 +256,7 @@ class AirtableRecordPublisher:
                 "Markdown": _optional_text(markdown),
             }
         )
+        fields = self._apply_field_mapping(fields)
         metadata = {
             "publisher": "max.airtable_records",
             "source_system": "max",
@@ -286,6 +297,11 @@ class AirtableRecordPublisher:
             title=title,
         ).to_dict()
         return self.publish_payload(payload, dry_run=dry_run)
+
+    def _apply_field_mapping(self, fields: dict[str, Any]) -> dict[str, Any]:
+        if not self.field_mapping:
+            return fields
+        return {self.field_mapping.get(key, key): value for key, value in fields.items()}
 
     def publish_payload(
         self,
@@ -483,6 +499,42 @@ def _dict_value(payload: dict[str, Any], key: str) -> dict[str, Any]:
 
 def _clean_fields(fields: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in fields.items() if value not in (None, "", [], {})}
+
+
+def _field_mapping_value(value: dict[str, str] | None) -> dict[str, str]:
+    if not value:
+        return {}
+    return {
+        str(source).strip(): str(target).strip()
+        for source, target in value.items()
+        if str(source).strip() and str(target).strip()
+    }
+
+
+def _env_field_mapping() -> dict[str, str]:
+    raw = _optional_text(os.getenv("AIRTABLE_FIELD_MAPPING"))
+    if not raw:
+        return {}
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        return _field_mapping_from_pairs(raw)
+    if not isinstance(decoded, dict):
+        return {}
+    return _field_mapping_value(decoded)
+
+
+def _field_mapping_from_pairs(raw: str) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for item in raw.split(","):
+        if "=" not in item:
+            continue
+        source, target = item.split("=", 1)
+        source = source.strip()
+        target = target.strip()
+        if source and target:
+            mapping[source] = target
+    return mapping
 
 
 def _title(*values: object) -> str:
