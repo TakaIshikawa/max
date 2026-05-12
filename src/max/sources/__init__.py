@@ -5,6 +5,7 @@ from max.sources.crates_io import CratesIoAdapter
 from max.sources.dev_to import DevToAdapter
 from max.sources.hackernews_jobs import HackerNewsJobsAdapter
 from max.sources.indie_hackers import IndieHackersAdapter
+from max.sources.libraries_io import LibrariesIoAdapter
 from max.sources.maven_central import MavenCentralAdapter
 from max.sources.packagist import PackagistAdapter
 from max.sources.stackoverflow import StackOverflowAdapter
@@ -15,6 +16,7 @@ __all__ = [
     "DevToAdapter",
     "HackerNewsJobsAdapter",
     "IndieHackersAdapter",
+    "LibrariesIoAdapter",
     "MavenCentralAdapter",
     "PackagistAdapter",
     "StackOverflowAdapter",

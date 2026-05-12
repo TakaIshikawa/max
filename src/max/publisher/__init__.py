@@ -49,6 +49,18 @@ from max.publisher.github_workflow_dispatch import (
     GitHubWorkflowDispatchPublishResult,
     GitHubWorkflowDispatchesPublisher,
 )
+from max.publisher.github_deployment_statuses import (
+    GitHubDeploymentStatusPublisher,
+    GitHubDeploymentStatusPublishError,
+    GitHubDeploymentStatusPublishResult,
+    GitHubDeploymentStatusesPublisher,
+)
+from max.publisher.jira_versions import (
+    JiraVersionPublisher,
+    JiraVersionPublishError,
+    JiraVersionPublishResult,
+    JiraVersionsPublisher,
+)
 from max.publisher.airtable_records import (
     AirtableRecordPayload,
     AirtableRecordPublisher,
@@ -335,6 +347,13 @@ from max.publisher.slack_messages import (
     SlackMessagesPublisher,
     publish_slack_message,
 )
+from max.publisher.basecamp_messages import (
+    BasecampMessagePayload,
+    BasecampMessagePublisher,
+    BasecampMessagePublishError,
+    BasecampMessagePublishResult,
+    BasecampMessagesPublisher,
+)
 from max.publisher.mattermost_webhook import (
     MattermostWebhookPayload,
     MattermostWebhookPublisher,
@@ -349,6 +368,25 @@ from max.publisher.webex_webhook import (
     WebexWebhookPublishResult,
     WebexWebhooksPublisher,
     publish_webex_webhook,
+)
+from max.publisher.webex_space_messages import (
+    WebexSpaceMessagePublisher,
+    WebexSpaceMessagePublishError,
+    WebexSpaceMessagePublishResult,
+    WebexSpaceMessagesPublisher,
+)
+from max.publisher.confluence_blog_posts import (
+    ConfluenceBlogPostPublisher,
+    ConfluenceBlogPostPublishError,
+    ConfluenceBlogPostPublishResult,
+    ConfluenceBlogPostsPublisher,
+)
+from max.publisher.segment_group_events import (
+    SegmentGroupEventPayload,
+    SegmentGroupEventPublisher,
+    SegmentGroupEventPublishError,
+    SegmentGroupEventPublishResult,
+    SegmentGroupEventsPublisher,
 )
 from max.publisher.google_chat_webhook import (
     GoogleChatWebhookPayload,
@@ -438,6 +476,14 @@ __all__ = [
     "GitHubWorkflowDispatchPublishError",
     "GitHubWorkflowDispatchPublishResult",
     "GitHubWorkflowDispatchesPublisher",
+    "GitHubDeploymentStatusPublisher",
+    "GitHubDeploymentStatusPublishError",
+    "GitHubDeploymentStatusPublishResult",
+    "GitHubDeploymentStatusesPublisher",
+    "JiraVersionPublisher",
+    "JiraVersionPublishError",
+    "JiraVersionPublishResult",
+    "JiraVersionsPublisher",
     "AirtableRecordPayload",
     "AirtableRecordPublisher",
     "AirtableRecordPublishError",
@@ -642,6 +688,11 @@ __all__ = [
     "SlackMessagePublishResult",
     "SlackMessagesPublisher",
     "publish_slack_message",
+    "BasecampMessagePayload",
+    "BasecampMessagePublisher",
+    "BasecampMessagePublishError",
+    "BasecampMessagePublishResult",
+    "BasecampMessagesPublisher",
     "MattermostWebhookPayload",
     "MattermostWebhookPublisher",
     "MattermostWebhookPublishError",
@@ -653,6 +704,19 @@ __all__ = [
     "WebexWebhookPublishResult",
     "WebexWebhooksPublisher",
     "publish_webex_webhook",
+    "WebexSpaceMessagePublisher",
+    "WebexSpaceMessagePublishError",
+    "WebexSpaceMessagePublishResult",
+    "WebexSpaceMessagesPublisher",
+    "ConfluenceBlogPostPublisher",
+    "ConfluenceBlogPostPublishError",
+    "ConfluenceBlogPostPublishResult",
+    "ConfluenceBlogPostsPublisher",
+    "SegmentGroupEventPayload",
+    "SegmentGroupEventPublisher",
+    "SegmentGroupEventPublishError",
+    "SegmentGroupEventPublishResult",
+    "SegmentGroupEventsPublisher",
     "GoogleChatWebhookPayload",
     "GoogleChatWebhookPublisher",
     "GoogleChatWebhookPublishError",
