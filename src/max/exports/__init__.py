@@ -161,6 +161,13 @@ from max.exports.trial_conversion_funnel import (
     render_trial_conversion_funnel_json,
     render_trial_conversion_funnel_markdown,
 )
+from max.exports.vendor_evaluation import (
+    EvaluationCriterion,
+    build_vendor_evaluation,
+    render_vendor_evaluation_csv,
+    render_vendor_evaluation_json,
+    render_vendor_evaluation_markdown,
+)
 
 __all__ = [
     "build_compliance_evidence_packet",
@@ -193,7 +200,9 @@ __all__ = [
     "build_tech_radar",
     "build_tech_radar_export",
     "build_trial_conversion_funnel_export",
+    "build_vendor_evaluation",
     "classify_radar_ring",
+    "EvaluationCriterion",
     "RadarQuadrant",
     "RadarRing",
     "render_api_quota_utilization_csv",
@@ -271,4 +280,7 @@ __all__ = [
     "render_tech_radar_markdown",
     "render_trial_conversion_funnel_json",
     "render_trial_conversion_funnel_markdown",
+    "render_vendor_evaluation_csv",
+    "render_vendor_evaluation_json",
+    "render_vendor_evaluation_markdown",
 ]
