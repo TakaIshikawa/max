@@ -94,6 +94,38 @@ def test_get_profile_source_mix_uses_default_threshold() -> None:
     assert response.json()["concentration_threshold"] == 0.5
 
 
+def test_get_profile_source_mix_markdown_download() -> None:
+    with (
+        patch("max.profiles.loader.load_profile", return_value=_profile()),
+        patch("max.analysis.profile_source_mix.get_adapter_metadata", return_value=_metadata()),
+        patch("max.analysis.profile_source_mix.get_adapter", side_effect=_adapter),
+    ):
+        response = _client().get("/api/v1/profiles/mix/source-mix.md")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="mix-source-mix.md"'
+    )
+    assert response.text.startswith("# Profile Source Mix: mix")
+    assert "## Groups" in response.text
+    assert "forum/forum" in response.text
+    assert "## Recommendations" in response.text
+
+
+def test_get_profile_source_mix_markdown_format_query() -> None:
+    with (
+        patch("max.profiles.loader.load_profile", return_value=_profile()),
+        patch("max.analysis.profile_source_mix.get_adapter_metadata", return_value=_metadata()),
+        patch("max.analysis.profile_source_mix.get_adapter", side_effect=_adapter),
+    ):
+        response = _client().get("/api/v1/profiles/mix/source-mix?format=markdown")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert "registry/registry" in response.text
+
+
 def test_get_profile_source_mix_unknown_profile_returns_404() -> None:
     with patch("max.profiles.loader.load_profile", side_effect=FileNotFoundError("missing")):
         response = _client().get("/api/v1/profiles/missing/source-mix")
@@ -104,5 +136,11 @@ def test_get_profile_source_mix_unknown_profile_returns_404() -> None:
 
 def test_get_profile_source_mix_validates_threshold() -> None:
     response = _client().get("/api/v1/profiles/mix/source-mix?concentration_threshold=1.1")
+
+    assert response.status_code == 422
+
+
+def test_get_profile_source_mix_validates_format() -> None:
+    response = _client().get("/api/v1/profiles/mix/source-mix?format=yaml")
 
     assert response.status_code == 422
