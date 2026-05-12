@@ -42,6 +42,12 @@ from max.publisher.github_releases import (
     GitHubReleasePublishResult,
     GitHubReleasesPublisher,
 )
+from max.publisher.github_release_notes import (
+    GitHubReleaseNotePublisher,
+    GitHubReleaseNotePublishError,
+    GitHubReleaseNotePublishResult,
+    GitHubReleaseNotesPublisher,
+)
 from max.publisher.github_workflow_dispatch import (
     GitHubWorkflowDispatchPayload,
     GitHubWorkflowDispatchPublisher,
@@ -60,6 +66,18 @@ from max.publisher.jira_versions import (
     JiraVersionPublishError,
     JiraVersionPublishResult,
     JiraVersionsPublisher,
+)
+from max.publisher.figma_dev_resources import (
+    FigmaDevResourcePublisher,
+    FigmaDevResourcePublishError,
+    FigmaDevResourcePublishResult,
+    FigmaDevResourcesPublisher,
+)
+from max.publisher.dropbox_paper_doc_comments import (
+    DropboxPaperDocCommentPublisher,
+    DropboxPaperDocCommentPublishError,
+    DropboxPaperDocCommentPublishResult,
+    DropboxPaperDocCommentsPublisher,
 )
 from max.publisher.airtable_records import (
     AirtableRecordPayload,

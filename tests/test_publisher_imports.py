@@ -9,10 +9,22 @@ from max.publisher import (
     GitHubPullRequestReviewCommentPublishResult,
     GitHubPullRequestReviewCommentsPublisher,
     GitHubReleasePayload,
+    GitHubReleaseNotePublisher,
+    GitHubReleaseNotePublishError,
+    GitHubReleaseNotePublishResult,
+    GitHubReleaseNotesPublisher,
     GitHubReleasePublisher,
     GitHubReleasePublishError,
     GitHubReleasePublishResult,
     GitHubReleasesPublisher,
+    FigmaDevResourcePublisher,
+    FigmaDevResourcePublishError,
+    FigmaDevResourcePublishResult,
+    FigmaDevResourcesPublisher,
+    DropboxPaperDocCommentPublisher,
+    DropboxPaperDocCommentPublishError,
+    DropboxPaperDocCommentPublishResult,
+    DropboxPaperDocCommentsPublisher,
     GitLabSnippetPayload,
     GitLabSnippetPublisher,
     GitLabSnippetPublishError,
@@ -69,6 +81,15 @@ from max.publisher.github_pull_request_review_comments import (
 )
 from max.publisher.github_releases import (
     GitHubReleasePublisher as ModuleGitHubReleasePublisher,
+)
+from max.publisher.github_release_notes import (
+    GitHubReleaseNotePublisher as ModuleGitHubReleaseNotePublisher,
+)
+from max.publisher.figma_dev_resources import (
+    FigmaDevResourcePublisher as ModuleFigmaDevResourcePublisher,
+)
+from max.publisher.dropbox_paper_doc_comments import (
+    DropboxPaperDocCommentPublisher as ModuleDropboxPaperDocCommentPublisher,
 )
 from max.publisher.gitlab_merge_request_comments import (
     GitLabMergeRequestCommentPublisher as ModuleGitLabMergeRequestCommentPublisher,
@@ -143,6 +164,27 @@ def test_github_release_publisher_exports() -> None:
     assert GitHubReleasePayload
     assert GitHubReleasePublishError
     assert GitHubReleasePublishResult
+
+
+def test_github_release_note_publisher_exports() -> None:
+    assert GitHubReleaseNotePublisher is ModuleGitHubReleaseNotePublisher
+    assert GitHubReleaseNotesPublisher is GitHubReleaseNotePublisher
+    assert GitHubReleaseNotePublishError
+    assert GitHubReleaseNotePublishResult
+
+
+def test_figma_dev_resource_publisher_exports() -> None:
+    assert FigmaDevResourcePublisher is ModuleFigmaDevResourcePublisher
+    assert FigmaDevResourcesPublisher is FigmaDevResourcePublisher
+    assert FigmaDevResourcePublishError
+    assert FigmaDevResourcePublishResult
+
+
+def test_dropbox_paper_doc_comment_publisher_exports() -> None:
+    assert DropboxPaperDocCommentPublisher is ModuleDropboxPaperDocCommentPublisher
+    assert DropboxPaperDocCommentsPublisher is DropboxPaperDocCommentPublisher
+    assert DropboxPaperDocCommentPublishError
+    assert DropboxPaperDocCommentPublishResult
 
 
 def test_servicenow_incident_publisher_exports() -> None:
