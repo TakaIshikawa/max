@@ -141,6 +141,11 @@ from max.analysis.design_brief_kill_criteria import (
     kill_criteria_filename,
     render_design_brief_kill_criteria,
 )
+from max.analysis.design_brief_legal_review_checklist import (
+    generate_design_brief_legal_review_checklist,
+    legal_review_checklist_filename,
+    render_design_brief_legal_review_checklist,
+)
 from max.analysis.design_brief_market_entry_risk import (
     build_design_brief_market_entry_risk_report,
     market_entry_risk_report_filename,
@@ -10822,6 +10827,15 @@ def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dic
     return build_design_brief_kill_criteria(unit)
 
 
+def _build_design_brief_legal_review_checklist_report(
+    store: Store, brief_id: str
+) -> dict[str, Any] | None:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        return None
+    return generate_design_brief_legal_review_checklist(brief)
+
+
 def _design_brief_rendered_artifact_response(
     report: dict[str, Any],
     *,
@@ -10877,6 +10891,13 @@ _DESIGN_BRIEF_ARTIFACTS = {
         build_design_brief_work_breakdown,
         render_design_brief_work_breakdown,
         lambda report, fmt: work_breakdown_filename(report["design_brief"], fmt=fmt),
+    ),
+    "legal_review_checklist": (
+        _build_design_brief_legal_review_checklist_report,
+        render_design_brief_legal_review_checklist,
+        lambda report, fmt: legal_review_checklist_filename(
+            {"id": report["brief_id"], "title": report["title"]}, fmt=fmt
+        ),
     ),
     "investor_update": (
         build_design_brief_investor_update,
@@ -11015,7 +11036,7 @@ def get_design_brief_market_entry_risk_markdown(
 @router.get("/design-briefs/{brief_id}/work-breakdown", response_model=dict[str, Any])
 def get_design_brief_work_breakdown(
     brief_id: str,
-    format: Literal["json", "markdown", "csv"] = Query("json"),
+    format: str = Query("json"),
     store: Store = Depends(get_store),
 ) -> dict[str, Any] | Response:
     return _get_design_brief_artifact_response("work_breakdown", brief_id, format, store)
@@ -11035,6 +11056,37 @@ def get_design_brief_work_breakdown_csv(
     store: Store = Depends(get_store),
 ) -> Response:
     return _get_design_brief_artifact_response("work_breakdown", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/legal-review-checklist", response_model=dict[str, Any])
+def get_design_brief_legal_review_checklist(
+    brief_id: str,
+    format: str = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    return _get_design_brief_artifact_response(
+        "legal_review_checklist", brief_id, format, store
+    )
+
+
+@router.get("/design-briefs/{brief_id}/legal-review-checklist.md", response_model=None)
+def get_design_brief_legal_review_checklist_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response(
+        "legal_review_checklist", brief_id, "markdown", store
+    )
+
+
+@router.get("/design-briefs/{brief_id}/legal-review-checklist.csv", response_model=None)
+def get_design_brief_legal_review_checklist_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    return _get_design_brief_artifact_response(
+        "legal_review_checklist", brief_id, "csv", store
+    )
 
 
 @router.get("/design-briefs/{brief_id}/investor-update", response_model=dict[str, Any])
