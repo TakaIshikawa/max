@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import httpx
 import json
+
+import httpx
 import pytest
 
 from max.publisher.gainsight_timeline_activities import GainsightTimelineActivityPublishError, GainsightTimelineActivityPublisher
@@ -75,12 +76,14 @@ def test_from_env_reads_gainsight_configuration(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("GAINSIGHT_COMPANY_ID", "company-env")
     monkeypatch.setenv("GAINSIGHT_ACTIVITY_TYPE", "Milestone")
 
-    publisher = GainsightTimelineActivityPublisher.from_env()
+    publisher = GainsightTimelineActivityPublisher.from_env(timeout=2.5, max_retries=3)
 
     assert publisher.token == "gs_env"
     assert publisher.api_url == "https://gainsight.example.test"
     assert publisher.company_id == "company-env"
     assert publisher.activity_type == "Milestone"
+    assert publisher.timeout == 2.5
+    assert publisher.max_retries == 3
 
 
 def test_dry_run_returns_endpoint_and_payload_without_network() -> None:
@@ -101,7 +104,7 @@ def test_dry_run_returns_endpoint_and_payload_without_network() -> None:
     assert result.payload["body"]["metadata"]["idea_id"] == "bu-gs001"
 
 
-def test_live_publish_posts_activity_and_parses_response() -> None:
+def test_live_publish_posts_activity_and_parses_data_response() -> None:
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -126,6 +129,18 @@ def test_live_publish_posts_activity_and_parses_response() -> None:
     assert posted["relationshipId"] == "rel-456"
     assert posted["subject"] == "Account timeline update"
     assert posted["body"]["title"] == "Gainsight Timeline Activity Publisher"
+
+
+def test_live_publish_parses_activity_response() -> None:
+    publisher = GainsightTimelineActivityPublisher(
+        token="gs_secret",
+        company_id="company-123",
+        client=httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(201, json={"activity": {"id": "act-1"}}))),
+    )
+
+    result = publisher.publish(_unit(), dry_run=False)
+
+    assert result.activity_id == "act-1"
 
 
 def test_missing_target_is_actionable() -> None:

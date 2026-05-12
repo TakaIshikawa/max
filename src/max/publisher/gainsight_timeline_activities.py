@@ -229,4 +229,7 @@ def _activity_id(body: dict[str, Any]) -> str | None:
     data = body.get("data")
     if isinstance(data, dict):
         return optional_text(data.get("id")) or optional_text(data.get("activityId"))
+    activity = body.get("activity")
+    if isinstance(activity, dict):
+        return optional_text(activity.get("id")) or optional_text(activity.get("activityId"))
     return optional_text(body.get("id")) or optional_text(body.get("activityId"))
