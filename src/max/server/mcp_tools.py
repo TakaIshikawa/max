@@ -92,6 +92,10 @@ from max.analysis.design_brief_market_entry_risk import (
     build_design_brief_market_entry_risk_report,
     render_design_brief_market_entry_risk_report,
 )
+from max.analysis.design_brief_operational_dependency_map import (
+    build_design_brief_operational_dependency_map,
+    render_design_brief_operational_dependency_map,
+)
 from max.analysis.design_brief_renewal_expansion_plan import (
     build_design_brief_renewal_expansion_plan,
     render_design_brief_renewal_expansion_plan,
@@ -1939,6 +1943,11 @@ _DESIGN_BRIEF_ARTIFACT_TOOLS = {
         render_design_brief_renewal_expansion_plan,
         {"json", "markdown", "csv"},
     ),
+    "operational dependency map": (
+        build_design_brief_operational_dependency_map,
+        render_design_brief_operational_dependency_map,
+        {"json", "markdown", "csv"},
+    ),
 }
 
 
@@ -2033,6 +2042,15 @@ def get_design_brief_renewal_expansion_plan(
     """Get the renewal expansion plan artifact for a persisted design brief."""
     return _get_design_brief_artifact_tool(
         brief_id, format, artifact_name="renewal expansion plan"
+    )
+
+
+def get_design_brief_operational_dependency_map(
+    brief_id: str, format: str = "json"
+) -> dict:
+    """Get the operational dependency map for a persisted design brief."""
+    return _get_design_brief_artifact_tool(
+        brief_id, format, artifact_name="operational dependency map"
     )
 
 
@@ -5324,6 +5342,11 @@ def design_brief_data_room_index_detail(brief_id: str) -> str:
     return json.dumps(get_design_brief_data_room_index(brief_id), indent=2)
 
 
+def design_brief_operational_dependency_map_detail(brief_id: str) -> str:
+    """Get the operational dependency map for a specific design brief."""
+    return json.dumps(get_design_brief_operational_dependency_map(brief_id), indent=2)
+
+
 def validation_experiments_for_idea_detail(idea_id: str) -> str:
     """Browse validation experiments for a specific idea."""
     return json.dumps(list_validation_experiments(idea_id), indent=2)
@@ -5480,6 +5503,7 @@ def create_mcp_server() -> FastMCP:
     mcp.tool(get_design_brief_investor_update)
     mcp.tool(get_design_brief_integration_contract)
     mcp.tool(get_design_brief_renewal_expansion_plan)
+    mcp.tool(get_design_brief_operational_dependency_map)
     mcp.tool(get_design_brief_launch_checklist)
     mcp.tool(get_design_brief_compliance_checklist)
     mcp.tool(get_design_brief_procurement_checklist)
@@ -5596,6 +5620,9 @@ def create_mcp_server() -> FastMCP:
     )
     mcp.resource("design-brief-renewal-expansion-plans://{brief_id}")(
         design_brief_renewal_expansion_plan_detail
+    )
+    mcp.resource("design-brief-operational-dependency-maps://{brief_id}")(
+        design_brief_operational_dependency_map_detail
     )
     mcp.resource("design-brief-launch-checklist://{brief_id}")(design_brief_launch_checklist_detail)
     mcp.resource("design-brief-compliance-checklist://{brief_id}")(

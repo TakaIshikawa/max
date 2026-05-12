@@ -94,6 +94,11 @@ from max.analysis.design_brief_dependency_risk_map import (
     dependency_risk_map_filename,
     render_design_brief_dependency_risk_map,
 )
+from max.analysis.design_brief_operational_dependency_map import (
+    build_design_brief_operational_dependency_map,
+    render_design_brief_operational_dependency_map,
+    render_design_brief_operational_dependency_map_csv,
+)
 from max.analysis.design_brief_evidence_matrix import (
     build_design_brief_evidence_matrix,
     render_design_brief_evidence_matrix,
@@ -505,10 +510,14 @@ from max.server.schemas import (
     DesignBriefValidationPlanResponse,
     BackupRecoveryRequest,
     BackupRecoveryResponse,
+    ChangeFreezePlanRequest,
+    ChangeFreezePlanResponse,
     CostEstimateRequest,
     CostEstimateResponse,
     DataClassificationRequest,
     DataClassificationResponse,
+    DataMigrationRehearsalPlanRequest,
+    DataMigrationRehearsalPlanResponse,
     DataRetentionScheduleRequest,
     DataRetentionScheduleResponse,
     DisasterRecoveryPlanRequest,
@@ -576,6 +585,8 @@ from max.server.schemas import (
     SpecReadinessBatchRequest,
     SpecReadinessBatchResponse,
     InsightCreate,
+    IncidentCommsMatrixRequest,
+    IncidentCommsMatrixResponse,
     IncidentResponsePlanRequest,
     IncidentResponsePlanResponse,
     InsightDetailResponse,
@@ -657,6 +668,10 @@ from max.server.schemas import (
     SignalImportResponse,
     SignalImportRowResult,
     SecurityReviewResponse,
+    FeatureFlagRolloutPlanRequest,
+    FeatureFlagRolloutPlanResponse,
+    SloExceptionReviewRequest,
+    SloExceptionReviewResponse,
     SloPlanResponse,
     ShortcutStoryPublishRequest,
     ShortcutStoryPublishResponse,
@@ -701,10 +716,18 @@ from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.backup_recovery import generate_backup_recovery_plan
 from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
+from max.spec.change_freeze_plan import (
+    generate_change_freeze_plan,
+    render_change_freeze_plan_markdown,
+)
 from max.spec.cost_estimate import generate_cost_estimate, render_cost_estimate_markdown
 from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_markdown,
+)
+from max.spec.data_migration_rehearsal_plan import (
+    generate_data_migration_rehearsal_plan,
+    render_data_migration_rehearsal_plan_markdown,
 )
 from max.spec.data_retention_schedule import (
     generate_data_retention_schedule,
@@ -716,6 +739,14 @@ from max.spec.disaster_recovery_plan import (
 )
 from max.spec.experiment_card import generate_experiment_card
 from max.spec.generator import generate_spec_preview
+from max.spec.feature_flag_rollout_plan import (
+    generate_feature_flag_rollout_plan,
+    render_feature_flag_rollout_plan_markdown,
+)
+from max.spec.incident_comms_matrix import (
+    generate_incident_comms_matrix,
+    render_incident_comms_matrix_markdown,
+)
 from max.spec.incident_response_plan import (
     generate_incident_response_plan,
     render_incident_response_plan_markdown,
@@ -735,6 +766,10 @@ from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import generate_release_readiness_gate
 from max.spec.risk_register import generate_risk_register, render_risk_register_markdown
 from max.spec.security_review import generate_security_review, render_security_review_markdown
+from max.spec.slo_exception_review import (
+    generate_slo_exception_review,
+    render_slo_exception_review_markdown,
+)
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_markdown
 from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
@@ -6299,6 +6334,51 @@ def generate_spec_data_retention_schedule(
     )
 
 
+@router.post("/spec/change-freeze-plan", response_model=ChangeFreezePlanResponse)
+@router.post("/ideas/spec-change-freeze-plan", response_model=ChangeFreezePlanResponse)
+def generate_spec_change_freeze_plan(
+    body: ChangeFreezePlanRequest,
+) -> ChangeFreezePlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_change_freeze_plan(tact_spec)
+    return ChangeFreezePlanResponse.model_validate(
+        {**plan, "markdown": render_change_freeze_plan_markdown(plan)}
+    )
+
+
+@router.post("/spec/feature-flag-rollout-plan", response_model=FeatureFlagRolloutPlanResponse)
+@router.post(
+    "/ideas/spec-feature-flag-rollout-plan",
+    response_model=FeatureFlagRolloutPlanResponse,
+)
+def generate_spec_feature_flag_rollout_plan(
+    body: FeatureFlagRolloutPlanRequest,
+) -> FeatureFlagRolloutPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_feature_flag_rollout_plan(tact_spec)
+    return FeatureFlagRolloutPlanResponse.model_validate(
+        {**plan, "markdown": render_feature_flag_rollout_plan_markdown(plan)}
+    )
+
+
+@router.post(
+    "/spec/data-migration-rehearsal-plan",
+    response_model=DataMigrationRehearsalPlanResponse,
+)
+@router.post(
+    "/ideas/spec-data-migration-rehearsal-plan",
+    response_model=DataMigrationRehearsalPlanResponse,
+)
+def generate_spec_data_migration_rehearsal_plan(
+    body: DataMigrationRehearsalPlanRequest,
+) -> DataMigrationRehearsalPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    plan = generate_data_migration_rehearsal_plan(tact_spec)
+    return DataMigrationRehearsalPlanResponse.model_validate(
+        {**plan, "markdown": render_data_migration_rehearsal_plan_markdown(plan)}
+    )
+
+
 @router.post("/spec/incident-response-plan", response_model=IncidentResponsePlanResponse)
 @router.post("/ideas/spec-incident-response-plan", response_model=IncidentResponsePlanResponse)
 def generate_spec_incident_response_plan(
@@ -6308,6 +6388,30 @@ def generate_spec_incident_response_plan(
     plan = generate_incident_response_plan(tact_spec)
     return IncidentResponsePlanResponse.model_validate(
         {**plan, "markdown": render_incident_response_plan_markdown(plan)}
+    )
+
+
+@router.post("/spec/incident-comms-matrix", response_model=IncidentCommsMatrixResponse)
+@router.post("/ideas/spec-incident-comms-matrix", response_model=IncidentCommsMatrixResponse)
+def generate_spec_incident_comms_matrix(
+    body: IncidentCommsMatrixRequest,
+) -> IncidentCommsMatrixResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    matrix = generate_incident_comms_matrix(tact_spec)
+    return IncidentCommsMatrixResponse.model_validate(
+        {**matrix, "markdown": render_incident_comms_matrix_markdown(matrix)}
+    )
+
+
+@router.post("/spec/slo-exception-review", response_model=SloExceptionReviewResponse)
+@router.post("/ideas/spec-slo-exception-review", response_model=SloExceptionReviewResponse)
+def generate_spec_slo_exception_review(
+    body: SloExceptionReviewRequest,
+) -> SloExceptionReviewResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    review = generate_slo_exception_review(tact_spec)
+    return SloExceptionReviewResponse.model_validate(
+        {**review, "markdown": render_slo_exception_review_markdown(review)}
     )
 
 
@@ -9984,6 +10088,52 @@ def _design_brief_dependency_risk_map_markdown_response(report: dict[str, Any]) 
     return Response(
         content=render_design_brief_dependency_risk_map(report, fmt="markdown"),
         media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/design-briefs/{brief_id}/operational-dependency-map",
+    response_model=dict[str, Any],
+)
+def get_design_brief_operational_dependency_map(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> dict[str, Any]:
+    report = build_design_brief_operational_dependency_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return report
+
+
+@router.get("/design-briefs/{brief_id}/operational-dependency-map.md", response_model=None)
+def get_design_brief_operational_dependency_map_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_operational_dependency_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    filename = f"{_download_filename_part(brief_id)}-operational-dependency-map.md"
+    return Response(
+        content=render_design_brief_operational_dependency_map(report, fmt="markdown"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/design-briefs/{brief_id}/operational-dependency-map.csv", response_model=None)
+def get_design_brief_operational_dependency_map_csv(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    report = build_design_brief_operational_dependency_map(store, brief_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    filename = f"{_download_filename_part(brief_id)}-operational-dependency-map.csv"
+    return Response(
+        content=render_design_brief_operational_dependency_map_csv(report),
+        media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

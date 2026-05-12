@@ -686,7 +686,27 @@ class DataRetentionScheduleRequest(SpecArtifactRequest):
     pass
 
 
+class ChangeFreezePlanRequest(SpecArtifactRequest):
+    pass
+
+
+class FeatureFlagRolloutPlanRequest(SpecArtifactRequest):
+    pass
+
+
+class DataMigrationRehearsalPlanRequest(SpecArtifactRequest):
+    pass
+
+
 class IncidentResponsePlanRequest(SpecArtifactRequest):
+    pass
+
+
+class IncidentCommsMatrixRequest(SpecArtifactRequest):
+    pass
+
+
+class SloExceptionReviewRequest(SpecArtifactRequest):
     pass
 
 
@@ -1940,6 +1960,49 @@ class DataRetentionScheduleResponse(BaseModel):
     markdown: str
 
 
+class ChangeFreezePlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    freeze_windows: list[dict[str, Any]]
+    allowed_exceptions: list[dict[str, Any]]
+    approval_paths: list[dict[str, Any]]
+    dependency_checks: list[dict[str, Any]]
+    thaw_criteria: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    markdown: str
+
+
+class FeatureFlagRolloutPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    flags: list[dict[str, Any]]
+    rollout_stages: list[dict[str, Any]]
+    guardrail_metrics: list[dict[str, Any]]
+    rollback_triggers: list[dict[str, Any]]
+    owner_handoffs: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    markdown: str
+
+
+class DataMigrationRehearsalPlanResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    rehearsal_stages: list[dict[str, Any]]
+    fixture_requirements: list[dict[str, Any]]
+    validation_queries: list[dict[str, Any]]
+    reconciliation_checks: list[dict[str, Any]]
+    cutover_gates: list[dict[str, Any]]
+    rollback_rehearsals: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    markdown: str
+
+
 class IncidentResponsePlanResponse(BaseModel):
     schema_version: str
     kind: str
@@ -1955,6 +2018,35 @@ class IncidentResponsePlanResponse(BaseModel):
     postmortem_requirements: list[dict[str, Any]]
     evidence_references: list[str]
     gaps: list[dict[str, Any]]
+    markdown: str
+
+
+class IncidentCommsMatrixResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    stakeholder_channels: list[dict[str, Any]]
+    severity_notifications: list[dict[str, Any]]
+    message_templates: list[dict[str, Any]]
+    escalation_handoffs: list[dict[str, Any]]
+    status_promises: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
+    markdown: str
+
+
+class SloExceptionReviewResponse(BaseModel):
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    exception_classes: list[dict[str, Any]]
+    request_evidence: list[dict[str, Any]]
+    approval_criteria: list[dict[str, Any]]
+    temporary_mitigations: list[dict[str, Any]]
+    expiry_checks: list[dict[str, Any]]
+    follow_up_actions: list[dict[str, Any]]
+    evidence_references: list[dict[str, Any]]
     markdown: str
 
 
