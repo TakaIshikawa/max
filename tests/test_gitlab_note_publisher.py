@@ -70,6 +70,40 @@ def test_live_publish_posts_note_and_returns_id() -> None:
     assert "Zoom Chat Publisher" in json.loads(requests[0].read())["body"]
 
 
+def test_live_publish_returns_url_and_status_metadata() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "id": 123,
+                "web_url": "https://gitlab.example.test/group/project/-/issues/7#note_123",
+                "noteable_type": "Issue",
+                "system": False,
+                "resolvable": False,
+                "created_at": "2026-05-12T00:00:00.000Z",
+            },
+        )
+
+    publisher = GitLabNotePublisher(project_id="42", resource_iid="7", token="token", client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    result = publisher.publish(_idea_payload(), dry_run=False)
+
+    assert result.note_url == "https://gitlab.example.test/group/project/-/issues/7#note_123"
+    assert result.metadata == {
+        "created_at": "2026-05-12T00:00:00.000Z",
+        "system": False,
+        "noteable_type": "Issue",
+        "resolvable": False,
+    }
+
+
+def test_invalid_resource_type_raises_clear_error() -> None:
+    publisher = GitLabNotePublisher(project_id="42", resource_type="snippet", resource_iid="7")
+
+    with pytest.raises(GitLabNotePublishError, match="resource_type must be one of issue, merge_request, or epic"):
+        publisher.publish(_idea_payload(), dry_run=True)
+
+
 def test_gitlab_error_redacts_token() -> None:
     publisher = GitLabNotePublisher(project_id="42", resource_iid="7", token="token", client=httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(400, text="bad token"))))
 

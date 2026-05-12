@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
@@ -27,7 +27,9 @@ class GitLabNotePublishResult:
     dry_run: bool
     endpoint: str
     body: str
+    note_url: str | None = None
     response: dict[str, Any] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class GitLabNotePublisher:
@@ -89,7 +91,17 @@ class GitLabNotePublisher:
             response_body = response.json()
         except ValueError:
             response_body = {}
-        return GitLabNotePublishResult(response.status_code, optional_text(response_body.get("id")) if isinstance(response_body, dict) else None, False, endpoint, body, response_body if isinstance(response_body, dict) else {})
+        parsed_body = response_body if isinstance(response_body, dict) else {}
+        return GitLabNotePublishResult(
+            response.status_code,
+            _response_text(parsed_body, "id"),
+            False,
+            endpoint,
+            body,
+            _response_text(parsed_body, "web_url", "url"),
+            parsed_body,
+            _response_metadata(parsed_body),
+        )
 
     def _post(self, endpoint: str, body: str) -> httpx.Response:
         close_client = self._client is None
@@ -125,3 +137,33 @@ def _render_body(payload: dict[str, Any]) -> str:
     evaluation = dict_value(payload, "evaluation")
     evidence = dict_value(payload, "evidence")
     return "\n".join([f"## {title(payload, fallback='Max idea')}", "", text_or_placeholder(project.get("summary")), "", f"- Source ID: {text_or_placeholder(source_id(source))}", f"- Score: {score_text(evaluation.get('overall_score'))}", f"- Recommendation: {text_or_placeholder(evaluation.get('recommendation'))}", f"- Evidence: insights={join_list(evidence.get('insight_ids'))}; signals={join_list(evidence.get('signal_ids'))}"])
+
+
+def _response_text(response: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = optional_text(response.get(key))
+        if value:
+            return value
+    return None
+
+
+def _response_metadata(response: dict[str, Any]) -> dict[str, Any]:
+    metadata_keys = (
+        "type",
+        "body",
+        "attachment",
+        "author",
+        "created_at",
+        "updated_at",
+        "system",
+        "noteable_id",
+        "noteable_type",
+        "project_id",
+        "resolvable",
+        "resolved",
+        "internal",
+        "confidential",
+        "imported",
+        "imported_from",
+    )
+    return {key: response[key] for key in metadata_keys if key in response}
