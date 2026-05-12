@@ -248,6 +248,12 @@ from max.publisher.notion_pages import (
     NotionPagePublishResult,
     NotionPagesPublisher,
 )
+from max.publisher.notion_database import (
+    NotionDatabasePayload,
+    NotionDatabasePublisher,
+    NotionDatabasePublishError,
+    NotionDatabasesPublisher,
+)
 from max.publisher.confluence_pages import (
     ConfluencePagePayload,
     ConfluencePagePublisher,
@@ -552,6 +558,10 @@ __all__ = [
     "NotionPagePublishError",
     "NotionPagePublishResult",
     "NotionPagesPublisher",
+    "NotionDatabasePayload",
+    "NotionDatabasePublisher",
+    "NotionDatabasePublishError",
+    "NotionDatabasesPublisher",
     "ConfluencePagePayload",
     "ConfluencePagePublisher",
     "ConfluencePagePublishError",
