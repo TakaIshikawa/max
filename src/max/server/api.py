@@ -6408,6 +6408,76 @@ def get_idea_blast_radius(idea_id: str, store: Store = Depends(get_store)) -> Bl
     )
 
 
+@router.get("/ideas/{idea_id}/kill-criteria", response_model=dict[str, Any])
+def get_idea_kill_criteria(
+    idea_id: str,
+    format: Literal["json", "markdown", "csv"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+
+    report = _build_idea_kill_criteria_report(unit, store)
+    if format == "json":
+        return report
+    return _idea_kill_criteria_rendered_response(unit, report, fmt=format)
+
+
+@router.get("/ideas/{idea_id}/kill-criteria.md", response_model=None)
+def get_idea_kill_criteria_markdown(
+    idea_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    return _idea_kill_criteria_rendered_response(
+        unit,
+        _build_idea_kill_criteria_report(unit, store),
+        fmt="markdown",
+    )
+
+
+def _build_idea_kill_criteria_report(unit: BuildableUnit, store: Store) -> dict[str, Any]:
+    evidence: list[dict[str, Any]] = []
+    for signal_id in unit.evidence_signals:
+        signal = store.get_signal(signal_id)
+        if not signal:
+            continue
+        source_type = signal.source_type.value if hasattr(signal.source_type, "value") else signal.source_type
+        evidence.append(
+            {
+                "id": signal.id,
+                "source_type": source_type,
+                "summary": signal.title or signal.content,
+                "content": signal.content,
+                "url": signal.url,
+            }
+        )
+    return build_design_brief_kill_criteria(unit, store.get_evaluation(unit.id), evidence)
+
+
+def _idea_kill_criteria_rendered_response(
+    unit: BuildableUnit,
+    report: dict[str, Any],
+    *,
+    fmt: str,
+) -> Response:
+    try:
+        content = render_design_brief_kill_criteria(report, fmt=fmt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    media_type = "text/csv" if fmt == "csv" else "text/markdown"
+    filename = kill_criteria_filename(unit, fmt=fmt)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/ideas/{idea_id}/implementation-plan")
 def get_idea_implementation_plan(idea_id: str, store: Store = Depends(get_store)) -> dict:
     unit = store.get_buildable_unit(idea_id)
