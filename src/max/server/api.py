@@ -141,6 +141,10 @@ from max.analysis.design_brief_kill_criteria import (
     kill_criteria_filename,
     render_design_brief_kill_criteria,
 )
+from max.analysis.design_brief_kpi_tree import (
+    generate_design_brief_kpi_tree,
+    render_design_brief_kpi_tree_markdown,
+)
 from max.analysis.design_brief_legal_review_checklist import (
     generate_design_brief_legal_review_checklist,
     legal_review_checklist_filename,
@@ -11164,6 +11168,45 @@ def get_design_brief_renewal_expansion_plan_csv(
     store: Store = Depends(get_store),
 ) -> Response:
     return _get_design_brief_artifact_response("renewal_expansion_plan", brief_id, "csv", store)
+
+
+@router.get("/design-briefs/{brief_id}/kpi-tree", response_model=dict[str, Any])
+def get_design_brief_kpi_tree(
+    brief_id: str,
+    format: Literal["json", "markdown"] = Query("json"),
+    store: Store = Depends(get_store),
+) -> dict[str, Any] | Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+
+    report = generate_design_brief_kpi_tree(brief)
+    if format == "markdown":
+        return _design_brief_kpi_tree_markdown_response(report)
+    return report
+
+
+@router.get("/design-briefs/{brief_id}/kpi-tree.md", response_model=None)
+def get_design_brief_kpi_tree_markdown(
+    brief_id: str,
+    store: Store = Depends(get_store),
+) -> Response:
+    brief = store.get_design_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail=f"Design brief not found: {brief_id}")
+    return _design_brief_kpi_tree_markdown_response(generate_design_brief_kpi_tree(brief))
+
+
+def _design_brief_kpi_tree_markdown_response(report: dict[str, Any]) -> Response:
+    filename = (
+        f"{_download_filename_part(report.get('brief_id') or 'design-brief')}-"
+        f"{_download_filename_part(report.get('title') or 'kpi-tree')}-kpi-tree.md"
+    )
+    return Response(
+        content=render_design_brief_kpi_tree_markdown(report),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(
