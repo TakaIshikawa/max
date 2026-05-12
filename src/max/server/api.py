@@ -215,7 +215,10 @@ from max.analysis.design_brief_raci_matrix import (
     raci_matrix_filename,
     render_design_brief_raci_matrix,
 )
-from max.analysis.design_brief_roadmap import build_design_brief_roadmap, render_design_brief_roadmap
+from max.analysis.design_brief_roadmap import (
+    build_design_brief_roadmap,
+    render_design_brief_roadmap,
+)
 from max.analysis.design_brief_retention_policy import (
     build_design_brief_retention_policy,
     render_design_brief_retention_policy,
@@ -384,6 +387,11 @@ from max.publisher.github_milestones import (
     GitHubMilestonePublishError,
 )
 from max.publisher.github_projects import GitHubProjectItemPublisher, GitHubProjectPublishError
+from max.publisher.github_releases import GitHubReleasePublisher, GitHubReleasePublishError
+from max.publisher.github_workflow_dispatch import (
+    GitHubWorkflowDispatchPublisher,
+    GitHubWorkflowDispatchPublishError,
+)
 from max.publisher.gitlab_issues import GitLabIssuePublisher, GitLabIssuePublishError
 from max.publisher.google_sheets_rows import (
     GoogleSheetsRowPublisher,
@@ -398,6 +406,11 @@ from max.publisher.microsoft_planner_tasks import (
 )
 from max.publisher.monday_items import MondayItemPublisher, MondayItemPublishError
 from max.publisher.notion_pages import NotionPagePublisher, NotionPagePublishError
+from max.publisher.opsgenie_alerts import OpsgenieAlertPublisher, OpsgenieAlertPublishError
+from max.publisher.servicenow_incidents import (
+    ServiceNowIncidentPublisher,
+    ServiceNowIncidentPublishError,
+)
 from max.publisher.shortcut_stories import ShortcutStoryPublisher, ShortcutStoryPublishError
 from max.publisher.slack_webhook import (
     SlackWebhookPublisher,
@@ -559,6 +572,10 @@ from max.server.schemas import (
     GitHubIssuePublishResponse,
     GitHubProjectItemPublishRequest,
     GitHubProjectItemPublishResponse,
+    GitHubReleasePublishRequest,
+    GitHubReleasePublishResponse,
+    GitHubWorkflowDispatchPublishRequest,
+    GitHubWorkflowDispatchPublishResponse,
     GitLabIssuePublishRequest,
     GitLabIssuePublishResponse,
     GoogleSheetsRowPublishRequest,
@@ -576,6 +593,8 @@ from max.server.schemas import (
     ObservabilityPlanResponse,
     OperationalRunbookRequest,
     OperationalRunbookResponse,
+    OpsgenieAlertPublishRequest,
+    OpsgenieAlertPublishResponse,
     IdeaSimilarityRequest,
     IdeaSimilarityResultResponse,
     IdeaScoreDistributionResponse,
@@ -668,6 +687,8 @@ from max.server.schemas import (
     SignalImportResponse,
     SignalImportRowResult,
     SecurityReviewResponse,
+    ServiceNowIncidentPublishRequest,
+    ServiceNowIncidentPublishResponse,
     FeatureFlagRolloutPlanRequest,
     FeatureFlagRolloutPlanResponse,
     SloExceptionReviewRequest,
@@ -1692,9 +1713,7 @@ def _design_brief_trello_spec(brief: dict[str, Any]) -> dict[str, Any]:
 def _design_brief_bitbucket_spec(brief: dict[str, Any], *, title: str) -> dict[str, Any]:
     source_idea_ids = [str(source_id) for source_id in brief.get("source_idea_ids") or []]
     readiness_score = float(brief.get("readiness_score") or 0.0)
-    summary = str(
-        brief.get("merged_product_concept") or brief.get("why_this_now") or ""
-    ).strip()
+    summary = str(brief.get("merged_product_concept") or brief.get("why_this_now") or "").strip()
     return {
         "schema_version": "max.design_brief.bitbucket_issue.v1",
         "kind": "max.design_brief",
@@ -1719,9 +1738,7 @@ def _design_brief_bitbucket_spec(brief: dict[str, Any], *, title: str) -> dict[s
             "workflow_context": brief.get("workflow_context") or "",
         },
         "problem": {
-            "statement": brief.get("synthesis_rationale")
-            or brief.get("why_this_now")
-            or "",
+            "statement": brief.get("synthesis_rationale") or brief.get("why_this_now") or "",
         },
         "solution": {"approach": brief.get("merged_product_concept") or ""},
         "execution": {
@@ -1796,7 +1813,9 @@ def _design_brief_clickup_spec(
             "buyer": brief.get("buyer") or "",
             "workflow_context": brief.get("workflow_context") or "",
         },
-        "problem": {"statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""},
+        "problem": {
+            "statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""
+        },
         "solution": {"approach": brief.get("merged_product_concept") or ""},
         "execution": {
             "mvp_scope": list(brief.get("mvp_scope") or []),
@@ -1969,7 +1988,9 @@ def _design_brief_azure_devops_spec(
             "buyer": brief.get("buyer") or "",
             "workflow_context": brief.get("workflow_context") or "",
         },
-        "problem": {"statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""},
+        "problem": {
+            "statement": brief.get("why_this_now") or brief.get("synthesis_rationale") or ""
+        },
         "solution": {"approach": brief.get("merged_product_concept") or ""},
         "execution": {
             "mvp_scope": list(brief.get("mvp_scope") or []),
@@ -2005,7 +2026,9 @@ def _jira_credential_source(
     return {
         "email": "request" if request.email else ("env:JIRA_EMAIL" if publisher.email else None),
         "api_token": (
-            "request" if request.api_token else ("env:JIRA_API_TOKEN" if publisher.api_token else None)
+            "request"
+            if request.api_token
+            else ("env:JIRA_API_TOKEN" if publisher.api_token else None)
         ),
         "bearer_token": (
             "request"
@@ -2093,9 +2116,7 @@ def _design_brief_confluence_packet(
     packet_brief = {
         **brief,
         "title": title,
-        "source_idea_ids": list(brief.get("source_idea_ids") or [])
-        if include_source_ids
-        else [],
+        "source_idea_ids": list(brief.get("source_idea_ids") or []) if include_source_ids else [],
         "lead_idea_id": brief.get("lead_idea_id") if include_source_ids else None,
     }
     return {
@@ -4679,7 +4700,9 @@ def publish_idea_to_gitlab_issue(
     )
 
 
-@router.post("/ideas/{idea_id}/publish/google-sheets", response_model=GoogleSheetsRowPublishResponse)
+@router.post(
+    "/ideas/{idea_id}/publish/google-sheets", response_model=GoogleSheetsRowPublishResponse
+)
 def publish_idea_to_google_sheets(
     idea_id: str,
     request: GoogleSheetsRowPublishRequest,
@@ -4736,7 +4759,9 @@ def publish_idea_to_google_sheets(
             error=str(exc),
         )
         raise HTTPException(
-            status_code=exc.status_code if exc.status_code and 400 <= exc.status_code < 500 else 502,
+            status_code=exc.status_code
+            if exc.status_code and 400 <= exc.status_code < 500
+            else 502,
             detail={
                 "message": str(exc),
                 "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
@@ -4869,7 +4894,9 @@ def publish_design_brief_to_google_sheets(
             error=str(exc),
         )
         raise HTTPException(
-            status_code=exc.status_code if exc.status_code and 400 <= exc.status_code < 500 else 502,
+            status_code=exc.status_code
+            if exc.status_code and 400 <= exc.status_code < 500
+            else 502,
             detail={
                 "message": str(exc),
                 "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
@@ -4932,9 +4959,7 @@ def publish_idea_to_github_gist(
 
     payload = generate_spec_preview(unit, evaluation)
     if not request.dry_run and not publisher.token:
-        message = (
-            "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
-        )
+        message = "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
         attempt = store.insert_publication_attempt(
             idea_id=idea_id,
             target_type="github_gist",
@@ -4985,6 +5010,186 @@ def publish_idea_to_github_gist(
     return GitHubGistPublishResponse(
         idea_id=idea_id,
         gist_url=result.gist_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post("/ideas/{idea_id}/publish/github-release", response_model=GitHubReleasePublishResponse)
+def publish_idea_to_github_release(
+    idea_id: str,
+    request: GitHubReleasePublishRequest,
+    store: Store = Depends(get_store),
+) -> GitHubReleasePublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+    try:
+        publisher = GitHubReleasePublisher.from_env(
+            repository=request.repository,
+            token=request.token,
+            api_url=request.api_url,
+            tag_name=request.tag_name,
+            release_name=request.name,
+            body=request.body,
+            target_commitish=request.target_commitish,
+            draft=request.draft,
+            prerelease=request.prerelease,
+            timeout=request.timeout,
+        )
+    except GitHubReleasePublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.token:
+        message = (
+            "GITHUB_TOKEN is required for live GitHub release publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_release",
+            target_url=publisher.release_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+    try:
+        result = publisher.publish(
+            payload,
+            dry_run=request.dry_run,
+            tag_name=request.tag_name,
+            release_name=request.name,
+            body=request.body,
+            target_commitish=request.target_commitish,
+            draft=request.draft,
+            prerelease=request.prerelease,
+        )
+    except GitHubReleasePublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_release",
+            target_url=publisher.release_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.release_url or publisher.release_endpoint
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="github_release",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    return GitHubReleasePublishResponse(
+        idea_id=idea_id,
+        repository=result.repository,
+        release_id=result.release_id,
+        release_url=result.release_url,
+        upload_url=result.upload_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/ideas/{idea_id}/publish/github-workflow-dispatch",
+    response_model=GitHubWorkflowDispatchPublishResponse,
+)
+def publish_idea_to_github_workflow_dispatch(
+    idea_id: str,
+    request: GitHubWorkflowDispatchPublishRequest,
+    store: Store = Depends(get_store),
+) -> GitHubWorkflowDispatchPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+    try:
+        publisher = GitHubWorkflowDispatchPublisher.from_env(
+            repository=request.repository,
+            workflow_id=request.workflow_id,
+            token=request.token,
+            api_url=request.api_url,
+            ref=request.ref,
+            inputs=request.inputs,
+            timeout=request.timeout,
+        )
+    except GitHubWorkflowDispatchPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    if not request.dry_run and not publisher.token:
+        message = "GITHUB_TOKEN is required for live GitHub workflow_dispatch publishing; use dry_run to preview"
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_workflow_dispatch",
+            target_url=publisher.dispatch_endpoint,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+    try:
+        result = publisher.publish(
+            payload, dry_run=request.dry_run, ref=request.ref, inputs=request.inputs
+        )
+    except GitHubWorkflowDispatchPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="github_workflow_dispatch",
+            target_url=publisher.dispatch_endpoint,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="github_workflow_dispatch",
+        target_url=publisher.dispatch_endpoint,
+        status="success",
+        response_status=result.status_code,
+    )
+    return GitHubWorkflowDispatchPublishResponse(
+        idea_id=idea_id,
+        repository=result.repository,
+        workflow_id=result.workflow_id,
         status_code=result.status_code,
         dry_run=result.dry_run,
         payload=result.payload,
@@ -5479,8 +5684,7 @@ def publish_idea_to_clickup_task(
     payload = generate_spec_preview(unit, evaluation)
     if not request.dry_run and not publisher.has_auth:
         message = (
-            "CLICKUP_API_TOKEN is required for live ClickUp task publishing; "
-            "use dry_run to preview"
+            "CLICKUP_API_TOKEN is required for live ClickUp task publishing; use dry_run to preview"
         )
         attempt = store.insert_publication_attempt(
             idea_id=idea_id,
@@ -5901,6 +6105,184 @@ def publish_idea_to_trello_card(
     )
 
 
+@router.post("/ideas/{idea_id}/publish/opsgenie", response_model=OpsgenieAlertPublishResponse)
+def publish_idea_to_opsgenie_alert(
+    idea_id: str,
+    request: OpsgenieAlertPublishRequest,
+    store: Store = Depends(get_store),
+) -> OpsgenieAlertPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+    try:
+        publisher = OpsgenieAlertPublisher.from_env(
+            api_key=request.api_key,
+            api_url=request.api_url,
+            message=request.message,
+            description=request.description,
+            priority=request.priority,
+            tags=request.tags,
+            responders=request.responders,
+            alias=request.alias,
+            details=request.details,
+            timeout=request.timeout,
+        )
+    except OpsgenieAlertPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    endpoint_url = redact_url(publisher.alerts_endpoint)
+    if not request.dry_run and not publisher.api_key:
+        message = "OPSGENIE_API_KEY is required for live Opsgenie alert publishing; use dry_run to preview"
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="opsgenie_alert",
+            target_url=endpoint_url,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except OpsgenieAlertPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="opsgenie_alert",
+            target_url=endpoint_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.alert_id or result.request_id or endpoint_url
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="opsgenie_alert",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    return OpsgenieAlertPublishResponse(
+        idea_id=idea_id,
+        request_id=result.request_id,
+        alert_id=result.alert_id,
+        alias=result.alias,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
+@router.post(
+    "/ideas/{idea_id}/publish/servicenow-incident", response_model=ServiceNowIncidentPublishResponse
+)
+def publish_idea_to_servicenow_incident(
+    idea_id: str,
+    request: ServiceNowIncidentPublishRequest,
+    store: Store = Depends(get_store),
+) -> ServiceNowIncidentPublishResponse:
+    unit = store.get_buildable_unit(idea_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
+    evaluation = store.get_evaluation(idea_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail=f"Evaluation not found: {idea_id}")
+    try:
+        publisher = ServiceNowIncidentPublisher.from_env(
+            instance_url=request.instance_url,
+            username=request.username,
+            password=request.password,
+            bearer_token=request.bearer_token,
+            impact=request.impact,
+            urgency=request.urgency,
+            category=request.category,
+            subcategory=request.subcategory,
+            contact_type=request.contact_type,
+            assignment_group=request.assignment_group,
+            caller_id=request.caller_id,
+            cmdb_ci=request.cmdb_ci,
+            timeout=request.timeout,
+        )
+    except ServiceNowIncidentPublishError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    payload = generate_spec_preview(unit, evaluation)
+    endpoint_url = redact_url(publisher.incident_endpoint)
+    if not request.dry_run and (not publisher.instance_url or not publisher._has_auth):
+        message = (
+            "SERVICENOW_INSTANCE_URL and bearer_token or username/password are required "
+            "for live ServiceNow incident publishing; use dry_run to preview"
+        )
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="servicenow_incident",
+            target_url=endpoint_url,
+            status="failure",
+            error=message,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": message,
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        )
+    try:
+        result = publisher.publish(payload, dry_run=request.dry_run)
+    except ServiceNowIncidentPublishError as exc:
+        attempt = store.insert_publication_attempt(
+            idea_id=idea_id,
+            target_type="servicenow_incident",
+            target_url=endpoint_url,
+            status="failure",
+            response_status=exc.status_code,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": str(exc),
+                "publication_attempt": PublicationAttemptResponse(**attempt).model_dump(),
+            },
+        ) from exc
+
+    target_url = result.incident_url or endpoint_url
+    attempt = store.insert_publication_attempt(
+        idea_id=idea_id,
+        target_type="servicenow_incident",
+        target_url=target_url,
+        status="success",
+        response_status=result.status_code,
+    )
+    return ServiceNowIncidentPublishResponse(
+        idea_id=idea_id,
+        sys_id=result.sys_id,
+        number=result.number,
+        incident_url=result.incident_url,
+        status_code=result.status_code,
+        dry_run=result.dry_run,
+        payload=result.payload,
+        publication_attempt=PublicationAttemptResponse(**attempt),
+    )
+
+
 @router.post("/ideas/{idea_id}/prior-art/check", response_model=PriorArtResponse)
 def check_idea_prior_art(
     idea_id: str,
@@ -6042,9 +6424,7 @@ def get_idea_launch_checklist(
 
 
 @router.get("/ideas/{idea_id}/launch-checklist.md", response_model=None)
-def get_idea_launch_checklist_markdown(
-    idea_id: str, store: Store = Depends(get_store)
-) -> Response:
+def get_idea_launch_checklist_markdown(idea_id: str, store: Store = Depends(get_store)) -> Response:
     unit = store.get_buildable_unit(idea_id)
     if not unit:
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
@@ -6270,9 +6650,7 @@ def get_idea_vendor_risk_assessment(
         raise HTTPException(status_code=404, detail=f"Idea not found: {idea_id}")
 
     tact_spec = generate_spec_preview(unit, store.get_evaluation(idea_id))
-    return VendorRiskAssessmentResponse.model_validate(
-        generate_vendor_risk_assessment(tact_spec)
-    )
+    return VendorRiskAssessmentResponse.model_validate(generate_vendor_risk_assessment(tact_spec))
 
 
 @router.post("/spec/smoke-test-plan", response_model=SmokeTestPlanResponse)
@@ -6288,9 +6666,7 @@ def generate_spec_vendor_risk_assessment(
     body: VendorRiskAssessmentRequest,
 ) -> VendorRiskAssessmentResponse:
     tact_spec = body.tact_spec if body.tact_spec is not None else _tact_spec_from_idea(body.idea)
-    return VendorRiskAssessmentResponse.model_validate(
-        generate_vendor_risk_assessment(tact_spec)
-    )
+    return VendorRiskAssessmentResponse.model_validate(generate_vendor_risk_assessment(tact_spec))
 
 
 @router.post("/spec/cost-estimate", response_model=CostEstimateResponse)
@@ -6511,7 +6887,9 @@ def _buildable_unit_from_tact_spec(tact_spec: dict[str, Any]) -> BuildableUnit:
         title=str(project.get("title") or source.get("idea_id") or "Untitled TactSpec"),
         one_liner=str(project.get("summary") or project.get("title") or "Generated from TactSpec"),
         category=str(source.get("category") or "application"),
-        problem=str(problem.get("statement") or project.get("summary") or "Generated from TactSpec"),
+        problem=str(
+            problem.get("statement") or project.get("summary") or "Generated from TactSpec"
+        ),
         solution=str(solution.get("approach") or solution.get("technical_approach") or ""),
         target_users=str(project.get("target_users") or "both"),
         value_proposition=str(project.get("value_proposition") or project.get("summary") or ""),
@@ -6526,7 +6904,9 @@ def _buildable_unit_from_tact_spec(tact_spec: dict[str, Any]) -> BuildableUnit:
         evidence_rationale=str(evidence.get("rationale") or ""),
         tech_approach=str(solution.get("technical_approach") or ""),
         suggested_stack=(
-            solution.get("suggested_stack") if isinstance(solution.get("suggested_stack"), dict) else {}
+            solution.get("suggested_stack")
+            if isinstance(solution.get("suggested_stack"), dict)
+            else {}
         ),
         composability_notes=str(solution.get("composability_notes") or ""),
         domain=str(source.get("domain") or ""),
@@ -6817,8 +7197,7 @@ def _render_pipeline_run_comparison_markdown(comparison: dict[str, object]) -> s
             if not isinstance(delta, dict):
                 continue
             lines.append(
-                f"| {section} | {metric} | {delta['base']} | "
-                f"{delta['target']} | {delta['delta']} |"
+                f"| {section} | {metric} | {delta['base']} | {delta['target']} | {delta['delta']} |"
             )
 
     lines.extend(["", "## Adapter Metrics"])
@@ -7611,11 +7990,15 @@ def publish_design_brief_to_slack(
     except SlackWebhookPublishError as exc:
         error = str(exc)
         if resolved_webhook_url:
-            error = error.replace(resolved_webhook_url, redact_slack_webhook_url(resolved_webhook_url))
+            error = error.replace(
+                resolved_webhook_url, redact_slack_webhook_url(resolved_webhook_url)
+            )
         attempt = store.insert_publication_attempt(
             idea_id=brief_id,
             target_type="slack_webhook",
-            target_url=redact_slack_webhook_url(resolved_webhook_url) if resolved_webhook_url else "",
+            target_url=redact_slack_webhook_url(resolved_webhook_url)
+            if resolved_webhook_url
+            else "",
             status="failure",
             error=error,
         )
@@ -7729,8 +8112,7 @@ def publish_design_brief_to_discord(
 
     try:
         publisher = DiscordWebhookPublisher.from_env(
-            webhook_url=resolved_webhook_url
-            or "https://discord.com/api/webhooks/dry-run/redacted",
+            webhook_url=resolved_webhook_url or "https://discord.com/api/webhooks/dry-run/redacted",
             username=request.username,
             timeout=request.timeout,
         )
@@ -7974,9 +8356,7 @@ def publish_design_brief_to_github_gist(
     }
 
     if not request.dry_run and not publisher.token:
-        message = (
-            "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
-        )
+        message = "GITHUB_TOKEN is required for live GitHub Gist publishing; use dry_run to preview"
         attempt = store.insert_publication_attempt(
             idea_id=brief_id,
             target_type="github_gist",
@@ -8305,8 +8685,7 @@ def publish_design_brief_to_github_milestone(
         "milestone_endpoint": redact_url(publisher.milestone_endpoint),
         "github_milestone_number": result.milestone_number
         or result_metadata.get("github_milestone_number"),
-        "github_milestone_url": result.milestone_url
-        or result_metadata.get("github_milestone_url"),
+        "github_milestone_url": result.milestone_url or result_metadata.get("github_milestone_url"),
     }
 
     return DesignBriefGitHubMilestonePublishResponse(
@@ -8533,11 +8912,7 @@ def publish_design_brief_to_bitbucket_issue(
         "app_password": "[redacted]" if publisher.app_password else None,
         "app_password_source": "request"
         if request.app_password
-        else (
-            "env:BITBUCKET_APP_PASSWORD"
-            if os.getenv("BITBUCKET_APP_PASSWORD")
-            else "none"
-        ),
+        else ("env:BITBUCKET_APP_PASSWORD" if os.getenv("BITBUCKET_APP_PASSWORD") else "none"),
     }
 
     if not request.dry_run and not publisher._has_auth:
@@ -8604,12 +8979,9 @@ def publish_design_brief_to_bitbucket_issue(
         "design_brief_id": brief_id,
         "source_idea_ids": list(brief.get("source_idea_ids") or []),
         "readiness_score": float(brief.get("readiness_score") or 0.0),
-        "bitbucket_issue_id": result.issue_id
-        or result_metadata.get("bitbucket_issue_id"),
-        "bitbucket_issue_url": result.issue_url
-        or result_metadata.get("bitbucket_issue_url"),
-        "bitbucket_attempts": result.attempts
-        or result_metadata.get("bitbucket_attempts"),
+        "bitbucket_issue_id": result.issue_id or result_metadata.get("bitbucket_issue_id"),
+        "bitbucket_issue_url": result.issue_url or result_metadata.get("bitbucket_issue_url"),
+        "bitbucket_attempts": result.attempts or result_metadata.get("bitbucket_attempts"),
     }
 
     return DesignBriefBitbucketIssuePublishResponse(
@@ -8745,10 +9117,8 @@ def publish_design_brief_to_confluence_page(
     provider_metadata.update(
         {
             "target_url": target_url,
-            "confluence_page_id": result.page_id
-            or result_metadata.get("confluence_page_id"),
-            "confluence_page_url": result.page_url
-            or result_metadata.get("confluence_page_url"),
+            "confluence_page_id": result.page_id or result_metadata.get("confluence_page_id"),
+            "confluence_page_url": result.page_url or result_metadata.get("confluence_page_url"),
         }
     )
     body = str(result.payload["body"]["storage"]["value"])
@@ -9129,8 +9499,7 @@ def publish_design_brief_to_clickup_task(
 
     if not request.dry_run and not publisher.has_auth:
         message = (
-            "CLICKUP_API_TOKEN is required for live ClickUp task publishing; "
-            "use dry_run to preview"
+            "CLICKUP_API_TOKEN is required for live ClickUp task publishing; use dry_run to preview"
         )
         attempt = store.insert_publication_attempt(
             idea_id=brief_id,
@@ -9811,8 +10180,7 @@ def _design_brief_evidence_quality_scorecard_markdown_response(
     scorecard: dict[str, Any],
 ) -> Response:
     filename = (
-        f"{_download_filename_part(scorecard['design_brief']['id'])}-"
-        "evidence-quality-scorecard.md"
+        f"{_download_filename_part(scorecard['design_brief']['id'])}-evidence-quality-scorecard.md"
     )
     return Response(
         content=render_design_brief_evidence_quality_scorecard(scorecard, fmt="markdown"),
@@ -10408,8 +10776,7 @@ def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dic
         return None
 
     source_ideas = [
-        store.get_buildable_unit(source_id)
-        for source_id in (brief.get("source_idea_ids") or [])
+        store.get_buildable_unit(source_id) for source_id in (brief.get("source_idea_ids") or [])
     ]
     source_ideas = [idea for idea in source_ideas if idea is not None]
     lead = next((idea for idea in source_ideas if idea.id == brief.get("lead_idea_id")), None)
@@ -10430,7 +10797,9 @@ def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dic
         problem=(lead.problem if lead else brief.get("synthesis_rationale") or brief["title"]),
         solution=brief.get("merged_product_concept") or (lead.solution if lead else brief["title"]),
         target_users=(lead.target_users if lead else "both"),
-        value_proposition=(lead.value_proposition if lead else brief.get("why_this_now") or brief["title"]),
+        value_proposition=(
+            lead.value_proposition if lead else brief.get("why_this_now") or brief["title"]
+        ),
         specific_user=brief.get("specific_user") or (lead.specific_user if lead else ""),
         buyer=brief.get("buyer") or (lead.buyer if lead else ""),
         workflow_context=brief.get("workflow_context") or (lead.workflow_context if lead else ""),
@@ -10438,7 +10807,8 @@ def _build_design_brief_kill_criteria_report(store: Store, brief_id: str) -> dic
         why_now=brief.get("why_this_now") or (lead.why_now if lead else ""),
         validation_plan=brief.get("validation_plan") or (lead.validation_plan if lead else ""),
         domain_risks=domain_risks,
-        evidence_rationale=brief.get("synthesis_rationale") or (lead.evidence_rationale if lead else ""),
+        evidence_rationale=brief.get("synthesis_rationale")
+        or (lead.evidence_rationale if lead else ""),
         quality_score=float(brief.get("readiness_score") or 0.0),
         inspiring_insights=inspiring_insights,
         evidence_signals=evidence_signals,
@@ -10914,8 +11284,12 @@ def get_design_brief_privacy_impact_assessment_markdown(
     return _design_brief_privacy_impact_assessment_markdown_response(assessment)
 
 
-def _design_brief_privacy_impact_assessment_markdown_response(assessment: dict[str, Any]) -> Response:
-    filename = f"{_download_filename_part(assessment['design_brief']['id'])}-privacy-impact-assessment.md"
+def _design_brief_privacy_impact_assessment_markdown_response(
+    assessment: dict[str, Any],
+) -> Response:
+    filename = (
+        f"{_download_filename_part(assessment['design_brief']['id'])}-privacy-impact-assessment.md"
+    )
     return Response(
         content=render_design_brief_privacy_impact_assessment(assessment, fmt="markdown"),
         media_type="text/markdown",

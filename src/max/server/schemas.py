@@ -268,6 +268,33 @@ class GitHubGistPublishRequest(BaseModel):
     dry_run: bool = True
 
 
+class GitHubReleasePublishRequest(BaseModel):
+    repository: str | None = Field(default=None, min_length=1)
+    tag_name: str | None = Field(default=None, min_length=1)
+    name: str | None = Field(default=None, min_length=1)
+    body: str | None = Field(default=None, min_length=1)
+    target_commitish: str | None = Field(default=None, min_length=1)
+    prerelease: bool = False
+    draft: bool = True
+    token: str | None = None
+    api_url: str | None = None
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
+class GitHubWorkflowDispatchPublishRequest(BaseModel):
+    repository: str | None = Field(default=None, min_length=1)
+    workflow_id: str | None = Field(default=None, min_length=1)
+    ref: str | None = Field(default=None, min_length=1)
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    token: str | None = None
+    api_url: str | None = None
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
 class GitHubProjectItemPublishRequest(BaseModel):
     project_id: str | None = Field(default=None, min_length=1)
     token: str | None = None
@@ -544,6 +571,38 @@ class TrelloCardPublishRequest(BaseModel):
     dry_run: bool = True
     timeout: float = Field(default=10.0, gt=0.0)
     max_retries: int = Field(default=2, ge=0, le=5)
+
+
+class OpsgenieAlertPublishRequest(BaseModel):
+    api_key: str | None = None
+    api_url: str | None = None
+    message: str | None = Field(default=None, min_length=1)
+    alias: str | None = Field(default=None, min_length=1)
+    description: str | None = Field(default=None, min_length=1)
+    priority: str | None = Field(default=None, min_length=1)
+    responders: list[dict[str, str] | str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
+    max_retries: int = Field(default=2, ge=0, le=5)
+
+
+class ServiceNowIncidentPublishRequest(BaseModel):
+    instance_url: str | None = Field(default=None, min_length=1)
+    username: str | None = None
+    password: str | None = None
+    bearer_token: str | None = None
+    impact: str | None = Field(default=None, min_length=1)
+    urgency: str | None = Field(default=None, min_length=1)
+    category: str | None = Field(default=None, min_length=1)
+    subcategory: str | None = Field(default=None, min_length=1)
+    contact_type: str | None = Field(default=None, min_length=1)
+    assignment_group: str | None = Field(default=None, min_length=1)
+    caller_id: str | None = Field(default=None, min_length=1)
+    cmdb_ci: str | None = Field(default=None, min_length=1)
+    dry_run: bool = True
+    timeout: float = Field(default=10.0, gt=0.0)
 
 
 class DesignBriefTrelloCardPublishRequest(BaseModel):
@@ -2565,6 +2624,28 @@ class GitHubGistPublishResponse(BaseModel):
     publication_attempt: PublicationAttemptResponse
 
 
+class GitHubReleasePublishResponse(BaseModel):
+    idea_id: str
+    repository: str
+    release_id: str | None = None
+    release_url: str | None = None
+    upload_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class GitHubWorkflowDispatchPublishResponse(BaseModel):
+    idea_id: str
+    repository: str
+    workflow_id: str
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
 class GitHubProjectItemPublishResponse(BaseModel):
     idea_id: str
     project_id: str
@@ -2841,6 +2922,28 @@ class TrelloCardPublishResponse(BaseModel):
     list_id: str
     card_id: str | None = None
     card_url: str | None = None
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class OpsgenieAlertPublishResponse(BaseModel):
+    idea_id: str
+    request_id: str | None = None
+    alert_id: str | None = None
+    alias: str
+    status_code: int | None = None
+    dry_run: bool
+    payload: dict[str, Any]
+    publication_attempt: PublicationAttemptResponse
+
+
+class ServiceNowIncidentPublishResponse(BaseModel):
+    idea_id: str
+    sys_id: str | None = None
+    number: str | None = None
+    incident_url: str | None = None
     status_code: int | None = None
     dry_run: bool
     payload: dict[str, Any]
@@ -3964,9 +4067,7 @@ class DesignBriefTechnicalFeasibilityArtifactModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class DesignBriefTechnicalFeasibilityVerdictResponse(
-    DesignBriefTechnicalFeasibilityArtifactModel
-):
+class DesignBriefTechnicalFeasibilityVerdictResponse(DesignBriefTechnicalFeasibilityArtifactModel):
     verdict: Literal["feasible_with_spikes", "conditionally_feasible", "spike_required"]
     risk_level: Literal["low", "medium", "high"]
     rationale: str
