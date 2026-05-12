@@ -386,6 +386,14 @@ from max.publisher.trello_checklist_items import (
     TrelloChecklistItemsPublisher,
 )
 from max.publisher.webhook import WebhookPublishError, WebhookPublisher, WebhookPublishResult
+from max.publisher.email_webhook import (
+    EmailWebhookPayload,
+    EmailWebhookPublisher,
+    EmailWebhookPublishError,
+    EmailWebhookPublishResult,
+    EmailWebhooksPublisher,
+    publish_email_webhook,
+)
 
 __all__ = [
     "GitHubIssuePayload",
@@ -666,4 +674,10 @@ __all__ = [
     "WebhookPublisher",
     "WebhookPublishError",
     "WebhookPublishResult",
+    "EmailWebhookPayload",
+    "EmailWebhookPublisher",
+    "EmailWebhookPublishError",
+    "EmailWebhookPublishResult",
+    "EmailWebhooksPublisher",
+    "publish_email_webhook",
 ]
