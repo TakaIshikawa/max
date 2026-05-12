@@ -164,6 +164,13 @@ from max.publisher.hubspot_deals import (
     HubSpotDealPublishResult,
     HubSpotDealsPublisher,
 )
+from max.publisher.productboard_feature_notes import (
+    ProductboardFeatureNotePayload,
+    ProductboardFeatureNotePublisher,
+    ProductboardFeatureNotePublishError,
+    ProductboardFeatureNotePublishResult,
+    ProductboardFeatureNotesPublisher,
+)
 from max.publisher.linear_issues import (
     LinearIssuePayload,
     LinearIssuePublisher,
@@ -514,6 +521,11 @@ __all__ = [
     "HubSpotDealPublishError",
     "HubSpotDealPublishResult",
     "HubSpotDealsPublisher",
+    "ProductboardFeatureNotePayload",
+    "ProductboardFeatureNotePublisher",
+    "ProductboardFeatureNotePublishError",
+    "ProductboardFeatureNotePublishResult",
+    "ProductboardFeatureNotesPublisher",
     "LinearIssuePayload",
     "LinearIssuePublisher",
     "LinearIssuePublishError",
