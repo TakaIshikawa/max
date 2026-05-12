@@ -104,14 +104,16 @@ def test_publish_google_sheets_dry_run_returns_append_payload_without_token_or_h
     assert data["updated_rows"] is None
     assert data["payload"]["range"] == "Ideas!A:G"
     assert data["payload"]["majorDimension"] == "ROWS"
-    assert data["payload"]["values"][0][:6] == [
-        "bu-sheets001",
+    row = data["payload"]["values"][0]
+    assert row[:6] == [
         "Sheets Publish Idea",
-        "yes (82.0)",
-        "Stakeholders review ideas in spreadsheets.",
-        "Append Max idea summaries with the Sheets API.",
-        "devtools",
+        "# Sheets Publish Idea\n\nAppend reviewed ideas to a prioritization sheet\n\nIdea ID: bu-sheets001\nStatus: approved\nDomain: devtools\nCategory: application\nScore: 82.0\nRecommendation: yes\nEvidence: insights=ins-sheets001; signals=sig-sheets001\nSource ideas: None\nValidation plan: Append one row to a test sheet.",
+        "idea",
+        "bu-sheets001",
+        "bu-sheets001",
+        "",
     ]
+    assert row[6].endswith("+00:00")
     assert data["publication_attempt"]["target_type"] == "google_sheets_row"
     assert data["publication_attempt"]["status"] == "success"
 
@@ -129,7 +131,9 @@ def test_publish_google_sheets_dry_run_allows_missing_evaluation(client, db_path
     )
 
     assert response.status_code == 200
-    assert response.json()["payload"]["values"][0][2] == ""
+    row = response.json()["payload"]["values"][0]
+    assert row[2] == "idea"
+    assert "Recommendation:" in row[1]
 
 
 def test_publish_google_sheets_live_success_records_publication_attempt(

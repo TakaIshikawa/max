@@ -7,10 +7,13 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
 import httpx
+
+from max.publisher._summary_payloads import summary_markdown, summary_metadata, summary_title
 
 
 DEFAULT_GOOGLE_SHEETS_API_URL = "https://sheets.googleapis.com"
@@ -60,8 +63,11 @@ class GoogleSheetsRowPublishResult:
     range: str
     updated_range: str | None
     updated_rows: int | None
+    updated_cells: int | None
     dry_run: bool
     payload: dict[str, Any]
+    endpoint: str
+    headers: dict[str, str]
 
 
 class GoogleSheetsRowPublisher:
@@ -143,7 +149,9 @@ class GoogleSheetsRowPublisher:
         return cls(
             resolved_spreadsheet_id,
             resolved_range,
-            access_token=access_token or os.getenv("GOOGLE_SHEETS_ACCESS_TOKEN"),
+            access_token=access_token
+            or os.getenv("GOOGLE_ACCESS_TOKEN")
+            or os.getenv("GOOGLE_SHEETS_ACCESS_TOKEN"),
             api_url=api_url or os.getenv("GOOGLE_SHEETS_API_URL", DEFAULT_GOOGLE_SHEETS_API_URL),
             value_input_option=value_input_option,
             insert_data_option=insert_data_option,
@@ -165,20 +173,16 @@ class GoogleSheetsRowPublisher:
         return bool(self.access_token)
 
     def build_row_payload(self, tact_spec: dict[str, Any]) -> GoogleSheetsRowPayload:
-        """Convert a generated TactSpec preview into a Google Sheets append payload."""
-        source = _dict_value(tact_spec, "source")
-        project = _dict_value(tact_spec, "project")
-        problem = _dict_value(tact_spec, "problem")
-        solution = _dict_value(tact_spec, "solution")
-        evaluation = tact_spec.get("evaluation") if isinstance(tact_spec.get("evaluation"), dict) else {}
+        """Convert a Max summary payload into a Google Sheets append payload."""
+        metadata = summary_metadata(tact_spec, publisher="max.google_sheets_rows")
         row = [
-            _text(source.get("idea_id")),
-            _text(project.get("title")),
-            _recommendation_score(evaluation),
-            _text(problem.get("statement")),
-            _text(solution.get("approach")),
-            _text(source.get("domain")),
-            json.dumps(source, sort_keys=True, separators=(",", ":")),
+            summary_title(tact_spec),
+            summary_markdown(tact_spec),
+            _text(metadata.get("source_type")),
+            _text(metadata.get("source_id")),
+            _text(metadata.get("idea_id")),
+            _text(metadata.get("design_brief_id")),
+            datetime.now(timezone.utc).isoformat(),
         ]
         return GoogleSheetsRowPayload(range=self.range, values=[row])
 
@@ -192,13 +196,16 @@ class GoogleSheetsRowPublisher:
                 range=self.range,
                 updated_range=None,
                 updated_rows=None,
+                updated_cells=None,
                 dry_run=True,
                 payload=payload,
+                endpoint=self.append_endpoint,
+                headers=self._preview_headers(),
             )
 
         if not self.has_auth:
             raise GoogleSheetsRowPublishError(
-                "GOOGLE_SHEETS_ACCESS_TOKEN is required for live Google Sheets publishing; "
+                "GOOGLE_ACCESS_TOKEN or GOOGLE_SHEETS_ACCESS_TOKEN is required for live Google Sheets publishing; "
                 "use dry_run to preview",
                 access_token=self.access_token,
             )
@@ -227,8 +234,11 @@ class GoogleSheetsRowPublisher:
             range=self.range,
             updated_range=_optional_text(updates.get("updatedRange")),
             updated_rows=_optional_int(updates.get("updatedRows")),
+            updated_cells=_optional_int(updates.get("updatedCells")),
             dry_run=False,
             payload=payload,
+            endpoint=self.append_endpoint,
+            headers=self._preview_headers(),
         )
 
     def _post_with_retries(self, client: httpx.Client, payload: dict[str, Any]) -> httpx.Response:
@@ -243,10 +253,7 @@ class GoogleSheetsRowPublisher:
                     },
                     json=payload,
                     headers={
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                        "User-Agent": "max-google-sheets-rows-publisher/1",
+                        **self._headers(),
                     },
                     timeout=self.timeout,
                 )
@@ -265,8 +272,30 @@ class GoogleSheetsRowPublisher:
 
         return last_response
 
+    def _preview_headers(self) -> dict[str, str]:
+        return _preview_headers()
+
+    def _headers(self) -> dict[str, str]:
+        return _headers_for_token(self.access_token)
+
 
 GoogleSheetsRowsPublisher = GoogleSheetsRowPublisher
+
+
+def _preview_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {REDACTED}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "max-google-sheets-rows-publisher/1",
+    }
+
+
+def _headers_for_token(access_token: str | None) -> dict[str, str]:
+    headers = _preview_headers()
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+    return headers
 
 
 def _dict_value(payload: dict[str, Any], key: str) -> dict[str, Any]:
