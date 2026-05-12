@@ -320,6 +320,14 @@ from max.publisher.slack_webhook import (
     SlackWebhookPublishError,
     SlackWebhookPublishResult,
 )
+from max.publisher.slack_messages import (
+    SlackMessagePayload,
+    SlackMessagePublisher,
+    SlackMessagePublishError,
+    SlackMessagePublishResult,
+    SlackMessagesPublisher,
+    publish_slack_message,
+)
 from max.publisher.mattermost_webhook import (
     MattermostWebhookPayload,
     MattermostWebhookPublisher,
@@ -608,6 +616,12 @@ __all__ = [
     "SlackWebhookPublisher",
     "SlackWebhookPublishError",
     "SlackWebhookPublishResult",
+    "SlackMessagePayload",
+    "SlackMessagePublisher",
+    "SlackMessagePublishError",
+    "SlackMessagePublishResult",
+    "SlackMessagesPublisher",
+    "publish_slack_message",
     "MattermostWebhookPayload",
     "MattermostWebhookPublisher",
     "MattermostWebhookPublishError",
