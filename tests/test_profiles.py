@@ -92,7 +92,7 @@ def test_load_devtools_profile():
     profile = load_profile("devtools")
     assert profile.name == "devtools"
     assert profile.domain.name == "developer-tools"
-    assert len(profile.sources) == 13
+    assert len(profile.sources) == 14
     assert profile.signal_limit == 30
     assert profile.evaluation.weight_profile == "default"
 
@@ -121,7 +121,7 @@ def test_get_default_profile_matches_devtools():
     default = get_default_profile()
     assert default.name == "devtools"
     assert default.domain.name == "developer-tools"
-    assert len(default.sources) == 13
+    assert len(default.sources) == 14
 
     # Verify adapter names match
     adapter_names = [s.adapter for s in default.sources]

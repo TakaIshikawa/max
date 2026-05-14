@@ -174,9 +174,9 @@ class TestSchemaV8Migration:
 
         conn.close()
 
-    def test_schema_version_is_18(self) -> None:
-        """Current schema version should be 18."""
-        assert SCHEMA_VERSION == 18
+    def test_schema_version_is_22(self) -> None:
+        """Current schema version should be 22."""
+        assert SCHEMA_VERSION == 22
 
 
 # ── Archive operations tests ─────────────────────────────────────────

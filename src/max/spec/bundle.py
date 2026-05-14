@@ -136,6 +136,22 @@ def render_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
     if "spec_preview" not in artifacts:
         return _render_selected_spec_bundle_markdown(bundle)
 
+    full_packet_artifacts = {
+        "rollback_plan",
+        "acceptance_criteria",
+        "experiment_card",
+        "data_classification",
+        "data_retention_schedule",
+        "privacy_impact_assessment",
+        "dependency_inventory",
+        "risk_register",
+        "threat_model",
+        "slo_plan",
+        "post_launch_monitoring_plan",
+    }
+    if not full_packet_artifacts.issubset(artifacts):
+        return _render_minimal_spec_bundle_markdown(bundle)
+
     preview = artifacts["spec_preview"]
     project = preview["project"]
     problem = preview["problem"]
@@ -571,6 +587,58 @@ def _render_selected_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
         lines.extend(
             _embedded_markdown_section(
                 render_post_launch_monitoring_plan_markdown(post_launch_monitoring_plan)
+            )
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_minimal_spec_bundle_markdown(bundle: dict[str, Any]) -> str:
+    artifacts = bundle["artifacts"]
+    preview = artifacts.get("spec_preview") or {}
+    project = preview.get("project") or {}
+    problem = preview.get("problem") or {}
+    solution = preview.get("solution") or {}
+    title = _text(project.get("title")) or bundle["idea_id"]
+
+    lines = [
+        f"# {title} Implementation Packet",
+        "",
+        f"- Schema version: {bundle['schema_version']}",
+        f"- Idea ID: {bundle['idea_id']}",
+        f"- Generated: {bundle['generated_at']}",
+    ]
+    if project.get("summary"):
+        lines.append(f"- Summary: {_text(project.get('summary'))}")
+    lines.append("")
+
+    lines.extend(_section("Warnings", _bullets(bundle.get("warnings", []), empty="No warnings.")))
+    lines.extend(
+        _section(
+            "Spec Preview",
+            [
+                f"Problem: {_text(problem.get('statement'))}",
+                f"Solution: {_text(solution.get('approach'))}",
+                f"Target user: {_text(project.get('specific_user') or project.get('target_users'))}",
+                f"Workflow context: {_text(project.get('workflow_context'))}",
+                f"Value proposition: {_text(project.get('value_proposition'))}",
+            ],
+        )
+    )
+
+    review_gate = artifacts.get("review_gate")
+    if isinstance(review_gate, dict):
+        lines.extend(
+            _section(
+                "Review Gate",
+                [
+                    f"Decision: {_text(review_gate.get('decision'))}",
+                    f"Confidence: {_text(review_gate.get('confidence'))}",
+                    "Blocking reasons:",
+                    *_bullets(review_gate.get("blocking_reasons", []), empty="None."),
+                    "Required remediations:",
+                    *_bullets(review_gate.get("required_remediations", []), empty="None."),
+                ],
             )
         )
 

@@ -101,7 +101,7 @@ def test_get_design_brief_instrumentation_plan_invalid_format(
     assert result["error"] == "Unsupported instrumentation plan format: yaml"
     assert result["code"] == 400
     assert result["details"]["field"] == "format"
-    assert result["details"]["expected"] == "json or markdown"
+    assert result["details"]["expected"] == "json, markdown, or csv"
     assert result["details"]["actual"] == "yaml"
 
 

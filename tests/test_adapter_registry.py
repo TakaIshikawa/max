@@ -36,6 +36,7 @@ def test_go_packages_adapter_metadata_documents_config_keys() -> None:
     assert set(metadata) == {"go_packages"}
     assert metadata["go_packages"].config_keys == [
         "queries",
+        "package_names",
         "max_results",
         "min_imported_by",
         "include_stdlib",
@@ -187,9 +188,16 @@ def test_kubernetes_keps_adapter_metadata_documents_config_keys() -> None:
 
     assert set(metadata) == {"kubernetes_keps"}
     assert metadata["kubernetes_keps"].config_keys == [
+        "index_url",
+        "local_path",
+        "content",
         "areas",
+        "sigs",
         "stages",
+        "statuses",
+        "keywords",
         "max_results",
+        "max_items",
         "github_token",
         "token",
         "token_env",

@@ -186,7 +186,7 @@ def test_render_design_brief_customer_journey_map_markdown_json_and_invalid_form
     assert "- Success signals:" in markdown
     assert "## Touchpoint Details" in markdown
     assert "**Problem Awareness T1**: problem narrative" in markdown
-    assert "## Opportunities" in markdown
+    assert "## Moments of Value" in markdown
     assert "Target user can restate the problem in their own words." in markdown
     assert "## Metrics" in markdown
     assert "**Problem Awareness M1**" in markdown
@@ -236,7 +236,7 @@ def test_render_design_brief_customer_journey_map_markdown_handles_missing_optio
     assert "- Success signals: none" in markdown
     assert "## Touchpoint Details\n\n- None" in markdown
     assert "## Pain Points\n\n- None" in markdown
-    assert "## Opportunities\n\n- None" in markdown
+    assert "## Moments of Value\n\n- None" in markdown
     assert "## Metrics\n\n- None" in markdown
     assert "## Source Traceability\n\n- None" in markdown
     assert "## Evidence References\n\n- None" in markdown

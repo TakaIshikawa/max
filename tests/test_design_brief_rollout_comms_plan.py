@@ -79,7 +79,7 @@ def test_render_design_brief_rollout_comms_plan_markdown_and_json(tmp_path) -> N
     assert markdown == repeated
     assert f"Schema: `{SCHEMA_VERSION}`" in markdown
     assert f"Design brief: `{brief_id}`" in markdown
-    assert "## Audience Segments" in markdown
+    assert "## Target Audiences" in markdown
     assert "## Launch Sequence" in markdown
     assert "## Timing And Owners" in markdown
     assert "## Approval Checkpoints" in markdown

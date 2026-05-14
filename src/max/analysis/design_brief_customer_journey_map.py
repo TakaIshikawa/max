@@ -181,7 +181,7 @@ def render_design_brief_customer_journey_map(
     else:
         lines.append("- None")
 
-    lines.extend(["", "## Opportunities", ""])
+    lines.extend(["", "## Moments of Value", ""])
     opportunities = _markdown_dicts(report.get("moments_of_value")) or _stage_items(
         stages, source_key="success_signals", value_key="moment"
     )

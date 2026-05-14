@@ -129,7 +129,7 @@ def _render_design_brief_rollout_comms_plan_markdown(report: dict[str, Any]) -> 
         f"- Primary message: {_text(summary.get('primary_message'), 'Not specified')}",
         f"- Fallbacks used: {_join_text(summary.get('fallbacks_used'), 'none')}",
         "",
-        "## Audience Segments",
+        "## Target Audiences",
         "",
         "| Audience | Type | Need | Message Angle | Preferred Channels |",
         "| --- | --- | --- | --- | --- |",

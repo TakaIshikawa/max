@@ -67,7 +67,7 @@ SENSITIVE_PATTERNS = [
     SensitivePattern(
         name="api_key",
         pattern=re.compile(
-            r'(?:\b(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key)["\']?\s*[:=]\s*["\']?([a-zA-Z0-9_\-]{20,})["\']?|\bsk_live_[a-zA-Z0-9]{20,}\b)',
+            r'(?:\b(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key)["\']?\s*[:=]\s*["\']?([a-zA-Z0-9_\-]{20,})["\']?|\bsk_(?:live|test)_[a-zA-Z0-9]{20,}\b)',
             re.IGNORECASE,
         ),
         redaction="[REDACTED_API_KEY]",

@@ -67,8 +67,8 @@ def _make_evaluation(unit_id: str = "bu-test001", overall_score: float = 72.0) -
 
 
 class TestMigration:
-    def test_schema_version_is_18(self) -> None:
-        assert SCHEMA_VERSION == 18
+    def test_schema_version_is_22(self) -> None:
+        assert SCHEMA_VERSION == 22
 
     def test_fresh_schema_creates_pipeline_run_domains_table(self, tmp_path: Path) -> None:
         db_path = str(tmp_path / "fresh.db")
@@ -238,7 +238,7 @@ class TestMigration:
 
         # Verify version is updated
         version = conn.execute("SELECT version FROM schema_version").fetchone()[0]
-        assert version == 18
+        assert version == 22
 
         conn.close()
 
