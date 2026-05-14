@@ -19,6 +19,12 @@ from max.sources.github_issues import (
 from max.types.signal import SignalSourceType
 
 
+@pytest.fixture(autouse=True)
+def no_github_issue_courtesy_sleep() -> AsyncMock:
+    with patch("max.sources.github_issues.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        yield sleep
+
+
 # ── Test Data ────────────────────────────────────────────────────────
 
 

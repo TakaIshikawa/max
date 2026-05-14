@@ -712,12 +712,21 @@ class TestPartialSourceFailure:
             return [_make_match(source="pypi", title="pypi-package")]
 
         # Patch the _SEARCH_FNS dictionary
-        with patch.dict("max.analysis.prior_art._SEARCH_FNS", {
-            "github": github_with_error,
-            "npm": npm_success,
-            "pypi": pypi_success,
-            "product_hunt": AsyncMock(return_value=[]),
-        }), patch("max.analysis.prior_art.score_matches", side_effect=lambda unit, matches: matches):
+        with (
+            patch.dict("max.analysis.prior_art._SEARCH_FNS", {
+                "github": github_with_error,
+                "npm": npm_success,
+                "pypi": pypi_success,
+                "product_hunt": AsyncMock(return_value=[]),
+            }),
+            patch.dict("max.analysis.prior_art._RATE_LIMITS", {
+                "github": (2, 0.0),
+                "npm": (5, 0.0),
+                "pypi": (3, 0.0),
+                "product_hunt": (1, 0.0),
+            }),
+            patch("max.analysis.prior_art.score_matches", side_effect=lambda unit, matches: matches),
+        ):
 
             results = await check_prior_art_batch([unit], dry_run=False)
 
@@ -738,12 +747,20 @@ class TestPartialSourceFailure:
             return []
 
         # Patch the _SEARCH_FNS dictionary
-        with patch.dict("max.analysis.prior_art._SEARCH_FNS", {
-            "github": fail_source,
-            "npm": fail_source,
-            "pypi": fail_source,
-            "product_hunt": AsyncMock(return_value=[]),
-        }):
+        with (
+            patch.dict("max.analysis.prior_art._SEARCH_FNS", {
+                "github": fail_source,
+                "npm": fail_source,
+                "pypi": fail_source,
+                "product_hunt": AsyncMock(return_value=[]),
+            }),
+            patch.dict("max.analysis.prior_art._RATE_LIMITS", {
+                "github": (2, 0.0),
+                "npm": (5, 0.0),
+                "pypi": (3, 0.0),
+                "product_hunt": (1, 0.0),
+            }),
+        ):
 
             results = await check_prior_art_batch([unit], dry_run=False)
 
@@ -773,12 +790,21 @@ class TestPartialSourceFailure:
             return []
 
         # Patch the _SEARCH_FNS dictionary
-        with patch.dict("max.analysis.prior_art._SEARCH_FNS", {
-            "github": failing_github,
-            "npm": empty_source,
-            "pypi": empty_source,
-            "product_hunt": empty_source,
-        }), patch("max.analysis.prior_art.score_matches", side_effect=lambda u, m: m):
+        with (
+            patch.dict("max.analysis.prior_art._SEARCH_FNS", {
+                "github": failing_github,
+                "npm": empty_source,
+                "pypi": empty_source,
+                "product_hunt": empty_source,
+            }),
+            patch.dict("max.analysis.prior_art._RATE_LIMITS", {
+                "github": (2, 0.0),
+                "npm": (5, 0.0),
+                "pypi": (3, 0.0),
+                "product_hunt": (1, 0.0),
+            }),
+            patch("max.analysis.prior_art.score_matches", side_effect=lambda u, m: m),
+        ):
 
             results = await check_prior_art_batch(units, dry_run=False)
 

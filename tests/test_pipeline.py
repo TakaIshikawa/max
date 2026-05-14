@@ -110,6 +110,35 @@ def _mock_hn_item(story_id: int, title: str) -> dict:
     }
 
 
+def _mock_fetched_signals() -> tuple[list[Signal], dict[str, int], dict[str, dict]]:
+    signals = [
+        Signal(
+            id="sig-pipeline-001",
+            source_type=SignalSourceType.FORUM,
+            source_adapter="hackernews",
+            title="AI Agent Framework",
+            content="Developers need better MCP testing and validation workflows.",
+            url="https://example.com/1",
+            credibility=0.8,
+        ),
+        Signal(
+            id="sig-pipeline-002",
+            source_type=SignalSourceType.REGISTRY,
+            source_adapter="npm_registry",
+            title="test-mcp package",
+            content="MCP package with protocol helpers and validation utilities.",
+            url="https://www.npmjs.com/package/test-mcp",
+            credibility=0.7,
+        ),
+    ]
+    allocation = {"hackernews": 1, "npm_registry": 1}
+    metrics = {
+        "hackernews": {"status": "ok", "signal_count": 1, "error_message": None, "duration_ms": 0},
+        "npm_registry": {"status": "ok", "signal_count": 1, "error_message": None, "duration_ms": 0},
+    }
+    return signals, allocation, metrics
+
+
 @pytest.fixture(autouse=True)
 def reset_call_count():
     global _call_count, _captured_calls
@@ -145,6 +174,7 @@ def test_full_pipeline_with_mocks(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),
@@ -290,6 +320,7 @@ def test_pipeline_with_feedback_adapts_weights(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),
@@ -344,6 +375,7 @@ def test_pipeline_ideation_receives_existing_ideas(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),
@@ -391,6 +423,7 @@ def test_pipeline_evaluation_receives_evidence(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),
@@ -671,6 +704,7 @@ def test_profile_threads_domain_into_prompts(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),
@@ -815,6 +849,7 @@ def test_no_profile_matches_default_behavior(tmp_path: Path) -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
+        patch("max.pipeline.runner._fetch_all_signals", return_value=_mock_fetched_signals()),
         patch("max.sources.hackernews.httpx.AsyncClient", return_value=mock_client),
         patch("max.sources.npm_registry.httpx.AsyncClient", return_value=mock_client),
         patch("max.llm.client.get_client"),

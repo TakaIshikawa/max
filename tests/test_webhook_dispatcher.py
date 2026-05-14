@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import time
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -13,6 +13,12 @@ from max.notifications.webhook_dispatcher import (
     WebhookDispatcher,
     WebhookDispatchResult,
 )
+
+
+@pytest.fixture(autouse=True)
+def webhook_sleep():
+    with patch("max.notifications.webhook_dispatcher.time.sleep") as sleep:
+        yield sleep
 
 
 def _sample_event_payload() -> dict:
@@ -215,14 +221,12 @@ def test_patch_method() -> None:
     assert requests[0].method == "PATCH"
 
 
-def test_retries_on_5xx_server_error() -> None:
+def test_retries_on_5xx_server_error(webhook_sleep) -> None:
     """Should retry on 5xx server errors with exponential backoff."""
     requests: list[httpx.Request] = []
-    attempt_times: list[float] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        attempt_times.append(time.time())
         # Fail first 2 attempts, succeed on 3rd
         if len(requests) < 3:
             return httpx.Response(500, text="Internal Server Error")
@@ -241,14 +245,7 @@ def test_retries_on_5xx_server_error() -> None:
     assert result.status_code == 200
     assert result.attempts == 3
     assert len(requests) == 3
-
-    # Verify exponential backoff timing
-    if len(attempt_times) >= 3:
-        delay1 = attempt_times[1] - attempt_times[0]
-        delay2 = attempt_times[2] - attempt_times[1]
-        # First retry: 2^0 = 1 second, second retry: 2^1 = 2 seconds
-        assert delay1 >= 1.0  # Allow for some execution time
-        assert delay2 >= 2.0
+    assert [call.args[0] for call in webhook_sleep.call_args_list] == [1.0, 2.0]
 
 
 def test_retries_exhausted_on_repeated_5xx() -> None:
@@ -400,7 +397,7 @@ def test_timeout_configuration() -> None:
     assert dispatcher.timeout == 5.0
 
 
-def test_tracks_total_duration() -> None:
+def test_tracks_total_duration(webhook_sleep) -> None:
     """Should track total duration including retries."""
     requests: list[httpx.Request] = []
 
@@ -421,5 +418,4 @@ def test_tracks_total_duration() -> None:
     result = dispatcher.dispatch(_sample_event_payload(), dry_run=False)
 
     assert result.total_duration_seconds > 0
-    # Should include backoff time: at least 1.5^0 = 1.0 seconds
-    assert result.total_duration_seconds >= 1.0
+    webhook_sleep.assert_called_once_with(1.0)

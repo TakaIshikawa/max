@@ -22,6 +22,12 @@ from max.sources.pypi_registry import (
 from max.types.signal import SignalSourceType
 
 
+@pytest.fixture(autouse=True)
+def no_pypi_retry_sleep() -> AsyncMock:
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        yield sleep
+
+
 # ── Test Data ────────────────────────────────────────────────────────
 
 

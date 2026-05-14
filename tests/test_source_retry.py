@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -16,6 +14,13 @@ from max.sources.errors import (
     SourceTransientError,
 )
 from max.sources.retry import retry_async, with_retry
+
+
+@pytest.fixture
+def retry_sleep() -> AsyncMock:
+    """Avoid real retry delays while preserving delay assertions."""
+    with patch("max.sources.retry.asyncio.sleep", new_callable=AsyncMock) as sleep:
+        yield sleep
 
 
 class TestWithRetryDecorator:
@@ -37,7 +42,7 @@ class TestWithRetryDecorator:
         assert call_count == 1
 
     @pytest.mark.asyncio
-    async def test_successful_call_after_transient_failures(self):
+    async def test_successful_call_after_transient_failures(self, retry_sleep):
         """Should retry on transient errors and eventually succeed."""
         call_count = 0
 
@@ -54,9 +59,10 @@ class TestWithRetryDecorator:
         result = await fetch_data()
         assert result == {"status": "ok"}
         assert call_count == 3
+        assert [call.args[0] for call in retry_sleep.await_args_list] == [0.01, 0.01]
 
     @pytest.mark.asyncio
-    async def test_exhausted_retries_raises_final_error(self):
+    async def test_exhausted_retries_raises_final_error(self, retry_sleep):
         """Should raise the final exception after exhausting all retries."""
         call_count = 0
 
@@ -71,38 +77,25 @@ class TestWithRetryDecorator:
 
         # Should try: initial + 2 retries = 3 total attempts
         assert call_count == 3
+        assert retry_sleep.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_backoff_timing_increases_exponentially(self):
+    async def test_backoff_timing_increases_exponentially(self, retry_sleep):
         """Should use exponential backoff with increasing delays."""
-        call_times = []
 
-        @with_retry(max_retries=3, base_delay=0.1, adapter_name="test")
-        async def fetch_data():
-            call_times.append(time.monotonic())
-            raise SourceTransientError("Error", adapter_name="test")
+        with patch("max.sources.retry.random.uniform", return_value=1.0):
+            @with_retry(max_retries=3, base_delay=0.1, adapter_name="test")
+            async def fetch_data():
+                raise SourceTransientError("Error", adapter_name="test")
 
-        with pytest.raises(SourceTransientError):
-            await fetch_data()
+            with pytest.raises(SourceTransientError):
+                await fetch_data()
 
-        # Should have 4 calls (initial + 3 retries)
-        assert len(call_times) == 4
-
-        # Check that delays are increasing (with jitter tolerance)
-        # Delay 1: ~0.1s, Delay 2: ~0.2s, Delay 3: ~0.4s
-        delay1 = call_times[1] - call_times[0]
-        delay2 = call_times[2] - call_times[1]
-        delay3 = call_times[3] - call_times[2]
-
-        # Allow 50% jitter tolerance
-        assert 0.05 <= delay1 <= 0.15, f"delay1={delay1}"
-        assert 0.1 <= delay2 <= 0.3, f"delay2={delay2}"
-        assert 0.2 <= delay3 <= 0.6, f"delay3={delay3}"
-
-        # Verify exponential growth (delay2 > delay1, delay3 > delay2)
-        # Account for jitter by checking ranges overlap
-        assert delay2 >= delay1 * 0.8  # Allow some jitter variance
-        assert delay3 >= delay2 * 0.8
+        assert [call.args[0] for call in retry_sleep.await_args_list] == [
+            0.1,
+            0.2,
+            0.4,
+        ]
 
     @pytest.mark.asyncio
     async def test_non_retryable_auth_error_raised_immediately(self):
@@ -139,14 +132,15 @@ class TestWithRetryDecorator:
         assert call_count == 1
 
     @pytest.mark.asyncio
-    async def test_rate_limit_error_uses_retry_after(self):
+    async def test_rate_limit_error_uses_retry_after(self, retry_sleep):
         """Should respect retry_after from rate limit errors."""
-        call_times = []
+        call_count = 0
 
         @with_retry(max_retries=1, base_delay=0.1, adapter_name="test")
         async def fetch_data():
-            call_times.append(time.monotonic())
-            if len(call_times) < 2:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
                 raise SourceRateLimitError(
                     "Rate limited", adapter_name="test", retry_after=0.2
                 )
@@ -154,11 +148,8 @@ class TestWithRetryDecorator:
 
         result = await fetch_data()
         assert result == {"status": "ok"}
-        assert len(call_times) == 2
-
-        # Should use retry_after (0.2s) instead of base_delay
-        delay = call_times[1] - call_times[0]
-        assert 0.18 <= delay <= 0.25  # Allow small timing variance
+        assert call_count == 2
+        retry_sleep.assert_awaited_once_with(0.2)
 
     @pytest.mark.asyncio
     async def test_httpx_request_error_is_retryable(self):
@@ -392,7 +383,7 @@ class TestRetryLogging:
     """Tests for retry logging behavior."""
 
     @pytest.mark.asyncio
-    async def test_logs_retry_attempts(self, caplog):
+    async def test_logs_retry_attempts(self, caplog, retry_sleep):
         """Should log each retry attempt with relevant details."""
         call_count = 0
 
@@ -417,9 +408,10 @@ class TestRetryLogging:
         assert "test_adapter" in retry_logs[0].message
         assert "retry attempt 1/2" in retry_logs[0].message
         assert "retry attempt 2/2" in retry_logs[1].message
+        assert retry_sleep.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_logs_exhausted_retries(self, caplog):
+    async def test_logs_exhausted_retries(self, caplog, retry_sleep):
         """Should log when retries are exhausted."""
 
         @with_retry(max_retries=1, base_delay=0.05, adapter_name="test_adapter")
@@ -435,35 +427,33 @@ class TestRetryLogging:
         assert len(exhausted_logs) == 1
         assert "test_adapter" in exhausted_logs[0].message
         assert "2 attempts" in exhausted_logs[0].message
+        retry_sleep.assert_awaited_once()
 
 
 class TestRetryJitter:
     """Tests for retry jitter behavior."""
 
     @pytest.mark.asyncio
-    async def test_jitter_varies_delay(self):
+    async def test_jitter_varies_delay(self, retry_sleep):
         """Should apply random jitter to delays (0.5-1.0 multiplier)."""
-        delays = []
+        jitter_values = [0.5, 0.6, 0.75, 0.9, 1.0]
 
-        for _ in range(10):
-            call_times = []
+        for jitter in jitter_values:
+            call_count = 0
 
             @with_retry(max_retries=1, base_delay=1.0, adapter_name="test")
             async def fetch_data():
-                call_times.append(time.monotonic())
-                if len(call_times) < 2:
-                    raise SourceTransientError("Error", adapter_name="test")
-                return "ok"
+                nonlocal call_count
+                call_count += 1
+                raise SourceTransientError("Error", adapter_name="test")
 
-            await fetch_data()
+            with patch("max.sources.retry.random.uniform", return_value=jitter):
+                with pytest.raises(SourceTransientError):
+                    await fetch_data()
+            assert call_count == 2
 
-            delay = call_times[1] - call_times[0]
-            delays.append(delay)
-
-        # All delays should be within jittered range: 0.5s to 1.0s
-        assert all(0.5 <= d <= 1.0 for d in delays), f"delays={delays}"
+        delays = [call.args[0] for call in retry_sleep.await_args_list]
+        assert delays == jitter_values
 
         # Delays should vary (not all the same)
-        # Check that we have at least some variance
-        unique_delays = len(set(round(d, 2) for d in delays))
-        assert unique_delays > 3, f"Expected variance in delays, got {unique_delays} unique values"
+        assert len(set(delays)) > 3

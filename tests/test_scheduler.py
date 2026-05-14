@@ -399,11 +399,11 @@ async def test_pipeline_execution_timeout():
     scheduler = Scheduler(
         interval_seconds=60,
         enabled=True,
-        max_execution_seconds=1,  # 1 second timeout
+        max_execution_seconds=0.01,
     )
 
     def slow_pipeline(**kwargs):
-        time.sleep(2)  # Exceeds timeout
+        time.sleep(0.05)
         from max.pipeline.runner import PipelineResult
         return PipelineResult(
             signals_fetched=0,
@@ -430,12 +430,12 @@ async def test_timeout_triggers_auto_pause():
     scheduler = Scheduler(
         interval_seconds=60,
         enabled=True,
-        max_execution_seconds=1,
+        max_execution_seconds=0.01,
         max_consecutive_failures=2,
     )
 
     def slow_pipeline(**kwargs):
-        time.sleep(2)
+        time.sleep(0.05)
         from max.pipeline.runner import PipelineResult
         return PipelineResult(
             signals_fetched=0,
