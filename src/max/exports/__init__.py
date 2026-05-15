@@ -12,10 +12,30 @@ from max.exports.customer_success_qbr import (
     render_customer_success_qbr_json,
     render_customer_success_qbr_markdown,
 )
+from max.exports.customer_reference_readiness import (
+    build_customer_reference_readiness_export,
+    render_customer_reference_readiness_json,
+    render_customer_reference_readiness_markdown,
+)
 from max.exports.customer_adoption_risk_index import (
     build_customer_adoption_risk_index_export,
     render_customer_adoption_risk_index_json,
     render_customer_adoption_risk_index_markdown,
+)
+from max.exports.customer_journey_friction_report import (
+    build_customer_journey_friction_report_export,
+    render_customer_journey_friction_report_json,
+    render_customer_journey_friction_report_markdown,
+)
+from max.exports.expansion_readiness_scorecard import (
+    build_expansion_readiness_scorecard_export,
+    render_expansion_readiness_scorecard_json,
+    render_expansion_readiness_scorecard_markdown,
+)
+from max.exports.enterprise_security_questionnaire import (
+    build_enterprise_security_questionnaire_export,
+    render_enterprise_security_questionnaire_json,
+    render_enterprise_security_questionnaire_markdown,
 )
 from max.exports.retention_cohorts import (
     build_retention_cohort_export,
@@ -49,6 +69,11 @@ from max.exports.feature_adoption_cohorts import (
     render_feature_adoption_cohorts_json,
     render_feature_adoption_cohorts_markdown,
 )
+from max.exports.feature_request_revenue_map import (
+    build_feature_request_revenue_map_export,
+    render_feature_request_revenue_map_json,
+    render_feature_request_revenue_map_markdown,
+)
 from max.exports.incident_impact_assessment import (
     build_incident_impact_assessment_export,
     render_incident_impact_assessment_csv,
@@ -59,6 +84,11 @@ from max.exports.implementation_risk_heatmap import (
     build_implementation_risk_heatmap_export,
     render_implementation_risk_heatmap_json,
     render_implementation_risk_heatmap_markdown,
+)
+from max.exports.implementation_timeline_variance_report import (
+    build_implementation_timeline_variance_report_export,
+    render_implementation_timeline_variance_report_json,
+    render_implementation_timeline_variance_report_markdown,
 )
 from max.exports.integration_dependency_health import (
     build_integration_dependency_health_export,
@@ -93,6 +123,11 @@ from max.exports.pricing_sensitivity import (
     render_pricing_sensitivity_csv,
     render_pricing_sensitivity_json,
     render_pricing_sensitivity_markdown,
+)
+from max.exports.pricing_discount_leakage_report import (
+    build_pricing_discount_leakage_report_export,
+    render_pricing_discount_leakage_report_json,
+    render_pricing_discount_leakage_report_markdown,
 )
 from max.exports.competitive_landscape import (
     build_competitive_landscape,
@@ -135,6 +170,11 @@ from max.exports.sales_pipeline_forecast import (
     render_sales_pipeline_forecast_json,
     render_sales_pipeline_forecast_markdown,
 )
+from max.exports.sales_engineering_capacity_plan import (
+    build_sales_engineering_capacity_plan_export,
+    render_sales_engineering_capacity_plan_json,
+    render_sales_engineering_capacity_plan_markdown,
+)
 from max.exports.sla_breach_risk import (
     build_sla_breach_risk_export,
     render_sla_breach_risk_csv,
@@ -173,21 +213,28 @@ __all__ = [
     "build_compliance_evidence_packet",
     "build_customer_adoption_risk_index_export",
     "build_customer_success_qbr_export",
+    "build_customer_reference_readiness_export",
     "build_customer_adoption_risk_index_export",
+    "build_customer_journey_friction_report_export",
+    "build_expansion_readiness_scorecard_export",
+    "build_enterprise_security_questionnaire_export",
     "build_retention_cohort_export",
     "build_api_quota_utilization_export",
     "build_account_health_score_export",
     "build_buyer_committee_alignment_export",
     "build_data_residency_matrix_export",
     "build_feature_adoption_cohorts_export",
+    "build_feature_request_revenue_map_export",
     "build_incident_impact_assessment_export",
     "build_implementation_risk_heatmap_export",
+    "build_implementation_timeline_variance_report_export",
     "build_integration_dependency_health_export",
     "build_integration_readiness_matrix_export",
     "build_investment_case",
     "build_localization_readiness_export",
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
+    "build_pricing_discount_leakage_report_export",
     "build_competitive_landscape",
     "build_competitive_win_loss_export",
     "build_product_usage_segmentation_export",
@@ -195,6 +242,7 @@ __all__ = [
     "build_revenue_leakage_diagnostic_export",
     "build_roadmap_prioritization_export",
     "build_sales_pipeline_forecast",
+    "build_sales_engineering_capacity_plan_export",
     "build_sla_breach_risk_export",
     "build_support_ticket_theme_report",
     "build_tech_radar",
@@ -217,11 +265,15 @@ __all__ = [
     "render_data_residency_matrix_markdown",
     "render_feature_adoption_cohorts_json",
     "render_feature_adoption_cohorts_markdown",
+    "render_feature_request_revenue_map_json",
+    "render_feature_request_revenue_map_markdown",
     "render_incident_impact_assessment_csv",
     "render_incident_impact_assessment_json",
     "render_incident_impact_assessment_markdown",
     "render_implementation_risk_heatmap_json",
     "render_implementation_risk_heatmap_markdown",
+    "render_implementation_timeline_variance_report_json",
+    "render_implementation_timeline_variance_report_markdown",
     "render_integration_dependency_health_csv",
     "render_integration_dependency_health_json",
     "render_integration_dependency_health_markdown",
@@ -245,9 +297,17 @@ __all__ = [
     "render_compliance_evidence_packet_markdown",
     "render_customer_adoption_risk_index_json",
     "render_customer_adoption_risk_index_markdown",
+    "render_customer_journey_friction_report_json",
+    "render_customer_journey_friction_report_markdown",
+    "render_expansion_readiness_scorecard_json",
+    "render_expansion_readiness_scorecard_markdown",
+    "render_enterprise_security_questionnaire_json",
+    "render_enterprise_security_questionnaire_markdown",
     "render_customer_success_qbr_csv",
     "render_customer_success_qbr_json",
     "render_customer_success_qbr_markdown",
+    "render_customer_reference_readiness_json",
+    "render_customer_reference_readiness_markdown",
     "render_customer_adoption_risk_index_json",
     "render_customer_adoption_risk_index_markdown",
     "render_product_usage_segmentation_csv",
@@ -256,6 +316,8 @@ __all__ = [
     "render_pricing_sensitivity_csv",
     "render_pricing_sensitivity_json",
     "render_pricing_sensitivity_markdown",
+    "render_pricing_discount_leakage_report_json",
+    "render_pricing_discount_leakage_report_markdown",
     "render_release_readiness_scorecard_csv",
     "render_release_readiness_scorecard_json",
     "render_release_readiness_scorecard_markdown",
@@ -270,6 +332,8 @@ __all__ = [
     "render_sales_pipeline_forecast_csv",
     "render_sales_pipeline_forecast_json",
     "render_sales_pipeline_forecast_markdown",
+    "render_sales_engineering_capacity_plan_json",
+    "render_sales_engineering_capacity_plan_markdown",
     "render_sla_breach_risk_csv",
     "render_sla_breach_risk_json",
     "render_sla_breach_risk_markdown",
