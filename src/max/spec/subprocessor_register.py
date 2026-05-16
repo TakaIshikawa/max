@@ -16,7 +16,8 @@ _VENDORS = {"openai": ("OpenAI", "AI processing", "prompt and workflow content")
 def generate_subprocessor_register(tact_spec: dict[str, Any]) -> dict[str, Any]:
     ctx = _context(tact_spec)
     subprocessors = _subprocessors(ctx["text"])
-    return {"schema_version": SCHEMA_VERSION, "kind": KIND, "source": _source(tact_spec), "summary": {"title": ctx["title"], "workflow_context": ctx["workflow"], "subprocessor_count": len(subprocessors), "high_risk_count": sum(1 for item in subprocessors if item["risk_level"] == "high")}, "subprocessors": subprocessors, "recommendations": _recommendations(subprocessors)}
+    risk_notes = _risk_notes(subprocessors, ctx["text"])
+    return {"schema_version": SCHEMA_VERSION, "kind": KIND, "source": _source(tact_spec), "summary": {"title": ctx["title"], "workflow_context": ctx["workflow"], "subprocessor_count": len(subprocessors), "high_risk_count": sum(1 for item in subprocessors if item["risk_level"] == "high")}, "subprocessors": subprocessors, "recommendations": _recommendations(subprocessors), "risk_notes": risk_notes}
 
 
 def render_subprocessor_register_markdown(register: dict[str, Any]) -> str:
@@ -46,11 +47,24 @@ def _subprocessors(text: str) -> list[dict[str, str]]:
     for key, (name, purpose, data_category) in sorted(_VENDORS.items()):
         if key in lowered:
             sensitive = any(term in lowered for term in ("payment", "customer", "personal", "privacy", "health", "email"))
+            cross_border = any(term in lowered for term in ("cross-border", "eu", "gdpr", "international", "outside us"))
             risk = "high" if sensitive and key in {"openai", "slack", "stripe"} else "medium"
-            rows.append({"vendor_id": key, "name": name, "purpose": purpose, "data_category": data_category, "region": "unknown", "risk_level": risk, "contract_status": "needs_review", "review_cadence": "quarterly" if risk == "high" else "semiannual", "action": "Confirm DPA, region, retention, and security review before launch."})
+            safeguards = "DPA, SCCs, encryption, access review, and retention limits" if cross_border or sensitive else "DPA, encryption, and access review"
+            rows.append({"vendor_id": key, "name": name, "purpose": purpose, "processing_purpose": purpose, "data_category": data_category, "data_categories": data_category, "region": "cross-border or unknown" if cross_border else "unknown", "regions": "cross-border or unknown" if cross_border else "unknown", "safeguards": safeguards, "risk_level": risk, "contract_status": "needs_review", "customer_notice_required": "yes - provide advance customer notice before use" if risk == "high" or cross_border else "standard register notice", "notice_requirements": "advance customer notice before use" if risk == "high" or cross_border else "standard register notice", "review_date": "next quarter" if risk == "high" else "next semiannual review", "review_cadence": "quarterly" if risk == "high" else "semiannual", "action": "Confirm DPA, region, retention, and security review before launch."})
     if not rows:
-        rows.append({"vendor_id": "unknown_vendor", "name": "Unknown vendor", "purpose": "to be confirmed", "data_category": "to be confirmed", "region": "unknown", "risk_level": "medium", "contract_status": "missing", "review_cadence": "before launch", "action": "Identify subprocessors from stack and integration metadata."})
+        rows.append({"vendor_id": "unknown_vendor", "name": "Unknown vendor", "purpose": "to be confirmed", "processing_purpose": "to be confirmed", "data_category": "to be confirmed", "data_categories": "to be confirmed", "region": "unknown", "regions": "unknown", "safeguards": "to be confirmed", "risk_level": "medium", "contract_status": "missing", "customer_notice_required": "to be confirmed", "notice_requirements": "to be confirmed", "review_date": "before launch", "review_cadence": "before launch", "action": "Identify subprocessors from stack and integration metadata."})
     return rows
+
+
+def _risk_notes(rows: list[dict[str, str]], text: str) -> list[str]:
+    notes = []
+    if any(row["risk_level"] == "high" for row in rows):
+        notes.append("High-risk subprocessors require DPA confirmation, security review, and customer notice tracking.")
+    if any(term in text.lower() for term in ("cross-border", "eu", "gdpr", "international", "outside us")):
+        notes.append("Cross-border processing requires SCCs, transfer impact review, and region disclosure.")
+    if not notes:
+        notes.append("Review subprocessor metadata during vendor, region, or data category changes.")
+    return notes
 
 
 def _recommendations(rows: list[dict[str, str]]) -> list[str]:
