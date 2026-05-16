@@ -118,6 +118,10 @@ from max.exports.partner_ecosystem_map import (
     render_partner_ecosystem_map_json,
     render_partner_ecosystem_map_markdown,
 )
+from max.exports.partner_integration_risk_register import (
+    export_partner_integration_risk_register,
+    render_partner_integration_risk_register_json,
+)
 from max.exports.pricing_sensitivity import (
     build_pricing_sensitivity_report,
     render_pricing_sensitivity_csv,
@@ -291,6 +295,8 @@ __all__ = [
     "render_localization_readiness_markdown",
     "render_partner_ecosystem_map_json",
     "render_partner_ecosystem_map_markdown",
+    "export_partner_integration_risk_register",
+    "render_partner_integration_risk_register_json",
     "render_competitive_landscape_json",
     "render_competitive_landscape_markdown",
     "render_competitive_win_loss_csv",
