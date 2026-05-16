@@ -209,6 +209,10 @@ from max.exports.trial_conversion_funnel import (
     render_trial_conversion_funnel_json,
     render_trial_conversion_funnel_markdown,
 )
+from max.exports.trial_to_paid_conversion_diagnostic import (
+    export_trial_to_paid_conversion_diagnostic,
+    render_trial_to_paid_conversion_diagnostic_json,
+)
 from max.exports.vendor_evaluation import (
     EvaluationCriterion,
     build_vendor_evaluation,
@@ -356,6 +360,8 @@ __all__ = [
     "render_tech_radar_markdown",
     "render_trial_conversion_funnel_json",
     "render_trial_conversion_funnel_markdown",
+    "export_trial_to_paid_conversion_diagnostic",
+    "render_trial_to_paid_conversion_diagnostic_json",
     "render_vendor_evaluation_csv",
     "render_vendor_evaluation_json",
     "render_vendor_evaluation_markdown",
