@@ -158,6 +158,10 @@ from max.exports.revenue_leakage_diagnostic import (
     render_revenue_leakage_diagnostic_json,
     render_revenue_leakage_diagnostic_markdown,
 )
+from max.exports.renewal_risk_register import (
+    export_renewal_risk_register,
+    render_renewal_risk_register_json,
+)
 from max.exports.roadmap_prioritization import (
     build_roadmap_prioritization_export,
     render_roadmap_prioritization_csv,
@@ -324,6 +328,8 @@ __all__ = [
     "render_revenue_leakage_diagnostic_csv",
     "render_revenue_leakage_diagnostic_json",
     "render_revenue_leakage_diagnostic_markdown",
+    "export_renewal_risk_register",
+    "render_renewal_risk_register_json",
     "render_retention_cohort_json",
     "render_retention_cohort_markdown",
     "render_roadmap_prioritization_csv",
