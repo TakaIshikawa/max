@@ -90,6 +90,10 @@ from max.exports.implementation_timeline_variance_report import (
     render_implementation_timeline_variance_report_json,
     render_implementation_timeline_variance_report_markdown,
 )
+from max.exports.implementation_blocker_aging import (
+    export_implementation_blocker_aging,
+    render_implementation_blocker_aging_json,
+)
 from max.exports.integration_dependency_health import (
     build_integration_dependency_health_export,
     render_integration_dependency_health_csv,
@@ -286,6 +290,8 @@ __all__ = [
     "render_implementation_risk_heatmap_markdown",
     "render_implementation_timeline_variance_report_json",
     "render_implementation_timeline_variance_report_markdown",
+    "export_implementation_blocker_aging",
+    "render_implementation_blocker_aging_json",
     "render_integration_dependency_health_csv",
     "render_integration_dependency_health_json",
     "render_integration_dependency_health_markdown",
