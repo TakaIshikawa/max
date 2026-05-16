@@ -117,6 +117,10 @@ from max.exports.localization_readiness import (
     render_localization_readiness_json,
     render_localization_readiness_markdown,
 )
+from max.exports.onboarding_activation_cohorts import (
+    export_onboarding_activation_cohorts,
+    render_onboarding_activation_cohorts_json,
+)
 from max.exports.partner_ecosystem_map import (
     build_partner_ecosystem_map_export,
     render_partner_ecosystem_map_json,
@@ -252,6 +256,7 @@ __all__ = [
     "build_integration_readiness_matrix_export",
     "build_investment_case",
     "build_localization_readiness_export",
+    "export_onboarding_activation_cohorts",
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
     "build_pricing_discount_leakage_report_export",
@@ -307,6 +312,7 @@ __all__ = [
     "render_localization_readiness_csv",
     "render_localization_readiness_json",
     "render_localization_readiness_markdown",
+    "render_onboarding_activation_cohorts_json",
     "render_partner_ecosystem_map_json",
     "render_partner_ecosystem_map_markdown",
     "export_partner_integration_risk_register",
