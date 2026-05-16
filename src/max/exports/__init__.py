@@ -12,6 +12,10 @@ from max.exports.customer_success_qbr import (
     render_customer_success_qbr_json,
     render_customer_success_qbr_markdown,
 )
+from max.exports.customer_value_realization import (
+    export_customer_value_realization,
+    render_customer_value_realization_json,
+)
 from max.exports.customer_reference_readiness import (
     build_customer_reference_readiness_export,
     render_customer_reference_readiness_json,
@@ -240,6 +244,7 @@ __all__ = [
     "build_customer_reference_readiness_export",
     "build_customer_adoption_risk_index_export",
     "build_customer_journey_friction_report_export",
+    "export_customer_value_realization",
     "build_expansion_readiness_scorecard_export",
     "build_enterprise_security_questionnaire_export",
     "build_retention_cohort_export",
@@ -329,6 +334,7 @@ __all__ = [
     "render_customer_adoption_risk_index_markdown",
     "render_customer_journey_friction_report_json",
     "render_customer_journey_friction_report_markdown",
+    "render_customer_value_realization_json",
     "render_expansion_readiness_scorecard_json",
     "render_expansion_readiness_scorecard_markdown",
     "render_enterprise_security_questionnaire_json",
