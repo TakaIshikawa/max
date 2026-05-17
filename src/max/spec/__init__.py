@@ -28,6 +28,7 @@ from max.spec.bundle import (
     render_spec_bundle_markdown,
     render_spec_bundle_yaml,
 )
+from max.spec.business_continuity_plan import generate_business_continuity_plan
 from max.spec.compliance_checklist import (
     generate_compliance_checklist,
     render_compliance_checklist_csv,
@@ -233,6 +234,7 @@ __all__ = [
     "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
+    "generate_business_continuity_plan",
     "generate_compliance_checklist",
     "generate_consent_management_plan",
     "generate_cost_estimate",
