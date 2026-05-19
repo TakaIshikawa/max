@@ -176,6 +176,11 @@ from max.exports.procurement_readiness_checklist import (
     render_procurement_readiness_checklist_json,
     render_procurement_readiness_checklist_markdown,
 )
+from max.exports.procurement_cycle_friction import (
+    build_procurement_cycle_friction_export,
+    render_procurement_cycle_friction_json,
+    render_procurement_cycle_friction_markdown,
+)
 from max.exports.proof_of_concept_roi import (
     build_proof_of_concept_roi_export,
     render_proof_of_concept_roi_json,
@@ -312,6 +317,7 @@ __all__ = [
     "build_pricing_sensitivity_report",
     "build_pricing_discount_leakage_report_export",
     "build_procurement_readiness_checklist_export",
+    "build_procurement_cycle_friction_export",
     "build_proof_of_concept_roi_export",
     "build_competitive_landscape",
     "build_competitive_win_loss_export",
@@ -416,6 +422,8 @@ __all__ = [
     "render_pricing_discount_leakage_report_markdown",
     "render_procurement_readiness_checklist_json",
     "render_procurement_readiness_checklist_markdown",
+    "render_procurement_cycle_friction_json",
+    "render_procurement_cycle_friction_markdown",
     "render_proof_of_concept_roi_json",
     "render_proof_of_concept_roi_markdown",
     "render_release_readiness_scorecard_csv",
