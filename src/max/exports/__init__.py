@@ -46,6 +46,11 @@ from max.exports.enterprise_security_questionnaire import (
     render_enterprise_security_questionnaire_json,
     render_enterprise_security_questionnaire_markdown,
 )
+from max.exports.enterprise_pilot_success_scorecard import (
+    build_enterprise_pilot_success_scorecard_export,
+    render_enterprise_pilot_success_scorecard_json,
+    render_enterprise_pilot_success_scorecard_markdown,
+)
 from max.exports.retention_cohorts import (
     build_retention_cohort_export,
     render_retention_cohort_json,
@@ -263,6 +268,7 @@ __all__ = [
     "export_customer_value_realization",
     "build_expansion_readiness_scorecard_export",
     "build_enterprise_security_questionnaire_export",
+    "build_enterprise_pilot_success_scorecard_export",
     "build_retention_cohort_export",
     "build_api_quota_utilization_export",
     "build_account_health_score_export",
@@ -357,6 +363,8 @@ __all__ = [
     "render_expansion_readiness_scorecard_markdown",
     "render_enterprise_security_questionnaire_json",
     "render_enterprise_security_questionnaire_markdown",
+    "render_enterprise_pilot_success_scorecard_json",
+    "render_enterprise_pilot_success_scorecard_markdown",
     "render_customer_success_qbr_csv",
     "render_customer_success_qbr_json",
     "render_customer_success_qbr_markdown",
