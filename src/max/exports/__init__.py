@@ -6,6 +6,11 @@ from max.exports.compliance_evidence_packet import (
     render_compliance_evidence_packet_json,
     render_compliance_evidence_packet_markdown,
 )
+from max.exports.compliance_questionnaire_gap import (
+    build_compliance_questionnaire_gap_export,
+    render_compliance_questionnaire_gap_json,
+    render_compliance_questionnaire_gap_markdown,
+)
 from max.exports.customer_success_qbr import (
     build_customer_success_qbr_export,
     render_customer_success_qbr_csv,
@@ -275,6 +280,7 @@ from max.exports.vendor_evaluation import (
 
 __all__ = [
     "build_compliance_evidence_packet",
+    "build_compliance_questionnaire_gap_export",
     "build_customer_adoption_risk_index_export",
     "build_customer_success_qbr_export",
     "build_customer_reference_readiness_export",
@@ -376,6 +382,8 @@ __all__ = [
     "render_compliance_evidence_packet_csv",
     "render_compliance_evidence_packet_json",
     "render_compliance_evidence_packet_markdown",
+    "render_compliance_questionnaire_gap_json",
+    "render_compliance_questionnaire_gap_markdown",
     "render_customer_adoption_risk_index_json",
     "render_customer_adoption_risk_index_markdown",
     "render_customer_journey_friction_report_json",
