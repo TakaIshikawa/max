@@ -150,6 +150,11 @@ from max.exports.pricing_discount_leakage_report import (
     render_pricing_discount_leakage_report_json,
     render_pricing_discount_leakage_report_markdown,
 )
+from max.exports.procurement_readiness_checklist import (
+    build_procurement_readiness_checklist_export,
+    render_procurement_readiness_checklist_json,
+    render_procurement_readiness_checklist_markdown,
+)
 from max.exports.competitive_landscape import (
     build_competitive_landscape,
     render_competitive_landscape_json,
@@ -271,6 +276,7 @@ __all__ = [
     "build_partner_ecosystem_map_export",
     "build_pricing_sensitivity_report",
     "build_pricing_discount_leakage_report_export",
+    "build_procurement_readiness_checklist_export",
     "build_competitive_landscape",
     "build_competitive_win_loss_export",
     "build_product_usage_segmentation_export",
@@ -362,6 +368,8 @@ __all__ = [
     "render_pricing_sensitivity_markdown",
     "render_pricing_discount_leakage_report_json",
     "render_pricing_discount_leakage_report_markdown",
+    "render_procurement_readiness_checklist_json",
+    "render_procurement_readiness_checklist_markdown",
     "render_release_readiness_scorecard_csv",
     "render_release_readiness_scorecard_json",
     "render_release_readiness_scorecard_markdown",
