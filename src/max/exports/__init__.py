@@ -120,6 +120,12 @@ from max.exports.integration_readiness_matrix import (
     render_integration_readiness_matrix_json,
     render_integration_readiness_matrix_markdown,
 )
+from max.exports.integration_sla_compliance_report import (
+    build_integration_sla_compliance_report_export,
+    render_integration_sla_compliance_report_csv,
+    render_integration_sla_compliance_report_json,
+    render_integration_sla_compliance_report_markdown,
+)
 from max.exports.investment_case import (
     build_investment_case,
     render_investment_case_json,
@@ -281,6 +287,7 @@ __all__ = [
     "build_implementation_timeline_variance_report_export",
     "build_integration_dependency_health_export",
     "build_integration_readiness_matrix_export",
+    "build_integration_sla_compliance_report_export",
     "build_investment_case",
     "build_localization_readiness_export",
     "export_onboarding_activation_cohorts",
@@ -336,6 +343,9 @@ __all__ = [
     "render_integration_readiness_matrix_csv",
     "render_integration_readiness_matrix_json",
     "render_integration_readiness_matrix_markdown",
+    "render_integration_sla_compliance_report_csv",
+    "render_integration_sla_compliance_report_json",
+    "render_integration_sla_compliance_report_markdown",
     "render_investment_case_json",
     "render_investment_case_markdown",
     "render_localization_readiness_csv",
