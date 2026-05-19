@@ -26,6 +26,11 @@ from max.exports.customer_escalation_risk_report import (
     render_customer_escalation_risk_report_json,
     render_customer_escalation_risk_report_markdown,
 )
+from max.exports.customer_churn_save_playbook import (
+    build_customer_churn_save_playbook_export,
+    render_customer_churn_save_playbook_json,
+    render_customer_churn_save_playbook_markdown,
+)
 from max.exports.customer_adoption_risk_index import (
     build_customer_adoption_risk_index_export,
     render_customer_adoption_risk_index_json,
@@ -274,6 +279,7 @@ __all__ = [
     "build_customer_success_qbr_export",
     "build_customer_reference_readiness_export",
     "build_customer_escalation_risk_report_export",
+    "build_customer_churn_save_playbook_export",
     "build_customer_adoption_risk_index_export",
     "build_customer_journey_friction_report_export",
     "export_customer_value_realization",
@@ -388,6 +394,8 @@ __all__ = [
     "render_customer_reference_readiness_markdown",
     "render_customer_escalation_risk_report_json",
     "render_customer_escalation_risk_report_markdown",
+    "render_customer_churn_save_playbook_json",
+    "render_customer_churn_save_playbook_markdown",
     "render_customer_adoption_risk_index_json",
     "render_customer_adoption_risk_index_markdown",
     "render_product_usage_segmentation_csv",
