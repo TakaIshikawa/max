@@ -164,6 +164,10 @@ from max.spec.runtime_configuration_plan import (
     render_runtime_configuration_plan_csv,
     render_runtime_configuration_plan_markdown,
 )
+from max.spec.runbook_freshness_audit_plan import (
+    generate_runbook_freshness_audit_plan,
+    render_runbook_freshness_audit_plan_markdown,
+)
 from max.spec.feature_flag_rollout_plan import (
     FEATURE_FLAG_ROLLOUT_PLAN_SCHEMA_VERSION,
     generate_feature_flag_rollout_plan,
@@ -283,6 +287,7 @@ __all__ = [
     "generate_release_readiness_gate",
     "generate_rollback_plan",
     "generate_runtime_configuration_plan",
+    "generate_runbook_freshness_audit_plan",
     "generate_feature_flag_rollout_plan",
     "generate_feature_entitlement_rollout_plan",
     "generate_scaling_strategy",
@@ -305,6 +310,7 @@ __all__ = [
     "render_risk_register_markdown",
     "render_runtime_configuration_plan_csv",
     "render_runtime_configuration_plan_markdown",
+    "render_runbook_freshness_audit_plan_markdown",
     "render_feature_flag_rollout_plan_csv",
     "render_feature_flag_rollout_plan_markdown",
     "render_feature_entitlement_rollout_plan_markdown",
