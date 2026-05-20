@@ -199,6 +199,27 @@ from max.analysis.design_brief_renewal_expansion_plan import (
     renewal_expansion_plan_filename,
     write_design_brief_renewal_expansion_plan,
 )
+from max.analysis.design_brief_beta_feedback_plan import (
+    generate_design_brief_beta_feedback_plan,
+)
+from max.analysis.design_brief_contract_renewal_risk_plan import (
+    generate_design_brief_contract_renewal_risk_plan,
+)
+from max.analysis.design_brief_feature_flag_rollout_plan import (
+    generate_design_brief_feature_flag_rollout_plan,
+)
+from max.analysis.design_brief_migration_readiness_plan import (
+    generate_design_brief_migration_readiness_plan,
+)
+from max.analysis.design_brief_operational_metrics_review_plan import (
+    generate_design_brief_operational_metrics_review_plan,
+)
+from max.analysis.design_brief_partner_enablement_plan import (
+    generate_design_brief_partner_enablement_plan,
+)
+from max.analysis.design_brief_support_capacity_plan import (
+    generate_design_brief_support_capacity_plan,
+)
 from max.analysis.source_adapter_coverage_gaps import (
     build_source_adapter_coverage_gap_report,
     build_source_adapter_coverage_gaps_report,
@@ -257,6 +278,13 @@ __all__ = [
     "conversion_risk_filename",
     "generate_design_brief_kpi_tree",
     "generate_design_brief_legal_review_checklist",
+    "generate_design_brief_beta_feedback_plan",
+    "generate_design_brief_contract_renewal_risk_plan",
+    "generate_design_brief_feature_flag_rollout_plan",
+    "generate_design_brief_migration_readiness_plan",
+    "generate_design_brief_operational_metrics_review_plan",
+    "generate_design_brief_partner_enablement_plan",
+    "generate_design_brief_support_capacity_plan",
     "generate_persona_interview_guide",
     "dependency_risk_map_filename",
     "investor_update_filename",
