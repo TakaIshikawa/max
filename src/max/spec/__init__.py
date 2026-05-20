@@ -166,6 +166,10 @@ from max.spec.feature_flag_rollout_plan import (
     render_feature_flag_rollout_plan_csv,
     render_feature_flag_rollout_plan_markdown,
 )
+from max.spec.feature_entitlement_rollout_plan import (
+    generate_feature_entitlement_rollout_plan,
+    render_feature_entitlement_rollout_plan_markdown,
+)
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -275,6 +279,7 @@ __all__ = [
     "generate_rollback_plan",
     "generate_runtime_configuration_plan",
     "generate_feature_flag_rollout_plan",
+    "generate_feature_entitlement_rollout_plan",
     "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_controls",
@@ -297,6 +302,7 @@ __all__ = [
     "render_runtime_configuration_plan_markdown",
     "render_feature_flag_rollout_plan_csv",
     "render_feature_flag_rollout_plan_markdown",
+    "render_feature_entitlement_rollout_plan_markdown",
     "render_scaling_strategy_csv",
     "render_scaling_strategy_markdown",
     "render_security_controls_csv",
