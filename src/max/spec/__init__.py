@@ -222,6 +222,10 @@ from max.spec.vendor_risk_assessment import (
     render_vendor_risk_assessment_csv,
     render_vendor_risk_assessment_markdown,
 )
+from max.spec.webhook_delivery_reliability_plan import (
+    generate_webhook_delivery_reliability_plan,
+    render_webhook_delivery_reliability_plan_markdown,
+)
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -285,6 +289,7 @@ __all__ = [
     "generate_risk_register",
     "generate_threat_model",
     "generate_vendor_risk_assessment",
+    "generate_webhook_delivery_reliability_plan",
     "render_rollback_plan_markdown",
     "render_risk_register_csv",
     "render_risk_register_markdown",
@@ -313,6 +318,7 @@ __all__ = [
     "render_threat_model_markdown",
     "render_vendor_risk_assessment_csv",
     "render_vendor_risk_assessment_markdown",
+    "render_webhook_delivery_reliability_plan_markdown",
     "render_architecture_decision_record_markdown",
     "render_architecture_decision_record_csv",
     "render_accessibility_compliance_plan_markdown",
