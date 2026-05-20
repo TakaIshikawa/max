@@ -60,6 +60,10 @@ from max.spec.customer_onboarding_plan import (
     render_customer_onboarding_plan_csv,
     render_customer_onboarding_plan_markdown,
 )
+from max.spec.customer_migration_readiness_plan import (
+    generate_customer_migration_readiness_plan,
+    render_customer_migration_readiness_plan_markdown,
+)
 from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_csv,
@@ -269,6 +273,7 @@ __all__ = [
     "generate_cost_estimate",
     "generate_change_freeze_plan",
     "generate_customer_onboarding_plan",
+    "generate_customer_migration_readiness_plan",
     "generate_data_classification",
     "generate_data_migration_rehearsal_plan",
     "generate_data_retention_schedule",
@@ -358,6 +363,7 @@ __all__ = [
     "render_change_freeze_plan_markdown",
     "render_customer_onboarding_plan_csv",
     "render_customer_onboarding_plan_markdown",
+    "render_customer_migration_readiness_plan_markdown",
     "render_data_classification_csv",
     "render_data_classification_markdown",
     "render_data_migration_rehearsal_plan_csv",
