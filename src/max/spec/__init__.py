@@ -69,6 +69,7 @@ from max.spec.data_classification import (
     render_data_classification_csv,
     render_data_classification_markdown,
 )
+from max.spec.data_contract_change_plan import generate_data_contract_change_plan
 from max.spec.data_retention_schedule import (
     generate_data_retention_schedule,
     render_data_retention_schedule_csv,
@@ -106,6 +107,8 @@ from max.spec.disaster_recovery_plan import (
     render_disaster_recovery_plan_csv,
     render_disaster_recovery_plan_markdown,
 )
+from max.spec.audit_readiness_gap_plan import generate_audit_readiness_gap_plan
+from max.spec.customer_impact_assessment_plan import generate_customer_impact_assessment_plan
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import (
     generate_implementation_plan,
@@ -128,6 +131,7 @@ from max.spec.license_compliance_review_plan import (
     generate_license_compliance_review_plan,
     render_license_compliance_review_plan_markdown,
 )
+from max.spec.integration_backout_plan import generate_integration_backout_plan
 from max.spec.migration_checklist import (
     generate_migration_checklist,
     render_migration_checklist_csv,
@@ -142,6 +146,7 @@ from max.spec.operational_runbook import (
     generate_operational_runbook,
     render_operational_runbook_markdown,
 )
+from max.spec.operational_metrics_review_plan import generate_operational_metrics_review_plan
 from max.spec.post_launch_monitoring_plan import (
     generate_post_launch_monitoring_plan,
     render_post_launch_monitoring_plan_csv,
@@ -158,6 +163,8 @@ from max.spec.release_readiness_gate import (
     render_release_readiness_gate_json,
     render_release_readiness_gate_markdown,
 )
+from max.spec.release_risk_acceptance_plan import generate_release_risk_acceptance_plan
+from max.spec.rollout_decision_log_plan import generate_rollout_decision_log_plan
 from max.spec.rollback_plan import generate_rollback_plan, render_rollback_plan_markdown
 from max.spec.risk_register import (
     generate_risk_register,
@@ -232,6 +239,7 @@ from max.spec.support_playbook import (
     render_support_playbook_csv,
     render_support_playbook_markdown,
 )
+from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_plan
 from max.spec.threat_model import (
     generate_threat_model,
     render_threat_model_csv,
@@ -264,6 +272,7 @@ __all__ = [
     "generate_acceptance_criteria",
     "generate_accessibility_compliance_plan",
     "generate_audit_finding_remediation_plan",
+    "generate_audit_readiness_gap_plan",
     "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
@@ -273,8 +282,10 @@ __all__ = [
     "generate_cost_estimate",
     "generate_change_freeze_plan",
     "generate_customer_onboarding_plan",
+    "generate_customer_impact_assessment_plan",
     "generate_customer_migration_readiness_plan",
     "generate_data_classification",
+    "generate_data_contract_change_plan",
     "generate_data_migration_rehearsal_plan",
     "generate_data_retention_schedule",
     "generate_dependency_inventory",
@@ -289,13 +300,17 @@ __all__ = [
     "generate_incident_comms_matrix",
     "generate_launch_checklist",
     "generate_license_compliance_review_plan",
+    "generate_integration_backout_plan",
     "generate_migration_checklist",
     "generate_observability_plan",
+    "generate_operational_metrics_review_plan",
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
     "generate_privacy_impact_assessment",
     "generate_release_readiness_gate",
+    "generate_release_risk_acceptance_plan",
     "generate_rollback_plan",
+    "generate_rollout_decision_log_plan",
     "generate_runtime_configuration_plan",
     "generate_runbook_freshness_audit_plan",
     "generate_feature_flag_rollout_plan",
@@ -311,6 +326,7 @@ __all__ = [
     "generate_smoke_test_plan",
     "generate_stakeholder_handoff",
     "generate_support_playbook",
+    "generate_support_coverage_gap_plan",
     "generate_risk_register",
     "generate_threat_model",
     "generate_vendor_risk_assessment",
