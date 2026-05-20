@@ -10,7 +10,10 @@ from max.spec.accessibility_compliance_plan import (
     generate_accessibility_compliance_plan,
     render_accessibility_compliance_plan_markdown,
 )
-from max.spec.access_recertification_exception_plan import generate_access_recertification_exception_plan
+from max.spec.access_recertification_exception_plan import (
+    generate_access_recertification_exception_plan,
+)
+from max.spec.audit_evidence_exception_plan import generate_audit_evidence_exception_plan
 from max.spec.audit_finding_remediation_plan import (
     generate_audit_finding_remediation_plan,
     render_audit_finding_remediation_plan_markdown,
@@ -34,6 +37,7 @@ from max.spec.bundle import (
     render_spec_bundle_yaml,
 )
 from max.spec.business_continuity_plan import generate_business_continuity_plan
+from max.spec.billing_impact_review_plan import generate_billing_impact_review_plan
 from max.spec.compliance_checklist import (
     generate_compliance_checklist,
     render_compliance_checklist_csv,
@@ -65,6 +69,7 @@ from max.spec.customer_migration_readiness_plan import (
     generate_customer_migration_readiness_plan,
     render_customer_migration_readiness_plan_markdown,
 )
+from max.spec.customer_sla_credit_review_plan import generate_customer_sla_credit_review_plan
 from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_csv,
@@ -111,7 +116,9 @@ from max.spec.disaster_recovery_plan import (
 )
 from max.spec.audit_readiness_gap_plan import generate_audit_readiness_gap_plan
 from max.spec.customer_impact_assessment_plan import generate_customer_impact_assessment_plan
-from max.spec.customer_notification_readiness_plan import generate_customer_notification_readiness_plan
+from max.spec.customer_notification_readiness_plan import (
+    generate_customer_notification_readiness_plan,
+)
 from max.spec.generator import generate_spec_preview
 from max.spec.implementation_plan import (
     generate_implementation_plan,
@@ -137,6 +144,9 @@ from max.spec.license_compliance_review_plan import (
     render_license_compliance_review_plan_markdown,
 )
 from max.spec.integration_backout_plan import generate_integration_backout_plan
+from max.spec.integration_credential_rotation_plan import (
+    generate_integration_credential_rotation_plan,
+)
 from max.spec.migration_checklist import (
     generate_migration_checklist,
     render_migration_checklist_csv,
@@ -152,7 +162,9 @@ from max.spec.operational_runbook import (
     render_operational_runbook_markdown,
 )
 from max.spec.operational_metrics_review_plan import generate_operational_metrics_review_plan
-from max.spec.operational_ownership_transfer_plan import generate_operational_ownership_transfer_plan
+from max.spec.operational_ownership_transfer_plan import (
+    generate_operational_ownership_transfer_plan,
+)
 from max.spec.post_launch_monitoring_plan import (
     generate_post_launch_monitoring_plan,
     render_post_launch_monitoring_plan_csv,
@@ -168,6 +180,9 @@ from max.spec.release_readiness_gate import (
     render_release_readiness_gate_csv,
     render_release_readiness_gate_json,
     render_release_readiness_gate_markdown,
+)
+from max.spec.release_communications_readiness_plan import (
+    generate_release_communications_readiness_plan,
 )
 from max.spec.release_risk_acceptance_plan import generate_release_risk_acceptance_plan
 from max.spec.rollout_decision_log_plan import generate_rollout_decision_log_plan
@@ -214,6 +229,7 @@ from max.spec.security_review import (
     render_security_review_csv,
     render_security_review_markdown,
 )
+from max.spec.schema_compatibility_review_plan import generate_schema_compatibility_review_plan
 from max.spec.slo_plan import generate_slo_plan, render_slo_plan_csv, render_slo_plan_markdown
 from max.spec.slo_exception_review import (
     SLO_EXCEPTION_REVIEW_SCHEMA_VERSION,
@@ -246,6 +262,7 @@ from max.spec.support_playbook import (
     render_support_playbook_csv,
     render_support_playbook_markdown,
 )
+from max.spec.support_tier_migration_plan import generate_support_tier_migration_plan
 from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
 from max.spec.threat_model import (
@@ -262,6 +279,7 @@ from max.spec.webhook_delivery_reliability_plan import (
     generate_webhook_delivery_reliability_plan,
     render_webhook_delivery_reliability_plan_markdown,
 )
+from max.spec.webhook_consumer_migration_plan import generate_webhook_consumer_migration_plan
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -280,12 +298,14 @@ __all__ = [
     "generate_acceptance_criteria",
     "generate_accessibility_compliance_plan",
     "generate_access_recertification_exception_plan",
+    "generate_audit_evidence_exception_plan",
     "generate_audit_finding_remediation_plan",
     "generate_audit_readiness_gap_plan",
     "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
     "generate_business_continuity_plan",
+    "generate_billing_impact_review_plan",
     "generate_compliance_checklist",
     "generate_consent_management_plan",
     "generate_cost_estimate",
@@ -294,6 +314,7 @@ __all__ = [
     "generate_customer_impact_assessment_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
+    "generate_customer_sla_credit_review_plan",
     "generate_data_classification",
     "generate_data_contract_change_plan",
     "generate_data_processing_impact_review_plan",
@@ -314,6 +335,7 @@ __all__ = [
     "generate_launch_freeze_readiness_plan",
     "generate_license_compliance_review_plan",
     "generate_integration_backout_plan",
+    "generate_integration_credential_rotation_plan",
     "generate_migration_checklist",
     "generate_observability_plan",
     "generate_operational_metrics_review_plan",
@@ -322,6 +344,7 @@ __all__ = [
     "generate_post_launch_monitoring_plan",
     "generate_privacy_impact_assessment",
     "generate_release_readiness_gate",
+    "generate_release_communications_readiness_plan",
     "generate_release_risk_acceptance_plan",
     "generate_rollback_plan",
     "generate_rollback_validation_evidence_plan",
@@ -334,6 +357,7 @@ __all__ = [
     "generate_spec_bundle",
     "generate_security_controls",
     "generate_security_review",
+    "generate_schema_compatibility_review_plan",
     "generate_service_account_lifecycle_plan",
     "generate_service_deprecation_plan",
     "generate_slo_plan",
@@ -341,12 +365,14 @@ __all__ = [
     "generate_smoke_test_plan",
     "generate_stakeholder_handoff",
     "generate_support_playbook",
+    "generate_support_tier_migration_plan",
     "generate_support_coverage_gap_plan",
     "generate_third_party_dependency_sunset_plan",
     "generate_risk_register",
     "generate_threat_model",
     "generate_vendor_risk_assessment",
     "generate_webhook_delivery_reliability_plan",
+    "generate_webhook_consumer_migration_plan",
     "render_rollback_plan_markdown",
     "render_risk_register_csv",
     "render_risk_register_markdown",

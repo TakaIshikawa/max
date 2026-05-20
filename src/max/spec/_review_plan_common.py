@@ -7,7 +7,9 @@ from typing import Any
 from max.spec._planning_common import compact, context, string_list, summary
 
 
-def base(spec_like: Any, metadata_key: str) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[str]]:
+def base(
+    spec_like: Any, metadata_key: str
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[str]]:
     spec = spec_like if isinstance(spec_like, dict) else {}
     ctx = context(spec)
     return spec, ctx, hints(spec, metadata_key), evidence_ids(ctx)
@@ -36,11 +38,25 @@ def values(value: Any, fallback: list[str]) -> list[str]:
     if isinstance(value, list):
         for item in value:
             if isinstance(item, dict):
-                items.append(compact(item.get("name") or item.get("title") or item.get("id") or item.get("description")))
+                items.append(
+                    compact(
+                        item.get("name")
+                        or item.get("title")
+                        or item.get("id")
+                        or item.get("description")
+                    )
+                )
             else:
                 items.append(compact(item))
     elif isinstance(value, dict):
-        items.append(compact(value.get("name") or value.get("title") or value.get("id") or value.get("description")))
+        items.append(
+            compact(
+                value.get("name")
+                or value.get("title")
+                or value.get("id")
+                or value.get("description")
+            )
+        )
     else:
         items.extend(string_list(value))
     return ordered(items) or fallback
@@ -48,24 +64,66 @@ def values(value: Any, fallback: list[str]) -> list[str]:
 
 def records(value: Any, fallback: list[Any]) -> list[dict[str, Any]]:
     raw = value if isinstance(value, list) else ([value] if value else fallback)
+    raw = raw or fallback
     result: list[dict[str, Any]] = []
     for item in raw:
         if isinstance(item, dict):
-            name = compact(item.get("name") or item.get("title") or item.get("id") or item.get("description"))
+            name = compact(
+                item.get("name") or item.get("title") or item.get("id") or item.get("description")
+            )
             record = {key: item[key] for key in sorted(item) if item[key] not in (None, "")}
             record["name"] = name or "unnamed item"
         else:
             record = {"name": compact(item) or "unnamed item"}
         result.append(record)
-    return sorted(result, key=lambda item: (rank(item.get("severity")), due_rank(item), compact(item.get("name")).casefold()))
+    return sorted(
+        result,
+        key=lambda item: (
+            rank(item.get("severity")),
+            due_rank(item),
+            compact(item.get("name")).casefold(),
+        ),
+    )
+
+
+def unique_records(value: Any, fallback: list[Any]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in records(value, fallback):
+        key = compact(item.get("name")).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
 
 
 def rank(value: Any) -> int:
-    return {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3}.get(compact(value).lower(), 4)
+    return {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3}.get(
+        compact(value).lower(), 4
+    )
 
 
 def due_rank(item: dict[str, Any]) -> int:
-    text = " ".join(compact(item.get(key)).lower() for key in ("status", "expiration", "expiry", "due", "deadline"))
+    values = [
+        compact(item.get(key)).lower()
+        for key in (
+            "status",
+            "expiration",
+            "expiry",
+            "due",
+            "deadline",
+            "due_status",
+            "deadline_status",
+            "credit_status",
+            "review_date",
+            "rotation_date",
+        )
+        if compact(item.get(key))
+    ]
+    text = " ".join(values)
+    if not values:
+        return 1
     if any(term in text for term in ("expired", "overdue", "past due")):
         return 0
     if any(term in text for term in ("missing", "unknown", "tbd")):
@@ -74,10 +132,27 @@ def due_rank(item: dict[str, Any]) -> int:
 
 
 def truthy(value: Any) -> bool:
-    return value is True or compact(value).lower() in {"1", "true", "yes", "y", "required", "blocked", "missing", "expired"}
+    return value is True or compact(value).lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+        "required",
+        "blocked",
+        "missing",
+        "expired",
+    }
 
 
-def row(prefix: str, index: int, name: str, owner: str, description: str, evidence_reference_ids: list[str], **extra: Any) -> dict[str, Any]:
+def row(
+    prefix: str,
+    index: int,
+    name: str,
+    owner: str,
+    description: str,
+    evidence_reference_ids: list[str],
+    **extra: Any,
+) -> dict[str, Any]:
     data = {
         "id": f"{prefix}{index}",
         "name": name,
