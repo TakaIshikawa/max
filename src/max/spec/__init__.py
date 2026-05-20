@@ -93,6 +93,10 @@ from max.spec.error_budget_policy import (
     render_error_budget_policy_csv,
     render_error_budget_policy_markdown,
 )
+from max.spec.environment_promotion_plan import (
+    generate_environment_promotion_plan,
+    render_environment_promotion_plan_markdown,
+)
 from max.spec.disaster_recovery_plan import (
     generate_disaster_recovery_plan,
     render_disaster_recovery_plan_csv,
@@ -263,6 +267,7 @@ __all__ = [
     "generate_dependency_inventory",
     "generate_deployment_topology",
     "generate_error_budget_policy",
+    "generate_environment_promotion_plan",
     "generate_disaster_recovery_plan",
     "generate_experiment_card",
     "generate_implementation_plan",
@@ -355,6 +360,7 @@ __all__ = [
     "render_deployment_topology_markdown",
     "render_error_budget_policy_csv",
     "render_error_budget_policy_markdown",
+    "render_environment_promotion_plan_markdown",
     "render_disaster_recovery_plan_markdown",
     "render_disaster_recovery_plan_csv",
     "render_incident_response_plan_markdown",
