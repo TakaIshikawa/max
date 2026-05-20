@@ -282,8 +282,50 @@ from max.exports.vendor_evaluation import (
     render_vendor_evaluation_json,
     render_vendor_evaluation_markdown,
 )
+from max.exports.source_adapter_reliability import (
+    build_source_adapter_reliability_report,
+    render_source_adapter_reliability_json,
+    render_source_adapter_reliability_markdown,
+)
+from max.exports.signal_freshness_sla_report import (
+    build_signal_freshness_sla_report,
+    render_signal_freshness_sla_report_json,
+    render_signal_freshness_sla_report_markdown,
+)
+from max.exports.source_allocation_efficiency import (
+    build_source_allocation_efficiency_report,
+    render_source_allocation_efficiency_json,
+    render_source_allocation_efficiency_markdown,
+)
+from max.exports.insight_deduplication_collision import (
+    build_insight_deduplication_collision_report,
+    render_insight_deduplication_collision_json,
+    render_insight_deduplication_collision_markdown,
+)
+from max.exports.spec_evidence_trace_completeness_report import (
+    build_spec_evidence_trace_completeness_report,
+    render_spec_evidence_trace_completeness_report_json,
+    render_spec_evidence_trace_completeness_report_markdown,
+)
+from max.exports.profile_weight_sensitivity_report import (
+    build_profile_weight_sensitivity_report,
+    render_profile_weight_sensitivity_report_json,
+    render_profile_weight_sensitivity_report_markdown,
+)
+from max.exports.llm_budget_variance_report import (
+    build_llm_budget_variance_report,
+    render_llm_budget_variance_report_json,
+    render_llm_budget_variance_report_markdown,
+)
 
 __all__ = [
+    "build_source_adapter_reliability_report",
+    "build_signal_freshness_sla_report",
+    "build_source_allocation_efficiency_report",
+    "build_insight_deduplication_collision_report",
+    "build_spec_evidence_trace_completeness_report",
+    "build_profile_weight_sensitivity_report",
+    "build_llm_budget_variance_report",
     "build_compliance_evidence_packet",
     "build_compliance_questionnaire_gap_export",
     "build_customer_adoption_risk_index_export",
@@ -463,4 +505,18 @@ __all__ = [
     "render_vendor_evaluation_csv",
     "render_vendor_evaluation_json",
     "render_vendor_evaluation_markdown",
+    "render_source_adapter_reliability_json",
+    "render_source_adapter_reliability_markdown",
+    "render_signal_freshness_sla_report_json",
+    "render_signal_freshness_sla_report_markdown",
+    "render_source_allocation_efficiency_json",
+    "render_source_allocation_efficiency_markdown",
+    "render_insight_deduplication_collision_json",
+    "render_insight_deduplication_collision_markdown",
+    "render_spec_evidence_trace_completeness_report_json",
+    "render_spec_evidence_trace_completeness_report_markdown",
+    "render_profile_weight_sensitivity_report_json",
+    "render_profile_weight_sensitivity_report_markdown",
+    "render_llm_budget_variance_report_json",
+    "render_llm_budget_variance_report_markdown",
 ]
