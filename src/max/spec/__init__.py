@@ -120,6 +120,10 @@ from max.spec.incident_comms_matrix import (
     render_incident_comms_matrix_markdown,
 )
 from max.spec.launch_checklist import generate_launch_checklist
+from max.spec.license_compliance_review_plan import (
+    generate_license_compliance_review_plan,
+    render_license_compliance_review_plan_markdown,
+)
 from max.spec.migration_checklist import (
     generate_migration_checklist,
     render_migration_checklist_csv,
@@ -279,6 +283,7 @@ __all__ = [
     "generate_incident_response_plan",
     "generate_incident_comms_matrix",
     "generate_launch_checklist",
+    "generate_license_compliance_review_plan",
     "generate_migration_checklist",
     "generate_observability_plan",
     "generate_operational_runbook",
@@ -374,6 +379,7 @@ __all__ = [
     "render_incident_response_plan_json",
     "render_incident_comms_matrix_csv",
     "render_incident_comms_matrix_markdown",
+    "render_license_compliance_review_plan_markdown",
     "render_migration_checklist_markdown",
     "render_migration_checklist_csv",
     "render_observability_plan_markdown",
