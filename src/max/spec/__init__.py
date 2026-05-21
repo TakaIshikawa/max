@@ -69,7 +69,9 @@ from max.spec.customer_migration_readiness_plan import (
     generate_customer_migration_readiness_plan,
     render_customer_migration_readiness_plan_markdown,
 )
+from max.spec.customer_data_correction_plan import generate_customer_data_correction_plan
 from max.spec.customer_sla_credit_review_plan import generate_customer_sla_credit_review_plan
+from max.spec.data_access_exception_review_plan import generate_data_access_exception_review_plan
 from max.spec.data_classification import (
     generate_data_classification,
     render_data_classification_csv,
@@ -131,6 +133,9 @@ from max.spec.incident_response_plan import (
     render_incident_response_plan_markdown,
 )
 from max.spec.incident_escalation_readiness_plan import generate_incident_escalation_readiness_plan
+from max.spec.incident_customer_credit_review_plan import (
+    generate_incident_customer_credit_review_plan,
+)
 from max.spec.incident_comms_matrix import (
     INCIDENT_COMMS_MATRIX_SCHEMA_VERSION,
     generate_incident_comms_matrix,
@@ -146,6 +151,9 @@ from max.spec.license_compliance_review_plan import (
 from max.spec.integration_backout_plan import generate_integration_backout_plan
 from max.spec.integration_credential_rotation_plan import (
     generate_integration_credential_rotation_plan,
+)
+from max.spec.integration_rate_limit_exception_plan import (
+    generate_integration_rate_limit_exception_plan,
 )
 from max.spec.migration_checklist import (
     generate_migration_checklist,
@@ -164,6 +172,9 @@ from max.spec.operational_runbook import (
 from max.spec.operational_metrics_review_plan import generate_operational_metrics_review_plan
 from max.spec.operational_ownership_transfer_plan import (
     generate_operational_ownership_transfer_plan,
+)
+from max.spec.operational_dependency_sunset_plan import (
+    generate_operational_dependency_sunset_plan,
 )
 from max.spec.post_launch_monitoring_plan import (
     generate_post_launch_monitoring_plan,
@@ -265,15 +276,22 @@ from max.spec.support_playbook import (
 from max.spec.support_tier_migration_plan import generate_support_tier_migration_plan
 from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
+from max.spec.tenant_offboarding_readiness_plan import generate_tenant_offboarding_readiness_plan
 from max.spec.threat_model import (
     generate_threat_model,
     render_threat_model_csv,
     render_threat_model_markdown,
 )
+from max.spec.entitlement_sunset_exception_plan import (
+    generate_entitlement_sunset_exception_plan,
+)
 from max.spec.vendor_risk_assessment import (
     generate_vendor_risk_assessment,
     render_vendor_risk_assessment_csv,
     render_vendor_risk_assessment_markdown,
+)
+from max.spec.vendor_security_reassessment_plan import (
+    generate_vendor_security_reassessment_plan,
 )
 from max.spec.webhook_delivery_reliability_plan import (
     generate_webhook_delivery_reliability_plan,
@@ -312,9 +330,11 @@ __all__ = [
     "generate_change_freeze_plan",
     "generate_customer_onboarding_plan",
     "generate_customer_impact_assessment_plan",
+    "generate_customer_data_correction_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
     "generate_customer_sla_credit_review_plan",
+    "generate_data_access_exception_review_plan",
     "generate_data_classification",
     "generate_data_contract_change_plan",
     "generate_data_processing_impact_review_plan",
@@ -330,15 +350,18 @@ __all__ = [
     "render_implementation_plan_markdown",
     "generate_incident_response_plan",
     "generate_incident_escalation_readiness_plan",
+    "generate_incident_customer_credit_review_plan",
     "generate_incident_comms_matrix",
     "generate_launch_checklist",
     "generate_launch_freeze_readiness_plan",
     "generate_license_compliance_review_plan",
     "generate_integration_backout_plan",
     "generate_integration_credential_rotation_plan",
+    "generate_integration_rate_limit_exception_plan",
     "generate_migration_checklist",
     "generate_observability_plan",
     "generate_operational_metrics_review_plan",
+    "generate_operational_dependency_sunset_plan",
     "generate_operational_ownership_transfer_plan",
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
@@ -368,9 +391,12 @@ __all__ = [
     "generate_support_tier_migration_plan",
     "generate_support_coverage_gap_plan",
     "generate_third_party_dependency_sunset_plan",
+    "generate_tenant_offboarding_readiness_plan",
+    "generate_entitlement_sunset_exception_plan",
     "generate_risk_register",
     "generate_threat_model",
     "generate_vendor_risk_assessment",
+    "generate_vendor_security_reassessment_plan",
     "generate_webhook_delivery_reliability_plan",
     "generate_webhook_consumer_migration_plan",
     "render_rollback_plan_markdown",
