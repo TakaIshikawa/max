@@ -70,6 +70,7 @@ from max.spec.customer_migration_readiness_plan import (
     render_customer_migration_readiness_plan_markdown,
 )
 from max.spec.customer_data_correction_plan import generate_customer_data_correction_plan
+from max.spec.customer_sandbox_refresh_plan import generate_customer_sandbox_refresh_plan
 from max.spec.customer_sla_credit_review_plan import generate_customer_sla_credit_review_plan
 from max.spec.data_access_exception_review_plan import generate_data_access_exception_review_plan
 from max.spec.data_classification import (
@@ -79,6 +80,9 @@ from max.spec.data_classification import (
 )
 from max.spec.data_contract_change_plan import generate_data_contract_change_plan
 from max.spec.data_processing_impact_review_plan import generate_data_processing_impact_review_plan
+from max.spec.data_residency_exception_plan import generate_data_residency_exception_plan
+from max.spec.data_warehouse_sync_cutover_plan import generate_data_warehouse_sync_cutover_plan
+from max.spec.production_data_backfill_plan import generate_production_data_backfill_plan
 from max.spec.data_retention_schedule import (
     generate_data_retention_schedule,
     render_data_retention_schedule_csv,
@@ -136,6 +140,9 @@ from max.spec.incident_escalation_readiness_plan import generate_incident_escala
 from max.spec.incident_customer_credit_review_plan import (
     generate_incident_customer_credit_review_plan,
 )
+from max.spec.incident_evidence_preservation_plan import (
+    generate_incident_evidence_preservation_plan,
+)
 from max.spec.incident_comms_matrix import (
     INCIDENT_COMMS_MATRIX_SCHEMA_VERSION,
     generate_incident_comms_matrix,
@@ -185,6 +192,7 @@ from max.spec.privacy_impact_assessment import (
     generate_privacy_impact_assessment,
     render_privacy_impact_assessment_markdown,
 )
+from max.spec.privacy_request_escalation_plan import generate_privacy_request_escalation_plan
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import (
     generate_release_readiness_gate,
@@ -226,6 +234,8 @@ from max.spec.feature_entitlement_rollout_plan import (
     generate_feature_entitlement_rollout_plan,
     render_feature_entitlement_rollout_plan_markdown,
 )
+from max.spec.feature_entitlement_audit_plan import generate_feature_entitlement_audit_plan
+from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -263,6 +273,8 @@ from max.spec.service_account_lifecycle_plan import (
     generate_service_account_lifecycle_plan,
     render_service_account_lifecycle_plan_markdown,
 )
+from max.spec.secrets_rotation_emergency_plan import generate_secrets_rotation_emergency_plan
+from max.spec.sso_certificate_rotation_plan import generate_sso_certificate_rotation_plan
 from max.spec.stakeholder_handoff import (
     generate_stakeholder_handoff,
     render_stakeholder_handoff_csv,
@@ -275,6 +287,7 @@ from max.spec.support_playbook import (
 )
 from max.spec.support_tier_migration_plan import generate_support_tier_migration_plan
 from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_plan
+from max.spec.support_queue_rebalancing_plan import generate_support_queue_rebalancing_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
 from max.spec.tenant_offboarding_readiness_plan import generate_tenant_offboarding_readiness_plan
 from max.spec.threat_model import (
@@ -333,13 +346,16 @@ __all__ = [
     "generate_customer_data_correction_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
+    "generate_customer_sandbox_refresh_plan",
     "generate_customer_sla_credit_review_plan",
     "generate_data_access_exception_review_plan",
     "generate_data_classification",
     "generate_data_contract_change_plan",
     "generate_data_processing_impact_review_plan",
     "generate_data_migration_rehearsal_plan",
+    "generate_data_residency_exception_plan",
     "generate_data_retention_schedule",
+    "generate_data_warehouse_sync_cutover_plan",
     "generate_dependency_inventory",
     "generate_deployment_topology",
     "generate_error_budget_policy",
@@ -351,6 +367,7 @@ __all__ = [
     "generate_incident_response_plan",
     "generate_incident_escalation_readiness_plan",
     "generate_incident_customer_credit_review_plan",
+    "generate_incident_evidence_preservation_plan",
     "generate_incident_comms_matrix",
     "generate_launch_checklist",
     "generate_launch_freeze_readiness_plan",
@@ -366,6 +383,8 @@ __all__ = [
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
     "generate_privacy_impact_assessment",
+    "generate_privacy_request_escalation_plan",
+    "generate_production_data_backfill_plan",
     "generate_release_readiness_gate",
     "generate_release_communications_readiness_plan",
     "generate_release_risk_acceptance_plan",
@@ -376,20 +395,25 @@ __all__ = [
     "generate_runbook_freshness_audit_plan",
     "generate_feature_flag_rollout_plan",
     "generate_feature_entitlement_rollout_plan",
+    "generate_feature_entitlement_audit_plan",
+    "generate_model_provider_failover_plan",
     "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_controls",
     "generate_security_review",
     "generate_schema_compatibility_review_plan",
+    "generate_secrets_rotation_emergency_plan",
     "generate_service_account_lifecycle_plan",
     "generate_service_deprecation_plan",
     "generate_slo_plan",
     "generate_slo_exception_review",
     "generate_smoke_test_plan",
     "generate_stakeholder_handoff",
+    "generate_sso_certificate_rotation_plan",
     "generate_support_playbook",
     "generate_support_tier_migration_plan",
     "generate_support_coverage_gap_plan",
+    "generate_support_queue_rebalancing_plan",
     "generate_third_party_dependency_sunset_plan",
     "generate_tenant_offboarding_readiness_plan",
     "generate_entitlement_sunset_exception_plan",
