@@ -1,5 +1,35 @@
 """Export modules for competitive intelligence and market analysis."""
 
+from max.exports.budget_overrun_root_cause_report import (
+    build_budget_overrun_root_cause_report,
+    render_budget_overrun_root_cause_report_json,
+    render_budget_overrun_root_cause_report_markdown,
+)
+from max.exports.idea_review_cycle_time_report import (
+    build_idea_review_cycle_time_report,
+    render_idea_review_cycle_time_report_json,
+    render_idea_review_cycle_time_report_markdown,
+)
+from max.exports.insight_evidence_staleness_report import (
+    build_insight_evidence_staleness_report,
+    render_insight_evidence_staleness_report_json,
+    render_insight_evidence_staleness_report_markdown,
+)
+from max.exports.profile_coverage_drift_report import (
+    build_profile_coverage_drift_report,
+    render_profile_coverage_drift_report_json,
+    render_profile_coverage_drift_report_markdown,
+)
+from max.exports.publisher_retry_backlog_report import (
+    build_publisher_retry_backlog_report,
+    render_publisher_retry_backlog_report_json,
+    render_publisher_retry_backlog_report_markdown,
+)
+from max.exports.signal_source_noise_report import (
+    build_signal_source_noise_report,
+    render_signal_source_noise_report_json,
+    render_signal_source_noise_report_markdown,
+)
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -575,4 +605,22 @@ __all__ = [
     "render_profile_weight_sensitivity_report_markdown",
     "render_llm_budget_variance_report_json",
     "render_llm_budget_variance_report_markdown",
+    "build_budget_overrun_root_cause_report",
+    "render_budget_overrun_root_cause_report_json",
+    "render_budget_overrun_root_cause_report_markdown",
+    "build_idea_review_cycle_time_report",
+    "render_idea_review_cycle_time_report_json",
+    "render_idea_review_cycle_time_report_markdown",
+    "build_insight_evidence_staleness_report",
+    "render_insight_evidence_staleness_report_json",
+    "render_insight_evidence_staleness_report_markdown",
+    "build_profile_coverage_drift_report",
+    "render_profile_coverage_drift_report_json",
+    "render_profile_coverage_drift_report_markdown",
+    "build_publisher_retry_backlog_report",
+    "render_publisher_retry_backlog_report_json",
+    "render_publisher_retry_backlog_report_markdown",
+    "build_signal_source_noise_report",
+    "render_signal_source_noise_report_json",
+    "render_signal_source_noise_report_markdown",
 ]

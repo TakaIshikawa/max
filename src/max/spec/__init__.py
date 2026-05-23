@@ -18,6 +18,9 @@ from max.spec.audit_finding_remediation_plan import (
     generate_audit_finding_remediation_plan,
     render_audit_finding_remediation_plan_markdown,
 )
+from max.spec.backup_encryption_key_verification_plan import (
+    generate_backup_encryption_key_verification_plan,
+)
 from max.spec.api_contract_test_plan import (
     KIND as API_CONTRACT_TEST_PLAN_KIND,
     SCHEMA_VERSION as API_CONTRACT_TEST_PLAN_SCHEMA_VERSION,
@@ -70,6 +73,9 @@ from max.spec.customer_migration_readiness_plan import (
     render_customer_migration_readiness_plan_markdown,
 )
 from max.spec.customer_data_correction_plan import generate_customer_data_correction_plan
+from max.spec.customer_deprovisioning_exception_plan import (
+    generate_customer_deprovisioning_exception_plan,
+)
 from max.spec.customer_sandbox_refresh_plan import generate_customer_sandbox_refresh_plan
 from max.spec.customer_sla_credit_review_plan import generate_customer_sla_credit_review_plan
 from max.spec.data_access_exception_review_plan import generate_data_access_exception_review_plan
@@ -238,6 +244,9 @@ from max.spec.feature_entitlement_rollout_plan import (
     render_feature_entitlement_rollout_plan_markdown,
 )
 from max.spec.feature_entitlement_audit_plan import generate_feature_entitlement_audit_plan
+from max.spec.model_output_retention_exception_plan import (
+    generate_model_output_retention_exception_plan,
+)
 from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
@@ -280,6 +289,9 @@ from max.spec.service_account_lifecycle_plan import (
     render_service_account_lifecycle_plan_markdown,
 )
 from max.spec.secrets_rotation_emergency_plan import generate_secrets_rotation_emergency_plan
+from max.spec.saml_assertion_mapping_review_plan import (
+    generate_saml_assertion_mapping_review_plan,
+)
 from max.spec.sso_certificate_rotation_plan import generate_sso_certificate_rotation_plan
 from max.spec.stakeholder_handoff import (
     generate_stakeholder_handoff,
@@ -342,6 +354,7 @@ __all__ = [
     "render_acceptance_criteria_markdown",
     "generate_api_contract_test_plan",
     "generate_architecture_decision_record",
+    "generate_backup_encryption_key_verification_plan",
     "generate_business_continuity_plan",
     "generate_billing_impact_review_plan",
     "generate_compliance_checklist",
@@ -351,6 +364,7 @@ __all__ = [
     "generate_customer_onboarding_plan",
     "generate_customer_impact_assessment_plan",
     "generate_customer_data_correction_plan",
+    "generate_customer_deprovisioning_exception_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
     "generate_customer_sandbox_refresh_plan",
@@ -384,6 +398,7 @@ __all__ = [
     "generate_integration_credential_rotation_plan",
     "generate_integration_rate_limit_exception_plan",
     "generate_migration_checklist",
+    "generate_model_output_retention_exception_plan",
     "generate_observability_plan",
     "generate_operational_metrics_review_plan",
     "generate_operational_dependency_sunset_plan",
@@ -411,6 +426,7 @@ __all__ = [
     "generate_security_review",
     "generate_schema_compatibility_review_plan",
     "generate_secrets_rotation_emergency_plan",
+    "generate_saml_assertion_mapping_review_plan",
     "generate_session_replay_retention_exception_plan",
     "generate_service_account_lifecycle_plan",
     "generate_service_deprecation_plan",
