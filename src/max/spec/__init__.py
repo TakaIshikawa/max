@@ -82,6 +82,9 @@ from max.spec.data_contract_change_plan import generate_data_contract_change_pla
 from max.spec.data_processing_impact_review_plan import generate_data_processing_impact_review_plan
 from max.spec.data_residency_exception_plan import generate_data_residency_exception_plan
 from max.spec.data_warehouse_sync_cutover_plan import generate_data_warehouse_sync_cutover_plan
+from max.spec.encryption_key_custody_transfer_plan import (
+    generate_encryption_key_custody_transfer_plan,
+)
 from max.spec.production_data_backfill_plan import generate_production_data_backfill_plan
 from max.spec.data_retention_schedule import (
     generate_data_retention_schedule,
@@ -245,6 +248,9 @@ from max.spec.security_controls import (
     generate_security_controls,
     render_security_controls_csv,
 )
+from max.spec.session_replay_retention_exception_plan import (
+    generate_session_replay_retention_exception_plan,
+)
 from max.spec.security_review import (
     generate_security_review,
     render_security_review_csv,
@@ -290,6 +296,7 @@ from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_pla
 from max.spec.support_queue_rebalancing_plan import generate_support_queue_rebalancing_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
 from max.spec.tenant_offboarding_readiness_plan import generate_tenant_offboarding_readiness_plan
+from max.spec.tenant_region_migration_plan import generate_tenant_region_migration_plan
 from max.spec.threat_model import (
     generate_threat_model,
     render_threat_model_csv,
@@ -356,6 +363,7 @@ __all__ = [
     "generate_data_residency_exception_plan",
     "generate_data_retention_schedule",
     "generate_data_warehouse_sync_cutover_plan",
+    "generate_encryption_key_custody_transfer_plan",
     "generate_dependency_inventory",
     "generate_deployment_topology",
     "generate_error_budget_policy",
@@ -403,6 +411,7 @@ __all__ = [
     "generate_security_review",
     "generate_schema_compatibility_review_plan",
     "generate_secrets_rotation_emergency_plan",
+    "generate_session_replay_retention_exception_plan",
     "generate_service_account_lifecycle_plan",
     "generate_service_deprecation_plan",
     "generate_slo_plan",
@@ -416,6 +425,7 @@ __all__ = [
     "generate_support_queue_rebalancing_plan",
     "generate_third_party_dependency_sunset_plan",
     "generate_tenant_offboarding_readiness_plan",
+    "generate_tenant_region_migration_plan",
     "generate_entitlement_sunset_exception_plan",
     "generate_risk_register",
     "generate_threat_model",

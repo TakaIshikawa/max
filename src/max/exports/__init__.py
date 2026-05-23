@@ -88,6 +88,11 @@ from max.exports.data_residency_matrix import (
     render_data_residency_matrix_json,
     render_data_residency_matrix_markdown,
 )
+from max.exports.data_processing_agreement_renewal_report import (
+    build_data_processing_agreement_renewal_report_export,
+    render_data_processing_agreement_renewal_report_json,
+    render_data_processing_agreement_renewal_report_markdown,
+)
 from max.exports.feature_adoption_cohorts import (
     build_feature_adoption_cohorts_export,
     render_feature_adoption_cohorts_json,
@@ -98,11 +103,21 @@ from max.exports.feature_request_revenue_map import (
     render_feature_request_revenue_map_json,
     render_feature_request_revenue_map_markdown,
 )
+from max.exports.feature_entitlement_revenue_leakage_report import (
+    build_feature_entitlement_revenue_leakage_report_export,
+    render_feature_entitlement_revenue_leakage_report_json,
+    render_feature_entitlement_revenue_leakage_report_markdown,
+)
 from max.exports.incident_impact_assessment import (
     build_incident_impact_assessment_export,
     render_incident_impact_assessment_csv,
     render_incident_impact_assessment_json,
     render_incident_impact_assessment_markdown,
+)
+from max.exports.incident_sla_breach_trend_report import (
+    build_incident_sla_breach_trend_report_export,
+    render_incident_sla_breach_trend_report_json,
+    render_incident_sla_breach_trend_report_markdown,
 )
 from max.exports.implementation_risk_heatmap import (
     build_implementation_risk_heatmap_export,
@@ -155,6 +170,11 @@ from max.exports.partner_ecosystem_map import (
     build_partner_ecosystem_map_export,
     render_partner_ecosystem_map_json,
     render_partner_ecosystem_map_markdown,
+)
+from max.exports.partner_referral_pipeline_coverage_report import (
+    build_partner_referral_pipeline_coverage_report_export,
+    render_partner_referral_pipeline_coverage_report_json,
+    render_partner_referral_pipeline_coverage_report_markdown,
 )
 from max.exports.partner_integration_risk_register import (
     export_partner_integration_risk_register,
@@ -209,6 +229,11 @@ from max.exports.release_readiness_scorecard import (
     render_release_readiness_scorecard_json,
     render_release_readiness_scorecard_markdown,
 )
+from max.exports.license_utilization_drift_report import (
+    build_license_utilization_drift_report_export,
+    render_license_utilization_drift_report_json,
+    render_license_utilization_drift_report_markdown,
+)
 from max.exports.revenue_leakage_diagnostic import (
     build_revenue_leakage_diagnostic_export,
     render_revenue_leakage_diagnostic_csv,
@@ -244,6 +269,16 @@ from max.exports.security_review_intake_packet import (
     build_security_review_intake_packet_export,
     render_security_review_intake_packet_json,
     render_security_review_intake_packet_markdown,
+)
+from max.exports.security_questionnaire_evidence_aging_report import (
+    build_security_questionnaire_evidence_aging_report_export,
+    render_security_questionnaire_evidence_aging_report_json,
+    render_security_questionnaire_evidence_aging_report_markdown,
+)
+from max.exports.customer_migration_wave_readiness_report import (
+    build_customer_migration_wave_readiness_report_export,
+    render_customer_migration_wave_readiness_report_json,
+    render_customer_migration_wave_readiness_report_markdown,
 )
 from max.exports.sla_breach_risk import (
     build_sla_breach_risk_export,
@@ -344,9 +379,12 @@ __all__ = [
     "build_account_health_score_export",
     "build_buyer_committee_alignment_export",
     "build_data_residency_matrix_export",
+    "build_data_processing_agreement_renewal_report_export",
     "build_feature_adoption_cohorts_export",
+    "build_feature_entitlement_revenue_leakage_report_export",
     "build_feature_request_revenue_map_export",
     "build_incident_impact_assessment_export",
+    "build_incident_sla_breach_trend_report_export",
     "build_implementation_risk_heatmap_export",
     "build_implementation_timeline_variance_report_export",
     "build_integration_dependency_health_export",
@@ -356,6 +394,7 @@ __all__ = [
     "build_localization_readiness_export",
     "export_onboarding_activation_cohorts",
     "build_partner_ecosystem_map_export",
+    "build_partner_referral_pipeline_coverage_report_export",
     "build_pricing_sensitivity_report",
     "build_pricing_discount_leakage_report_export",
     "build_procurement_readiness_checklist_export",
@@ -365,11 +404,14 @@ __all__ = [
     "build_competitive_win_loss_export",
     "build_product_usage_segmentation_export",
     "build_release_readiness_scorecard_export",
+    "build_license_utilization_drift_report_export",
     "build_revenue_leakage_diagnostic_export",
     "build_roadmap_prioritization_export",
     "build_sales_pipeline_forecast",
     "build_sales_engineering_capacity_plan_export",
     "build_security_review_intake_packet_export",
+    "build_security_questionnaire_evidence_aging_report_export",
+    "build_customer_migration_wave_readiness_report_export",
     "build_sla_breach_risk_export",
     "build_support_ticket_theme_report",
     "build_tech_radar",
@@ -390,13 +432,19 @@ __all__ = [
     "render_data_residency_matrix_csv",
     "render_data_residency_matrix_json",
     "render_data_residency_matrix_markdown",
+    "render_data_processing_agreement_renewal_report_json",
+    "render_data_processing_agreement_renewal_report_markdown",
     "render_feature_adoption_cohorts_json",
     "render_feature_adoption_cohorts_markdown",
+    "render_feature_entitlement_revenue_leakage_report_json",
+    "render_feature_entitlement_revenue_leakage_report_markdown",
     "render_feature_request_revenue_map_json",
     "render_feature_request_revenue_map_markdown",
     "render_incident_impact_assessment_csv",
     "render_incident_impact_assessment_json",
     "render_incident_impact_assessment_markdown",
+    "render_incident_sla_breach_trend_report_json",
+    "render_incident_sla_breach_trend_report_markdown",
     "render_implementation_risk_heatmap_json",
     "render_implementation_risk_heatmap_markdown",
     "render_implementation_timeline_variance_report_json",
@@ -420,6 +468,8 @@ __all__ = [
     "render_onboarding_activation_cohorts_json",
     "render_partner_ecosystem_map_json",
     "render_partner_ecosystem_map_markdown",
+    "render_partner_referral_pipeline_coverage_report_json",
+    "render_partner_referral_pipeline_coverage_report_markdown",
     "export_partner_integration_risk_register",
     "render_partner_integration_risk_register_json",
     "render_competitive_landscape_json",
@@ -471,6 +521,8 @@ __all__ = [
     "render_release_readiness_scorecard_csv",
     "render_release_readiness_scorecard_json",
     "render_release_readiness_scorecard_markdown",
+    "render_license_utilization_drift_report_json",
+    "render_license_utilization_drift_report_markdown",
     "render_revenue_leakage_diagnostic_csv",
     "render_revenue_leakage_diagnostic_json",
     "render_revenue_leakage_diagnostic_markdown",
@@ -490,6 +542,10 @@ __all__ = [
     "render_sales_engineering_capacity_plan_markdown",
     "render_security_review_intake_packet_json",
     "render_security_review_intake_packet_markdown",
+    "render_security_questionnaire_evidence_aging_report_json",
+    "render_security_questionnaire_evidence_aging_report_markdown",
+    "render_customer_migration_wave_readiness_report_json",
+    "render_customer_migration_wave_readiness_report_markdown",
     "render_sla_breach_risk_csv",
     "render_sla_breach_risk_json",
     "render_sla_breach_risk_markdown",
