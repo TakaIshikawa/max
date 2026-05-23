@@ -15,6 +15,21 @@ from max.exports.insight_evidence_staleness_report import (
     render_insight_evidence_staleness_report_json,
     render_insight_evidence_staleness_report_markdown,
 )
+from max.exports.insight_confidence_decay_report import (
+    build_insight_confidence_decay_report_export,
+    render_insight_confidence_decay_report_json,
+    render_insight_confidence_decay_report_markdown,
+)
+from max.exports.buildable_unit_stack_diversity_report import (
+    build_buildable_unit_stack_diversity_report_export,
+    render_buildable_unit_stack_diversity_report_json,
+    render_buildable_unit_stack_diversity_report_markdown,
+)
+from max.exports.idea_aging_sla_report import (
+    build_idea_aging_sla_report_export,
+    render_idea_aging_sla_report_json,
+    render_idea_aging_sla_report_markdown,
+)
 from max.exports.profile_coverage_drift_report import (
     build_profile_coverage_drift_report,
     render_profile_coverage_drift_report_json,
@@ -614,6 +629,15 @@ __all__ = [
     "build_insight_evidence_staleness_report",
     "render_insight_evidence_staleness_report_json",
     "render_insight_evidence_staleness_report_markdown",
+    "build_insight_confidence_decay_report_export",
+    "render_insight_confidence_decay_report_json",
+    "render_insight_confidence_decay_report_markdown",
+    "build_buildable_unit_stack_diversity_report_export",
+    "render_buildable_unit_stack_diversity_report_json",
+    "render_buildable_unit_stack_diversity_report_markdown",
+    "build_idea_aging_sla_report_export",
+    "render_idea_aging_sla_report_json",
+    "render_idea_aging_sla_report_markdown",
     "build_profile_coverage_drift_report",
     "render_profile_coverage_drift_report_json",
     "render_profile_coverage_drift_report_markdown",
