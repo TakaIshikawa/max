@@ -170,6 +170,9 @@ from max.spec.incident_evidence_preservation_plan import (
 from max.spec.incident_postmortem_action_verification_plan import (
     generate_incident_postmortem_action_verification_plan,
 )
+from max.spec.inference_logging_privacy_review_plan import (
+    generate_inference_logging_privacy_review_plan,
+)
 from max.spec.incident_comms_matrix import (
     INCIDENT_COMMS_MATRIX_SCHEMA_VERSION,
     generate_incident_comms_matrix,
@@ -272,6 +275,7 @@ from max.spec.feature_entitlement_audit_plan import generate_feature_entitlement
 from max.spec.model_output_retention_exception_plan import (
     generate_model_output_retention_exception_plan,
 )
+from max.spec.model_card_publication_plan import generate_model_card_publication_plan
 from max.spec.model_evaluation_holdout_plan import generate_model_evaluation_holdout_plan
 from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
 from max.spec.prompt_injection_incident_response_plan import (
@@ -281,6 +285,7 @@ from max.spec.prompt_redaction_exception_plan import generate_prompt_redaction_e
 from max.spec.retrospective_learning_holdout_plan import (
     generate_retrospective_learning_holdout_plan,
 )
+from max.spec.shadow_deployment_rollback_plan import generate_shadow_deployment_rollback_plan
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -438,6 +443,7 @@ __all__ = [
     "generate_incident_customer_credit_review_plan",
     "generate_incident_evidence_preservation_plan",
     "generate_incident_postmortem_action_verification_plan",
+    "generate_inference_logging_privacy_review_plan",
     "generate_incident_comms_matrix",
     "generate_launch_checklist",
     "generate_launch_freeze_readiness_plan",
@@ -448,6 +454,7 @@ __all__ = [
     "generate_ai_safety_evaluation_exception_plan",
     "generate_external_model_provider_exception_plan",
     "generate_migration_checklist",
+    "generate_model_card_publication_plan",
     "generate_model_evaluation_holdout_plan",
     "generate_model_output_retention_exception_plan",
     "generate_observability_plan",
@@ -475,6 +482,7 @@ __all__ = [
     "generate_model_provider_failover_plan",
     "generate_prompt_injection_incident_response_plan",
     "generate_retrospective_learning_holdout_plan",
+    "generate_shadow_deployment_rollback_plan",
     "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_controls",
