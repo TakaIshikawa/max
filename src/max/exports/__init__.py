@@ -367,6 +367,11 @@ from max.exports.source_adapter_reliability import (
     render_source_adapter_reliability_json,
     render_source_adapter_reliability_markdown,
 )
+from max.exports.source_adapter_coverage_gap_report import (
+    build_source_adapter_coverage_gap_report,
+    render_source_adapter_coverage_gap_report_json,
+    render_source_adapter_coverage_gap_report_markdown,
+)
 from max.exports.signal_freshness_sla_report import (
     build_signal_freshness_sla_report,
     render_signal_freshness_sla_report_json,
@@ -435,6 +440,7 @@ from max.exports.insight_attribution_completeness_report import (
 
 __all__ = [
     "build_source_adapter_reliability_report",
+    "build_source_adapter_coverage_gap_report",
     "build_signal_freshness_sla_report",
     "build_source_allocation_efficiency_report",
     "build_insight_deduplication_collision_report",
@@ -650,6 +656,8 @@ __all__ = [
     "render_vendor_evaluation_markdown",
     "render_source_adapter_reliability_json",
     "render_source_adapter_reliability_markdown",
+    "render_source_adapter_coverage_gap_report_json",
+    "render_source_adapter_coverage_gap_report_markdown",
     "render_signal_freshness_sla_report_json",
     "render_signal_freshness_sla_report_markdown",
     "render_source_allocation_efficiency_json",
