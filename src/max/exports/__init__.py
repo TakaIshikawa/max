@@ -45,6 +45,10 @@ from max.exports.signal_source_noise_report import (
     render_signal_source_noise_report_json,
     render_signal_source_noise_report_markdown,
 )
+from max.exports.synthesis_batch_backlog import (
+    generate_synthesis_batch_backlog_report,
+    render_synthesis_batch_backlog_json,
+)
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -711,4 +715,6 @@ __all__ = [
     "build_signal_source_noise_report",
     "render_signal_source_noise_report_json",
     "render_signal_source_noise_report_markdown",
+    "generate_synthesis_batch_backlog_report",
+    "render_synthesis_batch_backlog_json",
 ]

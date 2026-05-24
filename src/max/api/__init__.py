@@ -7,6 +7,15 @@ from typing import Any
 
 from max.api.budget_usage import budget_usage_to_json
 from max.api.disaster_recovery import disaster_recovery_plan_to_json
+from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
+from max.api.embedding_similarity_threshold_status import embedding_similarity_threshold_status_to_json
+from max.api.evaluation_rubric_version_status import evaluation_rubric_version_status_to_json
+from max.api.insight_deduplication_collision_status import insight_deduplication_collision_status_to_json
+from max.api.prompt_redaction_coverage_status import prompt_redaction_coverage_status_to_json
+from max.api.signal_deduplication_cluster_status import signal_deduplication_cluster_status_to_json
+from max.api.source_ingestion_error_taxonomy_status import source_ingestion_error_taxonomy_status_to_json
+from max.api.spec_publication_audit_trail_status import spec_publication_audit_trail_status_to_json
+from max.api.synthesis_batch_backlog_status import synthesis_batch_backlog_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -150,7 +159,16 @@ def _group_risks(risks: list[Any], key: str) -> list[dict[str, Any]]:
 __all__ = [
     "design_brief_go_to_market_to_json",
     "budget_usage_to_json",
+    "adapter_circuit_breaker_recovery_status_to_json",
     "portfolio_stage_distribution_to_json",
     "design_brief_technical_risks_to_json",
     "disaster_recovery_plan_to_json",
+    "embedding_similarity_threshold_status_to_json",
+    "evaluation_rubric_version_status_to_json",
+    "insight_deduplication_collision_status_to_json",
+    "prompt_redaction_coverage_status_to_json",
+    "signal_deduplication_cluster_status_to_json",
+    "source_ingestion_error_taxonomy_status_to_json",
+    "spec_publication_audit_trail_status_to_json",
+    "synthesis_batch_backlog_status_to_json",
 ]
