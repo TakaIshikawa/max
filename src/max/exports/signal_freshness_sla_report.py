@@ -31,7 +31,7 @@ def build_signal_freshness_sla_report(
 ) -> dict[str, Any]:
     rows = _normalize_records(records)
     stale = [row for row in rows if row["stale"]]
-    remediation = sorted(stale, key=lambda row: (_SEVERITY_ORDER[row["severity"]], -row["age_hours"], row["source"].lower()))
+    remediation = sorted(stale, key=lambda row: (-row["breach_hours"], _SEVERITY_ORDER[row["severity"]], row["source"].lower()))
     return {
         "schema_version": SCHEMA_VERSION,
         "kind": KIND,
@@ -39,8 +39,10 @@ def build_signal_freshness_sla_report(
         "title": _text(title) or "Signal Freshness SLA Report",
         "summary": {
             "source_count": len(rows),
+            "total_source_count": len(rows),
             "stale_source_count": len(stale),
             "sla_breach_count": len(stale),
+            "maximum_breach_hours": max([row["breach_hours"] for row in rows] or [0.0]),
             "total_signal_count": sum(row["signal_count"] for row in rows),
             "fresh_source_count": len(rows) - len(stale),
         },
@@ -51,6 +53,7 @@ def build_signal_freshness_sla_report(
                 "source": row["source"],
                 "severity": row["severity"],
                 "age_hours": row["age_hours"],
+                "breach_hours": row["breach_hours"],
                 "action": f"Refresh {row['source']} signals and verify adapter schedule.",
             }
             for row in remediation
@@ -95,13 +98,17 @@ def _normalize_records(records: Iterable[SignalFreshnessInput | dict[str, Any]])
         rows.append(
             {
                 "source": _text(raw.get("source")) or "Unknown source",
-                "latest_signal_at": _text(raw.get("latest_signal_at")),
+                "latest_signal_at": _text(raw.get("latest_signal_at") or raw.get("newest_signal_at")),
+                "newest_signal_at": _text(raw.get("newest_signal_at") or raw.get("latest_signal_at")),
                 "fetched_at": _text(raw.get("fetched_at")),
                 "age_hours": round(age, 2),
                 "max_age_hours": round(max_age, 2),
+                "sla_hours": round(max_age, 2),
+                "breach_hours": round(max(age - max_age, 0.0), 2),
                 "signal_count": _int(raw.get("signal_count")),
                 "severity": _severity(raw.get("severity")),
                 "stale": age > max_age,
+                "status": "stale" if age > max_age else "fresh",
                 "_input_order": index,
             }
         )

@@ -42,8 +42,13 @@ def test_signal_freshness_sla_report_computes_stale_sources() -> None:
     )
     assert report["kind"] == KIND
     assert report["summary"]["stale_source_count"] == 2
-    assert [row["source"] for row in report["stale_sources"]] == ["github", "rss"]
+    assert report["summary"]["maximum_breach_hours"] == 16.0
+    assert [row["source"] for row in report["stale_sources"]] == ["rss", "github"]
     assert report["source_freshness"][0]["age_hours"] == 5.0
+    assert report["source_freshness"][0]["newest_signal_at"] == "2026-05-20T00:00:00+00:00"
+    assert report["source_freshness"][0]["sla_hours"] == 4.0
+    assert report["source_freshness"][0]["breach_hours"] == 1.0
+    assert report["source_freshness"][0]["status"] == "stale"
     assert json.loads(render_signal_freshness_sla_report_json(report))["summary"]["sla_breach_count"] == 2
     assert "- Stale sources: 2" in render_signal_freshness_sla_report_markdown(report)
 
@@ -56,3 +61,12 @@ def test_signal_freshness_sla_report_defaults_missing_fields() -> None:
     assert report["stale_sources"] == []
     assert report["remediation_actions"] == []
     assert "No stale sources detected." in render_signal_freshness_sla_report_markdown(report)
+
+
+def test_signal_freshness_sla_report_empty_input() -> None:
+    report = build_signal_freshness_sla_report([])
+
+    assert report["summary"]["total_source_count"] == 0
+    assert report["summary"]["stale_source_count"] == 0
+    assert report["summary"]["maximum_breach_hours"] == 0.0
+    assert report["source_freshness"] == []
