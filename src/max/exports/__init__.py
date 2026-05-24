@@ -397,6 +397,41 @@ from max.exports.llm_budget_variance_report import (
     render_llm_budget_variance_report_json,
     render_llm_budget_variance_report_markdown,
 )
+from max.exports.evaluation_score_drift_report import (
+    build_evaluation_score_drift_report,
+    render_evaluation_score_drift_report_json,
+    render_evaluation_score_drift_report_markdown,
+)
+from max.exports.tact_spec_generation_failure_report import (
+    build_tact_spec_generation_failure_report,
+    render_tact_spec_generation_failure_report_json,
+    render_tact_spec_generation_failure_report_markdown,
+)
+from max.exports.spec_review_rework_rate_report import (
+    build_spec_review_rework_rate_report,
+    render_spec_review_rework_rate_report_json,
+    render_spec_review_rework_rate_report_markdown,
+)
+from max.exports.publisher_delivery_time_sla_report import (
+    build_publisher_delivery_time_sla_report,
+    render_publisher_delivery_time_sla_report_json,
+    render_publisher_delivery_time_sla_report_markdown,
+)
+from max.exports.profile_constraint_violation_report import (
+    build_profile_constraint_violation_report,
+    render_profile_constraint_violation_report_json,
+    render_profile_constraint_violation_report_markdown,
+)
+from max.exports.feedback_signal_quality_report import (
+    build_feedback_signal_quality_report,
+    render_feedback_signal_quality_report_json,
+    render_feedback_signal_quality_report_markdown,
+)
+from max.exports.insight_attribution_completeness_report import (
+    build_insight_attribution_completeness_report,
+    render_insight_attribution_completeness_report_json,
+    render_insight_attribution_completeness_report_markdown,
+)
 
 __all__ = [
     "build_source_adapter_reliability_report",
@@ -406,6 +441,13 @@ __all__ = [
     "build_spec_evidence_trace_completeness_report",
     "build_profile_weight_sensitivity_report",
     "build_llm_budget_variance_report",
+    "build_evaluation_score_drift_report",
+    "build_tact_spec_generation_failure_report",
+    "build_spec_review_rework_rate_report",
+    "build_publisher_delivery_time_sla_report",
+    "build_profile_constraint_violation_report",
+    "build_feedback_signal_quality_report",
+    "build_insight_attribution_completeness_report",
     "build_compliance_evidence_packet",
     "build_compliance_questionnaire_gap_export",
     "build_customer_adoption_risk_index_export",
@@ -620,6 +662,20 @@ __all__ = [
     "render_profile_weight_sensitivity_report_markdown",
     "render_llm_budget_variance_report_json",
     "render_llm_budget_variance_report_markdown",
+    "render_evaluation_score_drift_report_json",
+    "render_evaluation_score_drift_report_markdown",
+    "render_tact_spec_generation_failure_report_json",
+    "render_tact_spec_generation_failure_report_markdown",
+    "render_spec_review_rework_rate_report_json",
+    "render_spec_review_rework_rate_report_markdown",
+    "render_publisher_delivery_time_sla_report_json",
+    "render_publisher_delivery_time_sla_report_markdown",
+    "render_profile_constraint_violation_report_json",
+    "render_profile_constraint_violation_report_markdown",
+    "render_feedback_signal_quality_report_json",
+    "render_feedback_signal_quality_report_markdown",
+    "render_insight_attribution_completeness_report_json",
+    "render_insight_attribution_completeness_report_markdown",
     "build_budget_overrun_root_cause_report",
     "render_budget_overrun_root_cause_report_json",
     "render_budget_overrun_root_cause_report_markdown",

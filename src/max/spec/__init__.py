@@ -76,12 +76,16 @@ from max.spec.customer_data_correction_plan import generate_customer_data_correc
 from max.spec.customer_data_export_exception_plan import (
     generate_customer_data_export_exception_plan,
 )
+from max.spec.customer_data_deletion_verification_plan import (
+    generate_customer_data_deletion_verification_plan,
+)
 from max.spec.customer_deprovisioning_exception_plan import (
     generate_customer_deprovisioning_exception_plan,
 )
 from max.spec.customer_sandbox_refresh_plan import generate_customer_sandbox_refresh_plan
 from max.spec.customer_sla_credit_review_plan import generate_customer_sla_credit_review_plan
 from max.spec.data_access_exception_review_plan import generate_data_access_exception_review_plan
+from max.spec.data_minimization_exception_plan import generate_data_minimization_exception_plan
 from max.spec.data_subject_access_request_exception_plan import (
     generate_data_subject_access_request_exception_plan,
 )
@@ -384,12 +388,14 @@ __all__ = [
     "generate_customer_impact_assessment_plan",
     "generate_customer_data_correction_plan",
     "generate_customer_data_export_exception_plan",
+    "generate_customer_data_deletion_verification_plan",
     "generate_customer_deprovisioning_exception_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
     "generate_customer_sandbox_refresh_plan",
     "generate_customer_sla_credit_review_plan",
     "generate_data_access_exception_review_plan",
+    "generate_data_minimization_exception_plan",
     "generate_data_subject_access_request_exception_plan",
     "generate_data_classification",
     "generate_data_contract_change_plan",
