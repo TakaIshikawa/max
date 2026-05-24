@@ -79,6 +79,9 @@ from max.spec.customer_data_export_exception_plan import (
 from max.spec.customer_data_deletion_verification_plan import (
     generate_customer_data_deletion_verification_plan,
 )
+from max.spec.customer_consent_replay_exception_plan import (
+    generate_customer_consent_replay_exception_plan,
+)
 from max.spec.customer_deprovisioning_exception_plan import (
     generate_customer_deprovisioning_exception_plan,
 )
@@ -265,6 +268,7 @@ from max.spec.model_output_retention_exception_plan import (
     generate_model_output_retention_exception_plan,
 )
 from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
+from max.spec.prompt_redaction_exception_plan import generate_prompt_redaction_exception_plan
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -323,6 +327,7 @@ from max.spec.support_playbook import (
 from max.spec.support_tier_migration_plan import generate_support_tier_migration_plan
 from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_plan
 from max.spec.support_queue_rebalancing_plan import generate_support_queue_rebalancing_plan
+from max.spec.cross_border_signal_transfer_plan import generate_cross_border_signal_transfer_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
 from max.spec.tenant_offboarding_readiness_plan import generate_tenant_offboarding_readiness_plan
 from max.spec.tenant_region_migration_plan import generate_tenant_region_migration_plan
@@ -389,6 +394,7 @@ __all__ = [
     "generate_customer_data_correction_plan",
     "generate_customer_data_export_exception_plan",
     "generate_customer_data_deletion_verification_plan",
+    "generate_customer_consent_replay_exception_plan",
     "generate_customer_deprovisioning_exception_plan",
     "generate_customer_migration_readiness_plan",
     "generate_customer_notification_readiness_plan",
@@ -435,6 +441,7 @@ __all__ = [
     "generate_operational_ownership_transfer_plan",
     "generate_operational_runbook",
     "generate_post_launch_monitoring_plan",
+    "generate_prompt_redaction_exception_plan",
     "generate_privacy_impact_assessment",
     "generate_privacy_request_escalation_plan",
     "generate_production_data_backfill_plan",
@@ -469,6 +476,7 @@ __all__ = [
     "generate_support_tier_migration_plan",
     "generate_support_coverage_gap_plan",
     "generate_support_queue_rebalancing_plan",
+    "generate_cross_border_signal_transfer_plan",
     "generate_support_escalation_retention_exception_plan",
     "generate_third_party_dependency_sunset_plan",
     "generate_tenant_offboarding_readiness_plan",
