@@ -13,6 +13,7 @@ from max.spec.accessibility_compliance_plan import (
 from max.spec.access_recertification_exception_plan import (
     generate_access_recertification_exception_plan,
 )
+from max.spec.api_key_rotation_exception_plan import generate_api_key_rotation_exception_plan
 from max.spec.audit_evidence_exception_plan import generate_audit_evidence_exception_plan
 from max.spec.audit_finding_remediation_plan import (
     generate_audit_finding_remediation_plan,
