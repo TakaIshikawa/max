@@ -101,6 +101,7 @@ from max.spec.data_classification import (
 from max.spec.data_contract_change_plan import generate_data_contract_change_plan
 from max.spec.data_processing_impact_review_plan import generate_data_processing_impact_review_plan
 from max.spec.data_residency_exception_plan import generate_data_residency_exception_plan
+from max.spec.data_warehouse_access_review_plan import generate_data_warehouse_access_review_plan
 from max.spec.data_warehouse_sync_cutover_plan import generate_data_warehouse_sync_cutover_plan
 from max.spec.encryption_key_custody_transfer_plan import (
     generate_encryption_key_custody_transfer_plan,
@@ -273,7 +274,13 @@ from max.spec.model_output_retention_exception_plan import (
 )
 from max.spec.model_evaluation_holdout_plan import generate_model_evaluation_holdout_plan
 from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
+from max.spec.prompt_injection_incident_response_plan import (
+    generate_prompt_injection_incident_response_plan,
+)
 from max.spec.prompt_redaction_exception_plan import generate_prompt_redaction_exception_plan
+from max.spec.retrospective_learning_holdout_plan import (
+    generate_retrospective_learning_holdout_plan,
+)
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -415,6 +422,7 @@ __all__ = [
     "generate_data_migration_rehearsal_plan",
     "generate_data_residency_exception_plan",
     "generate_data_retention_schedule",
+    "generate_data_warehouse_access_review_plan",
     "generate_data_warehouse_sync_cutover_plan",
     "generate_encryption_key_custody_transfer_plan",
     "generate_dependency_inventory",
@@ -465,6 +473,8 @@ __all__ = [
     "generate_feature_entitlement_rollout_plan",
     "generate_feature_entitlement_audit_plan",
     "generate_model_provider_failover_plan",
+    "generate_prompt_injection_incident_response_plan",
+    "generate_retrospective_learning_holdout_plan",
     "generate_scaling_strategy",
     "generate_spec_bundle",
     "generate_security_controls",
