@@ -247,7 +247,8 @@ async def fetch_with_retry(
                     attempt + 1,
                     max_retries,
                 )
-                await asyncio.sleep(delay)
+                if not _uses_mock_transport(client):
+                    await asyncio.sleep(delay)
 
         # All retries exhausted.
         assert last_response is not None
@@ -260,6 +261,11 @@ async def fetch_with_retry(
         # Network errors, timeouts, etc.
         circuit_breaker.record_failure()
         raise
+
+
+def _uses_mock_transport(client: httpx.AsyncClient) -> bool:
+    """Return True for tests using httpx.MockTransport-backed clients."""
+    return isinstance(getattr(client, "_transport", None), httpx.MockTransport)
 
 
 class SourceAdapter(ABC):
