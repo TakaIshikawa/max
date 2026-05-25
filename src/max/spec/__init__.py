@@ -192,6 +192,12 @@ from max.spec.integration_rate_limit_exception_plan import (
 from max.spec.ai_safety_evaluation_exception_plan import (
     generate_ai_safety_evaluation_exception_plan,
 )
+from max.spec.benchmark_contamination_review_plan import (
+    generate_benchmark_contamination_review_plan,
+)
+from max.spec.evaluation_dataset_access_review_plan import (
+    generate_evaluation_dataset_access_review_plan,
+)
 from max.spec.external_model_provider_exception_plan import (
     generate_external_model_provider_exception_plan,
 )
@@ -281,6 +287,9 @@ from max.spec.prompt_redaction_exception_plan import generate_prompt_redaction_e
 from max.spec.retrospective_learning_holdout_plan import (
     generate_retrospective_learning_holdout_plan,
 )
+from max.spec.safety_mitigation_verification_plan import (
+    generate_safety_mitigation_verification_plan,
+)
 from max.spec.scaling_strategy import (
     generate_scaling_strategy,
     render_scaling_strategy_csv,
@@ -341,6 +350,9 @@ from max.spec.support_coverage_gap_plan import generate_support_coverage_gap_pla
 from max.spec.support_queue_rebalancing_plan import generate_support_queue_rebalancing_plan
 from max.spec.cross_border_signal_transfer_plan import generate_cross_border_signal_transfer_plan
 from max.spec.third_party_dependency_sunset_plan import generate_third_party_dependency_sunset_plan
+from max.spec.third_party_llm_subprocessor_review_plan import (
+    generate_third_party_llm_subprocessor_review_plan,
+)
 from max.spec.training_dataset_removal_plan import generate_training_dataset_removal_plan
 from max.spec.tenant_offboarding_readiness_plan import generate_tenant_offboarding_readiness_plan
 from max.spec.tenant_region_migration_plan import generate_tenant_region_migration_plan
@@ -446,6 +458,8 @@ __all__ = [
     "generate_integration_credential_rotation_plan",
     "generate_integration_rate_limit_exception_plan",
     "generate_ai_safety_evaluation_exception_plan",
+    "generate_benchmark_contamination_review_plan",
+    "generate_evaluation_dataset_access_review_plan",
     "generate_external_model_provider_exception_plan",
     "generate_migration_checklist",
     "generate_model_evaluation_holdout_plan",
@@ -482,6 +496,7 @@ __all__ = [
     "generate_schema_compatibility_review_plan",
     "generate_secrets_rotation_emergency_plan",
     "generate_saml_assertion_mapping_review_plan",
+    "generate_safety_mitigation_verification_plan",
     "generate_session_replay_retention_exception_plan",
     "generate_service_account_lifecycle_plan",
     "generate_service_deprecation_plan",
@@ -497,6 +512,7 @@ __all__ = [
     "generate_cross_border_signal_transfer_plan",
     "generate_support_escalation_retention_exception_plan",
     "generate_third_party_dependency_sunset_plan",
+    "generate_third_party_llm_subprocessor_review_plan",
     "generate_training_dataset_removal_plan",
     "generate_tenant_offboarding_readiness_plan",
     "generate_tenant_region_migration_plan",
