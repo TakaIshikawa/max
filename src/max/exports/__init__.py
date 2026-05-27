@@ -54,6 +54,16 @@ from max.exports.synthesis_batch_backlog import (
     generate_synthesis_batch_backlog_report,
     render_synthesis_batch_backlog_json,
 )
+from max.exports.eval_goldens_coverage_gap_report import generate_eval_goldens_coverage_gap_report
+from max.exports.embedding_dimension_mismatch_report import generate_embedding_dimension_mismatch_report
+from max.exports.profile_weight_conflict_report import generate_profile_weight_conflict_report
+from max.exports.synthesis_prompt_failure_report import generate_synthesis_prompt_failure_report
+from max.exports.idea_duplicate_cluster_report import generate_idea_duplicate_cluster_report
+from max.exports.llm_token_budget_leak_report import generate_llm_token_budget_leak_report
+from max.exports.insight_evidence_source_concentration_report import generate_insight_evidence_source_concentration_report
+from max.exports.buildable_unit_dependency_freshness_report import generate_buildable_unit_dependency_freshness_report
+from max.exports.ideation_mode_conversion_funnel_report import generate_ideation_mode_conversion_funnel_report
+from max.exports.retrospective_feedback_outcome_skew_report import generate_retrospective_feedback_outcome_skew_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -970,4 +980,14 @@ __all__ = [
     "render_signal_source_noise_report_markdown",
     "generate_synthesis_batch_backlog_report",
     "render_synthesis_batch_backlog_json",
+    "generate_eval_goldens_coverage_gap_report",
+    "generate_embedding_dimension_mismatch_report",
+    "generate_profile_weight_conflict_report",
+    "generate_synthesis_prompt_failure_report",
+    "generate_idea_duplicate_cluster_report",
+    "generate_llm_token_budget_leak_report",
+    "generate_insight_evidence_source_concentration_report",
+    "generate_buildable_unit_dependency_freshness_report",
+    "generate_ideation_mode_conversion_funnel_report",
+    "generate_retrospective_feedback_outcome_skew_report",
 ]
