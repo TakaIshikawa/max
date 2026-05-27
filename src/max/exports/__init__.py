@@ -441,6 +441,56 @@ from max.exports.insight_attribution_completeness_report import (
     render_insight_attribution_completeness_report_json,
     render_insight_attribution_completeness_report_markdown,
 )
+from max.exports.prompt_injection_attempt_trend_report import (
+    build_prompt_injection_attempt_trend_report,
+    render_prompt_injection_attempt_trend_report_json,
+    render_prompt_injection_attempt_trend_report_markdown,
+)
+from max.exports.llm_provider_cost_comparison_report import (
+    build_llm_provider_cost_comparison_report,
+    render_llm_provider_cost_comparison_report_json,
+    render_llm_provider_cost_comparison_report_markdown,
+)
+from max.exports.inference_latency_percentile_report import (
+    build_inference_latency_percentile_report,
+    render_inference_latency_percentile_report_json,
+    render_inference_latency_percentile_report_markdown,
+)
+from max.exports.evaluation_dataset_coverage_report import (
+    build_evaluation_dataset_coverage_report,
+    render_evaluation_dataset_coverage_report_json,
+    render_evaluation_dataset_coverage_report_markdown,
+)
+from max.exports.feedback_label_disagreement_report import (
+    build_feedback_label_disagreement_report,
+    render_feedback_label_disagreement_report_json,
+    render_feedback_label_disagreement_report_markdown,
+)
+from max.exports.profile_signal_mix_report import (
+    build_profile_signal_mix_report,
+    render_profile_signal_mix_report_json,
+    render_profile_signal_mix_report_markdown,
+)
+from max.exports.publication_channel_effectiveness_report import (
+    build_publication_channel_effectiveness_report,
+    render_publication_channel_effectiveness_report_json,
+    render_publication_channel_effectiveness_report_markdown,
+)
+from max.exports.model_context_window_pressure_report import (
+    build_model_context_window_pressure_report,
+    render_model_context_window_pressure_report_json,
+    render_model_context_window_pressure_report_markdown,
+)
+from max.exports.safety_mitigation_escape_report import (
+    build_safety_mitigation_escape_report,
+    render_safety_mitigation_escape_report_json,
+    render_safety_mitigation_escape_report_markdown,
+)
+from max.exports.prompt_template_drift_report import (
+    build_prompt_template_drift_report,
+    render_prompt_template_drift_report_json,
+    render_prompt_template_drift_report_markdown,
+)
 
 __all__ = [
     "build_source_adapter_reliability_report",
@@ -458,6 +508,16 @@ __all__ = [
     "build_profile_constraint_violation_report",
     "build_feedback_signal_quality_report",
     "build_insight_attribution_completeness_report",
+    "build_prompt_injection_attempt_trend_report",
+    "build_llm_provider_cost_comparison_report",
+    "build_inference_latency_percentile_report",
+    "build_evaluation_dataset_coverage_report",
+    "build_feedback_label_disagreement_report",
+    "build_profile_signal_mix_report",
+    "build_publication_channel_effectiveness_report",
+    "build_model_context_window_pressure_report",
+    "build_safety_mitigation_escape_report",
+    "build_prompt_template_drift_report",
     "build_compliance_evidence_packet",
     "build_compliance_questionnaire_gap_export",
     "build_customer_adoption_risk_index_export",
@@ -688,6 +748,26 @@ __all__ = [
     "render_feedback_signal_quality_report_markdown",
     "render_insight_attribution_completeness_report_json",
     "render_insight_attribution_completeness_report_markdown",
+    "render_prompt_injection_attempt_trend_report_json",
+    "render_prompt_injection_attempt_trend_report_markdown",
+    "render_llm_provider_cost_comparison_report_json",
+    "render_llm_provider_cost_comparison_report_markdown",
+    "render_inference_latency_percentile_report_json",
+    "render_inference_latency_percentile_report_markdown",
+    "render_evaluation_dataset_coverage_report_json",
+    "render_evaluation_dataset_coverage_report_markdown",
+    "render_feedback_label_disagreement_report_json",
+    "render_feedback_label_disagreement_report_markdown",
+    "render_profile_signal_mix_report_json",
+    "render_profile_signal_mix_report_markdown",
+    "render_publication_channel_effectiveness_report_json",
+    "render_publication_channel_effectiveness_report_markdown",
+    "render_model_context_window_pressure_report_json",
+    "render_model_context_window_pressure_report_markdown",
+    "render_safety_mitigation_escape_report_json",
+    "render_safety_mitigation_escape_report_markdown",
+    "render_prompt_template_drift_report_json",
+    "render_prompt_template_drift_report_markdown",
     "build_budget_overrun_root_cause_report",
     "render_budget_overrun_root_cause_report_json",
     "render_budget_overrun_root_cause_report_markdown",
