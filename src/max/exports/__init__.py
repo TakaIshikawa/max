@@ -381,6 +381,11 @@ from max.exports.source_adapter_version_skew_report import (
     render_source_adapter_version_skew_report_json,
     render_source_adapter_version_skew_report_markdown,
 )
+from max.exports.source_cost_efficiency_report import (
+    build_source_cost_efficiency_report,
+    render_source_cost_efficiency_report_json,
+    render_source_cost_efficiency_report_markdown,
+)
 from max.exports.source_auth_failure_trend_report import (
     build_source_auth_failure_trend_report,
     render_source_auth_failure_trend_report_json,
