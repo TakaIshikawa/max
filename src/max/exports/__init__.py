@@ -45,6 +45,11 @@ from max.exports.signal_source_noise_report import (
     render_signal_source_noise_report_json,
     render_signal_source_noise_report_markdown,
 )
+from max.exports.source_api_deprecation_report import (
+    build_source_api_deprecation_report,
+    render_source_api_deprecation_report_json,
+    render_source_api_deprecation_report_markdown,
+)
 from max.exports.synthesis_batch_backlog import (
     generate_synthesis_batch_backlog_report,
     render_synthesis_batch_backlog_json,
