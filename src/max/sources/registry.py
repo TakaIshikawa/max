@@ -1548,12 +1548,21 @@ def _filter_adapters(
 
 # Lazy-initialized cache
 _cache: dict[str, type[SourceAdapter]] | None = None
+_cache_filter_key: tuple[str, str] | None = None
+
+
+def _current_filter_key() -> tuple[str, str]:
+    from max.config import MAX_ADAPTERS, MAX_ADAPTERS_EXCLUDE
+
+    return (MAX_ADAPTERS, MAX_ADAPTERS_EXCLUDE)
 
 
 def _get_registry() -> dict[str, type[SourceAdapter]]:
-    global _cache  # noqa: PLW0603
-    if _cache is None:
+    global _cache, _cache_filter_key  # noqa: PLW0603
+    filter_key = _current_filter_key()
+    if _cache is None or _cache_filter_key != filter_key:
         _cache = _filter_adapters(_discover_adapters())
+        _cache_filter_key = filter_key
     return _cache
 
 
@@ -1652,5 +1661,6 @@ def get_all_adapters(
 
 def reload_registry() -> None:
     """Force re-discovery. Useful for testing."""
-    global _cache  # noqa: PLW0603
+    global _cache, _cache_filter_key  # noqa: PLW0603
     _cache = None
+    _cache_filter_key = None

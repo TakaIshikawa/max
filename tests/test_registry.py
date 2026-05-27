@@ -131,6 +131,18 @@ def test_registry_caches_results():
     assert first is second
 
 
+def test_registry_cache_refreshes_when_filter_config_changes():
+    """A registry cached under a patched filter should not leak after the patch exits."""
+    with patch("max.config.MAX_ADAPTERS", "hackernews"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        assert list_adapters() == ["hackernews"]
+
+    names = list_adapters()
+    assert "hackernews" in names
+    assert "reddit" in names
+
+
 def test_reload_registry_clears_cache():
     """reload_registry() forces re-discovery on next access."""
     first = _get_registry()
