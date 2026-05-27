@@ -40,16 +40,18 @@ class LinearProjectUpdatePublishResult:
 
 
 class LinearProjectUpdatePublisher:
-    def __init__(self, *, project_id: str | None = None, api_key: str | None = None, api_url: str = DEFAULT_API_URL, timeout: float = DEFAULT_TIMEOUT_SECONDS, client: httpx.Client | None = None) -> None:
+    def __init__(self, *, project_id: str | None = None, api_key: str | None = None, api_url: str = DEFAULT_API_URL, health: str = "onTrack", status: str | None = None, timeout: float = DEFAULT_TIMEOUT_SECONDS, client: httpx.Client | None = None) -> None:
         self.project_id = optional_text(project_id)
         self.api_key = optional_text(api_key)
         self.api_url = required_url(api_url, "Linear api_url must be an absolute http(s) URL")
+        self.health = optional_text(health) or "onTrack"
+        self.status = optional_text(status)
         self.timeout = timeout
         self._client = client
 
     @classmethod
-    def from_env(cls, *, project_id: str | None = None, api_key: str | None = None, api_url: str | None = None, timeout: float = DEFAULT_TIMEOUT_SECONDS, client: httpx.Client | None = None) -> LinearProjectUpdatePublisher:
-        return cls(project_id=project_id or os.getenv("LINEAR_PROJECT_ID"), api_key=api_key or os.getenv("LINEAR_API_KEY"), api_url=api_url or os.getenv("LINEAR_API_URL", DEFAULT_API_URL), timeout=timeout, client=client)
+    def from_env(cls, *, project_id: str | None = None, api_key: str | None = None, api_url: str | None = None, health: str | None = None, status: str | None = None, timeout: float = DEFAULT_TIMEOUT_SECONDS, client: httpx.Client | None = None) -> LinearProjectUpdatePublisher:
+        return cls(project_id=project_id or os.getenv("LINEAR_PROJECT_ID"), api_key=api_key or os.getenv("LINEAR_API_KEY"), api_url=api_url or os.getenv("LINEAR_API_URL", DEFAULT_API_URL), health=health or os.getenv("LINEAR_PROJECT_HEALTH", "onTrack"), status=status or os.getenv("LINEAR_PROJECT_STATUS"), timeout=timeout, client=client)
 
     def build_update_payload(self, tact_spec: dict[str, Any], *, project_id: str | None = None) -> LinearProjectUpdatePayload:
         try:
@@ -59,7 +61,7 @@ class LinearProjectUpdatePublisher:
             raise LinearProjectUpdatePublishError(str(exc)) from exc
         meta = metadata(tact_spec, publisher="max.linear_project_updates")
         body = markdown_summary(tact_spec, meta)
-        request = _graphql_request(resolved_project_id, body, title(tact_spec))
+        request = _graphql_request(resolved_project_id, body, title(tact_spec), health=self.health, status=self.status)
         return LinearProjectUpdatePayload(resolved_project_id, body, request, meta)
 
     def publish(self, tact_spec: dict[str, Any], *, dry_run: bool = True, project_id: str | None = None) -> LinearProjectUpdatePublishResult:
@@ -71,7 +73,7 @@ class LinearProjectUpdatePublisher:
         close_client = self._client is None
         client = self._client or httpx.Client(timeout=self.timeout)
         try:
-            response = client.post(self.api_url, json=payload["request"], headers={"Authorization": self.api_key, "Content-Type": "application/json", "User-Agent": "max-linear-project-updates-publisher/1"}, timeout=self.timeout)
+            response = client.post(self.api_url, json=payload["request"], headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "User-Agent": "max-linear-project-updates-publisher/1"}, timeout=self.timeout)
         finally:
             if close_client:
                 client.close()
@@ -87,8 +89,11 @@ class LinearProjectUpdatePublisher:
 LinearProjectUpdatesPublisher = LinearProjectUpdatePublisher
 
 
-def _graphql_request(project_id: str, body: str, update_title: str) -> dict[str, Any]:
+def _graphql_request(project_id: str, body: str, update_title: str, *, health: str, status: str | None) -> dict[str, Any]:
+    input_payload = {"projectId": project_id, "body": body, "health": health, "title": update_title}
+    if status:
+        input_payload["status"] = status
     return {
         "query": "mutation ProjectUpdateCreate($input: ProjectUpdateCreateInput!) { projectUpdateCreate(input: $input) { success projectUpdate { id url } } }",
-        "variables": {"input": {"projectId": project_id, "body": body, "health": "onTrack", "title": update_title}},
+        "variables": {"input": input_payload},
     }
