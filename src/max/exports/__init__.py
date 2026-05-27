@@ -461,6 +461,56 @@ from max.exports.evaluation_dataset_coverage_report import (
     render_evaluation_dataset_coverage_report_json,
     render_evaluation_dataset_coverage_report_markdown,
 )
+from max.exports.insight_to_unit_conversion_funnel_report import (
+    build_insight_to_unit_conversion_funnel_report,
+    render_insight_to_unit_conversion_funnel_report_json,
+    render_insight_to_unit_conversion_funnel_report_markdown,
+)
+from max.exports.idea_recommendation_mix_report import (
+    build_idea_recommendation_mix_report,
+    render_idea_recommendation_mix_report_json,
+    render_idea_recommendation_mix_report_markdown,
+)
+from max.exports.profile_idea_throughput_report import (
+    build_profile_idea_throughput_report,
+    render_profile_idea_throughput_report_json,
+    render_profile_idea_throughput_report_markdown,
+)
+from max.exports.evidence_trace_depth_report import (
+    build_evidence_trace_depth_report,
+    render_evidence_trace_depth_report_json,
+    render_evidence_trace_depth_report_markdown,
+)
+from max.exports.buildable_unit_readiness_blocker_report import (
+    build_buildable_unit_readiness_blocker_report,
+    render_buildable_unit_readiness_blocker_report_json,
+    render_buildable_unit_readiness_blocker_report_markdown,
+)
+from max.exports.publication_destination_latency_report import (
+    build_publication_destination_latency_report,
+    render_publication_destination_latency_report_json,
+    render_publication_destination_latency_report_markdown,
+)
+from max.exports.feedback_weight_shift_report import (
+    build_feedback_weight_shift_report,
+    render_feedback_weight_shift_report_json,
+    render_feedback_weight_shift_report_markdown,
+)
+from max.exports.insight_contradiction_rate_report import (
+    build_insight_contradiction_rate_report,
+    render_insight_contradiction_rate_report_json,
+    render_insight_contradiction_rate_report_markdown,
+)
+from max.exports.evaluation_override_frequency_report import (
+    build_evaluation_override_frequency_report,
+    render_evaluation_override_frequency_report_json,
+    render_evaluation_override_frequency_report_markdown,
+)
+from max.exports.spec_generation_queue_aging_report import (
+    build_spec_generation_queue_aging_report,
+    render_spec_generation_queue_aging_report_json,
+    render_spec_generation_queue_aging_report_markdown,
+)
 from max.exports.feedback_label_disagreement_report import (
     build_feedback_label_disagreement_report,
     render_feedback_label_disagreement_report_json,
@@ -512,6 +562,16 @@ __all__ = [
     "build_llm_provider_cost_comparison_report",
     "build_inference_latency_percentile_report",
     "build_evaluation_dataset_coverage_report",
+    "build_insight_to_unit_conversion_funnel_report",
+    "build_idea_recommendation_mix_report",
+    "build_profile_idea_throughput_report",
+    "build_evidence_trace_depth_report",
+    "build_buildable_unit_readiness_blocker_report",
+    "build_publication_destination_latency_report",
+    "build_feedback_weight_shift_report",
+    "build_insight_contradiction_rate_report",
+    "build_evaluation_override_frequency_report",
+    "build_spec_generation_queue_aging_report",
     "build_feedback_label_disagreement_report",
     "build_profile_signal_mix_report",
     "build_publication_channel_effectiveness_report",
@@ -756,6 +816,26 @@ __all__ = [
     "render_inference_latency_percentile_report_markdown",
     "render_evaluation_dataset_coverage_report_json",
     "render_evaluation_dataset_coverage_report_markdown",
+    "render_insight_to_unit_conversion_funnel_report_json",
+    "render_insight_to_unit_conversion_funnel_report_markdown",
+    "render_idea_recommendation_mix_report_json",
+    "render_idea_recommendation_mix_report_markdown",
+    "render_profile_idea_throughput_report_json",
+    "render_profile_idea_throughput_report_markdown",
+    "render_evidence_trace_depth_report_json",
+    "render_evidence_trace_depth_report_markdown",
+    "render_buildable_unit_readiness_blocker_report_json",
+    "render_buildable_unit_readiness_blocker_report_markdown",
+    "render_publication_destination_latency_report_json",
+    "render_publication_destination_latency_report_markdown",
+    "render_feedback_weight_shift_report_json",
+    "render_feedback_weight_shift_report_markdown",
+    "render_insight_contradiction_rate_report_json",
+    "render_insight_contradiction_rate_report_markdown",
+    "render_evaluation_override_frequency_report_json",
+    "render_evaluation_override_frequency_report_markdown",
+    "render_spec_generation_queue_aging_report_json",
+    "render_spec_generation_queue_aging_report_markdown",
     "render_feedback_label_disagreement_report_json",
     "render_feedback_label_disagreement_report_markdown",
     "render_profile_signal_mix_report_json",
