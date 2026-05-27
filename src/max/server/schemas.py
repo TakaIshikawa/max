@@ -785,6 +785,18 @@ class DisasterRecoveryPlanRequest(SpecArtifactRequest):
     pass
 
 
+class CertificateRenewalPlanRequest(SpecArtifactRequest):
+    pass
+
+
+class VendorAccessReviewExceptionPlanRequest(SpecArtifactRequest):
+    pass
+
+
+class ApiVersionDeprecationPlanRequest(SpecArtifactRequest):
+    pass
+
+
 class VendorRiskAssessmentRequest(BaseModel):
     tact_spec: dict[str, Any] | None = Field(default=None, min_length=1)
     idea: IdeaCreate | None = None
@@ -2252,6 +2264,28 @@ class SmokeTestPlanResponse(BaseModel):
     rollback_verification_checks: list[dict[str, Any]]
     owners: list[dict[str, Any]]
     evidence_references: list[dict[str, Any]]
+
+
+class SpecPlanResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    schema_version: str
+    kind: str
+    source: dict[str, Any]
+    summary: dict[str, Any]
+    evidence_references: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CertificateRenewalPlanResponse(SpecPlanResponse):
+    pass
+
+
+class VendorAccessReviewExceptionPlanResponse(SpecPlanResponse):
+    pass
+
+
+class ApiVersionDeprecationPlanResponse(SpecPlanResponse):
+    pass
 
 
 class SpecBundleArtifactsResponse(BaseModel):
