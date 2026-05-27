@@ -57,6 +57,7 @@ class SalesforceCasePayload:
     metadata: dict[str, Any]
     account_id: str | None = None
     contact_id: str | None = None
+    custom_fields: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable Salesforce Case payload preview."""
@@ -72,6 +73,10 @@ class SalesforceCasePayload:
             payload["AccountId"] = self.account_id
         if self.contact_id:
             payload["ContactId"] = self.contact_id
+        core_fields = set(payload)
+        for key, value in sorted((self.custom_fields or {}).items()):
+            if key not in core_fields:
+                payload[key] = value
         return payload
 
 
@@ -150,7 +155,7 @@ class SalesforceCasePublisher:
             return f"/services/data/{self.api_version}/sobjects/Case"
         return f"{self.instance_url}/services/data/{self.api_version}/sobjects/Case"
 
-    def build_case_payload(self, tact_spec: dict[str, Any]) -> SalesforceCasePayload:
+    def build_case_payload(self, tact_spec: dict[str, Any], *, custom_fields: dict[str, Any] | None = None) -> SalesforceCasePayload:
         """Convert a generated TactSpec preview into a Salesforce Case payload."""
         _validate_tact_spec(tact_spec)
         project = _dict_value(tact_spec, "project")
@@ -179,6 +184,7 @@ class SalesforceCasePublisher:
             status=self.status,
             account_id=self.account_id,
             contact_id=self.contact_id,
+            custom_fields=custom_fields,
             metadata=metadata,
         )
 
@@ -187,9 +193,10 @@ class SalesforceCasePublisher:
         tact_spec: dict[str, Any],
         *,
         dry_run: bool = True,
+        custom_fields: dict[str, Any] | None = None,
     ) -> SalesforceCasePublishResult:
         """Build the Case payload and optionally create it in Salesforce."""
-        payload = self.build_case_payload(tact_spec).to_dict()
+        payload = self.build_case_payload(tact_spec, custom_fields=custom_fields).to_dict()
         if dry_run:
             return SalesforceCasePublishResult(
                 status_code=None,
