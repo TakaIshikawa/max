@@ -92,8 +92,21 @@ def _extract_year(source_label: str, rows: list[dict[str, str]], year_header: st
             if year is not None:
                 return year
 
-    match = _YEAR_RE.search(source_label)
-    return int(match.group(1)) if match else None
+    return _extract_source_label_year(source_label)
+
+
+def _extract_source_label_year(source_label: str) -> int | None:
+    parsed = urlparse(source_label)
+    path = parsed.path if parsed.scheme or parsed.netloc else source_label
+    candidates = [Path(path).name]
+    if parsed.scheme and parsed.scheme != "file":
+        candidates.extend(reversed([part for part in parsed.path.split("/") if part]))
+
+    for candidate in candidates:
+        match = _YEAR_RE.search(candidate)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _question_matches(question: str, filters: list[str]) -> bool:

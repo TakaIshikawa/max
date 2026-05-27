@@ -514,8 +514,17 @@ def _parse_datetime(value: object) -> datetime | None:
 
 
 def _extract_year(value: str) -> int | None:
-    match = _YEAR_RE.search(value)
-    return int(match.group(1)) if match else None
+    parsed = urlparse(value)
+    path = parsed.path if parsed.scheme or parsed.netloc else value
+    candidates = [Path(path).name]
+    if parsed.scheme and parsed.scheme != "file":
+        candidates.extend(reversed([part for part in parsed.path.split("/") if part]))
+
+    for candidate in candidates:
+        match = _YEAR_RE.search(candidate)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def _file_url(local_path: str) -> str:
