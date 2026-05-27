@@ -23,6 +23,8 @@ def test_customer_communication_plan_covers_required_sections() -> None:
     assert plan["summary"]["communication_cadence"] == "high-touch"
     assert plan["audiences"] == ["admins", "finance"]
     assert plan["channels"] == ["email", "webinar"]
+    assert plan["audience_channel_matrix"][0] == {"audience": "admins", "channel": "email", "message_theme": "support path"}
+    assert plan["rollback_messaging"] == ["prepare rollback notice", "confirm restored state and support path"]
     assert len(plan["timing"]) == 3
     assert plan["evidence"] == ["signal:cust-1"]
 
@@ -34,6 +36,7 @@ def test_customer_communication_plan_defaults_missing_fields() -> None:
     assert plan["summary"]["communication_cadence"] == "standard"
     assert plan["audiences"] == ["Unknown"]
     assert plan["escalation_paths"] == ["Unknown"]
+    assert plan["blockers"] == ["missing owner", "missing audience", "missing approval path"]
 
 
 def test_customer_communication_plan_is_deterministic() -> None:

@@ -34,9 +34,14 @@ def generate_customer_communication_plan(spec_like: Any) -> dict[str, Any]:
         "audiences": _items(communication.get("audiences") or project.get("target_users")),
         "message_themes": _items(communication.get("message_themes") or ["value", "timing", "support path"]),
         "channels": _items(communication.get("channels") or ["email", "in-app", "support enablement"]),
+        "audience_channel_matrix": _matrix(communication.get("audiences") or project.get("target_users"), communication.get("channels") or ["email", "in-app", "support enablement"], communication.get("message_themes") or ["value", "timing", "support path"]),
+        "send_windows": _items(communication.get("send_windows") or ["business-hours local time", "avoid regional holidays"]),
         "timing": _timing(cadence),
-        "owner_roles": _items(communication.get("owner_roles") or ["product owner", "customer success", "support lead"]),
-        "approvals": _items(communication.get("approvals") or ["product", "legal", "support"]),
+        "owner_roles": _items(communication.get("owner_roles") or communication.get("owner") or ["product owner", "customer success", "support lead"]),
+        "approvals": _items(communication.get("approvals") or communication.get("approval_path") or ["product", "legal", "support"]),
+        "localization_accessibility_checks": _items(communication.get("localization_accessibility_checks") or ["localized customer copy reviewed", "accessible email and in-app templates verified"]),
+        "rollback_messaging": _rollback_messaging(risk_level, communication),
+        "blockers": _blockers(communication, project),
         "escalation_paths": _items(communication.get("escalation_paths") or metadata.get("escalation_paths")),
         "evidence": _evidence(spec, metadata),
     }
@@ -71,6 +76,34 @@ def _section(spec: dict[str, Any], name: str) -> dict[str, Any]:
 
 def _items(value: Any) -> list[str]:
     return _sorted_unique(value) or ["Unknown"]
+
+
+def _matrix(audiences: Any, channels: Any, themes: Any) -> list[dict[str, str]]:
+    audience_items = _items(audiences)
+    channel_items = _items(channels)
+    theme_items = _items(themes)
+    return [{"audience": audience, "channel": channel_items[index % len(channel_items)], "message_theme": theme_items[index % len(theme_items)]} for index, audience in enumerate(audience_items)]
+
+
+def _rollback_messaging(risk_level: str, communication: dict[str, Any]) -> list[str]:
+    supplied = _sorted_unique(communication.get("rollback_messaging"))
+    if supplied:
+        return supplied
+    change_text = compact(communication.get("change_type")).lower()
+    if risk_level == "high" or any(term in change_text for term in ("customer-visible", "customer-impacting", "migration", "breaking")):
+        return ["prepare rollback notice", "confirm restored state and support path"]
+    return ["document no rollback messaging needed unless impact changes"]
+
+
+def _blockers(communication: dict[str, Any], project: dict[str, Any]) -> list[str]:
+    blockers = []
+    if not (communication.get("owner") or communication.get("owner_roles")):
+        blockers.append("missing owner")
+    if not (communication.get("audiences") or project.get("target_users")):
+        blockers.append("missing audience")
+    if not (communication.get("approval_path") or communication.get("approvals")):
+        blockers.append("missing approval path")
+    return blockers
 
 
 def _evidence(spec: dict[str, Any], metadata: dict[str, Any]) -> list[str]:
