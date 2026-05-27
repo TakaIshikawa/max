@@ -532,6 +532,10 @@ from max.server.schemas import (
     DesignBriefValidationPlanResponse,
     BackupRecoveryRequest,
     BackupRecoveryResponse,
+    ApiVersionDeprecationPlanRequest,
+    ApiVersionDeprecationPlanResponse,
+    CertificateRenewalPlanRequest,
+    CertificateRenewalPlanResponse,
     ChangeFreezePlanRequest,
     ChangeFreezePlanResponse,
     CostEstimateRequest,
@@ -736,6 +740,8 @@ from max.server.schemas import (
     ValidationFollowUpsResponse,
     VendorRiskAssessmentRequest,
     VendorRiskAssessmentResponse,
+    VendorAccessReviewExceptionPlanRequest,
+    VendorAccessReviewExceptionPlanResponse,
     WebhookPublishRequest,
     WebhookPublishResponse,
 )
@@ -745,6 +751,8 @@ from max.evaluation.weights import WEIGHT_PROFILES, get_adapted_weights, get_wei
 from max.llm.client import estimate_token_cost_usd, token_counts_from_usage
 from max.spec.acceptance_criteria import generate_acceptance_criteria
 from max.spec.backup_recovery import generate_backup_recovery_plan
+from max.spec.api_version_deprecation_plan import generate_api_version_deprecation_plan
+from max.spec.certificate_renewal_plan import generate_certificate_renewal_plan
 from max.spec.bundle import generate_spec_bundle, render_spec_bundle_markdown
 from max.spec.change_freeze_plan import (
     generate_change_freeze_plan,
@@ -804,6 +812,9 @@ from max.spec.slo_plan import generate_slo_plan, render_slo_plan_markdown
 from max.spec.smoke_test_plan import generate_smoke_test_plan
 from max.spec.threat_model import generate_threat_model, render_threat_model_markdown
 from max.spec.vendor_risk_assessment import generate_vendor_risk_assessment
+from max.spec.vendor_access_review_exception_plan import (
+    generate_vendor_access_review_exception_plan,
+)
 from max.analysis.review_gate import build_review_gate_decision
 from max.sources.base import snapshot_circuit_breakers
 from max.sources.mcp_security_import import signal_from_mcp_security_finding
@@ -6910,6 +6921,55 @@ def generate_spec_disaster_recovery_plan(
     plan = generate_disaster_recovery_plan(tact_spec)
     return DisasterRecoveryPlanResponse.model_validate(
         {**plan, "markdown": render_disaster_recovery_plan_markdown(plan)}
+    )
+
+
+@router.post(
+    "/spec/certificate-renewal-plan",
+    response_model=CertificateRenewalPlanResponse,
+)
+@router.post(
+    "/ideas/spec-certificate-renewal-plan",
+    response_model=CertificateRenewalPlanResponse,
+)
+def generate_spec_certificate_renewal_plan(
+    body: CertificateRenewalPlanRequest,
+) -> CertificateRenewalPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    return CertificateRenewalPlanResponse.model_validate(generate_certificate_renewal_plan(tact_spec))
+
+
+@router.post(
+    "/spec/vendor-access-review-exception-plan",
+    response_model=VendorAccessReviewExceptionPlanResponse,
+)
+@router.post(
+    "/ideas/spec-vendor-access-review-exception-plan",
+    response_model=VendorAccessReviewExceptionPlanResponse,
+)
+def generate_spec_vendor_access_review_exception_plan(
+    body: VendorAccessReviewExceptionPlanRequest,
+) -> VendorAccessReviewExceptionPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    return VendorAccessReviewExceptionPlanResponse.model_validate(
+        generate_vendor_access_review_exception_plan(tact_spec)
+    )
+
+
+@router.post(
+    "/spec/api-version-deprecation-plan",
+    response_model=ApiVersionDeprecationPlanResponse,
+)
+@router.post(
+    "/ideas/spec-api-version-deprecation-plan",
+    response_model=ApiVersionDeprecationPlanResponse,
+)
+def generate_spec_api_version_deprecation_plan(
+    body: ApiVersionDeprecationPlanRequest,
+) -> ApiVersionDeprecationPlanResponse:
+    tact_spec = _tact_spec_from_artifact_request(body)
+    return ApiVersionDeprecationPlanResponse.model_validate(
+        generate_api_version_deprecation_plan(tact_spec)
     )
 
 
