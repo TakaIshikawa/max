@@ -39,6 +39,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "hackernews_showhn": "max.sources.hackernews_showhn:HackerNewsShowHNAdapter",
     "hackernews_askhn": "max.sources.hackernews_askhn:HackerNewsAskHNAdapter",
+    "hackernews_frontpage": "max.sources.hackernews_frontpage:HackerNewsFrontpageAdapter",
     "npm_registry": "max.sources.npm_registry:NpmRegistryAdapter",
     "npm_maintainer_activity": (
         "max.sources.npm_maintainer_activity:NpmMaintainerActivityAdapter"
@@ -50,7 +51,11 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.npm_download_trends:NpmDownloadTrendsAdapter"
     ),
     "npm_dependents": "max.sources.npm_dependents:NpmDependentsAdapter",
+    "npm_package_quality_score": (
+        "max.sources.npm_package_quality_score:NpmPackageQualityScoreAdapter"
+    ),
     "reddit": "max.sources.reddit:RedditAdapter",
+    "reddit_comment_threads": "max.sources.reddit_comment_threads:RedditCommentThreadsAdapter",
     "linkedin": "max.imports.linkedin_adapter:LinkedInAdapter",
     "twitter": "max.imports.twitter_adapter:TwitterAdapter",
     "discord": "max.imports.discord_adapter:DiscordAdapter",
@@ -72,6 +77,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "pypi_maintainer_activity": (
         "max.sources.pypi_maintainer_activity:PyPIMaintainerActivityAdapter"
     ),
+    "pypi_project_links": "max.sources.pypi_project_links:PyPIProjectLinksAdapter",
     "pubdev": "max.sources.pubdev:PubDevAdapter",
     "deno_registry": "max.sources.deno_registry:DenoRegistryAdapter",
     "github_issues": "max.sources.github_issues:GitHubIssuesAdapter",
@@ -101,11 +107,18 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "github_repository_topics": (
         "max.sources.github_repository_topics:GitHubRepositoryTopicsAdapter"
     ),
+    "github_code_search": "max.sources.github_code_search:GitHubCodeSearchAdapter",
     "gitlab_issues": "max.sources.gitlab_issues:GitLabIssuesAdapter",
     "gitlab_merge_requests": "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter",
     "gitlab_epics": "max.sources.gitlab_epics:GitLabEpicsAdapter",
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
+    "gitlab_repository_topics": (
+        "max.sources.gitlab_repository_topics:GitLabRepositoryTopicsAdapter"
+    ),
     "bitbucket_pull_requests": "max.sources.bitbucket_pull_requests:BitbucketPullRequestsAdapter",
+    "bitbucket_repository_activity": (
+        "max.sources.bitbucket_repository_activity:BitbucketRepositoryActivityAdapter"
+    ),
     "security_advisories": "max.sources.security_advisories:SecurityAdvisoriesAdapter",
     "rustsec_advisories": "max.sources.rustsec_advisories:RustSecAdvisoriesAdapter",
     "osv_vulnerabilities": "max.sources.osv_vulnerabilities:OsvVulnerabilitiesAdapter",
@@ -114,8 +127,14 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "nvd_cve": "max.sources.nvd_cve:NvdCveAdapter",
     "epss_scores": "max.sources.epss_scores:EpssScoresAdapter",
     "product_hunt": "max.sources.product_hunt:ProductHuntAdapter",
+    "product_hunt_launch_comments": (
+        "max.sources.product_hunt_launch_comments:ProductHuntLaunchCommentsAdapter"
+    ),
     "stackexchange": "max.sources.stackexchange:StackExchangeAdapter",
     "stackoverflow": "max.sources.stackoverflow:StackOverflowAdapter",
+    "stackoverflow_question_activity": (
+        "max.sources.stackoverflow_question_activity:StackOverflowQuestionActivityAdapter"
+    ),
     "stackoverflow_tag_trends": (
         "max.sources.stackoverflow_tag_trends:StackOverflowTagTrendsAdapter"
     ),
@@ -1471,6 +1490,60 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Reads Agent-to-Agent specification Markdown, text, and JSON snapshots "
             "as protocol capability, lifecycle, transport, security, and interoperability signals."
         ),
+    ),
+    "pypi_project_links": AdapterMetadata(
+        name="pypi_project_links",
+        config_keys=["packages", "package_names", "queries", "max_projects", "pypi_api_url", "timeout"],
+        required_keys=[],
+        description="Fetches PyPI project URLs and package metadata link signals.",
+    ),
+    "npm_package_quality_score": AdapterMetadata(
+        name="npm_package_quality_score",
+        config_keys=["packages", "queries", "max_packages", "npms_api_url", "timeout"],
+        required_keys=[],
+        description="Fetches npms.io package quality, popularity, and maintenance score signals.",
+    ),
+    "stackoverflow_question_activity": AdapterMetadata(
+        name="stackoverflow_question_activity",
+        config_keys=["tags", "query", "min_score", "max_questions", "site", "stackexchange_api_url"],
+        required_keys=[],
+        description="Fetches Stack Overflow question activity and accepted-answer status signals.",
+    ),
+    "hackernews_frontpage": AdapterMetadata(
+        name="hackernews_frontpage",
+        config_keys=["hn_api_url", "max_items", "min_score", "include_text"],
+        required_keys=[],
+        description="Fetches Hacker News top story activity signals.",
+    ),
+    "product_hunt_launch_comments": AdapterMetadata(
+        name="product_hunt_launch_comments",
+        config_keys=["post_ids", "slugs", "api_url", "token", "max_comments", "include_maker_replies"],
+        required_keys=[],
+        description="Fetches Product Hunt launch comment signals from GraphQL responses.",
+    ),
+    "github_code_search": AdapterMetadata(
+        name="github_code_search",
+        config_keys=["queries", "repositories", "languages", "max_results_per_query", "github_token", "token", "github_api_url"],
+        required_keys=[],
+        description="Fetches GitHub code search result signals for configured patterns.",
+    ),
+    "reddit_comment_threads": AdapterMetadata(
+        name="reddit_comment_threads",
+        config_keys=["subreddits", "post_ids", "post_urls", "sort", "max_comments_per_thread", "reddit_url"],
+        required_keys=[],
+        description="Fetches Reddit JSON comment thread signals.",
+    ),
+    "bitbucket_repository_activity": AdapterMetadata(
+        name="bitbucket_repository_activity",
+        config_keys=["workspaces", "project_keys", "queries", "max_repositories", "bitbucket_url"],
+        required_keys=[],
+        description="Fetches Bitbucket repository activity and adoption metadata signals.",
+    ),
+    "gitlab_repository_topics": AdapterMetadata(
+        name="gitlab_repository_topics",
+        config_keys=["topics", "gitlab_url", "max_projects_per_topic", "token", "private_token", "gitlab_token"],
+        required_keys=[],
+        description="Fetches GitLab project topic adoption signals.",
     ),
 }
 
