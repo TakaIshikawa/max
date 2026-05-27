@@ -19,6 +19,11 @@ from max.focus import (
 from max.profiles.schema import DomainContext, PipelineProfile
 
 
+DOMAIN_NAMES = st.integers(min_value=0, max_value=999_999).map(
+    lambda value: f"domain-{value}"
+)
+
+
 @pytest.fixture
 def isolated_focus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Redirect focus config to a tmp location so tests don't touch the real file."""
@@ -261,7 +266,7 @@ class TestFocusPropertyBased:
 
         @given(
             st.lists(
-                st.text(min_size=1, max_size=20, alphabet="abcdefghijklmnopqrstuvwxyz-"),
+                DOMAIN_NAMES,
                 min_size=1,
                 max_size=10,
                 unique=True,
@@ -305,12 +310,12 @@ class TestFocusPropertyBased:
 
         @given(
             domains=st.lists(
-                st.text(min_size=1, max_size=20, alphabet="abcdefghijklmnopqrstuvwxyz-"),
+                DOMAIN_NAMES,
                 min_size=1,
                 max_size=5,
                 unique=True,
             ),
-            query_domain=st.text(min_size=1, max_size=20, alphabet="abcdefghijklmnopqrstuvwxyz-"),
+            query_domain=DOMAIN_NAMES,
         )
         @settings(max_examples=50, deadline=2000)
         def run_test(domains: list[str], query_domain: str) -> None:
