@@ -8,21 +8,31 @@ from typing import Any
 from max.api.budget_usage import budget_usage_to_json
 from max.api.disaster_recovery import disaster_recovery_plan_to_json
 from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
+from max.api.embedding_reindex_queue_status import embedding_reindex_queue_status_to_json
 from max.api.embedding_similarity_threshold_status import embedding_similarity_threshold_status_to_json
+from max.api.evaluation_recommendation_distribution_status import evaluation_recommendation_distribution_status_to_json
 from max.api.evaluation_rubric_version_status import evaluation_rubric_version_status_to_json
+from max.api.feedback_weight_drift_status import feedback_weight_drift_status_to_json
 from max.api.insight_deduplication_collision_status import insight_deduplication_collision_status_to_json
+from max.api.insight_to_unit_conversion_status import insight_to_unit_conversion_status_to_json
+from max.api.ideation_mode_quota_status import ideation_mode_quota_status_to_json
 from max.api.evaluation_dataset_staleness_status import evaluation_dataset_staleness_status_to_json
 from max.api.feedback_label_quality_status import feedback_label_quality_status_to_json
 from max.api.inference_queue_saturation_status import inference_queue_saturation_status_to_json
+from max.api.llm_prompt_cache_health_status import llm_prompt_cache_health_status_to_json
 from max.api.llm_provider_failover_status import llm_provider_failover_status_to_json
 from max.api.model_usage_anomaly_status import model_usage_anomaly_status_to_json
 from max.api.pii_detection_backlog_status import pii_detection_backlog_status_to_json
+from max.api.profile_source_budget_status import profile_source_budget_status_to_json
 from max.api.prompt_template_version_drift_status import prompt_template_version_drift_status_to_json
 from max.api.prompt_redaction_coverage_status import prompt_redaction_coverage_status_to_json
+from max.api.publisher_retry_policy_status import publisher_retry_policy_status_to_json
 from max.api.retention_policy_exception_status import retention_policy_exception_status_to_json
 from max.api.signal_deduplication_cluster_status import signal_deduplication_cluster_status_to_json
 from max.api.source_ingestion_error_taxonomy_status import source_ingestion_error_taxonomy_status_to_json
+from max.api.source_priority_rebalance_status import source_priority_rebalance_status_to_json
 from max.api.source_terms_compliance_status import source_terms_compliance_status_to_json
+from max.api.spec_generation_failure_taxonomy_status import spec_generation_failure_taxonomy_status_to_json
 from max.api.spec_publication_audit_trail_status import spec_publication_audit_trail_status_to_json
 from max.api.spec_traceability_gap_status import spec_traceability_gap_status_to_json
 from max.api.synthesis_batch_backlog_status import synthesis_batch_backlog_status_to_json
@@ -170,24 +180,34 @@ __all__ = [
     "design_brief_go_to_market_to_json",
     "budget_usage_to_json",
     "adapter_circuit_breaker_recovery_status_to_json",
+    "embedding_reindex_queue_status_to_json",
     "portfolio_stage_distribution_to_json",
     "design_brief_technical_risks_to_json",
     "disaster_recovery_plan_to_json",
     "embedding_similarity_threshold_status_to_json",
+    "evaluation_recommendation_distribution_status_to_json",
     "evaluation_rubric_version_status_to_json",
     "evaluation_dataset_staleness_status_to_json",
+    "feedback_weight_drift_status_to_json",
     "feedback_label_quality_status_to_json",
+    "insight_to_unit_conversion_status_to_json",
+    "ideation_mode_quota_status_to_json",
     "inference_queue_saturation_status_to_json",
+    "llm_prompt_cache_health_status_to_json",
     "llm_provider_failover_status_to_json",
     "model_usage_anomaly_status_to_json",
     "pii_detection_backlog_status_to_json",
+    "profile_source_budget_status_to_json",
     "prompt_template_version_drift_status_to_json",
     "insight_deduplication_collision_status_to_json",
     "prompt_redaction_coverage_status_to_json",
+    "publisher_retry_policy_status_to_json",
     "retention_policy_exception_status_to_json",
     "signal_deduplication_cluster_status_to_json",
     "source_ingestion_error_taxonomy_status_to_json",
+    "source_priority_rebalance_status_to_json",
     "source_terms_compliance_status_to_json",
+    "spec_generation_failure_taxonomy_status_to_json",
     "spec_publication_audit_trail_status_to_json",
     "spec_traceability_gap_status_to_json",
     "synthesis_batch_backlog_status_to_json",
