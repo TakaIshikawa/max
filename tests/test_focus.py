@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from max.focus import (
@@ -272,7 +272,11 @@ class TestFocusPropertyBased:
                 unique=True,
             )
         )
-        @settings(max_examples=50, deadline=2000)
+        @settings(
+            max_examples=50,
+            deadline=2000,
+            suppress_health_check=[HealthCheck.too_slow],
+        )
         def run_test(domains: list[str]) -> None:
             # Isolate to tmp_path
             profiles_dir = tmp_path / "profiles"
