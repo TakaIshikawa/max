@@ -381,6 +381,11 @@ from max.exports.source_adapter_version_skew_report import (
     render_source_adapter_version_skew_report_json,
     render_source_adapter_version_skew_report_markdown,
 )
+from max.exports.source_oauth_scope_drift_report import (
+    build_source_oauth_scope_drift_report,
+    render_source_oauth_scope_drift_report_json,
+    render_source_oauth_scope_drift_report_markdown,
+)
 from max.exports.source_auth_failure_trend_report import (
     build_source_auth_failure_trend_report,
     render_source_auth_failure_trend_report_json,
@@ -596,6 +601,7 @@ __all__ = [
     "build_source_adapter_reliability_report",
     "build_source_adapter_coverage_gap_report",
     "build_source_adapter_version_skew_report",
+    "build_source_oauth_scope_drift_report",
     "build_source_auth_failure_trend_report",
     "build_source_backfill_gap_report",
     "build_source_circuit_breaker_churn_report",
@@ -844,6 +850,8 @@ __all__ = [
     "render_source_adapter_coverage_gap_report_markdown",
     "render_source_adapter_version_skew_report_json",
     "render_source_adapter_version_skew_report_markdown",
+    "render_source_oauth_scope_drift_report_json",
+    "render_source_oauth_scope_drift_report_markdown",
     "render_source_auth_failure_trend_report_json",
     "render_source_auth_failure_trend_report_markdown",
     "render_source_backfill_gap_report_json",
