@@ -376,6 +376,56 @@ from max.exports.source_adapter_coverage_gap_report import (
     render_source_adapter_coverage_gap_report_json,
     render_source_adapter_coverage_gap_report_markdown,
 )
+from max.exports.source_adapter_version_skew_report import (
+    build_source_adapter_version_skew_report,
+    render_source_adapter_version_skew_report_json,
+    render_source_adapter_version_skew_report_markdown,
+)
+from max.exports.source_auth_failure_trend_report import (
+    build_source_auth_failure_trend_report,
+    render_source_auth_failure_trend_report_json,
+    render_source_auth_failure_trend_report_markdown,
+)
+from max.exports.source_backfill_gap_report import (
+    build_source_backfill_gap_report,
+    render_source_backfill_gap_report_json,
+    render_source_backfill_gap_report_markdown,
+)
+from max.exports.source_circuit_breaker_churn_report import (
+    build_source_circuit_breaker_churn_report,
+    render_source_circuit_breaker_churn_report_json,
+    render_source_circuit_breaker_churn_report_markdown,
+)
+from max.exports.source_duplicate_signal_report import (
+    build_source_duplicate_signal_report,
+    render_source_duplicate_signal_report_json,
+    render_source_duplicate_signal_report_markdown,
+)
+from max.exports.source_field_completeness_report import (
+    build_source_field_completeness_report,
+    render_source_field_completeness_report_json,
+    render_source_field_completeness_report_markdown,
+)
+from max.exports.source_freshness_sla_report import (
+    build_source_freshness_sla_report,
+    render_source_freshness_sla_report_json,
+    render_source_freshness_sla_report_markdown,
+)
+from max.exports.source_payload_parse_failure_report import (
+    build_source_payload_parse_failure_report,
+    render_source_payload_parse_failure_report_json,
+    render_source_payload_parse_failure_report_markdown,
+)
+from max.exports.source_rate_limit_saturation_report import (
+    build_source_rate_limit_saturation_report,
+    render_source_rate_limit_saturation_report_json,
+    render_source_rate_limit_saturation_report_markdown,
+)
+from max.exports.source_schema_drift_report import (
+    build_source_schema_drift_report,
+    render_source_schema_drift_report_json,
+    render_source_schema_drift_report_markdown,
+)
 from max.exports.signal_freshness_sla_report import (
     build_signal_freshness_sla_report,
     render_signal_freshness_sla_report_json,
@@ -545,6 +595,16 @@ from max.exports.prompt_template_drift_report import (
 __all__ = [
     "build_source_adapter_reliability_report",
     "build_source_adapter_coverage_gap_report",
+    "build_source_adapter_version_skew_report",
+    "build_source_auth_failure_trend_report",
+    "build_source_backfill_gap_report",
+    "build_source_circuit_breaker_churn_report",
+    "build_source_duplicate_signal_report",
+    "build_source_field_completeness_report",
+    "build_source_freshness_sla_report",
+    "build_source_payload_parse_failure_report",
+    "build_source_rate_limit_saturation_report",
+    "build_source_schema_drift_report",
     "build_signal_freshness_sla_report",
     "build_source_allocation_efficiency_report",
     "build_insight_deduplication_collision_report",
@@ -782,6 +842,26 @@ __all__ = [
     "render_source_adapter_reliability_markdown",
     "render_source_adapter_coverage_gap_report_json",
     "render_source_adapter_coverage_gap_report_markdown",
+    "render_source_adapter_version_skew_report_json",
+    "render_source_adapter_version_skew_report_markdown",
+    "render_source_auth_failure_trend_report_json",
+    "render_source_auth_failure_trend_report_markdown",
+    "render_source_backfill_gap_report_json",
+    "render_source_backfill_gap_report_markdown",
+    "render_source_circuit_breaker_churn_report_json",
+    "render_source_circuit_breaker_churn_report_markdown",
+    "render_source_duplicate_signal_report_json",
+    "render_source_duplicate_signal_report_markdown",
+    "render_source_field_completeness_report_json",
+    "render_source_field_completeness_report_markdown",
+    "render_source_freshness_sla_report_json",
+    "render_source_freshness_sla_report_markdown",
+    "render_source_payload_parse_failure_report_json",
+    "render_source_payload_parse_failure_report_markdown",
+    "render_source_rate_limit_saturation_report_json",
+    "render_source_rate_limit_saturation_report_markdown",
+    "render_source_schema_drift_report_json",
+    "render_source_schema_drift_report_markdown",
     "render_signal_freshness_sla_report_json",
     "render_signal_freshness_sla_report_markdown",
     "render_source_allocation_efficiency_json",
