@@ -281,9 +281,14 @@ from max.spec.feature_entitlement_audit_plan import generate_feature_entitlement
 from max.spec.model_output_retention_exception_plan import (
     generate_model_output_retention_exception_plan,
 )
+from max.spec.model_access_deprovisioning_plan import generate_model_access_deprovisioning_plan
 from max.spec.model_card_publication_plan import generate_model_card_publication_plan
+from max.spec.model_eval_judge_calibration_plan import generate_model_eval_judge_calibration_plan
 from max.spec.model_evaluation_holdout_plan import generate_model_evaluation_holdout_plan
+from max.spec.model_output_appeal_workflow_plan import generate_model_output_appeal_workflow_plan
 from max.spec.model_provider_failover_plan import generate_model_provider_failover_plan
+from max.spec.model_retirement_plan import generate_model_retirement_plan
+from max.spec.prompt_secret_rotation_plan import generate_prompt_secret_rotation_plan
 from max.spec.prompt_injection_incident_response_plan import (
     generate_prompt_injection_incident_response_plan,
 )
@@ -468,9 +473,13 @@ __all__ = [
     "generate_evaluation_dataset_access_review_plan",
     "generate_external_model_provider_exception_plan",
     "generate_migration_checklist",
+    "generate_model_access_deprovisioning_plan",
     "generate_model_card_publication_plan",
+    "generate_model_eval_judge_calibration_plan",
     "generate_model_evaluation_holdout_plan",
+    "generate_model_output_appeal_workflow_plan",
     "generate_model_output_retention_exception_plan",
+    "generate_model_retirement_plan",
     "generate_observability_plan",
     "generate_operational_metrics_review_plan",
     "generate_operational_dependency_sunset_plan",
@@ -482,6 +491,7 @@ __all__ = [
     "generate_privacy_impact_assessment",
     "generate_privacy_request_escalation_plan",
     "generate_production_data_backfill_plan",
+    "generate_prompt_secret_rotation_plan",
     "generate_release_readiness_gate",
     "generate_release_communications_readiness_plan",
     "generate_release_risk_acceptance_plan",
