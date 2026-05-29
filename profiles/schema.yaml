@@ -300,6 +300,7 @@ properties:
             - artifact_hub
             - awesome_lists
             - bitbucket_pull_requests
+            - bitbucket_repository_activity
             - bluesky
             - cisa_kev
             - clinical_trials
@@ -324,6 +325,7 @@ properties:
             - funding_rounds
             - github
             - github_actions
+            - github_code_search
             - github_discussion_comments
             - github_discussions
             - github_funding
@@ -341,11 +343,13 @@ properties:
             - gitlab_issues
             - gitlab_merge_requests
             - gitlab_releases
+            - gitlab_repository_topics
             - glama_mcp_stats
             - go_module_trends
             - go_packages
             - hackernews
             - hackernews_askhn
+            - hackernews_frontpage
             - hackernews_showhn
             - hackernews_whoishiring
             - hexpm
@@ -367,6 +371,7 @@ properties:
             - npm_dependents
             - npm_download_trends
             - npm_maintainer_activity
+            - npm_package_quality_score
             - npm_registry
             - npm_security_advisories
             - nuget
@@ -384,15 +389,18 @@ properties:
             - packagist_download_trends
             - packagist_maintainer_activity
             - product_hunt
+            - product_hunt_launch_comments
             - pubmed
             - pubdev
             - pypi_classifiers
             - pypi_download_trends
             - pypi_maintainer_activity
+            - pypi_project_links
             - pypi_registry
             - pypi_releases
             - python_peps
             - reddit
+            - reddit_comment_threads
             - rss_feed
             - rubygems
             - rubygems_download_trends
@@ -404,6 +412,7 @@ properties:
             - stackshare
             - stackexchange
             - stackoverflow
+            - stackoverflow_question_activity
             - stackoverflow_survey
             - stackoverflow_tag_trends
             - swift_package_index

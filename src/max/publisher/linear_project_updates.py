@@ -73,7 +73,7 @@ class LinearProjectUpdatePublisher:
         close_client = self._client is None
         client = self._client or httpx.Client(timeout=self.timeout)
         try:
-            response = client.post(self.api_url, json=payload["request"], headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "User-Agent": "max-linear-project-updates-publisher/1"}, timeout=self.timeout)
+            response = client.post(self.api_url, json=payload["request"], headers={"Authorization": _authorization_header(self.api_key), "Content-Type": "application/json", "User-Agent": "max-linear-project-updates-publisher/1"}, timeout=self.timeout)
         finally:
             if close_client:
                 client.close()
@@ -87,6 +87,15 @@ class LinearProjectUpdatePublisher:
 
 
 LinearProjectUpdatesPublisher = LinearProjectUpdatePublisher
+
+
+def _authorization_header(api_key: str) -> str:
+    lowered = api_key.lower()
+    if lowered.startswith(("bearer ", "basic ", "token ")):
+        return api_key
+    if lowered.startswith("lin_"):
+        return api_key
+    return f"Bearer {api_key}"
 
 
 def _graphql_request(project_id: str, body: str, update_title: str, *, health: str, status: str | None) -> dict[str, Any]:
