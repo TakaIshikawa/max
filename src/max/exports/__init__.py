@@ -426,6 +426,10 @@ from max.exports.source_circuit_breaker_churn_report import (
     render_source_circuit_breaker_churn_report_json,
     render_source_circuit_breaker_churn_report_markdown,
 )
+from max.exports.cache_key_churn_report import (
+    generate_cache_key_churn_report,
+    render_cache_key_churn_report_json,
+)
 from max.exports.source_duplicate_signal_report import (
     build_source_duplicate_signal_report,
     render_source_duplicate_signal_report_json,
@@ -631,6 +635,7 @@ __all__ = [
     "build_source_auth_failure_trend_report",
     "build_source_backfill_gap_report",
     "build_source_circuit_breaker_churn_report",
+    "generate_cache_key_churn_report",
     "build_source_duplicate_signal_report",
     "build_source_field_completeness_report",
     "build_source_freshness_sla_report",
@@ -886,6 +891,7 @@ __all__ = [
     "render_source_backfill_gap_report_markdown",
     "render_source_circuit_breaker_churn_report_json",
     "render_source_circuit_breaker_churn_report_markdown",
+    "render_cache_key_churn_report_json",
     "render_source_duplicate_signal_report_json",
     "render_source_duplicate_signal_report_markdown",
     "render_source_field_completeness_report_json",
