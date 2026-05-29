@@ -625,6 +625,31 @@ from max.exports.prompt_template_drift_report import (
     render_prompt_template_drift_report_json,
     render_prompt_template_drift_report_markdown,
 )
+from max.exports.evaluation_rubric_drift_remediation_report import (
+    generate_evaluation_rubric_drift_remediation_report,
+    render_evaluation_rubric_drift_remediation_report_json,
+    render_evaluation_rubric_drift_remediation_report_markdown,
+)
+from max.exports.prompt_redaction_leak_report import (
+    generate_prompt_redaction_leak_report,
+    render_prompt_redaction_leak_report_json,
+    render_prompt_redaction_leak_report_markdown,
+)
+from max.exports.synthesis_insight_aging_report import (
+    generate_synthesis_insight_aging_report,
+    render_synthesis_insight_aging_report_json,
+    render_synthesis_insight_aging_report_markdown,
+)
+from max.exports.publisher_auth_expiry_forecast_report import (
+    generate_publisher_auth_expiry_forecast_report,
+    render_publisher_auth_expiry_forecast_report_json,
+    render_publisher_auth_expiry_forecast_report_markdown,
+)
+from max.exports.spec_approval_bottleneck_report import (
+    generate_spec_approval_bottleneck_report,
+    render_spec_approval_bottleneck_report_json,
+    render_spec_approval_bottleneck_report_markdown,
+)
 
 __all__ = [
     "build_source_adapter_reliability_report",
@@ -636,6 +661,21 @@ __all__ = [
     "build_source_backfill_gap_report",
     "build_source_circuit_breaker_churn_report",
     "generate_cache_key_churn_report",
+    "generate_evaluation_rubric_drift_remediation_report",
+    "render_evaluation_rubric_drift_remediation_report_json",
+    "render_evaluation_rubric_drift_remediation_report_markdown",
+    "generate_prompt_redaction_leak_report",
+    "render_prompt_redaction_leak_report_json",
+    "render_prompt_redaction_leak_report_markdown",
+    "generate_synthesis_insight_aging_report",
+    "render_synthesis_insight_aging_report_json",
+    "render_synthesis_insight_aging_report_markdown",
+    "generate_publisher_auth_expiry_forecast_report",
+    "render_publisher_auth_expiry_forecast_report_json",
+    "render_publisher_auth_expiry_forecast_report_markdown",
+    "generate_spec_approval_bottleneck_report",
+    "render_spec_approval_bottleneck_report_json",
+    "render_spec_approval_bottleneck_report_markdown",
     "build_source_duplicate_signal_report",
     "build_source_field_completeness_report",
     "build_source_freshness_sla_report",

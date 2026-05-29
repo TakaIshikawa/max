@@ -413,6 +413,11 @@ from max.spec.webhook_delivery_reliability_plan import (
     render_webhook_delivery_reliability_plan_markdown,
 )
 from max.spec.webhook_consumer_migration_plan import generate_webhook_consumer_migration_plan
+from max.spec.evaluation_golden_set_refresh_plan import generate_evaluation_golden_set_refresh_plan
+from max.spec.publisher_credential_rotation_plan import generate_publisher_credential_rotation_plan
+from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy_migration_plan
+from max.spec.model_provider_failback_plan import generate_model_provider_failback_plan
+from max.spec.spec_approval_escalation_plan import generate_spec_approval_escalation_plan
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -457,6 +462,11 @@ __all__ = [
     "generate_customer_notification_readiness_plan",
     "generate_customer_sandbox_refresh_plan",
     "generate_customer_sla_credit_review_plan",
+    "generate_evaluation_golden_set_refresh_plan",
+    "generate_publisher_credential_rotation_plan",
+    "generate_feedback_taxonomy_migration_plan",
+    "generate_model_provider_failback_plan",
+    "generate_spec_approval_escalation_plan",
     "generate_data_access_exception_review_plan",
     "generate_data_minimization_exception_plan",
     "generate_data_subject_access_request_exception_plan",
