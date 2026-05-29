@@ -42,6 +42,8 @@ from max.spec.bundle import (
 )
 from max.spec.business_continuity_plan import generate_business_continuity_plan
 from max.spec.billing_impact_review_plan import generate_billing_impact_review_plan
+from max.spec.blue_green_cutover_plan import generate_blue_green_cutover_plan
+from max.spec.cache_invalidation_rollout_plan import generate_cache_invalidation_rollout_plan
 from max.spec.compliance_checklist import (
     generate_compliance_checklist,
     render_compliance_checklist_csv,
@@ -103,6 +105,7 @@ from max.spec.data_processing_impact_review_plan import generate_data_processing
 from max.spec.data_residency_exception_plan import generate_data_residency_exception_plan
 from max.spec.data_warehouse_access_review_plan import generate_data_warehouse_access_review_plan
 from max.spec.data_warehouse_sync_cutover_plan import generate_data_warehouse_sync_cutover_plan
+from max.spec.dependency_license_remediation_plan import generate_dependency_license_remediation_plan
 from max.spec.encryption_key_custody_transfer_plan import (
     generate_encryption_key_custody_transfer_plan,
 )
@@ -209,6 +212,7 @@ from max.spec.evaluation_benchmark_refresh_plan import (
 from max.spec.evaluation_dataset_access_review_plan import (
     generate_evaluation_dataset_access_review_plan,
 )
+from max.spec.event_schema_evolution_plan import generate_event_schema_evolution_plan
 from max.spec.external_model_provider_exception_plan import (
     generate_external_model_provider_exception_plan,
 )
@@ -217,11 +221,13 @@ from max.spec.migration_checklist import (
     render_migration_checklist_csv,
     render_migration_checklist_markdown,
 )
+from max.spec.model_rollout_observability_plan import generate_model_rollout_observability_plan
 from max.spec.observability_plan import (
     generate_observability_plan,
     render_observability_plan_csv,
     render_observability_plan_markdown,
 )
+from max.spec.observability_instrumentation_plan import generate_observability_instrumentation_plan
 from max.spec.operational_runbook import (
     generate_operational_runbook,
     render_operational_runbook_markdown,
@@ -243,6 +249,7 @@ from max.spec.privacy_impact_assessment import (
     generate_privacy_impact_assessment,
     render_privacy_impact_assessment_markdown,
 )
+from max.spec.privacy_deletion_workflow_plan import generate_privacy_deletion_workflow_plan
 from max.spec.privacy_request_escalation_plan import generate_privacy_request_escalation_plan
 from max.spec.readiness import evaluate_spec_readiness
 from max.spec.release_readiness_gate import (
@@ -313,6 +320,8 @@ from max.spec.scaling_strategy import (
     render_scaling_strategy_csv,
     render_scaling_strategy_markdown,
 )
+from max.spec.schema_contract_migration_plan import generate_schema_contract_migration_plan
+from max.spec.search_relevance_tuning_plan import generate_search_relevance_tuning_plan
 from max.spec.security_controls import (
     generate_security_controls,
     render_security_controls_csv,
@@ -431,6 +440,8 @@ __all__ = [
     "generate_backup_encryption_key_verification_plan",
     "generate_business_continuity_plan",
     "generate_billing_impact_review_plan",
+    "generate_blue_green_cutover_plan",
+    "generate_cache_invalidation_rollout_plan",
     "generate_compliance_checklist",
     "generate_consent_management_plan",
     "generate_cost_estimate",
@@ -457,6 +468,7 @@ __all__ = [
     "generate_data_retention_schedule",
     "generate_data_warehouse_access_review_plan",
     "generate_data_warehouse_sync_cutover_plan",
+    "generate_dependency_license_remediation_plan",
     "generate_encryption_key_custody_transfer_plan",
     "generate_dependency_inventory",
     "generate_deployment_topology",
@@ -486,8 +498,10 @@ __all__ = [
     "generate_benchmark_contamination_review_plan",
     "generate_evaluation_benchmark_refresh_plan",
     "generate_evaluation_dataset_access_review_plan",
+    "generate_event_schema_evolution_plan",
     "generate_external_model_provider_exception_plan",
     "generate_migration_checklist",
+    "generate_model_rollout_observability_plan",
     "generate_model_access_deprovisioning_plan",
     "generate_model_card_publication_plan",
     "generate_model_eval_judge_calibration_plan",
@@ -496,6 +510,7 @@ __all__ = [
     "generate_model_output_retention_exception_plan",
     "generate_model_retirement_plan",
     "generate_observability_plan",
+    "generate_observability_instrumentation_plan",
     "generate_operational_metrics_review_plan",
     "generate_operational_dependency_sunset_plan",
     "generate_oauth_app_decommission_plan",
@@ -504,6 +519,7 @@ __all__ = [
     "generate_post_launch_monitoring_plan",
     "generate_prompt_redaction_exception_plan",
     "generate_privacy_impact_assessment",
+    "generate_privacy_deletion_workflow_plan",
     "generate_privacy_request_escalation_plan",
     "generate_production_data_backfill_plan",
     "generate_prompt_secret_rotation_plan",
@@ -523,6 +539,8 @@ __all__ = [
     "generate_retrospective_learning_holdout_plan",
     "generate_shadow_deployment_rollback_plan",
     "generate_scaling_strategy",
+    "generate_schema_contract_migration_plan",
+    "generate_search_relevance_tuning_plan",
     "generate_spec_bundle",
     "generate_security_controls",
     "generate_security_review",
