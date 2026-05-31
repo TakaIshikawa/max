@@ -40,6 +40,11 @@ from max.exports.publisher_retry_backlog_report import (
     render_publisher_retry_backlog_report_json,
     render_publisher_retry_backlog_report_markdown,
 )
+from max.exports.publisher_webhook_latency_report import (
+    generate_publisher_webhook_latency_report,
+    render_publisher_webhook_latency_report_json,
+    render_publisher_webhook_latency_report_markdown,
+)
 from max.exports.signal_source_noise_report import (
     build_signal_source_noise_report,
     render_signal_source_noise_report_json,
