@@ -71,3 +71,31 @@ def test_vector_index_rebuild_plan_is_deterministic_and_accepts_raw_hints() -> N
         "a-index",
         "z-index",
     ]
+
+
+def test_vector_index_rebuild_plan_flags_dimension_mismatch_and_stale_model() -> None:
+    plan = generate_vector_index_rebuild_plan(
+        {
+            "metadata": {
+                "vector_index_rebuild": {
+                    "indexes": [
+                        {
+                            "index": "docs",
+                            "current_dimension": 1536,
+                            "target_dimension": 3072,
+                            "current_model": "text-embedding-3-small",
+                            "target_model": "text-embedding-3-large",
+                        }
+                    ],
+                    "backfill_batches": [{"batch": "batch-001", "range": "0-1000"}],
+                }
+            }
+        }
+    )
+
+    risk_names = [item["name"] for item in plan["risks"]]
+    assert "dimension mismatch remediation" in risk_names
+    assert "stale embedding model remediation" in risk_names
+    assert plan["backfill_batches"][0]["name"] == "batch-001"
+    assert "embedding_model_version" in plan
+    assert "query_quality_checks" in plan
