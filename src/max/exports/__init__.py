@@ -58,6 +58,56 @@ from max.exports.eval_goldens_coverage_gap_report import generate_eval_goldens_c
 from max.exports.embedding_dimension_mismatch_report import generate_embedding_dimension_mismatch_report
 from max.exports.profile_weight_conflict_report import generate_profile_weight_conflict_report
 from max.exports.domain_profile_constraint_violation_report import generate_domain_profile_constraint_violation_report
+from max.exports.insight_contradiction_report import (
+    generate_insight_contradiction_report,
+    render_insight_contradiction_report_json,
+    render_insight_contradiction_report_markdown,
+)
+from max.exports.spec_template_coverage_report import (
+    generate_spec_template_coverage_report,
+    render_spec_template_coverage_report_json,
+    render_spec_template_coverage_report_markdown,
+)
+from max.exports.feedback_reviewer_agreement_report import (
+    generate_feedback_reviewer_agreement_report,
+    render_feedback_reviewer_agreement_report_json,
+    render_feedback_reviewer_agreement_report_markdown,
+)
+from max.exports.llm_prompt_version_adoption_report import (
+    generate_llm_prompt_version_adoption_report,
+    render_llm_prompt_version_adoption_report_json,
+    render_llm_prompt_version_adoption_report_markdown,
+)
+from max.exports.security_advisory_signal_impact_report import (
+    generate_security_advisory_signal_impact_report,
+    render_security_advisory_signal_impact_report_json,
+    render_security_advisory_signal_impact_report_markdown,
+)
+from max.exports.source_adapter_error_budget_breach_report import (
+    generate_source_adapter_error_budget_breach_report,
+    render_source_adapter_error_budget_breach_report_json,
+    render_source_adapter_error_budget_breach_report_markdown,
+)
+from max.exports.ideation_prompt_yield_variance_report import (
+    generate_ideation_prompt_yield_variance_report,
+    render_ideation_prompt_yield_variance_report_json,
+    render_ideation_prompt_yield_variance_report_markdown,
+)
+from max.exports.spec_generation_failure_taxonomy_report import (
+    generate_spec_generation_failure_taxonomy_report,
+    render_spec_generation_failure_taxonomy_report_json,
+    render_spec_generation_failure_taxonomy_report_markdown,
+)
+from max.exports.budget_reservation_utilization_report import (
+    generate_budget_reservation_utilization_report,
+    render_budget_reservation_utilization_report_json,
+    render_budget_reservation_utilization_report_markdown,
+)
+from max.exports.evidence_chain_orphan_report import (
+    generate_evidence_chain_orphan_report,
+    render_evidence_chain_orphan_report_json,
+    render_evidence_chain_orphan_report_markdown,
+)
 from max.exports.signal_ingestion_lag_report import generate_signal_ingestion_lag_report
 from max.exports.synthesis_prompt_failure_report import generate_synthesis_prompt_failure_report
 from max.exports.idea_duplicate_cluster_report import generate_idea_duplicate_cluster_report
