@@ -413,7 +413,18 @@ from max.spec.webhook_delivery_reliability_plan import (
     render_webhook_delivery_reliability_plan_markdown,
 )
 from max.spec.webhook_consumer_migration_plan import generate_webhook_consumer_migration_plan
+from max.spec.prompt_evaluation_coverage_plan import generate_prompt_evaluation_coverage_plan
+from max.spec.inference_audit_sampling_plan import generate_inference_audit_sampling_plan
+from max.spec.customer_data_reconciliation_plan import generate_customer_data_reconciliation_plan
+from max.spec.data_processor_exit_plan import generate_data_processor_exit_plan
+from max.spec.tenant_feature_flag_rollback_plan import generate_tenant_feature_flag_rollback_plan
+from max.spec.model_output_retention_plan import generate_model_output_retention_plan
+from max.spec.synthetic_data_disclosure_plan import generate_synthetic_data_disclosure_plan
+from max.spec.prompt_rollback_plan import generate_prompt_rollback_plan
 from max.spec.evaluation_golden_set_refresh_plan import generate_evaluation_golden_set_refresh_plan
+from max.spec.evaluation_dataset_consent_audit_plan import (
+    generate_evaluation_dataset_consent_audit_plan,
+)
 from max.spec.evidence_chain_repair_plan import generate_evidence_chain_repair_plan
 from max.spec.profile_rollout_readiness_plan import generate_profile_rollout_readiness_plan
 from max.spec.evaluation_calibration_review_plan import generate_evaluation_calibration_review_plan
@@ -423,6 +434,7 @@ from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy
 from max.spec.feedback_quality_remediation_plan import generate_feedback_quality_remediation_plan
 from max.spec.model_provider_failback_plan import generate_model_provider_failback_plan
 from max.spec.spec_approval_escalation_plan import generate_spec_approval_escalation_plan
+from max.spec.spec_generation_recovery_plan import generate_spec_generation_recovery_plan
 
 __all__ = [
     "evaluate_spec_readiness",
@@ -467,7 +479,16 @@ __all__ = [
     "generate_customer_notification_readiness_plan",
     "generate_customer_sandbox_refresh_plan",
     "generate_customer_sla_credit_review_plan",
+    "generate_prompt_evaluation_coverage_plan",
+    "generate_inference_audit_sampling_plan",
+    "generate_customer_data_reconciliation_plan",
+    "generate_data_processor_exit_plan",
+    "generate_tenant_feature_flag_rollback_plan",
+    "generate_model_output_retention_plan",
+    "generate_synthetic_data_disclosure_plan",
+    "generate_prompt_rollback_plan",
     "generate_evaluation_golden_set_refresh_plan",
+    "generate_evaluation_dataset_consent_audit_plan",
     "generate_evidence_chain_repair_plan",
     "generate_profile_rollout_readiness_plan",
     "generate_evaluation_calibration_review_plan",
@@ -477,6 +498,7 @@ __all__ = [
     "generate_feedback_quality_remediation_plan",
     "generate_model_provider_failback_plan",
     "generate_spec_approval_escalation_plan",
+    "generate_spec_generation_recovery_plan",
     "generate_data_access_exception_review_plan",
     "generate_data_minimization_exception_plan",
     "generate_data_subject_access_request_exception_plan",
