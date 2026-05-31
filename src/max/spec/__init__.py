@@ -22,6 +22,7 @@ from max.spec.audit_finding_remediation_plan import (
 from max.spec.backup_encryption_key_verification_plan import (
     generate_backup_encryption_key_verification_plan,
 )
+from max.spec.budget_reservation_recovery_plan import generate_budget_reservation_recovery_plan
 from max.spec.api_contract_test_plan import (
     KIND as API_CONTRACT_TEST_PLAN_KIND,
     SCHEMA_VERSION as API_CONTRACT_TEST_PLAN_SCHEMA_VERSION,
@@ -198,6 +199,12 @@ from max.spec.integration_rate_limit_exception_plan import (
 from max.spec.inference_rate_limit_exception_plan import (
     generate_inference_rate_limit_exception_plan,
 )
+from max.spec.idea_review_triage_plan import generate_idea_review_triage_plan
+from max.spec.profile_signal_rebalance_plan import generate_profile_signal_rebalance_plan
+from max.spec.publisher_retry_policy_tuning_plan import (
+    generate_publisher_retry_policy_tuning_plan,
+)
+from max.spec.synthesis_queue_drain_plan import generate_synthesis_queue_drain_plan
 from max.spec.inference_abuse_monitoring_plan import generate_inference_abuse_monitoring_plan
 from max.spec.ai_safety_evaluation_exception_plan import (
     generate_ai_safety_evaluation_exception_plan,
