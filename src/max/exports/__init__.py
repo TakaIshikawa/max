@@ -57,6 +57,8 @@ from max.exports.synthesis_batch_backlog import (
 from max.exports.eval_goldens_coverage_gap_report import generate_eval_goldens_coverage_gap_report
 from max.exports.embedding_dimension_mismatch_report import generate_embedding_dimension_mismatch_report
 from max.exports.profile_weight_conflict_report import generate_profile_weight_conflict_report
+from max.exports.domain_profile_constraint_violation_report import generate_domain_profile_constraint_violation_report
+from max.exports.signal_ingestion_lag_report import generate_signal_ingestion_lag_report
 from max.exports.synthesis_prompt_failure_report import generate_synthesis_prompt_failure_report
 from max.exports.idea_duplicate_cluster_report import generate_idea_duplicate_cluster_report
 from max.exports.llm_token_budget_leak_report import generate_llm_token_budget_leak_report
@@ -1042,6 +1044,8 @@ __all__ = [
     "generate_eval_goldens_coverage_gap_report",
     "generate_embedding_dimension_mismatch_report",
     "generate_profile_weight_conflict_report",
+    "generate_domain_profile_constraint_violation_report",
+    "generate_signal_ingestion_lag_report",
     "generate_synthesis_prompt_failure_report",
     "generate_idea_duplicate_cluster_report",
     "generate_llm_token_budget_leak_report",

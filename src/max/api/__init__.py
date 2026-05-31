@@ -6,13 +6,16 @@ from collections.abc import Mapping
 from typing import Any
 
 from max.api.budget_usage import budget_usage_to_json
+from max.api.budget_burn_rate_status import budget_burn_rate_status_to_json
 from max.api.disaster_recovery import disaster_recovery_plan_to_json
+from max.api.adapter_rate_limit_exhaustion_status import adapter_rate_limit_exhaustion_status_to_json
 from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
 from max.api.embedding_reindex_queue_status import embedding_reindex_queue_status_to_json
 from max.api.embedding_similarity_threshold_status import embedding_similarity_threshold_status_to_json
 from max.api.evaluation_recommendation_distribution_status import evaluation_recommendation_distribution_status_to_json
 from max.api.evaluation_rubric_version_status import evaluation_rubric_version_status_to_json
 from max.api.feedback_weight_drift_status import feedback_weight_drift_status_to_json
+from max.api.feedback_ingestion_backlog_status import feedback_ingestion_backlog_status_to_json
 from max.api.insight_deduplication_collision_status import insight_deduplication_collision_status_to_json
 from max.api.insight_to_unit_conversion_status import insight_to_unit_conversion_status_to_json
 from max.api.ideation_mode_quota_status import ideation_mode_quota_status_to_json
@@ -24,7 +27,10 @@ from max.api.inference_queue_saturation_status import inference_queue_saturation
 from max.api.llm_prompt_cache_health_status import llm_prompt_cache_health_status_to_json
 from max.api.llm_provider_failover_status import llm_provider_failover_status_to_json
 from max.api.model_usage_anomaly_status import model_usage_anomaly_status_to_json
+from max.api.incremental_synthesis_checkpoint_status import incremental_synthesis_checkpoint_status_to_json
 from max.api.pii_detection_backlog_status import pii_detection_backlog_status_to_json
+from max.api.pipeline_budget_guardrail_trip_status import pipeline_budget_guardrail_trip_status_to_json
+from max.api.profile_evaluation_weight_drift_status import profile_evaluation_weight_drift_status_to_json
 from max.api.profile_source_budget_status import profile_source_budget_status_to_json
 from max.api.profile_constraint_coverage_status import profile_constraint_coverage_status_to_json
 from max.api.prompt_template_version_drift_status import prompt_template_version_drift_status_to_json
@@ -41,10 +47,12 @@ from max.api.source_ingestion_error_taxonomy_status import source_ingestion_erro
 from max.api.source_priority_rebalance_status import source_priority_rebalance_status_to_json
 from max.api.source_terms_compliance_status import source_terms_compliance_status_to_json
 from max.api.spec_generation_failure_taxonomy_status import spec_generation_failure_taxonomy_status_to_json
+from max.api.spec_publication_queue_health_status import spec_publication_queue_health_status_to_json
 from max.api.spec_publication_audit_trail_status import spec_publication_audit_trail_status_to_json
 from max.api.spec_trace_completeness_status import spec_trace_completeness_status_to_json
 from max.api.spec_traceability_gap_status import spec_traceability_gap_status_to_json
 from max.api.synthesis_batch_backlog_status import synthesis_batch_backlog_status_to_json
+from max.api.tact_daemon_connectivity_status import tact_daemon_connectivity_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -188,6 +196,8 @@ def _group_risks(risks: list[Any], key: str) -> list[dict[str, Any]]:
 __all__ = [
     "design_brief_go_to_market_to_json",
     "budget_usage_to_json",
+    "budget_burn_rate_status_to_json",
+    "adapter_rate_limit_exhaustion_status_to_json",
     "adapter_circuit_breaker_recovery_status_to_json",
     "embedding_reindex_queue_status_to_json",
     "portfolio_stage_distribution_to_json",
@@ -199,6 +209,7 @@ __all__ = [
     "evaluation_dataset_staleness_status_to_json",
     "evaluation_score_outlier_status_to_json",
     "feedback_weight_drift_status_to_json",
+    "feedback_ingestion_backlog_status_to_json",
     "feedback_label_quality_status_to_json",
     "idea_novelty_decay_status_to_json",
     "insight_to_unit_conversion_status_to_json",
@@ -207,7 +218,10 @@ __all__ = [
     "llm_prompt_cache_health_status_to_json",
     "llm_provider_failover_status_to_json",
     "model_usage_anomaly_status_to_json",
+    "incremental_synthesis_checkpoint_status_to_json",
     "pii_detection_backlog_status_to_json",
+    "pipeline_budget_guardrail_trip_status_to_json",
+    "profile_evaluation_weight_drift_status_to_json",
     "profile_source_budget_status_to_json",
     "profile_constraint_coverage_status_to_json",
     "prompt_template_version_drift_status_to_json",
@@ -225,8 +239,10 @@ __all__ = [
     "source_priority_rebalance_status_to_json",
     "source_terms_compliance_status_to_json",
     "spec_generation_failure_taxonomy_status_to_json",
+    "spec_publication_queue_health_status_to_json",
     "spec_publication_audit_trail_status_to_json",
     "spec_trace_completeness_status_to_json",
     "spec_traceability_gap_status_to_json",
     "synthesis_batch_backlog_status_to_json",
+    "tact_daemon_connectivity_status_to_json",
 ]
