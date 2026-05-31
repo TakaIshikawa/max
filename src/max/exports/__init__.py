@@ -121,6 +121,16 @@ from max.exports.spec_generation_token_waste_report import (
 )
 from max.exports.ideation_mode_conversion_funnel_report import generate_ideation_mode_conversion_funnel_report
 from max.exports.retrospective_feedback_outcome_skew_report import generate_retrospective_feedback_outcome_skew_report
+from max.exports.feedback_recency_decay_report import generate_feedback_recency_decay_report
+from max.exports.idea_stack_concentration_report import generate_idea_stack_concentration_report
+from max.exports.insight_evidence_trace_depth_report import generate_insight_evidence_trace_depth_report
+from max.exports.insight_novelty_collision_report import generate_insight_novelty_collision_report
+from max.exports.llm_cost_anomaly_report import generate_llm_cost_anomaly_report
+from max.exports.profile_source_mix_drift_report import generate_profile_source_mix_drift_report
+from max.exports.publication_target_failure_cluster_report import generate_publication_target_failure_cluster_report
+from max.exports.signal_annotation_gap_report import generate_signal_annotation_gap_report
+from max.exports.source_credential_scope_report import generate_source_credential_scope_report
+from max.exports.spec_evidence_trace_gap_report import generate_spec_evidence_trace_gap_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -1103,4 +1113,14 @@ __all__ = [
     "generate_buildable_unit_dependency_freshness_report",
     "generate_ideation_mode_conversion_funnel_report",
     "generate_retrospective_feedback_outcome_skew_report",
+    "generate_feedback_recency_decay_report",
+    "generate_idea_stack_concentration_report",
+    "generate_insight_evidence_trace_depth_report",
+    "generate_insight_novelty_collision_report",
+    "generate_llm_cost_anomaly_report",
+    "generate_profile_source_mix_drift_report",
+    "generate_publication_target_failure_cluster_report",
+    "generate_signal_annotation_gap_report",
+    "generate_source_credential_scope_report",
+    "generate_spec_evidence_trace_gap_report",
 ]
