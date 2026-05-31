@@ -414,6 +414,10 @@ from max.spec.webhook_delivery_reliability_plan import (
 )
 from max.spec.webhook_consumer_migration_plan import generate_webhook_consumer_migration_plan
 from max.spec.evaluation_golden_set_refresh_plan import generate_evaluation_golden_set_refresh_plan
+from max.spec.evidence_chain_repair_plan import generate_evidence_chain_repair_plan
+from max.spec.profile_rollout_readiness_plan import generate_profile_rollout_readiness_plan
+from max.spec.evaluation_calibration_review_plan import generate_evaluation_calibration_review_plan
+from max.spec.llm_budget_reallocation_plan import generate_llm_budget_reallocation_plan
 from max.spec.publisher_credential_rotation_plan import generate_publisher_credential_rotation_plan
 from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy_migration_plan
 from max.spec.feedback_quality_remediation_plan import generate_feedback_quality_remediation_plan
@@ -464,6 +468,10 @@ __all__ = [
     "generate_customer_sandbox_refresh_plan",
     "generate_customer_sla_credit_review_plan",
     "generate_evaluation_golden_set_refresh_plan",
+    "generate_evidence_chain_repair_plan",
+    "generate_profile_rollout_readiness_plan",
+    "generate_evaluation_calibration_review_plan",
+    "generate_llm_budget_reallocation_plan",
     "generate_publisher_credential_rotation_plan",
     "generate_feedback_taxonomy_migration_plan",
     "generate_feedback_quality_remediation_plan",
