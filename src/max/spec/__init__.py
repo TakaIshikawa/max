@@ -416,6 +416,7 @@ from max.spec.webhook_consumer_migration_plan import generate_webhook_consumer_m
 from max.spec.evaluation_golden_set_refresh_plan import generate_evaluation_golden_set_refresh_plan
 from max.spec.publisher_credential_rotation_plan import generate_publisher_credential_rotation_plan
 from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy_migration_plan
+from max.spec.feedback_quality_remediation_plan import generate_feedback_quality_remediation_plan
 from max.spec.model_provider_failback_plan import generate_model_provider_failback_plan
 from max.spec.spec_approval_escalation_plan import generate_spec_approval_escalation_plan
 
@@ -465,6 +466,7 @@ __all__ = [
     "generate_evaluation_golden_set_refresh_plan",
     "generate_publisher_credential_rotation_plan",
     "generate_feedback_taxonomy_migration_plan",
+    "generate_feedback_quality_remediation_plan",
     "generate_model_provider_failback_plan",
     "generate_spec_approval_escalation_plan",
     "generate_data_access_exception_review_plan",
