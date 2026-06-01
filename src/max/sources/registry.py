@@ -224,6 +224,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "swift_package_index": "max.sources.swift_package_index:SwiftPackageIndexAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
     "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
+    "openrouter_models": "max.sources.openrouter_models:OpenRouterModelsAdapter",
     "federal_register_healthcare": (
         "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
     ),
@@ -1440,6 +1441,19 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Fetches APIs.guru OpenAPI Directory catalog signals for public API discovery.",
+    ),
+    "openrouter_models": AdapterMetadata(
+        name="openrouter_models",
+        config_keys=[
+            "base_url",
+            "model_ids",
+            "providers",
+            "min_context_length",
+            "max_price_per_million_tokens",
+            "timeout",
+        ],
+        required_keys=[],
+        description="Fetches OpenRouter model registry metadata, pricing, providers, and modalities.",
     ),
     "ietf_datatracker": AdapterMetadata(
         name="ietf_datatracker",
