@@ -299,11 +299,13 @@ properties:
             - arxiv
             - artifact_hub
             - awesome_lists
+            - aws_whats_new
             - bitbucket_pull_requests
             - bitbucket_repository_activity
             - bluesky
             - cisa_kev
             - clinical_trials
+            - cloudflare_changelog
             - cncf_landscape
             - chrome_web_store
             - crates_dependents
@@ -360,6 +362,7 @@ properties:
             - ietf_datatracker
             - jetbrains_marketplace
             - jetbrains_survey
+            - kubernetes_blog
             - kubernetes_keps
             - linkedin
             - lobsters
@@ -378,6 +381,7 @@ properties:
             - nuget_package_activity
             - nvd_cve
             - openapi_specs
+            - openrouter_models
             - open_vsx
             - open_vsx_download_trends
             - openalex
