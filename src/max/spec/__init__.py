@@ -190,6 +190,9 @@ from max.spec.license_compliance_review_plan import (
     generate_license_compliance_review_plan,
     render_license_compliance_review_plan_markdown,
 )
+from max.spec.llm_provider_terms_change_review_plan import (
+    generate_llm_provider_terms_change_review_plan,
+)
 from max.spec.integration_backout_plan import generate_integration_backout_plan
 from max.spec.integration_credential_rotation_plan import (
     generate_integration_credential_rotation_plan,
@@ -543,6 +546,7 @@ __all__ = [
     "generate_launch_checklist",
     "generate_launch_freeze_readiness_plan",
     "generate_license_compliance_review_plan",
+    "generate_llm_provider_terms_change_review_plan",
     "generate_integration_backout_plan",
     "generate_integration_credential_rotation_plan",
     "generate_integration_rate_limit_exception_plan",
