@@ -102,6 +102,7 @@ from max.spec.data_classification import (
     render_data_classification_markdown,
 )
 from max.spec.data_contract_change_plan import generate_data_contract_change_plan
+from max.spec.ingestion_provider_terms_change_plan import generate_ingestion_provider_terms_change_plan
 from max.spec.data_processing_impact_review_plan import generate_data_processing_impact_review_plan
 from max.spec.data_residency_exception_plan import generate_data_residency_exception_plan
 from max.spec.data_warehouse_access_review_plan import generate_data_warehouse_access_review_plan
@@ -437,6 +438,8 @@ from max.spec.profile_rollout_readiness_plan import generate_profile_rollout_rea
 from max.spec.evaluation_calibration_review_plan import generate_evaluation_calibration_review_plan
 from max.spec.llm_budget_reallocation_plan import generate_llm_budget_reallocation_plan
 from max.spec.publisher_credential_rotation_plan import generate_publisher_credential_rotation_plan
+from max.spec.publication_destination_migration_plan import generate_publication_destination_migration_plan
+from max.spec.source_adapter_token_rotation_plan import generate_source_adapter_token_rotation_plan
 from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy_migration_plan
 from max.spec.feedback_quality_remediation_plan import generate_feedback_quality_remediation_plan
 from max.spec.model_provider_failback_plan import generate_model_provider_failback_plan
@@ -501,6 +504,8 @@ __all__ = [
     "generate_evaluation_calibration_review_plan",
     "generate_llm_budget_reallocation_plan",
     "generate_publisher_credential_rotation_plan",
+    "generate_publication_destination_migration_plan",
+    "generate_source_adapter_token_rotation_plan",
     "generate_feedback_taxonomy_migration_plan",
     "generate_feedback_quality_remediation_plan",
     "generate_model_provider_failback_plan",
@@ -511,6 +516,7 @@ __all__ = [
     "generate_data_subject_access_request_exception_plan",
     "generate_data_classification",
     "generate_data_contract_change_plan",
+    "generate_ingestion_provider_terms_change_plan",
     "generate_data_processing_impact_review_plan",
     "generate_data_migration_rehearsal_plan",
     "generate_data_residency_exception_plan",
