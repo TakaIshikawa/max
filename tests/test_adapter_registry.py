@@ -27,6 +27,29 @@ def test_go_packages_adapter_is_registered() -> None:
     assert adapter.name == "go_packages"
 
 
+@pytest.mark.parametrize(
+    ("adapter_name", "expected_keys"),
+    [
+        ("aws_whats_new", ["feed_url", "categories", "keywords", "max_age_days", "timeout"]),
+        ("cloudflare_changelog", ["feed_url", "products", "keywords", "max_age_days", "timeout"]),
+        ("kubernetes_blog", ["feed_url", "tags", "keywords", "max_age_days", "timeout"]),
+    ],
+)
+def test_news_feed_adapters_are_registered(adapter_name: str, expected_keys: list[str]) -> None:
+    with patch("max.config.MAX_ADAPTERS", adapter_name), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == [adapter_name]
+        adapter = get_adapter(adapter_name)
+        metadata = get_adapter_metadata()
+
+    assert adapter.name == adapter_name
+    assert metadata[adapter_name].config_keys == expected_keys
+    assert metadata[adapter_name].required_keys == []
+    assert "feed" in metadata[adapter_name].description
+
+
 def test_go_packages_adapter_metadata_documents_config_keys() -> None:
     with patch("max.config.MAX_ADAPTERS", "go_packages"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):

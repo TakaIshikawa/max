@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class SignalSourceType(StrEnum):
     ARTICLE = "article"
+    NEWS = "news"
     REGISTRY = "registry"
     MARKETPLACE = "marketplace"
     FORUM = "forum"
