@@ -11,6 +11,15 @@ from max.api.disaster_recovery import disaster_recovery_plan_to_json
 from max.api.adapter_rate_limit_exhaustion_status import adapter_rate_limit_exhaustion_status_to_json
 from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
 from max.api.embedding_cache_hit_rate_status import embedding_cache_hit_rate_status_to_json
+from max.api.signal_ingestion_error_spike_status import signal_ingestion_error_spike_status_to_json
+from max.api.llm_cost_projection_status import llm_cost_projection_status_to_json
+from max.api.spec_evidence_freshness_status import spec_evidence_freshness_status_to_json
+from max.api.runtime_artifact_retention_status import runtime_artifact_retention_status_to_json
+from max.api.signal_annotation_coverage_status import signal_annotation_coverage_status_to_json
+from max.api.insight_evidence_chain_gap_status import insight_evidence_chain_gap_status_to_json
+from max.api.buildable_unit_spec_blocker_status import buildable_unit_spec_blocker_status_to_json
+from max.api.publisher_destination_quota_status import publisher_destination_quota_status_to_json
+from max.api.profile_source_mix_shift_status import profile_source_mix_shift_status_to_json
 from max.api.embedding_reindex_queue_status import embedding_reindex_queue_status_to_json
 from max.api.embedding_index_fragmentation_status import embedding_index_fragmentation_status_to_json
 from max.api.embedding_similarity_threshold_status import embedding_similarity_threshold_status_to_json
@@ -219,6 +228,15 @@ __all__ = [
     "adapter_rate_limit_exhaustion_status_to_json",
     "adapter_circuit_breaker_recovery_status_to_json",
     "embedding_cache_hit_rate_status_to_json",
+    "signal_ingestion_error_spike_status_to_json",
+    "llm_cost_projection_status_to_json",
+    "spec_evidence_freshness_status_to_json",
+    "runtime_artifact_retention_status_to_json",
+    "signal_annotation_coverage_status_to_json",
+    "insight_evidence_chain_gap_status_to_json",
+    "buildable_unit_spec_blocker_status_to_json",
+    "publisher_destination_quota_status_to_json",
+    "profile_source_mix_shift_status_to_json",
     "embedding_reindex_queue_status_to_json",
     "embedding_index_fragmentation_status_to_json",
     "portfolio_stage_distribution_to_json",
