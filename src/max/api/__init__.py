@@ -108,6 +108,16 @@ from max.api.signal_source_auth_scope_status import signal_source_auth_scope_sta
 from max.api.pipeline_run_cost_attribution_status import pipeline_run_cost_attribution_status_to_json
 from max.api.insight_evidence_source_diversity_status import insight_evidence_source_diversity_status_to_json
 from max.api.publication_destination_credential_scope_status import publication_destination_credential_scope_status_to_json
+from max.api.source_adapter_clock_skew_status import source_adapter_clock_skew_status_to_json
+from max.api.profile_yaml_anchor_status import profile_yaml_anchor_status_to_json
+from max.api.publisher_webhook_signature_status import publisher_webhook_signature_status_to_json
+from max.api.run_budget_checkpoint_status import run_budget_checkpoint_status_to_json
+from max.api.evidence_reference_url_health_status import evidence_reference_url_health_status_to_json
+from max.api.source_adapter_pagination_cursor_status import source_adapter_pagination_cursor_status_to_json
+from max.api.fetch_allocation_drift_status import fetch_allocation_drift_status_to_json
+from max.api.signal_retention_policy_status import signal_retention_policy_status_to_json
+from max.api.profile_source_entitlement_status import profile_source_entitlement_status_to_json
+from max.api.publisher_payload_schema_status import publisher_payload_schema_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -345,4 +355,14 @@ __all__ = [
     "tact_daemon_publication_health_status_to_json",
     "tact_spec_export_readiness_status_to_json",
     "tact_spec_template_migration_status_to_json",
+    "source_adapter_clock_skew_status_to_json",
+    "profile_yaml_anchor_status_to_json",
+    "publisher_webhook_signature_status_to_json",
+    "run_budget_checkpoint_status_to_json",
+    "evidence_reference_url_health_status_to_json",
+    "source_adapter_pagination_cursor_status_to_json",
+    "fetch_allocation_drift_status_to_json",
+    "signal_retention_policy_status_to_json",
+    "profile_source_entitlement_status_to_json",
+    "publisher_payload_schema_status_to_json",
 ]
