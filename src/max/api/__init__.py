@@ -10,11 +10,14 @@ from max.api.budget_burn_rate_status import budget_burn_rate_status_to_json
 from max.api.disaster_recovery import disaster_recovery_plan_to_json
 from max.api.adapter_rate_limit_exhaustion_status import adapter_rate_limit_exhaustion_status_to_json
 from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
+from max.api.adapter_health_rollup_status import adapter_health_rollup_status_to_json
+from max.api.buildable_unit_stack_policy_status import buildable_unit_stack_policy_status_to_json
 from max.api.embedding_cache_hit_rate_status import embedding_cache_hit_rate_status_to_json
 from max.api.signal_ingestion_error_spike_status import signal_ingestion_error_spike_status_to_json
 from max.api.llm_cost_projection_status import llm_cost_projection_status_to_json
 from max.api.spec_evidence_freshness_status import spec_evidence_freshness_status_to_json
 from max.api.runtime_artifact_retention_status import runtime_artifact_retention_status_to_json
+from max.api.runtime_artifact_purge_status import runtime_artifact_purge_status_to_json
 from max.api.signal_annotation_coverage_status import signal_annotation_coverage_status_to_json
 from max.api.insight_evidence_chain_gap_status import insight_evidence_chain_gap_status_to_json
 from max.api.buildable_unit_spec_blocker_status import buildable_unit_spec_blocker_status_to_json
@@ -46,6 +49,7 @@ from max.api.model_usage_anomaly_status import model_usage_anomaly_status_to_jso
 from max.api.incremental_synthesis_checkpoint_status import incremental_synthesis_checkpoint_status_to_json
 from max.api.pii_detection_backlog_status import pii_detection_backlog_status_to_json
 from max.api.pipeline_budget_guardrail_trip_status import pipeline_budget_guardrail_trip_status_to_json
+from max.api.pipeline_run_sla_status import pipeline_run_sla_status_to_json
 from max.api.profile_evaluation_weight_drift_status import profile_evaluation_weight_drift_status_to_json
 from max.api.profile_run_parameter_drift_status import profile_run_parameter_drift_status_to_json
 from max.api.profile_source_budget_status import profile_source_budget_status_to_json
@@ -55,6 +59,7 @@ from max.api.prompt_template_version_drift_status import prompt_template_version
 from max.api.prompt_redaction_coverage_status import prompt_redaction_coverage_status_to_json
 from max.api.publication_webhook_delivery_status import publication_webhook_delivery_status_to_json
 from max.api.publication_destination_rate_limit_status import publication_destination_rate_limit_status_to_json
+from max.api.publisher_destination_failover_status import publisher_destination_failover_status_to_json
 from max.api.publication_payload_size_status import publication_payload_size_status_to_json
 from max.api.publisher_retry_policy_status import publisher_retry_policy_status_to_json
 from max.api.retrospective_learning_health_status import retrospective_learning_health_status_to_json
@@ -71,8 +76,10 @@ from max.api.source_payload_size_status import source_payload_size_status_to_jso
 from max.api.source_ingestion_error_taxonomy_status import source_ingestion_error_taxonomy_status_to_json
 from max.api.source_priority_rebalance_status import source_priority_rebalance_status_to_json
 from max.api.source_terms_compliance_status import source_terms_compliance_status_to_json
+from max.api.source_adapter_output_contract_status import source_adapter_output_contract_status_to_json
 from max.api.spec_generation_failure_taxonomy_status import spec_generation_failure_taxonomy_status_to_json
 from max.api.spec_generation_queue_depth_status import spec_generation_queue_depth_status_to_json
+from max.api.spec_publication_readiness_status import spec_publication_readiness_status_to_json
 from max.api.spec_evidence_citation_quality_status import spec_evidence_citation_quality_status_to_json
 from max.api.spec_publication_queue_health_status import spec_publication_queue_health_status_to_json
 from max.api.spec_publication_audit_trail_status import spec_publication_audit_trail_status_to_json
@@ -227,11 +234,14 @@ __all__ = [
     "budget_burn_rate_status_to_json",
     "adapter_rate_limit_exhaustion_status_to_json",
     "adapter_circuit_breaker_recovery_status_to_json",
+    "adapter_health_rollup_status_to_json",
+    "buildable_unit_stack_policy_status_to_json",
     "embedding_cache_hit_rate_status_to_json",
     "signal_ingestion_error_spike_status_to_json",
     "llm_cost_projection_status_to_json",
     "spec_evidence_freshness_status_to_json",
     "runtime_artifact_retention_status_to_json",
+    "runtime_artifact_purge_status_to_json",
     "signal_annotation_coverage_status_to_json",
     "insight_evidence_chain_gap_status_to_json",
     "buildable_unit_spec_blocker_status_to_json",
@@ -265,6 +275,7 @@ __all__ = [
     "incremental_synthesis_checkpoint_status_to_json",
     "pii_detection_backlog_status_to_json",
     "pipeline_budget_guardrail_trip_status_to_json",
+    "pipeline_run_sla_status_to_json",
     "profile_evaluation_weight_drift_status_to_json",
     "profile_run_parameter_drift_status_to_json",
     "profile_source_budget_status_to_json",
@@ -275,6 +286,7 @@ __all__ = [
     "prompt_redaction_coverage_status_to_json",
     "publication_webhook_delivery_status_to_json",
     "publication_destination_rate_limit_status_to_json",
+    "publisher_destination_failover_status_to_json",
     "publication_payload_size_status_to_json",
     "publisher_retry_policy_status_to_json",
     "retrospective_learning_health_status_to_json",
@@ -291,8 +303,10 @@ __all__ = [
     "source_ingestion_error_taxonomy_status_to_json",
     "source_priority_rebalance_status_to_json",
     "source_terms_compliance_status_to_json",
+    "source_adapter_output_contract_status_to_json",
     "spec_generation_failure_taxonomy_status_to_json",
     "spec_generation_queue_depth_status_to_json",
+    "spec_publication_readiness_status_to_json",
     "spec_evidence_citation_quality_status_to_json",
     "spec_publication_queue_health_status_to_json",
     "spec_publication_audit_trail_status_to_json",
