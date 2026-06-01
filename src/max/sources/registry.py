@@ -223,6 +223,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "go_module_trends": "max.sources.go_module_trends:GoModuleTrendsAdapter",
     "swift_package_index": "max.sources.swift_package_index:SwiftPackageIndexAdapter",
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
+    "kubernetes_blog": "max.sources.kubernetes_blog:KubernetesBlogAdapter",
+    "aws_whats_new": "max.sources.aws_whats_new:AwsWhatsNewAdapter",
+    "cloudflare_changelog": "max.sources.cloudflare_changelog:CloudflareChangelogAdapter",
     "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
     "federal_register_healthcare": (
         "max.sources.federal_register_healthcare:FederalRegisterHealthcareAdapter"
@@ -1544,6 +1547,24 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["topics", "gitlab_url", "max_projects_per_topic", "token", "private_token", "gitlab_token"],
         required_keys=[],
         description="Fetches GitLab project topic adoption signals.",
+    ),
+    "aws_whats_new": AdapterMetadata(
+        name="aws_whats_new",
+        config_keys=["feed_url", "categories", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches AWS What's New launch announcements from the public RSS feed.",
+    ),
+    "cloudflare_changelog": AdapterMetadata(
+        name="cloudflare_changelog",
+        config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches Cloudflare developer changelog entries from the public RSS feed.",
+    ),
+    "kubernetes_blog": AdapterMetadata(
+        name="kubernetes_blog",
+        config_keys=["feed_url", "tags", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches Kubernetes Blog posts from the public RSS feed.",
     ),
 }
 
