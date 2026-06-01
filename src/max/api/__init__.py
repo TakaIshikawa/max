@@ -11,7 +11,9 @@ from max.api.disaster_recovery import disaster_recovery_plan_to_json
 from max.api.adapter_rate_limit_exhaustion_status import adapter_rate_limit_exhaustion_status_to_json
 from max.api.adapter_circuit_breaker_recovery_status import adapter_circuit_breaker_recovery_status_to_json
 from max.api.adapter_health_rollup_status import adapter_health_rollup_status_to_json
+from max.api.buildable_unit_graduation_criteria_status import buildable_unit_graduation_criteria_status_to_json
 from max.api.buildable_unit_stack_policy_status import buildable_unit_stack_policy_status_to_json
+from max.api.domain_profile_schema_drift_status import domain_profile_schema_drift_status_to_json
 from max.api.embedding_cache_hit_rate_status import embedding_cache_hit_rate_status_to_json
 from max.api.signal_ingestion_error_spike_status import signal_ingestion_error_spike_status_to_json
 from max.api.llm_cost_projection_status import llm_cost_projection_status_to_json
@@ -31,6 +33,7 @@ from max.api.evaluation_recommendation_distribution_status import evaluation_rec
 from max.api.evaluation_rubric_version_status import evaluation_rubric_version_status_to_json
 from max.api.feedback_weight_drift_status import feedback_weight_drift_status_to_json
 from max.api.feedback_ingestion_backlog_status import feedback_ingestion_backlog_status_to_json
+from max.api.feedback_outcome_freshness_status import feedback_outcome_freshness_status_to_json
 from max.api.insight_deduplication_collision_status import insight_deduplication_collision_status_to_json
 from max.api.insight_staleness_distribution_status import insight_staleness_distribution_status_to_json
 from max.api.insight_to_unit_conversion_status import insight_to_unit_conversion_status_to_json
@@ -55,10 +58,12 @@ from max.api.profile_run_parameter_drift_status import profile_run_parameter_dri
 from max.api.profile_source_budget_status import profile_source_budget_status_to_json
 from max.api.profile_constraint_coverage_status import profile_constraint_coverage_status_to_json
 from max.api.profile_constraint_violation_status import profile_constraint_violation_status_to_json
+from max.api.profile_deprecation_sunset_status import profile_deprecation_sunset_status_to_json
 from max.api.prompt_template_version_drift_status import prompt_template_version_drift_status_to_json
 from max.api.prompt_redaction_coverage_status import prompt_redaction_coverage_status_to_json
 from max.api.publication_webhook_delivery_status import publication_webhook_delivery_status_to_json
 from max.api.publication_destination_rate_limit_status import publication_destination_rate_limit_status_to_json
+from max.api.publication_approval_delegation_status import publication_approval_delegation_status_to_json
 from max.api.publisher_destination_failover_status import publisher_destination_failover_status_to_json
 from max.api.publication_payload_size_status import publication_payload_size_status_to_json
 from max.api.publisher_retry_policy_status import publisher_retry_policy_status_to_json
@@ -68,8 +73,10 @@ from max.api.run_artifact_freshness_status import run_artifact_freshness_status_
 from max.api.run_step_retry_status import run_step_retry_status_to_json
 from max.api.signal_deduplication_cluster_status import signal_deduplication_cluster_status_to_json
 from max.api.signal_freshness_regression_status import signal_freshness_regression_status_to_json
+from max.api.signal_payload_redaction_status import signal_payload_redaction_status_to_json
 from max.api.source_adapter_error_budget_status import source_adapter_error_budget_status_to_json
 from max.api.source_adapter_backoff_debt_status import source_adapter_backoff_debt_status_to_json
+from max.api.source_adapter_stale_credential_status import source_adapter_stale_credential_status_to_json
 from max.api.source_adapter_throttle_window_status import source_adapter_throttle_window_status_to_json
 from max.api.source_sampling_bias_status import source_sampling_bias_status_to_json
 from max.api.source_payload_size_status import source_payload_size_status_to_json
@@ -86,8 +93,11 @@ from max.api.spec_publication_audit_trail_status import spec_publication_audit_t
 from max.api.spec_trace_completeness_status import spec_trace_completeness_status_to_json
 from max.api.spec_traceability_gap_status import spec_traceability_gap_status_to_json
 from max.api.synthesis_batch_backlog_status import synthesis_batch_backlog_status_to_json
+from max.api.synthesis_incremental_watermark_status import synthesis_incremental_watermark_status_to_json
 from max.api.tact_daemon_connectivity_status import tact_daemon_connectivity_status_to_json
+from max.api.tact_daemon_publication_health_status import tact_daemon_publication_health_status_to_json
 from max.api.tact_spec_export_readiness_status import tact_spec_export_readiness_status_to_json
+from max.api.tact_spec_template_migration_status import tact_spec_template_migration_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -235,7 +245,9 @@ __all__ = [
     "adapter_rate_limit_exhaustion_status_to_json",
     "adapter_circuit_breaker_recovery_status_to_json",
     "adapter_health_rollup_status_to_json",
+    "buildable_unit_graduation_criteria_status_to_json",
     "buildable_unit_stack_policy_status_to_json",
+    "domain_profile_schema_drift_status_to_json",
     "embedding_cache_hit_rate_status_to_json",
     "signal_ingestion_error_spike_status_to_json",
     "llm_cost_projection_status_to_json",
@@ -260,6 +272,7 @@ __all__ = [
     "evaluation_score_outlier_status_to_json",
     "feedback_weight_drift_status_to_json",
     "feedback_ingestion_backlog_status_to_json",
+    "feedback_outcome_freshness_status_to_json",
     "feedback_label_quality_status_to_json",
     "idea_novelty_decay_status_to_json",
     "insight_staleness_distribution_status_to_json",
@@ -281,11 +294,13 @@ __all__ = [
     "profile_source_budget_status_to_json",
     "profile_constraint_coverage_status_to_json",
     "profile_constraint_violation_status_to_json",
+    "profile_deprecation_sunset_status_to_json",
     "prompt_template_version_drift_status_to_json",
     "insight_deduplication_collision_status_to_json",
     "prompt_redaction_coverage_status_to_json",
     "publication_webhook_delivery_status_to_json",
     "publication_destination_rate_limit_status_to_json",
+    "publication_approval_delegation_status_to_json",
     "publisher_destination_failover_status_to_json",
     "publication_payload_size_status_to_json",
     "publisher_retry_policy_status_to_json",
@@ -295,8 +310,10 @@ __all__ = [
     "run_step_retry_status_to_json",
     "signal_deduplication_cluster_status_to_json",
     "signal_freshness_regression_status_to_json",
+    "signal_payload_redaction_status_to_json",
     "source_adapter_error_budget_status_to_json",
     "source_adapter_backoff_debt_status_to_json",
+    "source_adapter_stale_credential_status_to_json",
     "source_adapter_throttle_window_status_to_json",
     "source_sampling_bias_status_to_json",
     "source_payload_size_status_to_json",
@@ -313,6 +330,9 @@ __all__ = [
     "spec_trace_completeness_status_to_json",
     "spec_traceability_gap_status_to_json",
     "synthesis_batch_backlog_status_to_json",
+    "synthesis_incremental_watermark_status_to_json",
     "tact_daemon_connectivity_status_to_json",
+    "tact_daemon_publication_health_status_to_json",
     "tact_spec_export_readiness_status_to_json",
+    "tact_spec_template_migration_status_to_json",
 ]
