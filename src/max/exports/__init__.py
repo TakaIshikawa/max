@@ -114,6 +114,7 @@ from max.exports.evidence_chain_orphan_report import (
     render_evidence_chain_orphan_report_markdown,
 )
 from max.exports.signal_ingestion_lag_report import generate_signal_ingestion_lag_report
+from max.exports.runtime_artifact_retention_report import generate_runtime_artifact_retention_report
 from max.exports.synthesis_prompt_failure_report import generate_synthesis_prompt_failure_report
 from max.exports.idea_duplicate_cluster_report import generate_idea_duplicate_cluster_report
 from max.exports.llm_token_budget_leak_report import generate_llm_token_budget_leak_report
