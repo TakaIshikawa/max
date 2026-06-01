@@ -180,6 +180,36 @@ def test_kubernetes_keps_adapter_is_registered() -> None:
     assert adapter.name == "kubernetes_keps"
 
 
+def test_openrouter_models_adapter_is_registered() -> None:
+    with patch("max.config.MAX_ADAPTERS", "openrouter_models"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+
+        assert list_adapters() == ["openrouter_models"]
+        adapter = get_adapter("openrouter_models")
+
+    assert adapter.name == "openrouter_models"
+
+
+def test_openrouter_models_adapter_metadata_documents_config_keys() -> None:
+    with patch("max.config.MAX_ADAPTERS", "openrouter_models"), \
+         patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
+        reload_registry()
+        metadata = get_adapter_metadata()
+
+    assert set(metadata) == {"openrouter_models"}
+    assert metadata["openrouter_models"].config_keys == [
+        "base_url",
+        "model_ids",
+        "providers",
+        "min_context_length",
+        "max_price_per_million_tokens",
+        "timeout",
+    ]
+    assert metadata["openrouter_models"].required_keys == []
+    assert "OpenRouter model registry" in metadata["openrouter_models"].description
+
+
 def test_kubernetes_keps_adapter_metadata_documents_config_keys() -> None:
     with patch("max.config.MAX_ADAPTERS", "kubernetes_keps"), \
          patch("max.config.MAX_ADAPTERS_EXCLUDE", ""):
