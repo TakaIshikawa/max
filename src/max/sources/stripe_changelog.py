@@ -1,4 +1,4 @@
-"""Stripe changelog source adapter."""
+"""Stripe Changelog RSS source adapter."""
 
 from __future__ import annotations
 
@@ -6,38 +6,28 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
-
-from max.sources.base import SourceAdapter, fetch_with_retry
+from max.sources.docker_blog import RssBlogAdapter
 from max.types.signal import Signal, SignalSourceType
 
+DEFAULT_FEED_URL = "https://stripe.com/changelog.atom"
 DEFAULT_STRIPE_CHANGELOG_URL = "https://docs.stripe.com/changelog"
 
 
-class StripeChangelogAdapter(SourceAdapter):
-    """Fetch Stripe product and API changelog entries."""
+class StripeChangelogAdapter(RssBlogAdapter):
+    """Fetches Stripe changelog entries from the public feed."""
 
-    @property
-    def name(self) -> str:
-        return "stripe_changelog"
-
-    @property
-    def source_type(self) -> str:
-        return SignalSourceType.ARTICLE.value
+    adapter_name = "stripe_changelog"
+    default_feed_url = DEFAULT_FEED_URL
+    source_tag = "stripe"
+    category_config_key = "products"
+    config_keys = ["feed_url", "products", "keywords", "max_age_days", "timeout"]
+    description = "Fetches Stripe changelog entries from the public feed."
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
         entries = _configured_entries(self._config.get("entries"))
-        if not entries:
-            entries = await self._fetch_live_entries()
-        return [_signal(entry) for entry in entries[: max(0, limit)]]
-
-    async def _fetch_live_entries(self) -> list[Mapping[str, Any]]:
-        url = _text(self._config.get("feed_url") or self._config.get("changelog_url"))
-        if not url:
-            return []
-        async with httpx.AsyncClient(timeout=float(self._config.get("timeout") or 30)) as client:
-            response = await fetch_with_retry(url, client, adapter_name=self.name)
-        return _entries_from_payload(response.text, url)
+        if entries:
+            return [_signal(entry) for entry in entries[: max(0, limit)]]
+        return await super().fetch(limit=limit)
 
 
 def _signal(entry: Mapping[str, Any]) -> Signal:
@@ -60,13 +50,6 @@ def _signal(entry: Mapping[str, Any]) -> Signal:
 
 def _configured_entries(value: Any) -> list[Mapping[str, Any]]:
     return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
-
-
-def _entries_from_payload(text: str, url: str) -> list[Mapping[str, Any]]:
-    stripped = text.strip()
-    if not stripped:
-        return []
-    return [{"title": "Stripe changelog update", "url": url, "content": stripped[:500]}]
 
 
 def _parse_datetime(value: Any) -> datetime | None:
