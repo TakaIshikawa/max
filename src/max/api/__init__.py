@@ -22,6 +22,7 @@ from max.api.runtime_artifact_retention_status import runtime_artifact_retention
 from max.api.runtime_artifact_purge_status import runtime_artifact_purge_status_to_json
 from max.api.signal_annotation_coverage_status import signal_annotation_coverage_status_to_json
 from max.api.insight_evidence_chain_gap_status import insight_evidence_chain_gap_status_to_json
+from max.api.insight_evidence_chain import insight_evidence_chain_to_json
 from max.api.buildable_unit_spec_blocker_status import buildable_unit_spec_blocker_status_to_json
 from max.api.publisher_destination_quota_status import publisher_destination_quota_status_to_json
 from max.api.profile_source_mix_shift_status import profile_source_mix_shift_status_to_json
@@ -118,6 +119,9 @@ from max.api.fetch_allocation_drift_status import fetch_allocation_drift_status_
 from max.api.signal_retention_policy_status import signal_retention_policy_status_to_json
 from max.api.profile_source_entitlement_status import profile_source_entitlement_status_to_json
 from max.api.publisher_payload_schema_status import publisher_payload_schema_status_to_json
+from max.api.source_fetch_window_plan import source_fetch_window_plan_to_json
+from max.api.source_credential_rotation_status import source_credential_rotation_status_to_json
+from max.api.run_cancellation_readiness import run_cancellation_readiness_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -276,6 +280,7 @@ __all__ = [
     "runtime_artifact_purge_status_to_json",
     "signal_annotation_coverage_status_to_json",
     "insight_evidence_chain_gap_status_to_json",
+    "insight_evidence_chain_to_json",
     "buildable_unit_spec_blocker_status_to_json",
     "publisher_destination_quota_status_to_json",
     "profile_source_mix_shift_status_to_json",
@@ -365,4 +370,7 @@ __all__ = [
     "signal_retention_policy_status_to_json",
     "profile_source_entitlement_status_to_json",
     "publisher_payload_schema_status_to_json",
+    "source_fetch_window_plan_to_json",
+    "source_credential_rotation_status_to_json",
+    "run_cancellation_readiness_to_json",
 ]
