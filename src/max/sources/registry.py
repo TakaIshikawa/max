@@ -241,6 +241,12 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
     "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
     "openapi_specs": "max.sources.openapi_specs:OpenApiSpecsAdapter",
+    "twilio_changelog": "max.sources.twilio_changelog:TwilioChangelogAdapter",
+    "langchain_changelog": "max.sources.langchain_changelog:LangChainChangelogAdapter",
+    "nextjs_blog": "max.sources.nextjs_blog:NextjsBlogAdapter",
+    "netlify_changelog": "max.sources.netlify_changelog:NetlifyChangelogAdapter",
+    "sentry_changelog": "max.sources.sentry_changelog:SentryChangelogAdapter",
+    "openai_status_incidents": "max.sources.openai_status_incidents:OpenAIStatusIncidentsAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
