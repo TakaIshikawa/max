@@ -441,7 +441,23 @@ from max.spec.profile_rollout_readiness_plan import generate_profile_rollout_rea
 from max.spec.evaluation_calibration_review_plan import generate_evaluation_calibration_review_plan
 from max.spec.llm_budget_reallocation_plan import generate_llm_budget_reallocation_plan
 from max.spec.publisher_credential_rotation_plan import generate_publisher_credential_rotation_plan
+from max.spec.publisher_destination_credential_compromise_plan import (
+    generate_publisher_destination_credential_compromise_plan,
+)
 from max.spec.publication_destination_migration_plan import generate_publication_destination_migration_plan
+from max.spec.synthetic_signal_poisoning_response_plan import (
+    generate_synthetic_signal_poisoning_response_plan,
+)
+from max.spec.profile_launch_rollback_plan import generate_profile_launch_rollback_plan
+from max.spec.prompt_evaluation_regression_triage_plan import (
+    generate_prompt_evaluation_regression_triage_plan,
+)
+from max.spec.data_processor_subcontractor_risk_reassessment_plan import (
+    generate_data_processor_subcontractor_risk_reassessment_plan,
+)
+from max.spec.tact_spec_evidence_rehydration_plan import (
+    generate_tact_spec_evidence_rehydration_plan,
+)
 from max.spec.source_adapter_token_rotation_plan import generate_source_adapter_token_rotation_plan
 from max.spec.feedback_taxonomy_migration_plan import generate_feedback_taxonomy_migration_plan
 from max.spec.feedback_quality_remediation_plan import generate_feedback_quality_remediation_plan
@@ -507,7 +523,13 @@ __all__ = [
     "generate_evaluation_calibration_review_plan",
     "generate_llm_budget_reallocation_plan",
     "generate_publisher_credential_rotation_plan",
+    "generate_publisher_destination_credential_compromise_plan",
     "generate_publication_destination_migration_plan",
+    "generate_synthetic_signal_poisoning_response_plan",
+    "generate_profile_launch_rollback_plan",
+    "generate_prompt_evaluation_regression_triage_plan",
+    "generate_data_processor_subcontractor_risk_reassessment_plan",
+    "generate_tact_spec_evidence_rehydration_plan",
     "generate_source_adapter_token_rotation_plan",
     "generate_feedback_taxonomy_migration_plan",
     "generate_feedback_quality_remediation_plan",
