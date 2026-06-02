@@ -122,6 +122,16 @@ from max.api.publisher_payload_schema_status import publisher_payload_schema_sta
 from max.api.source_fetch_window_plan import source_fetch_window_plan_to_json
 from max.api.source_credential_rotation_status import source_credential_rotation_status_to_json
 from max.api.run_cancellation_readiness import run_cancellation_readiness_to_json
+from max.api.source_adapter_retry_budget_status import source_adapter_retry_budget_status_to_json
+from max.api.llm_prompt_cache_utilization_status import llm_prompt_cache_utilization_status_to_json
+from max.api.feedback_reviewer_workload_status import feedback_reviewer_workload_status_to_json
+from max.api.spec_publication_dead_letter_status import spec_publication_dead_letter_status_to_json
+from max.api.profile_evaluation_weight_entropy_status import profile_evaluation_weight_entropy_status_to_json
+from max.api.insight_deduplication_threshold_drift_status import insight_deduplication_threshold_drift_status_to_json
+from max.api.signal_freshness_by_source_status import signal_freshness_by_source_status_to_json
+from max.api.pipeline_stage_error_budget_status import pipeline_stage_error_budget_status_to_json
+from max.api.buildable_unit_owner_assignment_status import buildable_unit_owner_assignment_status_to_json
+from max.api.publisher_destination_consent_gate_status import publisher_destination_consent_gate_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -373,4 +383,14 @@ __all__ = [
     "source_fetch_window_plan_to_json",
     "source_credential_rotation_status_to_json",
     "run_cancellation_readiness_to_json",
+    "source_adapter_retry_budget_status_to_json",
+    "llm_prompt_cache_utilization_status_to_json",
+    "feedback_reviewer_workload_status_to_json",
+    "spec_publication_dead_letter_status_to_json",
+    "profile_evaluation_weight_entropy_status_to_json",
+    "insight_deduplication_threshold_drift_status_to_json",
+    "signal_freshness_by_source_status_to_json",
+    "pipeline_stage_error_budget_status_to_json",
+    "buildable_unit_owner_assignment_status_to_json",
+    "publisher_destination_consent_gate_status_to_json",
 ]
