@@ -246,6 +246,11 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "jira_cloud_platform_changelog": (
         "max.sources.jira_cloud_platform_changelog:JiraCloudPlatformChangelogAdapter"
     ),
+    "langchain_changelog": "max.sources.langchain_changelog:LangChainChangelogAdapter",
+    "nextjs_blog": "max.sources.nextjs_blog:NextjsBlogAdapter",
+    "netlify_changelog": "max.sources.netlify_changelog:NetlifyChangelogAdapter",
+    "sentry_changelog": "max.sources.sentry_changelog:SentryChangelogAdapter",
+    "openai_status_incidents": "max.sources.openai_status_incidents:OpenAIStatusIncidentsAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -1490,9 +1495,39 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "twilio_changelog": AdapterMetadata(
         name="twilio_changelog",
-        config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "max_age_days", "timeout"],
         required_keys=[],
-        description="Fetches Twilio changelog release updates from RSS.",
+        description="Converts Twilio changelog entries into communications platform signals.",
+    ),
+    "langchain_changelog": AdapterMetadata(
+        name="langchain_changelog",
+        config_keys=["entries", "feed_url", "timeout"],
+        required_keys=[],
+        description="Converts LangChain changelog entries into AI developer ecosystem signals.",
+    ),
+    "nextjs_blog": AdapterMetadata(
+        name="nextjs_blog",
+        config_keys=["entries", "payload", "feed_url", "timeout"],
+        required_keys=[],
+        description="Converts Next.js blog entries into framework release and ecosystem signals.",
+    ),
+    "netlify_changelog": AdapterMetadata(
+        name="netlify_changelog",
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Converts Netlify changelog entries into deployment platform signals.",
+    ),
+    "sentry_changelog": AdapterMetadata(
+        name="sentry_changelog",
+        config_keys=["entries", "feed_url", "timeout"],
+        required_keys=[],
+        description="Converts Sentry changelog entries into observability product signals.",
+    ),
+    "openai_status_incidents": AdapterMetadata(
+        name="openai_status_incidents",
+        config_keys=["entries", "feed_url", "status_url", "timeout"],
+        required_keys=[],
+        description="Converts OpenAI status incident rows into reliability signals.",
     ),
     "federal_register_healthcare": AdapterMetadata(
         name="federal_register_healthcare",

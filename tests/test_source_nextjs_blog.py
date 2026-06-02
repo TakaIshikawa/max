@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from max.sources.nextjs_blog import NextjsBlogAdapter, parse_nextjs_blog
+from max.sources.registry import get_adapter, reload_registry
 
 
 def test_nextjs_release_posts_include_version_metadata() -> None:
@@ -32,3 +33,8 @@ async def test_nextjs_adapter_limit() -> None:
     ]})
 
     assert [signal.title for signal in await adapter.fetch(limit=1)] == ["One"]
+
+
+def test_nextjs_blog_registry_instantiates_adapter() -> None:
+    reload_registry()
+    assert get_adapter("nextjs_blog").name == "nextjs_blog"
