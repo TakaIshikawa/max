@@ -306,6 +306,7 @@ properties:
             - cisa_kev
             - clinical_trials
             - cloudflare_changelog
+            - cncf_blog
             - cncf_landscape
             - chrome_web_store
             - crates_dependents
@@ -316,6 +317,7 @@ properties:
             - devto
             - discourse
             - discord
+            - docker_blog
             - docker_hub
             - dockerhub
             - dockerhub_image_trends
@@ -354,6 +356,7 @@ properties:
             - hackernews_frontpage
             - hackernews_showhn
             - hackernews_whoishiring
+            - hashicorp_blog
             - hexpm
             - hexpm_download_trends
             - home_assistant_integrations
@@ -394,6 +397,7 @@ properties:
             - packagist_maintainer_activity
             - product_hunt
             - product_hunt_launch_comments
+            - postgresql_news
             - pubmed
             - pubdev
             - pypi_classifiers
@@ -409,6 +413,7 @@ properties:
             - rubygems
             - rubygems_download_trends
             - rubygems_maintainer_activity
+            - rust_blog
             - rustsec_advisories
             - security_advisories
             - snyk_reports
@@ -419,9 +424,11 @@ properties:
             - stackoverflow_question_activity
             - stackoverflow_survey
             - stackoverflow_tag_trends
+            - supabase_changelog
             - swift_package_index
             - terraform_registry
             - twitter
+            - vercel_changelog
             - vscode_marketplace
             - wordpress_plugins
 

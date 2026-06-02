@@ -77,7 +77,7 @@ def _evidence_row(unit: Any, today: date) -> dict[str, Any]:
     blockers = _list(metadata.get("blockers"))
     requests = _list(metadata.get("evidence_requests"))
     stale_flag = _bool(metadata.get("stale_evidence"))
-    days_overdue = (today - due).days if due and due < today else 0
+    days_overdue = (today - due).days if due and due < today and not submitted else 0
     age_days = (today - submitted).days if submitted else None
     if blockers or days_overdue > 0:
         status = "overdue"
