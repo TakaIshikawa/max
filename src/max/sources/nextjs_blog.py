@@ -5,9 +5,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from max.sources.twilio_changelog import _entries_from_config_or_feed
 from max.sources.cloudflare_blog import _canonical_url, _dt, _id, _text
 from max.sources.base import SourceAdapter
 from max.types.signal import Signal, SignalSourceType
+
+DEFAULT_FEED_URL = "https://nextjs.org/atom"
 
 
 class NextjsBlogAdapter(SourceAdapter):
@@ -20,7 +23,14 @@ class NextjsBlogAdapter(SourceAdapter):
         return SignalSourceType.NEWS.value
 
     async def fetch(self, *, limit: int = 30) -> list[Signal]:
-        return parse_nextjs_blog(self._config.get("entries") or self._config.get("payload") or [], limit=limit)
+        if self._config.get("entries") is not None or self._config.get("payload") is not None:
+            entries = self._config.get("entries") or self._config.get("payload") or []
+        else:
+            entries = await _entries_from_config_or_feed(
+                {**self._config, "feed_url": self._config.get("feed_url") or DEFAULT_FEED_URL},
+                self.name,
+            )
+        return parse_nextjs_blog(entries, limit=limit)
 
 
 def parse_nextjs_blog(payload: Any, *, limit: int | None = None) -> list[Signal]:
