@@ -143,6 +143,7 @@ federal_register_healthcare = "max.sources.federal_register_healthcare:FederalRe
 a2a_spec = "max.sources.a2a_spec:A2ASpecAdapter"
 ietf_datatracker = "max.sources.ietf_datatracker:IetfDatatrackerAdapter"
 openapi_specs = "max.sources.openapi_specs:OpenApiSpecsAdapter"
+twilio_changelog = "max.sources.twilio_changelog:TwilioChangelogAdapter"
 
 [build-system]
 requires = ["setuptools>=75.0"]

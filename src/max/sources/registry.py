@@ -241,6 +241,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
     "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
     "openapi_specs": "max.sources.openapi_specs:OpenApiSpecsAdapter",
+    "twilio_changelog": "max.sources.twilio_changelog:TwilioChangelogAdapter",
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -1482,6 +1483,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         ],
         required_keys=[],
         description="Reads local and remote OpenAPI 3.x schemas as integration opportunity signals.",
+    ),
+    "twilio_changelog": AdapterMetadata(
+        name="twilio_changelog",
+        config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches Twilio changelog release updates from RSS.",
     ),
     "federal_register_healthcare": AdapterMetadata(
         name="federal_register_healthcare",
