@@ -1,0 +1,103 @@
+"""Jira Cloud Platform changelog source adapter."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from datetime import datetime, timezone
+from typing import Any
+
+import httpx
+
+from max.sources.base import SourceAdapter, fetch_with_retry
+from max.types.signal import Signal, SignalSourceType
+
+DEFAULT_JIRA_CHANGELOG_URL = "https://developer.atlassian.com/cloud/jira/platform/changelog/"
+
+
+class JiraCloudPlatformChangelogAdapter(SourceAdapter):
+    """Fetch Atlassian Jira Cloud platform and API changelog entries."""
+
+    @property
+    def name(self) -> str:
+        return "jira_cloud_platform_changelog"
+
+    @property
+    def source_type(self) -> str:
+        return SignalSourceType.ARTICLE.value
+
+    async def fetch(self, *, limit: int = 30) -> list[Signal]:
+        entries = _configured_entries(self._config.get("entries"))
+        if not entries:
+            entries = await self._fetch_live_entries()
+        return [_signal(entry) for entry in entries[: max(0, limit)]]
+
+    async def _fetch_live_entries(self) -> list[Mapping[str, Any]]:
+        url = _text(self._config.get("feed_url") or self._config.get("changelog_url"))
+        if not url:
+            return []
+        async with httpx.AsyncClient(timeout=float(self._config.get("timeout") or 30)) as client:
+            response = await fetch_with_retry(url, client, adapter_name=self.name)
+        return _entries_from_payload(response.text, url)
+
+
+def _signal(entry: Mapping[str, Any]) -> Signal:
+    title = _text(entry.get("title")) or "Jira Cloud Platform changelog update"
+    url = _text(entry.get("url") or entry.get("link")) or DEFAULT_JIRA_CHANGELOG_URL
+    product_area = _text(entry.get("product_area") or entry.get("area") or entry.get("category")) or "platform"
+    published_at = _parse_datetime(entry.get("published_at") or entry.get("date"))
+    summary = _text(entry.get("content") or entry.get("summary") or entry.get("description")) or title
+    deprecation = _is_deprecation(entry)
+    tags = ["jira_cloud_platform", product_area]
+    if deprecation:
+        tags.append("deprecation")
+    return Signal(
+        source_type=SignalSourceType.ARTICLE,
+        source_adapter="jira_cloud_platform_changelog",
+        title=title,
+        content=summary,
+        url=url,
+        published_at=published_at,
+        tags=tags,
+        metadata={
+            "product_area": product_area,
+            "deprecation": deprecation,
+            "source": "jira_cloud_platform_changelog",
+        },
+    )
+
+
+def _configured_entries(value: Any) -> list[Mapping[str, Any]]:
+    return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
+
+
+def _entries_from_payload(text: str, url: str) -> list[Mapping[str, Any]]:
+    stripped = text.strip()
+    if not stripped:
+        return []
+    return [{"title": "Jira Cloud Platform changelog update", "url": url, "content": stripped[:500]}]
+
+
+def _is_deprecation(entry: Mapping[str, Any]) -> bool:
+    if isinstance(entry.get("deprecation"), bool):
+        return bool(entry["deprecation"])
+    if isinstance(entry.get("deprecated"), bool):
+        return bool(entry["deprecated"])
+    text = f"{entry.get('title', '')} {entry.get('content', '')} {entry.get('summary', '')}".lower()
+    return "deprecat" in text or "sunset" in text
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
+
+def _text(value: Any) -> str:
+    return " ".join(str(value).strip().split()) if value is not None else ""
