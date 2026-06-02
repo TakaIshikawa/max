@@ -241,6 +241,10 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "a2a_spec": "max.sources.a2a_spec:A2ASpecAdapter",
     "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
     "openapi_specs": "max.sources.openapi_specs:OpenApiSpecsAdapter",
+    "stripe_changelog": "max.sources.stripe_changelog:StripeChangelogAdapter",
+    "jira_cloud_platform_changelog": (
+        "max.sources.jira_cloud_platform_changelog:JiraCloudPlatformChangelogAdapter"
+    ),
 }
 
 _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
@@ -1628,6 +1632,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feed_url", "release", "security", "keywords", "max_age_days", "timeout"],
         required_keys=[],
         description="Fetches Rust Blog posts from the public RSS feed.",
+    ),
+    "stripe_changelog": AdapterMetadata(
+        name="stripe_changelog",
+        config_keys=["entries", "feed_url", "changelog_url", "timeout"],
+        required_keys=[],
+        description="Fetches Stripe product and API changelog entries.",
+    ),
+    "jira_cloud_platform_changelog": AdapterMetadata(
+        name="jira_cloud_platform_changelog",
+        config_keys=["entries", "feed_url", "changelog_url", "timeout"],
+        required_keys=[],
+        description="Fetches Atlassian Jira Cloud Platform changelog entries.",
     ),
 }
 
