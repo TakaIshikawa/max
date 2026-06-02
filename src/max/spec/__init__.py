@@ -56,6 +56,10 @@ from max.spec.consent_management_plan import (
     render_consent_management_plan_csv,
     render_consent_management_plan_markdown,
 )
+from max.spec.consent_withdrawal_backfill_plan import (
+    generate_consent_withdrawal_backfill_plan,
+    render_consent_withdrawal_backfill_plan_markdown,
+)
 from max.spec.cost_estimate import (
     generate_cost_estimate,
     render_cost_estimate_csv,
@@ -192,6 +196,10 @@ from max.spec.license_compliance_review_plan import (
 )
 from max.spec.llm_provider_terms_change_review_plan import (
     generate_llm_provider_terms_change_review_plan,
+)
+from max.spec.scim_directory_sync_cutover_plan import (
+    generate_scim_directory_sync_cutover_plan,
+    render_scim_directory_sync_cutover_plan_markdown,
 )
 from max.spec.integration_backout_plan import generate_integration_backout_plan
 from max.spec.integration_credential_rotation_plan import (
@@ -495,6 +503,7 @@ __all__ = [
     "generate_cache_invalidation_rollout_plan",
     "generate_compliance_checklist",
     "generate_consent_management_plan",
+    "generate_consent_withdrawal_backfill_plan",
     "generate_cost_estimate",
     "generate_change_freeze_plan",
     "generate_customer_onboarding_plan",
@@ -569,6 +578,9 @@ __all__ = [
     "generate_launch_freeze_readiness_plan",
     "generate_license_compliance_review_plan",
     "generate_llm_provider_terms_change_review_plan",
+    "generate_scim_directory_sync_cutover_plan",
+    "render_consent_withdrawal_backfill_plan_markdown",
+    "render_scim_directory_sync_cutover_plan_markdown",
     "generate_integration_backout_plan",
     "generate_integration_credential_rotation_plan",
     "generate_integration_rate_limit_exception_plan",

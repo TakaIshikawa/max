@@ -718,6 +718,26 @@ from max.exports.spec_approval_bottleneck_report import (
     render_spec_approval_bottleneck_report_json,
     render_spec_approval_bottleneck_report_markdown,
 )
+from max.exports.llm_provider_cost_attribution_report import (
+    build_llm_provider_cost_attribution_report_export,
+    render_llm_provider_cost_attribution_report_json,
+    render_llm_provider_cost_attribution_report_markdown,
+)
+from max.exports.signal_source_quota_burn_report import (
+    build_signal_source_quota_burn_report,
+    render_signal_source_quota_burn_report_json,
+    render_signal_source_quota_burn_report_markdown,
+)
+from max.exports.source_signal_drop_reason_report import (
+    build_source_signal_drop_reason_report,
+    render_source_signal_drop_reason_report_json,
+    render_source_signal_drop_reason_report_markdown,
+)
+from max.exports.spec_generation_rework_report import (
+    build_spec_generation_rework_report,
+    render_spec_generation_rework_report_json,
+    render_spec_generation_rework_report_markdown,
+)
 
 __all__ = [
     "build_source_adapter_reliability_report",
@@ -744,6 +764,18 @@ __all__ = [
     "generate_spec_approval_bottleneck_report",
     "render_spec_approval_bottleneck_report_json",
     "render_spec_approval_bottleneck_report_markdown",
+    "build_llm_provider_cost_attribution_report_export",
+    "render_llm_provider_cost_attribution_report_json",
+    "render_llm_provider_cost_attribution_report_markdown",
+    "build_signal_source_quota_burn_report",
+    "render_signal_source_quota_burn_report_json",
+    "render_signal_source_quota_burn_report_markdown",
+    "build_source_signal_drop_reason_report",
+    "render_source_signal_drop_reason_report_json",
+    "render_source_signal_drop_reason_report_markdown",
+    "build_spec_generation_rework_report",
+    "render_spec_generation_rework_report_json",
+    "render_spec_generation_rework_report_markdown",
     "build_source_duplicate_signal_report",
     "build_source_field_completeness_report",
     "build_source_freshness_sla_report",
