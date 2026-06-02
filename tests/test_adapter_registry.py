@@ -33,6 +33,13 @@ def test_go_packages_adapter_is_registered() -> None:
         ("aws_whats_new", ["feed_url", "categories", "keywords", "max_age_days", "timeout"]),
         ("cloudflare_changelog", ["feed_url", "products", "keywords", "max_age_days", "timeout"]),
         ("kubernetes_blog", ["feed_url", "tags", "keywords", "max_age_days", "timeout"]),
+        ("docker_blog", ["feed_url", "categories", "keywords", "max_age_days", "timeout"]),
+        ("hashicorp_blog", ["feed_url", "products", "keywords", "max_age_days", "timeout"]),
+        ("cncf_blog", ["feed_url", "tags", "keywords", "max_age_days", "timeout"]),
+        ("vercel_changelog", ["feed_url", "products", "keywords", "max_age_days", "timeout"]),
+        ("supabase_changelog", ["feed_url", "products", "keywords", "max_age_days", "timeout"]),
+        ("postgresql_news", ["feed_url", "categories", "keywords", "max_age_days", "timeout"]),
+        ("rust_blog", ["feed_url", "release", "security", "keywords", "max_age_days", "timeout"]),
     ],
 )
 def test_news_feed_adapters_are_registered(adapter_name: str, expected_keys: list[str]) -> None:
