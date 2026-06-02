@@ -233,6 +233,10 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rust_blog": "max.sources.rust_blog:RustBlogAdapter",
     "aws_whats_new": "max.sources.aws_whats_new:AwsWhatsNewAdapter",
     "cloudflare_changelog": "max.sources.cloudflare_changelog:CloudflareChangelogAdapter",
+    "jira_cloud_platform_changelog": (
+        "max.sources.jira_cloud_platform_changelog:JiraCloudPlatformChangelogAdapter"
+    ),
+    "stripe_changelog": "max.sources.stripe_changelog:StripeChangelogAdapter",
     "apis_guru": "max.sources.apis_guru:ApisGuruAdapter",
     "openrouter_models": "max.sources.openrouter_models:OpenRouterModelsAdapter",
     "federal_register_healthcare": (
@@ -1580,6 +1584,18 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
         required_keys=[],
         description="Fetches Cloudflare developer changelog entries from the public RSS feed.",
+    ),
+    "jira_cloud_platform_changelog": AdapterMetadata(
+        name="jira_cloud_platform_changelog",
+        config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches Jira Cloud Platform changelog entries from the public RSS feed.",
+    ),
+    "stripe_changelog": AdapterMetadata(
+        name="stripe_changelog",
+        config_keys=["feed_url", "products", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Fetches Stripe changelog entries from the public feed.",
     ),
     "kubernetes_blog": AdapterMetadata(
         name="kubernetes_blog",

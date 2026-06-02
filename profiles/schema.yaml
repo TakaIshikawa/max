@@ -363,6 +363,7 @@ properties:
             - homebrew_formulae
             - huggingface
             - ietf_datatracker
+            - jira_cloud_platform_changelog
             - jetbrains_marketplace
             - jetbrains_survey
             - kubernetes_blog
@@ -419,6 +420,7 @@ properties:
             - snyk_reports
             - sourceforge_projects
             - stackshare
+            - stripe_changelog
             - stackexchange
             - stackoverflow
             - stackoverflow_question_activity
