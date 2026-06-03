@@ -112,6 +112,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "gitlab_merge_requests": "max.sources.gitlab_merge_requests:GitLabMergeRequestsAdapter",
     "gitlab_epics": "max.sources.gitlab_epics:GitLabEpicsAdapter",
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
+    "gitlab_blog": "max.sources.gitlab_blog:GitLabBlogAdapter",
     "gitlab_repository_topics": (
         "max.sources.gitlab_repository_topics:GitLabRepositoryTopicsAdapter"
     ),
