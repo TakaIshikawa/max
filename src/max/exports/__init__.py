@@ -125,6 +125,11 @@ from max.exports.feedback_reviewer_throughput_forecast_report import generate_fe
 from max.exports.insight_gap_detection_precision_report import generate_insight_gap_detection_precision_report
 from max.exports.llm_provider_failover_drill_report import generate_llm_provider_failover_drill_report
 from max.exports.publication_destination_cost_spike_report import generate_publication_destination_cost_spike_report
+from max.exports.profile_cadence_adherence_report import (
+    generate_profile_cadence_adherence_report,
+    render_profile_cadence_adherence_report_json,
+    render_profile_cadence_adherence_report_markdown,
+)
 from max.exports.spec_publication_rollback_readiness_report import generate_spec_publication_rollback_readiness_report
 from max.exports.spec_generation_token_waste_report import (
     build_spec_generation_token_waste_report,
