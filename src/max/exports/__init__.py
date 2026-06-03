@@ -130,6 +130,16 @@ from max.exports.profile_cadence_adherence_report import (
     render_profile_cadence_adherence_report_json,
     render_profile_cadence_adherence_report_markdown,
 )
+from max.exports.profile_source_contract_coverage_report import (
+    generate_profile_source_contract_coverage_report,
+    render_profile_source_contract_coverage_report_json,
+    render_profile_source_contract_coverage_report_markdown,
+)
+from max.exports.source_adapter_retry_jitter_report import (
+    generate_source_adapter_retry_jitter_report,
+    render_source_adapter_retry_jitter_report_json,
+    render_source_adapter_retry_jitter_report_markdown,
+)
 from max.exports.spec_publication_rollback_readiness_report import generate_spec_publication_rollback_readiness_report
 from max.exports.spec_generation_token_waste_report import (
     build_spec_generation_token_waste_report,
