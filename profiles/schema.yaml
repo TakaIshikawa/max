@@ -368,6 +368,7 @@ properties:
             - jetbrains_survey
             - kubernetes_blog
             - kubernetes_keps
+            - langchain_changelog
             - linkedin
             - lobsters
             - mastodon
@@ -384,7 +385,10 @@ properties:
             - nuget
             - nuget_package_activity
             - nvd_cve
+            - nextjs_blog
+            - netlify_changelog
             - openapi_specs
+            - openai_status_incidents
             - openrouter_models
             - open_vsx
             - open_vsx_download_trends
@@ -417,6 +421,7 @@ properties:
             - rust_blog
             - rustsec_advisories
             - security_advisories
+            - sentry_changelog
             - snyk_reports
             - sourceforge_projects
             - stackshare
@@ -429,6 +434,7 @@ properties:
             - supabase_changelog
             - swift_package_index
             - terraform_registry
+            - twilio_changelog
             - twitter
             - vercel_changelog
             - vscode_marketplace

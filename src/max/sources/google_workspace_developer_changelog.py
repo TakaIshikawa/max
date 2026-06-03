@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from max.sources.netlify_changelog import _fetch_text, _parse, _text
 from max.sources.base import SourceAdapter
+from max.sources.twilio_changelog import _fetch_text, _parse, text as _text
 from max.types.signal import Signal, SignalSourceType
 
 DEFAULT_FEED_URL = "https://developers.google.com/workspace/updates/rss.xml"
@@ -44,7 +44,7 @@ def parse_google_workspace_developer_changelog(
     keywords: Any = None,
     max_age_days: Any = None,
 ) -> list[Signal]:
-    return _parse(
+    signals = _parse(
         payload,
         "google_workspace_developer_changelog",
         "google-workspace",
@@ -53,3 +53,6 @@ def parse_google_workspace_developer_changelog(
         keywords,
         max_age_days,
     )
+    for signal in signals:
+        signal.source_type = SignalSourceType.NEWS
+    return signals
