@@ -120,6 +120,12 @@ from max.exports.idea_duplicate_cluster_report import generate_idea_duplicate_cl
 from max.exports.llm_token_budget_leak_report import generate_llm_token_budget_leak_report
 from max.exports.insight_evidence_source_concentration_report import generate_insight_evidence_source_concentration_report
 from max.exports.buildable_unit_dependency_freshness_report import generate_buildable_unit_dependency_freshness_report
+from max.exports.buildable_unit_scope_creep_report import generate_buildable_unit_scope_creep_report
+from max.exports.feedback_reviewer_throughput_forecast_report import generate_feedback_reviewer_throughput_forecast_report
+from max.exports.insight_gap_detection_precision_report import generate_insight_gap_detection_precision_report
+from max.exports.llm_provider_failover_drill_report import generate_llm_provider_failover_drill_report
+from max.exports.publication_destination_cost_spike_report import generate_publication_destination_cost_spike_report
+from max.exports.spec_publication_rollback_readiness_report import generate_spec_publication_rollback_readiness_report
 from max.exports.spec_generation_token_waste_report import (
     build_spec_generation_token_waste_report,
     render_spec_generation_token_waste_report_json,
@@ -1149,6 +1155,12 @@ __all__ = [
     "generate_llm_token_budget_leak_report",
     "generate_insight_evidence_source_concentration_report",
     "generate_buildable_unit_dependency_freshness_report",
+    "generate_buildable_unit_scope_creep_report",
+    "generate_feedback_reviewer_throughput_forecast_report",
+    "generate_insight_gap_detection_precision_report",
+    "generate_llm_provider_failover_drill_report",
+    "generate_publication_destination_cost_spike_report",
+    "generate_spec_publication_rollback_readiness_report",
     "generate_ideation_mode_conversion_funnel_report",
     "generate_retrospective_feedback_outcome_skew_report",
     "generate_feedback_recency_decay_report",
