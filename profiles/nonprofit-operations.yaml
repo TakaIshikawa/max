@@ -1,0 +1,73 @@
+name: nonprofit-operations
+
+domain:
+  name: nonprofit-operations
+  description: >-
+    Donor operations, grant reporting, program delivery, volunteer
+    coordination, impact measurement, and compliance workflows.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - development teams
+    - grant managers
+    - program staff
+    - volunteer coordinators
+    - operations leaders
+  target_segments:
+    - community nonprofits
+    - foundations
+    - program delivery organizations
+    - volunteer-driven teams
+  workflows:
+    - donor stewardship
+    - grant reporting
+    - program delivery tracking
+    - volunteer scheduling
+    - impact measurement
+    - board reporting
+  buyer_roles:
+    - executive director
+    - development director
+    - program director
+    - operations manager
+    - board treasurer
+  hard_constraints:
+    - must fit limited budgets and staff capacity
+    - must protect donor and beneficiary privacy
+    - must meet accessibility expectations
+    - must simplify reporting rather than add admin burden
+  bad_idea_patterns:
+    - enterprise CRM clone too heavy for small teams
+    - impact dashboard without program data capture
+    - automation that assumes dedicated operations staff
+  good_idea_criteria:
+    - reduces recurring reporting or coordination work
+    - improves donor, grant, volunteer, program, or board workflows
+    - works with low-budget tools and limited admin time
+
+sources:
+  - adapter: reddit
+    params:
+      subreddits:
+        - nonprofit
+        - volunteering
+        - fundraising
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - nonprofit
+        - grant
+        - volunteer
+  - adapter: github
+    params:
+      topics:
+        - nonprofit
+        - civic-tech
+
+evaluation:
+  weight_profile: quick_wins
+  min_score: 53.0
