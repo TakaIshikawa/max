@@ -339,6 +339,7 @@ properties:
             - github_pull_requests
             - github_releases
             - github_repository_topics
+            - github_security_lab_blog
             - github_sponsors
             - github_trending
             - github_workflow_runs
@@ -377,6 +378,7 @@ properties:
             - mcp_protocol_roadmap
             - mcp_registry
             - metr_productivity_reports
+            - microsoft_python_devblogs
             - npm_dependents
             - npm_download_trends
             - npm_maintainer_activity
