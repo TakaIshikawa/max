@@ -1,0 +1,88 @@
+name: supply_chain_procurement
+
+domain:
+  name: supply_chain_procurement
+  description: >-
+    Supplier intake, procurement approvals, contract compliance, savings
+    tracking, supplier risk monitoring, spend operations, and sourcing workflow
+    tooling.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - procurement managers
+    - sourcing teams
+    - supplier risk analysts
+    - finance approvers
+    - contract managers
+  target_segments:
+    - enterprise procurement teams
+    - mid-market finance operations
+    - regulated supply chain teams
+    - manufacturing procurement groups
+  workflows:
+    - purchase request intake
+    - approval bottleneck resolution
+    - supplier onboarding
+    - supplier risk review
+    - contract compliance tracking
+    - savings realization reporting
+  buyer_roles:
+    - chief procurement officer
+    - VP of supply chain
+    - finance operations leader
+    - supplier risk manager
+  hard_constraints:
+    - must preserve approval, sourcing, and contract audit trails
+    - must support supplier risk and compliance evidence
+    - must integrate with ERP, procurement, or contract systems
+    - must distinguish negotiated savings from realized savings
+  bad_idea_patterns:
+    - sourcing dashboard without approval workflow context
+    - supplier score without evidence or contract linkage
+    - savings tracker disconnected from invoices and purchase orders
+  good_idea_criteria:
+    - reduces procurement cycle time or approval bottlenecks
+    - connects suppliers, contracts, purchase orders, and risk evidence
+    - improves contract compliance or savings accountability
+
+domain_quality:
+  enabled: true
+  min_score: 68.0
+  scoring_dimensions:
+    supplier_risk:
+      weight: 1.4
+      description: Makes supplier risk evidence, ownership, and escalation explicit.
+    approval_throughput:
+      weight: 1.2
+      description: Reduces bottlenecks in purchase, sourcing, or contract approvals.
+    savings_traceability:
+      weight: 1.3
+      description: Connects savings claims to contracts, POs, invoices, or compliance evidence.
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - procurement
+        - supply chain
+        - supplier risk
+  - adapter: github
+    params:
+      topics:
+        - procurement
+        - supply-chain
+        - erp
+  - adapter: reddit
+    params:
+      subreddits:
+        - supplychain
+        - procurement
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0

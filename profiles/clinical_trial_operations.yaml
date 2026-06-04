@@ -1,0 +1,89 @@
+name: clinical_trial_operations
+
+domain:
+  name: clinical_trial_operations
+  description: >-
+    Clinical trial site operations, patient recruitment, protocol compliance,
+    visit scheduling, evidence traceability, monitoring workflows, and study
+    operations reporting.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - clinical operations teams
+    - study coordinators
+    - site managers
+    - clinical research associates
+    - trial sponsors
+  target_segments:
+    - biotech trial teams
+    - pharmaceutical clinical operations
+    - contract research organizations
+    - academic medical center research groups
+  workflows:
+    - patient recruitment tracking
+    - protocol deviation management
+    - site activation readiness
+    - visit scheduling coordination
+    - monitoring evidence collection
+    - enrollment forecasting
+  buyer_roles:
+    - VP of clinical operations
+    - clinical trial manager
+    - head of site operations
+    - compliance quality leader
+  hard_constraints:
+    - must protect patient privacy and consent records
+    - must preserve protocol, visit, and monitoring evidence traceability
+    - must support regulated clinical quality and audit requirements
+    - must integrate with CTMS, EDC, eTMF, or recruitment systems
+  bad_idea_patterns:
+    - recruitment dashboard without site workflow follow-up
+    - protocol compliance score without source evidence
+    - visit scheduler disconnected from trial systems and consent context
+  good_idea_criteria:
+    - improves recruitment, site operations, or protocol compliance
+    - connects trial data to accountable study actions
+    - reduces evidence collection and monitoring burden
+
+domain_quality:
+  enabled: true
+  min_score: 71.0
+  scoring_dimensions:
+    patient_recruitment_fit:
+      weight: 1.3
+      description: Supports enrollment, screening, and retention workflows.
+    protocol_compliance:
+      weight: 1.5
+      description: Preserves protocol assumptions, deviations, and review evidence.
+    evidence_traceability:
+      weight: 1.4
+      description: Connects site actions, source data, and monitoring artifacts.
+
+sources:
+  - adapter: clinical_trials
+    params:
+      queries:
+        - clinical trial operations
+        - patient recruitment
+  - adapter: github
+    params:
+      topics:
+        - clinical-trials
+        - healthcare
+        - research
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - clinical trials
+        - patient recruitment
+        - clinical research
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0

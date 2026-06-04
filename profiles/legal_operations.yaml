@@ -1,0 +1,87 @@
+name: legal_operations
+
+domain:
+  name: legal_operations
+  description: >-
+    Matter intake, contract review operations, outside counsel management,
+    legal spend, knowledge workflows, confidentiality controls, and audit-ready
+    legal operations reporting.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - legal operations managers
+    - in-house counsel
+    - contract managers
+    - compliance teams
+    - finance partners
+  target_segments:
+    - corporate legal departments
+    - regulated enterprise legal teams
+    - high-growth SaaS companies
+    - outside counsel management teams
+  workflows:
+    - matter intake triage
+    - contract review routing
+    - outside counsel budget review
+    - policy exception tracking
+    - legal knowledge management
+    - audit evidence collection
+  buyer_roles:
+    - general counsel
+    - head of legal operations
+    - chief compliance officer
+    - procurement leader
+  hard_constraints:
+    - must preserve confidentiality and privilege boundaries
+    - must maintain audit trails for approvals and review cycles
+    - must integrate with CLM, matter management, or document systems
+    - must support retention and access control requirements
+  bad_idea_patterns:
+    - contract AI summary without review ownership
+    - matter intake form disconnected from legal triage
+    - spend dashboard without billing guideline enforcement
+  good_idea_criteria:
+    - reduces legal review-cycle time while preserving accountability
+    - connects legal requests, documents, approvals, and evidence
+    - improves confidentiality-aware operational visibility
+
+domain_quality:
+  enabled: true
+  min_score: 69.0
+  scoring_dimensions:
+    confidentiality_controls:
+      weight: 1.5
+      description: Makes privilege, access, and sensitive document boundaries explicit.
+    auditability:
+      weight: 1.4
+      description: Preserves review, approval, and exception evidence.
+    cycle_time_impact:
+      weight: 1.2
+      description: Reduces legal request or contract review bottlenecks.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - legaltech
+        - contracts
+        - compliance
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - legal operations
+        - contract review
+        - legaltech
+  - adapter: reddit
+    params:
+      subreddits:
+        - legaltech
+        - inhouse
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0

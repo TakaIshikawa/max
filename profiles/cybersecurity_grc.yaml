@@ -1,0 +1,91 @@
+name: cybersecurity_grc
+
+domain:
+  name: cybersecurity_grc
+  description: >-
+    Security governance, risk, and compliance workflows including control
+    mapping, policy lifecycle management, audit evidence, vendor risk, and
+    executive risk reporting.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - GRC analysts
+    - security compliance managers
+    - auditors
+    - risk owners
+    - CISOs
+  target_segments:
+    - SaaS security teams
+    - regulated enterprise security programs
+    - audit-heavy mid-market companies
+    - managed compliance service providers
+  workflows:
+    - control evidence collection
+    - policy review lifecycle
+    - risk register updates
+    - audit readiness tracking
+    - vendor security review
+    - framework control mapping
+  buyer_roles:
+    - chief information security officer
+    - head of GRC
+    - security compliance leader
+    - enterprise risk leader
+  hard_constraints:
+    - must preserve audit evidence and control ownership
+    - must support framework mapping and policy version history
+    - must protect sensitive security and vendor information
+    - must maintain accountable human review for risk acceptance
+  bad_idea_patterns:
+    - compliance dashboard without evidence collection workflow
+    - control mapper with opaque framework assumptions
+    - risk score without owner, mitigation, or audit context
+  good_idea_criteria:
+    - reduces audit evidence and control mapping burden
+    - improves policy lifecycle or risk reporting traceability
+    - connects controls, owners, systems, and evidence
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    audit_evidence:
+      weight: 1.5
+      description: Preserves evidence, ownership, and review status for controls.
+    control_mapping:
+      weight: 1.4
+      description: Makes framework mappings and assumptions explicit.
+    risk_reporting:
+      weight: 1.2
+      description: Supports clear risk ownership, mitigation, and executive reporting.
+
+sources:
+  - adapter: security_advisories
+    params:
+      ecosystems:
+        - npm
+        - pip
+        - go
+      severities:
+        - critical
+        - high
+  - adapter: github
+    params:
+      topics:
+        - grc
+        - compliance
+        - security
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - GRC
+        - security compliance
+        - audit evidence
+
+evaluation:
+  weight_profile: default
+  min_score: 57.0

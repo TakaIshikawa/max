@@ -1,0 +1,87 @@
+name: aerospace_maintenance
+
+domain:
+  name: aerospace_maintenance
+  description: >-
+    Aircraft maintenance planning, inspection workflows, parts traceability,
+    reliability programs, maintenance records, and safety compliance tooling.
+  categories:
+    - application
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - maintenance controllers
+    - aircraft mechanics
+    - quality inspectors
+    - reliability engineers
+    - compliance teams
+  target_segments:
+    - commercial airline maintenance teams
+    - MRO providers
+    - business aviation operators
+    - defense sustainment programs
+  workflows:
+    - scheduled maintenance planning
+    - non-routine defect resolution
+    - parts traceability review
+    - inspection signoff
+    - reliability trend analysis
+    - maintenance record auditing
+  buyer_roles:
+    - director of maintenance
+    - VP of technical operations
+    - quality assurance manager
+    - fleet reliability leader
+  hard_constraints:
+    - must preserve regulatory maintenance records and signoffs
+    - must support safety-critical review and escalation paths
+    - must maintain parts, tooling, and technician traceability
+    - must integrate with MRO, ERP, or maintenance tracking systems
+  bad_idea_patterns:
+    - predictive maintenance score without explainable maintenance evidence
+    - work order tool disconnected from parts and compliance records
+    - automation that bypasses required inspection signoffs
+  good_idea_criteria:
+    - improves maintenance turnaround without weakening safety controls
+    - connects defects, parts, labor, and regulatory evidence
+    - supports accountable human review for airworthiness decisions
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    safety_compliance:
+      weight: 1.6
+      description: Makes regulatory, inspection, and airworthiness obligations explicit.
+    traceability:
+      weight: 1.5
+      description: Preserves lineage across parts, work orders, tools, and signoffs.
+    operational_reliability:
+      weight: 1.2
+      description: Supports maintenance planning, turnaround, and reliability decisions.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - aerospace
+        - maintenance
+        - aviation
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - aerospace maintenance
+        - aviation safety
+        - MRO
+  - adapter: reddit
+    params:
+      subreddits:
+        - aviationmaintenance
+        - aerospace
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0
