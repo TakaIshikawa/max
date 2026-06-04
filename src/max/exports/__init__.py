@@ -759,6 +759,16 @@ from max.exports.spec_generation_rework_report import (
     render_spec_generation_rework_report_json,
     render_spec_generation_rework_report_markdown,
 )
+from max.exports.source_adapter_error_budget_report import (
+    build_source_adapter_error_budget_report_export,
+    render_source_adapter_error_budget_report_json,
+    render_source_adapter_error_budget_report_markdown,
+)
+from max.exports.source_credential_expiry_report import (
+    build_source_credential_expiry_report,
+    render_source_credential_expiry_report_json,
+    render_source_credential_expiry_report_markdown,
+)
 
 __all__ = [
     "build_source_adapter_reliability_report",
@@ -797,6 +807,12 @@ __all__ = [
     "build_spec_generation_rework_report",
     "render_spec_generation_rework_report_json",
     "render_spec_generation_rework_report_markdown",
+    "build_source_adapter_error_budget_report_export",
+    "render_source_adapter_error_budget_report_json",
+    "render_source_adapter_error_budget_report_markdown",
+    "build_source_credential_expiry_report",
+    "render_source_credential_expiry_report_json",
+    "render_source_credential_expiry_report_markdown",
     "build_source_duplicate_signal_report",
     "build_source_field_completeness_report",
     "build_source_freshness_sla_report",
