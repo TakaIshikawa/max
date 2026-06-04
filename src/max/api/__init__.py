@@ -170,6 +170,14 @@ from max.api.profile_target_user_coverage_status import profile_target_user_cove
 from max.api.signal_annotation_role_imbalance_status import signal_annotation_role_imbalance_status_to_json
 from max.api.runtime_artifact_write_failure_status import runtime_artifact_write_failure_status_to_json
 from max.api.synthesis_batch_retry_pressure_status import synthesis_batch_retry_pressure_status_to_json
+from max.api.source_fetch_freshness_status import source_fetch_freshness_status_to_json
+from max.api.insight_synthesis_error_budget_status import insight_synthesis_error_budget_status_to_json
+from max.api.profile_evidence_role_coverage_status import profile_evidence_role_coverage_status_to_json
+from max.api.publisher_retry_dead_letter_status import publisher_retry_dead_letter_status_to_json
+from max.api.llm_budget_reservation_leak_status import llm_budget_reservation_leak_status_to_json
+from max.api.spec_generation_queue_latency_status import spec_generation_queue_latency_status_to_json
+from max.api.buildable_unit_stack_compliance_status import buildable_unit_stack_compliance_status_to_json
+from max.api.feedback_reviewer_queue_balance_status import feedback_reviewer_queue_balance_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -441,4 +449,21 @@ __all__ = [
     "feedback_outcome_anomaly_status_to_json",
     "embedding_similarity_outlier_status_to_json",
     "spec_evidence_citation_density_status_to_json",
+    "synthesis_insight_deduplication_queue_status_to_json",
+    "ideation_mode_yield_balance_status_to_json",
+    "evaluation_score_normalization_status_to_json",
+    "spec_evidence_trace_completeness_status_to_json",
+    "feedback_outcome_confidence_status_to_json",
+    "profile_target_user_coverage_status_to_json",
+    "signal_annotation_role_imbalance_status_to_json",
+    "runtime_artifact_write_failure_status_to_json",
+    "synthesis_batch_retry_pressure_status_to_json",
+    "source_fetch_freshness_status_to_json",
+    "insight_synthesis_error_budget_status_to_json",
+    "profile_evidence_role_coverage_status_to_json",
+    "publisher_retry_dead_letter_status_to_json",
+    "llm_budget_reservation_leak_status_to_json",
+    "spec_generation_queue_latency_status_to_json",
+    "buildable_unit_stack_compliance_status_to_json",
+    "feedback_reviewer_queue_balance_status_to_json",
 ]
