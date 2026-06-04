@@ -1,0 +1,83 @@
+name: laboratory-operations
+
+domain:
+  name: laboratory-operations
+  description: >-
+    Sample tracking, instrument scheduling, QA/QC, LIMS integrations,
+    compliance evidence, and lab workflow automation.
+  categories:
+    - application
+    - automation
+    - integration
+    - workflow_tool
+    - reporting_tool
+  target_user_types:
+    - lab managers
+    - technicians
+    - QA leads
+    - researchers
+    - compliance buyers
+  target_segments:
+    - clinical labs
+    - biotech R&D teams
+    - contract research labs
+    - quality control labs
+  workflows:
+    - sample chain-of-custody
+    - instrument scheduling
+    - QA/QC review
+    - LIMS data reconciliation
+    - compliance evidence collection
+  buyer_roles:
+    - lab operations director
+    - QA manager
+    - research operations lead
+    - compliance officer
+  hard_constraints:
+    - must preserve traceability and audit evidence
+    - must support validation before production use
+    - must integrate with LIMS, instruments, or ELN systems
+  bad_idea_patterns:
+    - spreadsheet replacement without chain-of-custody
+    - instrument scheduler with no calibration context
+    - AI summary without validation or review evidence
+  good_idea_criteria:
+    - improves sample, instrument, QA, or compliance workflow throughput
+    - keeps human review and audit trails explicit
+    - demonstrates integration readiness
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    traceability:
+      weight: 1.5
+      description: Preserves sample, result, and decision lineage.
+    validation_readiness:
+      weight: 1.3
+      description: Can be validated against lab SOPs before operational use.
+    integration_readiness:
+      weight: 1.3
+      description: Fits LIMS, ELN, instrument, or QA data flows.
+
+sources:
+  - adapter: clinical_trials
+    params:
+      queries:
+        - laboratory workflow
+  - adapter: github
+    params:
+      topics:
+        - lims
+        - laboratory
+        - bioinformatics
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - laboratory
+        - LIMS
+        - biotech
+
+evaluation:
+  weight_profile: default
+  min_score: 57.0
