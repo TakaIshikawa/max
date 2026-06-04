@@ -1,0 +1,84 @@
+name: climate-risk
+
+domain:
+  name: climate-risk
+  description: >-
+    Climate risk, adaptation planning, emissions operations, disclosure
+    workflows, geospatial analytics, and resilience tooling.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+  target_user_types:
+    - sustainability teams
+    - risk analysts
+    - asset managers
+    - adaptation planners
+  target_segments:
+    - real estate portfolio owners
+    - infrastructure operators
+    - corporate sustainability teams
+    - municipal resilience teams
+  workflows:
+    - physical risk screening
+    - emissions data reconciliation
+    - disclosure evidence collection
+    - adaptation project prioritization
+    - geospatial exposure analysis
+  buyer_roles:
+    - chief sustainability officer
+    - enterprise risk leader
+    - resilience program manager
+    - ESG reporting lead
+  hard_constraints:
+    - must document data lineage and assumptions
+    - must support audit-ready disclosure evidence
+    - must handle geospatial uncertainty and scenario variance
+  bad_idea_patterns:
+    - opaque climate score without source evidence
+    - carbon dashboard disconnected from operations
+    - one-size-fits-all disclosure template
+  good_idea_criteria:
+    - makes climate risk decisions more traceable
+    - connects geospatial data to operational workflows
+    - reduces reporting and evidence collection burden
+
+domain_quality:
+  enabled: true
+  min_score: 67.0
+  scoring_dimensions:
+    evidence_lineage:
+      weight: 1.5
+      description: Makes source data, scenario, and calculation assumptions explicit.
+    operational_fit:
+      weight: 1.2
+      description: Connects climate analytics to planning, reporting, or mitigation work.
+    decision_relevance:
+      weight: 1.2
+      description: Supports a clear buyer decision or compliance obligation.
+
+sources:
+  - adapter: federal_register_healthcare
+    enabled: false
+    params:
+      agencies:
+        - EPA
+  - adapter: github
+    params:
+      topics:
+        - climate-risk
+        - geospatial
+        - emissions
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - climate risk
+        - emissions
+        - geospatial
+
+evaluation:
+  weight_profile: default
+  min_score: 55.0
