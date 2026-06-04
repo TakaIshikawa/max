@@ -1,0 +1,89 @@
+name: robotics
+
+domain:
+  name: robotics
+  description: >-
+    Robotics software, autonomy, simulation, fleet operations, perception
+    tooling, safety workflows, and hardware/software integration products.
+  categories:
+    - application
+    - automation
+    - integration
+    - library
+    - monitoring_tool
+    - simulation_tool
+  target_user_types:
+    - robotics engineers
+    - fleet operators
+    - safety teams
+    - hardware integration teams
+  target_segments:
+    - autonomous mobile robot teams
+    - warehouse automation operators
+    - field robotics startups
+    - simulation and validation teams
+  workflows:
+    - autonomy validation
+    - simulation scenario management
+    - perception dataset review
+    - fleet incident triage
+    - hardware/software release coordination
+  buyer_roles:
+    - head of robotics
+    - autonomy engineering manager
+    - fleet operations lead
+    - safety and compliance lead
+  hard_constraints:
+    - must preserve traceability from field event to software change
+    - must support offline or intermittent connectivity workflows
+    - must account for safety review and operational rollback
+  bad_idea_patterns:
+    - generic dashboard without robot-specific action
+    - autonomy claims without validation evidence
+    - simulator wrapper that ignores hardware constraints
+  good_idea_criteria:
+    - improves a measurable robotics workflow bottleneck
+    - integrates with logs, bags, maps, simulators, or fleet systems
+    - supports safety and release evidence
+
+domain_quality:
+  enabled: true
+  min_score: 68.0
+  required_fields:
+    - buyer
+    - workflow_context
+    - validation_plan
+  scoring_dimensions:
+    workflow_specificity:
+      weight: 1.4
+      description: Anchors to autonomy, simulation, fleet, perception, or hardware integration work.
+    safety_traceability:
+      weight: 1.3
+      description: Produces evidence suitable for safety and release review.
+    integration_readiness:
+      weight: 1.2
+      description: Fits logs, fleet APIs, simulators, or robotics middleware.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - robotics
+        - ros
+        - autonomy
+        - simulation
+  - adapter: github_issues
+    params:
+      queries:
+        - '"ROS" "simulation" is:issue is:open'
+        - '"robot fleet" is:issue is:open'
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - robotics
+        - autonomous
+        - perception
+
+evaluation:
+  weight_profile: ecosystem
+  min_score: 55.0

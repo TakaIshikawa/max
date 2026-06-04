@@ -1,0 +1,73 @@
+name: media-production
+
+domain:
+  name: media-production
+  description: >-
+    Video, audio, post-production, rights clearance, collaboration,
+    distribution, and production operations tooling.
+  categories:
+    - application
+    - automation
+    - integration
+    - collaboration_tool
+    - workflow_tool
+  target_user_types:
+    - editors
+    - producers
+    - post-production supervisors
+    - rights teams
+    - distribution operators
+  target_segments:
+    - production studios
+    - podcast networks
+    - post-production houses
+    - creator operations teams
+  workflows:
+    - asset ingest and review
+    - edit approvals
+    - rights clearance
+    - localization and delivery
+    - distribution package tracking
+  buyer_roles:
+    - head of production
+    - post-production supervisor
+    - legal and rights manager
+    - distribution operations lead
+  hard_constraints:
+    - must preserve rights and clearance status
+    - must support large media storage and proxies
+    - must handle review comments and version history
+    - must support collaboration across vendors
+  bad_idea_patterns:
+    - generic file sharing with no rights model
+    - AI editing tool without approval workflow
+    - storage-heavy tool with unclear cost control
+  good_idea_criteria:
+    - shortens review, rights, or delivery cycles
+    - integrates with existing media asset workflows
+    - makes approvals and usage rights auditable
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - video
+        - audio
+        - media
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - video
+        - audio
+        - production
+        - rights
+  - adapter: reddit
+    params:
+      subreddits:
+        - editors
+        - videography
+        - podcasting
+
+evaluation:
+  weight_profile: default
+  min_score: 55.0

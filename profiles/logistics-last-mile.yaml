@@ -1,0 +1,71 @@
+name: logistics-last-mile
+
+domain:
+  name: logistics-last-mile
+  description: >-
+    Dispatch, routing, delivery exceptions, driver operations, customer
+    notifications, fleet utilization, and returns workflows.
+  categories:
+    - application
+    - automation
+    - integration
+    - optimization_tool
+    - workflow_tool
+  target_user_types:
+    - dispatchers
+    - fleet managers
+    - drivers
+    - customer operations teams
+  target_segments:
+    - regional carriers
+    - ecommerce delivery teams
+    - courier networks
+    - reverse logistics operators
+  workflows:
+    - dispatch planning
+    - route exception handling
+    - proof-of-delivery capture
+    - returns pickup coordination
+    - customer notification management
+    - fleet utilization review
+  buyer_roles:
+    - operations director
+    - last-mile logistics manager
+    - fleet manager
+    - customer experience lead
+  hard_constraints:
+    - must respect service-level commitments
+    - must support driver mobile workflows
+    - must preserve proof-of-delivery audit trails
+    - must handle compliance and regional delivery rules
+  bad_idea_patterns:
+    - route optimizer without exception workflows
+    - customer notification tool disconnected from dispatch
+    - fleet dashboard with no operational action
+  good_idea_criteria:
+    - reduces failed delivery or return handling time
+    - connects dispatch, driver, fleet, and customer data
+    - improves service-level visibility
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - logistics
+        - delivery
+        - routing
+  - adapter: github
+    params:
+      topics:
+        - routing
+        - logistics
+        - maps
+  - adapter: reddit
+    params:
+      subreddits:
+        - logistics
+        - courierofreddit
+
+evaluation:
+  weight_profile: quick_wins
+  min_score: 54.0

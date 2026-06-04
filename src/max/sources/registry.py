@@ -232,8 +232,17 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "kubernetes_keps": "max.sources.kubernetes_keps:KubernetesKepsAdapter",
     "kubernetes_blog": "max.sources.kubernetes_blog:KubernetesBlogAdapter",
     "docker_blog": "max.sources.docker_blog:DockerBlogAdapter",
+    "docker_desktop_release_notes": (
+        "max.sources.docker_desktop_release_notes:DockerDesktopReleaseNotesAdapter"
+    ),
+    "django_weblog": "max.sources.django_weblog:DjangoWeblogAdapter",
+    "electron_releases": "max.sources.electron_releases:ElectronReleasesAdapter",
+    "elastic_security_labs": (
+        "max.sources.elastic_security_labs:ElasticSecurityLabsAdapter"
+    ),
     "hashicorp_blog": "max.sources.hashicorp_blog:HashicorpBlogAdapter",
     "cncf_blog": "max.sources.cncf_blog:CncfBlogAdapter",
+    "grafana_labs_blog": "max.sources.grafana_labs_blog:GrafanaLabsBlogAdapter",
     "vercel_changelog": "max.sources.vercel_changelog:VercelChangelogAdapter",
     "supabase_changelog": "max.sources.supabase_changelog:SupabaseChangelogAdapter",
     "postgresql_news": "max.sources.postgresql_news:PostgresqlNewsAdapter",
@@ -274,6 +283,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     ),
     "langchain_changelog": "max.sources.langchain_changelog:LangChainChangelogAdapter",
     "nextjs_blog": "max.sources.nextjs_blog:NextjsBlogAdapter",
+    "react_blog": "max.sources.react_blog:ReactBlogAdapter",
     "netlify_changelog": "max.sources.netlify_changelog:NetlifyChangelogAdapter",
     "sentry_changelog": "max.sources.sentry_changelog:SentryChangelogAdapter",
     "openai_status_incidents": "max.sources.openai_status_incidents:OpenAIStatusIncidentsAdapter",
@@ -1760,6 +1770,42 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feed_url", "release", "security", "keywords", "max_age_days", "timeout"],
         required_keys=[],
         description="Fetches Rust Blog posts from the public RSS feed.",
+    ),
+    "docker_desktop_release_notes": AdapterMetadata(
+        name="docker_desktop_release_notes",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured Docker Desktop release notes into roadmap signals.",
+    ),
+    "django_weblog": AdapterMetadata(
+        name="django_weblog",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured Django weblog entries into roadmap and market signals.",
+    ),
+    "electron_releases": AdapterMetadata(
+        name="electron_releases",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured Electron release entries into roadmap signals.",
+    ),
+    "elastic_security_labs": AdapterMetadata(
+        name="elastic_security_labs",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured Elastic Security Labs research entries into security signals.",
+    ),
+    "grafana_labs_blog": AdapterMetadata(
+        name="grafana_labs_blog",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured Grafana Labs blog entries into observability signals.",
+    ),
+    "react_blog": AdapterMetadata(
+        name="react_blog",
+        config_keys=["entries", "payload"],
+        required_keys=[],
+        description="Parses configured React blog entries into framework ecosystem signals.",
     ),
 }
 

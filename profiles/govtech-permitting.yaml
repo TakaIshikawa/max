@@ -1,0 +1,71 @@
+name: govtech-permitting
+
+domain:
+  name: govtech-permitting
+  description: >-
+    Permit intake, plan review, inspections, public records, interdepartmental
+    routing, and constituent communication tooling.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - municipal staff
+    - permit applicants
+    - inspectors
+    - plan reviewers
+    - records teams
+  target_segments:
+    - city permitting departments
+    - county planning offices
+    - inspection teams
+    - public works agencies
+  workflows:
+    - permit intake
+    - plan review routing
+    - inspection scheduling
+    - public records response
+    - constituent status communication
+  buyer_roles:
+    - permitting director
+    - city CIO
+    - planning department manager
+    - records officer
+  hard_constraints:
+    - must meet accessibility expectations
+    - must preserve audit trails and public records
+    - must support privacy and data retention rules
+    - must fit public procurement realities
+  bad_idea_patterns:
+    - citizen portal without staff workflow improvements
+    - automation that hides review accountability
+    - records system without export and retention controls
+  good_idea_criteria:
+    - improves staff throughput and applicant transparency
+    - makes routing, review, and records actions auditable
+    - integrates with legacy permitting or document systems
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - permitting
+        - government
+        - municipal
+  - adapter: github
+    params:
+      topics:
+        - civic-tech
+        - govtech
+        - permitting
+  - adapter: reddit
+    params:
+      subreddits:
+        - urbanplanning
+        - govtech
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0

@@ -323,11 +323,15 @@ properties:
             - discourse
             - discord
             - docker_blog
+            - docker_desktop_release_notes
             - docker_hub
             - dockerhub
             - dockerhub_image_trends
             - dockerhub_tag_velocity
+            - django_weblog
             - eclipse_marketplace
+            - electron_releases
+            - elastic_security_labs
             - epss_scores
             - federal_register_healthcare
             - firebase_release_notes
@@ -360,6 +364,7 @@ properties:
             - glama_mcp_stats
             - go_module_trends
             - go_packages
+            - grafana_labs_blog
             - hackernews
             - hackernews_askhn
             - hackernews_frontpage
@@ -424,6 +429,7 @@ properties:
             - python_peps
             - reddit
             - reddit_comment_threads
+            - react_blog
             - rss_feed
             - rubygems
             - rubygems_download_trends
