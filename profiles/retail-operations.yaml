@@ -1,0 +1,71 @@
+name: retail-operations
+
+domain:
+  name: retail-operations
+  description: >-
+    Retail inventory, merchandising, store labor, omnichannel fulfillment, loss
+    prevention, and customer operations tooling.
+  categories:
+    - application
+    - automation
+    - integration
+    - analytics_tool
+    - workflow_tool
+  target_user_types:
+    - store managers
+    - ecommerce operators
+    - fulfillment teams
+    - merchandisers
+    - loss prevention analysts
+  target_segments:
+    - specialty retailers
+    - omnichannel brands
+    - regional store chains
+    - retail operations teams
+  workflows:
+    - inventory reconciliation
+    - store labor planning
+    - merchandising execution
+    - buy-online-pickup-in-store exceptions
+    - returns and customer issue resolution
+  buyer_roles:
+    - VP retail operations
+    - ecommerce operations lead
+    - merchandising director
+    - loss prevention manager
+  hard_constraints:
+    - must fit POS, ERP, WMS, or ecommerce platform data realities
+    - must support store-level adoption without heavy training
+    - must respect customer privacy and payment boundaries
+  bad_idea_patterns:
+    - generic BI dashboard without store action
+    - labor automation that ignores local rules
+    - inventory model with no reconciliation workflow
+  good_idea_criteria:
+    - separates store, ecommerce, fulfillment, and merchandising workflows
+    - reduces exception handling time
+    - integrates with existing retail systems
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - retail
+        - inventory
+        - fulfillment
+  - adapter: reddit
+    params:
+      subreddits:
+        - retail
+        - smallbusiness
+        - ecommerce
+  - adapter: github
+    params:
+      topics:
+        - retail
+        - inventory
+        - ecommerce
+
+evaluation:
+  weight_profile: quick_wins
+  min_score: 54.0
