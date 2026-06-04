@@ -9,21 +9,26 @@ from max.exports.source_adapter_error_budget_report import (
 )
 
 
-def test_source_adapter_error_budget_report_sorts_breaches_and_actions() -> None:
+def test_source_adapter_error_budget_report_sorts_and_summarizes_actions() -> None:
     report = build_source_adapter_error_budget_report_export(
         [
-            {"adapter": "github", "allowed_errors": 5, "actual_errors": 8, "owner": "platform"},
-            {"adapter": "slack", "allowed_errors": 10, "actual_errors": 2},
+            {"adapter": "rss", "source": "GitHub", "allowed_errors": 3, "actual_errors": 5, "owner": "security"},
+            {"adapter": "api", "source": "Slack", "allowed_errors": 10, "consumed_errors": 2},
+            {"adapter": "feed", "source": "Zendesk", "allowed_errors": 4, "actual_errors": 4},
         ]
     )
 
     assert report["schema_version"] == "max.source_adapter_error_budget_report.v1"
+    assert report["kind"] == "max.source_adapter_error_budget_report"
     assert report["summary"]["breached_count"] == 1
-    assert report["adapter_rows"][0]["adapter"] == "github"
+    assert [row["adapter"] for row in report["adapter_rows"]] == ["rss", "feed", "api"]
     assert report["breached_adapters"][0]["recommended_action"] == "pause ingestion and repair adapter failures"
-    assert "github" in render_source_adapter_error_budget_report_markdown(report)
+    assert "GitHub" in render_source_adapter_error_budget_report_markdown(report)
     assert json.loads(render_source_adapter_error_budget_report_json(report))["kind"] == "max.source_adapter_error_budget_report"
 
 
 def test_source_adapter_error_budget_report_empty_markdown() -> None:
-    assert "No source adapter error budget records supplied" in render_source_adapter_error_budget_report_markdown(build_source_adapter_error_budget_report_export([]))
+    markdown = render_source_adapter_error_budget_report_markdown(build_source_adapter_error_budget_report_export([]))
+
+    assert "No source adapter error budget records supplied" in markdown
+    assert "No adapter error budget records supplied." in markdown

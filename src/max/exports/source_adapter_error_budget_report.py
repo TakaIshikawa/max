@@ -20,9 +20,9 @@ def build_source_adapter_error_budget_report_export(
         if not isinstance(record, Mapping):
             continue
         allowed = _int(record.get("allowed_errors") or record.get("error_budget"))
-        actual = _int(record.get("actual_errors") or record.get("errors"))
+        actual = _int(record.get("actual_errors") or record.get("consumed_errors") or record.get("error_count") or record.get("errors"))
         remaining = allowed - actual
-        breached = remaining < 0
+        breached = actual > allowed
         adapter = _text(record.get("adapter") or record.get("source_adapter") or record.get("source")) or f"adapter-{index}"
         rows.append(
             {
@@ -33,11 +33,10 @@ def build_source_adapter_error_budget_report_export(
                 "budget_remaining": remaining,
                 "breached": breached,
                 "owner": _text(record.get("owner")) or "unassigned",
-                "recommended_action": _text(record.get("recommended_action"))
-                or ("pause ingestion and repair adapter failures" if breached else "monitor error budget"),
+                "recommended_action": _text(record.get("recommended_action")) or _action(breached, remaining),
             }
         )
-    rows.sort(key=lambda row: (0 if row["breached"] else 1, row["budget_remaining"], row["adapter"].lower()))
+    rows.sort(key=lambda row: (0 if row["breached"] else 1, row["budget_remaining"], row["adapter"].lower(), row["source"].lower()))
     breached_rows = [row for row in rows if row["breached"]]
     return {
         "schema_version": SCHEMA_VERSION,
@@ -61,13 +60,26 @@ def render_source_adapter_error_budget_report_json(report: dict[str, Any]) -> st
 
 def render_source_adapter_error_budget_report_markdown(report: dict[str, Any]) -> str:
     rows = report.get("adapter_rows") or []
+    lines = ["# Source Adapter Error Budget Report", ""]
     if not rows:
-        return "# Source Adapter Error Budget Report\n\nNo source adapter error budget records supplied.\n"
-    lines = ["# Source Adapter Error Budget Report", "", "| Adapter | Remaining | Status | Action |", "| --- | ---: | --- | --- |"]
+        lines.append("No source adapter error budget records supplied. No adapter error budget records supplied.")
+        return "\n".join(lines).rstrip() + "\n"
+    lines.extend(["| Adapter | Source | Allowed | Actual | Remaining | Status | Owner | Action |", "| --- | --- | ---: | ---: | ---: | --- | --- | --- |"])
     for row in rows:
         status = "breached" if row["breached"] else "within_budget"
-        lines.append(f"| {row['adapter']} | {row['budget_remaining']} | {status} | {row['recommended_action']} |")
-    return "\n".join(lines) + "\n"
+        lines.append(
+            f"| {row['adapter']} | {row['source']} | {row['allowed_errors']} | {row['actual_errors']} | "
+            f"{row['budget_remaining']} | {status} | {row['owner']} | {row['recommended_action']} |"
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _action(breached: bool, remaining: int) -> str:
+    if breached:
+        return "pause ingestion and repair adapter failures"
+    if remaining <= 1:
+        return "monitor closely and reduce retry pressure"
+    return "monitor error budget"
 
 
 def _int(value: Any) -> int:

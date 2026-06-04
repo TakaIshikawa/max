@@ -91,6 +91,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
         "max.sources.github_marketplace_actions:GitHubMarketplaceActionsAdapter"
     ),
     "github_octoverse": "max.sources.github_octoverse:GitHubOctoverseAdapter",
+    "github_security_lab_blog": (
+        "max.sources.github_security_lab_blog:GitHubSecurityLabBlogAdapter"
+    ),
     "snyk_reports": "max.sources.snyk_reports:SnykReportsAdapter",
     "agentseal_mcp_scan": "max.sources.agentseal_mcp_scan:AgentSealMcpScanAdapter",
     "ai_code_trust_reports": (
@@ -254,6 +257,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "ietf_datatracker": "max.sources.ietf_datatracker:IetfDatatrackerAdapter",
     "openapi_specs": "max.sources.openapi_specs:OpenApiSpecsAdapter",
     "twilio_changelog": "max.sources.twilio_changelog:TwilioChangelogAdapter",
+    "microsoft_python_devblogs": (
+        "max.sources.microsoft_python_devblogs:MicrosoftPythonDevBlogsAdapter"
+    ),
     "langchain_changelog": "max.sources.langchain_changelog:LangChainChangelogAdapter",
     "nextjs_blog": "max.sources.nextjs_blog:NextjsBlogAdapter",
     "netlify_changelog": "max.sources.netlify_changelog:NetlifyChangelogAdapter",
