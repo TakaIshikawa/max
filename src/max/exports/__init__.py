@@ -140,6 +140,23 @@ from max.exports.source_adapter_retry_jitter_report import (
     render_source_adapter_retry_jitter_report_json,
     render_source_adapter_retry_jitter_report_markdown,
 )
+from max.exports.source_adapter_error_budget_report import (
+    build_source_adapter_error_budget_report_export,
+    render_source_adapter_error_budget_report_json,
+    render_source_adapter_error_budget_report_markdown,
+)
+from max.exports.source_credential_expiry_report import (
+    build_source_credential_expiry_report,
+    generate_source_credential_expiry_report,
+    render_source_credential_expiry_report_json,
+    render_source_credential_expiry_report_markdown,
+)
+from max.exports.source_fetch_allocation_drift_report import generate_source_fetch_allocation_drift_report
+from max.exports.profile_signal_freshness_report import (
+    build_profile_signal_freshness_report,
+    render_profile_signal_freshness_report_json,
+    render_profile_signal_freshness_report_markdown,
+)
 from max.exports.spec_publication_rollback_readiness_report import generate_spec_publication_rollback_readiness_report
 from max.exports.spec_generation_token_waste_report import (
     build_spec_generation_token_waste_report,
@@ -791,6 +808,17 @@ __all__ = [
     "build_signal_source_quota_burn_report",
     "render_signal_source_quota_burn_report_json",
     "render_signal_source_quota_burn_report_markdown",
+    "build_source_adapter_error_budget_report_export",
+    "render_source_adapter_error_budget_report_json",
+    "render_source_adapter_error_budget_report_markdown",
+    "build_source_credential_expiry_report",
+    "generate_source_credential_expiry_report",
+    "render_source_credential_expiry_report_json",
+    "render_source_credential_expiry_report_markdown",
+    "generate_source_fetch_allocation_drift_report",
+    "build_profile_signal_freshness_report",
+    "render_profile_signal_freshness_report_json",
+    "render_profile_signal_freshness_report_markdown",
     "build_source_signal_drop_reason_report",
     "render_source_signal_drop_reason_report_json",
     "render_source_signal_drop_reason_report_markdown",
