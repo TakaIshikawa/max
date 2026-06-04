@@ -1,0 +1,86 @@
+name: edtech_operations
+
+domain:
+  name: edtech_operations
+  description: >-
+    Learning operations, student support workflows, curriculum delivery,
+    LMS integrations, assessment logistics, and education data reporting.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - academic operations teams
+    - instructional designers
+    - student success managers
+    - teachers
+    - school administrators
+  target_segments:
+    - K-12 school districts
+    - higher education programs
+    - online learning providers
+    - workforce training teams
+  workflows:
+    - LMS course operations
+    - student intervention tracking
+    - assessment accommodation coordination
+    - curriculum content review
+    - attendance and engagement reporting
+  buyer_roles:
+    - chief academic officer
+    - director of student success
+    - district technology leader
+    - learning operations manager
+  hard_constraints:
+    - must protect student privacy and education records
+    - must fit classroom and academic calendar realities
+    - must preserve audit trails for interventions and accommodations
+    - must integrate with LMS, SIS, or assessment systems
+  bad_idea_patterns:
+    - student dashboard without educator workflow support
+    - AI tutoring tool with no privacy or review controls
+    - reporting layer disconnected from LMS or SIS data
+  good_idea_criteria:
+    - improves learner support or academic operations throughput
+    - connects learning data to clear staff actions
+    - reduces reporting, intervention, or accommodation burden
+
+domain_quality:
+  enabled: true
+  min_score: 68.0
+  scoring_dimensions:
+    learner_privacy:
+      weight: 1.5
+      description: Handles student data, consent, and access controls explicitly.
+    operational_fit:
+      weight: 1.3
+      description: Fits academic calendars, classroom workflows, and staff capacity.
+    intervention_traceability:
+      weight: 1.2
+      description: Preserves evidence for student support decisions and follow-up actions.
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - edtech
+        - learning management
+        - student data
+  - adapter: github
+    params:
+      topics:
+        - edtech
+        - lms
+        - education
+  - adapter: reddit
+    params:
+      subreddits:
+        - edtech
+        - teachers
+        - InstructionalDesign
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0
