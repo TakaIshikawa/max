@@ -151,6 +151,16 @@ from max.api.embedding_vector_age_status import embedding_vector_age_status_to_j
 from max.api.profile_constraint_conflict_status import profile_constraint_conflict_status_to_json
 from max.api.feedback_rejection_reason_taxonomy_status import feedback_rejection_reason_taxonomy_status_to_json
 from max.api.source_adapter_token_bucket_status import source_adapter_token_bucket_status_to_json
+from max.api.insight_evidence_source_concentration_status import insight_evidence_source_concentration_status_to_json
+from max.api.buildable_unit_acceptance_criteria_completeness_status import buildable_unit_acceptance_criteria_completeness_status_to_json
+from max.api.llm_prompt_token_waste_status import llm_prompt_token_waste_status_to_json
+from max.api.source_adapter_error_taxonomy_status import source_adapter_error_taxonomy_status_to_json
+from max.api.spec_generation_template_miss_status import spec_generation_template_miss_status_to_json
+from max.api.publisher_destination_idempotency_status import publisher_destination_idempotency_status_to_json
+from max.api.runtime_artifact_checksum_drift_status import runtime_artifact_checksum_drift_status_to_json
+from max.api.feedback_outcome_anomaly_status import feedback_outcome_anomaly_status_to_json
+from max.api.embedding_similarity_outlier_status import embedding_similarity_outlier_status_to_json
+from max.api.spec_evidence_citation_density_status import spec_evidence_citation_density_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -412,4 +422,14 @@ __all__ = [
     "pipeline_stage_error_budget_status_to_json",
     "buildable_unit_owner_assignment_status_to_json",
     "publisher_destination_consent_gate_status_to_json",
+    "insight_evidence_source_concentration_status_to_json",
+    "buildable_unit_acceptance_criteria_completeness_status_to_json",
+    "llm_prompt_token_waste_status_to_json",
+    "source_adapter_error_taxonomy_status_to_json",
+    "spec_generation_template_miss_status_to_json",
+    "publisher_destination_idempotency_status_to_json",
+    "runtime_artifact_checksum_drift_status_to_json",
+    "feedback_outcome_anomaly_status_to_json",
+    "embedding_similarity_outlier_status_to_json",
+    "spec_evidence_citation_density_status_to_json",
 ]
