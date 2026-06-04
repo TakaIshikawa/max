@@ -295,6 +295,7 @@ properties:
             - agent_failure_dataset
             - agentseal_mcp_scan
             - ai_code_trust_reports
+            - anthropic_release_notes
             - apis_guru
             - arxiv
             - artifact_hub
@@ -306,6 +307,7 @@ properties:
             - cisa_kev
             - clinical_trials
             - cloudflare_changelog
+            - cloudflare_developer_changelog
             - cncf_blog
             - cncf_landscape
             - chrome_web_store
@@ -325,6 +327,7 @@ properties:
             - eclipse_marketplace
             - epss_scores
             - federal_register_healthcare
+            - firebase_release_notes
             - figma_community
             - funding_rounds
             - github

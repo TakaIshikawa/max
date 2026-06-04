@@ -113,6 +113,9 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "gitlab_epics": "max.sources.gitlab_epics:GitLabEpicsAdapter",
     "gitlab_releases": "max.sources.gitlab_releases:GitLabReleasesAdapter",
     "gitlab_blog": "max.sources.gitlab_blog:GitLabBlogAdapter",
+    "anthropic_release_notes": (
+        "max.sources.anthropic_release_notes:AnthropicReleaseNotesAdapter"
+    ),
     "gitlab_repository_topics": (
         "max.sources.gitlab_repository_topics:GitLabRepositoryTopicsAdapter"
     ),
@@ -234,6 +237,10 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "rust_blog": "max.sources.rust_blog:RustBlogAdapter",
     "aws_whats_new": "max.sources.aws_whats_new:AwsWhatsNewAdapter",
     "cloudflare_changelog": "max.sources.cloudflare_changelog:CloudflareChangelogAdapter",
+    "cloudflare_developer_changelog": (
+        "max.sources.cloudflare_developer_changelog:CloudflareDeveloperChangelogAdapter"
+    ),
+    "firebase_release_notes": "max.sources.firebase_release_notes:FirebaseReleaseNotesAdapter",
     "jira_cloud_platform_changelog": (
         "max.sources.jira_cloud_platform_changelog:JiraCloudPlatformChangelogAdapter"
     ),
