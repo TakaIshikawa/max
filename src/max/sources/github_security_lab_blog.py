@@ -27,25 +27,42 @@ class GitHubSecurityLabBlogAdapter(SourceAdapter):
         payload = self._config.get("entries") or self._config.get("payload") or self._config.get("feed")
         if payload is None:
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await fetch_with_retry(str(self._config.get("feed_url") or DEFAULT_FEED_URL), client, adapter_name=self.name)
+                response = await fetch_with_retry(
+                    str(self._config.get("feed_url") or DEFAULT_FEED_URL),
+                    client,
+                    adapter_name=self.name,
+                )
                 payload = response.text
         return parse_github_security_lab_blog(payload, limit=limit)
 
 
-def parse_github_security_lab_blog(payload: Any, *, limit: int | None = None) -> list[Signal]:
+def parse_github_security_lab_blog(
+    payload: Any, *, limit: int | None = None
+) -> list[Signal]:
     signals: list[Signal] = []
     seen_urls: set[str] = set()
     for entry in _entries(payload):
         title = _text(entry.get("title") or entry.get("name"))
-        url = _canonical_url(entry.get("url") or entry.get("link") or entry.get("guid") or entry.get("id"))
+        url = _canonical_url(
+            entry.get("url") or entry.get("link") or entry.get("guid") or entry.get("id")
+        )
         if not title or not url or url in seen_urls:
             continue
         seen_urls.add(url)
         cve_ids = _cve_ids(entry.get("cve_ids") or entry.get("cves") or entry.get("cve"))
         categories = _tags(entry)
         tags = _dedupe(["github", "security-lab", *categories, *cve_ids])
-        summary = _text(entry.get("summary") or entry.get("description") or entry.get("content") or entry.get("body")) or title
-        source_type = SignalSourceType.SECURITY if cve_ids or _security_tagged(categories, title, summary) else SignalSourceType.ARTICLE
+        summary = _text(
+            entry.get("summary")
+            or entry.get("description")
+            or entry.get("content")
+            or entry.get("body")
+        ) or title
+        source_type = (
+            SignalSourceType.SECURITY
+            if cve_ids or _security_tagged(categories, title, summary)
+            else SignalSourceType.ARTICLE
+        )
         signals.append(
             Signal(
                 id=_id("github_security_lab_blog", url),
@@ -54,7 +71,13 @@ def parse_github_security_lab_blog(payload: Any, *, limit: int | None = None) ->
                 title=title,
                 content=summary[:1000],
                 url=url,
-                published_at=_dt(entry.get("published_at") or entry.get("published") or entry.get("date") or entry.get("pubDate") or entry.get("updated")),
+                published_at=_dt(
+                    entry.get("published_at")
+                    or entry.get("published")
+                    or entry.get("date")
+                    or entry.get("pubDate")
+                    or entry.get("updated")
+                ),
                 tags=tags,
                 metadata={
                     "source_name": "GitHub Security Lab Blog",
