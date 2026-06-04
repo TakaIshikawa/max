@@ -344,6 +344,7 @@ properties:
             - github_workflow_runs
             - github_workflow_templates
             - gitlab_epics
+            - gitlab_blog
             - gitlab_issues
             - gitlab_merge_requests
             - gitlab_releases
