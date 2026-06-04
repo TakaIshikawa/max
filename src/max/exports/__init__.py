@@ -145,6 +145,8 @@ from max.exports.source_adapter_error_budget_report import (
     render_source_adapter_error_budget_report_json,
     render_source_adapter_error_budget_report_markdown,
 )
+from max.exports.source_adapter_auth_method_coverage_report import generate_source_adapter_auth_method_coverage_report
+from max.exports.source_adapter_config_completeness_report import generate_source_adapter_config_completeness_report
 from max.exports.source_credential_expiry_report import (
     build_source_credential_expiry_report,
     generate_source_credential_expiry_report,

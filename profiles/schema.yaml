@@ -301,10 +301,12 @@ properties:
             - artifact_hub
             - awesome_lists
             - aws_whats_new
+            - atlassian_developer_changelog
             - bitbucket_pull_requests
             - bitbucket_repository_activity
             - bluesky
             - cisa_kev
+            - canonical_ubuntu_security_notices
             - clinical_trials
             - cloudflare_changelog
             - cloudflare_developer_changelog
@@ -315,6 +317,7 @@ properties:
             - crates_download_trends
             - crates_io
             - cve_project
+            - databricks_release_notes
             - deno_registry
             - devto
             - discourse
@@ -332,6 +335,7 @@ properties:
             - funding_rounds
             - github
             - github_actions
+            - github_changelog
             - github_code_search
             - github_discussion_comments
             - github_discussions
@@ -429,6 +433,8 @@ properties:
             - security_advisories
             - sentry_changelog
             - snyk_reports
+            - snyk_blog
+            - sonar_blog
             - sourceforge_projects
             - stackshare
             - stripe_changelog
@@ -437,8 +443,10 @@ properties:
             - stackoverflow_question_activity
             - stackoverflow_survey
             - stackoverflow_tag_trends
+            - semgrep_blog
             - supabase_changelog
             - swift_package_index
+            - tailscale_changelog
             - terraform_registry
             - twilio_changelog
             - twitter

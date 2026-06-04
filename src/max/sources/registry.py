@@ -239,6 +239,18 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "postgresql_news": "max.sources.postgresql_news:PostgresqlNewsAdapter",
     "rust_blog": "max.sources.rust_blog:RustBlogAdapter",
     "aws_whats_new": "max.sources.aws_whats_new:AwsWhatsNewAdapter",
+    "sonar_blog": "max.sources.sonar_blog:SonarBlogAdapter",
+    "canonical_ubuntu_security_notices": (
+        "max.sources.canonical_ubuntu_security_notices:CanonicalUbuntuSecurityNoticesAdapter"
+    ),
+    "snyk_blog": "max.sources.snyk_blog:SnykBlogAdapter",
+    "github_changelog": "max.sources.github_changelog:GitHubChangelogAdapter",
+    "atlassian_developer_changelog": (
+        "max.sources.atlassian_developer_changelog:AtlassianDeveloperChangelogAdapter"
+    ),
+    "databricks_release_notes": "max.sources.databricks_release_notes:DatabricksReleaseNotesAdapter",
+    "tailscale_changelog": "max.sources.tailscale_changelog:TailscaleChangelogAdapter",
+    "semgrep_blog": "max.sources.semgrep_blog:SemgrepBlogAdapter",
     "cloudflare_changelog": "max.sources.cloudflare_changelog:CloudflareChangelogAdapter",
     "cloudflare_developer_changelog": (
         "max.sources.cloudflare_developer_changelog:CloudflareDeveloperChangelogAdapter"
@@ -1634,6 +1646,54 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feed_url", "categories", "keywords", "max_age_days", "timeout"],
         required_keys=[],
         description="Fetches AWS What's New launch announcements from the public RSS feed.",
+    ),
+    "sonar_blog": AdapterMetadata(
+        name="sonar_blog",
+        config_keys=["entries", "payload", "feed_url", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Ingests Sonar blog posts as code quality and static analysis signals.",
+    ),
+    "canonical_ubuntu_security_notices": AdapterMetadata(
+        name="canonical_ubuntu_security_notices",
+        config_keys=["entries", "payload", "feed_url", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Ingests Ubuntu Security Notices as vulnerability and infrastructure security signals.",
+    ),
+    "snyk_blog": AdapterMetadata(
+        name="snyk_blog",
+        config_keys=["entries", "payload", "feed_url", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Ingests Snyk blog posts as security, supply-chain, and developer workflow signals.",
+    ),
+    "github_changelog": AdapterMetadata(
+        name="github_changelog",
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "timeout"],
+        required_keys=[],
+        description="Ingests GitHub Changelog posts separately from the GitHub Blog adapter.",
+    ),
+    "atlassian_developer_changelog": AdapterMetadata(
+        name="atlassian_developer_changelog",
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "timeout"],
+        required_keys=[],
+        description="Ingests Atlassian developer changelog items for Jira, Confluence, and platform signals.",
+    ),
+    "databricks_release_notes": AdapterMetadata(
+        name="databricks_release_notes",
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "timeout"],
+        required_keys=[],
+        description="Ingests Databricks release notes as data platform and AI infrastructure signals.",
+    ),
+    "tailscale_changelog": AdapterMetadata(
+        name="tailscale_changelog",
+        config_keys=["entries", "payload", "feed_url", "products", "keywords", "timeout"],
+        required_keys=[],
+        description="Ingests Tailscale changelog entries as networking infrastructure signals.",
+    ),
+    "semgrep_blog": AdapterMetadata(
+        name="semgrep_blog",
+        config_keys=["entries", "payload", "feed_url", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Ingests Semgrep blog posts as application security and developer tooling signals.",
     ),
     "cloudflare_changelog": AdapterMetadata(
         name="cloudflare_changelog",
