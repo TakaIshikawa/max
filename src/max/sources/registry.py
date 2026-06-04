@@ -239,6 +239,7 @@ _BUILTIN_ADAPTERS: dict[str, str] = {
     "postgresql_news": "max.sources.postgresql_news:PostgresqlNewsAdapter",
     "rust_blog": "max.sources.rust_blog:RustBlogAdapter",
     "aws_whats_new": "max.sources.aws_whats_new:AwsWhatsNewAdapter",
+    "aws_security_blog": "max.sources.aws_security_blog:AwsSecurityBlogAdapter",
     "sonar_blog": "max.sources.sonar_blog:SonarBlogAdapter",
     "canonical_ubuntu_security_notices": (
         "max.sources.canonical_ubuntu_security_notices:CanonicalUbuntuSecurityNoticesAdapter"
@@ -1646,6 +1647,12 @@ _BUILTIN_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         config_keys=["feed_url", "categories", "keywords", "max_age_days", "timeout"],
         required_keys=[],
         description="Fetches AWS What's New launch announcements from the public RSS feed.",
+    ),
+    "aws_security_blog": AdapterMetadata(
+        name="aws_security_blog",
+        config_keys=["entries", "payload", "feed_url", "keywords", "max_age_days", "timeout"],
+        required_keys=[],
+        description="Ingests AWS Security Blog posts as cloud security and compliance signals.",
     ),
     "sonar_blog": AdapterMetadata(
         name="sonar_blog",
