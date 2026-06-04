@@ -1,0 +1,89 @@
+name: manufacturing_quality
+
+domain:
+  name: manufacturing_quality
+  description: >-
+    Quality management, nonconformance handling, production inspection,
+    traceability, corrective actions, downtime analysis, and regulated
+    manufacturing operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - quality engineers
+    - plant managers
+    - production supervisors
+    - manufacturing operators
+    - compliance teams
+  target_segments:
+    - discrete manufacturers
+    - medical device manufacturers
+    - automotive suppliers
+    - contract manufacturing organizations
+  workflows:
+    - inspection planning
+    - nonconformance triage
+    - CAPA tracking
+    - lot and batch traceability
+    - downtime root cause review
+    - supplier quality review
+  buyer_roles:
+    - VP of quality
+    - plant operations leader
+    - manufacturing engineering manager
+    - regulatory affairs leader
+  hard_constraints:
+    - must preserve lot, batch, and process traceability
+    - must support audit-ready quality records
+    - must integrate with MES, QMS, ERP, or shop-floor systems
+    - must account for regulated production and validation requirements
+  bad_idea_patterns:
+    - quality dashboard without corrective action workflow
+    - downtime analytics disconnected from production context
+    - AI defect summary without inspection evidence
+  good_idea_criteria:
+    - reduces scrap, rework, escapes, or downtime
+    - connects quality signals to accountable actions
+    - maintains production and regulatory evidence lineage
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    quality_traceability:
+      weight: 1.5
+      description: Preserves lineage for defects, lots, inspections, and corrective actions.
+    downtime_relevance:
+      weight: 1.2
+      description: Connects quality work to production throughput and downtime impact.
+    regulatory_readiness:
+      weight: 1.3
+      description: Supports audit-ready records and validation expectations.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - manufacturing
+        - quality-management
+        - mes
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - manufacturing quality
+        - factory operations
+        - quality management
+  - adapter: reddit
+    params:
+      subreddits:
+        - manufacturing
+        - qualityengineering
+
+evaluation:
+  weight_profile: default
+  min_score: 57.0
