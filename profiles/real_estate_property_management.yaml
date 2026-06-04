@@ -1,0 +1,86 @@
+name: real_estate_property_management
+
+domain:
+  name: real_estate_property_management
+  description: >-
+    Tenant communication, maintenance triage, lease operations, inspections,
+    compliance tracking, vendor coordination, and portfolio performance tooling.
+  categories:
+    - application
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - property managers
+    - maintenance coordinators
+    - leasing teams
+    - asset managers
+    - tenant support teams
+  target_segments:
+    - multifamily operators
+    - commercial property managers
+    - single-family rental portfolios
+    - mixed-use real estate owners
+  workflows:
+    - maintenance request triage
+    - tenant communication tracking
+    - lease renewal operations
+    - inspection scheduling
+    - compliance task management
+    - portfolio operations reporting
+  buyer_roles:
+    - director of property management
+    - VP of operations
+    - asset management leader
+    - facilities director
+  hard_constraints:
+    - must preserve tenant communication and maintenance audit trails
+    - must support fair housing, safety, and local compliance requirements
+    - must integrate with property management or accounting systems
+    - must handle portfolio-level permissions and data separation
+  bad_idea_patterns:
+    - tenant portal without staff maintenance workflow improvements
+    - portfolio dashboard disconnected from work orders
+    - rent automation that ignores compliance or exception handling
+  good_idea_criteria:
+    - improves maintenance response, tenant transparency, or renewal operations
+    - connects property, tenant, vendor, and portfolio data
+    - reduces manual compliance and operational reporting burden
+
+domain_quality:
+  enabled: true
+  min_score: 67.0
+  scoring_dimensions:
+    maintenance_triage:
+      weight: 1.3
+      description: Improves prioritization, ownership, and closeout of property issues.
+    tenant_communication:
+      weight: 1.3
+      description: Preserves clear, auditable resident or occupant communication.
+    portfolio_compliance:
+      weight: 1.2
+      description: Supports cross-property compliance, permissions, and reporting needs.
+
+sources:
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - property management
+        - real estate operations
+        - maintenance requests
+  - adapter: github
+    params:
+      topics:
+        - property-management
+        - real-estate
+        - facilities-management
+  - adapter: reddit
+    params:
+      subreddits:
+        - propertymanagement
+        - realestateinvesting
+
+evaluation:
+  weight_profile: default
+  min_score: 55.0
