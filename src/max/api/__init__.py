@@ -178,6 +178,15 @@ from max.api.llm_budget_reservation_leak_status import llm_budget_reservation_le
 from max.api.spec_generation_queue_latency_status import spec_generation_queue_latency_status_to_json
 from max.api.buildable_unit_stack_compliance_status import buildable_unit_stack_compliance_status_to_json
 from max.api.feedback_reviewer_queue_balance_status import feedback_reviewer_queue_balance_status_to_json
+from max.api.circuit_breaker_churn_status import circuit_breaker_churn_status_to_json
+from max.api.feedback_weight_impact_status import feedback_weight_impact_status_to_json
+from max.api.idea_spec_conversion_funnel_status import idea_spec_conversion_funnel_status_to_json
+from max.api.insight_source_diversity_status import insight_source_diversity_status_to_json
+from max.api.prompt_failure_recovery_status import prompt_failure_recovery_status_to_json
+from max.api.runtime_artifact_disk_pressure_status import runtime_artifact_disk_pressure_status_to_json
+from max.api.signal_source_duplicate_rate_status import signal_source_duplicate_rate_status_to_json
+from max.api.spec_citation_quality_status import spec_citation_quality_status_to_json
+from max.api.source_adapter_credential_expiry_status import source_adapter_credential_expiry_status_to_json
 
 
 def design_brief_go_to_market_to_json(strategy: Mapping[str, Any]) -> dict[str, Any]:
@@ -466,4 +475,13 @@ __all__ = [
     "spec_generation_queue_latency_status_to_json",
     "buildable_unit_stack_compliance_status_to_json",
     "feedback_reviewer_queue_balance_status_to_json",
+    "circuit_breaker_churn_status_to_json",
+    "feedback_weight_impact_status_to_json",
+    "idea_spec_conversion_funnel_status_to_json",
+    "insight_source_diversity_status_to_json",
+    "prompt_failure_recovery_status_to_json",
+    "runtime_artifact_disk_pressure_status_to_json",
+    "signal_source_duplicate_rate_status_to_json",
+    "spec_citation_quality_status_to_json",
+    "source_adapter_credential_expiry_status_to_json",
 ]
