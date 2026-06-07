@@ -179,6 +179,15 @@ from max.exports.publication_target_failure_cluster_report import generate_publi
 from max.exports.signal_annotation_gap_report import generate_signal_annotation_gap_report
 from max.exports.source_credential_scope_report import generate_source_credential_scope_report
 from max.exports.spec_evidence_trace_gap_report import generate_spec_evidence_trace_gap_report
+from max.exports.buildable_unit_approval_readiness_report import generate_buildable_unit_approval_readiness_report
+from max.exports.feedback_loop_weight_impact_report import generate_feedback_loop_weight_impact_report
+from max.exports.idea_spec_conversion_funnel_report import generate_idea_spec_conversion_funnel_report
+from max.exports.insight_evidence_source_diversity_report import generate_insight_evidence_source_diversity_report
+from max.exports.llm_prompt_failure_recovery_report import generate_llm_prompt_failure_recovery_report
+from max.exports.profile_evaluation_weight_drift_report import generate_profile_evaluation_weight_drift_report
+from max.exports.runtime_artifact_disk_pressure_report import generate_runtime_artifact_disk_pressure_report
+from max.exports.spec_evidence_citation_quality_report import generate_spec_evidence_citation_quality_report
+from max.exports.source_adapter_credential_rotation_readiness_report import generate_source_adapter_credential_rotation_readiness_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -1236,4 +1245,13 @@ __all__ = [
     "generate_signal_annotation_gap_report",
     "generate_source_credential_scope_report",
     "generate_spec_evidence_trace_gap_report",
+    "generate_buildable_unit_approval_readiness_report",
+    "generate_feedback_loop_weight_impact_report",
+    "generate_idea_spec_conversion_funnel_report",
+    "generate_insight_evidence_source_diversity_report",
+    "generate_llm_prompt_failure_recovery_report",
+    "generate_profile_evaluation_weight_drift_report",
+    "generate_runtime_artifact_disk_pressure_report",
+    "generate_spec_evidence_citation_quality_report",
+    "generate_source_adapter_credential_rotation_readiness_report",
 ]
