@@ -186,7 +186,9 @@ from max.exports.insight_evidence_source_diversity_report import generate_insigh
 from max.exports.llm_prompt_failure_recovery_report import generate_llm_prompt_failure_recovery_report
 from max.exports.profile_evaluation_weight_drift_report import generate_profile_evaluation_weight_drift_report
 from max.exports.runtime_artifact_disk_pressure_report import generate_runtime_artifact_disk_pressure_report
+from max.exports.signal_source_duplicate_rate_report import generate_signal_source_duplicate_rate_report
 from max.exports.spec_evidence_citation_quality_report import generate_spec_evidence_citation_quality_report
+from max.exports.source_adapter_circuit_breaker_churn_report import generate_source_adapter_circuit_breaker_churn_report
 from max.exports.source_adapter_credential_rotation_readiness_report import generate_source_adapter_credential_rotation_readiness_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
@@ -1252,6 +1254,8 @@ __all__ = [
     "generate_llm_prompt_failure_recovery_report",
     "generate_profile_evaluation_weight_drift_report",
     "generate_runtime_artifact_disk_pressure_report",
+    "generate_signal_source_duplicate_rate_report",
     "generate_spec_evidence_citation_quality_report",
+    "generate_source_adapter_circuit_breaker_churn_report",
     "generate_source_adapter_credential_rotation_readiness_report",
 ]
