@@ -300,6 +300,7 @@ properties:
             - arxiv
             - artifact_hub
             - awesome_lists
+            - aws_security_blog
             - aws_whats_new
             - atlassian_developer_changelog
             - bitbucket_pull_requests
