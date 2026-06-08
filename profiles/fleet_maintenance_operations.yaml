@@ -24,7 +24,7 @@ domain:
     - commercial fleets
     - delivery fleets
     - municipal fleets
-    - trucking operators
+    - trucking and logistics operators
     - field service organizations
   workflows:
     - daily vehicle inspections
@@ -34,6 +34,7 @@ domain:
     - parts inventory coordination
     - technician scheduling
     - compliance record management
+    - dispatch readiness handoff
   buyer_roles:
     - director of fleet operations
     - maintenance operations leader
@@ -42,7 +43,7 @@ domain:
   hard_constraints:
     - must preserve vehicle inspection, repair, and compliance evidence
     - must account for safety-critical defects, out-of-service rules, vehicle availability, and dispatch commitments
-    - must integrate with telematics, maintenance, work order, dispatch, or parts systems
+    - must integrate with telematics, EAM, CMMS, ERP, work order, dispatch, or parts systems
     - must support safety-critical defect escalation and repair signoff
   bad_idea_patterns:
     - fleet dashboard without repair workflow, work orders, or technician ownership
@@ -69,6 +70,9 @@ domain_quality:
     parts_readiness:
       weight: 1.2
       description: Accounts for parts availability, shop capacity, routing impact, replacement options, and dispatch commitments.
+    dispatch_readiness:
+      weight: 1.2
+      description: Makes vehicle release, safety holds, staffing, route readiness, and dispatch handoffs explicit.
 
 sources:
   - adapter: github
