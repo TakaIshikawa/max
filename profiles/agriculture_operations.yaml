@@ -3,9 +3,9 @@ name: agriculture_operations
 domain:
   name: agriculture_operations
   description: >-
-    Crop planning, input management, irrigation scheduling, labor coordination,
-    harvest logistics, traceability, and compliance records for field and
-    packhouse operations.
+    Crop planning, input management, irrigation scheduling, field labor
+    coordination, harvest logistics, packhouse handoffs, traceability, and
+    agriculture compliance records.
   categories:
     - application
     - analytics_tool
@@ -24,49 +24,51 @@ domain:
     - specialty crop growers
     - row crop operators
     - grower cooperatives
-    - packhouse and processing teams
+    - produce packers and processing teams
+    - vertically integrated agriculture groups
   workflows:
-    - crop plan updates
-    - input application scheduling
-    - irrigation planning
-    - field labor coordination
-    - harvest load tracking
+    - crop plan execution
+    - input application tracking
+    - irrigation scheduling
+    - labor crew coordination
+    - harvest logistics planning
+    - field-to-packhouse traceability
     - compliance recordkeeping
   buyer_roles:
     - farm owner
     - director of farm operations
     - head agronomist
-    - food safety manager
+    - food safety compliance manager
   hard_constraints:
     - must preserve field, block, crop, and lot-level traceability
-    - must account for seasonal timing and weather-dependent execution
+    - must account for seasonal timing and weather-dependent operations
     - must support pesticide, water, labor, and food safety compliance records
-    - must work with limited connectivity and field-ready mobile workflows
+    - must work for field teams with intermittent connectivity and field-ready mobile workflows
   bad_idea_patterns:
-    - farm dashboard without field execution or recordkeeping workflow
-    - generic weather alert disconnected from crop stage and irrigation plans
-    - traceability tool that loses lot, block, or harvest crew context
+    - crop dashboard without field execution follow-up or recordkeeping workflow
+    - generic weather alert detached from crop stage, irrigation, labor, or harvest plans
+    - traceability tool that does not connect fields, inputs, lots, harvest crews, and shipments
   good_idea_criteria:
-    - improves timing of planting, irrigation, input, or harvest decisions
-    - reduces wasted labor, water, chemical, or equipment resources
-    - connects field activity evidence to downstream traceability and audits
+    - improves seasonal execution, yield protection, or harvest readiness
+    - reduces input waste, water waste, equipment waste, or crew idle time
+    - connects field observations and activity evidence to downstream traceability and audits
 
 domain_quality:
   enabled: true
   min_score: 70.0
   scoring_dimensions:
-    seasonal_timing:
-      weight: 1.4
-      description: Captures crop stage, seasonality, weather windows, and harvest timing.
     field_execution_evidence:
       weight: 1.5
-      description: Preserves field, block, crew, input, and activity-level proof.
+      description: Supports accountable field-level work orders, observations, crews, inputs, and completion evidence.
+    seasonal_timing:
+      weight: 1.4
+      description: Captures crop stage, seasonality, weather windows, harvest timing, and other seasonal constraints.
     resource_efficiency:
       weight: 1.2
-      description: Reduces waste in water, inputs, labor, machinery, or cold-chain capacity.
+      description: Reduces waste in water, inputs, labor, equipment, or packhouse capacity.
     supply_chain_traceability:
       weight: 1.4
-      description: Links field records to lots, loads, packhouse events, and compliance audits.
+      description: Preserves chain of custody from field activity through harvest, packhouse events, shipment records, and audits.
 
 sources:
   - adapter: github
@@ -74,12 +76,13 @@ sources:
       topics:
         - agriculture
         - farm-management
-        - agtech
+        - precision-agriculture
   - adapter: hackernews
     params:
       filter_keywords:
-        - farm operations
-        - precision agriculture
+        - agriculture operations
+        - farm management
+        - irrigation scheduling
         - crop planning
   - adapter: reddit
     params:

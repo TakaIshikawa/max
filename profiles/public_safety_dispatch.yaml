@@ -3,8 +3,9 @@ name: public_safety_dispatch
 domain:
   name: public_safety_dispatch
   description: >-
-    Emergency call intake, CAD coordination, unit dispatch, mutual aid, incident
-    documentation, responder safety handoffs, and after-action reporting.
+    Emergency call intake, CAD coordination, unit dispatch, mutual aid,
+    incident documentation, radio and field handoffs, responder safety
+    handoffs, after-action reporting, and public safety operations oversight.
   categories:
     - application
     - analytics_tool
@@ -17,38 +18,41 @@ domain:
     - emergency dispatchers
     - dispatch supervisors
     - first responders
+    - emergency managers
     - records teams
     - municipal public safety buyers
   target_segments:
     - municipal 911 centers
     - public safety answering points
-    - fire and EMS dispatch centers
-    - county emergency communications agencies
+    - emergency communications centers
+    - county dispatch authorities
+    - regional mutual aid networks
   workflows:
     - emergency call intake
     - CAD incident coordination
     - unit dispatch and status tracking
-    - mutual aid coordination
+    - mutual aid request management
     - incident documentation
     - after-action review
   buyer_roles:
-    - emergency communications director
-    - police or fire chief
-    - municipal CIO
-    - public safety operations leader
+    - public safety communications director
+    - emergency management director
+    - police or fire operations chief
+    - municipal technology leader
   hard_constraints:
-    - must preserve dispatcher accountability and incident audit trails
+    - must preserve human accountability for dispatch and escalation decisions
+    - must support safety-critical handoffs with auditable incident records
+    - must integrate with CAD, radio, GIS, records, RMS, alerting, or notification systems
+    - must meet public records, retention, privacy, reliability, and responder safety expectations
     - must avoid unsafe autonomous dispatch or unreviewed response decisions
-    - must integrate with CAD, RMS, radio, GIS, or alerting systems
-    - must support safety-critical handoffs, privacy, and public records requirements
   bad_idea_patterns:
     - autonomous dispatch decisioning without trained human accountability
-    - public safety analytics without CAD context or incident auditability
-    - caller-facing automation that delays emergency response or escalation
+    - response-time dashboard without CAD workflow, incident evidence, and review trail
+    - caller-facing automation or incident summarizer that delays escalation or omits source events and unit status
   good_idea_criteria:
-    - reduces response time or dispatcher workload while preserving control
-    - improves responder safety through clear handoffs and situational context
-    - creates auditable incident documentation and after-action evidence
+    - reduces call handling, dispatch, response-time, or mutual aid coordination delays while preserving control
+    - improves safety-critical handoffs between dispatchers and responders with clear situational context
+    - preserves incident documentation, review trails, after-action evidence, and integration readiness
 
 domain_quality:
   enabled: true
@@ -56,30 +60,32 @@ domain_quality:
   scoring_dimensions:
     response_time_impact:
       weight: 1.5
-      description: Speeds call handling, unit assignment, escalation, or mutual aid coordination.
+      description: Speeds call handling, unit assignment, escalation, dispatch, unit status, or mutual aid coordination.
     safety_critical_handoffs:
       weight: 1.5
-      description: Preserves accurate caller, location, hazard, unit, and responder context.
+      description: Preserves accurate caller, location, hazard, unit, responder, supervisor, and handoff context.
     auditability:
       weight: 1.4
-      description: Maintains incident timelines, decisions, updates, and after-action records.
+      description: Preserves CAD events, communications, decisions, updates, timestamps, incident timelines, and after-action evidence.
     integration_readiness:
       weight: 1.3
-      description: Fits CAD, GIS, radio, RMS, alerting, and municipal IT constraints.
+      description: Fits CAD, GIS, radio, records, RMS, alerting, and municipal IT constraints.
 
 sources:
   - adapter: github
     params:
       topics:
         - public-safety
+        - dispatch
         - emergency-services
-        - cad
+        - emergency-management
   - adapter: hackernews
     params:
       filter_keywords:
         - public safety dispatch
         - emergency dispatch
         - computer aided dispatch
+        - CAD system
   - adapter: reddit
     params:
       subreddits:

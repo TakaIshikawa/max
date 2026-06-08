@@ -4,7 +4,8 @@ domain:
   name: hospitality_operations
   description: >-
     Hotel operations, housekeeping coordination, maintenance requests, guest
-    issue recovery, labor planning, revenue handoffs, and brand-standard audits.
+    issue recovery, labor planning, revenue handoffs, service standards, and
+    brand audit workflows.
   categories:
     - application
     - analytics_tool
@@ -16,39 +17,42 @@ domain:
   target_user_types:
     - hotel general managers
     - housekeeping managers
+    - front office teams
     - maintenance teams
-    - front desk supervisors
-    - revenue and operations teams
+    - revenue and operations leaders
   target_segments:
     - hotels
     - multi-property operators
     - hospitality management groups
-    - branded franchise operators
+    - branded hotel franchises
   workflows:
-    - room turnover coordination
+    - room turn coordination
     - maintenance request triage
     - guest issue recovery
-    - labor plan adjustment
+    - labor schedule planning
+    - revenue and operations handoff
     - shift handoff
     - brand-standard audit follow-up
   buyer_roles:
     - hotel general manager
     - regional operations director
     - VP of hospitality operations
-    - owner operator
+    - ownership asset manager
   hard_constraints:
-    - must account for guest privacy and service recovery accountability
+    - must protect guest privacy and staff access controls
     - must integrate with PMS, housekeeping, maintenance, or labor systems
-    - must preserve brand-standard audit and incident evidence
-    - must support property-level and multi-property operational visibility
+    - must reflect service standards and property-specific operating procedures
+    - must preserve brand-standard audit, incident evidence, and service recovery accountability
+    - must support property-level and multi-property operational visibility with high-tempo shift handoffs
   bad_idea_patterns:
-    - generic booking engine disconnected from hotel operations
-    - review sentiment tool without service recovery workflow
-    - housekeeping dashboard that ignores room status, staffing, and guest impact
+    - generic booking or review tool disconnected from property operations
+    - guest sentiment dashboard without service recovery workflow
+    - housekeeping board that ignores room status, maintenance blocks, staffing, labor constraints, and guest impact
   good_idea_criteria:
-    - reduces guest-impacting delays, defects, or repeat issues
-    - improves service recovery with accountable handoffs and closure evidence
-    - balances labor efficiency with room readiness and brand standards
+    - reduces guest-impacting delays, room downtime, service defects, or unresolved issues
+    - improves service recovery with accountable handoffs, closure evidence, and brand-standard follow-up
+    - improves labor efficiency without hiding quality or brand-standard failures
+    - gives managers operational visibility across rooms, staff, maintenance, revenue, and guest recovery
 
 domain_quality:
   enabled: true
@@ -56,16 +60,16 @@ domain_quality:
   scoring_dimensions:
     guest_impact_reduction:
       weight: 1.5
-      description: Reduces delays, service failures, room defects, or unresolved guest issues.
+      description: Reduces delays, service failures, room defects, unresolved guest issues, or reputation risk.
     service_recovery:
       weight: 1.4
-      description: Tracks issue ownership, guest communication, escalation, and closure.
+      description: Tracks issue ownership, guest communication, escalation, compensation decisions, and closure.
     labor_efficiency:
       weight: 1.2
-      description: Aligns staffing, room turns, maintenance work, and occupancy changes.
+      description: Aligns staffing, room turns, maintenance work, task flow, and occupancy changes without sacrificing quality.
     operational_visibility:
       weight: 1.3
-      description: Gives property and regional teams live status, handoffs, and audit evidence.
+      description: Connects PMS status, housekeeping, maintenance, revenue, shift handoffs, live status, and audit evidence.
 
 sources:
   - adapter: github
@@ -73,11 +77,12 @@ sources:
       topics:
         - hospitality
         - hotel-management
-        - operations
+        - property-management
   - adapter: hackernews
     params:
       filter_keywords:
         - hotel operations
+        - hospitality management
         - hospitality operations
         - housekeeping software
   - adapter: reddit
@@ -85,6 +90,7 @@ sources:
       subreddits:
         - TalesFromTheFrontDesk
         - askhotels
+        - hospitality
 
 evaluation:
   weight_profile: default

@@ -3,8 +3,9 @@ name: insurance_claims_operations
 domain:
   name: insurance_claims_operations
   description: >-
-    Insurance claims intake, adjudication, fraud triage, reserving,
-    documentation, regulatory evidence, and settlement workflow operations.
+    Insurance claims intake, coverage review, adjudication, fraud triage,
+    reserving, documentation, vendor coordination, regulatory evidence,
+    settlement workflow, and claim cycle-time operations.
   categories:
     - application
     - analytics_tool
@@ -16,39 +17,41 @@ domain:
   target_user_types:
     - claims adjusters
     - claims supervisors
-    - SIU investigators
-    - compliance teams
+    - SIU and fraud investigators
     - reserving analysts
+    - compliance teams
   target_segments:
     - property and casualty insurers
-    - third-party administrators
     - specialty insurers
-    - self-insured enterprises
+    - third-party administrators
+    - self-insured enterprise claims teams
   workflows:
     - first notice of loss intake
+    - claim evidence collection
     - coverage and liability review
-    - document and evidence collection
     - fraud triage
     - reserve review
     - regulatory complaint and audit response
+    - settlement action tracking
   buyer_roles:
     - chief claims officer
-    - claims operations leader
-    - head of SIU
-    - insurance compliance leader
+    - claims operations director
+    - special investigations leader
+    - insurance compliance manager
   hard_constraints:
-    - must preserve claim file auditability and evidence lineage
-    - must protect claimant, policy, medical, and financial data
-    - must support jurisdictional regulatory timelines and documentation
+    - must preserve claim file evidence, decisions, auditability, and adjuster accountability
+    - must support jurisdictional regulatory timelines, disclosures, documentation, and auditability
+    - must protect claimant, medical, financial, policy, and policyholder data
+    - must integrate with core claims, document, payment, and vendor systems
     - must keep human accountability for coverage, liability, and settlement decisions
   bad_idea_patterns:
-    - claims chatbot without claim file evidence or adjuster ownership
-    - fraud score without explainable triage and investigation workflow
-    - cycle-time dashboard disconnected from leakage, reserves, or compliance
+    - claims chatbot or dashboard without adjudication workflow, claim file evidence, or adjuster ownership
+    - fraud score without investigator context, explainable signals, and investigation workflow
+    - cycle-time metric detached from coverage, reserve, leakage, and compliance decisions
   good_idea_criteria:
     - improves claim evidence completeness and adjuster decision quality
-    - reduces leakage, rework, or unnecessary cycle time
-    - supports audit-ready compliance records and accountable settlement actions
+    - reduces leakage, rework, or avoidable claim cycle time
+    - connects intake, policy, evidence, payments, vendors, settlement actions, and regulatory proof
 
 domain_quality:
   enabled: true
@@ -56,16 +59,16 @@ domain_quality:
   scoring_dimensions:
     claim_evidence_completeness:
       weight: 1.5
-      description: Captures policy, loss, document, communication, and decision evidence.
+      description: Captures policy, loss, documentation, communication, vendor, settlement, and decision evidence.
     leakage_reduction:
       weight: 1.4
-      description: Reduces overpayment, underpayment, fraud loss, rework, or reserve errors.
+      description: Reduces overpayment, underpayment, fraud exposure, fraud loss, rework, missed recovery, or reserve errors.
     compliance_auditability:
       weight: 1.4
-      description: Preserves jurisdictional timelines, notices, approvals, and audit history.
+      description: Maintains regulatory timelines, notices, explanations, approvals, audit history, and claim file records.
     cycle_time_impact:
       weight: 1.2
-      description: Speeds intake, review, investigation, and settlement without losing controls.
+      description: Shortens intake, review, investigation, and claim resolution while preserving fair, documented decisions.
 
 sources:
   - adapter: github
@@ -74,12 +77,14 @@ sources:
         - insurance
         - claims
         - insurtech
+        - fraud-detection
   - adapter: hackernews
     params:
       filter_keywords:
         - insurance claims
         - claims processing
-        - insurtech
+        - claims automation
+        - fraud triage
   - adapter: reddit
     params:
       subreddits:

@@ -3,9 +3,9 @@ name: food_safety_operations
 domain:
   name: food_safety_operations
   description: >-
-    HACCP programs, supplier quality, sanitation verification, recall readiness,
-    allergen controls, and inspection evidence workflows for food safety
-    operations.
+    HACCP programs, supplier quality, sanitation verification, allergen
+    controls, environmental monitoring, corrective actions, recall readiness,
+    and inspection evidence workflows for food safety operations.
   categories:
     - application
     - analytics_tool
@@ -17,39 +17,42 @@ domain:
   target_user_types:
     - food safety managers
     - quality assurance teams
-    - sanitation supervisors
-    - supplier quality managers
+    - plant supervisors
+    - sanitation leads
+    - supplier quality teams
     - plant operators
   target_segments:
     - food manufacturers
+    - beverage manufacturers
     - co-packers
-    - food distributors
-    - restaurant commissaries
+    - produce packers
+    - multi-site food processors
   workflows:
     - HACCP verification
-    - sanitation pre-op checks
+    - sanitation inspection follow-up
     - supplier quality review
-    - allergen control monitoring
-    - recall trace exercises
+    - allergen control checks
+    - recall simulation and execution
+    - corrective action tracking
     - inspection evidence collection
   buyer_roles:
-    - VP of quality
-    - food safety director
-    - plant manager
-    - regulatory affairs leader
+    - VP of food safety
+    - quality assurance director
+    - plant operations leader
+    - regulatory compliance manager
   hard_constraints:
-    - must support inspection readiness and audit evidence
-    - must preserve ingredient, lot, batch, and shipment traceability
-    - must enable recall readiness and corrective action documentation
-    - must account for food safety hazards, allergen controls, and sanitation requirements
+    - must support inspection readiness and audit evidence retention
+    - must preserve ingredient, lot, batch, supplier, allergen, sanitation, and shipment traceability
+    - must support recall readiness, rapid product hold decisions, and corrective action documentation
+    - must prioritize food safety requirements over convenience or throughput
   bad_idea_patterns:
-    - HACCP binder replacement without verification or corrective actions
-    - supplier scorecard disconnected from lot and COA evidence
-    - recall tool that cannot trace ingredients, lots, or shipments
+    - food safety dashboard or HACCP binder replacement without verification and corrective action workflow
+    - recall tool without lot, supplier, shipment, hold, and traceability evidence
+    - sanitation checklist disconnected from verification, deviation follow-up, and closure evidence
   good_idea_criteria:
-    - improves hazard control and documented verification
-    - accelerates traceability, recall readiness, or inspection response
-    - ensures corrective actions are assigned, evidenced, and closed
+    - improves hazard control, documented verification, audit readiness, or recall response time
+    - connects safety checks to accountable corrective actions with evidence and closure
+    - preserves evidence across suppliers, production lots, sanitation, allergens, holds, and shipments
 
 domain_quality:
   enabled: true
@@ -57,22 +60,23 @@ domain_quality:
   scoring_dimensions:
     traceability:
       weight: 1.5
-      description: Links suppliers, ingredients, lots, batches, shipments, and records.
+      description: Links ingredients, suppliers, lots, allergens, production runs, holds, batches, shipments, and records.
     hazard_control:
       weight: 1.5
-      description: Supports HACCP, allergen, sanitation, and preventive control execution.
+      description: Supports HACCP, sanitation, allergen, environmental, preventive, and deviation controls.
     audit_readiness:
       weight: 1.3
-      description: Produces inspection-ready records with clear ownership and timing.
+      description: Maintains inspection-ready records with clear ownership, timing, and review status.
     corrective_action_follow_through:
       weight: 1.4
-      description: Tracks deviations, root causes, owners, evidence, and verified closure.
+      description: Tracks deviations, root causes, owners, due dates, verification, closure evidence, and verified closure.
 
 sources:
   - adapter: github
     params:
       topics:
         - food-safety
+        - haccp
         - traceability
         - quality-management
   - adapter: hackernews
@@ -81,6 +85,7 @@ sources:
         - food safety
         - HACCP
         - product recall
+        - recall management
   - adapter: reddit
     params:
       subreddits:

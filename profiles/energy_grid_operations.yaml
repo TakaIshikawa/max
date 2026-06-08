@@ -4,8 +4,8 @@ domain:
   name: energy_grid_operations
   description: >-
     Utility grid monitoring, outage restoration, asset inspection, vegetation
-    management, distributed energy resource coordination, and regulatory
-    reporting for electric grid operations.
+    management, distributed energy resource coordination, switching support, and
+    regulatory reporting for electric utility grid operations.
   categories:
     - application
     - analytics_tool
@@ -17,56 +17,58 @@ domain:
   target_user_types:
     - grid operators
     - outage managers
+    - distribution engineers
     - field crews
-    - vegetation planners
-    - regulatory reporting teams
+    - vegetation management teams
+    - regulatory compliance teams
   target_segments:
     - electric utilities
     - distribution system operators
     - municipal utilities
-    - grid services contractors
+    - grid services and vegetation management contractors
   workflows:
     - outage triage and restoration
     - feeder and substation monitoring
-    - asset inspection routing
-    - vegetation work planning
+    - asset inspection follow-up
+    - vegetation risk scheduling
     - DER interconnection coordination
-    - reliability and compliance reporting
+    - reliability and regulatory reporting
   buyer_roles:
     - VP of grid operations
     - distribution operations leader
-    - utility compliance manager
-    - asset management director
+    - reliability compliance manager
+    - field operations director
   hard_constraints:
+    - must prioritize worker, public, and electrical safety
     - must support safety-critical field and switching procedures
-    - must preserve regulated reporting and reliability evidence
-    - must respect critical infrastructure security and access controls
-    - must improve operational resilience during outages and storms
+    - must support regulated reliability, outage, inspection, and compliance reporting
+    - must protect critical infrastructure information and operational access paths
+    - must preserve operational resilience during storms, cyber events, and equipment failures
   bad_idea_patterns:
-    - generic outage dashboard without restoration workflow or crew readiness
-    - DER analytics disconnected from feeder capacity and operating limits
-    - inspection tool without safety, asset, or regulatory evidence
+    - generic grid dashboard without outage, switching, restoration, or crew action workflow
+    - asset risk score without inspection evidence, location context, or remediation ownership
+    - DER visibility tool disconnected from reliability, interconnection, feeder capacity, and operating constraints
   good_idea_criteria:
-    - accelerates safe outage restoration or asset risk reduction
-    - connects grid state, field work, and compliance documentation
-    - improves operational decisions beyond passive dashboard visibility
+    - improves outage containment, restoration sequencing, or crew readiness
+    - connects grid telemetry, asset records, field evidence, and compliance reports
+    - reduces safety risk or reliability risk through operational decisions, not passive charts
 
 domain_quality:
   enabled: true
-  min_score: 72.0
+  min_score: 73.0
   scoring_dimensions:
-    safety_controls:
+    safety_criticality:
       weight: 1.5
-      description: Accounts for crew safety, switching risk, field hazards, and critical procedures.
+      description: Accounts for worker safety, public safety, switching risk, field hazards, and critical procedures.
     grid_reliability:
       weight: 1.5
-      description: Improves outage containment, restoration time, asset health, or DER coordination.
+      description: Improves outage containment, restoration time, asset health, DER coordination, or reliability metrics.
     field_readiness:
       weight: 1.3
-      description: Makes crew, material, access, and work package readiness explicit.
+      description: Gives crews actionable location, asset, vegetation, parts, access, and work package context.
     compliance_traceability:
-      weight: 1.3
-      description: Preserves reliability, inspection, vegetation, and regulatory reporting evidence.
+      weight: 1.4
+      description: Preserves evidence for inspections, outage reporting, reliability standards, vegetation work, and regulatory filings.
 
 sources:
   - adapter: github
@@ -74,19 +76,21 @@ sources:
       topics:
         - energy
         - smart-grid
-        - utility
+        - utilities
   - adapter: hackernews
     params:
       filter_keywords:
         - grid operations
+        - electric utility
         - outage management
         - distributed energy resources
   - adapter: reddit
     params:
       subreddits:
         - energy
+        - utilities
         - electricalengineering
 
 evaluation:
   weight_profile: default
-  min_score: 58.0
+  min_score: 59.0

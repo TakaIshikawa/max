@@ -3,9 +3,9 @@ name: fleet_maintenance_operations
 domain:
   name: fleet_maintenance_operations
   description: >-
-    Vehicle inspection, preventive maintenance, parts availability, downtime
-    triage, compliance records, and technician scheduling for fleet maintenance
-    operations.
+    Vehicle inspection, preventive maintenance, defect triage, parts
+    availability, downtime management, technician scheduling, dispatch
+    readiness, and compliance records for fleet maintenance operations.
   categories:
     - application
     - analytics_tool
@@ -18,38 +18,40 @@ domain:
     - fleet managers
     - maintenance supervisors
     - technicians
-    - dispatch planners
+    - dispatch coordinators
     - compliance stakeholders
   target_segments:
     - commercial fleets
-    - delivery operators
-    - municipal vehicle fleets
+    - delivery fleets
+    - municipal fleets
+    - trucking operators
     - field service organizations
   workflows:
     - daily vehicle inspections
     - preventive maintenance planning
-    - breakdown triage
-    - parts availability checks
+    - driver vehicle inspection review
+    - defect and downtime triage
+    - parts inventory coordination
     - technician scheduling
-    - DOT and safety recordkeeping
+    - compliance record management
   buyer_roles:
     - director of fleet operations
     - maintenance operations leader
-    - safety and compliance manager
-    - logistics operations leader
+    - transportation compliance manager
+    - logistics operations executive
   hard_constraints:
-    - must preserve inspection, repair, and compliance evidence
-    - must account for vehicle availability and dispatch commitments
-    - must integrate with telematics, work orders, inventory, or dispatch systems
+    - must preserve vehicle inspection, repair, and compliance evidence
+    - must account for safety-critical defects, out-of-service rules, vehicle availability, and dispatch commitments
+    - must integrate with telematics, maintenance, work order, dispatch, or parts systems
     - must support safety-critical defect escalation and repair signoff
   bad_idea_patterns:
-    - maintenance dashboard without work order or technician workflow
-    - telematics alerting without downtime triage or parts readiness
-    - inspection checklist that lacks repair evidence and compliance history
+    - fleet dashboard without repair workflow, work orders, or technician ownership
+    - predictive maintenance score disconnected from downtime triage, parts readiness, and shop capacity
+    - inspection checklist that does not create traceable defect resolution and compliance history
   good_idea_criteria:
-    - improves asset uptime and dispatch readiness
-    - reduces unsafe vehicle use through inspection-backed decisions
-    - connects maintenance plans to parts, labor, and compliance records
+    - improves asset uptime, safety compliance, or dispatch readiness
+    - connects inspections, work orders, parts, technicians, signoffs, and vehicle availability
+    - reduces unsafe vehicle use, avoidable breakdowns, and maintenance cycle time
 
 domain_quality:
   enabled: true
@@ -57,16 +59,16 @@ domain_quality:
   scoring_dimensions:
     asset_uptime:
       weight: 1.5
-      description: Improves vehicle availability, downtime triage, and preventive planning.
+      description: Improves vehicle availability, downtime triage, preventive planning, and maintenance prioritization.
     safety_compliance:
       weight: 1.4
-      description: Preserves inspection, defect, repair, and regulatory compliance evidence.
+      description: Preserves inspection, defect, repair, and regulatory evidence while escalating safety-critical defects.
     maintenance_evidence:
       weight: 1.3
-      description: Connects work orders, technician actions, parts, and signoff history.
-    dispatch_readiness:
+      description: Links inspections, diagnostics, work orders, technician notes, parts, approvals, and signoff history.
+    parts_readiness:
       weight: 1.2
-      description: Makes fleet availability, routing impact, and replacement options visible.
+      description: Accounts for parts availability, shop capacity, routing impact, replacement options, and dispatch commitments.
 
 sources:
   - adapter: github
@@ -80,12 +82,15 @@ sources:
       filter_keywords:
         - fleet maintenance
         - vehicle inspection
+        - preventive maintenance
         - telematics
   - adapter: reddit
     params:
       subreddits:
         - fleet
         - logistics
+        - trucking
+        - mechanics
 
 evaluation:
   weight_profile: default

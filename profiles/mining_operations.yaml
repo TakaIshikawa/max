@@ -3,9 +3,9 @@ name: mining_operations
 domain:
   name: mining_operations
   description: >-
-    Mine planning, fleet utilization, safety inspections, maintenance
-    coordination, environmental monitoring, and production reconciliation for
-    mining operations.
+    Mine planning, fleet utilization, worker safety inspections, maintenance
+    coordination, environmental monitoring, material movement, and production
+    reconciliation for mining operations.
   categories:
     - application
     - analytics_tool
@@ -23,33 +23,35 @@ domain:
   target_segments:
     - surface mines
     - underground mines
+    - mineral processing operators
     - mining contractors
-    - remote mineral operations
+    - remote-site mining contractors
   workflows:
+    - short interval control
     - shift production planning
-    - fleet dispatch and utilization
-    - safety inspection follow-up
+    - haul fleet dispatch review
     - equipment maintenance coordination
-    - environmental monitoring review
+    - safety inspection follow-up
+    - environmental monitoring response
     - production variance reconciliation
   buyer_roles:
     - mine general manager
-    - head of operations
+    - operations superintendent
     - maintenance superintendent
-    - HSE leader
+    - health safety and environment leader
   hard_constraints:
-    - must support worker safety, hazard controls, and incident evidence
-    - must account for environmental permits, monitoring, and reporting obligations
-    - must operate in remote-site conditions with intermittent connectivity
-    - must respect heavy equipment reliability and production continuity requirements
+    - must prioritize worker safety, hazard controls, and high-risk equipment controls
+    - must support environmental monitoring, permits, compliance evidence, and reporting obligations
+    - must work in remote sites with limited connectivity and harsh conditions
+    - must account for equipment reliability, maintenance windows, parts readiness, and production targets
   bad_idea_patterns:
-    - production dashboard without shift execution or variance accountability
-    - equipment analytics disconnected from maintenance work and parts readiness
-    - safety checklist without hazard controls, ownership, or closure evidence
+    - production dashboard without shift actions, equipment context, variance accountability, or safety controls
+    - fleet optimizer or equipment analytics disconnected from maintenance, parts readiness, and dispatch realities
+    - environmental alert without accountable response and regulatory evidence
   good_idea_criteria:
-    - improves safe shift execution and operational decision making
-    - raises asset availability through maintenance and dispatch coordination
-    - connects production, safety, environmental, and equipment evidence
+    - improves safety execution, safe shift decisions, asset availability, or production variance visibility
+    - connects mine plans, dispatch, maintenance, inspections, environmental evidence, and production records
+    - supports supervisors with operational actions, not generic analytics
 
 domain_quality:
   enabled: true
@@ -57,16 +59,16 @@ domain_quality:
   scoring_dimensions:
     worker_safety:
       weight: 1.5
-      description: Addresses hazards, inspections, incidents, controls, and safety follow-up.
+      description: Addresses inspections, hazards, incidents, permits, fatigue, equipment risk controls, and safety follow-up.
     asset_availability:
       weight: 1.4
-      description: Improves equipment uptime, dispatch readiness, maintenance, or parts planning.
+      description: Improves fleet readiness, equipment uptime, dispatch readiness, maintenance coordination, and parts planning.
     environmental_compliance:
       weight: 1.3
-      description: Preserves monitoring, permit, disturbance, and reporting evidence.
+      description: Preserves monitoring, permit, exceedance, response, disturbance, and reporting evidence.
     production_variance_visibility:
       weight: 1.3
-      description: Explains plan-versus-actual shifts by fleet, material, location, and constraint.
+      description: Explains gaps between plan, dispatch, material movement, constraints, and actual output.
 
 sources:
   - adapter: github
@@ -79,6 +81,7 @@ sources:
     params:
       filter_keywords:
         - mining operations
+        - mine safety
         - fleet utilization
         - industrial safety
   - adapter: reddit

@@ -4,8 +4,8 @@ domain:
   name: banking_risk_operations
   description: >-
     Operational risk, model risk, policy exceptions, issue management,
-    regulatory exams, control testing, and evidence collection across banking
-    risk operations.
+    regulatory exams, control testing, remediation tracking, and evidence
+    collection for banking risk operations.
   categories:
     - application
     - analytics_tool
@@ -18,38 +18,43 @@ domain:
     - operational risk managers
     - model risk teams
     - control testers
+    - policy owners
     - compliance officers
+    - regulatory exam coordinators
     - internal audit teams
   target_segments:
     - regional banks
     - community banks
-    - regulated fintech lenders
-    - enterprise bank risk functions
+    - large bank risk functions
+    - credit unions
+    - regulated fintech bank partners
   workflows:
+    - risk and control self-assessment
     - operational risk event intake
     - model validation evidence collection
     - policy exception review
-    - issue and remediation tracking
+    - control testing evidence collection
     - regulatory exam response
-    - control testing and attestation
+    - remediation plan accountability
   buyer_roles:
     - chief risk officer
-    - head of operational risk
+    - operational risk leader
+    - head of model risk management
     - chief compliance officer
-    - internal audit leader
+    - internal audit executive
   hard_constraints:
-    - must maintain auditability for controls, exceptions, issues, and approvals
-    - must align evidence workflows with regulatory expectations and exam response
+    - must preserve auditability for controls, exceptions, issues, approvals, and evidence
+    - must support regulatory expectations and defensible exam responses
     - must enforce data access controls for sensitive customer, model, and risk records
-    - must preserve model and control governance ownership and review history
+    - must maintain governance over models, controls, policies, and remediation plans
   bad_idea_patterns:
-    - risk dashboard without accountable remediation workflow
-    - model risk summary without validation evidence or approval lineage
-    - policy exception tracker disconnected from controls and audit trails
+    - risk dashboard without control evidence or accountable remediation workflow
+    - model risk score without validation findings, evidence, approval lineage, and governance context
+    - policy exception tracker detached from controls, approvals, owners, expiration dates, and audit trails
   good_idea_criteria:
-    - reduces operational risk through earlier triage and clearer ownership
-    - supports evidence-backed remediation with owners, due dates, and closure proof
-    - improves defensible control testing, issue management, or regulatory responses
+    - reduces operational risk through evidence-backed control improvement and clearer ownership
+    - prioritizes issues by customer, regulatory, financial, control impact, severity, and time sensitivity
+    - connects policies, controls, findings, owners, remediation proof, and regulatory responses
 
 domain_quality:
   enabled: true
@@ -57,35 +62,36 @@ domain_quality:
   scoring_dimensions:
     control_traceability:
       weight: 1.5
-      description: Links controls, tests, owners, exceptions, evidence, and approvals.
+      description: Links risks, controls, tests, owners, exceptions, issues, evidence, and approvals.
     regulatory_defensibility:
       weight: 1.4
-      description: Supports exam-ready explanations, records, lineage, and review history.
+      description: Supports exam-ready explanations, clear audit trails, records, lineage, and policy-backed decisions.
     risk_prioritization:
       weight: 1.3
-      description: Prioritizes issues by exposure, control impact, severity, and time sensitivity.
+      description: Prioritizes material risk reduction by exposure, control impact, severity, and time sensitivity.
     remediation_accountability:
       weight: 1.5
-      description: Tracks remediation owners, milestones, evidence, validation, and closure.
+      description: Tracks remediation owners, due dates, milestones, approvals, exceptions, evidence, validation, and closure.
 
 sources:
   - adapter: github
     params:
       topics:
         - risk-management
-        - compliance
+        - grc
         - banking
   - adapter: hackernews
     params:
       filter_keywords:
+        - banking risk
         - operational risk
         - model risk
         - regulatory compliance
   - adapter: reddit
     params:
       subreddits:
-        - fintech
         - banking
+        - fintech
 
 evaluation:
   weight_profile: default
