@@ -1,0 +1,93 @@
+name: insurance_claims_operations
+
+domain:
+  name: insurance_claims_operations
+  description: >-
+    Insurance claims intake, adjudication, fraud triage, reserving,
+    documentation, customer communications, regulatory evidence workflows,
+    and operational cycle-time improvement.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - claims adjusters
+    - claims supervisors
+    - fraud investigators
+    - documentation teams
+    - regulatory compliance teams
+  target_segments:
+    - property and casualty insurers
+    - workers compensation carriers
+    - third-party administrators
+    - insurtech claims teams
+  workflows:
+    - first notice of loss intake
+    - claim evidence collection
+    - adjudication review
+    - fraud triage
+    - reserve review
+    - regulatory documentation and audit response
+  buyer_roles:
+    - chief claims officer
+    - claims operations director
+    - SIU leader
+    - insurance compliance manager
+  hard_constraints:
+    - must preserve claim file evidence, decision rationale, and communication history
+    - must support regulatory auditability and jurisdiction-specific handling rules
+    - must protect claimant, policyholder, medical, and financial data
+    - must integrate with core claims, document, payment, and fraud systems
+  bad_idea_patterns:
+    - claims dashboard without adjuster workflow or evidence completeness
+    - automated denial tool without accountable rationale and review controls
+    - fraud score disconnected from investigative follow-up and claim context
+  good_idea_criteria:
+    - reduces leakage, rework, or avoidable claim cycle time
+    - improves evidence completeness and adjudication consistency
+    - supports compliant, accountable claim decisions and remediation
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    claim_evidence_completeness:
+      weight: 1.5
+      description: Captures documents, photos, notes, policy context, and decision rationale.
+    leakage_reduction:
+      weight: 1.3
+      description: Reduces overpayment, underpayment, missed subrogation, and avoidable rework.
+    compliance_auditability:
+      weight: 1.5
+      description: Preserves handling rules, approvals, notices, and audit-ready records.
+    cycle_time_impact:
+      weight: 1.2
+      description: Shortens intake, investigation, adjudication, payment, or closure timing.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - insurance
+        - claims
+        - insurtech
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - insurance claims
+        - claims operations
+        - insurtech
+  - adapter: reddit
+    params:
+      subreddits:
+        - Insurance
+        - insurancepros
+        - actuary
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0
