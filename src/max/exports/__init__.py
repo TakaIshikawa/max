@@ -194,8 +194,11 @@ from max.exports.buildable_unit_graduation_criteria_report import generate_build
 from max.exports.buildable_unit_stack_policy_report import generate_buildable_unit_stack_policy_report
 from max.exports.domain_profile_schema_drift_report import generate_domain_profile_schema_drift_report
 from max.exports.embedding_cache_hit_rate_report import generate_embedding_cache_hit_rate_report
+from max.exports.adapter_health_rollup_report import generate_adapter_health_rollup_report
+from max.exports.embedding_reindex_queue_report import generate_embedding_reindex_queue_report
 from max.exports.insight_evidence_chain_gap_report import generate_insight_evidence_chain_gap_report
 from max.exports.publisher_destination_quota_report import generate_publisher_destination_quota_report
+from max.exports.signal_annotation_coverage_report import generate_signal_annotation_coverage_report
 from max.exports.spec_evidence_freshness_report import generate_spec_evidence_freshness_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
@@ -1269,7 +1272,10 @@ __all__ = [
     "generate_buildable_unit_stack_policy_report",
     "generate_domain_profile_schema_drift_report",
     "generate_embedding_cache_hit_rate_report",
+    "generate_adapter_health_rollup_report",
+    "generate_embedding_reindex_queue_report",
     "generate_insight_evidence_chain_gap_report",
     "generate_publisher_destination_quota_report",
+    "generate_signal_annotation_coverage_report",
     "generate_spec_evidence_freshness_report",
 ]
