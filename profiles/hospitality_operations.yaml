@@ -1,0 +1,91 @@
+name: hospitality_operations
+
+domain:
+  name: hospitality_operations
+  description: >-
+    Hotel operations, housekeeping coordination, maintenance requests, guest
+    issue recovery, labor planning, revenue handoffs, and brand-standard audits.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - hotel general managers
+    - housekeeping managers
+    - maintenance teams
+    - front desk supervisors
+    - revenue and operations teams
+  target_segments:
+    - hotels
+    - multi-property operators
+    - hospitality management groups
+    - branded franchise operators
+  workflows:
+    - room turnover coordination
+    - maintenance request triage
+    - guest issue recovery
+    - labor plan adjustment
+    - shift handoff
+    - brand-standard audit follow-up
+  buyer_roles:
+    - hotel general manager
+    - regional operations director
+    - VP of hospitality operations
+    - owner operator
+  hard_constraints:
+    - must account for guest privacy and service recovery accountability
+    - must integrate with PMS, housekeeping, maintenance, or labor systems
+    - must preserve brand-standard audit and incident evidence
+    - must support property-level and multi-property operational visibility
+  bad_idea_patterns:
+    - generic booking engine disconnected from hotel operations
+    - review sentiment tool without service recovery workflow
+    - housekeeping dashboard that ignores room status, staffing, and guest impact
+  good_idea_criteria:
+    - reduces guest-impacting delays, defects, or repeat issues
+    - improves service recovery with accountable handoffs and closure evidence
+    - balances labor efficiency with room readiness and brand standards
+
+domain_quality:
+  enabled: true
+  min_score: 69.0
+  scoring_dimensions:
+    guest_impact_reduction:
+      weight: 1.5
+      description: Reduces delays, service failures, room defects, or unresolved guest issues.
+    service_recovery:
+      weight: 1.4
+      description: Tracks issue ownership, guest communication, escalation, and closure.
+    labor_efficiency:
+      weight: 1.2
+      description: Aligns staffing, room turns, maintenance work, and occupancy changes.
+    operational_visibility:
+      weight: 1.3
+      description: Gives property and regional teams live status, handoffs, and audit evidence.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - hospitality
+        - hotel-management
+        - operations
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - hotel operations
+        - hospitality operations
+        - housekeeping software
+  - adapter: reddit
+    params:
+      subreddits:
+        - TalesFromTheFrontDesk
+        - askhotels
+
+evaluation:
+  weight_profile: default
+  min_score: 55.0

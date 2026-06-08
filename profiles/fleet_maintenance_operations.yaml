@@ -1,0 +1,92 @@
+name: fleet_maintenance_operations
+
+domain:
+  name: fleet_maintenance_operations
+  description: >-
+    Vehicle inspection, preventive maintenance, parts availability, downtime
+    triage, compliance records, and technician scheduling for fleet maintenance
+    operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - fleet managers
+    - maintenance supervisors
+    - technicians
+    - dispatch planners
+    - compliance stakeholders
+  target_segments:
+    - commercial fleets
+    - delivery operators
+    - municipal vehicle fleets
+    - field service organizations
+  workflows:
+    - daily vehicle inspections
+    - preventive maintenance planning
+    - breakdown triage
+    - parts availability checks
+    - technician scheduling
+    - DOT and safety recordkeeping
+  buyer_roles:
+    - director of fleet operations
+    - maintenance operations leader
+    - safety and compliance manager
+    - logistics operations leader
+  hard_constraints:
+    - must preserve inspection, repair, and compliance evidence
+    - must account for vehicle availability and dispatch commitments
+    - must integrate with telematics, work orders, inventory, or dispatch systems
+    - must support safety-critical defect escalation and repair signoff
+  bad_idea_patterns:
+    - maintenance dashboard without work order or technician workflow
+    - telematics alerting without downtime triage or parts readiness
+    - inspection checklist that lacks repair evidence and compliance history
+  good_idea_criteria:
+    - improves asset uptime and dispatch readiness
+    - reduces unsafe vehicle use through inspection-backed decisions
+    - connects maintenance plans to parts, labor, and compliance records
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    asset_uptime:
+      weight: 1.5
+      description: Improves vehicle availability, downtime triage, and preventive planning.
+    safety_compliance:
+      weight: 1.4
+      description: Preserves inspection, defect, repair, and regulatory compliance evidence.
+    maintenance_evidence:
+      weight: 1.3
+      description: Connects work orders, technician actions, parts, and signoff history.
+    dispatch_readiness:
+      weight: 1.2
+      description: Makes fleet availability, routing impact, and replacement options visible.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - fleet-management
+        - maintenance
+        - telematics
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - fleet maintenance
+        - vehicle inspection
+        - telematics
+  - adapter: reddit
+    params:
+      subreddits:
+        - fleet
+        - logistics
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0
