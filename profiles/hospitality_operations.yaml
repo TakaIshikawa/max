@@ -1,0 +1,91 @@
+name: hospitality_operations
+
+domain:
+  name: hospitality_operations
+  description: >-
+    Hotel operations, housekeeping coordination, maintenance requests, guest
+    issue recovery, labor planning, revenue handoffs, and brand-standard audits
+    for hospitality teams.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - general managers
+    - housekeeping managers
+    - front desk supervisors
+    - maintenance teams
+    - revenue and operations coordinators
+  target_segments:
+    - hotels
+    - multi-property operators
+    - hospitality management groups
+    - resort and extended-stay operators
+  workflows:
+    - housekeeping room turnover coordination
+    - maintenance request triage
+    - guest issue recovery
+    - labor and shift planning
+    - revenue and operations handoff
+    - brand-standard audit preparation
+  buyer_roles:
+    - hotel general manager
+    - regional operations director
+    - VP of hospitality operations
+    - owner operator
+  hard_constraints:
+    - must respect guest privacy and service recovery accountability
+    - must coordinate labor, rooms, maintenance, and front desk handoffs
+    - must support brand-standard evidence and property audit readiness
+    - must integrate with PMS, housekeeping, maintenance, or labor systems
+  bad_idea_patterns:
+    - generic booking or review tool disconnected from property operations
+    - guest sentiment dashboard without service recovery workflow
+    - labor planner that ignores occupancy, room status, and maintenance holds
+  good_idea_criteria:
+    - reduces guest-impacting defects and service recovery cycle time
+    - improves labor efficiency across housekeeping, front desk, and maintenance
+    - gives operators visibility into room readiness and standards execution
+
+domain_quality:
+  enabled: true
+  min_score: 68.0
+  scoring_dimensions:
+    guest_impact_reduction:
+      weight: 1.4
+      description: Reduces guest disruption from room, maintenance, staffing, or service failures.
+    service_recovery:
+      weight: 1.3
+      description: Tracks issue ownership, guest follow-up, compensation, and closure.
+    labor_efficiency:
+      weight: 1.2
+      description: Aligns staffing to occupancy, room status, workload, and service standards.
+    operational_visibility:
+      weight: 1.3
+      description: Connects rooms, requests, shifts, audits, and property-level handoffs.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - hospitality
+        - hotel-management
+        - property-management
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - hotel operations
+        - hospitality operations
+        - housekeeping management
+  - adapter: reddit
+    params:
+      subreddits:
+        - askhotels
+        - hospitality
+
+evaluation:
+  weight_profile: default
+  min_score: 55.0

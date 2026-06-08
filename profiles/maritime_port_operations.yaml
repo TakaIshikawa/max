@@ -1,0 +1,92 @@
+name: maritime_port_operations
+
+domain:
+  name: maritime_port_operations
+  description: >-
+    Berth planning, terminal operations, drayage coordination, customs handoffs,
+    vessel schedule changes, yard visibility, and port throughput management.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - port operations managers
+    - terminal planners
+    - yard supervisors
+    - drayage coordinators
+    - customs and compliance teams
+  target_segments:
+    - container terminals
+    - port authorities
+    - maritime logistics operators
+    - inland and intermodal terminal operators
+  workflows:
+    - berth window planning
+    - vessel arrival change management
+    - terminal work sequencing
+    - yard inventory reconciliation
+    - drayage appointment coordination
+    - customs release handoff
+    - throughput and dwell reporting
+  buyer_roles:
+    - terminal operations director
+    - port authority operations leader
+    - VP of maritime logistics
+    - customs compliance manager
+  hard_constraints:
+    - must coordinate across carriers, terminals, truckers, customs, and port authorities
+    - must preserve customs, release, and chain-of-custody evidence
+    - must account for berth, vessel, crane, yard, and gate capacity constraints
+    - must integrate with TOS, PCS, AIS, customs, appointment, or EDI systems
+  bad_idea_patterns:
+    - generic logistics dashboard without berth, vessel, terminal, or yard context
+    - appointment scheduler disconnected from customs release and gate operations
+    - ETA alerting without operational rescheduling workflow
+  good_idea_criteria:
+    - improves berth schedule resilience or terminal throughput
+    - coordinates vessel, yard, customs, gate, and drayage handoffs
+    - preserves evidence for regulated cargo movement and exceptions
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    schedule_resilience:
+      weight: 1.4
+      description: Handles vessel ETA changes, berth conflicts, crane plans, and gate congestion.
+    multi_party_coordination:
+      weight: 1.4
+      description: Aligns carriers, terminals, truckers, customs brokers, and port authorities.
+    compliance_evidence:
+      weight: 1.3
+      description: Tracks customs status, release documents, exceptions, and cargo handoffs.
+    operational_throughput:
+      weight: 1.3
+      description: Reduces dwell, yard rehandles, berth delays, and appointment bottlenecks.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - maritime
+        - port
+        - logistics
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - port operations
+        - terminal operations
+        - maritime logistics
+  - adapter: reddit
+    params:
+      subreddits:
+        - shipping
+        - logistics
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0

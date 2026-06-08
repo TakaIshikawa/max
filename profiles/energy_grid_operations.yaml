@@ -1,0 +1,92 @@
+name: energy_grid_operations
+
+domain:
+  name: energy_grid_operations
+  description: >-
+    Utility grid monitoring, outage restoration, asset inspection, vegetation
+    management, DER coordination, crew readiness, and regulated utility
+    reporting workflows.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - grid operators
+    - outage managers
+    - field crews
+    - asset inspection teams
+    - regulatory reporting teams
+  target_segments:
+    - electric utilities
+    - distribution grid operators
+    - transmission operations teams
+    - utility field operations groups
+  workflows:
+    - outage triage and restoration coordination
+    - grid asset inspection
+    - vegetation work planning
+    - DER interconnection coordination
+    - crew staging and field readiness
+    - reliability and compliance reporting
+  buyer_roles:
+    - VP of grid operations
+    - distribution operations director
+    - asset management leader
+    - utility regulatory compliance manager
+  hard_constraints:
+    - must respect safety procedures for energized assets and field work
+    - must preserve regulated reporting and reliability evidence
+    - must support critical infrastructure resilience and incident escalation
+    - must integrate with OMS, ADMS, GIS, EAM, or field service systems
+  bad_idea_patterns:
+    - generic outage dashboard without crew, asset, or restoration workflow context
+    - inspection tool disconnected from grid assets and compliance evidence
+    - DER coordination app that ignores operational constraints and safety review
+  good_idea_criteria:
+    - improves restoration speed, reliability, or field readiness
+    - connects grid assets, crews, work orders, and compliance records
+    - supports operational resilience beyond passive dashboarding
+
+domain_quality:
+  enabled: true
+  min_score: 73.0
+  scoring_dimensions:
+    safety:
+      weight: 1.6
+      description: Makes safety-critical procedures, hazards, and escalation paths explicit.
+    grid_reliability:
+      weight: 1.5
+      description: Improves outage containment, restoration, asset health, or reliability reporting.
+    field_readiness:
+      weight: 1.3
+      description: Aligns crews, equipment, access, permits, and work packages before dispatch.
+    compliance_traceability:
+      weight: 1.4
+      description: Preserves inspection, outage, vegetation, and regulatory reporting evidence.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - smart-grid
+        - energy
+        - utility
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - grid operations
+        - outage management
+        - distributed energy resources
+  - adapter: reddit
+    params:
+      subreddits:
+        - energy
+        - utilities
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0
