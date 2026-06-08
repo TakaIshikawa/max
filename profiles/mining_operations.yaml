@@ -1,0 +1,92 @@
+name: mining_operations
+
+domain:
+  name: mining_operations
+  description: >-
+    Mine planning, fleet utilization, worker safety inspections, maintenance
+    coordination, environmental monitoring, material movement, and production
+    reconciliation for mining operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - mine operations managers
+    - dispatch supervisors
+    - maintenance planners
+    - safety teams
+    - environmental compliance teams
+  target_segments:
+    - surface mines
+    - underground mines
+    - mineral processing operators
+    - remote-site mining contractors
+  workflows:
+    - short interval control
+    - haul fleet dispatch review
+    - equipment maintenance coordination
+    - safety inspection follow-up
+    - environmental monitoring response
+    - production variance reconciliation
+  buyer_roles:
+    - mine general manager
+    - operations superintendent
+    - maintenance superintendent
+    - health safety and environment leader
+  hard_constraints:
+    - must prioritize worker safety and high-risk equipment controls
+    - must support environmental monitoring and compliance evidence
+    - must work in remote sites with limited connectivity and harsh conditions
+    - must account for equipment reliability, maintenance windows, and production targets
+  bad_idea_patterns:
+    - production dashboard without shift actions, equipment context, or safety controls
+    - fleet optimizer disconnected from maintenance and dispatch realities
+    - environmental alert without accountable response and regulatory evidence
+  good_idea_criteria:
+    - improves safety execution, asset availability, or production variance visibility
+    - connects mine plans, dispatch, maintenance, inspections, and environmental evidence
+    - supports supervisors with operational actions, not generic analytics
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    worker_safety:
+      weight: 1.5
+      description: Addresses inspections, hazards, permits, fatigue, and equipment risk controls.
+    asset_availability:
+      weight: 1.4
+      description: Improves fleet readiness, maintenance coordination, and equipment uptime.
+    environmental_compliance:
+      weight: 1.3
+      description: Preserves monitoring, exceedance, response, and reporting evidence.
+    production_variance_visibility:
+      weight: 1.3
+      description: Explains gaps between plan, dispatch, material movement, and actual output.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - mining
+        - fleet-management
+        - industrial-iot
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - mining operations
+        - mine safety
+        - fleet utilization
+  - adapter: reddit
+    params:
+      subreddits:
+        - mining
+        - heavyequipment
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0

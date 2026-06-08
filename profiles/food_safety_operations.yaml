@@ -1,0 +1,92 @@
+name: food_safety_operations
+
+domain:
+  name: food_safety_operations
+  description: >-
+    HACCP programs, supplier quality, sanitation verification, allergen
+    controls, environmental monitoring, corrective actions, recall readiness,
+    and inspection evidence workflows.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - food safety managers
+    - quality assurance teams
+    - plant supervisors
+    - sanitation leads
+    - supplier quality teams
+  target_segments:
+    - food manufacturers
+    - beverage manufacturers
+    - produce packers
+    - multi-site food processors
+  workflows:
+    - HACCP verification
+    - sanitation inspection follow-up
+    - supplier quality review
+    - allergen control checks
+    - recall simulation and execution
+    - corrective action tracking
+  buyer_roles:
+    - VP of food safety
+    - quality assurance director
+    - plant operations leader
+    - regulatory compliance manager
+  hard_constraints:
+    - must support inspection readiness and audit evidence retention
+    - must preserve lot, batch, supplier, allergen, and sanitation traceability
+    - must support recall readiness and rapid product hold decisions
+    - must prioritize food safety requirements over convenience or throughput
+  bad_idea_patterns:
+    - food safety dashboard without corrective action workflow
+    - recall tool without lot, supplier, shipment, and hold evidence
+    - sanitation checklist disconnected from verification and deviation follow-up
+  good_idea_criteria:
+    - improves hazard control, audit readiness, or recall response time
+    - connects safety checks to accountable corrective actions
+    - preserves evidence across suppliers, production lots, sanitation, and shipments
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    traceability:
+      weight: 1.5
+      description: Links ingredients, suppliers, lots, allergens, production runs, holds, and shipments.
+    hazard_control:
+      weight: 1.5
+      description: Supports HACCP, sanitation, allergen, environmental, and deviation controls.
+    audit_readiness:
+      weight: 1.3
+      description: Maintains inspection-ready records and clear review status.
+    corrective_action_followthrough:
+      weight: 1.3
+      description: Tracks owners, due dates, verification, and closure evidence for safety findings.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - food-safety
+        - haccp
+        - quality-management
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - food safety
+        - HACCP
+        - recall management
+  - adapter: reddit
+    params:
+      subreddits:
+        - foodsafety
+        - foodscience
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0

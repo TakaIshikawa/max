@@ -1,0 +1,94 @@
+name: energy_grid_operations
+
+domain:
+  name: energy_grid_operations
+  description: >-
+    Utility grid monitoring, outage restoration, asset inspection, vegetation
+    management, distributed energy resource coordination, switching support, and
+    regulatory reporting for electric utility operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - grid operators
+    - outage managers
+    - distribution engineers
+    - field crews
+    - vegetation management teams
+    - regulatory compliance teams
+  target_segments:
+    - electric utilities
+    - distribution system operators
+    - municipal utilities
+    - utility vegetation management contractors
+  workflows:
+    - outage triage and restoration
+    - feeder and substation monitoring
+    - asset inspection follow-up
+    - vegetation risk scheduling
+    - DER interconnection coordination
+    - reliability and regulatory reporting
+  buyer_roles:
+    - VP of grid operations
+    - distribution operations leader
+    - reliability compliance manager
+    - field operations director
+  hard_constraints:
+    - must prioritize worker, public, and electrical safety
+    - must support regulated reliability, outage, inspection, and compliance reporting
+    - must protect critical infrastructure information and operational access paths
+    - must preserve operational resilience during storms, cyber events, and equipment failures
+  bad_idea_patterns:
+    - generic grid dashboard without outage, switching, or crew action workflow
+    - asset risk score without inspection evidence, location context, or remediation ownership
+    - DER visibility tool disconnected from reliability, interconnection, and operating constraints
+  good_idea_criteria:
+    - improves outage containment, restoration sequencing, or crew readiness
+    - connects grid telemetry, asset records, field evidence, and compliance reports
+    - reduces safety risk or reliability risk through operational decisions, not passive charts
+
+domain_quality:
+  enabled: true
+  min_score: 73.0
+  scoring_dimensions:
+    safety_criticality:
+      weight: 1.5
+      description: Accounts for worker safety, public safety, switching risk, and field hazard controls.
+    grid_reliability:
+      weight: 1.5
+      description: Improves outage containment, restoration time, asset health, or reliability metrics.
+    field_readiness:
+      weight: 1.3
+      description: Gives crews actionable location, asset, vegetation, parts, and work package context.
+    compliance_traceability:
+      weight: 1.4
+      description: Preserves evidence for inspections, outage reporting, reliability standards, and regulatory filings.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - energy
+        - smart-grid
+        - utilities
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - grid operations
+        - electric utility
+        - outage management
+  - adapter: reddit
+    params:
+      subreddits:
+        - energy
+        - utilities
+        - electricalengineering
+
+evaluation:
+  weight_profile: default
+  min_score: 59.0

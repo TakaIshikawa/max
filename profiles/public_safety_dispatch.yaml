@@ -1,0 +1,92 @@
+name: public_safety_dispatch
+
+domain:
+  name: public_safety_dispatch
+  description: >-
+    Emergency call intake, CAD coordination, unit dispatch, mutual aid,
+    incident documentation, radio and field handoffs, after-action reporting,
+    and public safety operations oversight.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - dispatchers
+    - dispatch supervisors
+    - first responders
+    - emergency managers
+    - municipal IT and operations teams
+  target_segments:
+    - emergency communications centers
+    - municipal public safety agencies
+    - county dispatch authorities
+    - regional mutual aid networks
+  workflows:
+    - emergency call intake
+    - CAD incident coordination
+    - unit dispatch and status tracking
+    - mutual aid request management
+    - incident documentation
+    - after-action review
+  buyer_roles:
+    - public safety communications director
+    - emergency management director
+    - police or fire operations chief
+    - municipal technology leader
+  hard_constraints:
+    - must preserve human accountability for dispatch and escalation decisions
+    - must support safety-critical handoffs with auditable incident records
+    - must integrate with CAD, radio, GIS, records, or notification systems
+    - must meet public records, retention, privacy, and reliability expectations
+  bad_idea_patterns:
+    - autonomous dispatch decisioning without trained human accountability
+    - response-time dashboard without CAD workflow and incident evidence
+    - incident summarizer that omits source events, unit status, or review trail
+  good_idea_criteria:
+    - reduces call handling, dispatch, or mutual aid coordination delays
+    - improves safety-critical handoffs between dispatchers and responders
+    - preserves incident documentation, review trails, and integration readiness
+
+domain_quality:
+  enabled: true
+  min_score: 74.0
+  scoring_dimensions:
+    response_time_impact:
+      weight: 1.4
+      description: Improves call intake, dispatch, unit status, mutual aid, or escalation timing.
+    safety_critical_handoffs:
+      weight: 1.5
+      description: Protects clarity and accountability across dispatcher, responder, and supervisor handoffs.
+    auditability:
+      weight: 1.4
+      description: Preserves CAD events, communications, decisions, timestamps, and after-action evidence.
+    integration_readiness:
+      weight: 1.3
+      description: Fits CAD, GIS, radio, records, alerting, and municipal IT constraints.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - public-safety
+        - dispatch
+        - emergency-management
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - public safety dispatch
+        - emergency dispatch
+        - CAD system
+  - adapter: reddit
+    params:
+      subreddits:
+        - 911dispatchers
+        - ems
+
+evaluation:
+  weight_profile: default
+  min_score: 59.0
