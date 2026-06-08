@@ -190,6 +190,13 @@ from max.exports.signal_source_duplicate_rate_report import generate_signal_sour
 from max.exports.spec_evidence_citation_quality_report import generate_spec_evidence_citation_quality_report
 from max.exports.source_adapter_circuit_breaker_churn_report import generate_source_adapter_circuit_breaker_churn_report
 from max.exports.source_adapter_credential_rotation_readiness_report import generate_source_adapter_credential_rotation_readiness_report
+from max.exports.buildable_unit_graduation_criteria_report import generate_buildable_unit_graduation_criteria_report
+from max.exports.buildable_unit_stack_policy_report import generate_buildable_unit_stack_policy_report
+from max.exports.domain_profile_schema_drift_report import generate_domain_profile_schema_drift_report
+from max.exports.embedding_cache_hit_rate_report import generate_embedding_cache_hit_rate_report
+from max.exports.insight_evidence_chain_gap_report import generate_insight_evidence_chain_gap_report
+from max.exports.publisher_destination_quota_report import generate_publisher_destination_quota_report
+from max.exports.spec_evidence_freshness_report import generate_spec_evidence_freshness_report
 from max.exports.compliance_evidence_packet import (
     build_compliance_evidence_packet,
     render_compliance_evidence_packet_csv,
@@ -1258,4 +1265,11 @@ __all__ = [
     "generate_spec_evidence_citation_quality_report",
     "generate_source_adapter_circuit_breaker_churn_report",
     "generate_source_adapter_credential_rotation_readiness_report",
+    "generate_buildable_unit_graduation_criteria_report",
+    "generate_buildable_unit_stack_policy_report",
+    "generate_domain_profile_schema_drift_report",
+    "generate_embedding_cache_hit_rate_report",
+    "generate_insight_evidence_chain_gap_report",
+    "generate_publisher_destination_quota_report",
+    "generate_spec_evidence_freshness_report",
 ]
