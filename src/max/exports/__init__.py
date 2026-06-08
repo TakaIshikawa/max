@@ -59,6 +59,7 @@ from max.exports.synthesis_batch_backlog import (
     generate_synthesis_batch_backlog_report,
     render_synthesis_batch_backlog_json,
 )
+from max.exports.synthesis_throughput_report import generate_synthesis_throughput_report
 from max.exports.eval_goldens_coverage_gap_report import generate_eval_goldens_coverage_gap_report
 from max.exports.embedding_dimension_mismatch_report import generate_embedding_dimension_mismatch_report
 from max.exports.profile_weight_conflict_report import generate_profile_weight_conflict_report
@@ -181,6 +182,7 @@ from max.exports.signal_annotation_gap_report import generate_signal_annotation_
 from max.exports.source_credential_scope_report import generate_source_credential_scope_report
 from max.exports.spec_evidence_trace_gap_report import generate_spec_evidence_trace_gap_report
 from max.exports.buildable_unit_approval_readiness_report import generate_buildable_unit_approval_readiness_report
+from max.exports.buildable_unit_evidence_depth_report import generate_buildable_unit_evidence_depth_report
 from max.exports.feedback_loop_weight_impact_report import generate_feedback_loop_weight_impact_report
 from max.exports.idea_spec_conversion_funnel_report import generate_idea_spec_conversion_funnel_report
 from max.exports.insight_evidence_source_diversity_report import generate_insight_evidence_source_diversity_report
@@ -208,6 +210,7 @@ from max.exports.publisher_destination_quota_report import generate_publisher_de
 from max.exports.signal_annotation_coverage_report import generate_signal_annotation_coverage_report
 from max.exports.source_adapter_schema_compatibility_report import generate_source_adapter_schema_compatibility_report
 from max.exports.source_adapter_backfill_completeness_report import generate_source_adapter_backfill_completeness_report
+from max.exports.source_adapter_payload_size_report import generate_source_adapter_payload_size_report
 from max.exports.source_adapter_pagination_anomaly_report import generate_source_adapter_pagination_anomaly_report
 from max.exports.spec_acceptance_criteria_completeness_report import generate_spec_acceptance_criteria_completeness_report
 from max.exports.spec_dependency_pin_report import generate_spec_dependency_pin_report
@@ -1241,6 +1244,7 @@ __all__ = [
     "render_signal_source_noise_report_markdown",
     "generate_synthesis_batch_backlog_report",
     "render_synthesis_batch_backlog_json",
+    "generate_synthesis_throughput_report",
     "generate_eval_goldens_coverage_gap_report",
     "generate_embedding_dimension_mismatch_report",
     "generate_profile_weight_conflict_report",
@@ -1270,6 +1274,7 @@ __all__ = [
     "generate_source_credential_scope_report",
     "generate_spec_evidence_trace_gap_report",
     "generate_buildable_unit_approval_readiness_report",
+    "generate_buildable_unit_evidence_depth_report",
     "generate_feedback_loop_weight_impact_report",
     "generate_idea_spec_conversion_funnel_report",
     "generate_insight_evidence_source_diversity_report",
@@ -1289,5 +1294,6 @@ __all__ = [
     "generate_insight_evidence_chain_gap_report",
     "generate_publisher_destination_quota_report",
     "generate_signal_annotation_coverage_report",
+    "generate_source_adapter_payload_size_report",
     "generate_spec_evidence_freshness_report",
 ]
