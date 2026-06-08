@@ -31,7 +31,7 @@ def test_google_workspace_developer_changelog_parses_entries_to_news_signals() -
 
 @pytest.mark.asyncio
 async def test_google_workspace_developer_changelog_filters_without_optional_fields(monkeypatch) -> None:
-    monkeypatch.setattr("max.sources.netlify_changelog._now", lambda: datetime(2026, 6, 2, tzinfo=timezone.utc))
+    monkeypatch.setattr("max.sources.twilio_changelog._now", lambda: datetime(2026, 6, 2, tzinfo=timezone.utc))
     adapter = GoogleWorkspaceDeveloperChangelogAdapter({"payload": RSS, "products": ["drive"], "keywords": ["labels"], "max_age_days": 7})
 
     signals = await adapter.fetch(limit=10)
