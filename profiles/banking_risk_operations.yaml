@@ -1,0 +1,92 @@
+name: banking_risk_operations
+
+domain:
+  name: banking_risk_operations
+  description: >-
+    Operational risk, model risk, policy exceptions, issue management,
+    regulatory exams, control testing, and evidence collection across banking
+    risk operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - operational risk managers
+    - model risk teams
+    - control testers
+    - compliance officers
+    - internal audit teams
+  target_segments:
+    - regional banks
+    - community banks
+    - regulated fintech lenders
+    - enterprise bank risk functions
+  workflows:
+    - operational risk event intake
+    - model validation evidence collection
+    - policy exception review
+    - issue and remediation tracking
+    - regulatory exam response
+    - control testing and attestation
+  buyer_roles:
+    - chief risk officer
+    - head of operational risk
+    - chief compliance officer
+    - internal audit leader
+  hard_constraints:
+    - must maintain auditability for controls, exceptions, issues, and approvals
+    - must align evidence workflows with regulatory expectations and exam response
+    - must enforce data access controls for sensitive customer, model, and risk records
+    - must preserve model and control governance ownership and review history
+  bad_idea_patterns:
+    - risk dashboard without accountable remediation workflow
+    - model risk summary without validation evidence or approval lineage
+    - policy exception tracker disconnected from controls and audit trails
+  good_idea_criteria:
+    - reduces operational risk through earlier triage and clearer ownership
+    - supports evidence-backed remediation with owners, due dates, and closure proof
+    - improves defensible control testing, issue management, or regulatory responses
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    control_traceability:
+      weight: 1.5
+      description: Links controls, tests, owners, exceptions, evidence, and approvals.
+    regulatory_defensibility:
+      weight: 1.4
+      description: Supports exam-ready explanations, records, lineage, and review history.
+    risk_prioritization:
+      weight: 1.3
+      description: Prioritizes issues by exposure, control impact, severity, and time sensitivity.
+    remediation_accountability:
+      weight: 1.5
+      description: Tracks remediation owners, milestones, evidence, validation, and closure.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - risk-management
+        - compliance
+        - banking
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - operational risk
+        - model risk
+        - regulatory compliance
+  - adapter: reddit
+    params:
+      subreddits:
+        - fintech
+        - banking
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0

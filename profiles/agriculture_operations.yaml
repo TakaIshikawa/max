@@ -1,0 +1,92 @@
+name: agriculture_operations
+
+domain:
+  name: agriculture_operations
+  description: >-
+    Crop planning, input management, irrigation scheduling, labor coordination,
+    harvest logistics, traceability, and compliance records for field and
+    packhouse operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - growers
+    - farm operations managers
+    - agronomists
+    - irrigation managers
+    - packhouse teams
+  target_segments:
+    - specialty crop growers
+    - row crop operators
+    - grower cooperatives
+    - packhouse and processing teams
+  workflows:
+    - crop plan updates
+    - input application scheduling
+    - irrigation planning
+    - field labor coordination
+    - harvest load tracking
+    - compliance recordkeeping
+  buyer_roles:
+    - farm owner
+    - director of farm operations
+    - head agronomist
+    - food safety manager
+  hard_constraints:
+    - must preserve field, block, crop, and lot-level traceability
+    - must account for seasonal timing and weather-dependent execution
+    - must support pesticide, water, labor, and food safety compliance records
+    - must work with limited connectivity and field-ready mobile workflows
+  bad_idea_patterns:
+    - farm dashboard without field execution or recordkeeping workflow
+    - generic weather alert disconnected from crop stage and irrigation plans
+    - traceability tool that loses lot, block, or harvest crew context
+  good_idea_criteria:
+    - improves timing of planting, irrigation, input, or harvest decisions
+    - reduces wasted labor, water, chemical, or equipment resources
+    - connects field activity evidence to downstream traceability and audits
+
+domain_quality:
+  enabled: true
+  min_score: 70.0
+  scoring_dimensions:
+    seasonal_timing:
+      weight: 1.4
+      description: Captures crop stage, seasonality, weather windows, and harvest timing.
+    field_execution_evidence:
+      weight: 1.5
+      description: Preserves field, block, crew, input, and activity-level proof.
+    resource_efficiency:
+      weight: 1.2
+      description: Reduces waste in water, inputs, labor, machinery, or cold-chain capacity.
+    supply_chain_traceability:
+      weight: 1.4
+      description: Links field records to lots, loads, packhouse events, and compliance audits.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - agriculture
+        - farm-management
+        - agtech
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - farm operations
+        - precision agriculture
+        - crop planning
+  - adapter: reddit
+    params:
+      subreddits:
+        - farming
+        - agriculture
+
+evaluation:
+  weight_profile: default
+  min_score: 56.0

@@ -1,0 +1,91 @@
+name: telecom_network_operations
+
+domain:
+  name: telecom_network_operations
+  description: >-
+    Telecom NOC workflows, incident triage, capacity planning, field dispatch,
+    SLA reporting, change-risk coordination, and network reliability operations.
+  categories:
+    - application
+    - analytics_tool
+    - automation
+    - data_pipeline
+    - integration
+    - reporting_tool
+    - workflow_tool
+  target_user_types:
+    - NOC engineers
+    - network operations managers
+    - field operations teams
+    - capacity planners
+    - enterprise network buyers
+  target_segments:
+    - telecom operators
+    - broadband providers
+    - managed network service providers
+    - enterprise network operations teams
+  workflows:
+    - outage triage
+    - alarm correlation
+    - capacity planning
+    - field dispatch coordination
+    - SLA evidence reporting
+    - maintenance window and change-risk review
+  buyer_roles:
+    - VP of network operations
+    - NOC director
+    - field operations leader
+    - enterprise network services buyer
+  hard_constraints:
+    - must preserve topology, alarm, customer, and SLA evidence
+    - must integrate with OSS, NMS, ticketing, inventory, or field dispatch systems
+    - must support reliable escalation and handoff during outage conditions
+    - must protect network security, customer data, and change governance
+  bad_idea_patterns:
+    - generic incident dashboard without network topology or alarm context
+    - capacity forecast disconnected from customer SLA and field constraints
+    - change planner without rollback, approval, or outage-risk evidence
+  good_idea_criteria:
+    - contains outages faster through topology-aware triage and ownership
+    - improves SLA reporting with defensible incident and remediation evidence
+    - strengthens NOC-to-field handoffs and change-risk coordination
+
+domain_quality:
+  enabled: true
+  min_score: 72.0
+  scoring_dimensions:
+    outage_containment:
+      weight: 1.5
+      description: Reduces mean time to detect, triage, escalate, or restore network incidents.
+    topology_awareness:
+      weight: 1.5
+      description: Uses circuit, node, customer, dependency, and service-impact context.
+    sla_evidence:
+      weight: 1.3
+      description: Preserves customer-impact, downtime, remediation, and SLA reporting proof.
+    operational_handoff_quality:
+      weight: 1.3
+      description: Improves NOC, field, vendor, and change-management handoffs.
+
+sources:
+  - adapter: github
+    params:
+      topics:
+        - network-operations
+        - telecom
+        - observability
+  - adapter: hackernews
+    params:
+      filter_keywords:
+        - network operations
+        - telecom outage
+        - NOC
+  - adapter: reddit
+    params:
+      subreddits:
+        - networking
+        - telecom
+
+evaluation:
+  weight_profile: default
+  min_score: 58.0
